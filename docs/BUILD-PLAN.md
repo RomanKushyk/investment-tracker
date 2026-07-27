@@ -46,7 +46,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 |---|------|--------|--------|
 | 1 | Scaffold, theme, shell + nav | `feat/scaffold-shell` | **done** (2026-07-27) |
 | 2 | Data layer + seed + tests | `feat/data-layer` | **done** (2026-07-27) |
-| 3 | Daily quotes screen | `feat/daily-quotes` | todo |
+| 3 | Daily quotes screen | `feat/daily-quotes` | **done** (2026-07-27) |
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | todo |
 | 5 | Overview, Portfolio, Attributes | `feat/derived-views` | todo |
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | todo |
@@ -363,16 +363,16 @@ it('formats per README §8', () => {
 **Files:** Create `src/screens/DailyQuotes.tsx` (+ extract row/teaser components as needed), `src/components/ui/*` primitives it needs. Modify nothing in `lib`.
 **Consumes:** `useAssets`, `useSnapshots`, `useSaveSnapshot`, `state/draft`, `quoteInputSchema`, `latestQuotes`, `fmtTable`, `fmtPct`, `fmtDateShort`, `fmtSavedAt`.
 
-- [ ] Branch `feat/daily-quotes`. Reference: design lines 55–146, README §6.1.
-- [ ] Two-column layout (`flex:1 1 560px` main / `flex:1 1 300px; max-width:360px` side, wrap). Side panel is a placeholder card until Task 4.
-- [ ] Header row: h2 + live progress pill "N of 4 filled" (green tint) + date field (react-day-picker, dd.MM.yyyy) pushed right. Inputs initialize from **today's saved snapshot (if any) merged with the draft store** — on seed, REIT is pre-filled 68 702,10 → pill reads "1 of 4 filled".
-- [ ] Asset rows: 34px tinted avatar (2-letter code, asset colorKey tint), name + "₴… yesterday" subline; "yesterday" = the previous snapshot with a quote for that asset (on seed: 25.07 — the copy still says "yesterday"). Numeric input parsed through `quoteInputSchema` (comma or dot decimals) — empty: placeholder = yesterday's quote, "—" chip; filled: green border (`--color-pos-border`) + live delta chip vs yesterday (`+0.11%` = 68 702,10 vs 68 629,36; signed, green/negative).
-- [ ] Draft persistence: inputs read/write `state/draft` (survive reload); date change clears drafts.
-- [ ] Actions row: primary dark pill "Save snapshot" → `useSaveSnapshot` upsert for the selected date (partial quotes allowed) + sonner toast "Snapshot saved"; "Last saved" text = `fmtSavedAt(max savedAt)` (seed shows "25.07, 21:14"); outline pill "Copy yesterday" prefills all inputs with yesterday's quotes.
-- [ ] Yield teaser strip card: "Yield since start:" + per-asset `fmtPct(yieldSinceStart(latestQuotes[i], invested[i]))` + ghost button "Yield chart →" linking `/yield`.
-- [ ] Motion (D7): delta chips re-animate on value change (`key` by value + `animate-in fade-in zoom-in-95`); progress pill count transitions; filled-input green border transitions in; buttons get `transition active:scale-[.97]`; asset rows `animate-in` on mount.
-- [ ] Verify §9 items: typing updates chip + pill live; save persists (check IndexedDB) + toast + last-saved updates; re-save same day replaces (row count in DevTools unchanged); Copy yesterday fills all. `pnpm lint && pnpm typecheck && pnpm test` green; visual diff vs reference.
-- [ ] Commit `feat: add daily quotes entry flow`; squash-merge to `dev`.
+- [x] Branch `feat/daily-quotes`. Reference: design lines 55–146, README §6.1.
+- [x] Two-column layout (`flex:1 1 560px` main / `flex:1 1 300px; max-width:360px` side, wrap). Side panel is a placeholder card until Task 4.
+- [x] Header row: h2 + live progress pill "N of 4 filled" (green tint) + date field (react-day-picker, dd.MM.yyyy) pushed right. Inputs initialize from **today's saved snapshot (if any) merged with the draft store** — on seed, REIT is pre-filled 68 702,10 → pill reads "1 of 4 filled".
+- [x] Asset rows: 34px tinted avatar (2-letter code, asset colorKey tint), name + "₴… yesterday" subline; "yesterday" = the previous snapshot with a quote for that asset (on seed: 25.07 — the copy still says "yesterday"). Numeric input parsed through `quoteInputSchema` (comma or dot decimals) — empty: placeholder = yesterday's quote, "—" chip; filled: green border (`--color-pos-border`) + live delta chip vs yesterday (`+0.11%` = 68 702,10 vs 68 629,36; signed, green/negative).
+- [x] Draft persistence: inputs read/write `state/draft` (survive reload); date change clears drafts.
+- [x] Actions row: primary dark pill "Save snapshot" → `useSaveSnapshot` upsert for the selected date (partial quotes allowed) + sonner toast "Snapshot saved"; "Last saved" text = `fmtSavedAt(max savedAt)` (seed shows "25.07, 21:14"); outline pill "Copy yesterday" prefills all inputs with yesterday's quotes.
+- [x] Yield teaser strip card: "Yield since start:" + per-asset `fmtPct(yieldSinceStart(latestQuotes[i], invested[i]))` + ghost button "Yield chart →" linking `/yield`.
+- [x] Motion (D7): delta chips re-animate on value change (`key` by value + `animate-in fade-in zoom-in-95`); progress pill count transitions; filled-input green border transitions in; buttons get `transition active:scale-[.97]`; asset rows `animate-in` on mount.
+- [x] Verify §9 items: typing updates chip + pill live; save persists (check IndexedDB) + toast + last-saved updates; re-save same day replaces (row count in DevTools unchanged); Copy yesterday fills all. `pnpm lint && pnpm typecheck && pnpm test` green; visual diff vs reference. Verified 2026-07-27 (Chrome DevTools MCP; 43 tests). Known carry-over to Task 7: 360px horizontal overflow is shell-level (Task 1 sidebar) + README §6.1 row minimums — re-verify per the §9 traceability table.
+- [x] Commit `feat: add daily quotes entry flow`; squash-merge to `dev`.
 
 ## Task 4: Transaction form incl. new-asset sub-form
 
