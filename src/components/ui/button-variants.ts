@@ -5,7 +5,7 @@ import { cva } from 'class-variance-authority';
 // (e.g. "Yield chart →") can reuse the classes on an <a>/<Link> while keeping
 // Button.tsx a component-only export for react-refresh.
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2.5 font-display text-[13.5px] transition active:scale-[.97] disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full pr-5 py-2.5 font-display text-[13.5px] transition active:scale-[.97] disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
@@ -20,7 +20,14 @@ export const buttonVariants = cva(
         semibold: 'font-semibold',
         bold: 'font-bold',
       },
+      // Left padding as its own variant (base only sets pr-5) so ghost links
+      // flush against a card edge (e.g. "Open Allocation →", design line 198
+      // `padding-left:0`) can drop it without a className px collision.
+      inset: {
+        normal: 'pl-5',
+        flushLeft: 'pl-0',
+      },
     },
-    defaultVariants: { variant: 'primary', weight: 'semibold' },
+    defaultVariants: { variant: 'primary', weight: 'semibold', inset: 'normal' },
   },
 );
