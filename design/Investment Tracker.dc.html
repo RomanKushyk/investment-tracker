@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/organic-2ccefca3-851e-430b-95d9-9ade44d1d381/styles.css">
+<script src="_ds/organic-2ccefca3-851e-430b-95d9-9ade44d1d381/_ds_bundle.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+a{color:#26262a}a:hover{color:#5c7355}
+input.input,select.input{font-family:inherit;background:#fff}
+button{font-family:inherit}
+.btn{font-family:"Space Grotesk",sans-serif !important;font-weight:600}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+<div data-screen-label="Investment Tracker" style="display:flex;min-height:100vh">
+  <aside style="width:232px;flex:none;background:#26262a;color:#e9e8e6;padding:26px 16px;display:flex;flex-direction:column;gap:3px;border-radius:0 32px 32px 0;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto;overflow-x:hidden">
+    <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#333338;opacity:.7"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin:0 6px 22px;position:relative">
+      <div style="width:36px;height:36px;border-radius:50%;background:#e9e8e6;display:grid;place-items:center;color:#26262a;font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700">{{curSym}}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Kubushka<br><span style="font-family:inherit;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;font-weight:400">Invest tracker</span></div>
+    </div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px;position:relative">Daily entry</div>
+    <sc-for list="{{navDaily}}" as="n" hint-placeholder-count="1">
+      <button onClick="{{n.go}}" style="position:relative;display:block;width:100%;text-align:left;padding:9px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:{{n.bg}};color:{{n.fg}};font-weight:{{n.fw}}" style-hover="opacity:.85">{{n.label}}</button>
+    </sc-for>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px;position:relative">Analytics</div>
+    <sc-for list="{{navAnalytics}}" as="n" hint-placeholder-count="8">
+      <button onClick="{{n.go}}" style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:{{n.bg}};color:{{n.fg}};font-weight:{{n.fw}}" style-hover="opacity:.85">{{n.label}}</button>
+    </sc-for>
+    <div style="margin-top:auto;position:relative;display:flex;background:#333338;border-radius:999px;padding:4px;gap:4px;margin-bottom:10px">
+      <button onClick="{{setUah}}" style="flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:{{uahBg}};color:{{uahFg}}">₴ UAH</button>
+      <button onClick="{{setUsd}}" style="flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:{{usdBg}};color:{{usdFg}}">$ USD</button>
+    </div>
+    <div style="position:relative;background:#333338;border-radius:20px;padding:14px 16px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Total capital</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:21px;color:#fff;font-weight:600">{{sbCap}}</div>
+      <div style="font-size:11px;color:#b9cdb4;font-weight:600">{{sbCapSub}}</div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ═══ ENTRY ═══ -->
+  <sc-if value="{{showEntry}}" hint-placeholder-val="{{true}}">
+  <div style="display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1 1 560px;min-width:0">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap">
+        <h2 style="margin:0;font-size:26px">Daily quotes</h2>
+        <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">1 of 4 filled</span>
+        <div class="field" style="margin-left:auto;flex-direction:row;align-items:center;gap:8px"><label style="margin:0;white-space:nowrap">Date</label><input class="input" style="width:130px;min-height:36px" value="27.07.2026"></div>
+      </div>
+      <p style="font-size:13px;color:#8b8a86;margin:0 0 18px">The everyday ritual — nothing else competes with it.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e3eadf;display:grid;place-items:center;color:#4c5a48;font-size:12px;font-weight:700">RE</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">Inzhur REIT</div><div style="font-size:11px;color:#8b8a86">₴68,629.36 yesterday</div></div>
+          <input class="input" style="flex:1 1 120px;min-width:90px;max-width:160px;text-align:right;border-color:#c9d4c4" value="68 702,10">
+          <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.11%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#efe4e0;display:grid;place-items:center;color:#6d5a53;font-size:12px;font-weight:700">EN</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">Inzhur Energy</div><div style="font-size:11px;color:#8b8a86">₴60,086.09 yesterday</div></div>
+          <input class="input" style="flex:1 1 120px;min-width:90px;max-width:160px;text-align:right" placeholder="60 086,09">
+          <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e4e8eb;display:grid;place-items:center;color:#525c64;font-size:12px;font-weight:700">GB</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">OVDP UA4000238976</div><div style="font-size:11px;color:#8b8a86">₴15,846.30 yesterday</div></div>
+          <input class="input" style="flex:1 1 120px;min-width:90px;max-width:160px;text-align:right" placeholder="15 852,60">
+          <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
+          <div style="flex:1"><div style="font-weight:600;font-size:14px">OVDP UA4000236475</div><div style="font-size:11px;color:#8b8a86">₴4,374.12 yesterday</div></div>
+          <input class="input" style="flex:1 1 120px;min-width:90px;max-width:160px;text-align:right" placeholder="4 375,92">
+          <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;align-items:center;flex-wrap:wrap">
+        <button class="btn" style="background:#26262a;color:#fff;border-radius:999px" style-hover="background:#3d3d42">Save snapshot</button>
+        <button class="btn" style="border:1.5px solid #26262a;color:#26262a;border-radius:999px;background:transparent" style-hover="background:#e9e8e6">Copy yesterday</button>
+        <span style="font-size:12px;color:#8b8a86;margin-left:auto">Last saved 25.07, 21:14</span>
+      </div>
+      <div style="margin-top:24px;background:#fff;border-radius:20px;padding:16px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#26262a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="m7 14 4-4 4 4 5-6"></path></svg>
+        <div style="flex:1;font-size:13px"><strong>Yield since start:</strong> REIT +4.41% · Energy +1.48% · …8976 +2.96% · …6475 +5.20%</div>
+        <button class="btn btn-ghost" onClick="{{goYield}}" style="border-radius:999px;color:#26262a">Yield chart →</button>
+      </div>
+    </div>
+    <aside style="flex:1 1 300px;max-width:360px;display:flex;flex-direction:column;gap:14px">
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600">Transaction</div>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">occasional</span>
+        </div>
+        <p style="font-size:12px;color:#8b8a86;margin:0 0 14px">Deposits, buys, accruals, reinvests — opened only when something happened.</p>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label style="color:#6f6e6a">Date</label><input class="input" value="27.07.2026" style="min-height:36px"></div>
+            <div class="field"><label style="color:#6f6e6a">Type</label><select class="input" style="min-height:36px"><option>Buy</option><option>Sell</option><option>Deposit</option><option>Dividend accrual</option><option>Interest payout</option><option>Reinvest</option><option>Tax</option></select></div>
+          </div>
+          <div class="field"><label style="color:#6f6e6a">Asset</label>
+            <select class="input" style="min-height:36px;border-color:#9a9994"><option>+ New asset…</option><option>Inzhur REIT</option><option>Inzhur Energy</option><option>OVDP UA4000238976</option><option>OVDP UA4000236475</option></select>
+          </div>
+          <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>New asset details</div>
+            <div class="field"><label style="color:#6f6e6a">Name</label><input class="input" placeholder="OVDP UA4000241234" style="background:#f6f5f3;min-height:36px"></div>
+            <div class="field"><label style="color:#6f6e6a">Yield type</label><select class="input" style="background:#f6f5f3;min-height:36px"><option>Fixed coupon</option><option>Dividends</option><option>Capitalization</option><option>Dividends + capitalization</option></select></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field"><label style="color:#6f6e6a">Expected, %</label><input class="input" placeholder="16.5" style="background:#f6f5f3;min-height:36px"></div>
+              <div class="field"><label style="color:#6f6e6a">Target, %</label><input class="input" placeholder="10" style="background:#f6f5f3;min-height:36px"></div>
+            </div>
+            <div class="field"><label style="color:#6f6e6a">Payout schedule</label><select class="input" style="background:#f6f5f3;min-height:36px"><option>At maturity</option><option>Monthly</option><option>Quarterly</option><option>Semi-annual</option></select></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label style="color:#6f6e6a">Amount, ₴</label><input class="input" placeholder="10 000,00" style="min-height:36px"></div>
+            <div class="field"><label style="color:#6f6e6a">Source of funds</label><select class="input" style="min-height:36px"><option>Own funds</option><option>Accrual</option><option>Reinvest (REIT)</option><option>Reinvest (…6475)</option></select></div>
+          </div>
+          <button class="btn" style="background:#26262a;color:#fff;border-radius:999px;font-weight:700" style-hover="background:#3d3d42">Record transaction</button>
+          <sc-if value="{{showHints}}" hint-placeholder-val="{{true}}"><div style="font-size:11px;color:#8b8a86">The “New asset details” block appears only when Asset = “+ New asset…” — existing assets skip it.</div></sc-if>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:20px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Recent transactions</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Reinvest · REIT</span><strong>₴687.02</strong><span style="color:#8b8a86">10.07</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Dividend accrual · REIT</span><strong>₴700.36</strong><span style="color:#8b8a86">10.07</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Coupon · OVDP …6475</span><strong>₴216.00</strong><span style="color:#8b8a86">03.06</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  </sc-if>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <sc-if value="{{showOverview}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Overview</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Portfolio at a glance · 27.07.2026 · rate 44.83 ₴/$</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:26px">
+      <div style="background:#26262a;color:#fff;border-radius:24px;padding:20px 22px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Total capital</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">{{ovCap}}</div>
+        <div style="font-size:12px;color:#b9cdb4">{{ovCapSub}}</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Net result</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#5c7355;white-space:nowrap">{{ovNet}}</div>
+        <div style="font-size:12px;color:#5c7355;font-weight:600">+3.08% since 03.02</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Deposited / Reinvested</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">{{ovDep}}</div>
+        <div style="font-size:12px;color:#8b8a86">{{ovDepSub}}</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Free cash</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">{{ovCash}}</div>
+        <div style="font-size:12px;color:#8b8a86">0.01% of account</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start">
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Assets</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#8ba283"></span><span style="flex:1;font-size:13.5px;font-weight:600">Inzhur REIT</span><span style="font-size:12px;color:#8b8a86">div + cap · 46.1%</span><strong style="font-size:13.5px;width:110px;text-align:right">₴68,702.10</strong><span style="font-size:12px;font-weight:700;color:#5c7355;width:60px;text-align:right">+4.41%</span></div>
+          <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#c2a189"></span><span style="flex:1;font-size:13.5px;font-weight:600">Inzhur Energy</span><span style="font-size:12px;color:#8b8a86">cap · 40.3%</span><strong style="font-size:13.5px;width:110px;text-align:right">₴60,086.09</strong><span style="font-size:12px;font-weight:700;color:#5c7355;width:60px;text-align:right">+1.48%</span></div>
+          <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#98a3ad"></span><span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000238976</span><span style="font-size:12px;color:#8b8a86">coupon · 10.6%</span><strong style="font-size:13.5px;width:110px;text-align:right">₴15,846.30</strong><span style="font-size:12px;font-weight:700;color:#5c7355;width:60px;text-align:right">+2.96%</span></div>
+          <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#a9a8a4"></span><span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000236475</span><span style="font-size:12px;color:#8b8a86">coupon · 2.9%</span><strong style="font-size:13.5px;width:110px;text-align:right">₴4,374.12</strong><span style="font-size:12px;font-weight:700;color:#5c7355;width:60px;text-align:right">+5.20%</span></div>
+        </div>
+        <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+        <div style="display:flex;height:12px;border-radius:999px;overflow:hidden">
+          <div style="width:46.1%;background:#8ba283"></div><div style="width:40.3%;background:#c2a189"></div><div style="width:10.6%;background:#98a3ad"></div><div style="width:3%;background:#a9a8a4"></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#e3eadf;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4c5a48;margin-bottom:6px">Next payouts</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#26262a">
+            <div style="display:flex;justify-content:space-between"><span>REIT dividend</span><strong>~₴715 · 10 Aug</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Coupon …8976</span><strong>₴1,240 · 25 Aug</strong></div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:6px">Rebalance hint</div>
+          <div style="font-size:13px;line-height:1.5">OVDP …8976 is <strong style="color:#a8695a">−6.4%</strong> under its 17% target — top up <strong>₴11,413</strong>.</div>
+          <button class="btn btn-ghost" onClick="{{goAllocation}}" style="border-radius:999px;color:#26262a;align-self:flex-start;padding-left:0">Open Allocation →</button>
+        </div>
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:6px">Income received</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600">₴5,040.94</div>
+          <div style="font-size:12px;color:#8b8a86">dividends ₴3,641.44 · coupons ₴1,399.50</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ BALANCES ═══ -->
+  <sc-if value="{{showBalances}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Balances</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Total capital by daily snapshot, Feb — Jul 2026</p>
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-bottom:22px">
+      <svg viewBox="0 0 760 260" style="width:100%;height:auto;display:block">
+        <g stroke="#e8e7e4"><line x1="50" y1="57" x2="740" y2="57"></line><line x1="50" y1="115" x2="740" y2="115"></line><line x1="50" y1="172" x2="740" y2="172"></line><line x1="50" y1="230" x2="740" y2="230"></line></g>
+        <g font-size="10" fill="#8b8a86"><text x="8" y="61">₴149k</text><text x="8" y="119">₴143k</text><text x="8" y="176">₴137k</text><text x="8" y="234">₴130k</text><text x="50" y="252">20.04</text><text x="262" y="252">18.05</text><text x="474" y="252">22.06</text><text x="700" y="252">26.07</text></g>
+        <path d="M50,163.6 L103,156.4 L156,148.2 L209,128.2 L262,133.6 L315,120.9 L368,110.9 L421,103.6 L474,97.3 L527,86.4 L580,80 L633,71.8 L686,64.5 L739,57.3 L739,230 L50,230 Z" fill="#e3eadf" opacity=".7"></path>
+        <path d="M50,163.6 L103,156.4 L156,148.2 L209,128.2 L262,133.6 L315,120.9 L368,110.9 L421,103.6 L474,97.3 L527,86.4 L580,80 L633,71.8 L686,64.5 L739,57.3" fill="none" stroke="#5c7355" stroke-width="2.5" stroke-linecap="round"></path>
+        <circle cx="739" cy="57.3" r="4" fill="#5c7355"></circle>
+      </svg>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <table class="table" style="font-size:12.5px">
+        <thead><tr><th>Snapshot</th><th style="text-align:right">Inzhur REIT</th><th style="text-align:right">Inzhur Energy</th><th style="text-align:right">OVDP …8976</th><th style="text-align:right">OVDP …6475</th><th style="text-align:right">Cash</th><th style="text-align:right">Total, ₴</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:600">27.07.2026</td><td style="text-align:right">68 702,10</td><td style="text-align:right;color:#b3b2ae">pending</td><td style="text-align:right;color:#b3b2ae">pending</td><td style="text-align:right;color:#b3b2ae">pending</td><td style="text-align:right">7,75</td><td style="text-align:right;color:#b3b2ae">—</td></tr>
+          <tr><td style="font-weight:600">25.07.2026</td><td style="text-align:right">68 629,36</td><td style="text-align:right">60 086,09</td><td style="text-align:right">15 846,30</td><td style="text-align:right">4 374,12</td><td style="text-align:right">7,75</td><td style="text-align:right;font-weight:700">148 943,62</td></tr>
+          <tr><td style="font-weight:600">24.07.2026</td><td style="text-align:right">68 560,90</td><td style="text-align:right">60 050,87</td><td style="text-align:right">15 841,44</td><td style="text-align:right">4 372,60</td><td style="text-align:right">7,75</td><td style="text-align:right;font-weight:700">148 833,56</td></tr>
+          <tr><td style="font-weight:600">23.07.2026</td><td style="text-align:right">68 502,55</td><td style="text-align:right">60 022,61</td><td style="text-align:right">15 836,60</td><td style="text-align:right">4 371,15</td><td style="text-align:right">7,75</td><td style="text-align:right;font-weight:700">148 740,66</td></tr>
+          <tr><td style="font-weight:600">22.07.2026</td><td style="text-align:right">68 478,03</td><td style="text-align:right">60 001,12</td><td style="text-align:right">15 833,35</td><td style="text-align:right">4 370,02</td><td style="text-align:right">7,75</td><td style="text-align:right;font-weight:700">148 690,27</td></tr>
+          <tr><td style="font-weight:600">21.07.2026</td><td style="text-align:right">68 450,12</td><td style="text-align:right">59 980,44</td><td style="text-align:right">15 830,10</td><td style="text-align:right">4 368,90</td><td style="text-align:right">7,75</td><td style="text-align:right;font-weight:700">148 637,31</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:11.5px;color:#8b8a86;margin-top:10px">Showing last 6 snapshots · 174 total since 03.02.2026</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ PAYOUTS ═══ -->
+  <sc-if value="{{showPayouts}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Payouts</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Dividends and coupons received, by month</p>
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;margin-bottom:22px;align-items:start">
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;gap:16px;font-size:11.5px;color:#6f6e6a;margin-bottom:8px"><span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#8ba283;margin-right:6px"></span>Dividends</span><span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#98a3ad;margin-right:6px"></span>Coupons</span></div>
+        <svg viewBox="0 0 760 240" style="width:100%;height:auto;display:block">
+          <line x1="40" y1="210" x2="740" y2="210" stroke="#e8e7e4"></line>
+          <g>
+            <rect x="70" y="155" width="46" height="55" rx="6" fill="#8ba283"></rect><rect x="70" y="43" width="46" height="108" rx="6" fill="#98a3ad"></rect>
+            <rect x="185" y="154" width="46" height="56" rx="6" fill="#8ba283"></rect>
+            <rect x="300" y="152" width="46" height="58" rx="6" fill="#8ba283"></rect>
+            <rect x="415" y="149" width="46" height="61" rx="6" fill="#8ba283"></rect>
+            <rect x="530" y="146" width="46" height="64" rx="6" fill="#8ba283"></rect><rect x="530" y="122" width="46" height="20" rx="6" fill="#98a3ad"></rect>
+            <rect x="645" y="144" width="46" height="66" rx="6" fill="#8ba283"></rect>
+          </g>
+          <g font-size="10.5" fill="#8b8a86" text-anchor="middle"><text x="93" y="228">Feb</text><text x="208" y="228">Mar</text><text x="323" y="228">Apr</text><text x="438" y="228">May</text><text x="553" y="228">Jun</text><text x="668" y="228">Jul</text></g>
+          <g font-size="10.5" fill="#26262a" text-anchor="middle" font-weight="700"><text x="93" y="33">1 763,70</text><text x="208" y="144">595,80</text><text x="323" y="142">612,40</text><text x="438" y="139">648,13</text><text x="553" y="112">896,55</text><text x="668" y="134">700,36</text></g>
+        </svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#26262a;color:#fff;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Received total</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴5,040.94</div>
+          <div style="font-size:12px;color:#b9cdb4">₴3,641.44 dividends · ₴1,399.50 coupons</div>
+        </div>
+        <div style="background:#e3eadf;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4c5a48;margin-bottom:6px">Upcoming</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div style="display:flex;justify-content:space-between"><span>REIT dividend</span><strong>~₴715 · 10 Aug</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Coupon …8976</span><strong>₴1,240 · 25 Aug</strong></div>
+            <div style="display:flex;justify-content:space-between"><span>Coupon …6475</span><strong>₴232 · at maturity</strong></div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Reinvested</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600">₴1,387.38</div>
+          <div style="font-size:12px;color:#8b8a86">27.5% of received income</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <table class="table" style="font-size:12.5px">
+        <thead><tr><th>Date</th><th>Asset</th><th>Type</th><th style="text-align:right">Amount, ₴</th><th>Destination</th></tr></thead>
+        <tbody>
+          <tr><td>10.07.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">700,36</td><td>reinvested (₴687,02)</td></tr>
+          <tr><td>10.06.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">680,55</td><td>reinvested</td></tr>
+          <tr><td>03.06.2026</td><td style="font-weight:600">OVDP UA4000236475</td><td><span class="tag tag-neutral" style="background:#e4e8eb;color:#525c64">coupon</span></td><td style="text-align:right;font-weight:700">216,00</td><td>reinvested</td></tr>
+          <tr><td>12.05.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">648,13</td><td>account</td></tr>
+          <tr><td>10.04.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">612,40</td><td>account</td></tr>
+          <tr><td>10.03.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">595,80</td><td>account</td></tr>
+          <tr><td>25.02.2026</td><td style="font-weight:600">OVDP UA4000238976</td><td><span class="tag tag-neutral" style="background:#e4e8eb;color:#525c64">coupon</span></td><td style="text-align:right;font-weight:700">1 183,50</td><td>account</td></tr>
+          <tr><td>10.02.2026</td><td style="font-weight:600">Inzhur REIT</td><td><span class="tag tag-accent-2" style="background:#e3eadf;color:#4c5a48">dividend</span></td><td style="text-align:right;font-weight:700">580,20</td><td>account</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ YIELD ═══ -->
+  <sc-if value="{{showYield}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Yield</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Cumulative return per asset since first purchase, %</p>
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-bottom:22px">
+      <div style="display:flex;gap:18px;font-size:11.5px;color:#6f6e6a;margin-bottom:8px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8ba283;margin-right:6px"></span>Inzhur REIT</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#c2a189;margin-right:6px"></span>Inzhur Energy</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#98a3ad;margin-right:6px"></span>OVDP …8976</span>
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#5f5e5a;margin-right:6px"></span>OVDP …6475</span>
+      </div>
+      <svg viewBox="0 0 780 280" style="width:100%;height:auto;display:block">
+        <g stroke="#e8e7e4"><line x1="50" y1="208.6" x2="740" y2="208.6"></line><line x1="50" y1="145.7" x2="740" y2="145.7"></line><line x1="50" y1="82.9" x2="740" y2="82.9"></line><line x1="50" y1="20" x2="740" y2="20"></line></g>
+        <g font-size="10" fill="#8b8a86"><text x="16" y="212">0%</text><text x="16" y="149">+2%</text><text x="16" y="86">+4%</text><text x="16" y="24">+6%</text><text x="50" y="266">20.04</text><text x="262" y="266">18.05</text><text x="474" y="266">22.06</text><text x="700" y="266">26.07</text></g>
+        <path d="M50,208.6 L103,199.1 L156,192.9 L209,180.3 L262,170.9 L315,158.3 L368,142.6 L421,130 L474,120.6 L527,108 L580,98.6 L633,86 L686,76.6 L739,70.3" fill="none" stroke="#8ba283" stroke-width="2.5" stroke-linecap="round"></path>
+        <path d="M50,208.6 L103,205.4 L156,202.3 L209,196 L262,199.1 L315,192.9 L368,186.6 L421,183.4 L474,177.1 L527,174 L580,170.9 L633,167.7 L686,164.6 L739,162.1" fill="none" stroke="#c2a189" stroke-width="2.5" stroke-linecap="round"></path>
+        <path d="M50,208.6 L103,202.3 L156,196 L209,192.9 L262,183.4 L315,177.1 L368,167.7 L421,161.4 L474,152 L527,145.7 L580,136.3 L633,126.9 L686,120.6 L739,115.6" fill="none" stroke="#98a3ad" stroke-width="2.5" stroke-linecap="round"></path>
+        <path d="M50,208.6 L103,196 L156,183.4 L209,174 L262,161.4 L315,148.9 L368,136.3 L421,120.6 L474,108 L527,95.4 L580,79.7 L633,64 L686,54.6 L739,45.8" fill="none" stroke="#5f5e5a" stroke-width="2.5" stroke-linecap="round"></path>
+        <g><circle cx="739" cy="70.3" r="4" fill="#8ba283"></circle><circle cx="739" cy="162.1" r="4" fill="#c2a189"></circle><circle cx="739" cy="115.6" r="4" fill="#98a3ad"></circle><circle cx="739" cy="45.8" r="4" fill="#5f5e5a"></circle></g>
+      </svg>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <table class="table" style="font-size:12.5px">
+        <thead><tr><th>Asset</th><th style="text-align:right">Invested, ₴</th><th style="text-align:right">Value now, ₴</th><th style="text-align:right">Δ total</th><th style="text-align:right">Annualized</th><th style="text-align:right">vs expected</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:600">Inzhur REIT</td><td style="text-align:right">65 800,00</td><td style="text-align:right">68 702,10</td><td style="text-align:right;color:#5c7355;font-weight:700">+4.41%</td><td style="text-align:right">+9.3%</td><td style="text-align:right;color:#a8695a">−4.7 pp</td></tr>
+          <tr><td style="font-weight:600">Inzhur Energy</td><td style="text-align:right">59 208,00</td><td style="text-align:right">60 086,09</td><td style="text-align:right;color:#5c7355;font-weight:700">+1.48%</td><td style="text-align:right">+3.1%</td><td style="text-align:right;color:#a8695a">−6.9 pp</td></tr>
+          <tr><td style="font-weight:600">OVDP UA4000238976</td><td style="text-align:right">15 390,00</td><td style="text-align:right">15 846,30</td><td style="text-align:right;color:#5c7355;font-weight:700">+2.96%</td><td style="text-align:right">+6.2%</td><td style="text-align:right;color:#a8695a">−10.2 pp</td></tr>
+          <tr><td style="font-weight:600">OVDP UA4000236475</td><td style="text-align:right">4 158,00</td><td style="text-align:right">4 374,12</td><td style="text-align:right;color:#5c7355;font-weight:700">+5.20%</td><td style="text-align:right">+10.9%</td><td style="text-align:right;color:#a8695a">−4.3 pp</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:11.5px;color:#8b8a86;margin-top:10px">Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual.</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ ATTRIBUTES ═══ -->
+  <sc-if value="{{showAttributes}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Attributes</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Reference data per asset — edited rarely, via the New-asset step of a transaction</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#e3eadf;display:grid;place-items:center;color:#4c5a48;font-size:12px;font-weight:700">RE</div>
+          <h3 style="margin:0;font-size:17px">Inzhur REIT</h3>
+          <span class="tag" style="background:#e3eadf;color:#4c5a48;margin-left:auto">div + cap</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.5px">
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Expected return</div><strong>14.0% / yr</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Actual (ann.)</div><strong style="color:#5c7355">+9.3%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Payout schedule</div><strong>Monthly · ~10th</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Target share</div><strong>40%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">First purchase</div><strong>03.02.2026</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Reinvest policy</div><strong>Auto (dividends)</strong></div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#efe4e0;display:grid;place-items:center;color:#6d5a53;font-size:12px;font-weight:700">EN</div>
+          <h3 style="margin:0;font-size:17px">Inzhur Energy</h3>
+          <span class="tag" style="background:#efe4e0;color:#6d5a53;margin-left:auto">capitalization</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.5px">
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Expected return</div><strong>10.0% / yr</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Actual (ann.)</div><strong style="color:#5c7355">+3.1%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Payout schedule</div><strong>None (price only)</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Target share</div><strong>40%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">First purchase</div><strong>03.02.2026</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Reinvest policy</div><strong>—</strong></div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#e4e8eb;display:grid;place-items:center;color:#525c64;font-size:12px;font-weight:700">GB</div>
+          <h3 style="margin:0;font-size:17px">OVDP UA4000238976</h3>
+          <span class="tag" style="background:#e4e8eb;color:#525c64;margin-left:auto">fixed coupon</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.5px">
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">YTM at purchase</div><strong>16.4% / yr</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Coupon</div><strong>₴1,240 semi-annual</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Maturity</div><strong>25.02.2027</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Target share</div><strong>17%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">First purchase</div><strong>05.02.2026</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Next coupon</div><strong>25.08.2026</strong></div>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
+          <h3 style="margin:0;font-size:17px">OVDP UA4000236475</h3>
+          <span class="tag" style="background:#e8e7e4;color:#5f5e5a;margin-left:auto">fixed coupon</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:12.5px">
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">YTM at purchase</div><strong>15.2% / yr</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Coupon</div><strong>₴216 semi-annual</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Maturity</div><strong>27.05.2027</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Target share</div><strong>3%</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">First purchase</div><strong>02.06.2026</strong></div>
+          <div><div style="color:#8b8a86;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em">Next coupon</div><strong>03.12.2026</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ SEASONALITY ═══ -->
+  <sc-if value="{{showSeasonality}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Seasonality</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">When money actually arrives — income by day of month, Feb – Jul 2026</p>
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-bottom:14px">
+      <svg viewBox="0 0 760 230" style="width:100%;height:auto;display:block">
+        <line x1="24" y1="200" x2="740" y2="200" stroke="#e8e7e4"></line>
+        <g fill="#d7d5d1">
+          <rect x="30" y="197" width="15" height="3" rx="1.5"></rect><rect x="53" y="196" width="15" height="4" rx="2"></rect>
+          <rect x="99" y="195" width="15" height="5" rx="2"></rect><rect x="122" y="197" width="15" height="3" rx="1.5"></rect>
+          <rect x="145" y="196" width="15" height="4" rx="2"></rect><rect x="168" y="197" width="15" height="3" rx="1.5"></rect>
+          <rect x="191" y="195" width="15" height="5" rx="2"></rect><rect x="237" y="196" width="15" height="4" rx="2"></rect>
+          <rect x="260" y="197" width="15" height="3" rx="1.5"></rect><rect x="283" y="195" width="15" height="5" rx="2"></rect>
+          <rect x="306" y="196" width="15" height="4" rx="2"></rect><rect x="352" y="197" width="15" height="3" rx="1.5"></rect>
+          <rect x="375" y="196" width="15" height="4" rx="2"></rect><rect x="398" y="195" width="15" height="5" rx="2"></rect>
+          <rect x="421" y="197" width="15" height="3" rx="1.5"></rect><rect x="444" y="196" width="15" height="4" rx="2"></rect>
+          <rect x="467" y="197" width="15" height="3" rx="1.5"></rect><rect x="490" y="195" width="15" height="5" rx="2"></rect>
+          <rect x="513" y="196" width="15" height="4" rx="2"></rect><rect x="536" y="197" width="15" height="3" rx="1.5"></rect>
+          <rect x="582" y="196" width="15" height="4" rx="2"></rect><rect x="605" y="197" width="15" height="3" rx="1.5"></rect>
+          <rect x="628" y="195" width="15" height="5" rx="2"></rect><rect x="651" y="196" width="15" height="4" rx="2"></rect>
+          <rect x="674" y="197" width="15" height="3" rx="1.5"></rect><rect x="697" y="196" width="15" height="4" rx="2"></rect>
+        </g>
+        <rect x="76" y="188" width="15" height="12" rx="4" fill="#98a3ad"></rect>
+        <rect x="214" y="20" width="15" height="180" rx="6" fill="#8ba283"></rect>
+        <rect x="329" y="140" width="15" height="60" rx="6" fill="#98a3ad"></rect>
+        <rect x="559" y="132" width="15" height="68" rx="6" fill="#98a3ad"></rect>
+        <g font-size="10" fill="#8b8a86" text-anchor="middle"><text x="37" y="216">1</text><text x="129" y="216">5</text><text x="244" y="216">10</text><text x="359" y="216">15</text><text x="474" y="216">20</text><text x="589" y="216">25</text><text x="704" y="216">31</text></g>
+        <g font-size="10.5" font-weight="700" text-anchor="middle"><text x="221" y="14" fill="#4c5a48">₴3,817 · day 10</text><text x="336" y="134" fill="#525c64">₴1,184</text><text x="566" y="126" fill="#525c64">₴1,240*</text></g>
+      </svg>
+      <div style="font-size:11.5px;color:#8b8a86;margin-top:8px">* expected — first …8976 coupon of H2 lands on the 25th. Gray stubs = ordinary price-drift days with no income.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+      <div style="background:#e3eadf;border-radius:24px;padding:20px 22px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4c5a48;margin-bottom:4px">Income anchor</div>
+        <div style="font-size:13.5px;line-height:1.5"><strong>Day 10</strong> is the paycheck: REIT dividends land every month, ₴580 → ₴700 and growing.</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:4px">Coupon season</div>
+        <div style="font-size:13.5px;line-height:1.5"><strong>Feb & Aug (day 25)</strong> carry the big …8976 coupons; …6475 pays in early June.</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:4px">Quiet stretch</div>
+        <div style="font-size:13.5px;line-height:1.5"><strong>Days 26–31</strong> see almost no cash events — a good window for rebalancing buys.</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ PORTFOLIO ═══ -->
+  <sc-if value="{{showPortfolio}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Portfolio</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Positions, cost basis and result per asset</p>
+    <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-bottom:14px">
+      <table class="table" style="font-size:12.5px">
+        <thead><tr><th>Asset</th><th>Yield type</th><th style="text-align:right">Invested, ₴</th><th style="text-align:right">of it reinvested</th><th style="text-align:right">Value now, ₴</th><th style="text-align:right">P&L, ₴</th><th style="text-align:right">P&L, %</th><th style="text-align:right">Share</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:600">Inzhur REIT</td><td><span class="tag" style="background:#e3eadf;color:#4c5a48">div + cap</span></td><td style="text-align:right">65 800,00</td><td style="text-align:right">1 171,38</td><td style="text-align:right">68 702,10</td><td style="text-align:right;color:#5c7355;font-weight:700">+2 902,10</td><td style="text-align:right;color:#5c7355;font-weight:700">+4.41%</td><td style="text-align:right">46.1%</td></tr>
+          <tr><td style="font-weight:600">Inzhur Energy</td><td><span class="tag" style="background:#efe4e0;color:#6d5a53">cap</span></td><td style="text-align:right">59 208,00</td><td style="text-align:right">—</td><td style="text-align:right">60 086,09</td><td style="text-align:right;color:#5c7355;font-weight:700">+878,09</td><td style="text-align:right;color:#5c7355;font-weight:700">+1.48%</td><td style="text-align:right">40.3%</td></tr>
+          <tr><td style="font-weight:600">OVDP UA4000238976</td><td><span class="tag" style="background:#e4e8eb;color:#525c64">coupon</span></td><td style="text-align:right">15 390,00</td><td style="text-align:right">—</td><td style="text-align:right">15 846,30</td><td style="text-align:right;color:#5c7355;font-weight:700">+456,30</td><td style="text-align:right;color:#5c7355;font-weight:700">+2.96%</td><td style="text-align:right">10.6%</td></tr>
+          <tr><td style="font-weight:600">OVDP UA4000236475</td><td><span class="tag" style="background:#e8e7e4;color:#5f5e5a">coupon</span></td><td style="text-align:right">4 158,00</td><td style="text-align:right">216,00</td><td style="text-align:right">4 374,12</td><td style="text-align:right;color:#5c7355;font-weight:700">+216,12</td><td style="text-align:right;color:#5c7355;font-weight:700">+5.20%</td><td style="text-align:right">2.9%</td></tr>
+          <tr style="border-top:2px solid #dedcd8"><td style="font-weight:700">Total + cash ₴7.75</td><td></td><td style="text-align:right;font-weight:700">144 556,00</td><td style="text-align:right;font-weight:700">1 387,38</td><td style="text-align:right;font-weight:700">149 016,36</td><td style="text-align:right;color:#5c7355;font-weight:700">+4 452,61</td><td style="text-align:right;color:#5c7355;font-weight:700">+3.08%</td><td style="text-align:right;font-weight:700">100%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Best performer</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600">OVDP …6475</div>
+        <div style="font-size:12px;color:#5c7355;font-weight:700">+5.20% in 8 weeks</div>
+      </div>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Laggard</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600">Inzhur Energy</div>
+        <div style="font-size:12px;color:#8b8a86">+1.48% · watch vs 10% expected</div>
+      </div>
+      <div style="background:#e3eadf;border-radius:24px;padding:20px 22px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#4c5a48">Income engine</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600">Inzhur REIT</div>
+        <div style="font-size:12px;color:#4c5a48">₴3,641 dividends · auto-reinvested</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ ALLOCATION ═══ -->
+  <sc-if value="{{showAllocation}}" hint-placeholder-val="{{false}}">
+  <div>
+    <h2 style="margin:0 0 4px;font-size:26px">Allocation</h2>
+    <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Current mix vs targets set in asset attributes</p>
+    <div style="display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start">
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;flex-direction:column;align-items:center">
+        <svg viewBox="0 0 220 220" style="width:220px;height:220px">
+          <g transform="rotate(-90 110 110)">
+            <circle cx="110" cy="110" r="70" fill="none" stroke="#8ba283" stroke-width="30" pathLength="100" stroke-dasharray="45.6 54.4" stroke-dashoffset="0"></circle>
+            <circle cx="110" cy="110" r="70" fill="none" stroke="#c2a189" stroke-width="30" pathLength="100" stroke-dasharray="40.3 59.7" stroke-dashoffset="-46.1"></circle>
+            <circle cx="110" cy="110" r="70" fill="none" stroke="#98a3ad" stroke-width="30" pathLength="100" stroke-dasharray="10.1 89.9" stroke-dashoffset="-86.9"></circle>
+            <circle cx="110" cy="110" r="70" fill="none" stroke="#5f5e5a" stroke-width="30" pathLength="100" stroke-dasharray="2.4 97.6" stroke-dashoffset="-97.5"></circle>
+          </g>
+          <text x="110" y="105" text-anchor="middle" font-size="20" font-weight="700" fill="#26262a" font-family="Space Grotesk,sans-serif">₴149k</text>
+          <text x="110" y="124" text-anchor="middle" font-size="11" fill="#8b8a86">4 assets + cash</text>
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;width:100%;margin-top:10px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:50%;background:#8ba283"></span>Inzhur REIT<span style="margin-left:auto;font-weight:700">46.1%</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:50%;background:#c2a189"></span>Inzhur Energy<span style="margin-left:auto;font-weight:700">40.3%</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:50%;background:#98a3ad"></span>OVDP …8976<span style="margin-left:auto;font-weight:700">10.6%</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:9px;height:9px;border-radius:50%;background:#5f5e5a"></span>OVDP …6475<span style="margin-left:auto;font-weight:700">2.9%</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Current vs target</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:600">Inzhur REIT</span><span>46.1% / 40% <strong style="color:#a8695a">+6.1</strong></span></div>
+              <div style="height:10px;border-radius:999px;background:#e8e7e4;position:relative"><div style="width:46.1%;height:100%;border-radius:999px;background:#8ba283"></div><div style="position:absolute;left:40%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:600">Inzhur Energy</span><span>40.3% / 40% <strong style="color:#5c7355">+0.3</strong></span></div>
+              <div style="height:10px;border-radius:999px;background:#e8e7e4;position:relative"><div style="width:40.3%;height:100%;border-radius:999px;background:#c2a189"></div><div style="position:absolute;left:40%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:600">OVDP UA4000238976</span><span>10.6% / 17% <strong style="color:#a8695a">−6.4</strong></span></div>
+              <div style="height:10px;border-radius:999px;background:#e8e7e4;position:relative"><div style="width:10.6%;height:100%;border-radius:999px;background:#98a3ad"></div><div style="position:absolute;left:17%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:600">OVDP UA4000236475</span><span>2.9% / 3% <strong style="color:#5c7355">−0.1</strong></span></div>
+              <div style="height:10px;border-radius:999px;background:#e8e7e4;position:relative"><div style="width:2.9%;height:100%;border-radius:999px;background:#5f5e5a"></div><div style="position:absolute;left:3%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6f6e6a;margin-bottom:8px">Rebalance plan</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div style="display:flex;justify-content:space-between;gap:10px"><span>1 · Buy OVDP …8976</span><strong>+₴11,413</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:10px"><span>2 · Trim Inzhur REIT (or pause reinvest)</span><strong>−₴9,095</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:10px;color:#8b8a86"><span>Energy & …6475</span><span>within ±0.5% — no action</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;defaultTab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;entry&quot;,&quot;options&quot;:[&quot;entry&quot;,&quot;overview&quot;,&quot;balances&quot;,&quot;payouts&quot;,&quot;yield&quot;,&quot;attributes&quot;,&quot;seasonality&quot;,&quot;portfolio&quot;,&quot;allocation&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;defaultCurrency&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;UAH&quot;,&quot;options&quot;:[&quot;UAH&quot;,&quot;USD&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Display&quot;},&quot;showHints&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Display&quot;}}">
+class Component extends DCLogic {
+  state = { tab: null, currency: null };
+  renderVals() {
+    const tab = this.state.tab ?? this.props.defaultTab ?? 'entry';
+    const cur = this.state.currency ?? this.props.defaultCurrency ?? 'UAH';
+    const usd = cur === 'USD';
+    const go = id => () => this.setState({ tab: id });
+    const item = (id, label) => {
+      const a = tab === id;
+      return { label, go: go(id), bg: a ? '#e9e8e6' : 'transparent', fg: a ? '#26262a' : '#cfcecb', fw: a ? '700' : '400' };
+    };
+    return {
+      navDaily: [item('entry', 'Daily quotes')],
+      navAnalytics: [
+        item('overview', 'Overview'), item('balances', 'Balances'), item('payouts', 'Payouts'),
+        item('yield', 'Yield'), item('attributes', 'Attributes'), item('seasonality', 'Seasonality'),
+        item('portfolio', 'Portfolio'), item('allocation', 'Allocation')
+      ],
+      goYield: go('yield'), goAllocation: go('allocation'),
+      showEntry: tab === 'entry', showOverview: tab === 'overview', showBalances: tab === 'balances',
+      showPayouts: tab === 'payouts', showYield: tab === 'yield', showAttributes: tab === 'attributes',
+      showSeasonality: tab === 'seasonality', showPortfolio: tab === 'portfolio', showAllocation: tab === 'allocation',
+      curSym: usd ? '$' : '₴',
+      setUah: () => this.setState({ currency: 'UAH' }),
+      setUsd: () => this.setState({ currency: 'USD' }),
+      uahBg: usd ? 'transparent' : '#e9e8e6', uahFg: usd ? '#96959b' : '#26262a',
+      usdBg: usd ? '#e9e8e6' : 'transparent', usdFg: usd ? '#26262a' : '#96959b',
+      sbCap: usd ? '$3,324.03' : '₴149,016',
+      sbCapSub: usd ? '+3.08% · ₴149,016.36' : '+3.08% · $3,324.03',
+      ovCap: usd ? '$3,324.03' : '₴149,016.36',
+      ovCapSub: usd ? '₴149,016.36 · rate 44.83' : '$3,324.03 · rate 44.83',
+      ovNet: usd ? '+$99.32' : '+₴4,452.61',
+      ovDep: usd ? '$3,193.75' : '₴143,176',
+      ovDepSub: usd ? '+ $30.95 reinvested' : '+ ₴1,387.38 reinvested',
+      ovCash: usd ? '$0.17' : '₴7.75',
+      showHints: this.props.showHints ?? true
+    };
+  }
+}
+</script>
+</body>
+</html>
