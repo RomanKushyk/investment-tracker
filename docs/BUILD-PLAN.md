@@ -48,7 +48,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 2 | Data layer + seed + tests | `feat/data-layer` | **done** (2026-07-27) |
 | 3 | Daily quotes screen | `feat/daily-quotes` | **done** (2026-07-27) |
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | **done** (2026-07-27) |
-| 5 | Overview, Portfolio, Attributes | `feat/derived-views` | todo |
+| 5 | Overview, Portfolio, Attributes | `feat/derived-views` | **done** (2026-07-27) |
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | todo |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | todo |
 
@@ -394,13 +394,13 @@ it('formats per README §8', () => {
 **Files:** Create `src/screens/{Overview,Portfolio,Attributes}.tsx`, shared `components/ui` bits (KPI card, color dot, share bar, tag).
 **Consumes:** all of `derive.ts` + `format.ts`; settings store for currency-aware KPIs.
 
-- [ ] Branch `feat/derived-views`.
-- [ ] Overview (design 147–210, §6.2): subtitle with derived date + rate; KPI grid — Total capital (dark, currency-aware, `headlineTotal`), Net result (green, `netResult` → "+₴4,452.61 / +3.08% since 03.02"), Deposited (`fmtProseWhole(depositedTotal)` → ₴143,176, sub-line "+ ₴1,387.38 reinvested" from `reinvestedTotal`), Free cash (`latestCash`); Assets card with per-asset rows (`latestQuotes` values, yieldSinceStart deltas) + 12px stacked share bar; Next payouts card — bonds from `couponAmount`+`nextCoupon`/`maturity` attributes, dividend assets estimated as their latest dividend amount with "~" prefix and next-schedule date (reference's "~₴715 · 10 Aug" vs derived ~₴700 is accepted mock imprecision — D5); Rebalance hint (top up = `topUpAmount` for the most-underweight asset, "Open Allocation →"); Income received card (`incomeReceived` split → ₴5,040.94).
-- [ ] Portfolio (design 459–495, §6.8): positions table (Asset | Yield-type tag | Invested | of it reinvested (`reinvestedByAsset`) | Value now (`latestQuotes`) | P&L ₴ | P&L % | Share) + bold Total row ("Total + cash ₴7.75", value 149 016,36); Best performer / Laggard / Income engine cards — all computed, not looked up.
-- [ ] Attributes (design 340–409, §6.6): 2×2 asset cards, avatar + h3 + yield-type tag + 2-col `<dl>` of facts; bonds swap in YTM/Coupon/Maturity/Next coupon; Energy renders "None (price only)". "Actual ann." = `annualizedPct` with the global PORTFOLIO_START basis. Read-only.
-- [ ] Motion (D7): KPI cards and asset rows animate in (subtle stagger via `delay-*` is welcome); share-bar segments transition width; hover states on rows/cards transition.
-- [ ] Verify: every figure matches the reference on seed data (per D5 where the reference disagrees with itself); tables formatted `68 702,10`; deltas signed/colored. Gates green; visual diff per screen.
-- [ ] Commit `feat: add overview, portfolio and attributes views`; squash-merge to `dev`.
+- [x] Branch `feat/derived-views`.
+- [x] Overview (design 147–210, §6.2): subtitle with derived date + rate; KPI grid — Total capital (dark, currency-aware, `headlineTotal`), Net result (green, `netResult` → "+₴4,452.61 / +3.08% since 03.02"), Deposited (`fmtProseWhole(depositedTotal)` → ₴143,176, sub-line "+ ₴1,387.38 reinvested" from `reinvestedTotal`), Free cash (`latestCash`); Assets card with per-asset rows (`latestQuotes` values, yieldSinceStart deltas) + 12px stacked share bar; Next payouts card — bonds from `couponAmount`+`nextCoupon`/`maturity` attributes, dividend assets estimated as their latest dividend amount with "~" prefix and next-schedule date (reference's "~₴715 · 10 Aug" vs derived ~₴700 is accepted mock imprecision — D5); Rebalance hint (top up = `topUpAmount` for the most-underweight asset, "Open Allocation →"); Income received card (`incomeReceived` split → ₴5,040.94).
+- [x] Portfolio (design 459–495, §6.8): positions table (Asset | Yield-type tag | Invested | of it reinvested (`reinvestedByAsset`) | Value now (`latestQuotes`) | P&L ₴ | P&L % | Share) + bold Total row ("Total + cash ₴7.75", value 149 016,36); Best performer / Laggard / Income engine cards — all computed, not looked up.
+- [x] Attributes (design 340–409, §6.6): 2×2 asset cards, avatar + h3 + yield-type tag + 2-col `<dl>` of facts; bonds swap in YTM/Coupon/Maturity/Next coupon; Energy renders "None (price only)". "Actual ann." = `annualizedPct` with the global PORTFOLIO_START basis. Read-only.
+- [x] Motion (D7): KPI cards and asset rows animate in (subtle stagger via `delay-*` is welcome); share-bar segments transition width; hover states on rows/cards transition.
+- [x] Verify: every figure matches the reference on seed data (per D5 where the reference disagrees with itself); tables formatted `68 702,10`; deltas signed/colored. Gates green; visual diff per screen. Verified 2026-07-27 (Chrome DevTools MCP, dev server on :3002; 75 tests; KPI strings cross-checked against the design's own renderVals literals). All four Overview KPIs are currency-aware per README §9. Fix round: Attributes facts converted to semantic dl/dt/dd.
+- [x] Commit `feat: add overview, portfolio and attributes views`; squash-merge to `dev`.
 
 ## Task 6: Charts — Balances, Payouts, Yield, Seasonality, Allocation
 
