@@ -21,7 +21,7 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 - **Layout:** no horizontal scroll ≥360px; sidebar 232px fixed, internally scrollable; grids wrap via `repeat(auto-fit,minmax(200px,1fr))`-style rules.
 - **A11y:** focus-visible rings (`2px solid #26262a`, offset 2px), hover states, `aria-current` on active nav.
 - **Quality gate per task:** `pnpm lint && pnpm typecheck` (plus `pnpm test` once vitest exists) green before commit; browser-verify against the design reference. The app is pinned to port 3000 (vite.config) — the dev server is usually already running; check before launching one.
-- **Git:** pet project, no Jira. Branch `<type>/<kebab-title>` off `dev`, plain conventional commits, no AI attribution. Squash-merge back to `dev`.
+- **Git:** pet project, no Jira. Branch `<type>/<kebab-title>` off `dev`, plain conventional commits, no AI attribution. Squash-merge back to `dev`, then push. Author identity: `RomanKushyk <romankushyk0@gmail.com>` (repo-local config — never the work identity).
 - **Docs upkeep:** every top-level folder carries a `README.md` with its local rules — create one for any new folder (Task 1 creates `src/README.md`). Root `navigation-map.md` is the agentic manual-testing map: update its route Status + checkpoints (and affected folder READMEs) whenever a task changes screens, flows or structure.
 
 ## Status
@@ -419,7 +419,7 @@ it('formats per README §8', () => {
 ## Session workflow (every future session)
 
 1. Read `CLAUDE.md`, this file's Status table, `docs/DECISIONS.md` (especially D5 before touching seed/derivations). README.md stays the spec of record.
-2. `git checkout dev` (no remote is configured yet — everything is local).
+2. `git checkout dev && git pull` (remote: `origin` → RomanKushyk/investment-tracker on the personal GitHub account; commits must be authored `RomanKushyk <romankushyk0@gmail.com>` — repo-local config, already set).
 3. Take the first non-done task, branch as listed, execute steps top-to-bottom, ticking checkboxes in this file as you go.
 4. Browser-verify against `design/Investment Tracker.dc.html` — open it directly (interactive via its bottom script), but remember the `.btn/.input/.field/.table/.tag` styling caveat in `design/README.md`. Use root `navigation-map.md` for per-route checkpoints and expected seed values. The app runs pinned to :3000; the user's dev server is usually already up — check before starting one.
 5. All gates green → conventional commit, squash-merge to `dev`, update the Status table + `navigation-map.md` (route Status, any changed checkpoints) + affected folder READMEs, commit doc updates.

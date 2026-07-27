@@ -21,4 +21,6 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 
 ## Git conventions (this repo)
 - Personal pet project — **no Jira, never ask for a ticket key**.
-- Base branch: `dev`. Feature branches `<type>/<kebab-title>` (e.g. `feat/daily-quotes`), plain conventional commits, squash-merge back to `dev`. No remote configured yet.
+- Base branch: `dev`. Feature branches `<type>/<kebab-title>` (e.g. `feat/daily-quotes`), plain conventional commits, squash-merge back to `dev`.
+- Remote: `origin` → `git@github-personal:RomanKushyk/investment-tracker.git` (personal GitHub account). Push `dev` after merging.
+- Author identity is repo-local and personal: `RomanKushyk <romankushyk0@gmail.com>` — never commit here with the work identity.
