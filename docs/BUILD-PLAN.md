@@ -22,6 +22,7 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 - **A11y:** focus-visible rings (`2px solid #26262a`, offset 2px), hover states, `aria-current` on active nav.
 - **Quality gate per task:** `pnpm lint && pnpm typecheck` (plus `pnpm test` once vitest exists) green before commit; browser-verify against the design reference. The app is pinned to port 3000 (vite.config) — the dev server is usually already running; check before launching one.
 - **Git:** pet project, no Jira. Branch `<type>/<kebab-title>` off `dev`, plain conventional commits, no AI attribution. Squash-merge back to `dev`.
+- **Docs upkeep:** every top-level folder carries a `README.md` with its local rules — create one for any new folder (Task 1 creates `src/README.md`). Root `navigation-map.md` is the agentic manual-testing map: update its route Status + checkpoints (and affected folder READMEs) whenever a task changes screens, flows or structure.
 
 ## Status
 
@@ -35,25 +36,9 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | todo |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | todo |
 
-## Design reference map (`design/Investment Tracker.dc.html`)
+## Design reference
 
-Markup lives in `<x-dc>…</x-dc>`; `{{ name }}` holes are filled by the `class Component` script at the bottom of the file (`renderVals()` — read it for the exact mock values and the tab/currency interaction logic). `<sc-if value="{{showX}}">` wraps each tab panel.
-
-**Caveat when opening the file in a browser:** layout/colors/typography are inline and render correctly, and the bottom script makes tabs/toggle interactive — but elements using the `.btn`, `.input`, `.field`, `.table`, `.tag` classes are styled by a missing `_ds/**/styles.css`, so their paddings/borders render as browser defaults. Approximate those from README §4 shape rules (pill radius 999px, white input bg, tables 12.5px, etc.) — don't pixel-match unstyled controls.
-
-| Lines | Content |
-|-------|---------|
-| 1–54 | Shell + sidebar: logo, nav groups, currency toggle, Total capital card |
-| 55–146 | Daily quotes: entry rows, actions, yield teaser, Transaction panel, Recent transactions |
-| 147–210 | Overview: KPI grid, Assets card + share bar, Next payouts / Rebalance / Income cards |
-| 211–241 | Balances: area chart + snapshot table (6 visible rows: 27.07 partial, then 25.07 → 21.07 — **no 26.07**) |
-| 242–302 | Payouts: stacked bars + side cards + payout log (seed rows per D5 reconciliation) |
-| 303–339 | Yield: 4-line chart + per-asset table (annualized footnote: 365 days **from 03.02.2026** for all assets) |
-| 340–409 | Attributes: 2×2 asset fact cards (exact names, codes, attribute values) |
-| 410–458 | Seasonality: day-of-month bars + 3 insight cards |
-| 459–495 | Portfolio: positions table + Total row + 3 highlight cards |
-| 496–end | Allocation: donut + legend, Current-vs-target pills, Rebalance plan |
-| ~560–end | `class Component` / `renderVals()` — exact headline strings per currency mode (e.g. sbCap, ovNet) |
+How to read `design/Investment Tracker.dc.html` — file anatomy, the **line map** that task references below ("design lines X–Y") point into, and the browser-rendering caveat — lives in **`design/README.md`**. Read it once per session before any visual work.
 
 ## File structure
 
@@ -248,7 +233,7 @@ Card shadow `0 1px 3px rgba(38,38,42,.06)`; cards radius 20–24px; buttons/pill
 
 ## Task 1: Scaffold, theme tokens, fonts, shell + sidebar nav
 
-**Files:** Create `index.html`, `vite.config.ts`, `tsconfig.json`, `eslint.config.js`, `.prettierrc`, `src/main.tsx`, `src/index.css`, `src/routes.tsx`, `src/app/Layout.tsx`, `src/app/Sidebar.tsx`, `src/screens/*.tsx` (9 placeholder screens).
+**Files:** Create `index.html`, `vite.config.ts`, `tsconfig.json`, `eslint.config.js`, `.prettierrc`, `src/README.md`, `src/main.tsx`, `src/index.css`, `src/routes.tsx`, `src/app/Layout.tsx`, `src/app/Sidebar.tsx`, `src/screens/*.tsx` (9 placeholder screens).
 **Produces:** working `pnpm dev` app on :3000, all routes navigable, tokens available to every later task.
 
 - [ ] Branch `feat/scaffold-shell` off `dev`.
@@ -270,7 +255,8 @@ export default defineConfig({
 - [ ] `src/index.css` with the exact `@theme` block above + base: page bg `--color-page`, text `--color-ink`, `font-body` default, `::selection` bg `#e3eadf`, focus-visible ring rule.
 - [ ] `src/main.tsx`: import `@fontsource/space-grotesk/{500,600,700}.css`, `@fontsource/spline-sans-mono/{400,500,600,700}.css`, `index.css`; render `QueryClientProvider` + `RouterProvider`.
 - [ ] Layout + Sidebar per design lines 1–54 and README §5: 232px sticky sidebar, `border-radius 0 32px 32px 0`, internally scrollable, decorative circle; logo block; "DAILY ENTRY" / "ANALYTICS" groups; `NavLink` pills (active `#e9e8e6` bg + ink 700; inactive `#cfcecb`, hover opacity .85); currency toggle (static UI for now); Total capital card (placeholder dashes until Task 2 — never a hard-coded figure).
-- [ ] 9 placeholder screens wired in `routes.tsx` — h2 + muted subtitle copied from each design section's first two lines (h2 + `<p>`; see the line map — README §6 only contains subtitle copy for two screens).
+- [ ] 9 placeholder screens wired in `routes.tsx` — h2 + muted subtitle copied from each design section's first two lines (h2 + `<p>`; see the line map in `design/README.md` — README §6 only contains subtitle copy for two screens).
+- [ ] `src/README.md`: folder rules — the structure table from "File structure" above, the repository-is-the-only-db-importer rule, the tokens-only palette rule, and a pointer to the Pinned contracts section of this plan.
 - [ ] Verify: `pnpm lint && pnpm typecheck` green; in browser — all routes navigable, `aria-current="page"` on active pill, sidebar scrolls internally on a short window, no horizontal scroll at 360px.
 - [ ] Commit `feat: scaffold app shell with theme tokens and sidebar nav`; squash-merge to `dev`.
 
@@ -403,7 +389,7 @@ it('formats per README §8', () => {
 - [ ] Payouts (design 242–302, §6.4): stacked monthly bars (dividends `reit` color, coupons `ovdp8976` color, value labels on top); Received total (dark) / Upcoming (green tint, same attribute-based rules as Overview Next payouts) / Reinvested (`reinvestedTotal` · derived % of `incomeReceived.total` → 27.5%) cards; payout log table with Type tag + Destination — derived: a payout with a same-date same-asset `reinvest` tx renders "reinvested (₴X)" with that tx's amount, else "account".
 - [ ] Yield (design 303–339, §6.5): 4-line cumulative-% chart (series colors, end dots); table Asset | Invested | Value now | Δ total | Annualized (global PORTFOLIO_START basis) | vs expected (negative pp in `--color-neg`); footnote verbatim from design.
 - [ ] Seasonality (design 410–458, §6.7): income-by-day-of-month bars — gray 3–5px stubs for zero days, tall colored bars on days 3/10/25 (day-10 label derives to ₴3,641 vs the reference's ₴3,817 — accepted, D5), `*` expected bar = `couponAmount` on its `nextCoupon` day (₴1,240* day 25); stub footnote; 3 insight cards (Income anchor / Coupon season / Quiet stretch) — derive day totals from transactions.
-- [ ] Allocation (design 496–end, §6.9): 340px/1fr grid; donut (30px ring, center "₴149k / 4 assets + cash" from `headlineTotal`) + legend; Current-vs-target labeled progress pills (fill = share, black 2px tick at target, signed deltas — **color encodes severity, not sign**: near-target (|Δ| ≤ ~0.5pp) green, off-target red, per design lines 524–537 where +6.1 is red and −0.1 is green); numbered Rebalance plan — `topUpAmount` for buys, `trimAmount` for sells.
+- [ ] Allocation (design 496–552, §6.9): 340px/1fr grid; donut (30px ring, center "₴149k / 4 assets + cash" from `headlineTotal`) + legend; Current-vs-target labeled progress pills (fill = share, black 2px tick at target, signed deltas — **color encodes severity, not sign**: near-target (|Δ| ≤ ~0.5pp) green, off-target red, per design lines 524–537 where +6.1 is red and −0.1 is green); numbered Rebalance plan — `topUpAmount` for buys, `trimAmount` for sells.
 - [ ] Verify: wipe IndexedDB → reseed → every chart matches reference (modulo D5 deviations); add a transaction → Payouts/Seasonality/Allocation update. Gates green; visual diff per chart (shape, colors, labels).
 - [ ] Commit `feat: add balances, payouts, yield, seasonality and allocation charts`; squash-merge to `dev`.
 
@@ -435,5 +421,5 @@ it('formats per README §8', () => {
 1. Read `CLAUDE.md`, this file's Status table, `docs/DECISIONS.md` (especially D5 before touching seed/derivations). README.md stays the spec of record.
 2. `git checkout dev` (no remote is configured yet — everything is local).
 3. Take the first non-done task, branch as listed, execute steps top-to-bottom, ticking checkboxes in this file as you go.
-4. Browser-verify against `design/Investment Tracker.dc.html` — open it directly (interactive via its bottom script), but remember the `.btn/.input/.field/.table/.tag` styling caveat in the Design reference map. The app runs pinned to :3000; the user's dev server is usually already up — check before starting one.
-5. All gates green → conventional commit, squash-merge to `dev`, update the Status table, commit doc updates.
+4. Browser-verify against `design/Investment Tracker.dc.html` — open it directly (interactive via its bottom script), but remember the `.btn/.input/.field/.table/.tag` styling caveat in `design/README.md`. Use root `navigation-map.md` for per-route checkpoints and expected seed values. The app runs pinned to :3000; the user's dev server is usually already up — check before starting one.
+5. All gates green → conventional commit, squash-merge to `dev`, update the Status table + `navigation-map.md` (route Status, any changed checkpoints) + affected folder READMEs, commit doc updates.

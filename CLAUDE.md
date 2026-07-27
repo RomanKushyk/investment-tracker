@@ -13,7 +13,9 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 
 ## Working agreements
 - Follow README §10 build order; keep the behavior checklist (§9) green.
-- **docs/BUILD-PLAN.md is the living plan** — pinned contracts (types, repo/hooks/store APIs, token names), task checkboxes, Status table, design-HTML line map. Pick up the first non-done task there and keep it updated. Decisions log: docs/DECISIONS.md.
+- **docs/BUILD-PLAN.md is the living plan** — pinned contracts (types, repo/hooks/store APIs, token names), task checkboxes, Status table. Pick up the first non-done task there and keep it updated. Decisions log: docs/DECISIONS.md.
+- **Every top-level folder has a README.md with its local rules** (design/, docs/, src/ once created) — read it before working there, create one for any new folder, keep them current.
+- **navigation-map.md (root) is the agentic manual-testing map** — per-route expected seed values and checkpoints. Use it to verify; update route Status + checkpoints whenever screens or flows change.
 - Tailwind theme tokens for the palette (README §4) — no ad-hoc hex in components.
 - `pnpm lint` and `pnpm typecheck` must pass before considering a task done (plus `pnpm test` once vitest lands in Task 2).
 
