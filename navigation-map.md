@@ -13,7 +13,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | static UI done — capital card shows "—" and toggle is inert until Tasks 2/7 |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo symbol live from data; toggle inert until Task 7 |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | todo |
 | `/overview` | Overview | Task 5 | todo |
 | `/balances` | Balances | Task 6 | todo |

@@ -29,7 +29,7 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 | # | Task | Branch | Status |
 |---|------|--------|--------|
 | 1 | Scaffold, theme, shell + nav | `feat/scaffold-shell` | **done** (2026-07-27) |
-| 2 | Data layer + seed + tests | `feat/data-layer` | todo |
+| 2 | Data layer + seed + tests | `feat/data-layer` | **done** (2026-07-27) |
 | 3 | Daily quotes screen | `feat/daily-quotes` | todo |
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | todo |
 | 5 | Overview, Portfolio, Attributes | `feat/derived-views` | todo |
@@ -94,6 +94,7 @@ export interface Asset {
   yieldType: YieldType; expectedPct: number; targetPct: number;
   payoutSchedule: PayoutSchedule;
   firstPurchase: string;               // ISO yyyy-MM-dd (all dates below too)
+  createdAt: string;                   // ISO datetime — listAssets display order
   maturity?: string; couponAmount?: number; nextCoupon?: string; reinvestPolicy?: string;
 }
 export interface Snapshot {
@@ -125,12 +126,15 @@ export const db = new KubushkaDB();
 
 ```ts
 export const repo = {
-  listAssets(): Promise<Asset[]>,
+  listAssets(): Promise<Asset[]>,             // sorted by createdAt (display order)
   listSnapshots(): Promise<Snapshot[]>,       // ascending by date
   listTransactions(): Promise<Transaction[]>, // ascending by date
   saveSnapshot(s: Snapshot): Promise<void>,   // UPSERT by date (re-save replaces — §9); sets savedAt
   recordTransaction(tx: Transaction, newAsset?: Asset): Promise<void>, // one db.transaction: create asset if given, then tx
 };
+export function ensureSeeded(): Promise<void>; // also in repository.ts — seed.ts stays
+// pure data builders (SEED_ASSETS, SEED_TRANSACTIONS, buildSeedSnapshots) with no
+// Dexie import, so unit tests never need IndexedDB.
 ```
 
 ### Query hooks (`src/hooks/queries.ts`)
@@ -193,7 +197,7 @@ export function incomeReceived(txs: Transaction[]): { dividends: number; coupons
 export function fmtProse(n: number, currency?: 'UAH' | 'USD'): string; // ₴68,629.36 / $3,324.03 (en-US grouping)
 export function fmtProseWhole(n: number, currency?: 'UAH' | 'USD'): string; // ₴149,016 — sidebar capital, Deposited KPI
 export function fmtTable(n: number): string;  // 68 702,10 — Intl 'uk-UA': NBSP ( ) thousands, comma decimals
-export function fmtPct(n: number): string;    // fraction in → '+4.41%' (explicit sign, 2 dp)
+export function fmtPct(n: number, fractionDigits?: number): string; // '+4.41%' (explicit sign; default 2 dp, Yield annualized passes 1)
 export function fmtDate(iso: string): string;      // 27.07.2026
 export function fmtDateShort(iso: string): string; // 27.07
 export function fmtSavedAt(iso: string): string;   // '25.07, 21:14' (from Snapshot.savedAt)
@@ -265,8 +269,8 @@ export default defineConfig({
 **Files:** Create `src/lib/{types,colors,db,repository,seed,derive,format,schemas}.ts`, `src/lib/{derive,format,seed}.test.ts`, `src/hooks/queries.ts`, `src/state/{settings,draft}.ts`. Modify `package.json` (add `vitest` devDep + `"test": "vitest run"`), `src/main.tsx` (await `ensureSeeded()` before render), `src/app/Sidebar.tsx` (real Total capital card).
 **Consumes:** Task 1 scaffold. **Produces:** every pinned contract above.
 
-- [ ] Branch `feat/data-layer`; `pnpm add -D vitest`.
-- [ ] Write the failing tests FIRST — fixtures are the reference's own published figures:
+- [x] Branch `feat/data-layer`; `pnpm add -D vitest`. Added `vitest.config.ts` (node environment) so tests never load the app's Vite plugins.
+- [x] Write the failing tests FIRST — fixtures are the reference's own published figures (final suites grew beyond this sketch: 37 tests incl. all four annualized values, seed invariants, schema parsing — see `src/lib/*.test.ts`):
 
 ```ts
 // src/lib/derive.test.ts
@@ -325,18 +329,18 @@ it('formats per README §8', () => {
 });
 ```
 
-- [ ] `pnpm test` → confirm FAIL (modules don't exist yet).
-- [ ] Implement `types/colors/db/repository/derive/format` exactly per the pinned contracts; `pnpm test` → PASS.
-- [ ] `src/lib/seed.ts` — `ensureSeeded()`: no-op if `assets` non-empty, else populate inside one Dexie transaction. **The reference's mock copy is internally inconsistent; seed per D5 so all derived figures are self-consistent and README §7 aggregates win:**
+- [x] `pnpm test` → confirm FAIL (modules don't exist yet). Watched RED at each stage.
+- [x] Implement `types/colors/db/repository/derive/format` exactly per the pinned contracts; `pnpm test` → PASS.
+- [x] `src/lib/seed.ts` — pure data builders; `ensureSeeded()` (no-op if `assets` non-empty, one Dexie transaction) lives in `repository.ts` so seed.ts never imports the db and stays unit-testable. **The reference's mock copy is internally inconsistent; seed per D5 so all derived figures are self-consistent and README §7 aggregates win:**
   - **Assets (4):** exact names/codes/attributes from design lines 340–409; targets 40/40/17/3; colorKeys `reit|energy|ovdp8976|ovdp6475`; Energy `payoutSchedule: 'none'`.
   - **Transactions:** `deposit` rows totaling **143 176,37** (Deposited KPI ₴143,176; equals own-funded buys 143 168,62 + cash 7,75); `buy` rows per asset such that buys + reinvests sum to invested 65 800 / 59 208 / 15 390 / 4 158; payout log rows from design lines 242–302 with ONE adjustment — the 648,13 dividend dated 12.05 becomes **472,13 dated 10.05** — so dividends derive to 3 641,44 + coupons 1 399,50 = 5 040,94 (README §7) and Seasonality has no stray day-12 bar; `reinvest` rows **687,02 + 484,36 (REIT) and 216,00 (…6475)**, same date+asset as their source payouts, so reinvestedByAsset gives 1 171,38 / 216,00 (Portfolio column) and reinvestedTotal 1 387,38.
   - **Snapshots (exactly 174):** deterministic (no `Math.random`) daily series **2026-02-03 → 2026-07-25 complete (173 snapshots, NO 26.07)** ending at quotes 68 629,36 / 60 086,09 / 15 846,30 / 4 374,12, pinning verbatim the 25.07→21.07 table rows from design lines 211–241; **plus a PARTIAL 27.07 snapshot `{ quotes: { reit: 68702.10 }, cash: 7.75 }`** (that's the reference's "pending" row, the "1 of 4 filled" pill, and the +0.11% chip). Seed 25.07's `savedAt: '2026-07-25T21:14:00'` ("Last saved 25.07, 21:14").
   - Add `src/lib/seed.test.ts`: run derivations over the seed arrays and assert headlineTotal 149 016,36; netResult +4 452,61 / +3.08%; incomeReceived {3 641,44, 1 399,50, 5 040,94}; reinvestedTotal 1 387,38 with per-asset 1 171,38 / 216,00; depositedTotal 143 176,37; snapshot count 174.
-- [ ] `schemas.ts` (zod): `quoteInputSchema` (positive number, comma OR dot decimals accepted — inputs display `68 702,10` style), `transactionSchema` (all Tx fields; `newAsset` sub-object required only when `assetId === 'new'`).
-- [ ] `hooks/queries.ts` + both zustand stores per pinned contracts; wire `ensureSeeded()` before render.
-- [ ] Sidebar Total capital card: value `fmtProseWhole(headlineTotal)` (₴149,016); sub-line = `fmtPct(netResult.pct)` + ` · ` + the same total in the OTHER currency (design line ~587: `+3.08% · $3,324.03` in UAH mode, `+3.08% · ₴149,016.36` in USD mode).
-- [ ] Verify: `pnpm test`, `pnpm lint`, `pnpm typecheck` green; in browser — sidebar shows ₴149,016 / +3.08% · $3,324.03; IndexedDB `kubushka` in DevTools has 4 assets, 174 snapshots, seeded transactions; wipe IndexedDB → reload reseeds.
-- [ ] Commit `feat: add dexie data layer with seed data and derivation tests`; squash-merge to `dev`.
+- [x] `schemas.ts` (zod): `quoteInputSchema` (positive number, comma OR dot decimals accepted — inputs display `68 702,10` style), `transactionSchema` (all Tx fields; `newAsset` sub-object required only when `assetId === 'new'`).
+- [x] `hooks/queries.ts` + both zustand stores per pinned contracts; wire `ensureSeeded()` before render.
+- [x] Sidebar Total capital card: value `fmtProseWhole(headlineTotal)` (₴149,016); sub-line = `fmtPct(netResult.pct)` + ` · ` + the same total in the OTHER currency (design line ~587: `+3.08% · $3,324.03` in UAH mode, `+3.08% · ₴149,016.36` in USD mode).
+- [x] Verify (2026-07-27, Chrome DevTools MCP — exact renderVals strings, 4/174/18 store counts, wipe→reseed confirmed): `pnpm test`, `pnpm lint`, `pnpm typecheck` green; in browser — sidebar shows ₴149,016 / +3.08% · $3,324.03; IndexedDB `kubushka` in DevTools has 4 assets, 174 snapshots, seeded transactions; wipe IndexedDB → reload reseeds.
+- [x] Commit `feat: add dexie data layer with seed data and derivation tests`; squash-merge to `dev`.
 
 ## Task 3: Daily quotes screen (entry flow end-to-end)
 
