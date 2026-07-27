@@ -4,7 +4,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 ## Connecting & resetting
 
-- App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one.
+- App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.
 - **Reset to seed state:** DevTools → Application → delete IndexedDB database `kubushka` and localStorage keys `kubushka-settings`, `kubushka-draft` → reload. The app reseeds automatically.
 - Number formats: tables/inputs `68 702,10` (NBSP thousands, comma decimals); prose/KPIs `₴68,629.36`; dates `dd.MM.yyyy`.
 - **Do NOT flag D5 deviations as bugs** — see the last section.
@@ -13,7 +13,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | todo |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | static UI done — capital card shows "—" and toggle is inert until Tasks 2/7 |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | todo |
 | `/overview` | Overview | Task 5 | todo |
 | `/balances` | Balances | Task 6 | todo |

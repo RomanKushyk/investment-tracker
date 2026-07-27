@@ -1,0 +1,65 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Spline Sans Mono', monospace;
+  --color-page: #f6f5f3;
+  --color-ink: #26262a;
+  --color-card: #ffffff;
+  --color-muted: #8b8a86;
+  --color-faint: #b3b2ae;
+  --color-hairline: #e8e7e4;
+  --color-panel: #eceae7;
+  --color-panel-border: #dedcd8;
+  --color-sidebar: #26262a;
+  --color-sidebar-text: #e9e8e6;
+  --color-sidebar-muted: #96959b;
+  --color-sidebar-inset: #333338;
+  --color-sidebar-hover: #3d3d42;
+  --color-sidebar-nav: #cfcecb;
+  --color-pos: #5c7355;
+  --color-pos-tint: #e3eadf;
+  --color-pos-tint-text: #4c5a48;
+  --color-pos-on-dark: #b9cdb4;
+  --color-pos-border: #c9d4c4;
+  --color-neg: #a8695a;
+  --color-reit: #8ba283;
+  --color-reit-tint: #e3eadf;
+  --color-reit-tint-text: #4c5a48;
+  --color-energy: #c2a189;
+  --color-energy-tint: #efe4e0;
+  --color-energy-tint-text: #6d5a53;
+  --color-ovdp8976: #98a3ad;
+  --color-ovdp8976-tint: #e4e8eb;
+  --color-ovdp8976-tint-text: #525c64;
+  --color-ovdp6475: #5f5e5a;
+  --color-ovdp6475-tint: #e8e7e4;
+  --color-ovdp6475-tint-text: #5f5e5a;
+}
+
+@layer base {
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 13px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-pos-tint);
+  }
+}

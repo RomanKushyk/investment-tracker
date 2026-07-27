@@ -28,7 +28,7 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 
 | # | Task | Branch | Status |
 |---|------|--------|--------|
-| 1 | Scaffold, theme, shell + nav | `feat/scaffold-shell` | todo |
+| 1 | Scaffold, theme, shell + nav | `feat/scaffold-shell` | **done** (2026-07-27) |
 | 2 | Data layer + seed + tests | `feat/data-layer` | todo |
 | 3 | Daily quotes screen | `feat/daily-quotes` | todo |
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | todo |
@@ -236,8 +236,8 @@ Card shadow `0 1px 3px rgba(38,38,42,.06)`; cards radius 20–24px; buttons/pill
 **Files:** Create `index.html`, `vite.config.ts`, `tsconfig.json`, `eslint.config.js`, `.prettierrc`, `src/README.md`, `src/main.tsx`, `src/index.css`, `src/routes.tsx`, `src/app/Layout.tsx`, `src/app/Sidebar.tsx`, `src/screens/*.tsx` (9 placeholder screens).
 **Produces:** working `pnpm dev` app on :3000, all routes navigable, tokens available to every later task.
 
-- [ ] Branch `feat/scaffold-shell` off `dev`.
-- [ ] `vite.config.ts`:
+- [x] Branch `feat/scaffold-shell` off `dev`.
+- [x] `vite.config.ts`:
 
 ```ts
 import { defineConfig } from 'vite';
@@ -250,15 +250,15 @@ export default defineConfig({
 });
 ```
 
-- [ ] `tsconfig.json`: Vite react-ts template — `strict`, `target ES2022`, `moduleResolution "bundler"`, `jsx "react-jsx"`, `noEmit`, `verbatimModuleSyntax`, include `src` + `vite.config.ts`, types `["vite/client"]` (build script runs plain `tsc --noEmit`, so one tsconfig must cover everything).
-- [ ] `eslint.config.js` from the Vite react-ts template (typescript-eslint, react-hooks, react-refresh) + `eslint-config-prettier` last. `.prettierrc`: `{ "plugins": ["prettier-plugin-tailwindcss"] }`.
-- [ ] `src/index.css` with the exact `@theme` block above + base: page bg `--color-page`, text `--color-ink`, `font-body` default, `::selection` bg `#e3eadf`, focus-visible ring rule.
-- [ ] `src/main.tsx`: import `@fontsource/space-grotesk/{500,600,700}.css`, `@fontsource/spline-sans-mono/{400,500,600,700}.css`, `index.css`; render `QueryClientProvider` + `RouterProvider`.
-- [ ] Layout + Sidebar per design lines 1–54 and README §5: 232px sticky sidebar, `border-radius 0 32px 32px 0`, internally scrollable, decorative circle; logo block; "DAILY ENTRY" / "ANALYTICS" groups; `NavLink` pills (active `#e9e8e6` bg + ink 700; inactive `#cfcecb`, hover opacity .85); currency toggle (static UI for now); Total capital card (placeholder dashes until Task 2 — never a hard-coded figure).
-- [ ] 9 placeholder screens wired in `routes.tsx` — h2 + muted subtitle copied from each design section's first two lines (h2 + `<p>`; see the line map in `design/README.md` — README §6 only contains subtitle copy for two screens).
-- [ ] `src/README.md`: folder rules — the structure table from "File structure" above, the repository-is-the-only-db-importer rule, the tokens-only palette rule, and a pointer to the Pinned contracts section of this plan.
-- [ ] Verify: `pnpm lint && pnpm typecheck` green; in browser — all routes navigable, `aria-current="page"` on active pill, sidebar scrolls internally on a short window, no horizontal scroll at 360px.
-- [ ] Commit `feat: scaffold app shell with theme tokens and sidebar nav`; squash-merge to `dev`.
+- [x] `tsconfig.json`: Vite react-ts template — `strict`, `target ES2022`, `moduleResolution "bundler"`, `jsx "react-jsx"`, `noEmit`, `verbatimModuleSyntax`, include `src` + `vite.config.ts`, types `["vite/client"]` (build script runs plain `tsc --noEmit`, so one tsconfig must cover everything).
+- [x] `eslint.config.js` from the Vite react-ts template (typescript-eslint, react-hooks, react-refresh) + `eslint-config-prettier` last. `.prettierrc`: `{ "plugins": ["prettier-plugin-tailwindcss"] }`. Note: with eslint-plugin-react-hooks v7 the flat preset is `reactHooks.configs.flat.recommended` (`recommended-latest` is legacy format).
+- [x] `src/index.css` with the exact `@theme` block above + base: page bg `--color-page`, text `--color-ink`, `font-body` default, `::selection` bg `#e3eadf`, focus-visible ring rule.
+- [x] `src/main.tsx`: import `@fontsource/space-grotesk/{500,600,700}.css`, `@fontsource/spline-sans-mono/{400,500,600,700}.css`, `index.css`; render `QueryClientProvider` + `RouterProvider` (v7: `RouterProvider` imports from `react-router/dom`).
+- [x] Layout + Sidebar per design lines 1–54 and README §5: 232px sticky sidebar, `border-radius 0 32px 32px 0`, internally scrollable, decorative circle; logo block; "DAILY ENTRY" / "ANALYTICS" groups; `NavLink` pills (active `#e9e8e6` bg + ink 700; inactive `#cfcecb`, hover opacity .85); currency toggle (static UI for now); Total capital card (placeholder dashes until Task 2 — never a hard-coded figure). Deviation from reference markup: the decorative circle sits inside a clipping layer — its raw `bottom:-60px` offset would force a permanent sidebar scrollbar (prototype quirk defeating "scroll only when needed").
+- [x] 9 placeholder screens wired in `routes.tsx` — h2 + muted subtitle copied from each design section's first two lines (h2 + `<p>`; see the line map in `design/README.md` — README §6 only contains subtitle copy for two screens). Shared `components/ui/ScreenHeader.tsx`. Overview placeholder omits the derived " · {date} · rate" subtitle tail (Task 5 adds it).
+- [x] `src/README.md`: folder rules — the structure table from "File structure" above, the repository-is-the-only-db-importer rule, the tokens-only palette rule, and a pointer to the Pinned contracts section of this plan.
+- [x] Verify: `pnpm lint && pnpm typecheck` green; in browser — all routes navigable, `aria-current="page"` on active pill, sidebar scrolls internally on a short window (capital card reachable), no horizontal scroll at 360px. Verified 2026-07-27 via Chrome DevTools MCP; fonts confirmed loaded; only console noise is the missing-favicon 404.
+- [x] Commit `feat: scaffold app shell with theme tokens and sidebar nav`; squash-merge to `dev`.
 
 ## Task 2: Data layer — types, Dexie, repository, seed, hooks, vitest
 
