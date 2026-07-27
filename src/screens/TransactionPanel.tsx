@@ -1,0 +1,288 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useMemo } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { DatePicker } from '../components/ui/DatePicker';
+import { Select } from '../components/ui/Select';
+import {
+  useAssets,
+  useRecordTransaction,
+  useTransactions,
+} from '../hooks/queries';
+import { buildNewAsset } from '../lib/asset-builder';
+import { fmtDateShort, fmtProse } from '../lib/format';
+import {
+  transactionSchema,
+  type TransactionFormInput,
+  type TransactionFormValues,
+} from '../lib/schemas';
+import type { Transaction, TxType } from '../lib/types';
+import { NewAssetFields } from './NewAssetFields';
+import { shortLabel } from './daily-quotes/quotes';
+
+function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const TYPE_OPTIONS: { value: TxType; label: string }[] = [
+  { value: 'buy', label: 'Buy' },
+  { value: 'sell', label: 'Sell' },
+  { value: 'deposit', label: 'Deposit' },
+  { value: 'dividend_accrual', label: 'Dividend accrual' },
+  { value: 'interest_payout', label: 'Interest payout' },
+  { value: 'reinvest', label: 'Reinvest' },
+  { value: 'tax', label: 'Tax' },
+];
+
+// The Recent transactions rows use "Coupon" for interest_payout — matches
+// design copy (line 145) even though the Type select spells out "Interest
+// payout"; the other 6 types share their select label.
+const RECENT_TYPE_LABEL: Record<TxType, string> = {
+  buy: 'Buy',
+  sell: 'Sell',
+  deposit: 'Deposit',
+  dividend_accrual: 'Dividend accrual',
+  interest_payout: 'Coupon',
+  reinvest: 'Reinvest',
+  tax: 'Tax',
+};
+
+const SOURCE_OPTIONS = [
+  { value: 'own', label: 'Own funds' },
+  { value: 'accrual', label: 'Accrual' },
+  { value: 'reinvest_reit', label: 'Reinvest (REIT)' },
+  { value: 'reinvest_6475', label: 'Reinvest (…6475)' },
+];
+
+const inputClass =
+  'h-9 rounded-[10px] border border-hairline bg-white px-3 font-body text-[13px] text-ink transition';
+
+export function TransactionPanel() {
+  const assetsData = useAssets().data;
+  const assets = useMemo(() => assetsData ?? [], [assetsData]);
+  const transactions = useTransactions().data ?? [];
+  const recordTransaction = useRecordTransaction();
+
+  const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      date: todayIso(),
+      type: 'buy',
+      assetId: '',
+      amount: '',
+      source: 'own',
+    },
+  });
+
+  const assetId = form.watch('assetId');
+  const isNewAsset = assetId === 'new';
+
+  // Default the Asset select to the first existing asset once assets load
+  // (an empty picker would satisfy the schema only via the "new" branch).
+  useEffect(() => {
+    if (!form.getValues('assetId') && assets.length > 0) {
+      form.setValue('assetId', assets[0].id);
+    }
+  }, [assets, form]);
+
+  // newAsset must be cleared whenever it's not in play: newAssetSchema
+  // validates it whenever present (the superRefine only ADDS a requirement
+  // for assetId === 'new', it doesn't skip validating leftover values) —
+  // without this, a stale sub-form value would silently fail every later
+  // submit on an existing asset.
+  useEffect(() => {
+    if (!isNewAsset) form.setValue('newAsset', undefined);
+  }, [isNewAsset, form]);
+
+  function onSubmit(values: TransactionFormValues) {
+    const newAsset =
+      isNewAsset && values.newAsset
+        ? buildNewAsset(values.newAsset, values.date, assets.length)
+        : undefined;
+    const tx: Transaction = {
+      id: crypto.randomUUID(),
+      date: values.date,
+      type: values.type,
+      assetId: newAsset ? newAsset.id : values.assetId,
+      amount: values.amount,
+      source: values.source,
+    };
+    recordTransaction.mutate(
+      { tx, newAsset },
+      {
+        onSuccess: () => {
+          toast.success('Transaction recorded');
+          form.reset({
+            date: values.date,
+            type: 'buy',
+            assetId: assets[0]?.id ?? '',
+            amount: '',
+            source: 'own',
+          });
+        },
+      },
+    );
+  }
+
+  const recent = [...transactions].slice(-3).reverse();
+  const assetById = new Map(assets.map((a) => [a.id, a]));
+
+  return (
+    <>
+      <Card
+        radius={24}
+        className="animate-in border-panel-border bg-panel fade-in border px-[22px] py-5 duration-300"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <div className="font-display text-lg font-semibold">Transaction</div>
+          <span className="text-muted text-[10px] tracking-[.08em] uppercase">
+            Occasional
+          </span>
+        </div>
+        <p className="text-muted mt-1 mb-3.5 text-xs">
+          Deposits, buys, accruals, reinvests — opened only when something
+          happened.
+        </p>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-2.5"
+        >
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="text-label flex flex-col gap-1 text-[11px]">
+              Date
+              <Controller
+                control={form.control}
+                name="date"
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    className="w-full text-left"
+                  />
+                )}
+              />
+            </label>
+            <label className="text-label flex flex-col gap-1 text-[11px]">
+              Type
+              <Controller
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    options={TYPE_OPTIONS}
+                  />
+                )}
+              />
+            </label>
+          </div>
+
+          <label className="text-label flex flex-col gap-1 text-[11px]">
+            Asset
+            <Controller
+              control={form.control}
+              name="assetId"
+              render={({ field }) => (
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder="Select an asset…"
+                  borderColor={isNewAsset ? 'faint' : 'hairline'}
+                  options={[
+                    { value: 'new', label: '+ New asset…' },
+                    ...assets.map((a) => ({ value: a.id, label: a.name })),
+                  ]}
+                />
+              )}
+            />
+          </label>
+
+          {isNewAsset && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <NewAssetFields register={form.register} control={form.control} />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <label className="text-label flex flex-col gap-1 text-[11px]">
+              Amount, ₴
+              <input
+                className={inputClass}
+                placeholder="10 000,00"
+                inputMode="decimal"
+                {...form.register('amount')}
+              />
+            </label>
+            <label className="text-label flex flex-col gap-1 text-[11px]">
+              Source of funds
+              <Controller
+                control={form.control}
+                name="source"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    options={SOURCE_OPTIONS}
+                  />
+                )}
+              />
+            </label>
+          </div>
+
+          <Button
+            type="submit"
+            weight="bold"
+            className="w-full"
+            disabled={recordTransaction.isPending}
+          >
+            Record transaction
+          </Button>
+          {Object.keys(form.formState.errors).length > 0 && (
+            <p className="text-neg text-xs">
+              Check the highlighted fields and try again.
+            </p>
+          )}
+        </form>
+      </Card>
+
+      <Card className="px-5 py-4">
+        <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
+          Recent transactions
+        </div>
+        <div className="flex flex-col gap-2 text-[12.5px]">
+          {recent.length === 0 && (
+            <span className="text-muted">No transactions yet.</span>
+          )}
+          {recent.map((tx) => {
+            const asset = assetById.get(tx.assetId);
+            return (
+              <div
+                key={tx.id}
+                className="animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-2 duration-300"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {RECENT_TYPE_LABEL[tx.type]} ·{' '}
+                  {asset ? shortLabel(asset) : 'Portfolio'}
+                </span>
+                <strong className="whitespace-nowrap">
+                  {fmtProse(tx.amount)}
+                </strong>
+                <span className="text-muted whitespace-nowrap">
+                  {fmtDateShort(tx.date)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </>
+  );
+}

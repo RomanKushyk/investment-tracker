@@ -1,6 +1,6 @@
 // Pure helpers for the Daily quotes screen (not in src/lib — that layer stays
 // untouched per Task 3 scope). Covered by quotes.test.ts.
-import type { Snapshot } from '../../lib/types';
+import type { Asset, Snapshot } from '../../lib/types';
 
 // The latest quote for this asset strictly BEFORE the selected date — the
 // row subline always reads "yesterday" even when the actual gap is bigger
@@ -27,4 +27,13 @@ export function maxSavedAt(snapshots: Snapshot[]): string | undefined {
     if (s.savedAt && (!best || s.savedAt > best)) best = s.savedAt;
   }
   return best;
+}
+
+// Bonds are labeled by their last 4 digits ("…8976"); other assets by the
+// last word of their name ("Inzhur REIT" -> "REIT") — matches design copy.
+// Shared by YieldTeaser and TransactionPanel's Recent transactions rows.
+export function shortLabel(a: Asset): string {
+  return a.yieldType === 'fixed_coupon'
+    ? `…${a.name.slice(-4)}`
+    : a.name.split(' ').at(-1)!;
 }

@@ -3,7 +3,12 @@ import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
-import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
+import {
+  useAssets,
+  useSaveSnapshot,
+  useSnapshots,
+  useTransactions,
+} from '../hooks/queries';
 import { investedByAsset, latestCash, latestQuotes } from '../lib/derive';
 import { fmtSavedAt, fmtTable } from '../lib/format';
 import { quoteInputSchema } from '../lib/schemas';
@@ -12,6 +17,7 @@ import { useDraft } from '../state/draft';
 import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
+import { TransactionPanel } from './TransactionPanel';
 
 function todayIso(): string {
   const d = new Date();
@@ -41,7 +47,8 @@ export function DailyQuotes() {
   useEffect(() => {
     if (!todaySnapshot) return;
     for (const assetId of Object.keys(todaySnapshot.quotes)) {
-      if (!(assetId in quotes)) setQuote(assetId, fmtTable(todaySnapshot.quotes[assetId]));
+      if (!(assetId in quotes))
+        setQuote(assetId, fmtTable(todaySnapshot.quotes[assetId]));
     }
   }, [todaySnapshot, quotes, setQuote]);
 
@@ -56,8 +63,14 @@ export function DailyQuotes() {
       if (parsed.success) parsedQuotes[a.id] = parsed.data;
     }
     const cash = todaySnapshot?.cash ?? latestCash(snapshots);
-    const snapshot: Snapshot = { date: selectedDate, quotes: parsedQuotes, cash };
-    saveSnapshot.mutate(snapshot, { onSuccess: () => toast.success('Snapshot saved') });
+    const snapshot: Snapshot = {
+      date: selectedDate,
+      quotes: parsedQuotes,
+      cash,
+    };
+    saveSnapshot.mutate(snapshot, {
+      onSuccess: () => toast.success('Snapshot saved'),
+    });
   }
 
   function handleCopyYesterday() {
@@ -78,7 +91,7 @@ export function DailyQuotes() {
           <h2 className="text-[26px]">Daily quotes</h2>
           <span
             key={filledCount}
-            className="animate-in rounded-full bg-pos-tint px-3 py-1 text-xs font-semibold text-pos-tint-text zoom-in-95 duration-150"
+            className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-full px-3 py-1 text-xs font-semibold duration-150"
           >
             {filledCount} of {assets.length} filled
           </span>
@@ -87,7 +100,7 @@ export function DailyQuotes() {
             <DatePicker value={selectedDate} onChange={setDate} />
           </div>
         </div>
-        <p className="mb-[18px] text-[13px] text-muted">
+        <p className="text-muted mb-[18px] text-[13px]">
           The everyday ritual — nothing else competes with it.
         </p>
 
@@ -108,8 +121,10 @@ export function DailyQuotes() {
           <Button variant="outline" onClick={handleCopyYesterday}>
             Copy yesterday
           </Button>
-          <span className="ml-auto text-xs text-muted">
-            {lastSavedAt ? `Last saved ${fmtSavedAt(lastSavedAt)}` : 'Not saved yet'}
+          <span className="text-muted ml-auto text-xs">
+            {lastSavedAt
+              ? `Last saved ${fmtSavedAt(lastSavedAt)}`
+              : 'Not saved yet'}
           </span>
         </div>
 
@@ -117,13 +132,7 @@ export function DailyQuotes() {
       </div>
 
       <aside className="flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
-        <div className="animate-in rounded-3xl border border-panel-border bg-panel fade-in px-[22px] py-5 duration-300">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <div className="font-display text-lg font-semibold">Transaction</div>
-            <span className="text-[10px] tracking-[.08em] text-muted uppercase">Occasional</span>
-          </div>
-          <p className="mt-3.5 text-xs text-muted">Transaction panel coming soon.</p>
-        </div>
+        <TransactionPanel />
       </aside>
     </div>
   );

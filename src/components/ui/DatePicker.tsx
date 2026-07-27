@@ -20,7 +20,8 @@ function dateToIso(d: Date): string {
 const calendarClassNames = {
   months: 'flex flex-col',
   month: 'flex flex-col gap-2',
-  month_caption: 'flex items-center justify-center py-1 font-display text-[13px] font-semibold',
+  month_caption:
+    'flex items-center justify-center py-1 font-display text-[13px] font-semibold',
   nav: 'flex items-center justify-between',
   button_previous:
     'absolute left-1 top-1 grid size-7 place-items-center rounded-full transition hover:bg-page active:scale-[.97]',
@@ -41,9 +42,11 @@ const calendarClassNames = {
 export function DatePicker({
   value,
   onChange,
+  className = 'w-[130px] text-right',
 }: {
   value: string; // ISO yyyy-MM-dd
   onChange: (iso: string) => void;
+  className?: string; // width/alignment override for the trigger button
 }) {
   const [open, setOpen] = useState(false);
 
@@ -52,7 +55,8 @@ export function DatePicker({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="h-9 w-[130px] rounded-[10px] border border-hairline bg-white px-3 text-right font-body text-[13px] text-ink transition hover:border-ink active:scale-[.97]"
+          aria-label={`Date: ${fmtDate(value)}`}
+          className={`border-hairline font-body text-ink hover:border-ink h-9 rounded-[10px] border bg-white px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
           {fmtDate(value)}
         </button>
@@ -61,7 +65,7 @@ export function DatePicker({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 rounded-2xl border border-hairline bg-card p-2 shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200 animate-in fade-in zoom-in-95"
+          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 rounded-2xl border p-2 shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200"
         >
           <DayPicker
             mode="single"
