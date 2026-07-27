@@ -14,7 +14,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
 | — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo symbol live from data; toggle inert until Task 7 |
-| `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow live; side panel is a placeholder card until Task 4 |
+| `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
 | `/overview` | Overview | Task 5 | todo |
 | `/balances` | Balances | Task 6 | todo |
 | `/payouts` | Payouts | Task 6 | todo |
@@ -41,7 +41,7 @@ On seed:
 - 4 asset rows, each: tinted 34px avatar with 2-letter code, name, subline like **"₴68,629.36 yesterday"** (REIT). REIT input pre-filled `68 702,10` with green border + delta chip **"+0.11%"**; the other three empty with placeholders `60 086,09` / `15 846,30` / `4 374,12` and "—" chips.
 - Buttons: dark pill **"Save snapshot"**, outline **"Copy yesterday"**; right text **"Last saved 25.07, 21:14"**.
 - Yield teaser strip: "Yield since start: REIT **+4.41%** · Energy **+1.48%** · …8976 **+2.96%** · …6475 **+5.20%**" + ghost "Yield chart →" (navigates to `/yield`).
-- Side panel: **Transaction** card (Task 4) + **Recent transactions** card (last 3). *Until Task 4 ships this is a muted placeholder card — checkpoint 5 below is not yet testable.*
+- Side panel: **Transaction** card (panel bg/border tokens, radius 24, "OCCASIONAL" microlabel) + **Recent transactions** card (last 3, "Type · Asset — amount — date"). *"Interest payout" renders with a "Coupon" label per the design reference; the new-asset appears-in-Attributes checkpoint becomes testable once Task 5 ships that screen.*
 
 Interactions to verify:
 1. Type into an empty input → its delta chip computes live vs yesterday's value; pill count increments ("2 of 4 filled"). Comma and dot decimals both accepted.

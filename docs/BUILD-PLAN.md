@@ -47,7 +47,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 1 | Scaffold, theme, shell + nav | `feat/scaffold-shell` | **done** (2026-07-27) |
 | 2 | Data layer + seed + tests | `feat/data-layer` | **done** (2026-07-27) |
 | 3 | Daily quotes screen | `feat/daily-quotes` | **done** (2026-07-27) |
-| 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | todo |
+| 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | **done** (2026-07-27) |
 | 5 | Overview, Portfolio, Attributes | `feat/derived-views` | todo |
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | todo |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | todo |
@@ -379,15 +379,15 @@ it('formats per README §8', () => {
 **Files:** Create `src/screens/TransactionPanel.tsx`, `src/screens/NewAssetFields.tsx`, Radix Select wrapper in `components/ui`. Modify `src/screens/DailyQuotes.tsx` (mount real panel).
 **Consumes:** `transactionSchema`, `useRecordTransaction`, `useAssets`, `useTransactions`.
 
-- [ ] Branch `feat/transaction-form`. Reference: design lines 69–146 region, README §6.1 side panel.
-- [ ] Panel card (bg `--color-panel`, border `--color-panel-border`, radius 24): title "Transaction" + "OCCASIONAL" microlabel + subtitle. react-hook-form + zodResolver(`transactionSchema`).
-- [ ] Fields: Date + Type (2-col; types Buy/Sell/Deposit/Dividend accrual/Interest payout/Reinvest/Tax); Asset select — first option "+ New asset…" then assets; Amount ₴ + Source (Own funds/Accrual/Reinvest (REIT)/Reinvest (…6475)); primary pill "Record transaction".
-- [ ] New asset details sub-card — rendered ONLY when Asset = "+ New asset…": white bg, dashed `--color-faint` border, radius 16, inner inputs bg `--color-page`. Fields: Name; Yield type (4 options); Expected % + Target % (2-col); Payout schedule (4 README options — never 'none').
-- [ ] Submit: `recordTransaction(tx, newAsset?)` — atomically creates asset (id from crypto.randomUUID, code = first 2 letters uppercased, `colorKey = KEYS[assetCount % 4]` per the pinned cycle rule) when sub-form active; toast "Transaction recorded"; form resets.
-- [ ] Recent transactions card: last 3 via `useTransactions`, "Type · Asset — amount — date" rows; updates after submit.
-- [ ] Motion (D7): New-asset sub-card reveals with `animate-in fade-in slide-in-from-top-2 duration-300` (and soft collapse if feasible); selects/inputs transition focus states; submit button tactile press; new row in Recent transactions animates in.
-- [ ] Verify §9: sub-form only for "+ New asset…"; recording creates asset + transaction (new asset appears in Daily-quotes rows and Attributes, with a cycled avatar tint); recent list updates. Gates green; visual diff.
-- [ ] Commit `feat: add transaction recording with inline asset creation`; squash-merge to `dev`.
+- [x] Branch `feat/transaction-form`. Reference: design lines 69–146 region, README §6.1 side panel.
+- [x] Panel card (bg `--color-panel`, border `--color-panel-border`, radius 24): title "Transaction" + "OCCASIONAL" microlabel + subtitle. react-hook-form + zodResolver(`transactionSchema`).
+- [x] Fields: Date + Type (2-col; types Buy/Sell/Deposit/Dividend accrual/Interest payout/Reinvest/Tax); Asset select — first option "+ New asset…" then assets; Amount ₴ + Source (Own funds/Accrual/Reinvest (REIT)/Reinvest (…6475)); primary pill "Record transaction".
+- [x] New asset details sub-card — rendered ONLY when Asset = "+ New asset…": white bg, dashed `--color-faint` border, radius 16, inner inputs bg `--color-page`. Fields: Name; Yield type (4 options); Expected % + Target % (2-col); Payout schedule (4 README options — never 'none').
+- [x] Submit: `recordTransaction(tx, newAsset?)` — atomically creates asset (id from crypto.randomUUID, code = first 2 letters uppercased, `colorKey = KEYS[assetCount % 4]` per the pinned cycle rule) when sub-form active; toast "Transaction recorded"; form resets.
+- [x] Recent transactions card: last 3 via `useTransactions`, "Type · Asset — amount — date" rows; updates after submit.
+- [x] Motion (D7): New-asset sub-card reveals with `animate-in fade-in slide-in-from-top-2 duration-300` (and soft collapse if feasible); selects/inputs transition focus states; submit button tactile press; new row in Recent transactions animates in.
+- [x] Verify §9: sub-form only for "+ New asset…"; recording creates asset + transaction (new asset appears in Daily-quotes rows and Attributes, with a cycled avatar tint); recent list updates. Gates green; visual diff. Verified 2026-07-27 (Chrome DevTools MCP; 47 tests; Attributes portion deferred — screen exists only from Task 5). Fix round: panel radius made deterministic 24px via Card `radius` prop (+ Select borderColor/bg and Button `weight` variants replacing className collisions).
+- [x] Commit `feat: add transaction recording with inline asset creation`; squash-merge to `dev`.
 
 ## Task 5: Overview + Portfolio + Attributes (pure derivations)
 
