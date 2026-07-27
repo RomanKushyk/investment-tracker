@@ -114,6 +114,7 @@ On seed:
 3. **Upsert:** save today's snapshot twice with different values → one row per date in IndexedDB, latest values win.
 4. **Reseed:** wipe storage (see top) → app returns exactly to the seed checkpoints above.
 5. **A11y sweep:** Tab through a screen — visible 2px focus rings; active nav pill has `aria-current="page"`; hover states on pills/buttons/rows.
+6. **Motion sweep (D7):** every interaction animates softly — buttons scale down on press, hover states fade (not snap), route changes fade/slide the content in, chips/pills animate on value change, charts sweep in. With `prefers-reduced-motion: reduce` emulated, all of it collapses to instant.
 
 ## Known intentional deviations from the design reference (D5)
 

@@ -18,7 +18,7 @@ const ANALYTICS = [
 
 function pillClass(padY: string) {
   return ({ isActive }: { isActive: boolean }) =>
-    `relative block w-full rounded-full px-3.5 ${padY} text-left text-[13.5px] hover:opacity-85 ` +
+    `relative block w-full rounded-full px-3.5 ${padY} text-left text-[13.5px] transition select-none hover:opacity-85 active:scale-[.97] ` +
     (isActive
       ? 'bg-sidebar-text font-bold text-ink'
       : 'bg-transparent font-normal text-sidebar-nav');
@@ -88,13 +88,13 @@ export function Sidebar() {
       <div className="relative mt-auto mb-2.5 flex gap-1 rounded-full bg-sidebar-inset p-1">
         <button
           type="button"
-          className="flex-1 cursor-pointer rounded-full bg-sidebar-text py-1.5 text-xs font-bold text-ink"
+          className="flex-1 cursor-pointer rounded-full bg-sidebar-text py-1.5 text-xs font-bold text-ink transition active:scale-[.97]"
         >
           ₴ UAH
         </button>
         <button
           type="button"
-          className="flex-1 cursor-pointer rounded-full bg-transparent py-1.5 text-xs font-bold text-sidebar-nav"
+          className="flex-1 cursor-pointer rounded-full bg-transparent py-1.5 text-xs font-bold text-sidebar-nav transition hover:opacity-85 active:scale-[.97]"
         >
           $ USD
         </button>

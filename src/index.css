@@ -1,6 +1,12 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 @theme {
+  /* Motion (D7): everything transitions softly by default */
+  --default-transition-duration: 220ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'Spline Sans Mono', monospace;
   --color-page: #f6f5f3;
@@ -61,5 +67,17 @@
 
   ::selection {
     background: var(--color-pos-tint);
+  }
+
+  /* Motion kill-switch (D7 a11y): reduced motion collapses all animation */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

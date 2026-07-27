@@ -22,7 +22,23 @@ Copied from README / CLAUDE.md — every task implicitly includes these:
 - **A11y:** focus-visible rings (`2px solid #26262a`, offset 2px), hover states, `aria-current` on active nav.
 - **Quality gate per task:** `pnpm lint && pnpm typecheck` (plus `pnpm test` once vitest exists) green before commit; browser-verify against the design reference. The app is pinned to port 3000 (vite.config) — the dev server is usually already running; check before launching one.
 - **Git:** pet project, no Jira. Branch `<type>/<kebab-title>` off `dev`, plain conventional commits, no AI attribution. Squash-merge back to `dev`, then push. Author identity: `RomanKushyk <romankushyk0@gmail.com>` (repo-local config — never the work identity).
+- **Motion:** every interaction animates fluidly — see "Motion & interaction standards" below (user requirement, D7). Nothing pops or snaps instantly.
 - **Docs upkeep:** every top-level folder carries a `README.md` with its local rules — create one for any new folder (Task 1 creates `src/README.md`). Root `navigation-map.md` is the agentic manual-testing map: update its route Status + checkpoints (and affected folder READMEs) whenever a task changes screens, flows or structure.
+
+## Motion & interaction standards (user requirement — D7)
+
+Every UX/UI move or interaction animates; the app must feel lively, tactile and **soft**. No new deps: CSS transitions + `tw-animate-css` utilities (imported in `src/index.css`) + recharts/sonner built-ins.
+
+- **Defaults:** all `transition*` utilities inherit the soft curve `cubic-bezier(0.22,1,0.36,1)` and 220ms via the `--default-transition-*` theme tokens in `src/index.css`. Micro-feedback (hover) may drop to `duration-150`; reveals and layout shifts use `duration-300`–`400`.
+- **Tactile press:** every button/pill/segment gets `transition active:scale-[.97]`.
+- **Hover states:** never instant — background/opacity/color changes always transition.
+- **Screen changes:** `Layout` re-mounts the outlet per route inside `animate-in fade-in slide-in-from-bottom-2 duration-300` (pattern already wired — keep it).
+- **Reveals** (New-asset sub-form, cards appearing, empty states): `animate-in fade-in slide-in-from-*`/`zoom-in-*` — never instant mount; prefer symmetric exit when feasible.
+- **Live state** (delta chips, "N of 4 filled" pill, filled-input borders): colors/borders transition; when a chip's *value* changes, re-trigger entry animation (`key` the element by value + `animate-in fade-in zoom-in-95`).
+- **Charts (Task 6):** keep recharts `isAnimationActive` on, duration ≈900ms ease-out; data updates animate from previous state — never redraw cold.
+- **Currency toggle (Task 7):** sliding thumb (transform transition); headline KPI values tween between currencies (~300ms rAF hook, e.g. `hooks/useTweenedNumber`).
+- **Toasts:** sonner defaults are already soft — keep.
+- **A11y:** the global `prefers-reduced-motion: reduce` kill-switch in `src/index.css` stays; never animate so click targets shift under a hovering pointer.
 
 ## Status
 
@@ -354,6 +370,7 @@ it('formats per README §8', () => {
 - [ ] Draft persistence: inputs read/write `state/draft` (survive reload); date change clears drafts.
 - [ ] Actions row: primary dark pill "Save snapshot" → `useSaveSnapshot` upsert for the selected date (partial quotes allowed) + sonner toast "Snapshot saved"; "Last saved" text = `fmtSavedAt(max savedAt)` (seed shows "25.07, 21:14"); outline pill "Copy yesterday" prefills all inputs with yesterday's quotes.
 - [ ] Yield teaser strip card: "Yield since start:" + per-asset `fmtPct(yieldSinceStart(latestQuotes[i], invested[i]))` + ghost button "Yield chart →" linking `/yield`.
+- [ ] Motion (D7): delta chips re-animate on value change (`key` by value + `animate-in fade-in zoom-in-95`); progress pill count transitions; filled-input green border transitions in; buttons get `transition active:scale-[.97]`; asset rows `animate-in` on mount.
 - [ ] Verify §9 items: typing updates chip + pill live; save persists (check IndexedDB) + toast + last-saved updates; re-save same day replaces (row count in DevTools unchanged); Copy yesterday fills all. `pnpm lint && pnpm typecheck && pnpm test` green; visual diff vs reference.
 - [ ] Commit `feat: add daily quotes entry flow`; squash-merge to `dev`.
 
@@ -368,6 +385,7 @@ it('formats per README §8', () => {
 - [ ] New asset details sub-card — rendered ONLY when Asset = "+ New asset…": white bg, dashed `--color-faint` border, radius 16, inner inputs bg `--color-page`. Fields: Name; Yield type (4 options); Expected % + Target % (2-col); Payout schedule (4 README options — never 'none').
 - [ ] Submit: `recordTransaction(tx, newAsset?)` — atomically creates asset (id from crypto.randomUUID, code = first 2 letters uppercased, `colorKey = KEYS[assetCount % 4]` per the pinned cycle rule) when sub-form active; toast "Transaction recorded"; form resets.
 - [ ] Recent transactions card: last 3 via `useTransactions`, "Type · Asset — amount — date" rows; updates after submit.
+- [ ] Motion (D7): New-asset sub-card reveals with `animate-in fade-in slide-in-from-top-2 duration-300` (and soft collapse if feasible); selects/inputs transition focus states; submit button tactile press; new row in Recent transactions animates in.
 - [ ] Verify §9: sub-form only for "+ New asset…"; recording creates asset + transaction (new asset appears in Daily-quotes rows and Attributes, with a cycled avatar tint); recent list updates. Gates green; visual diff.
 - [ ] Commit `feat: add transaction recording with inline asset creation`; squash-merge to `dev`.
 
@@ -380,6 +398,7 @@ it('formats per README §8', () => {
 - [ ] Overview (design 147–210, §6.2): subtitle with derived date + rate; KPI grid — Total capital (dark, currency-aware, `headlineTotal`), Net result (green, `netResult` → "+₴4,452.61 / +3.08% since 03.02"), Deposited (`fmtProseWhole(depositedTotal)` → ₴143,176, sub-line "+ ₴1,387.38 reinvested" from `reinvestedTotal`), Free cash (`latestCash`); Assets card with per-asset rows (`latestQuotes` values, yieldSinceStart deltas) + 12px stacked share bar; Next payouts card — bonds from `couponAmount`+`nextCoupon`/`maturity` attributes, dividend assets estimated as their latest dividend amount with "~" prefix and next-schedule date (reference's "~₴715 · 10 Aug" vs derived ~₴700 is accepted mock imprecision — D5); Rebalance hint (top up = `topUpAmount` for the most-underweight asset, "Open Allocation →"); Income received card (`incomeReceived` split → ₴5,040.94).
 - [ ] Portfolio (design 459–495, §6.8): positions table (Asset | Yield-type tag | Invested | of it reinvested (`reinvestedByAsset`) | Value now (`latestQuotes`) | P&L ₴ | P&L % | Share) + bold Total row ("Total + cash ₴7.75", value 149 016,36); Best performer / Laggard / Income engine cards — all computed, not looked up.
 - [ ] Attributes (design 340–409, §6.6): 2×2 asset cards, avatar + h3 + yield-type tag + 2-col `<dl>` of facts; bonds swap in YTM/Coupon/Maturity/Next coupon; Energy renders "None (price only)". "Actual ann." = `annualizedPct` with the global PORTFOLIO_START basis. Read-only.
+- [ ] Motion (D7): KPI cards and asset rows animate in (subtle stagger via `delay-*` is welcome); share-bar segments transition width; hover states on rows/cards transition.
 - [ ] Verify: every figure matches the reference on seed data (per D5 where the reference disagrees with itself); tables formatted `68 702,10`; deltas signed/colored. Gates green; visual diff per screen.
 - [ ] Commit `feat: add overview, portfolio and attributes views`; squash-merge to `dev`.
 
@@ -394,6 +413,7 @@ it('formats per README §8', () => {
 - [ ] Yield (design 303–339, §6.5): 4-line cumulative-% chart (series colors, end dots); table Asset | Invested | Value now | Δ total | Annualized (global PORTFOLIO_START basis) | vs expected (negative pp in `--color-neg`); footnote verbatim from design.
 - [ ] Seasonality (design 410–458, §6.7): income-by-day-of-month bars — gray 3–5px stubs for zero days, tall colored bars on days 3/10/25 (day-10 label derives to ₴3,641 vs the reference's ₴3,817 — accepted, D5), `*` expected bar = `couponAmount` on its `nextCoupon` day (₴1,240* day 25); stub footnote; 3 insight cards (Income anchor / Coupon season / Quiet stretch) — derive day totals from transactions.
 - [ ] Allocation (design 496–552, §6.9): 340px/1fr grid; donut (30px ring, center "₴149k / 4 assets + cash" from `headlineTotal`) + legend; Current-vs-target labeled progress pills (fill = share, black 2px tick at target, signed deltas — **color encodes severity, not sign**: near-target (|Δ| ≤ ~0.5pp) green, off-target red, per design lines 524–537 where +6.1 is red and −0.1 is green); numbered Rebalance plan — `topUpAmount` for buys, `trimAmount` for sells.
+- [ ] Motion (D7): recharts `isAnimationActive` on everywhere, duration ≈900ms ease-out; donut sweeps in; bars grow from baseline; data changes animate from previous state; allocation progress-pill fills transition width.
 - [ ] Verify: wipe IndexedDB → reseed → every chart matches reference (modulo D5 deviations); add a transaction → Payouts/Seasonality/Allocation update. Gates green; visual diff per chart (shape, colors, labels).
 - [ ] Commit `feat: add balances, payouts, yield, seasonality and allocation charts`; squash-merge to `dev`.
 
@@ -404,6 +424,7 @@ it('formats per README §8', () => {
 - [ ] Branch `feat/polish`.
 - [ ] Currency toggle functional: segmented control switches settings store; converts ONLY logo symbol (₴/$), sidebar Total capital (value + sub-line flip per design renderVals), Overview headline KPIs — at rate 44.83, `$3,324.03` formatting; persists across reload (§9). Tables/inputs remain ₴.
 - [ ] Empty states (README §10.7): no snapshots yet (Daily quotes placeholders, charts with friendly empty message) and single-asset portfolio — no crashes, sensible copy.
+- [ ] Motion (D7): currency toggle thumb slides between segments; headline KPIs + sidebar capital tween numerically on toggle (`hooks/useTweenedNumber`, ~300ms rAF); full motion sweep — every interactive element transitions, screen changes animate, `prefers-reduced-motion` verified to disable it all.
 - [ ] Polish sweep vs §9: hover states everywhere, focus-visible rings, `aria-current`, sidebar internal scroll, 360px no-horizontal-scroll. Verify every §9 item in the browser and record pass/fail in the Result column of the traceability table below (README itself stays untouched).
 - [ ] Final gates: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all green.
 - [ ] Commit `feat: add currency toggle, empty states and a11y polish`; squash-merge to `dev`.

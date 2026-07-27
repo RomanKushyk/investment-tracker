@@ -17,6 +17,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 - **Every top-level folder has a README.md with its local rules** (design/, docs/, src/ once created) — read it before working there, create one for any new folder, keep them current.
 - **navigation-map.md (root) is the agentic manual-testing map** — per-route expected seed values and checkpoints. Use it to verify; update route Status + checkpoints whenever screens or flows change.
 - Tailwind theme tokens for the palette (README §4) — no ad-hoc hex in components.
+- **Fluid, soft motion on every interaction** (user requirement) — follow "Motion & interaction standards" in docs/BUILD-PLAN.md; nothing pops or snaps instantly; respect prefers-reduced-motion.
 - `pnpm lint` and `pnpm typecheck` must pass before considering a task done (plus `pnpm test` once vitest lands in Task 2).
 
 ## Git conventions (this repo)

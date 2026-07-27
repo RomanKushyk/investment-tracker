@@ -24,3 +24,4 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 - **No hard-coded portfolio figures anywhere** — every displayed number derives from stored data (`lib/derive.ts`). Placeholders before the data layer exist show "—".
 - **Fonts:** `font-display` (Space Grotesk) for headings/`.btn`-style buttons/KPI numbers; `font-body` (Spline Sans Mono, the body default) for everything else — note the sidebar nav pills and currency toggle inherit the mono body font (matches the reference markup).
 - Formatting/derivation logic lives in `lib/format.ts` / `lib/derive.ts` (pure, unit-tested) — never inline in components.
+- **Motion (D7):** every interaction animates softly — `transition active:scale-[.97]` on pressables, `animate-in` reveals, keyed route transitions. Standards: `docs/BUILD-PLAN.md` → "Motion & interaction standards". The `prefers-reduced-motion` kill-switch in `index.css` must stay.
