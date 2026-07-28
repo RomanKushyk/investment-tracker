@@ -21,10 +21,11 @@ export default tseslint.config(
     },
   },
   // Import zones (docs/NEXT-PHASE-PLAN.md G1 / DECISIONS D2+D8).
-  // Everywhere: lib/db.ts is imported ONLY by lib/repository.ts.
+  // Everywhere: lib/db.ts is imported ONLY by lib/repository.ts — plus its
+  // colocated test, which needs db.delete()/open() for per-test isolation.
   {
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/lib/repository.ts'],
+    ignores: ['src/lib/repository.ts', 'src/lib/repository.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
