@@ -52,6 +52,8 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | **done** (2026-07-28) |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | **done** (2026-07-28) — plan complete |
 
+Plan complete. Deferred cosmetic items live in `docs/FOLLOW-UPS.md` (non-blocking; one `chore/cosmetic-sweep` branch clears them).
+
 ## Design reference
 
 How to read `design/Investment Tracker.dc.html` — file anatomy, the **line map** that task references below ("design lines X–Y") point into, and the browser-rendering caveat — lives in **`design/README.md`**. Read it once per session before any visual work.
