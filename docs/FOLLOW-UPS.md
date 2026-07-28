@@ -2,6 +2,8 @@
 
 Backlog carried out of the 7-task build (see `BUILD-PLAN.md` Status table). All items below were found by task/final reviews, judged **non-blocking** (cosmetic or reachable only on degenerate/empty data), and consciously shipped as-is on 2026-07-28. One branch (`chore/cosmetic-sweep`) can clear the lot.
 
+> **Sweep completed 2026-07-28** — `chore/cosmetic-sweep` squash-merged to `dev`: items **1–6 done** (144 tests, all gates green, browser-verified incl. empty-DB states), item **7 skipped** (optional; no natural touch-point), item **8 no-action** as documented. Backlog is clear.
+
 None of these affect data correctness, derivations, or the §9 behavior checklist — do not reopen §9 for them.
 
 ## Items
