@@ -2,6 +2,8 @@
 
 Route-by-route map of the app for manual/agentic verification. Every expected value below is what the app must show **on fresh seed data** (they mirror `docs/BUILD-PLAN.md` fixtures and `docs/DECISIONS.md` D5). Update the Status column and checkpoints whenever a task changes a screen or flow.
 
+> **Next phase in progress** — see `docs/NEXT-PHASE-PLAN.md`. From its Phase 2 (dataset split) on, all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/settings`, `/data`) get their own sections as they land.
+
 ## Connecting & resetting
 
 - App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.

@@ -1,0 +1,202 @@
+[
+    {
+        "id":  36,
+        "slug":  "ovdp",
+        "type":  "bond",
+        "status":  "active",
+        "color":  "ukraine",
+        "offerPage":  "/offer/ovdp",
+        "title":  "Державні \nоблігації України",
+        "namePrefix":  "Цінні папери",
+        "tag":  "Державні облігації",
+        "assetDetails":  {
+                             "isin":  "UA4000238976",
+                             "securityProperties":  {
+                                                        "availableQuantity":  97351,
+                                                        "buyMin":  1,
+                                                        "buyMax":  1000000000
+                                                    },
+                             "paymentSchedule":  [
+                                                     {
+                                                         "id":  113,
+                                                         "date":  "2026-03-24T22:00:00.000Z",
+                                                         "amount":  "7840"
+                                                     },
+                                                     {
+                                                         "id":  114,
+                                                         "date":  "2026-09-22T21:00:00.000Z",
+                                                         "amount":  "7840"
+                                                     },
+                                                     {
+                                                         "id":  115,
+                                                         "date":  "2027-03-23T22:00:00.000Z",
+                                                         "amount":  "7840"
+                                                     },
+                                                     {
+                                                         "id":  116,
+                                                         "date":  "2027-03-23T22:00:00.000Z",
+                                                         "amount":  "100000"
+                                                     }
+                                                 ],
+                             "maturityDate":  "2027-03-24",
+                             "rank":  1,
+                             "type":  "bond",
+                             "prices":  {
+                                            "buy":  1057.67,
+                                            "sell":  1057.67,
+                                            "nav":  0,
+                                            "buyUAH":  1057.67,
+                                            "sellUAH":  1057.67,
+                                            "navUAH":  0,
+                                            "buyUSD":  23.578811,
+                                            "sellUSD":  23.578811,
+                                            "navUSD":  0
+                                        },
+                             "returnRates":  {
+                                                 "buy":  15.55,
+                                                 "sell":  15.55
+                                             }
+                         }
+    },
+    {
+        "id":  37,
+        "slug":  "ovdp",
+        "type":  "bond",
+        "status":  "active",
+        "color":  "ukraine",
+        "offerPage":  "/offer/ovdp",
+        "title":  "Державні \nоблігації України",
+        "namePrefix":  "Цінні папери",
+        "tag":  "Державні облігації",
+        "assetDetails":  {
+                             "isin":  "UA4000236475",
+                             "securityProperties":  {
+                                                        "availableQuantity":  0,
+                                                        "buyMin":  1,
+                                                        "buyMax":  1000000000
+                                                    },
+                             "paymentSchedule":  [
+                                                     {
+                                                         "id":  117,
+                                                         "date":  "2025-09-30T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  118,
+                                                         "date":  "2026-03-31T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  119,
+                                                         "date":  "2026-09-29T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  120,
+                                                         "date":  "2027-03-30T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  121,
+                                                         "date":  "2027-09-28T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  122,
+                                                         "date":  "2028-03-28T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  123,
+                                                         "date":  "2028-09-26T21:00:00.000Z",
+                                                         "amount":  "8885"
+                                                     },
+                                                     {
+                                                         "id":  124,
+                                                         "date":  "2028-09-26T21:00:00.000Z",
+                                                         "amount":  "100000"
+                                                     }
+                                                 ],
+                             "maturityDate":  "2028-09-27",
+                             "rank":  2,
+                             "type":  "bond",
+                             "prices":  {
+                                            "buy":  1094.88,
+                                            "sell":  1094.88,
+                                            "nav":  0,
+                                            "buyUAH":  1094.88,
+                                            "sellUAH":  1094.88,
+                                            "navUAH":  0,
+                                            "buyUSD":  24.408339,
+                                            "sellUSD":  24.408339,
+                                            "navUSD":  0
+                                        },
+                             "returnRates":  {
+                                                 "buy":  16.3,
+                                                 "sell":  16.3
+                                             }
+                         }
+    },
+    {
+        "id":  21,
+        "slug":  "inzhur-reit",
+        "type":  "fund",
+        "status":  "active",
+        "color":  "ocean-blue",
+        "offerPage":  "/offer/inzhur-reit",
+        "title":  "Inzhur REIT",
+        "namePrefix":  "Фонд",
+        "tag":  "Нерухомість",
+        "assetDetails":  {
+                             "securityProperties":  {
+                                                        "availableQuantity":  1545784,
+                                                        "buyMin":  1,
+                                                        "buyMax":  1000000000
+                                                    },
+                             "rank":  0,
+                             "type":  "fund",
+                             "prices":  {
+                                            "buy":  11.1499,
+                                            "sell":  11.1389,
+                                            "nav":  11.0395,
+                                            "buyUAH":  11.1499,
+                                            "sellUAH":  11.1389,
+                                            "navUAH":  11.0395,
+                                            "buyUSD":  0.248834,
+                                            "sellUSD":  0.248588,
+                                            "navUSD":  0.24637
+                                        }
+                         }
+    },
+    {
+        "id":  13,
+        "slug":  "inzhur-energy",
+        "type":  "fund",
+        "status":  "active",
+        "color":  "energy",
+        "offerPage":  "/offer/inzhur-energy",
+        "title":  "Inzhur Energy",
+        "namePrefix":  "Фонд",
+        "tag":  "Енергетика",
+        "assetDetails":  {
+                             "securityProperties":  {
+                                                        "availableQuantity":  0,
+                                                        "buyMin":  1,
+                                                        "buyMax":  1000000000
+                                                    },
+                             "rank":  1,
+                             "type":  "fund",
+                             "prices":  {
+                                            "buy":  6682.5012,
+                                            "sell":  6675.8848,
+                                            "nav":  6616.3378,
+                                            "buyUAH":  6682.5012,
+                                            "sellUAH":  6675.8848,
+                                            "navUAH":  6616.3378,
+                                            "buyUSD":  149.134345,
+                                            "sellUSD":  148.986686,
+                                            "navUSD":  147.657767
+                                        }
+                         }
+    }
+]

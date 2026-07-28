@@ -6,7 +6,10 @@ Working documentation for multi-session, agent-driven development. Root `README.
 
 | File | What it is | Rules |
 |------|-----------|-------|
-| `BUILD-PLAN.md` | **The living plan**: 7 tasks (README §10 order), pinned contracts, seed spec, test fixtures, Status table, session workflow. | Tick step checkboxes as you complete them; keep the Status table current; the **Pinned contracts section is binding** — changing a contract requires updating every task that consumes it plus a DECISIONS entry. |
+| `BUILD-PLAN.md` | The **v1 record** (Tasks 1–7, done): pinned contracts, seed spec, test fixtures, session workflow. | Historical reference — v1 pinned contracts stay binding until a NEXT-PHASE-PLAN phase supersedes them (with a DECISIONS entry). Do not reopen tasks here. |
+| `NEXT-PHASE-PLAN.md` | **The living plan** (post-v1.0.0): 8 phases covering `NEXT-PHASE-DRAFT.md`, governing decisions G1–G8, formula reconciliation, per-phase tasks/verification. | Tick checkboxes as you complete them; keep the Status table current; contract changes require a DECISIONS entry. |
+| `NEXT-PHASE-DRAFT.md` | The user's raw wishlist that NEXT-PHASE-PLAN implements. | Input document — don't edit except when grooming leftovers into a fresh draft at P7 closeout. |
+| `WEALTH-MANAGEMENT-ARCHITECTRUE.md` | User's spreadsheet-era business-logic spec (formulas + resolved edge cases). | Source of truth for the P1 formula audit (`FORMULA-AUDIT.md` will record the reconciliation). |
 | `DECISIONS.md` | Decision log D1…Dn (stack, persistence, git conventions, testing scope, reference-data reconciliation). | **Append-only** — add new entries at the bottom, supersede rather than rewrite. Read D5 before touching seed data or derivations. |
 | `FOLLOW-UPS.md` | Post-plan backlog: cosmetic/degenerate-data items consciously shipped as-is on 2026-07-28. | Tick or strike items as a sweep clears them; add new deferred-cosmetic findings here rather than reopening `BUILD-PLAN.md`. |
 | `VERSIONING.md` | App version & sidebar badge: single source of truth (`package.json`), SemVer bump rules, tag convention. | Bump `package.json` only — the badge derives from it at build time; keep tag `vX.Y.Z` and `package.json` in agreement. |

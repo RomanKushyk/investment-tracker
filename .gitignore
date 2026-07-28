@@ -19,3 +19,6 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Browser-automation artifacts (Playwright MCP)
+.playwright-mcp/
