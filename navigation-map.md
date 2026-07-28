@@ -15,7 +15,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px; Backup download button (next-phase P1) |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
 | `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware; values tween ~300ms on toggle (Task 7) |
 | `/balances` | Balances | Task 6 | done |
@@ -34,7 +34,8 @@ Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a
 - Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills. Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
 - Currency toggle (₴ / $ segmented pill) near the bottom.
 - **Total capital card:** value `₴149,016` (whole ₴), sub-line `+3.08% · $3,324.03`. After toggling to $: logo symbol becomes `$`, value/sub-line flip to the USD form (`$…` main, `… · ₴149,016.36` sub); choice **survives a page reload**.
-- **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
+- **Backup button** (quiet small outline pill directly below the capital card, label "Backup"): visible gray border/text on the dark sidebar, soft hover fill + press scale (D7). Click downloads `kubushka-backup-<yyyy-MM-dd>.json` (today's date) — a `kubushka-backup` formatVersion-1 JSON envelope holding ALL rows: on seed 4 assets / 174 snapshots / 18 transactions + settings, and it re-validates via `core/backup/json.parseBackup` (temporary pre-design home; moves to Settings→Data in next-phase P2).
+- **Version badge** at the very bottom (below the Backup button, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
 - No horizontal scroll at 360px viewport width on any route.
 
 ## `/` — Daily quotes (landing)

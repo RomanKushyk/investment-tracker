@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildBackup, parseBackup } from '../core/backup/json';
 import {
   depositedTotal,
   headlineTotal,
@@ -119,6 +120,32 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
 
   it('deposited ₴143,176.37 (KPI ₴143,176)', () => {
     expect(depositedTotal(SEED_TRANSACTIONS)).toBeCloseTo(143176.37, 2);
+  });
+});
+
+// Backup envelope round-trip on the seed builders (NEXT-PHASE-PLAN P1) —
+// lives here rather than next to core/backup/json.ts because core tests must
+// not import src/lib (G1 lint zone); lib importing core is the allowed way.
+describe('backup envelope round-trip on the seed (D12)', () => {
+  it('buildBackup(seed) → stringify → parseBackup returns deep-equal tables (4/174/18)', () => {
+    const env = buildBackup(
+      SEED_ASSETS,
+      snaps,
+      SEED_TRANSACTIONS,
+      { currency: 'UAH', usdRate: 44.83 },
+      'demo',
+      '2026-07-28T12:00:00',
+      2,
+    );
+    const result = parseBackup(JSON.stringify(env));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.assets).toHaveLength(4);
+    expect(result.data.snapshots).toHaveLength(174);
+    expect(result.data.transactions).toHaveLength(18); // D10: "19" was a miscount
+    expect(result.data.assets).toEqual(SEED_ASSETS);
+    expect(result.data.snapshots).toEqual(snaps);
+    expect(result.data.transactions).toEqual(SEED_TRANSACTIONS);
   });
 });
 

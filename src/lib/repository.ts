@@ -9,6 +9,11 @@ export interface AllTables {
   transactions: Transaction[];
 }
 
+// Declared Dexie schema version — recorded in backup envelopes (dbVersion
+// field, see core/backup/json.ts); re-exported here because only this module
+// may import lib/db.ts (D2).
+export const dbVersion = db.verno;
+
 async function seedTables(): Promise<void> {
   await db.assets.bulkAdd(SEED_ASSETS);
   await db.snapshots.bulkAdd(buildSeedSnapshots());

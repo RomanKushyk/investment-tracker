@@ -86,6 +86,13 @@ export function useDeleteSnapshot() {
   });
 }
 
+// One-shot consistent read of all three tables (backup download) — a
+// mutation, not a query: the export must reflect the DB at click time, never
+// a cached result. Nothing to invalidate.
+export function useExportAll() {
+  return useMutation({ mutationFn: () => repo.exportAll() });
+}
+
 export function useReplaceAll() {
   const qc = useQueryClient();
   return useMutation({

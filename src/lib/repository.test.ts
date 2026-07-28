@@ -7,13 +7,19 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { db } from './db';
-import { ensureSeeded, repo } from './repository';
+import { dbVersion, ensureSeeded, repo } from './repository';
 import { buildSeedSnapshots, SEED_TRANSACTIONS } from './seed';
 import type { Snapshot } from '../core/types';
 
 beforeEach(async () => {
   await db.delete();
   await db.open();
+});
+
+describe('dbVersion (backup envelopes)', () => {
+  it('exposes the declared Dexie schema version', () => {
+    expect(dbVersion).toBe(2);
+  });
 });
 
 describe('deleteAsset cascade', () => {
