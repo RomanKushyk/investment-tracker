@@ -31,8 +31,10 @@ export function QuoteRow({
         </div>
       </div>
       <input
+        id={`quote-${asset.id}`}
+        name={`quote-${asset.id}`}
         className={
-          'h-9 max-w-[160px] min-w-[90px] flex-1 rounded-[10px] border bg-white px-3 text-right font-body text-[13px] transition ' +
+          'bg-card h-9 max-w-[160px] min-w-[90px] flex-1 rounded-[10px] border px-3 text-right font-body text-[13px] transition ' +
           (filled ? 'border-pos-border' : 'border-hairline')
         }
         value={raw ?? ''}

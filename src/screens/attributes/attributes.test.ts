@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
 import type { Transaction } from '../../lib/types';
-import { couponFrequencyLabel, dividendDayOfMonth, payoutScheduleLabel } from './attributes';
+import {
+  actualAnnualizedPct,
+  couponFrequencyLabel,
+  dividendDayOfMonth,
+  payoutScheduleLabel,
+} from './attributes';
 
 describe('dividendDayOfMonth', () => {
   it("finds the LATEST dividend_accrual's day-of-month for the asset (REIT -> 10th)", () => {
@@ -46,5 +51,25 @@ describe('couponFrequencyLabel', () => {
     expect(couponFrequencyLabel('quarterly')).toBe('quarterly');
     expect(couponFrequencyLabel('monthly')).toBe('monthly');
     expect(couponFrequencyLabel('maturity')).toBe('at maturity');
+  });
+});
+
+describe('actualAnnualizedPct', () => {
+  it('returns undefined when the asset has no quote yet (value undefined) instead of a bogus huge negative %', () => {
+    // Reproduces the reported bug: a freshly created asset with invested
+    // capital but no snapshot quote would otherwise compute
+    // yieldSinceStart(0, invested) = -100%, then annualize it against the
+    // global portfolio-start daysHeld basis — e.g. -100% * 365/174 ≈ -209.8%.
+    expect(actualAnnualizedPct(undefined, 10000, 174)).toBeUndefined();
+  });
+
+  it('computes normally once a quote exists (value 0 is a real, quoted zero — not "missing")', () => {
+    expect(actualAnnualizedPct(0, 10000, 174)).toBeCloseTo((-1 * 365) / 174);
+  });
+
+  it('matches annualizedPct for a real seed figure', () => {
+    // REIT: invested 65,800 -> value 68,629.36 over 174 days from PORTFOLIO_START.
+    const pct = actualAnnualizedPct(68629.36, 65800, 174)!;
+    expect(pct).toBeGreaterThan(0);
   });
 });

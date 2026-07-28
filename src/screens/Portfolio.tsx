@@ -17,6 +17,7 @@ import {
 } from '../lib/derive';
 import { fmtPct, fmtProse, fmtProseWhole, fmtTable } from '../lib/format';
 import type { Asset } from '../lib/types';
+import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
 import { daysBetween, latestSnapshotDate } from './shared/dates';
 
@@ -28,9 +29,7 @@ function signedTable(n: number): string {
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").
 function highlightLabel(asset: Asset): string {
-  return asset.yieldType === 'fixed_coupon'
-    ? `${asset.name.split(' ')[0]} …${asset.name.slice(-4)}`
-    : asset.name;
+  return asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : asset.name;
 }
 
 export function Portfolio() {

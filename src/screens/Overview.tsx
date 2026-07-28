@@ -8,6 +8,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ShareBar } from '../components/ui/ShareBar';
 import { YIELD_LABEL_SHORT } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import {
   depositedTotal,
   headlineTotal,
@@ -23,8 +24,9 @@ import {
 } from '../lib/derive';
 import { fmtDate, fmtDateShort, fmtPct, fmtProse, fmtProseWhole, toUsd } from '../lib/format';
 import { useSettings } from '../state/settings';
-import { shortLabel } from './daily-quotes/quotes';
+import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import { mostUnderweightAsset, nextPayoutRows } from './overview/overview';
+import { signedPp } from './shared/format';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
@@ -59,20 +61,26 @@ export function Overview() {
 
   // Currency-aware KPI grid (renderVals ovCap/ovCapSub/ovNet/ovDep/ovDepSub/ovCash) —
   // only these headline cards convert; tables and every other card stay ₴.
+  // Each main figure tweens numerically (~300ms, D7) whenever it changes —
+  // on the currency toggle above all, but also on new data.
   const capitalUsd = toUsd(total, usdRate);
+  const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
   const capital = usd
-    ? { value: fmtProse(capitalUsd, 'USD'), sub: `${fmtProse(total)} · rate ${usdRate}` }
-    : { value: fmtProse(total), sub: `${fmtProse(capitalUsd, 'USD')} · rate ${usdRate}` };
+    ? { value: fmtProse(tweenedCapital, 'USD'), sub: `${fmtProse(total)} · rate ${usdRate}` }
+    : { value: fmtProse(tweenedCapital), sub: `${fmtProse(capitalUsd, 'USD')} · rate ${usdRate}` };
 
-  const netValue = usd ? signedProse(toUsd(net.uah, usdRate), 'USD') : signedProse(net.uah);
+  const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, usdRate) : net.uah);
+  const netValue = usd ? signedProse(tweenedNet, 'USD') : signedProse(tweenedNet);
 
   const depositedUsd = toUsd(deposited, usdRate);
   const reinvestedUsd = toUsd(reinvested, usdRate);
+  const tweenedDeposited = useTweenedNumber(usd ? depositedUsd : deposited);
   const deposit = usd
-    ? { value: fmtProse(depositedUsd, 'USD'), sub: `+ ${fmtProse(reinvestedUsd, 'USD')} reinvested` }
-    : { value: fmtProseWhole(deposited), sub: `+ ${fmtProse(reinvested)} reinvested` };
+    ? { value: fmtProse(tweenedDeposited, 'USD'), sub: `+ ${fmtProse(reinvestedUsd, 'USD')} reinvested` }
+    : { value: fmtProseWhole(tweenedDeposited), sub: `+ ${fmtProse(reinvested)} reinvested` };
 
-  const cashValue = usd ? fmtProse(toUsd(cash, usdRate), 'USD') : fmtProse(cash);
+  const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
+  const cashValue = usd ? fmtProse(tweenedCash, 'USD') : fmtProse(tweenedCash);
   const cashSharePct = total === 0 ? 0 : (cash / total) * 100;
 
   const shareSegments = assets.map((a) => ({
@@ -90,7 +98,10 @@ export function Overview() {
         subtitle={`Portfolio at a glance · ${fmtDate(todayIso())} · rate ${usdRate} ₴/$`}
       />
 
-      <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+      {/* min(200px,100%) caps auto-fit's track floor to the container width —
+          plain minmax(200px,1fr) forces a 200px-wide overflow once the
+          container itself drops below 200px (360px shell fix, item 1) */}
+      <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
         <KpiCard
           tone="dark"
           className="animate-in fade-in slide-in-from-bottom-1 duration-300"
@@ -177,9 +188,9 @@ export function Overview() {
             {underweight ? (
               <p className="text-[13px] leading-[1.5]">
                 {underweight.asset.yieldType === 'fixed_coupon'
-                  ? `${underweight.asset.name.split(' ')[0]} ${shortLabel(underweight.asset)}`
+                  ? bondAbbrev(underweight.asset)
                   : shortLabel(underweight.asset)}{' '}
-                is <strong className="text-neg">{fmtPct(underweight.deltaPp / 100, 1)}</strong>{' '}
+                is <strong className="text-neg">{signedPp(underweight.deltaPp, '%')}</strong>{' '}
                 under its {underweight.asset.targetPct}% target — top up{' '}
                 <strong>{fmtProse(underweight.topUp)}</strong>.
               </p>

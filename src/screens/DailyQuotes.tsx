@@ -96,8 +96,10 @@ export function DailyQuotes() {
             {filledCount} of {assets.length} filled
           </span>
           <div className="ml-auto flex items-center gap-2">
-            <label className="text-[13px] whitespace-nowrap">Date</label>
-            <DatePicker value={selectedDate} onChange={setDate} />
+            <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
+              Date
+            </label>
+            <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
           </div>
         </div>
         <p className="text-muted mb-[18px] text-[13px]">
@@ -131,7 +133,7 @@ export function DailyQuotes() {
         <YieldTeaser assets={assets} values={values} invested={invested} />
       </div>
 
-      <aside className="flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
+      <aside className="min-w-0 flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
         <TransactionPanel />
       </aside>
     </div>

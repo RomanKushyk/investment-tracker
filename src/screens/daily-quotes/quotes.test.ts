@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { SEED_ASSETS } from '../../lib/seed';
 import type { Snapshot } from '../../lib/types';
-import { maxSavedAt, yesterdayQuote } from './quotes';
+import { bondAbbrev, maxSavedAt, yesterdayQuote } from './quotes';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
@@ -41,5 +42,14 @@ describe('maxSavedAt', () => {
   it('takes the max across multiple saved snapshots', () => {
     const earlier: Snapshot = { date: '2026-07-20', cash: 0, quotes: {}, savedAt: '2026-07-20T10:00:00' };
     expect(maxSavedAt([earlier, complete2507])).toBe('2026-07-25T21:14:00');
+  });
+});
+
+describe('bondAbbrev', () => {
+  it('combines the first word of the name with the last-4 suffix ("OVDP …8976")', () => {
+    const ovdp8976 = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
+    expect(bondAbbrev(ovdp8976)).toBe('OVDP …8976');
+    const ovdp6475 = SEED_ASSETS.find((a) => a.id === 'ovdp6475')!;
+    expect(bondAbbrev(ovdp6475)).toBe('OVDP …6475');
   });
 });

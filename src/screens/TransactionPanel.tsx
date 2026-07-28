@@ -127,6 +127,7 @@ export function TransactionPanel() {
             source: 'own',
           });
         },
+        onError: () => toast.error('Could not record transaction — please try again.'),
       },
     );
   }

@@ -1,15 +1,12 @@
 import { YieldLines } from '../components/charts/YieldLines';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { fmtPct, fmtTable } from '../lib/format';
+import { signedPp } from './shared/format';
 import { cumulativeYieldSeries, yieldTableRows } from './yield/yield';
-
-// Signed "pp" gap — "-4.7 pp" / "+0.3 pp" (vs expected column; fmtPct's % suffix doesn't fit here).
-function signedPp(n: number): string {
-  return (n < 0 ? '-' : '+') + Math.abs(n).toFixed(1) + ' pp';
-}
 
 export function Yield() {
   const assets = useAssets().data ?? [];
@@ -32,7 +29,11 @@ export function Yield() {
             </span>
           ))}
         </div>
-        <YieldLines data={series} assets={assets} />
+        {series.length === 0 ? (
+          <EmptyState message="No snapshots yet — save your first daily quote to start this chart." height={280} />
+        ) : (
+          <YieldLines data={series} assets={assets} />
+        )}
       </Card>
 
       <Card radius={24} className="animate-in fade-in overflow-x-auto px-[22px] py-2.5 duration-300">
@@ -52,13 +53,17 @@ export function Yield() {
               <tr key={r.asset.id} className="border-hairline hover:bg-page/60 border-t transition-colors">
                 <td className="py-2 font-semibold">{r.asset.name}</td>
                 <td className="py-2 text-right">{fmtTable(r.invested)}</td>
-                <td className="py-2 text-right">{fmtTable(r.value)}</td>
-                <td className={`py-2 text-right font-bold ${r.deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}>
-                  {fmtPct(r.deltaTotal)}
+                <td className="py-2 text-right">{r.value === undefined ? '—' : fmtTable(r.value)}</td>
+                <td
+                  className={`py-2 text-right font-bold ${r.deltaTotal === undefined ? 'text-muted' : r.deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}
+                >
+                  {r.deltaTotal === undefined ? '—' : fmtPct(r.deltaTotal)}
                 </td>
-                <td className="py-2 text-right">{fmtPct(r.annualized, 1)}</td>
-                <td className={`py-2 text-right ${r.vsExpectedPp < 0 ? 'text-neg' : 'text-pos'}`}>
-                  {signedPp(r.vsExpectedPp)}
+                <td className="py-2 text-right">{r.annualized === undefined ? '—' : fmtPct(r.annualized, 1)}</td>
+                <td
+                  className={`py-2 text-right ${r.vsExpectedPp === undefined ? 'text-muted' : r.vsExpectedPp < 0 ? 'text-neg' : 'text-pos'}`}
+                >
+                  {r.vsExpectedPp === undefined ? '—' : signedPp(r.vsExpectedPp, ' pp')}
                 </td>
               </tr>
             ))}

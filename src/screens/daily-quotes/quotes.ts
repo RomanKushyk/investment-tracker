@@ -37,3 +37,11 @@ export function shortLabel(a: Asset): string {
     ? `…${a.name.slice(-4)}`
     : a.name.split(' ').at(-1)!;
 }
+
+// Bond highlight/hint label — "OVDP …8976" (first word of the name + the
+// …last-4 suffix). Was duplicated inline across Overview's rebalance hint,
+// Portfolio's highlight cards and Allocation's rebalance plan; unified here.
+// Callers still decide their own non-bond fallback (full name vs shortLabel).
+export function bondAbbrev(a: Asset): string {
+  return `${a.name.split(' ')[0]} ${shortLabel(a)}`;
+}

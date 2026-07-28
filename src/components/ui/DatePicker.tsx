@@ -43,10 +43,12 @@ export function DatePicker({
   value,
   onChange,
   className = 'w-[130px] text-right',
+  id,
 }: {
   value: string; // ISO yyyy-MM-dd
   onChange: (iso: string) => void;
   className?: string; // width/alignment override for the trigger button
+  id?: string; // lets a sibling <label htmlFor> associate with the trigger
 }) {
   const [open, setOpen] = useState(false);
 
@@ -55,8 +57,9 @@ export function DatePicker({
       <Popover.Trigger asChild>
         <button
           type="button"
+          id={id}
           aria-label={`Date: ${fmtDate(value)}`}
-          className={`border-hairline font-body text-ink hover:border-ink h-9 rounded-[10px] border bg-white px-3 text-[13px] transition active:scale-[.97] ${className}`}
+          className={`border-hairline font-body text-ink hover:border-ink bg-card h-9 rounded-[10px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
           {fmtDate(value)}
         </button>

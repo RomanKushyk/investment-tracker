@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { BalancesArea } from '../components/charts/BalancesArea';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
 import { fmtDate, fmtTable } from '../lib/format';
@@ -22,7 +23,11 @@ export function Balances() {
       <ScreenHeader title="Balances" subtitle="Total capital by daily snapshot, Feb — Jul 2026" />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
-        <BalancesArea data={chartData} />
+        {chartData.length === 0 ? (
+          <EmptyState message="No snapshots yet — save your first daily quote to start this chart." height={260} />
+        ) : (
+          <BalancesArea data={chartData} />
+        )}
       </Card>
 
       <Card radius={24} className="animate-in fade-in overflow-x-auto px-[22px] py-2.5 duration-300">
@@ -40,6 +45,13 @@ export function Balances() {
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={assets.length + 3} className="text-muted py-4 text-center">
+                  No snapshots saved yet — head to Daily quotes to save your first one.
+                </td>
+              </tr>
+            )}
             {rows.map((s) => {
               const row = buildBalanceRow(s, assets);
               return (

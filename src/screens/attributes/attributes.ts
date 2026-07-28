@@ -1,5 +1,6 @@
 // Pure glue for the Attributes screen's fact labels — not in src/lib, that
 // layer stays untouched per this task's scope. Covered by attributes.test.ts.
+import { annualizedPct } from '../../lib/derive';
 import type { Asset, PayoutSchedule, Transaction } from '../../lib/types';
 import { ordinal } from '../shared/dates';
 
@@ -39,4 +40,19 @@ const COUPON_FREQUENCY: Record<PayoutSchedule, string> = {
 // Bond card "Coupon" fact frequency word (design line 383: "₴1,240 semi-annual").
 export function couponFrequencyLabel(schedule: PayoutSchedule): string {
   return COUPON_FREQUENCY[schedule];
+}
+
+// "Actual (ann.)" fact: undefined until the asset has an actual quote. A
+// freshly created asset has invested capital but no snapshot yet — value
+// would fall back to 0, making yieldSinceStart read -100% and annualizedPct
+// blow that up against the global daysHeld basis (e.g. -209.8%). Guarding
+// here (render shows "—" for undefined) keeps annualizedPct/derive.ts itself
+// untouched per this task's scope.
+export function actualAnnualizedPct(
+  value: number | undefined,
+  invested: number,
+  daysHeld: number,
+): number | undefined {
+  if (value === undefined) return undefined;
+  return annualizedPct(value, invested, daysHeld);
 }

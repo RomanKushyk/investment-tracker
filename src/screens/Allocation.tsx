@@ -1,13 +1,15 @@
 import { AllocationDonut } from '../components/charts/AllocationDonut';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
+import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
 import { headlineTotal, latestQuotes, sharePct } from '../lib/derive';
 import { fmtProseWhole } from '../lib/format';
 import type { Asset, ColorKey } from '../lib/types';
 import { allocationRows, rebalancePlan } from './allocation/allocation';
-import { shortLabel } from './daily-quotes/quotes';
+import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
+import { signedPp } from './shared/format';
 
 const BAR_BG: Record<ColorKey, string> = {
   reit: 'bg-reit',
@@ -19,11 +21,7 @@ const BAR_BG: Record<ColorKey, string> = {
 // Rebalance plan bond label: "OVDP …8976" (abbreviated); other assets keep
 // their full name — matches Portfolio's highlight-card convention.
 function planLabel(asset: Asset): string {
-  return asset.yieldType === 'fixed_coupon' ? `${asset.name.split(' ')[0]} ${shortLabel(asset)}` : asset.name;
-}
-
-function signedPp(n: number): string {
-  return (n < 0 ? '−' : '+') + Math.abs(n).toFixed(1);
+  return asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : asset.name;
 }
 
 export function Allocation() {
@@ -43,11 +41,15 @@ export function Allocation() {
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">
-          <AllocationDonut
-            slices={slices}
-            centerTop={`₴${Math.round(total / 1000)}k`}
-            centerSub={`${assets.length} assets + cash`}
-          />
+          {total === 0 ? (
+            <EmptyState message="No snapshots yet — save your first daily quote to see the allocation mix." height={220} />
+          ) : (
+            <AllocationDonut
+              slices={slices}
+              centerTop={`₴${Math.round(total / 1000)}k`}
+              centerSub={`${assets.length} assets + cash`}
+            />
+          )}
           <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
             {assets.map((a) => (
               <div key={a.id} className="flex items-center gap-2">

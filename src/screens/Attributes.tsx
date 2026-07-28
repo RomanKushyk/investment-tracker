@@ -6,10 +6,10 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { YIELD_LABEL_LONG } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { annualizedPct, investedByAsset, latestQuotes, PORTFOLIO_START } from '../lib/derive';
+import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../lib/derive';
 import { fmtDate, fmtPct, fmtProseWhole } from '../lib/format';
 import type { Asset } from '../lib/types';
-import { couponFrequencyLabel, payoutScheduleLabel } from './attributes/attributes';
+import { actualAnnualizedPct, couponFrequencyLabel, payoutScheduleLabel } from './attributes/attributes';
 import { daysBetween, latestSnapshotDate } from './shared/dates';
 
 // A <div>-wrapped dt/dd pair is valid dl content (HTML5 content model allows
@@ -37,7 +37,8 @@ export function Attributes() {
   const daysHeld = now ? daysBetween(PORTFOLIO_START, now) : 0;
 
   function actualAnnualized(a: Asset) {
-    const pct = annualizedPct(values[a.id] ?? 0, invested[a.id] ?? 0, daysHeld);
+    const pct = actualAnnualizedPct(values[a.id], invested[a.id] ?? 0, daysHeld);
+    if (pct === undefined) return <span className="text-muted">—</span>;
     return <span className={pct < 0 ? 'text-neg' : 'text-pos'}>{fmtPct(pct, 1)}</span>;
   }
 

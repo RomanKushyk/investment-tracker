@@ -14,10 +14,14 @@ import { daysBetween, latestSnapshotDate } from '../shared/dates';
 export interface YieldTableRow {
   asset: Asset;
   invested: number;
-  value: number;
-  deltaTotal: number; // fraction, e.g. 0.0441 -> "+4.41%"
-  annualized: number; // fraction, global PORTFORLIO_START basis (D5#5)
-  vsExpectedPp: number; // annualized(%) - expectedPct, in percentage points
+  // undefined = no quote saved yet (fields below are undefined too — an
+  // unquoted asset would otherwise read yieldSinceStart(0, invested) = -100%,
+  // then get scaled into a huge bogus annualized % against the global
+  // daysHeld basis; render "—" instead, same guard as Attributes' actualAnnualizedPct).
+  value: number | undefined;
+  deltaTotal: number | undefined; // fraction, e.g. 0.0441 -> "+4.41%"
+  annualized: number | undefined; // fraction, global PORTFORLIO_START basis (D5#5)
+  vsExpectedPp: number | undefined; // annualized(%) - expectedPct, in percentage points
 }
 
 export function yieldTableRows(
@@ -31,8 +35,11 @@ export function yieldTableRows(
   const daysHeld = now ? daysBetween(PORTFOLIO_START, now) : 0;
 
   return assets.map((asset) => {
-    const value = values[asset.id] ?? 0;
+    const value = values[asset.id];
     const inv = invested[asset.id] ?? 0;
+    if (value === undefined) {
+      return { asset, invested: inv, value: undefined, deltaTotal: undefined, annualized: undefined, vsExpectedPp: undefined };
+    }
     const deltaTotal = yieldSinceStart(value, inv);
     const annualized = annualizedPct(value, inv, daysHeld);
     return { asset, invested: inv, value, deltaTotal, annualized, vsExpectedPp: annualized * 100 - asset.expectedPct };
