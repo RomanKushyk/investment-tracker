@@ -2,7 +2,8 @@
 // that layer stays untouched per this task's scope). Covered by dates.test.ts.
 import type { Snapshot } from '../../lib/types';
 
-const MONTH_SHORT = [
+// Exported so Payouts/Seasonality can label months without re-deriving the list.
+export const MONTH_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 

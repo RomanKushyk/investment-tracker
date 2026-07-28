@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Snapshot } from '../../lib/types';
-import { addMonths, daysBetween, fmtPayoutDate, latestSnapshotDate, ordinal } from './dates';
+import { addMonths, daysBetween, fmtPayoutDate, latestSnapshotDate, MONTH_SHORT, ordinal } from './dates';
 
 describe('daysBetween', () => {
   it('matches the pinned 174-day global basis (03.02 -> 27.07)', () => {
@@ -49,6 +49,13 @@ describe('fmtPayoutDate', () => {
     expect(fmtPayoutDate('2026-08-10')).toBe('10 Aug');
     expect(fmtPayoutDate('2026-08-25')).toBe('25 Aug');
     expect(fmtPayoutDate('2026-12-03')).toBe('3 Dec');
+  });
+});
+
+describe('MONTH_SHORT', () => {
+  it('is indexable by (month - 1) for chart axis labels (Payouts/Seasonality)', () => {
+    expect(MONTH_SHORT[1]).toBe('Feb');
+    expect(MONTH_SHORT[6]).toBe('Jul');
   });
 });
 
