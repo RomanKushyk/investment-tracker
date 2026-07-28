@@ -1,4 +1,5 @@
 import { Card } from '../components/ui/Card';
+import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
@@ -21,9 +22,10 @@ import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
 import { daysBetween, latestSnapshotDate } from './shared/dates';
 
-// Signed table amount — "+2 902,10" / "-120,00" (P&L ₴ column; fmtTable has no sign).
+// Signed table amount — "+2 902,10" / "−120,00" (P&L ₴ column; fmtTable has no sign).
+// U+2212 minus (not ASCII '-'), matching the shared signedPp convention.
 function signedTable(n: number): string {
-  return (n < 0 ? '-' : '+') + fmtTable(Math.abs(n));
+  return (n < 0 ? '−' : '+') + fmtTable(Math.abs(n));
 }
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
@@ -122,30 +124,40 @@ export function Portfolio() {
       </Card>
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
-        <KpiCard
-          className="animate-in fade-in duration-300"
-          valueSize="sm"
-          label="Best performer"
-          value={best ? highlightLabel(best.asset) : '—'}
-          sub={
-            best && bestWeeks !== undefined ? (
-              <span className="text-pos font-bold">
-                {fmtPct(best.yield)} in {bestWeeks} weeks
-              </span>
-            ) : undefined
-          }
-        />
-        <KpiCard
-          className="animate-in fade-in delay-75 duration-300"
-          valueSize="sm"
-          label="Laggard"
-          value={worst ? highlightLabel(worst.asset) : '—'}
-          sub={
-            worst
-              ? `${fmtPct(worst.yield)} · watch vs ${worst.asset.expectedPct}% expected`
-              : undefined
-          }
-        />
+        {best ? (
+          <KpiCard
+            className="animate-in fade-in duration-300"
+            valueSize="sm"
+            label="Best performer"
+            value={highlightLabel(best.asset)}
+            sub={
+              bestWeeks !== undefined ? (
+                <span className="text-pos font-bold">
+                  {fmtPct(best.yield)} in {bestWeeks} weeks
+                </span>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
+            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Best performer</div>
+            <EmptyState message="No quotes yet." height={40} />
+          </Card>
+        )}
+        {worst ? (
+          <KpiCard
+            className="animate-in fade-in delay-75 duration-300"
+            valueSize="sm"
+            label="Laggard"
+            value={highlightLabel(worst.asset)}
+            sub={`${fmtPct(worst.yield)} · watch vs ${worst.asset.expectedPct}% expected`}
+          />
+        ) : (
+          <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
+            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Laggard</div>
+            <EmptyState message="No quotes yet." height={40} />
+          </Card>
+        )}
         <KpiCard
           tone="tint"
           className="animate-in fade-in delay-150 duration-300"

@@ -14,6 +14,11 @@ function extreme(
   invested: Record<string, number>,
   pick: (a: number, b: number) => boolean,
 ): PerformanceResult | undefined {
+  // No asset has ever been quoted (empty DB) — every yield would default to 0
+  // and the first asset would win by tie-break, which reads as a real result.
+  // Bail out instead so the caller can show an empty state.
+  if (!assets.some((a) => a.id in values)) return undefined;
+
   let best: PerformanceResult | undefined;
   for (const asset of assets) {
     const y = yieldSinceStart(values[asset.id] ?? 0, invested[asset.id] ?? 0);

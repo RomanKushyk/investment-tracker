@@ -47,7 +47,7 @@ export function Allocation() {
             <AllocationDonut
               slices={slices}
               centerTop={`₴${Math.round(total / 1000)}k`}
-              centerSub={`${assets.length} assets + cash`}
+              centerSub={`${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} + cash`}
             />
           )}
           <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">

@@ -92,7 +92,7 @@ On seed:
 
 On seed:
 - Day-of-month bar chart: gray 3–5px stubs on no-income days; tall bars on days **3, 10, 25**; **day-10 label ₴3,641** (NOT the reference's ₴3,817 — D5#3); **₴1,240\*** expected bar on day 25 (`*` = expected, from coupon attributes).
-- Footnote explaining stubs; 3 insight cards: "Income anchor" (day 10, green tint), "Coupon season" (Feb & Aug day 25), "Quiet stretch" (days 26–31).
+- Footnote explaining stubs; 3 insight cards: "Income anchor" (day 10, green tint), "Coupon season" (**February & August (day 25)** carry the big …8976 coupons; …6475 pays in early **June** — full month name, not "Jun"), "Quiet stretch" (days 26–31).
 
 ## `/portfolio`
 

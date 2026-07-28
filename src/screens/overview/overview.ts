@@ -19,6 +19,11 @@ export function mostUnderweightAsset(
   values: Record<string, number>,
   total: number,
 ): UnderweightResult | undefined {
+  // Zero snapshots (empty DB) — share/target math degenerates (every asset
+  // reads as fully underweight, topUp resolves to ₴0.00). Bail out so the
+  // caller can show an empty state instead of a nonsense hint.
+  if (total === 0) return undefined;
+
   let best: UnderweightResult | undefined;
   for (const asset of assets) {
     const value = values[asset.id] ?? 0;

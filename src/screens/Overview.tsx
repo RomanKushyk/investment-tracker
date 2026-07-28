@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { buttonVariants } from '../components/ui/button-variants';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
+import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ShareBar } from '../components/ui/ShareBar';
@@ -38,9 +39,10 @@ function todayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
-// Signed prose amount — "+₴4,452.61" / "-₴120.00" (netResult/rebalance figures).
+// Signed prose amount — "+₴4,452.61" / "−₴120.00" (netResult/rebalance figures).
+// U+2212 minus (not ASCII '-'), matching the shared signedPp convention.
 function signedProse(n: number, currency: 'UAH' | 'USD' = 'UAH'): string {
-  return (n < 0 ? '-' : '+') + fmtProse(Math.abs(n), currency);
+  return (n < 0 ? '−' : '+') + fmtProse(Math.abs(n), currency);
 }
 
 export function Overview() {
@@ -185,7 +187,9 @@ export function Overview() {
             <div className="text-muted mb-1.5 text-[10px] tracking-[.12em] uppercase">
               Rebalance hint
             </div>
-            {underweight ? (
+            {total === 0 ? (
+              <EmptyState message="No snapshots yet — save your first daily quote to see the rebalance hint." height={44} />
+            ) : underweight ? (
               <p className="text-[13px] leading-[1.5]">
                 {underweight.asset.yieldType === 'fixed_coupon'
                   ? bondAbbrev(underweight.asset)

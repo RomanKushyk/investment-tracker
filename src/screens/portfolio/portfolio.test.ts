@@ -12,6 +12,10 @@ describe('bestPerformer', () => {
     expect(r?.asset.id).toBe('ovdp6475');
     expect(r?.yield).toBeCloseTo(0.052, 3);
   });
+
+  it('returns undefined when no asset has a quote (empty DB) instead of letting the first asset win', () => {
+    expect(bestPerformer(SEED_ASSETS, {}, {})).toBeUndefined();
+  });
 });
 
 describe('laggard', () => {
@@ -19,6 +23,10 @@ describe('laggard', () => {
     const r = laggard(SEED_ASSETS, VALUES, INVESTED);
     expect(r?.asset.id).toBe('energy');
     expect(r?.yield).toBeCloseTo(0.0148, 3);
+  });
+
+  it('returns undefined when no asset has a quote (empty DB) instead of letting the first asset win', () => {
+    expect(laggard(SEED_ASSETS, {}, {})).toBeUndefined();
   });
 });
 

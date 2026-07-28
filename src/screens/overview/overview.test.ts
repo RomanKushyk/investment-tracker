@@ -18,6 +18,10 @@ describe('mostUnderweightAsset', () => {
   it('returns undefined when there are no assets', () => {
     expect(mostUnderweightAsset([], {}, 0)).toBeUndefined();
   });
+
+  it('returns undefined when total is 0 (empty DB), even with assets present — avoids a nonsense "top up ₴0.00" hint', () => {
+    expect(mostUnderweightAsset(SEED_ASSETS, {}, 0)).toBeUndefined();
+  });
 });
 
 describe('nextPayoutRows', () => {
