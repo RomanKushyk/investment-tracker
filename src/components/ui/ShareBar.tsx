@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../lib/types';
+import type { ColorKey } from '../../core/types';
 
 const BG: Record<ColorKey, string> = {
   reit: 'bg-reit',

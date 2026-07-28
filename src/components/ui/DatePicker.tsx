@@ -2,7 +2,7 @@ import { Popover } from 'radix-ui';
 import { useState } from 'react';
 import { DayPicker } from 'react-day-picker';
 
-import { fmtDate } from '../../lib/format';
+import { fmtDate } from '../../core/money';
 
 // ISO 'yyyy-MM-dd' <-> local Date, avoiding UTC-shift surprises.
 function isoToDate(iso: string): Date {

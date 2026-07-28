@@ -7,9 +7,9 @@ import {
   latestQuotes,
   PORTFOLIO_START,
   yieldSinceStart,
-} from '../../lib/derive';
-import type { Asset, Snapshot, Transaction } from '../../lib/types';
-import { daysBetween, latestSnapshotDate } from '../shared/dates';
+} from '../../core/derive';
+import type { Asset, Snapshot, Transaction } from '../../core/types';
+import { daysBetween, latestSnapshotDate } from '../../core/dates';
 
 export interface YieldTableRow {
   asset: Asset;

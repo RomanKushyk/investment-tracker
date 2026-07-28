@@ -4,8 +4,7 @@ import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { fmtPct, fmtTable } from '../lib/format';
-import { signedPp } from './shared/format';
+import { fmtPct, fmtTable, signedPp } from '../core/money';
 import { cumulativeYieldSeries, yieldTableRows } from './yield/yield';
 
 export function Yield() {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
-import type { Asset, Transaction } from '../../lib/types';
+import type { Asset, Transaction } from '../../core/types';
 import { mostUnderweightAsset, nextPayoutRows } from './overview';
 
 const TOTAL = 149016.36;
@@ -31,19 +31,27 @@ describe('nextPayoutRows', () => {
     expect(rows.some((r) => r.assetId === 'energy')).toBe(false);
   });
 
-  it('bond rows use couponAmount + nextCoupon, sorted by date', () => {
+  it('bond rows use couponAmount + nextCoupon (UI renders "₴1,240 · 25 Aug")', () => {
     const bond = rows.find((r) => r.assetId === 'ovdp8976');
-    expect(bond).toMatchObject({ amountLabel: '₴1,240', dateLabel: '25 Aug' });
+    expect(bond).toMatchObject({
+      kind: 'coupon',
+      assetRef: '…8976',
+      amount: 1240,
+      approx: false,
+      date: '2026-08-25',
+    });
   });
 
-  it('dividend-bearing assets estimate "~" + latest dividend amount, next date = latest + 1 month', () => {
+  it('dividend-bearing assets estimate the latest dividend amount (approx), next date = latest + 1 month', () => {
     const reit = rows.find((r) => r.assetId === 'reit');
-    // latest REIT dividend is 700.36 on 10.07 -> next 10.08 (D5#7: derived ~₴700, not the reference's ~₴715)
-    expect(reit).toMatchObject({ label: 'REIT dividend', amountLabel: '~₴700', dateLabel: '10 Aug' });
+    // latest REIT dividend is 700.36 on 10.07 -> next 10.08 (D5#7: the UI's
+    // whole-₴ rendering shows "~₴700", not the reference's ~₴715)
+    expect(reit).toMatchObject({ kind: 'dividend', assetRef: 'REIT', approx: true, date: '2026-08-10' });
+    expect(reit?.amount).toBeCloseTo(700.36, 2);
   });
 
   it('is sorted soonest-first', () => {
-    const dates = rows.map((r) => r.sortKey);
+    const dates = rows.map((r) => r.date);
     expect([...dates].sort()).toEqual(dates);
   });
 

@@ -1,7 +1,7 @@
 // The ONLY module that touches the database. UI consumes it via hooks/queries.ts.
 import { db } from './db';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
-import type { Asset, Snapshot, Transaction } from './types';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 
 export const repo = {
   async listAssets(): Promise<Asset[]> {

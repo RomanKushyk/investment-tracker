@@ -45,18 +45,18 @@ describe('payoutLogRows', () => {
     expect(rows).toHaveLength(8);
   });
 
-  it('destination derives "reinvested (₴X,XX)" from a same-date same-asset reinvest tx', () => {
+  it('destination token derives from a same-date same-asset reinvest tx (UI renders "reinvested (₴X,XX)")', () => {
     const jul10 = rows.find((r) => r.date === '2026-07-10')!;
-    expect(jul10.destination).toBe('reinvested (₴687,02)');
+    expect(jul10.destination).toEqual({ kind: 'reinvested', amount: 687.02 });
     const jun10 = rows.find((r) => r.date === '2026-06-10')!;
-    expect(jun10.destination).toBe('reinvested (₴484,36)');
+    expect(jun10.destination).toEqual({ kind: 'reinvested', amount: 484.36 });
     const jun03 = rows.find((r) => r.date === '2026-06-03')!;
-    expect(jun03.destination).toBe('reinvested (₴216,00)');
+    expect(jun03.destination).toEqual({ kind: 'reinvested', amount: 216 });
   });
 
-  it('falls back to "account" with no matching reinvest (D5#3: the moved 472,13/10.05 row)', () => {
+  it('falls back to the account token with no matching reinvest (D5#3: the moved 472,13/10.05 row)', () => {
     const may10 = rows.find((r) => r.date === '2026-05-10')!;
     expect(may10.amount).toBeCloseTo(472.13, 2);
-    expect(may10.destination).toBe('account');
+    expect(may10.destination).toEqual({ kind: 'account' });
   });
 });

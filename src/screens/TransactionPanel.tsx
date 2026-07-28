@@ -12,24 +12,17 @@ import {
   useRecordTransaction,
   useTransactions,
 } from '../hooks/queries';
-import { buildNewAsset } from '../lib/asset-builder';
-import { fmtDateShort, fmtProse } from '../lib/format';
+import { buildNewAsset } from '../core/asset-builder';
+import { todayIso } from '../core/dates';
+import { fmtDateShort, fmtProse } from '../core/money';
 import {
   transactionSchema,
   type TransactionFormInput,
   type TransactionFormValues,
-} from '../lib/schemas';
-import type { Transaction, TxType } from '../lib/types';
+} from '../core/schemas';
+import type { Transaction, TxType } from '../core/types';
 import { NewAssetFields } from './NewAssetFields';
 import { shortLabel } from './daily-quotes/quotes';
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 const TYPE_OPTIONS: { value: TxType; label: string }[] = [
   { value: 'buy', label: 'Buy' },

@@ -1,10 +1,8 @@
-// Pure glue for the Overview screen's derived (non-KPI-grid) cards — not in
-// src/lib, that layer stays untouched per this task's scope. Covered by
-// overview.test.ts.
-import { allocationDeltaPp, sharePct, topUpAmount } from '../../lib/derive';
-import { fmtProseWhole } from '../../lib/format';
-import type { Asset, Transaction } from '../../lib/types';
-import { addMonths, fmtPayoutDate } from '../shared/dates';
+// Pure glue for the Overview screen's derived (non-KPI-grid) cards — imports
+// core/ only, returns structured tokens (G1). Covered by overview.test.ts.
+import { addMonths } from '../../core/dates';
+import { allocationDeltaPp, sharePct, topUpAmount } from '../../core/derive';
+import type { Asset, Transaction } from '../../core/types';
 
 export interface UnderweightResult {
   asset: Asset;
@@ -37,17 +35,19 @@ export function mostUnderweightAsset(
 
 export interface PayoutRow {
   assetId: string;
-  label: string;
-  amountLabel: string;
-  dateLabel: string;
-  sortKey: string; // ISO date, for chronological sort
+  kind: 'coupon' | 'dividend';
+  assetRef: string; // data-derived: '…8976' (bond last-4) / 'REIT' (last name word)
+  amount: number;
+  approx: boolean; // dividend rows are estimates — the UI renders a '~' prefix
+  date: string; // ISO; chronological sort key — the UI renders '10 Aug'
 }
 
 // Next payouts card (design lines 187-194, D5#7): bonds read couponAmount +
-// nextCoupon directly; dividend-bearing assets estimate "~" + their latest
+// nextCoupon directly; dividend-bearing assets estimate their latest
 // dividend_accrual amount, with the next date = that accrual's date + one
 // payout-schedule period. Assets with payoutSchedule 'none' (Energy) or
-// missing the attributes/history needed to estimate are omitted.
+// missing the attributes/history needed to estimate are omitted. Structured
+// tokens only — the component layer assembles the visible strings (G1).
 export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): PayoutRow[] {
   const rows: PayoutRow[] = [];
 
@@ -56,10 +56,11 @@ export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): Pa
       if (asset.couponAmount === undefined || !asset.nextCoupon) continue;
       rows.push({
         assetId: asset.id,
-        label: `Coupon …${asset.name.slice(-4)}`,
-        amountLabel: fmtProseWhole(asset.couponAmount),
-        dateLabel: fmtPayoutDate(asset.nextCoupon),
-        sortKey: asset.nextCoupon,
+        kind: 'coupon',
+        assetRef: `…${asset.name.slice(-4)}`,
+        amount: asset.couponAmount,
+        approx: false,
+        date: asset.nextCoupon,
       });
       continue;
     }
@@ -75,15 +76,15 @@ export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): Pa
       asset.payoutSchedule
     ];
     if (!monthsPer) continue;
-    const nextDate = addMonths(latest.date, monthsPer);
     rows.push({
       assetId: asset.id,
-      label: `${asset.name.split(' ').at(-1)} dividend`,
-      amountLabel: `~${fmtProseWhole(latest.amount)}`,
-      dateLabel: fmtPayoutDate(nextDate),
-      sortKey: nextDate,
+      kind: 'dividend',
+      assetRef: asset.name.split(' ').at(-1)!,
+      amount: latest.amount,
+      approx: true,
+      date: addMonths(latest.date, monthsPer),
     });
   }
 
-  return rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
 }

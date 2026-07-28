@@ -4,11 +4,11 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
-import { incomeReceived, reinvestedTotal } from '../lib/derive';
-import { fmtDate, fmtProse, fmtTable } from '../lib/format';
+import { incomeReceived, reinvestedTotal } from '../core/derive';
+import { fmtDate, fmtProse, fmtProseWhole, fmtTable } from '../core/money';
+import { fmtPayoutDate, MONTH_SHORT } from '../components/ui/date-labels';
 import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
-import { MONTH_SHORT } from './shared/dates';
 
 export function Payouts() {
   const assets = useAssets().data ?? [];
@@ -64,9 +64,10 @@ export function Payouts() {
               {payoutRows.length === 0 && <span>No upcoming payouts.</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
-                  <span>{r.label}</span>
+                  <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
-                    {r.amountLabel} · {r.dateLabel}
+                    {r.approx ? '~' : ''}
+                    {fmtProseWhole(r.amount)} · {fmtPayoutDate(r.date)}
                   </strong>
                 </div>
               ))}
@@ -108,7 +109,11 @@ export function Payouts() {
                   </Tag>
                 </td>
                 <td className="py-2 text-right font-bold">{fmtTable(row.amount)}</td>
-                <td className="py-2">{row.destination}</td>
+                <td className="py-2">
+                  {row.destination.kind === 'reinvested'
+                    ? `reinvested (₴${fmtTable(row.destination.amount)})`
+                    : 'account'}
+                </td>
               </tr>
             ))}
           </tbody>

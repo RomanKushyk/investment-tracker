@@ -1,16 +1,8 @@
-// Pure glue for the Attributes screen's fact labels — not in src/lib, that
-// layer stays untouched per this task's scope. Covered by attributes.test.ts.
-import { annualizedPct } from '../../lib/derive';
-import type { Asset, PayoutSchedule, Transaction } from '../../lib/types';
-import { ordinal } from '../shared/dates';
-
-const SCHEDULE_LABEL: Record<PayoutSchedule, string> = {
-  maturity: 'At maturity',
-  monthly: 'Monthly',
-  quarterly: 'Quarterly',
-  semiannual: 'Semi-annual',
-  none: 'None (price only)',
-};
+// Pure glue for the Attributes screen's facts — imports core/ only, returns
+// structured tokens (G1): the schedule label words + ordinal assembly live in
+// the component layer. Covered by attributes.test.ts.
+import { annualizedPct } from '../../core/derive';
+import type { Asset, PayoutSchedule, Transaction } from '../../core/types';
 
 // Latest dividend_accrual's day-of-month for this asset (drives "Monthly · ~10th").
 export function dividendDayOfMonth(transactions: Transaction[], assetId: string): number | undefined {
@@ -20,34 +12,25 @@ export function dividendDayOfMonth(transactions: Transaction[], assetId: string)
   return Number(latest.date.slice(-2));
 }
 
-// Attributes card "Payout schedule" fact for non-bond assets (design line
-// 354: "Monthly · ~10th"; Energy's 'none' schedule renders bare per line 369).
-export function payoutScheduleLabel(asset: Asset, transactions: Transaction[]): string {
-  if (asset.payoutSchedule === 'none') return SCHEDULE_LABEL.none;
-  const day = dividendDayOfMonth(transactions, asset.id);
-  const base = SCHEDULE_LABEL[asset.payoutSchedule];
-  return day ? `${base} · ~${ordinal(day)}` : base;
+export interface PayoutScheduleFact {
+  schedule: PayoutSchedule;
+  day?: number; // latest dividend day-of-month; undefined for 'none' or no history
 }
 
-const COUPON_FREQUENCY: Record<PayoutSchedule, string> = {
-  maturity: 'at maturity',
-  monthly: 'monthly',
-  quarterly: 'quarterly',
-  semiannual: 'semi-annual',
-  none: '',
-};
-
-// Bond card "Coupon" fact frequency word (design line 383: "₴1,240 semi-annual").
-export function couponFrequencyLabel(schedule: PayoutSchedule): string {
-  return COUPON_FREQUENCY[schedule];
+// Attributes card "Payout schedule" fact for non-bond assets (design line
+// 354: "Monthly · ~10th"; Energy's 'none' schedule renders bare per line 369).
+// Attributes.tsx assembles the label from SCHEDULE_LABEL + ordinal(day).
+export function payoutScheduleFact(asset: Asset, transactions: Transaction[]): PayoutScheduleFact {
+  if (asset.payoutSchedule === 'none') return { schedule: 'none' };
+  return { schedule: asset.payoutSchedule, day: dividendDayOfMonth(transactions, asset.id) };
 }
 
 // "Actual (ann.)" fact: undefined until the asset has an actual quote. A
 // freshly created asset has invested capital but no snapshot yet — value
 // would fall back to 0, making yieldSinceStart read -100% and annualizedPct
 // blow that up against the global daysHeld basis (e.g. -209.8%). Guarding
-// here (render shows "—" for undefined) keeps annualizedPct/derive.ts itself
-// untouched per this task's scope.
+// here (render shows "—" for undefined) keeps annualizedPct itself a plain
+// numeric derivation.
 export function actualAnnualizedPct(
   value: number | undefined,
   invested: number,

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 
-import { CHART, SERIES } from '../../lib/colors';
+import { CHART, SERIES } from '../../core/colors';
 
 export interface PayoutsChartPoint {
   monthLabel: string;

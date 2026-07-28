@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   annualizedPct,
+  headlineKpis,
   headlineTotal,
   incomeReceived,
   latestCash,
@@ -50,6 +51,21 @@ describe('headline derivations (latest quote per asset, partials included)', () 
     const r = netResult(latestQuotes(snaps), invested);
     expect(r.uah).toBeCloseTo(4452.61, 2);
     expect(r.pct).toBeCloseTo(0.0308, 4);
+  });
+
+  it('headlineKpis composes total + net for the sidebar capital card', () => {
+    const txs: Transaction[] = Object.entries(invested).map(([assetId, amount], i) => ({
+      id: `b${i}`,
+      date: '2026-02-03',
+      type: 'buy',
+      assetId,
+      amount,
+      source: 'own',
+    }));
+    const kpis = headlineKpis(snaps, txs);
+    expect(kpis.total).toBeCloseTo(149016.36, 2);
+    expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
+    expect(kpis.net.pct).toBeCloseTo(0.0308, 4);
   });
 });
 

@@ -10,7 +10,7 @@ import {
   reinvestedByAsset,
   reinvestedTotal,
   totalCapital,
-} from './derive';
+} from '../core/derive';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 
 const snaps = buildSeedSnapshots();

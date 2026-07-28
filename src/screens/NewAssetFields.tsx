@@ -9,7 +9,7 @@ import { Select } from '../components/ui/Select';
 import type {
   TransactionFormInput,
   TransactionFormValues,
-} from '../lib/schemas';
+} from '../core/schemas';
 
 // The New-asset form offers only the 4 README schedules — 'none' is seed-only.
 const YIELD_TYPE_OPTIONS = [

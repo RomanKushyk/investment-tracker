@@ -3,8 +3,8 @@ import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useTransactions } from '../hooks/queries';
-import { fmtProseWhole } from '../lib/format';
-import type { Asset } from '../lib/types';
+import { fmtProseWhole } from '../core/money';
+import type { Asset } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import {
   anchorAssetGrowth,

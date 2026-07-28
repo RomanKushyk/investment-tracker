@@ -1,7 +1,7 @@
 // Pure glue for the Portfolio screen's highlight cards — not in src/lib, that
 // layer stays untouched per this task's scope. Covered by portfolio.test.ts.
-import { yieldSinceStart } from '../../lib/derive';
-import type { Asset, Transaction } from '../../lib/types';
+import { yieldSinceStart } from '../../core/derive';
+import type { Asset, Transaction } from '../../core/types';
 
 export interface PerformanceResult {
   asset: Asset;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
-import type { Snapshot } from '../../lib/types';
+import type { Snapshot } from '../../core/types';
 import { cumulativeYieldSeries, yieldTableRows } from './yield';
 
 const snaps = buildSeedSnapshots();

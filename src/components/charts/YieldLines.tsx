@@ -1,9 +1,9 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, SERIES } from '../../lib/colors';
-import { fmtDateShort } from '../../lib/format';
-import type { Asset } from '../../lib/types';
+import { CHART, SERIES } from '../../core/colors';
+import { fmtDateShort, signed } from '../../core/money';
+import type { Asset } from '../../core/types';
 import type { YieldSeriesPoint } from '../../screens/yield/yield';
 
 // The index of an asset's last defined (non-undefined) point — each line gets
@@ -33,7 +33,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           minTickGap={48}
         />
         <YAxis
-          tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v}%`}
+          tickFormatter={(v: number) => (v === 0 ? '0%' : signed(v, `${Math.abs(v)}%`))}
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={false}
           tickLine={false}
@@ -44,7 +44,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           formatter={(v, name) => {
             const n = Number(v);
             return [
-              `${n > 0 ? '+' : ''}${n.toFixed(2)}%`,
+              n === 0 ? '0.00%' : signed(n, `${Math.abs(n).toFixed(2)}%`),
               assets.find((a) => a.id === name)?.name ?? String(name),
             ];
           }}

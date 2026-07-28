@@ -1,7 +1,7 @@
 // Pure data-shaping for the Seasonality screen (day-of-month bars + insight
 // cards) — not in src/lib, that layer stays untouched per this task's scope.
 // Covered by seasonality.test.ts.
-import type { Asset, Transaction } from '../../lib/types';
+import type { Asset, Transaction } from '../../core/types';
 
 export interface SeasonalityDay {
   day: number; // 1-31

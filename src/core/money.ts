@@ -1,4 +1,5 @@
 // Number/date formatting per README §8. Pure, unit-tested.
+// (v1 lib/format.ts + screens/shared/format.ts, merged in next-phase Phase 1.)
 
 const SYMBOL = { UAH: '₴', USD: '$' } as const;
 type Currency = keyof typeof SYMBOL;
@@ -29,10 +30,18 @@ export function fmtTable(n: number): string {
   return tableFmt.format(n).replace(/\s/g, '\u00A0');
 }
 
+// THE one signing helper — every signed display string in the app goes
+// through it, so the sign glyph is pinned in exactly one place: U+2212 minus,
+// never ASCII '-'. The design reference's mock copy prints ASCII hyphens, but
+// v1 shipped the U+2212 signedPp convention and typography agrees — pinned in
+// docs/DECISIONS.md D8.
+export function signed(n: number, body: string): string {
+  return (n < 0 ? '−' : '+') + body;
+}
+
 // Fraction in → '+4.41%'. Explicit sign always; dp defaults to 2 (Yield annualized uses 1).
 export function fmtPct(n: number, fractionDigits = 2): string {
-  const abs = Math.abs(n * 100).toFixed(fractionDigits);
-  return (n < 0 ? '-' : '+') + abs + '%';
+  return signed(n, Math.abs(n * 100).toFixed(fractionDigits) + '%');
 }
 
 // '2026-07-27' → '27.07.2026'
@@ -55,4 +64,20 @@ export function fmtSavedAt(iso: string): string {
 
 export function toUsd(uah: number, rate: number): number {
   return uah / rate;
+}
+
+// Signed percentage-point gap — '+6.1' / '−6.4', parameterized by the unit
+// suffix each screen's copy needs (Overview '%', Yield ' pp', Allocation none).
+export function signedPp(n: number, suffix = ''): string {
+  return signed(n, Math.abs(n).toFixed(1) + suffix);
+}
+
+// Signed prose amount — '+₴4,452.61' / '−₴120.00' (netResult/rebalance figures).
+export function signedProse(n: number, currency: Currency = 'UAH'): string {
+  return signed(n, fmtProse(Math.abs(n), currency));
+}
+
+// Signed table amount — '+2 902,10' / '−120,00' (Portfolio P&L ₴ column).
+export function signedTable(n: number): string {
+  return signed(n, fmtTable(Math.abs(n)));
 }

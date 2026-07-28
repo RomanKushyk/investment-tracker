@@ -2,8 +2,8 @@ import { NavLink } from 'react-router';
 
 import { useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
-import { headlineTotal, investedByAsset, latestQuotes, netResult } from '../lib/derive';
-import { fmtPct, fmtProse, fmtProseWhole, toUsd } from '../lib/format';
+import { headlineKpis } from '../core/derive';
+import { fmtPct, fmtProse, fmtProseWhole, toUsd } from '../core/money';
 import { useSettings } from '../state/settings';
 
 const ANALYTICS = [
@@ -43,15 +43,17 @@ function useCapitalCard() {
   const { currency, usdRate } = useSettings();
   const snapshots = useSnapshots().data;
   const transactions = useTransactions().data;
-  const total = snapshots ? headlineTotal(snapshots) : 0;
+  // One pure selector (core/derive.headlineKpis) — the sidebar never
+  // re-implements the Overview KPI math.
+  const kpis = snapshots && transactions ? headlineKpis(snapshots, transactions) : undefined;
+  const total = kpis?.total ?? 0;
   const usdTotal = toUsd(total, usdRate);
   const tweened = useTweenedNumber(currency === 'UAH' ? total : usdTotal);
 
-  if (!snapshots || !transactions) return { value: '—', sub: '—' };
-  const net = netResult(latestQuotes(snapshots), investedByAsset(transactions));
+  if (!kpis) return { value: '—', sub: '—' };
   return currency === 'UAH'
-    ? { value: fmtProseWhole(tweened), sub: `${fmtPct(net.pct)} · ${fmtProse(usdTotal, 'USD')}` }
-    : { value: fmtProse(tweened, 'USD'), sub: `${fmtPct(net.pct)} · ${fmtProse(total)}` };
+    ? { value: fmtProseWhole(tweened), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(usdTotal, 'USD')}` }
+    : { value: fmtProse(tweened, 'USD'), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(total)}` };
 }
 
 export function Sidebar() {

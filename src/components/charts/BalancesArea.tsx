@@ -1,8 +1,8 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART } from '../../lib/colors';
-import { fmtDateShort, fmtProse } from '../../lib/format';
+import { CHART } from '../../core/colors';
+import { fmtDateShort, fmtProse } from '../../core/money';
 import type { BalanceChartPoint } from '../../screens/balances/balances';
 
 // Design lines 216-222: green area over total capital per complete snapshot,

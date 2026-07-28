@@ -3,9 +3,8 @@
 // id = crypto.randomUUID(); code = first 2 letters of the name, uppercased;
 // colorKey cycles the 4 tint keys by current asset count; firstPurchase =
 // the transaction's own date; createdAt = now (drives listAssets order).
+import { COLOR_KEYS } from './colors';
 import type { Asset, PayoutSchedule, YieldType } from './types';
-
-const COLOR_KEY_CYCLE = ['reit', 'energy', 'ovdp8976', 'ovdp6475'] as const;
 
 export interface NewAssetValues {
   name: string;
@@ -24,7 +23,7 @@ export function buildNewAsset(
     id: crypto.randomUUID(),
     name: values.name,
     code: values.name.trim().slice(0, 2).toUpperCase(),
-    colorKey: COLOR_KEY_CYCLE[existingAssetCount % COLOR_KEY_CYCLE.length],
+    colorKey: COLOR_KEYS[existingAssetCount % COLOR_KEYS.length],
     yieldType: values.yieldType,
     expectedPct: values.expectedPct,
     targetPct: values.targetPct,

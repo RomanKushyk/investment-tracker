@@ -1,8 +1,8 @@
 // Pure data-shaping for the Allocation screen (donut/legend, current-vs-target
 // pills, rebalance plan) — not in src/lib, that layer stays untouched per this
 // task's scope. Covered by allocation.test.ts.
-import { allocationDeltaPp, sharePct, topUpAmount, trimAmount } from '../../lib/derive';
-import type { Asset } from '../../lib/types';
+import { allocationDeltaPp, sharePct, topUpAmount, trimAmount } from '../../core/derive';
+import type { Asset } from '../../core/types';
 
 // Off-target color encodes SEVERITY, not sign: within ~0.5pp of target reads
 // "near" (green) even if the delta is negative; beyond it reads "off" (red)

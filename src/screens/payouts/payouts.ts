@@ -1,8 +1,7 @@
-// Pure data-shaping for the Payouts screen (monthly chart + log table) — not
-// in src/lib, that layer stays untouched per this task's scope. Covered by
+// Pure data-shaping for the Payouts screen (monthly chart + log table) —
+// imports core/ only, returns structured tokens (G1). Covered by
 // payouts.test.ts.
-import { fmtTable } from '../../lib/format';
-import type { Transaction, TxType } from '../../lib/types';
+import type { Transaction, TxType } from '../../core/types';
 
 export interface MonthlyPayout {
   month: string; // 'YYYY-MM'
@@ -28,12 +27,15 @@ export function monthlyPayouts(transactions: Transaction[]): MonthlyPayout[] {
     .map(([month, { dividends, coupons }]) => ({ month, dividends, coupons, total: dividends + coupons }));
 }
 
+// Structured token — the UI renders 'account' / 'reinvested (₴X,XX)'.
+export type PayoutDestination = { kind: 'account' } | { kind: 'reinvested'; amount: number };
+
 export interface PayoutLogRow {
   date: string;
   assetId: string;
   type: Extract<TxType, 'dividend_accrual' | 'interest_payout'>;
   amount: number;
-  destination: string; // 'account' | 'reinvested (₴X,XX)'
+  destination: PayoutDestination;
 }
 
 // A payout's destination derives from a same-date, same-asset `reinvest` tx
@@ -48,7 +50,9 @@ export function payoutLogRows(transactions: Transaction[]): PayoutLogRow[] {
   return payouts
     .map((t) => {
       const match = reinvests.find((r) => r.date === t.date && r.assetId === t.assetId);
-      const destination = match ? `reinvested (₴${fmtTable(match.amount)})` : 'account';
+      const destination: PayoutDestination = match
+        ? { kind: 'reinvested', amount: match.amount }
+        : { kind: 'account' };
       return { date: t.date, assetId: t.assetId, type: t.type, amount: t.amount, destination };
     })
     .sort((a, b) => b.date.localeCompare(a.date));

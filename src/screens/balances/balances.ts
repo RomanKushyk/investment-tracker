@@ -1,8 +1,8 @@
 // Pure data-shaping for the Balances screen (chart + paginated table) — not in
 // src/lib, that layer stays untouched per this task's scope. Covered by
 // balances.test.ts.
-import { totalCapital } from '../../lib/derive';
-import type { Asset, Snapshot } from '../../lib/types';
+import { totalCapital } from '../../core/derive';
+import type { Asset, Snapshot } from '../../core/types';
 
 // A snapshot is "complete" if every asset that existed by that date (firstPurchase
 // <= date) has a quote — an asset not yet purchased doesn't need one. Only the

@@ -10,7 +10,8 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `index.css` | Tailwind import + `@theme` tokens + base styles |
 | `routes.tsx` | `createBrowserRouter`: `Layout` wraps 9 eager routes |
 | `app/` | Shell: `Layout.tsx`, `Sidebar.tsx` |
-| `lib/` | Data + logic (Task 2): `types` · `colors` · `db` · `repository` · `seed` · `derive` · `format` · `schemas` (+ their vitest specs) |
+| `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` (+ colocated vitest specs) — see `core/README.md` |
+| `lib/` | Persistence/infra only: `db` · `repository` · `seed` (+ seed tests) |
 | `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation |
 | `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
 | `components/ui/` | Reusable primitives (CVA variants as they appear) |
@@ -19,9 +20,9 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 
 ## Hard rules
 
-- **`lib/db.ts` is imported ONLY by `lib/repository.ts`.** Components/hooks consume data exclusively through the repository via the TanStack Query hooks.
-- **Palette only via `@theme` tokens** (`bg-sidebar`, `text-muted`, …) — no ad-hoc hex in components. Charts take hex from `lib/colors.ts` (mirrors the tokens; keep in sync).
-- **No hard-coded portfolio figures anywhere** — every displayed number derives from stored data (`lib/derive.ts`). Placeholders before the data layer exist show "—".
+- **`lib/db.ts` is imported ONLY by `lib/repository.ts`.** Components/hooks consume data exclusively through the repository via the TanStack Query hooks. Machine-enforced by the ESLint `no-restricted-imports` zones in `eslint.config.js`, along with core-imports-only-core (G1).
+- **Palette only via `@theme` tokens** (`bg-sidebar`, `text-muted`, …) — no ad-hoc hex in components. Charts take `var(--color-chart-*)` strings from `core/colors.ts` (aliases resolve in `index.css` `@theme`).
+- **No hard-coded portfolio figures anywhere** — every displayed number derives from stored data (`core/derive.ts`). Placeholders before the data layer exist show "—".
 - **Fonts:** `font-display` (Space Grotesk) for headings/`.btn`-style buttons/KPI numbers; `font-body` (Spline Sans Mono, the body default) for everything else — note the sidebar nav pills and currency toggle inherit the mono body font (matches the reference markup).
-- Formatting/derivation logic lives in `lib/format.ts` / `lib/derive.ts` (pure, unit-tested) — never inline in components.
+- Formatting/derivation logic lives in `core/money.ts` / `core/derive.ts` (pure, unit-tested) — never inline in components. Per-screen pure glue lives in `screens/<route>/<route>.ts` and imports core only; both return structured tokens, never assembled English prose (D8) — label words live in the component layer (e.g. `components/ui/date-labels.ts`).
 - **Motion (D7):** every interaction animates softly — `transition active:scale-[.97]` on pressables, `animate-in` reveals, keyed route transitions. Standards: `docs/BUILD-PLAN.md` → "Motion & interaction standards". The `prefers-reduced-motion` kill-switch in `index.css` must stay.

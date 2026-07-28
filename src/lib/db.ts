@@ -1,7 +1,7 @@
 // Dexie database — imported ONLY by repository.ts (see src/README.md).
 import { Dexie, type Table } from 'dexie';
 
-import type { Asset, Snapshot, Transaction } from './types';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 
 class KubushkaDB extends Dexie {
   assets!: Table<Asset, string>;

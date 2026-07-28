@@ -1,7 +1,7 @@
 import { Cell, Label, Pie, PieChart, ResponsiveContainer } from 'recharts';
 
-import { CHART, SERIES } from '../../lib/colors';
-import type { Asset } from '../../lib/types';
+import { CHART, SERIES } from '../../core/colors';
+import type { Asset } from '../../core/types';
 
 export interface DonutSlice {
   asset: Asset;

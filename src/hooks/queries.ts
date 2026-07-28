@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { repo } from '../lib/repository';
-import type { Asset, Snapshot, Transaction } from '../lib/types';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 
 export const keys = {
   assets: ['assets'],

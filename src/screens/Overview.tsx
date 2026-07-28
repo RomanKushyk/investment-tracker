@@ -22,28 +22,24 @@ import {
   reinvestedTotal,
   sharePct,
   yieldSinceStart,
-} from '../lib/derive';
-import { fmtDate, fmtDateShort, fmtPct, fmtProse, fmtProseWhole, toUsd } from '../lib/format';
+} from '../core/derive';
+import { fmtPayoutDate } from '../components/ui/date-labels';
+import { todayIso } from '../core/dates';
+import {
+  fmtDate,
+  fmtDateShort,
+  fmtPct,
+  fmtProse,
+  fmtProseWhole,
+  signedPp,
+  signedProse,
+  toUsd,
+} from '../core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import { mostUnderweightAsset, nextPayoutRows } from './overview/overview';
-import { signedPp } from './shared/format';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-// Signed prose amount — "+₴4,452.61" / "−₴120.00" (netResult/rebalance figures).
-// U+2212 minus (not ASCII '-'), matching the shared signedPp convention.
-function signedProse(n: number, currency: 'UAH' | 'USD' = 'UAH'): string {
-  return (n < 0 ? '−' : '+') + fmtProse(Math.abs(n), currency);
-}
 
 export function Overview() {
   const assets = useAssets().data ?? [];
@@ -174,9 +170,10 @@ export function Overview() {
               {payoutRows.length === 0 && <span>No upcoming payouts.</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
-                  <span>{r.label}</span>
+                  <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
-                    {r.amountLabel} · {r.dateLabel}
+                    {r.approx ? '~' : ''}
+                    {fmtProseWhole(r.amount)} · {fmtPayoutDate(r.date)}
                   </strong>
                 </div>
               ))}

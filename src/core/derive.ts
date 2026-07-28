@@ -103,6 +103,19 @@ export function topUpAmount(value: number, targetPct: number, total: number): nu
   return (t * total - value) / (1 - t);
 }
 
+// Headline KPI composition (sidebar capital card): one derivation site so the
+// shell never re-implements the latestQuotes/investedByAsset/netResult chain
+// that Overview's KPI grid is built from.
+export function headlineKpis(
+  snaps: Snapshot[],
+  txs: Transaction[],
+): { total: number; net: { uah: number; pct: number } } {
+  return {
+    total: headlineTotal(snaps),
+    net: netResult(latestQuotes(snaps), investedByAsset(txs)),
+  };
+}
+
 // dividend_accrual → dividends; interest_payout → coupons (counted on accrual, §6.5).
 export function incomeReceived(txs: Transaction[]): {
   dividends: number;

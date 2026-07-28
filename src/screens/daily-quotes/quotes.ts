@@ -1,6 +1,6 @@
 // Pure helpers for the Daily quotes screen (not in src/lib — that layer stays
 // untouched per Task 3 scope). Covered by quotes.test.ts.
-import type { Asset, Snapshot } from '../../lib/types';
+import type { Asset, Snapshot } from '../../core/types';
 
 // The latest quote for this asset strictly BEFORE the selected date — the
 // row subline always reads "yesterday" even when the actual gap is bigger

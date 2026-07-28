@@ -9,23 +9,16 @@ import {
   useSnapshots,
   useTransactions,
 } from '../hooks/queries';
-import { investedByAsset, latestCash, latestQuotes } from '../lib/derive';
-import { fmtSavedAt, fmtTable } from '../lib/format';
-import { quoteInputSchema } from '../lib/schemas';
-import type { Snapshot } from '../lib/types';
+import { todayIso } from '../core/dates';
+import { investedByAsset, latestCash, latestQuotes } from '../core/derive';
+import { fmtSavedAt, fmtTable } from '../core/money';
+import { quoteInputSchema } from '../core/schemas';
+import type { Snapshot } from '../core/types';
 import { useDraft } from '../state/draft';
 import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
-
-function todayIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 export function DailyQuotes() {
   const assets = useAssets().data ?? [];

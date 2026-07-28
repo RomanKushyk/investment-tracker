@@ -1,13 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
-import type { Transaction } from '../../lib/types';
-import {
-  actualAnnualizedPct,
-  couponFrequencyLabel,
-  dividendDayOfMonth,
-  payoutScheduleLabel,
-} from './attributes';
+import type { Transaction } from '../../core/types';
+import { actualAnnualizedPct, dividendDayOfMonth, payoutScheduleFact } from './attributes';
 
 describe('dividendDayOfMonth', () => {
   it("finds the LATEST dividend_accrual's day-of-month for the asset (REIT -> 10th)", () => {
@@ -28,29 +23,20 @@ describe('dividendDayOfMonth', () => {
   });
 });
 
-describe('payoutScheduleLabel', () => {
-  it('REIT (monthly, dividends on the 10th) -> "Monthly · ~10th"', () => {
+describe('payoutScheduleFact', () => {
+  it('REIT (monthly, dividends on the 10th) -> {monthly, day 10} (UI renders "Monthly · ~10th")', () => {
     const reit = SEED_ASSETS.find((a) => a.id === 'reit')!;
-    expect(payoutScheduleLabel(reit, SEED_TRANSACTIONS)).toBe('Monthly · ~10th');
+    expect(payoutScheduleFact(reit, SEED_TRANSACTIONS)).toEqual({ schedule: 'monthly', day: 10 });
   });
 
-  it('Energy (schedule "none") -> "None (price only)", no day suffix', () => {
+  it('Energy (schedule "none") -> no day token (UI renders "None (price only)")', () => {
     const energy = SEED_ASSETS.find((a) => a.id === 'energy')!;
-    expect(payoutScheduleLabel(energy, SEED_TRANSACTIONS)).toBe('None (price only)');
+    expect(payoutScheduleFact(energy, SEED_TRANSACTIONS)).toEqual({ schedule: 'none' });
   });
 
-  it('falls back to the bare schedule label when there is no accrual history yet', () => {
+  it('omits the day token when there is no accrual history yet (UI renders the bare label)', () => {
     const reit = SEED_ASSETS.find((a) => a.id === 'reit')!;
-    expect(payoutScheduleLabel(reit, [])).toBe('Monthly');
-  });
-});
-
-describe('couponFrequencyLabel', () => {
-  it('maps payout schedules to the Coupon field frequency word', () => {
-    expect(couponFrequencyLabel('semiannual')).toBe('semi-annual');
-    expect(couponFrequencyLabel('quarterly')).toBe('quarterly');
-    expect(couponFrequencyLabel('monthly')).toBe('monthly');
-    expect(couponFrequencyLabel('maturity')).toBe('at maturity');
+    expect(payoutScheduleFact(reit, [])).toEqual({ schedule: 'monthly', day: undefined });
   });
 });
 

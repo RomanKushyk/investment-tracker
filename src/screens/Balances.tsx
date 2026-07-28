@@ -6,7 +6,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
-import { fmtDate, fmtTable } from '../lib/format';
+import { fmtDate, fmtTable } from '../core/money';
 import { balanceChartData, buildBalanceRow, paginateSnapshots } from './balances/balances';
 
 export function Balances() {

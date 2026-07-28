@@ -42,6 +42,29 @@
   --color-ovdp6475: #5f5e5a;
   --color-ovdp6475-tint: #e8e7e4;
   --color-ovdp6475-tint-text: #5f5e5a;
+
+  /* Chart paint aliases — core/colors.ts emits var(--color-chart-*) for SVG
+     fill/stroke. They point at the palette tokens above (visual no-op today)
+     and give the Phase 5 dark theme a chart-specific seam to redefine. */
+  --color-chart-reit: var(--color-reit);
+  --color-chart-reit-tint: var(--color-reit-tint);
+  --color-chart-reit-tint-text: var(--color-reit-tint-text);
+  --color-chart-energy: var(--color-energy);
+  --color-chart-energy-tint: var(--color-energy-tint);
+  --color-chart-energy-tint-text: var(--color-energy-tint-text);
+  --color-chart-ovdp8976: var(--color-ovdp8976);
+  --color-chart-ovdp8976-tint: var(--color-ovdp8976-tint);
+  --color-chart-ovdp8976-tint-text: var(--color-ovdp8976-tint-text);
+  --color-chart-ovdp6475: var(--color-ovdp6475);
+  --color-chart-ovdp6475-tint: var(--color-ovdp6475-tint);
+  --color-chart-ovdp6475-tint-text: var(--color-ovdp6475-tint-text);
+  --color-chart-pos: var(--color-pos);
+  --color-chart-pos-tint: var(--color-pos-tint);
+  --color-chart-neg: var(--color-neg);
+  --color-chart-hairline: var(--color-hairline);
+  --color-chart-faint: var(--color-faint);
+  --color-chart-muted: var(--color-muted);
+  --color-chart-ink: var(--color-ink);
 }
 
 @layer base {

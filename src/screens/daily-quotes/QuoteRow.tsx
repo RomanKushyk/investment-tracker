@@ -1,9 +1,9 @@
 import { AssetAvatar } from '../../components/ui/AssetAvatar';
 import { Card } from '../../components/ui/Card';
-import { yieldSinceStart } from '../../lib/derive';
-import { fmtPct, fmtProse, fmtTable } from '../../lib/format';
-import type { Asset } from '../../lib/types';
-import { quoteInputSchema } from '../../lib/schemas';
+import { yieldSinceStart } from '../../core/derive';
+import { fmtPct, fmtProse, fmtTable } from '../../core/money';
+import type { Asset } from '../../core/types';
+import { quoteInputSchema } from '../../core/schemas';
 
 export function QuoteRow({
   asset,

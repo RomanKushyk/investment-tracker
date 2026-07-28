@@ -6,11 +6,21 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { YIELD_LABEL_LONG } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../lib/derive';
-import { fmtDate, fmtPct, fmtProseWhole } from '../lib/format';
-import type { Asset } from '../lib/types';
-import { actualAnnualizedPct, couponFrequencyLabel, payoutScheduleLabel } from './attributes/attributes';
-import { daysBetween, latestSnapshotDate } from './shared/dates';
+import { ordinal } from '../components/ui/date-labels';
+import { COUPON_FREQUENCY, SCHEDULE_LABEL } from '../components/ui/schedule-labels';
+import { daysBetween, latestSnapshotDate } from '../core/dates';
+import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
+import { fmtDate, fmtPct, fmtProseWhole } from '../core/money';
+import type { Asset, Transaction } from '../core/types';
+import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
+
+// "Monthly · ~10th" — words assembled here from the pure module's
+// {schedule, day} tokens (structured-returns rule, G1).
+function payoutScheduleLabel(asset: Asset, transactions: Transaction[]): string {
+  const fact = payoutScheduleFact(asset, transactions);
+  const base = SCHEDULE_LABEL[fact.schedule];
+  return fact.day ? `${base} · ~${ordinal(fact.day)}` : base;
+}
 
 // A <div>-wrapped dt/dd pair is valid dl content (HTML5 content model allows
 // grouping dt+dd in a <div> child of <dl>) — keeps each fact as one grid cell
@@ -71,7 +81,7 @@ export function Attributes() {
                     <Fact label="YTM at purchase">{a.expectedPct.toFixed(1)}% / yr</Fact>
                     <Fact label="Coupon">
                       {a.couponAmount !== undefined
-                        ? `${fmtProseWhole(a.couponAmount)} ${couponFrequencyLabel(a.payoutSchedule)}`
+                        ? `${fmtProseWhole(a.couponAmount)} ${COUPON_FREQUENCY[a.payoutSchedule]}`
                         : '—'}
                     </Fact>
                     <Fact label="Maturity">{a.maturity ? fmtDate(a.maturity) : '—'}</Fact>

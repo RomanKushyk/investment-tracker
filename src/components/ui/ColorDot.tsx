@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../lib/types';
+import type { ColorKey } from '../../core/types';
 
 // 10px round swatch per asset colorKey — Overview Assets card rows (design line 176-180).
 const BG: Record<ColorKey, string> = {

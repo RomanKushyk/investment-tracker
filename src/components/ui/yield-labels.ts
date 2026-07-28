@@ -1,4 +1,4 @@
-import type { YieldType } from '../../lib/types';
+import type { YieldType } from '../../core/types';
 
 // Split into its own module (not Tag.tsx) so react-refresh/only-export-components
 // doesn't flag a file that exports both a component and plain constants —

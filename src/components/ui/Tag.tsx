@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../lib/types';
+import type { ColorKey } from '../../core/types';
 
 // Yield-type pill (design `.tag` spots — the class's own CSS is missing per
 // design/README.md's styling caveat, so this recreates the pill shape from

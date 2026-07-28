@@ -3,9 +3,9 @@ import { Link } from 'react-router';
 
 import { buttonVariants } from '../../components/ui/button-variants';
 import { Card } from '../../components/ui/Card';
-import { yieldSinceStart } from '../../lib/derive';
-import { fmtPct } from '../../lib/format';
-import type { Asset } from '../../lib/types';
+import { yieldSinceStart } from '../../core/derive';
+import { fmtPct } from '../../core/money';
+import type { Asset } from '../../core/types';
 import { shortLabel } from './quotes';
 
 export function YieldTeaser({

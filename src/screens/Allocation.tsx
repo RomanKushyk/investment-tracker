@@ -4,12 +4,11 @@ import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
-import { headlineTotal, latestQuotes, sharePct } from '../lib/derive';
-import { fmtProseWhole } from '../lib/format';
-import type { Asset, ColorKey } from '../lib/types';
+import { headlineTotal, latestQuotes, sharePct } from '../core/derive';
+import { fmtProseWhole, signedPp } from '../core/money';
+import type { Asset, ColorKey } from '../core/types';
 import { allocationRows, rebalancePlan } from './allocation/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
-import { signedPp } from './shared/format';
 
 const BAR_BG: Record<ColorKey, string> = {
   reit: 'bg-reit',

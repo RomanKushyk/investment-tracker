@@ -17,7 +17,7 @@
 | # | Phase | Branches | Status |
 |---|-------|----------|--------|
 | 0 | Repo hygiene | `chore/next-phase-prep` | **done** (2026-07-28) |
-| 1 | Core consolidation & write surface (+ formula audit) | `refactor/core-folder` … `docs/design-brief-phase-2` | todo |
+| 1 | Core consolidation & write surface (+ formula audit) | `refactor/core-folder` … `docs/design-brief-phase-2` | in progress (core-folder done 2026-07-28) |
 | 2 | Settings home & real-data era | `feat/settings-shell` … `docs/design-brief-phase-3` | todo |
 | 3 | Living data: Inzhur fetch, fixed yield, reminders | `feat/inzhur-client` … `docs/design-brief-phase-4` | todo |
 | 4 | Data portability: import, CSV, mirror | `feat/backup-import` … `docs/design-brief-phase-5` | todo |
@@ -105,7 +105,7 @@ Comparison of the doc's six challenges against the app's actual derivations, num
 **Goal:** one pure domain layer + complete repository API + safety backup + the formula audit — features, not plumbing, from here on. **Covers:** item 1 + the WEALTH-MANAGEMENT reconciliation; enablers for 5–9, 11, 14. **No new UI** except one flagged button.
 **Rationale:** the ~40 scattered computation sites, the frozen-lib workaround and the read-only repository are the bottlenecks every other item hits; the structured-returns and var()-colors rules set here make P5's sweeps mechanical; pure-logic phase runs concurrently with the first design session (G7).
 
-- [ ] `refactor/core-folder` — build `src/core/` per G1; move `lib/{types,derive,format,colors,asset-builder,schemas}` + `screens/shared/*` (re-export shims during migration, deleted before merge); dedupe `todayIso` ×3; unify signed formatting on U+2212; Sidebar consumes `screens/overview` selectors; `colors.ts` emits `var(--color-*)` + `--color-chart-*` aliases in `@theme` (visual no-op); structured-returns rule; ESLint import zones. Gate: all existing tests green with only import-path/fixture edits; visual diff vs reference pixel-identical.
+- [x] `refactor/core-folder` — build `src/core/` per G1; move `lib/{types,derive,format,colors,asset-builder,schemas}` + `screens/shared/*` (re-export shims during migration, deleted before merge); dedupe `todayIso` ×3; unify signed formatting on U+2212; Sidebar consumes `screens/overview` selectors; `colors.ts` emits `var(--color-*)` + `--color-chart-*` aliases in `@theme` (visual no-op); structured-returns rule; ESLint import zones. Gate: all existing tests green with only import-path/fixture edits; visual diff vs reference pixel-identical.
 - [ ] `feat/repo-write-surface` — Dexie `version(2)` + `meta` + upgrade fn (stamps `seeded`); full G2 API; mutation hooks (`useUpdateAsset`, `useDeleteAsset`, `useUpdateTransaction`, `useDeleteTransaction`, `useDeleteSnapshot`, `useReplaceAll`, `useClearAll`) — per-entity invalidation for row ops, invalidate-all for cascade/replace/clear; `pnpm add -D fake-indexeddb` + `src/lib/repository.test.ts` (cascade atomicity, delete-last-asset does NOT reseed, `clearAll({reseed:false})` → still empty after re-init, `replaceAll` all-or-nothing).
 - [ ] `chore/settings-persist-version` — G3 (version+migrate+partialize doctrine).
 - [ ] `feat/backup-export-json` — `core/backup/json.ts`: envelope `{format:'kubushka-backup', formatVersion:1, exportedAt, dbVersion, dataset, assets, snapshots, transactions, settings?}` + zod schema written forward-compatible (P2/P3 asset fields already `.optional()`); `repo.exportAll()`; one "Download backup" button. **Flagged pre-design exception:** durability must not wait for the Settings design; restyled/moved in P2.

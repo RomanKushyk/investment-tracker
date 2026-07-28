@@ -2,8 +2,8 @@ import type { ComponentProps } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
-import { CHART, SERIES } from '../../lib/colors';
-import type { ColorKey } from '../../lib/types';
+import { CHART, SERIES } from '../../core/colors';
+import type { ColorKey } from '../../core/types';
 
 export interface SeasonalityChartPoint {
   day: number;

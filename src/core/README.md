@@ -1,9 +1,25 @@
-# src/core/ — pure domain layer (being built)
+# src/core/ — pure domain layer
 
-Created in next-phase Phase 0 to host `inzhur/__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28: the two funds by slug + bonds UA4000238976/UA4000236475 with prices, payment schedules in kopecks, maturities).
+The app's pure domain layer per decision G1 (`docs/NEXT-PHASE-PLAN.md`) and `docs/DECISIONS.md` D8. Consolidated in next-phase Phase 1 from v1's `src/lib/{types,derive,format,colors,asset-builder,schemas}` plus `src/screens/shared/` (now dissolved). The v1 pinned contracts (`docs/BUILD-PLAN.md`) keep their exact shapes — only module paths changed.
 
-Phase 1 (`docs/NEXT-PHASE-PLAN.md`) turns this folder into the app's pure domain layer per decision G1: `types / derive / money / dates / colors / asset-builder / schemas`, later `backup/ inzhur/ xirr accrual reminders day-deltas`. Rules once populated:
+## Layout
 
-- **Pure only** — core imports nothing but core (no react, no dexie, no zustand, no `lib/`). Enforced by ESLint `no-restricted-imports` zones.
-- **Structured returns** — modules return keys/tokens, never assembled English prose (i18n lands in Phase 5).
+| Module | Responsibility |
+|--------|----------------|
+| `types.ts` | Domain types (`Asset`, `Snapshot`, `Transaction`, …) — v1 pinned contracts, moved verbatim |
+| `derive.ts` | Every displayed figure derives from these (D5 reconciliation rules); `headlineKpis` is the sidebar's single KPI source |
+| `money.ts` | Number/currency/date formatting (README §8) + **the one signing helper** `signed()` — U+2212 minus everywhere (D8) |
+| `dates.ts` | Pure ISO date math: `todayIso` (single source, was triplicated), `daysBetween`, `latestSnapshotDate`, `addMonths` (month-end clamped) |
+| `colors.ts` | Chart paint as `var(--color-chart-*)` strings (aliases resolve in `src/index.css` `@theme`); `COLOR_KEYS` cycle for new assets |
+| `asset-builder.ts` | `buildNewAsset` for the Transaction panel's inline quick-create |
+| `schemas.ts` | zod form schemas |
+| `inzhur/` | `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28); Phase 3's `parse.ts` lands here |
+
+Later per the plan: `backup/`, `xirr`, `accrual`, `reminders`, `day-deltas`.
+
+## Rules
+
+- **Pure only** — core imports nothing but core (no react, no dexie, no zustand, no `lib/`, no UI layers). Machine-enforced by the ESLint `no-restricted-imports` zones in `eslint.config.js`.
+- **Structured returns (D8)** — core and `screens/<route>/` pure modules return keys/tokens (`{schedule, day}`, ISO dates, plain numbers), never assembled English prose; the component layer owns the words (e.g. `components/ui/date-labels.ts`, `components/ui/schedule-labels.ts`). i18n lands in Phase 5.
+- **One sign convention** — every signed display string routes through `money.signed()`: U+2212, never ASCII `-`.
 - Every module ships a colocated `*.test.ts` (vitest, node env).

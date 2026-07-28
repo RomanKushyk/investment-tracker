@@ -1,7 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { Snapshot } from '../../lib/types';
-import { addMonths, daysBetween, fmtPayoutDate, latestSnapshotDate, MONTH_SHORT, ordinal } from './dates';
+import { addMonths, daysBetween, latestSnapshotDate, todayIso } from './dates';
+import type { Snapshot } from './types';
+
+describe('todayIso', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('formats the LOCAL date as yyyy-MM-dd', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 28, 12, 0, 0)); // local 28.07.2026
+    expect(todayIso()).toBe('2026-07-28');
+  });
+});
 
 describe('daysBetween', () => {
   it('matches the pinned 174-day global basis (03.02 -> 27.07)', () => {
@@ -42,31 +52,10 @@ describe('addMonths', () => {
   it('rolls over the year', () => {
     expect(addMonths('2026-12-03', 1)).toBe('2027-01-03');
   });
-});
 
-describe('fmtPayoutDate', () => {
-  it('renders "d MMM" (design: "10 Aug", "25 Aug")', () => {
-    expect(fmtPayoutDate('2026-08-10')).toBe('10 Aug');
-    expect(fmtPayoutDate('2026-08-25')).toBe('25 Aug');
-    expect(fmtPayoutDate('2026-12-03')).toBe('3 Dec');
-  });
-});
-
-describe('MONTH_SHORT', () => {
-  it('is indexable by (month - 1) for chart axis labels (Payouts/Seasonality)', () => {
-    expect(MONTH_SHORT[1]).toBe('Feb');
-    expect(MONTH_SHORT[6]).toBe('Jul');
-  });
-});
-
-describe('ordinal', () => {
-  it('formats common day-of-month suffixes', () => {
-    expect(ordinal(1)).toBe('1st');
-    expect(ordinal(2)).toBe('2nd');
-    expect(ordinal(3)).toBe('3rd');
-    expect(ordinal(10)).toBe('10th');
-    expect(ordinal(11)).toBe('11th');
-    expect(ordinal(21)).toBe('21st');
-    expect(ordinal(25)).toBe('25th');
+  it("clamps to the target month's last day instead of overflowing (G1)", () => {
+    expect(addMonths('2026-08-31', 6)).toBe('2027-02-28');
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
+    expect(addMonths('2024-01-31', 1)).toBe('2024-02-29'); // leap year keeps the 29th
   });
 });

@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../lib/types';
+import type { ColorKey } from '../../core/types';
 
 // Tint bg/text per asset colorKey (README §4 asset series colors).
 const TINT: Record<ColorKey, string> = {

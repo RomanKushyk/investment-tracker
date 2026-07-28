@@ -15,18 +15,12 @@ import {
   reinvestedTotal,
   sharePct,
   yieldSinceStart,
-} from '../lib/derive';
-import { fmtPct, fmtProse, fmtProseWhole, fmtTable } from '../lib/format';
-import type { Asset } from '../lib/types';
+} from '../core/derive';
+import { daysBetween, latestSnapshotDate } from '../core/dates';
+import { fmtPct, fmtProse, fmtProseWhole, fmtTable, signedTable } from '../core/money';
+import type { Asset } from '../core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
-import { daysBetween, latestSnapshotDate } from './shared/dates';
-
-// Signed table amount — "+2 902,10" / "−120,00" (P&L ₴ column; fmtTable has no sign).
-// U+2212 minus (not ASCII '-'), matching the shared signedPp convention.
-function signedTable(n: number): string {
-  return (n < 0 ? '−' : '+') + fmtTable(Math.abs(n));
-}
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").

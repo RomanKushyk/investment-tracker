@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS } from '../../lib/seed';
-import type { Snapshot } from '../../lib/types';
+import type { Snapshot } from '../../core/types';
 import { bondAbbrev, maxSavedAt, yesterdayQuote } from './quotes';
 
 const complete2507: Snapshot = {
