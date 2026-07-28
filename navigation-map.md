@@ -16,13 +16,13 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo symbol live from data; toggle inert until Task 7 |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
 | `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware (store-driven; toggle UI still inert until Task 7) |
-| `/balances` | Balances | Task 6 | todo |
-| `/payouts` | Payouts | Task 6 | todo |
-| `/yield` | Yield | Task 6 | todo |
+| `/balances` | Balances | Task 6 | done |
+| `/payouts` | Payouts | Task 6 | done |
+| `/yield` | Yield | Task 6 | done |
 | `/attributes` | Attributes | Task 5 | done |
-| `/seasonality` | Seasonality | Task 6 | todo |
+| `/seasonality` | Seasonality | Task 6 | done |
 | `/portfolio` | Portfolio | Task 5 | done |
-| `/allocation` | Allocation | Task 6 | todo |
+| `/allocation` | Allocation | Task 6 | done |
 
 ## Global shell (visible on every route)
 

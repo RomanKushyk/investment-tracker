@@ -49,7 +49,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 3 | Daily quotes screen | `feat/daily-quotes` | **done** (2026-07-27) |
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | **done** (2026-07-27) |
 | 5 | Overview, Portfolio, Attributes | `feat/derived-views` | **done** (2026-07-27) |
-| 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | todo |
+| 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | **done** (2026-07-28) |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | todo |
 
 ## Design reference
@@ -407,15 +407,15 @@ it('formats per README §8', () => {
 **Files:** Create `src/components/charts/{BalancesArea,PayoutsBars,YieldLines,SeasonalityBars,AllocationDonut}.tsx`, `src/screens/{Balances,Payouts,Yield,Seasonality,Allocation}.tsx`.
 **Consumes:** snapshots/transactions hooks, `derive.ts`, `lib/colors.ts`.
 
-- [ ] Branch `feat/charts`. All charts recompute from stored data (§9); colors from `lib/colors.ts`; grid lines `#e8e7e4` (hairline token value); bar radius ≈6; no legends beyond inline dot-legends.
-- [ ] Balances (design 211–241, §6.3): recharts AreaChart of `totalCapital` per complete snapshot (line `#5c7355`, fill `#e3eadf`); snapshot table — most recent 6 rows with a simple Prev/Next pagination over the full set (README: "paginate in production"); today's partial row → "pending" (`--color-faint`) cells + "—" total; footer "Showing last 6 snapshots · N total since 03.02.2026" with derived N (=174 on seed).
-- [ ] Payouts (design 242–302, §6.4): stacked monthly bars (dividends `reit` color, coupons `ovdp8976` color, value labels on top); Received total (dark) / Upcoming (green tint, same attribute-based rules as Overview Next payouts) / Reinvested (`reinvestedTotal` · derived % of `incomeReceived.total` → 27.5%) cards; payout log table with Type tag + Destination — derived: a payout with a same-date same-asset `reinvest` tx renders "reinvested (₴X)" with that tx's amount, else "account".
-- [ ] Yield (design 303–339, §6.5): 4-line cumulative-% chart (series colors, end dots); table Asset | Invested | Value now | Δ total | Annualized (global PORTFOLIO_START basis) | vs expected (negative pp in `--color-neg`); footnote verbatim from design.
-- [ ] Seasonality (design 410–458, §6.7): income-by-day-of-month bars — gray 3–5px stubs for zero days, tall colored bars on days 3/10/25 (day-10 label derives to ₴3,641 vs the reference's ₴3,817 — accepted, D5), `*` expected bar = `couponAmount` on its `nextCoupon` day (₴1,240* day 25); stub footnote; 3 insight cards (Income anchor / Coupon season / Quiet stretch) — derive day totals from transactions.
-- [ ] Allocation (design 496–552, §6.9): 340px/1fr grid; donut (30px ring, center "₴149k / 4 assets + cash" from `headlineTotal`) + legend; Current-vs-target labeled progress pills (fill = share, black 2px tick at target, signed deltas — **color encodes severity, not sign**: near-target (|Δ| ≤ ~0.5pp) green, off-target red, per design lines 524–537 where +6.1 is red and −0.1 is green); numbered Rebalance plan — `topUpAmount` for buys, `trimAmount` for sells.
-- [ ] Motion (D7): recharts `isAnimationActive` on everywhere, duration ≈900ms ease-out; donut sweeps in; bars grow from baseline; data changes animate from previous state; allocation progress-pill fills transition width.
-- [ ] Verify: wipe IndexedDB → reseed → every chart matches reference (modulo D5 deviations); add a transaction → Payouts/Seasonality/Allocation update. Gates green; visual diff per chart (shape, colors, labels).
-- [ ] Commit `feat: add balances, payouts, yield, seasonality and allocation charts`; squash-merge to `dev`.
+- [x] Branch `feat/charts`. All charts recompute from stored data (§9); colors from `lib/colors.ts`; grid lines `#e8e7e4` (hairline token value); bar radius ≈6; no legends beyond inline dot-legends.
+- [x] Balances (design 211–241, §6.3): recharts AreaChart of `totalCapital` per complete snapshot (line `#5c7355`, fill `#e3eadf`); snapshot table — most recent 6 rows with a simple Prev/Next pagination over the full set (README: "paginate in production"); today's partial row → "pending" (`--color-faint`) cells + "—" total; footer "Showing last 6 snapshots · N total since 03.02.2026" with derived N (=174 on seed).
+- [x] Payouts (design 242–302, §6.4): stacked monthly bars (dividends `reit` color, coupons `ovdp8976` color, value labels on top); Received total (dark) / Upcoming (green tint, same attribute-based rules as Overview Next payouts) / Reinvested (`reinvestedTotal` · derived % of `incomeReceived.total` → 27.5%) cards; payout log table with Type tag + Destination — derived: a payout with a same-date same-asset `reinvest` tx renders "reinvested (₴X)" with that tx's amount, else "account".
+- [x] Yield (design 303–339, §6.5): 4-line cumulative-% chart (series colors, end dots); table Asset | Invested | Value now | Δ total | Annualized (global PORTFOLIO_START basis) | vs expected (negative pp in `--color-neg`); footnote verbatim from design.
+- [x] Seasonality (design 410–458, §6.7): income-by-day-of-month bars — gray 3–5px stubs for zero days, tall colored bars on days 3/10/25 (day-10 label derives to ₴3,641 vs the reference's ₴3,817 — accepted, D5), `*` expected bar = `couponAmount` on its `nextCoupon` day (₴1,240* day 25); stub footnote; 3 insight cards (Income anchor / Coupon season / Quiet stretch) — derive day totals from transactions.
+- [x] Allocation (design 496–552, §6.9): 340px/1fr grid; donut (30px ring, center "₴149k / 4 assets + cash" from `headlineTotal`) + legend; Current-vs-target labeled progress pills (fill = share, black 2px tick at target, signed deltas — **color encodes severity, not sign**: near-target (|Δ| ≤ ~0.5pp) green, off-target red, per design lines 524–537 where +6.1 is red and −0.1 is green); numbered Rebalance plan — `topUpAmount` for buys, `trimAmount` for sells.
+- [x] Motion (D7): recharts `isAnimationActive` on everywhere, duration ≈900ms ease-out; donut sweeps in; bars grow from baseline; data changes animate from previous state; allocation progress-pill fills transition width.
+- [x] Verify: wipe IndexedDB → reseed → every chart matches reference (modulo D5 deviations); add a transaction → Payouts/Seasonality/Allocation update. Gates green; visual diff per chart (shape, colors, labels). Verified 2026-07-28 (Chrome DevTools MCP; 120 tests). Fix round: expected Seasonality bars now colored by contributing asset (day 3 → …6475, day 25 → …8976).
+- [x] Commit `feat: add balances, payouts, yield, seasonality and allocation charts`; squash-merge to `dev`.
 
 ## Task 7: Currency toggle, toasts, polish, empty states
 
