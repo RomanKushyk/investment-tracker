@@ -32,6 +32,7 @@ Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a
 - Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills. Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
 - Currency toggle (₴ / $ segmented pill) near the bottom.
 - **Total capital card:** value `₴149,016` (whole ₴), sub-line `+3.08% · $3,324.03`. After toggling to $: logo symbol becomes `$`, value/sub-line flip to the USD form (`$…` main, `… · ₴149,016.36` sub); choice **survives a page reload**.
+- **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
 - No horizontal scroll at 360px viewport width on any route.
 
 ## `/` — Daily quotes (landing)

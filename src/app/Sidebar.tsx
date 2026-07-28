@@ -132,6 +132,10 @@ export function Sidebar() {
         </div>
         <div className="text-[11px] font-semibold text-pos-on-dark">{capital.sub}</div>
       </div>
+
+      <div className="relative mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sidebar-muted uppercase">
+        v{__APP_VERSION__}
+      </div>
     </aside>
   );
 }
