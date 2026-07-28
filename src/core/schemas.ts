@@ -22,7 +22,19 @@ export const newAssetSchema = z.object({
 export const transactionSchema = z
   .object({
     date: z.string().min(1),
-    type: z.enum(['buy', 'sell', 'deposit', 'dividend_accrual', 'interest_payout', 'reinvest', 'tax']),
+    // Full TxType incl. 'withdrawal'/'redemption' — the domain accepts them
+    // even though the TransactionPanel select only offers them from P2.
+    type: z.enum([
+      'buy',
+      'sell',
+      'deposit',
+      'withdrawal',
+      'dividend_accrual',
+      'interest_payout',
+      'reinvest',
+      'redemption',
+      'tax',
+    ]),
     assetId: z.string().min(1), // 'new' = create the asset from newAsset
     amount: quoteInputSchema,
     source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),

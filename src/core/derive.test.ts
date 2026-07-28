@@ -2,17 +2,35 @@ import { describe, expect, it } from 'vitest';
 
 import {
   annualizedPct,
+  capitalGain,
+  capitalGainPct,
+  cashYieldPct,
+  freeCashFromLedger,
+  globalRoi,
   headlineKpis,
   headlineTotal,
   incomeReceived,
+  incomeReceivedNet,
+  investedOwnByAsset,
   latestCash,
   latestCompleteSnapshot,
   latestQuotes,
+  ledgerCashDrift,
+  netDeposits,
   netResult,
+  payoutsGross,
+  payoutsGrossByAsset,
+  payoutsNet,
+  payoutsNetByAsset,
   PORTFOLIO_START,
   sharePct,
+  soldAmount,
+  soldAmountByAsset,
+  taxesPaid,
   topUpAmount,
   totalCapital,
+  totalNetProfit,
+  totalReturnPct,
   trimAmount,
   yieldSinceStart,
 } from './derive';
@@ -122,5 +140,136 @@ describe('income aggregation', () => {
 
   it('dividend accruals → dividends, interest payouts → coupons; other types excluded', () => {
     expect(incomeReceived(txs)).toEqual({ dividends: 580.2, coupons: 1183.5, total: 1763.7 });
+  });
+});
+
+// --- WEALTH-MANAGEMENT-ARCHITECTRUE reconciliation (docs/FORMULA-AUDIT.md) ---
+
+const tx = (
+  id: string,
+  type: Transaction['type'],
+  amount: number,
+  assetId = 'a1',
+  date = '2026-03-01',
+): Transaction => ({ id, date, type, assetId, amount, source: 'own' });
+
+describe('§2.1 metric family: capital gain vs total return', () => {
+  // The user's real …6475 position (plan's illusion-of-loss fixture):
+  // invested own 4 496,40, value 4 379,52, coupons received 355,40, taxes 0.
+  it('illusion of loss: capitalGain −₴116,88 but totalNetProfit +₴238,52', () => {
+    expect(capitalGain(4379.52, 4496.4, 0)).toBeCloseTo(-116.88, 2);
+    expect(totalNetProfit(4379.52, 355.4, 0, 4496.4, 0)).toBeCloseTo(238.52, 2);
+  });
+
+  it('totalReturnPct ≈ +5.30% on the illusion-of-loss fixture (denominator investedOwn)', () => {
+    expect(totalReturnPct(4379.52, 355.4, 0, 4496.4, 0)! * 100).toBeCloseTo(5.3, 2);
+    expect(capitalGainPct(4379.52, 4496.4, 0)! * 100).toBeCloseTo(-2.6, 1);
+    expect(cashYieldPct(355.4, 4496.4, 0)! * 100).toBeCloseTo(7.9, 1);
+  });
+
+  it('payoutsNet subtracts tax rows: 467,46 payout − 65,44 tax = 402,02', () => {
+    const rows = [tx('p', 'dividend_accrual', 467.46), tx('t', 'tax', 65.44)];
+    expect(payoutsGross(rows)).toBeCloseTo(467.46, 2);
+    expect(taxesPaid(rows)).toBeCloseTo(65.44, 2);
+    expect(payoutsNet(rows)).toBeCloseTo(402.02, 2);
+    expect(payoutsNetByAsset(rows).a1).toBeCloseTo(402.02, 2);
+  });
+
+  it('investedOwnByAsset counts buys ONLY (reinvest is its own type)', () => {
+    const rows = [tx('b', 'buy', 1000), tx('r', 'reinvest', 100), tx('s', 'sell', 50)];
+    expect(investedOwnByAsset(rows)).toEqual({ a1: 1000 });
+  });
+
+  it('soldAmount = Σ sell + redemption, per asset and total', () => {
+    const rows = [
+      tx('s1', 'sell', 500),
+      tx('rd', 'redemption', 1000, 'a2'),
+      tx('b', 'buy', 2000),
+    ];
+    expect(soldAmount(rows)).toBe(1500);
+    expect(soldAmountByAsset(rows)).toEqual({ a1: 500, a2: 1000 });
+  });
+
+  it('a tax row without any payout still nets negative per asset', () => {
+    const rows = [tx('t', 'tax', 10, 'a9')];
+    expect(payoutsGrossByAsset(rows)).toEqual({});
+    expect(payoutsNetByAsset(rows)).toEqual({ a9: -10 });
+  });
+
+  it('incomeReceivedNet subtracts tax rows from the total; gross stays gross', () => {
+    const rows = [
+      tx('d', 'dividend_accrual', 467.46),
+      tx('c', 'interest_payout', 100),
+      tx('t', 'tax', 65.44),
+    ];
+    expect(incomeReceivedNet(rows)).toEqual({
+      dividends: 467.46,
+      coupons: 100,
+      taxes: 65.44,
+      total: 467.46 + 100 - 65.44,
+    });
+    expect(incomeReceived(rows).total).toBeCloseTo(567.46, 2); // untouched by taxes
+  });
+
+  it('zero-denominator guards return null, never NaN/Infinity', () => {
+    expect(capitalGainPct(100, 0, 0)).toBeNull();
+    expect(totalReturnPct(100, 10, 0, 0, 50)).toBeNull(); // reinvested alone is no denominator
+    expect(cashYieldPct(10, 0, 0)).toBeNull();
+    expect(globalRoi(100, 0)).toBeNull();
+    expect(globalRoi(100, -5)).toBeNull(); // over-withdrawn: no external base to measure
+  });
+});
+
+describe('§1 free cash from ledger (pinned v1 formulation)', () => {
+  it('deposits − withdrawals − buys + sells + redemptions', () => {
+    const rows = [
+      tx('d', 'deposit', 1000, ''),
+      tx('w', 'withdrawal', 200, ''),
+      tx('b', 'buy', 500),
+      tx('s', 'sell', 150),
+      tx('rd', 'redemption', 100),
+    ];
+    expect(freeCashFromLedger(rows)).toBe(550);
+  });
+
+  it('an unpaired payout is EXTERNAL — it never credits broker cash', () => {
+    const base = [tx('d', 'deposit', 1000, ''), tx('b', 'buy', 900)];
+    const withPayout = [...base, tx('p', 'dividend_accrual', 55.5)];
+    expect(freeCashFromLedger(withPayout)).toBe(freeCashFromLedger(base));
+  });
+
+  it('a paired payout + reinvest nets to zero broker-cash effect', () => {
+    const base = [tx('d', 'deposit', 1000, ''), tx('b', 'buy', 900)];
+    const withPair = [...base, tx('p', 'interest_payout', 216), tx('r', 'reinvest', 216)];
+    expect(freeCashFromLedger(withPair)).toBe(freeCashFromLedger(base));
+  });
+
+  it('tax rows are excluded (paid from the external payout, not broker cash)', () => {
+    const base = [tx('d', 'deposit', 100, '')];
+    expect(freeCashFromLedger([...base, tx('t', 'tax', 12)])).toBe(100);
+  });
+
+  it('empty ledger → 0, and ledgerCashDrift = stored − derived', () => {
+    expect(freeCashFromLedger([])).toBe(0);
+    expect(netDeposits([])).toBe(0);
+    const rows = [tx('d', 'deposit', 100, ''), tx('b', 'buy', 90)];
+    expect(ledgerCashDrift(10, rows)).toBe(0);
+    expect(ledgerCashDrift(12.5, rows)).toBeCloseTo(2.5, 10);
+  });
+});
+
+describe('§5 netDeposits / globalRoi (external capital denominator)', () => {
+  it('netDeposits = deposits − withdrawals', () => {
+    const rows = [
+      tx('d1', 'deposit', 1000, ''),
+      tx('d2', 'deposit', 500, ''),
+      tx('w', 'withdrawal', 300, ''),
+      tx('b', 'buy', 700), // buys never touch the external-capital base
+    ];
+    expect(netDeposits(rows)).toBe(1200);
+  });
+
+  it('globalRoi on the seed figures: (149 016,36 − 143 176,37)/143 176,37 ≈ +4.0789%', () => {
+    expect(globalRoi(149016.36, 143176.37)! * 100).toBeCloseTo(4.0789, 4);
   });
 });

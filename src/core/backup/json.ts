@@ -64,9 +64,9 @@ const snapshotRowSchema = z.strictObject({
   savedAt: isoDateTime.optional(),
 });
 
-// Type enum mirrors core/types.ts TxType; P1 feat/formula-parity widens both
-// with 'withdrawal' | 'redemption' in the same commit (a wider enum here
-// alone would break the Transaction[] typing of parsed data).
+// Type enum mirrors core/types.ts TxType exactly — incl. 'withdrawal' and
+// 'redemption', widened here in the same commit that widened TxType (P1
+// feat/formula-parity) so parsed data keeps satisfying Transaction[].
 const transactionRowSchema = z.strictObject({
   id: z.string().min(1),
   date: isoDate,
@@ -74,9 +74,11 @@ const transactionRowSchema = z.strictObject({
     'buy',
     'sell',
     'deposit',
+    'withdrawal',
     'dividend_accrual',
     'interest_payout',
     'reinvest',
+    'redemption',
     'tax',
   ]),
   assetId: z.string(), // '' = portfolio-level rows (deposit)

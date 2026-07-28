@@ -2,13 +2,19 @@ export type YieldType = 'fixed_coupon' | 'dividends' | 'capitalization' | 'div_c
 // 'none' = capitalization-only (renders "None (price only)"); the New-asset form
 // offers only the 4 README options — 'none' is seed-only.
 export type PayoutSchedule = 'maturity' | 'monthly' | 'quarterly' | 'semiannual' | 'none';
+// 'withdrawal' (external cash out, WEALTH-MANAGEMENT §1.1/§5.1) and
+// 'redemption' (bond principal returned at maturity, §1.1/§2.1) joined in P1
+// feat/formula-parity — the domain accepts them, but the TransactionPanel
+// select does NOT offer them until P2 feat/metrics-exposure.
 export type TxType =
   | 'buy'
   | 'sell'
   | 'deposit'
+  | 'withdrawal'
   | 'dividend_accrual'
   | 'interest_payout'
   | 'reinvest'
+  | 'redemption'
   | 'tax';
 export type TxSource = 'own' | 'accrual' | 'reinvest_reit' | 'reinvest_6475';
 export type ColorKey = 'reit' | 'energy' | 'ovdp8976' | 'ovdp6475';

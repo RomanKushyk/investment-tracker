@@ -36,14 +36,18 @@ const TYPE_OPTIONS: { value: TxType; label: string }[] = [
 
 // The Recent transactions rows use "Coupon" for interest_payout — matches
 // design copy (line 145) even though the Type select spells out "Interest
-// payout"; the other 6 types share their select label.
+// payout"; the other 6 select types share their select label. withdrawal/
+// redemption are domain-only until P2 (not in TYPE_OPTIONS) but the Record
+// must stay total over TxType.
 const RECENT_TYPE_LABEL: Record<TxType, string> = {
   buy: 'Buy',
   sell: 'Sell',
   deposit: 'Deposit',
+  withdrawal: 'Withdrawal',
   dividend_accrual: 'Dividend accrual',
   interest_payout: 'Coupon',
   reinvest: 'Reinvest',
+  redemption: 'Redemption',
   tax: 'Tax',
 };
 

@@ -3,10 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { buildBackup, parseBackup } from '../core/backup/json';
 import {
   depositedTotal,
+  freeCashFromLedger,
+  globalRoi,
   headlineTotal,
   incomeReceived,
   investedByAsset,
+  latestCash,
   latestQuotes,
+  ledgerCashDrift,
+  netDeposits,
   netResult,
   reinvestedByAsset,
   reinvestedTotal,
@@ -120,6 +125,32 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
 
   it('deposited ₴143,176.37 (KPI ₴143,176)', () => {
     expect(depositedTotal(SEED_TRANSACTIONS)).toBeCloseTo(143176.37, 2);
+  });
+});
+
+// The WEALTH-MANAGEMENT reconciliation fixtures pinned on the seed
+// (docs/FORMULA-AUDIT.md §1/§5). These live here rather than next to
+// core/derive.ts because core tests must not import src/lib (G1 lint zone).
+describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
+  it('freeCashFromLedger(seed) = ₴7,75 — the stored cash, exactly', () => {
+    // deposits 143 176,37 − own-funded buys 143 168,62; payout/reinvest rows
+    // are external to broker cash (the doc-verbatim formula would give
+    // 3 661,31 and break against every seeded snapshot).
+    expect(freeCashFromLedger(SEED_TRANSACTIONS)).toBe(7.75);
+  });
+
+  it('stored cash reconciles with the ledger: drift 0', () => {
+    expect(ledgerCashDrift(latestCash(snaps), SEED_TRANSACTIONS)).toBe(0);
+  });
+
+  it('netDeposits(seed) = ₴143,176.37 (no withdrawals seeded)', () => {
+    expect(netDeposits(SEED_TRANSACTIONS)).toBe(143176.37);
+  });
+
+  it('globalRoi(seed) ≈ +4.0789% — NetFinancialResult +₴5,839.99 over NetDeposits', () => {
+    const roi = globalRoi(headlineTotal(snaps), netDeposits(SEED_TRANSACTIONS));
+    expect(roi).not.toBeNull();
+    expect(roi! * 100).toBeCloseTo(4.0789, 4);
   });
 });
 
