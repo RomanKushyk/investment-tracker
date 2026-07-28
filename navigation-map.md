@@ -13,9 +13,9 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo symbol live from data; toggle inert until Task 7 |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
-| `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware (store-driven; toggle UI still inert until Task 7) |
+| `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware; values tween ~300ms on toggle (Task 7) |
 | `/balances` | Balances | Task 6 | done |
 | `/payouts` | Payouts | Task 6 | done |
 | `/yield` | Yield | Task 6 | done |

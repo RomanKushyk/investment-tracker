@@ -50,7 +50,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 4 | Transaction form + new-asset sub-form | `feat/transaction-form` | **done** (2026-07-27) |
 | 5 | Overview, Portfolio, Attributes | `feat/derived-views` | **done** (2026-07-27) |
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | **done** (2026-07-28) |
-| 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | todo |
+| 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | **done** (2026-07-28) — plan complete |
 
 ## Design reference
 
@@ -421,25 +421,25 @@ it('formats per README §8', () => {
 
 **Files:** Modify `src/app/Sidebar.tsx` (live toggle + logo symbol), `src/screens/Overview.tsx` (KPI conversion), touched screens for empty states.
 
-- [ ] Branch `feat/polish`.
-- [ ] Currency toggle functional: segmented control switches settings store; converts ONLY logo symbol (₴/$), sidebar Total capital (value + sub-line flip per design renderVals), Overview headline KPIs — at rate 44.83, `$3,324.03` formatting; persists across reload (§9). Tables/inputs remain ₴.
-- [ ] Empty states (README §10.7): no snapshots yet (Daily quotes placeholders, charts with friendly empty message) and single-asset portfolio — no crashes, sensible copy.
-- [ ] Motion (D7): currency toggle thumb slides between segments; headline KPIs + sidebar capital tween numerically on toggle (`hooks/useTweenedNumber`, ~300ms rAF); full motion sweep — every interactive element transitions, screen changes animate, `prefers-reduced-motion` verified to disable it all.
-- [ ] Polish sweep vs §9: hover states everywhere, focus-visible rings, `aria-current`, sidebar internal scroll, 360px no-horizontal-scroll. Verify every §9 item in the browser and record pass/fail in the Result column of the traceability table below (README itself stays untouched).
-- [ ] Final gates: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all green.
-- [ ] Commit `feat: add currency toggle, empty states and a11y polish`; squash-merge to `dev`.
+- [x] Branch `feat/polish`.
+- [x] Currency toggle functional: segmented control switches settings store; converts ONLY logo symbol (₴/$), sidebar Total capital (value + sub-line flip per design renderVals), Overview headline KPIs — at rate 44.83, `$3,324.03` formatting; persists across reload (§9). Tables/inputs remain ₴.
+- [x] Empty states (README §10.7): no snapshots yet (Daily quotes placeholders, charts with friendly empty message) and single-asset portfolio — no crashes, sensible copy.
+- [x] Motion (D7): currency toggle thumb slides between segments; headline KPIs + sidebar capital tween numerically on toggle (`hooks/useTweenedNumber`, ~300ms rAF); full motion sweep — every interactive element transitions, screen changes animate, `prefers-reduced-motion` verified to disable it all.
+- [x] Polish sweep vs §9: hover states everywhere, focus-visible rings, `aria-current`, sidebar internal scroll, 360px no-horizontal-scroll. Verify every §9 item in the browser and record pass/fail in the Result column of the traceability table below (README itself stays untouched). Sidebar narrows via `max-sm:` rail below 640px (232px desktop look unchanged); all 9 routes verified overflow-free at 360px and 641px.
+- [x] Final gates: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all green (141 tests; 1 known react-compiler/RHF lint warning).
+- [x] Commit `feat: add currency toggle, empty states and a11y polish`; squash-merge to `dev`.
 
 ## §9 behavior checklist → task traceability
 
 | §9 item | Owned by | Result |
 |---------|----------|--------|
-| Quote entry live chips/pill, save+toast+last-saved, copy yesterday | Task 3 | — |
-| Snapshot upsert per day | Task 2 (repo) + 3 (UI) | — |
-| Transaction form / new-asset sub-form / recent list | Task 4 | — |
-| Currency toggle persistence + scope | Task 7 (store from Task 2) | — |
-| Charts recompute from stored data | Task 6 | — |
-| No horizontal scroll ≥360px; sidebar internal scroll | Task 1, re-verified Task 7 | — |
-| Focus rings, hover, aria-current | Task 1, re-verified Task 7 | — |
+| Quote entry live chips/pill, save+toast+last-saved, copy yesterday | Task 3 | **pass** (2026-07-28) |
+| Snapshot upsert per day | Task 2 (repo) + 3 (UI) | **pass** (2026-07-28) |
+| Transaction form / new-asset sub-form / recent list | Task 4 | **pass** (2026-07-28) |
+| Currency toggle persistence + scope | Task 7 (store from Task 2) | **pass** (2026-07-28) — only logo/sidebar/Overview KPIs convert; tables ₴; survives reload |
+| Charts recompute from stored data | Task 6 | **pass** (2026-07-28) |
+| No horizontal scroll ≥360px; sidebar internal scroll | Task 1, re-verified Task 7 | **pass** (2026-07-28) — `max-sm:` sidebar rail; all 9 routes clean at 360px & 641px |
+| Focus rings, hover, aria-current | Task 1, re-verified Task 7 | **pass** (2026-07-28) |
 
 ## Session workflow (every future session)
 
