@@ -144,8 +144,12 @@ spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
   environment), which makes the OIDC `sub` claim `repo:…:environment:dev` **instead of**
   `ref:refs/heads/dev` — the two are mutually exclusive, so the IAM trust policy keys on the
   environment and branch pinning lives in the environment's deployment branch policy
-  instead. The role deliberately lacks `amplify:UpdateApp`, so the SPA 200 rewrite and cache
-  headers stay console-managed and CI cannot change hosting configuration.
+  instead. The trust `sub` is `StringLike repo:RomanKushyk/investment-tracker:environment:*`
+  so a new environment needs no AWS change; the boundaries that hold are the repo (trust) and
+  the single app branch `apps/d17m4jf400my6/branches/dev` (permissions), and each new
+  environment must get its own deployment branch policy at creation. The role deliberately
+  lacks `amplify:UpdateApp`, so the SPA 200 rewrite and cache headers stay console-managed
+  and CI cannot change hosting configuration.
 - **Public URL is not a data exposure:** every figure is derived in-browser from IndexedDB
   and nothing is transmitted (there is no backend to transmit to). A visitor gets the demo
   seed; the P2 `kubushka-live` dataset never leaves the owner's browser.

@@ -99,8 +99,10 @@ Trust policy — replace `<account-id>`:
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk/investment-tracker:environment:dev"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk/investment-tracker:environment:*"
         }
       }
     }
@@ -114,8 +116,20 @@ Trust policy — replace `<account-id>`:
 with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The two forms are mutually
 exclusive: a job either has an environment or it does not.
 
-Branch pinning therefore moves to GitHub's side — see §2's deployment branch policy. Without
-that policy, any branch could run a job targeting environment `dev` and assume this role.
+**Why `environment:*` rather than `environment:dev`.** A new GitHub environment then needs no
+AWS change at all — it can assume the role the moment it exists. `StringLike` is required for
+the wildcard (`StringEquals` does not glob); `aud` stays an exact match. The boundaries that
+still hold are the ones that matter: **this repo only** (the `sub` prefix) and **this Amplify
+app's `dev` branch only** (the permission policy below). Widening trust does not widen reach.
+
+Two consequences, both deliberate:
+
+- **Every new environment is implicitly trusted.** The discipline moves to GitHub: give each
+  environment a deployment branch policy when you create it (§2). Without one, a job on any
+  branch can target that environment and assume this role.
+- **A new environment that deploys a different Amplify branch still needs one AWS edit** —
+  widen the permission policy's `branches/dev` to `branches/<name>` or `branches/*`. Left
+  pinned deliberately: nothing needs it yet.
 
 Inline permission policy `kubushka-amplify-deploy` — replace `<account-id>` and `<appId>`:
 
@@ -167,6 +181,10 @@ environment can still read repo-scoped values; environment-scoped ones just take
 trust `sub` keys on the environment rather than the branch (§1.5), this policy is the only
 thing preventing a job on another branch from targeting environment `dev` and assuming the
 deploy role.
+
+**This applies to every environment you add later.** The trust policy accepts
+`environment:*`, so a new environment is trusted the moment it exists — its branch policy is
+the whole of its branch restriction. Set it at creation time, not afterwards.
 
 Use the **web UI**. The `gh` CLI on the development machine is authenticated as a different
 GitHub account with read-only access to this repo, so `gh secret set` returns 403.
