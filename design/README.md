@@ -1,6 +1,6 @@
 # design/ — Reference package
 
-Read-only handoff artifacts. **Never edit files in this folder.**
+Read-only handoff artifacts. **Never edit the original handoff files** (the three listed below) — they are immutable. New design references are ADDED under `extensions/` (see below; decision D14).
 
 ## Files
 
@@ -31,6 +31,15 @@ Read-only handoff artifacts. **Never edit files in this folder.**
 | 459–495 | Portfolio: positions table + Total row + 3 highlight cards |
 | 496–552 | Allocation: donut + legend, Current-vs-target pills, Rebalance plan |
 | 553–end | Closing markup + `class Component` / `renderVals()` script (script tag ~558) — exact headline strings per currency mode |
+
+## Extensions (`design/extensions/`)
+
+New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.html` per brief scope, produced by a **separate Claude design session** from a brief in `docs/design-briefs/` (pipeline + brief template: `docs/design-briefs/README.md`; decision `docs/DECISIONS.md` D14).
+
+- Extensions use the master reference's idiom: inline styles, every exact color/size/spacing literal in the markup, same `.dc.html` format.
+- Once merged, an extension is as binding as the master file for its surfaces: the reference wins visual disputes; its brief wins copy/behavior disputes.
+- A phase's UI tasks may not start before that phase's extension reference is merged (G7).
+- Extension files are the ONLY additions ever made under `design/`; the three original handoff files stay immutable.
 
 ## Caveats
 
