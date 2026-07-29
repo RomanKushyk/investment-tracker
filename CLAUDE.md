@@ -16,6 +16,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 - **docs/NEXT-PHASE-PLAN.md is the living plan** (v1 is done — docs/BUILD-PLAN.md is its record; v1 pinned contracts stay binding until a phase supersedes them). Pick up the first non-done phase/task there and keep checkboxes + Status table updated. Decisions log: docs/DECISIONS.md.
 - **Every top-level folder has a README.md with its local rules** (design/, docs/, src/ once created) — read it before working there, create one for any new folder, keep them current.
 - **navigation-map.md (root) is the agentic manual-testing map** — per-route expected seed values and checkpoints. Use it to verify; update route Status + checkpoints whenever screens or flows change.
+- **Deployment is `docs/DEPLOYMENT.md`** — Amplify Hosting manual-deploy app fed by `.github/workflows/deploy.yml`; hosting config (SPA 200 rewrite, cache headers) is console-managed and CI has no permission to change it (see DECISIONS D15).
 - Tailwind theme tokens for the palette (README §4) — no ad-hoc hex in components.
 - **Fluid, soft motion on every interaction** (user requirement) — follow "Motion & interaction standards" in docs/BUILD-PLAN.md; nothing pops or snaps instantly; respect prefers-reduced-motion.
 - `pnpm lint` and `pnpm typecheck` must pass before considering a task done (plus `pnpm test` once vitest lands in Task 2).

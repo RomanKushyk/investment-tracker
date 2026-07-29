@@ -117,3 +117,41 @@ Phase 1 `docs/design-brief-phase-2` implements decision G7 of `docs/NEXT-PHASE-P
 - **Pipeline (G7):** the last task of phase N writes `docs/design-briefs/phase-N+1-<name>.md` per the template pinned in `docs/design-briefs/README.md` (purpose + parent screen + reference line refs · exact-EN-copy content inventory · full state matrix default/hover/focus/disabled/loading/error/empty/stale/demo-disabled · D7 motion spec trigger→property→duration/easing→reduced-motion fallback · token constraints · layout constraints radius 20–24/999, 360 px, sidebar · acceptance checklist). A **separate Claude design session** turns the brief into the extension file(s); a phase's UI tasks may not start before its extension reference is merged. Pure-logic tasks are never design-blocked.
 - **Precedence:** once an extension is merged, the reference wins visual disputes; the brief wins copy and behavior disputes. Briefs never amend after their extension merged — supersede with a new section.
 - First instance: `docs/design-briefs/phase-2-settings-real-data.md`, which also mints the phase's one new token family `--color-warn/-tint/-tint-text` (values chosen by the design session; no ad-hoc hex).
+
+## D15 — Deploy: Amplify Hosting manual-deploy app driven by GitHub Actions (2026-07-29)
+
+`infra/amplify-hybrid-deploy` puts the app online. Runbook: `docs/DEPLOYMENT.md`; design
+spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
+
+- **Amplify Hosting only, no Amplify backend.** The app is a pure client-side SPA over
+  Dexie/IndexedDB (D2) with no server, so hosting is the whole deployment surface.
+- **Hybrid chosen over git-connected Amplify:** Amplify Hosting has **no build-status
+  badge** (that is a CodeBuild feature), so a git-connected app cannot show deployment
+  status in the README. A GitHub Actions workflow badge *is* real deployment status when the
+  workflow performs the deploy and polls `GetJob` until `SUCCEED`. Console drag-and-drop was
+  rejected as unautomatable for an actively developed project.
+- **One-way door, accepted.** `CreateDeployment`/`StartDeployment` apply only to apps *not*
+  connected to a Git repository, and there is no supported conversion between the two
+  models — switching later means a new `appId` and a new URL.
+- **Cost was not the deciding factor.** Amplify's free tier is 12-month-only; building in
+  Actions (unlimited-free on public repos) removes the only non-trivial post-free-tier line
+  item, but the delta is under $1/mo. The badge decided it.
+- **Secondary benefit:** pnpm is absent from the Amplify build container, so a git-connected
+  build would need its own install step. Building in Actions reuses the exact local
+  toolchain (Node 26 + pnpm 11.10.0 via `corepack`).
+- **Security posture:** GitHub OIDC, no long-lived AWS keys. The deploy job declares
+  `environment: dev` (the app id, region and role ARN are scoped to that GitHub
+  environment), which makes the OIDC `sub` claim `repo:…:environment:dev` **instead of**
+  `ref:refs/heads/dev` — the two are mutually exclusive, so the IAM trust policy keys on the
+  environment and branch pinning lives in the environment's deployment branch policy
+  instead. The trust `sub` is
+  `StringLike repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*` — repos
+  created after 2026-07-15 carry immutable owner/repo IDs in the claim and cannot omit them —
+  so a new environment needs no AWS change; the boundaries that hold are the repo (trust) and
+  the single app branch `apps/d17m4jf400my6/branches/dev` (permissions), and each new
+  environment must get its own deployment branch policy at creation. The role deliberately
+  lacks `amplify:UpdateApp`, so the SPA 200 rewrite and cache headers stay console-managed
+  and CI cannot change hosting configuration.
+- **Public URL is not a data exposure:** every figure is derived in-browser from IndexedDB
+  and nothing is transmitted (there is no backend to transmit to). A visitor gets the demo
+  seed; the P2 `kubushka-live` dataset never leaves the owner's browser.
