@@ -117,6 +117,12 @@ export function trimAmount(share: number, targetPct: number, total: number): num
  * accounts for the injection growing the denominator — the naive
  * `target×total − value` never mathematically reaches the target share.
  * Verified identical on the pinned fixture ₴11,429.49 (docs/FORMULA-AUDIT.md §3).
+ *
+ * The doc's other branch — `if (TargetShare <= CurrentShare) RequiredTranche
+ * = 0` — lives in the CALLERS, not here: this returns a negative tranche for
+ * an at/over-target input, and allocation.rebalancePlan / overview.
+ * mostUnderweightAsset only invoke it for under-target assets (the ±0.5pp
+ * band routes over-target to trimAmount). Callers must keep that guard.
  */
 export function topUpAmount(value: number, targetPct: number, total: number): number {
   const t = targetPct / 100;

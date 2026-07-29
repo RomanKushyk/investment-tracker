@@ -71,13 +71,17 @@ function inDomain(r: number): number | null {
 // (sign-alternating flows) resolve to the first bracketed root.
 function bisect(npv: (r: number) => number): number | null {
   const step = (RATE_MAX - RATE_MIN) / SCAN_STEPS;
-  let lo = RATE_MIN + step / 2; // stay off the −1 asymptote
+  // Scan from RATE_MIN exactly: NPV is finite there (the asymptote is at −1,
+  // not −0.999), and starting any higher would leave deep-loss roots in
+  // (RATE_MIN, RATE_MIN + offset) unbracketed. Endpoint roots at RATE_MIN/
+  // RATE_MAX themselves are rejected by inDomain (open interval).
+  let lo = RATE_MIN;
   let fLo = npv(lo);
   let hi = lo;
   let fHi = fLo;
   let found = false;
   for (let i = 1; i <= SCAN_STEPS; i++) {
-    hi = RATE_MIN + step / 2 + i * step;
+    hi = RATE_MIN + i * step;
     fHi = npv(hi);
     if (Number.isFinite(fLo) && Number.isFinite(fHi) && fLo * fHi <= 0) {
       found = true;

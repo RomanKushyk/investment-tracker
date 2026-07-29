@@ -43,6 +43,17 @@ describe('xirr (WEALTH-MANAGEMENT-ARCHITECTRUE §6.1, ACT/365)', () => {
     expect(r!).toBeCloseTo(-0.1, 6);
   });
 
+  it('deep-loss roots near the domain floor are still found (−99% in a year)', () => {
+    // Root −0.99 is inside (−0.999, 10); a scan that starts above RATE_MIN
+    // would never bracket it (verification-round fix, docs/FORMULA-AUDIT.md).
+    const r = xirr([
+      { date: '2026-01-01', amount: -1000 },
+      { date: '2027-01-01', amount: 10 },
+    ]);
+    expect(r).not.toBeNull();
+    expect(r!).toBeCloseTo(-0.99, 6);
+  });
+
   it('degenerate inputs → null (empty, single flow, one-signed flows)', () => {
     expect(xirr([])).toBeNull();
     expect(xirr([{ date: '2026-01-01', amount: -1000 }])).toBeNull();

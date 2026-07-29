@@ -81,8 +81,12 @@ const transactionRowSchema = z.strictObject({
     'redemption',
     'tax',
   ]),
-  assetId: z.string(), // '' = portfolio-level rows (deposit)
-  amount: z.number(),
+  assetId: z.string(), // '' = portfolio-level rows (deposit/withdrawal)
+  // Positive magnitude — the sign is carried by the TxType (every ledger
+  // derivation assumes this; the form path enforces it via quoteInputSchema).
+  // A negative amount here would double-flip signs in netDeposits/
+  // freeCashFromLedger, silently corrupting globalRoi and the drift check.
+  amount: z.number().positive(),
   source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
 });
 

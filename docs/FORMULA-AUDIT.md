@@ -40,7 +40,7 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 | | |
 |---|---|
 | **Challenge** | `target×total − value` never reaches the target because the injection grows the denominator (doc §3.1). |
-| **App formula** | `topUpAmount(value, targetPct, total)` = `(target×total − value)/(1 − target)` — identical to the doc's RequiredTranche. Pre-existing in v1; §3.1 doc-reference JSDoc added. |
+| **App formula** | `topUpAmount(value, targetPct, total)` = `(target×total − value)/(1 − target)` — identical to the doc's RequiredTranche *else*-branch. The doc's other branch (`if TargetShare <= CurrentShare → 0`) is enforced by the CALLERS, not the function: `topUpAmount` returns a negative tranche for at/over-target inputs, and both call sites only reach it for under-target assets (`allocation.rebalancePlan` routes on the ±0.5pp band; `overview.mostUnderweightAsset` takes the most-negative delta). Callers must keep that guard — pinned here per the every-divergence-recorded rule. Pre-existing in v1; §3.1 doc-reference JSDoc added. |
 | **Validation** | …8976 top-up **₴11 429,49** on the seed (pinned test; reference prints 11 413 — mock rounding, D5#4). Trim stays linear (`trimAmount`, −₴9 095) — the doc only constrains the top-up direction. |
 | **Verdict** | **Resolved** (was already exact). |
 
@@ -108,6 +108,13 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
    `interest_payout` ↔ Interest Payout · `reinvest` ↔ Reinvestment ·
    `withdrawal` ↔ Withdrawal · `redemption` ↔ Bond Redemption · `buy`/`sell` ↔
    Buy/Sell (all buys own-funded today, see §1 revisit trigger 2).
+   The §2.1/§5.1 portfolio totals deliberately use the doc's VERBATIM
+   identifiers (`payoutsGross`, `taxesPaid`, `payoutsNet`, `soldAmount`,
+   `netDeposits`) rather than the v1 `…Total` suffix convention
+   (`reinvestedTotal`, `depositedTotal`) — doc-traceability wins for the
+   reconciliation family; parameter names disambiguate where a sibling
+   function already owns the natural name (`payoutsNetAmount`,
+   `totalCapitalAmount`, `netDepositsAmount`).
 
 ## Dual metric families (the one-page mental model)
 
@@ -122,3 +129,31 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 Both families are permanent; P2 labels them distinctly and never conflates them.
 No D5-pinned figure changed in this audit (additive-metrics rule, verified: the
 21 pre-existing test files run untouched except sanctioned import/fixture adds).
+
+## Verification round (2026-07-29)
+
+Three independent verification agents re-audited the merged work; every pinned
+figure recomputed clean. Fixes applied (`fix/formula-audit-findings`):
+
+1. **`xirr` bisection scan floor (the one real numeric bug).** The scan
+   started at `RATE_MIN + step/2` ≈ −0.9775, so a root in (−0.999, −0.9775)
+   — e.g. −0.99 for −1 000 → +10 over one year — was never bracketed (Newton
+   also exits the domain there) and `xirr` returned null despite the root
+   being inside the promised (−0.999, 10) domain. NPV is finite at −0.999
+   (the asymptote is at −1), so the offset bought nothing. Fixed: scan starts
+   at `RATE_MIN` exactly; new pinned fixture −0.99 at 6 dp; the
+   out-of-domain −0.99999 fixture still nulls.
+2. **Backup row schema tightened: `amount: z.number().positive()`.** Amounts
+   are positive magnitudes with the sign carried by the TxType (form path
+   already enforces this); a hand-edited negative `withdrawal` would have
+   double-flipped signs in `netDeposits`/`freeCashFromLedger`. Rejection
+   fixtures added (negative + zero). Legitimate app-produced backups never
+   contain non-positive amounts, so no compatibility cost.
+3. **§3 clamp branch documented** (table row above + `topUpAmount` JSDoc):
+   the doc's `TargetShare <= CurrentShare → 0` branch lives in the callers.
+4. **Naming ruling extended** (ruling 7): §2.1/§5.1 totals pin the doc's
+   verbatim identifiers, not the v1 `…Total` suffix.
+5. **Stale comment** in `core/backup/json.ts`: assetId `''` rows are
+   deposit **/withdrawal** (portfolio-level), not deposit-only.
+
+No validation figure changed; no D5-pinned fixture touched.

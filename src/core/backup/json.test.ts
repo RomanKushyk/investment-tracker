@@ -283,6 +283,31 @@ describe('parseBackup rejections', () => {
     ]);
   });
 
+  it('rejects a non-positive transaction amount (sign lives in the TxType)', () => {
+    // A hand-edited {type:'withdrawal', amount:-500} would otherwise INCREASE
+    // netDeposits/freeCashFromLedger (double sign flip).
+    const negative = parseBackup(
+      mutated(
+        (env) =>
+          void ((env.transactions as Record<string, unknown>[])[0].amount =
+            -500),
+      ),
+    );
+    expect(negative).toMatchObject({ ok: false });
+    if (negative.ok) return;
+    expect(
+      negative.issues.some((i) => i.startsWith('transactions.0.amount')),
+    ).toBe(true);
+
+    const zero = parseBackup(
+      mutated(
+        (env) =>
+          void ((env.transactions as Record<string, unknown>[])[0].amount = 0),
+      ),
+    );
+    expect(zero).toMatchObject({ ok: false });
+  });
+
   it('rejects an unknown dataset value', () => {
     const result = parseBackup(
       mutated((env) => void (env.dataset = 'staging')),
