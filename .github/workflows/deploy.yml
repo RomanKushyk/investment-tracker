@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+# Always reflect the newest push: supersede an in-flight deploy rather than racing it.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+permissions:
+  id-token: write # required for OIDC role assumption
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # AMPLIFY_APP_ID / AWS_REGION / AWS_ROLE_ARN live in this environment's scope.
+    environment:
+      name: dev
+      url: https://dev.d17m4jf400my6.amplifyapp.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26 # must match local Node
+
+      - name: Enable pnpm via corepack
+        run: corepack enable # honors packageManager: pnpm@11.10.0
+
+      - run: pnpm install --frozen-lockfile
+
+      # Quality gate — everything below runs before any AWS credential exists,
+      # so a failing check can never deploy.
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build # already runs tsc --noEmit
+
+      - name: Zip the contents of dist
+        run: cd dist && zip -qr ../dist.zip .
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy to Amplify and wait for the job
+        run: ./scripts/deploy-amplify.sh dist.zip
+        env:
+          AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
+          AMPLIFY_BRANCH: dev

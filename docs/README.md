@@ -14,9 +14,11 @@ Working documentation for multi-session, agent-driven development. Root `README.
 | `DECISIONS.md` | Decision log D1…Dn (stack, persistence, git conventions, testing scope, reference-data reconciliation). | **Append-only** — add new entries at the bottom, supersede rather than rewrite. Read D5 before touching seed data or derivations. |
 | `FOLLOW-UPS.md` | Post-plan backlog: cosmetic/degenerate-data items consciously shipped as-is on 2026-07-28. | Tick or strike items as a sweep clears them; add new deferred-cosmetic findings here rather than reopening `BUILD-PLAN.md`. |
 | `VERSIONING.md` | App version & sidebar badge: single source of truth (`package.json`), SemVer bump rules, tag convention. | Bump `package.json` only — the badge derives from it at build time; keep tag `vX.Y.Z` and `package.json` in agreement. |
+| `DEPLOYMENT.md` | Deploy runbook: Amplify Hosting manual-deploy app + GitHub Actions pipeline, IAM/OIDC setup, rollback, failure playbook. | Hosting config (rewrite, cache headers) is console-managed by design — CI has no `UpdateApp`; keep §5 current when a failure mode is hit. |
 
 ## Conventions for this folder
 
 - New long-lived documentation goes here; one file per concern, linked from `CLAUDE.md` if sessions must always see it.
 - Per-folder rules live in that folder's own `README.md` (`design/`, `src/` once created…) — not here.
 - The agentic manual-testing map is the root `navigation-map.md` — update it (route status + checkpoints) whenever a task changes screens or flows.
+- `superpowers/specs/` and `superpowers/plans/` hold dated design specs and implementation plans from brainstorming/planning sessions. They are point-in-time records — once a plan is executed, the durable documentation is the concern file here (e.g. `DEPLOYMENT.md`) plus the `DECISIONS.md` entry.
