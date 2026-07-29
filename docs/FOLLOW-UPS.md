@@ -18,6 +18,7 @@ None of these affect data correctness, derivations, or the §9 behavior checklis
 | 6 | `src/screens/Overview.tsx` (`signedProse`), `src/screens/Portfolio.tsx` (`signedTable`) | Negative values use ASCII `-` while the design (and the shared `signedPp` in `src/screens/shared/format.ts`) uses U+2212 `−`. | Route both through / align with the shared helper's U+2212 convention. |
 | 7 | `src/screens/Yield.tsx` (table row render) | The `x === undefined ? '—' : fmt(x)` ternary repeats 4× per row. Stylistic; the codebase convention ("no abstraction for single-use code") tolerates it. | Optional: tiny local `dashIf` helper if touching the file anyway. |
 | 8 | `src/screens/TransactionPanel.tsx` (lint) | Known react-compiler bailout warning on react-hook-form `watch()` — accepted (compiler skips optimizing the component; no correctness impact). | No action; revisit only if the warning multiplies or RHF ships a compiler-compatible API. |
+| 9 | `index.html` (no favicon) | The app ships no favicon, so every page load requests `/favicon.ico` and gets a 404 (one console error on the deployed site; previously masked locally and by the old catch-all rewrite, which returned `index.html` for it). Cosmetic only. | Add a favicon to `public/` and link it in `index.html` — a `₴`-mark glyph matching the sidebar logo circle would suit; note the design reference has no favicon asset, so this is a new decision. |
 
 ## Ground rules for the sweep
 
