@@ -155,24 +155,30 @@ Inline permission policy `kubushka-amplify-deploy` — replace `<account-id>` an
       "Action": [
         "amplify:CreateDeployment",
         "amplify:StartDeployment",
-        "amplify:GetBranch"
+        "amplify:GetBranch",
+        "amplify:GetJob"
       ],
-      "Resource": "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev"
-    },
-    {
-      "Sid": "AmplifyJobStatus",
-      "Effect": "Allow",
-      "Action": "amplify:GetJob",
-      "Resource": "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev/jobs/*"
+      "Resource": [
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev/*"
+      ]
     }
   ]
 }
 ```
 
+**Both resource lines are needed.** The actions do not all act on the branch itself:
+`CreateDeployment` authorizes against `…/branches/dev/deployments/*` (AWS names it explicitly
+in the `AccessDeniedException`), `GetJob` against `…/branches/dev/jobs/*`, while `GetBranch`
+acts on `…/branches/dev`. Pinning only the branch fails on the very first call. The pair
+covers the branch and every sub-resource under it, which is tighter than the `apps/<appId>/*`
+that the design spec offered as the fallback — other branches and app-level operations stay
+out of reach.
+
 `amplify:UpdateApp` is deliberately absent: rewrites and headers stay console-managed, so a
-compromised workflow cannot reconfigure hosting. If a run fails with
-`UnauthorizedException`, widen the **resource** to `apps/<appId>/*` first — widen the action
-list only if that is not enough — and record what was needed in §5.
+compromised workflow cannot reconfigure hosting. If a future `AccessDeniedException` names a
+resource outside this branch, add that exact ARN rather than broadening to `apps/<appId>/*` —
+the error message always states the resource it wanted.
 
 ## 2. GitHub repository configuration
 
@@ -232,7 +238,7 @@ takes effect on the next page load without a cache purge.
 | Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
 | Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
 | Same error with the secret and trust policy both verified | The `sub` claim does not literally equal what the policy expects — most likely the immutable `OWNER@ID/REPO@ID` form (§1.5) | Print the real claim instead of guessing. Add a temporary step **before** `configure-aws-credentials` and compare its `sub` to the policy: `TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \| jq -r .value)`, then base64url-decode the second dot-segment and `jq '{iss,aud,sub}'`. **Print claims only — never the token**, which is a live credential, in a public repo |
-| `UnauthorizedException` on an `amplify:` call | Resource ARN shape | Widen resource to `apps/<appId>/*` per §1.5, record it here |
+| `AccessDeniedException` on an `amplify:` call | Resource ARN shape — the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message; it states exactly what was wanted. `CreateDeployment` needed `…/branches/dev/deployments/*`, which is why §1.5 grants `…/branches/dev` **and** `…/branches/dev/*` |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |
 | Site serves an old build after a green run | `index.html` cached | Re-check §1.3 |
