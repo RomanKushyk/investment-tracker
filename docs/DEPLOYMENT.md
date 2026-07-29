@@ -100,7 +100,7 @@ Trust policy — replace `<account-id>`:
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk/investment-tracker:ref:refs/heads/dev"
+          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk/investment-tracker:environment:dev"
         }
       }
     }
@@ -108,9 +108,14 @@ Trust policy — replace `<account-id>`:
 }
 ```
 
-The `sub` condition pins the role to branch `dev` of this one repo — a fork, a pull
-request, or another branch cannot assume it. `workflow_dispatch` runs on `dev` produce the
-same `sub` and are covered.
+**The `sub` is the environment, not the branch.** Because `deploy.yml`'s job declares
+`environment: dev`, GitHub replaces the branch ref in the token's `sub` claim with
+`environment:dev` — a trust policy pinned to `ref:refs/heads/dev` never matches and fails
+with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The two forms are mutually
+exclusive: a job either has an environment or it does not.
+
+Branch pinning therefore moves to GitHub's side — see §2's deployment branch policy. Without
+that policy, any branch could run a job targeting environment `dev` and assume this role.
 
 Inline permission policy `kubushka-amplify-deploy` — replace `<account-id>` and `<appId>`:
 
@@ -157,6 +162,12 @@ Settings → Environments → **`dev`**. All three live in that environment's sc
 Repo-level (Settings → Secrets and variables → Actions) would work too — a job with an
 environment can still read repo-scoped values; environment-scoped ones just take precedence.
 
+**Deployment branch policy — required, not cosmetic.** Settings → Environments → `dev` →
+**Deployment branches and tags** → *Selected branches and tags* → add `dev`. Since the IAM
+trust `sub` keys on the environment rather than the branch (§1.5), this policy is the only
+thing preventing a job on another branch from targeting environment `dev` and assuming the
+deploy role.
+
 Use the **web UI**. The `gh` CLI on the development machine is authenticated as a different
 GitHub account with read-only access to this repo, so `gh secret set` returns 403.
 
@@ -188,7 +199,7 @@ takes effect on the next page load without a cache purge.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | Confirm the `sub` is `repo:RomanKushyk/investment-tracker:ref:refs/heads/dev` and the workflow declares `id-token: write` |
+| Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
 | `UnauthorizedException` on an `amplify:` call | Resource ARN shape | Widen resource to `apps/<appId>/*` per §1.5, record it here |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |

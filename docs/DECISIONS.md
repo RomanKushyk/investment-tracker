@@ -139,10 +139,13 @@ spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 - **Secondary benefit:** pnpm is absent from the Amplify build container, so a git-connected
   build would need its own install step. Building in Actions reuses the exact local
   toolchain (Node 26 + pnpm 11.10.0 via `corepack`).
-- **Security posture:** GitHub OIDC into a role whose trust `sub` is pinned to
-  `refs/heads/dev`; no long-lived AWS keys. The role deliberately lacks `amplify:UpdateApp`,
-  so the SPA 200 rewrite and cache headers stay console-managed and CI cannot change
-  hosting configuration.
+- **Security posture:** GitHub OIDC, no long-lived AWS keys. The deploy job declares
+  `environment: dev` (the app id, region and role ARN are scoped to that GitHub
+  environment), which makes the OIDC `sub` claim `repo:…:environment:dev` **instead of**
+  `ref:refs/heads/dev` — the two are mutually exclusive, so the IAM trust policy keys on the
+  environment and branch pinning lives in the environment's deployment branch policy
+  instead. The role deliberately lacks `amplify:UpdateApp`, so the SPA 200 rewrite and cache
+  headers stay console-managed and CI cannot change hosting configuration.
 - **Public URL is not a data exposure:** every figure is derived in-browser from IndexedDB
   and nothing is transmitted (there is no backend to transmit to). A visitor gets the demo
   seed; the P2 `kubushka-live` dataset never leaves the owner's browser.
