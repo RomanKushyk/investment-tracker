@@ -218,6 +218,7 @@ takes effect on the next page load without a cache purge.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
+| Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
 | `UnauthorizedException` on an `amplify:` call | Resource ARN shape | Widen resource to `apps/<appId>/*` per §1.5, record it here |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |
