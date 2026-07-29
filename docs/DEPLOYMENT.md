@@ -38,14 +38,30 @@ configuration.
 
 ### 1.2 SPA rewrite — mandatory
 
-Left nav → **Hosting** → **Rewrites and redirects** → add rule:
+Left nav → **Hosting** → **Rewrites and redirects**. Use the **JSON editor** and paste
+exactly this — the source is a regular expression and a typo in it silently breaks the site:
 
-| Source | Target | Type |
-|--------|--------|------|
-| `/<*>` | `/index.html` | 200 (Rewrite) |
+```json
+[
+  {
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+    "status": "200",
+    "target": "/index.html",
+    "condition": null
+  }
+]
+```
 
-Without this, every non-root route (`/overview`, `/payouts`, …) returns 404 on refresh or
+Without a rewrite, every non-root route (`/overview`, `/payouts`, …) returns 404 on refresh or
 direct link, because those paths exist only in the client-side router.
+
+**Do not use the naive `/<*>` → `/index.html` 200 rule.** It matches *every* path, including
+`/assets/index-abc123.js`, so the browser requests the app bundle and receives `index.html`
+with `Content-Type: text/html`. The result is a blank page and one console error —
+`Failed to load module script: Expected a JavaScript-or-Wasm module script but the server
+responded with a MIME type of "text/html"` — while `curl` still reports `200` on every URL.
+The regex above is AWS's documented SPA pattern: it rewrites extensionless paths only, and
+excludes the extensions this app actually ships (`js`, `css`, `woff`, `woff2`).
 
 ### 1.3 Cache headers
 
@@ -219,6 +235,26 @@ Automatic on every push to `dev`. Manual re-deploy without a commit: Actions →
 The workflow fails the run if the Amplify job does not reach `SUCCEED`, so a green badge
 means the artifact is live — not merely uploaded.
 
+### 3.1 Verifying a deploy
+
+A green run proves the artifact uploaded, **not that the site works**. Status codes and cache
+headers are both satisfied by a misrouted asset, so check **content types and the browser
+console** too:
+
+```bash
+BASE=https://dev.d17m4jf400my6.amplifyapp.com
+curl -sS -o /dev/null -w 'root=%{http_code}\n' "$BASE/"
+curl -sS -o /dev/null -w 'deep=%{http_code}\n' "$BASE/overview"        # SPA rewrite
+ASSET=$(curl -sS "$BASE/" | grep -o '/assets/[^"]*\.js' | head -1)
+curl -sSI "$BASE$ASSET" | grep -i 'content-type'                       # MUST be javascript
+curl -sSI "$BASE/index.html" | grep -i 'cache-control'                 # no-cache
+```
+
+`Content-Type: text/html` on a `.js` asset means the rewrite is swallowing static files
+(§1.2). Finish by loading the site in a **fresh browser profile** and confirming zero console
+errors plus the sidebar version badge — an empty IndexedDB is the only way to exercise the
+seed path, and the console is the only place a MIME-type failure shows up.
+
 ## 4. Rollback
 
 Amplify keeps previous manual deployments per branch. Either:
@@ -241,6 +277,7 @@ takes effect on the next page load without a cache purge.
 | `AccessDeniedException` on an `amplify:` call | Resource ARN shape — the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message; it states exactly what was wanted. `CreateDeployment` needed `…/branches/dev/deployments/*`, which is why §1.5 grants `…/branches/dev` **and** `…/branches/dev/*` |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |
+| Blank page; console shows `Failed to load module script … MIME type of "text/html"` | The rewrite is matching static assets, so `/assets/*.js` returns `index.html` | The source must be §1.2's regex, **not** `/<*>`. Confirm with `curl -sSI "$BASE/assets/<file>.js" \| grep -i content-type` — anything but `application/javascript` is this bug. Note `curl` reports `200` and the correct `Cache-Control` either way, because header rules match on path regardless of the rewrite |
 | Site serves an old build after a green run | `index.html` cached | Re-check §1.3 |
 | `pnpm build` fails in CI on esbuild | `@esbuild/linux-x64` not resolvable from a Windows-generated lockfile | Refresh the lockfile so the Linux optional dependency is present; never drop `--frozen-lockfile` |
 | Deploy step times out | Amplify job stuck | Check the job in the Amplify console; re-run the workflow. Timeout is `POLL_TIMEOUT_SECONDS` (default 600) |
