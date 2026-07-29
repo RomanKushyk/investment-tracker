@@ -13,13 +13,15 @@ The app's pure domain layer per decision G1 (`docs/NEXT-PHASE-PLAN.md`) and `doc
 | `colors.ts` | Chart paint as `var(--color-chart-*)` strings (aliases resolve in `src/index.css` `@theme`); `COLOR_KEYS` cycle for new assets |
 | `asset-builder.ts` | `buildNewAsset` for the Transaction panel's inline quick-create |
 | `schemas.ts` | zod form schemas |
+| `xirr.ts` | Money-weighted annualized return (Newton–Raphson + bisection fallback) per the P1 formula audit (D13, `docs/FORMULA-AUDIT.md` §6.1) |
+| `backup/` | `json.ts` — backup envelope v1 (`kubushka-backup`) serializer + zod validator (D12) |
 | `inzhur/` | `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28); Phase 3's `parse.ts` lands here |
 
-Later per the plan: `backup/`, `xirr`, `accrual`, `reminders`, `day-deltas`.
+Later per the plan: `accrual`, `reminders`, `day-deltas`.
 
 ## Rules
 
 - **Pure only** — core imports nothing but core (no react, no dexie, no zustand, no `lib/`, no UI layers). Machine-enforced by the ESLint `no-restricted-imports` zones in `eslint.config.js`.
 - **Structured returns (D8)** — core and `screens/<route>/` pure modules return keys/tokens (`{schedule, day}`, ISO dates, plain numbers), never assembled English prose; the component layer owns the words (e.g. `components/ui/date-labels.ts`, `components/ui/schedule-labels.ts`). i18n lands in Phase 5.
 - **One sign convention** — every signed display string routes through `money.signed()`: U+2212, never ASCII `-`.
-- Every module ships a colocated `*.test.ts` (vitest, node env).
+- Every module with logic ships a colocated `*.test.ts` (vitest, node env). Exceptions: `types.ts` (type-only) and `colors.ts` (static token-string tables, exercised through their chart consumers).

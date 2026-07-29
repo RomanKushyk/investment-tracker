@@ -10,7 +10,7 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `index.css` | Tailwind import + `@theme` tokens + base styles |
 | `routes.tsx` | `createBrowserRouter`: `Layout` wraps 9 eager routes |
 | `app/` | Shell: `Layout.tsx`, `Sidebar.tsx` |
-| `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` (+ colocated vitest specs) — see `core/README.md` |
+| `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` · `xirr` · `backup/` (+ colocated vitest specs) — see `core/README.md` |
 | `lib/` | Persistence/infra only: `db` · `repository` · `seed` (+ seed tests) |
 | `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation |
 | `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
