@@ -144,7 +144,9 @@ spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
   environment), which makes the OIDC `sub` claim `repo:…:environment:dev` **instead of**
   `ref:refs/heads/dev` — the two are mutually exclusive, so the IAM trust policy keys on the
   environment and branch pinning lives in the environment's deployment branch policy
-  instead. The trust `sub` is `StringLike repo:RomanKushyk/investment-tracker:environment:*`
+  instead. The trust `sub` is
+  `StringLike repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*` — repos
+  created after 2026-07-15 carry immutable owner/repo IDs in the claim and cannot omit them —
   so a new environment needs no AWS change; the boundaries that hold are the repo (trust) and
   the single app branch `apps/d17m4jf400my6/branches/dev` (permissions), and each new
   environment must get its own deployment branch policy at creation. The role deliberately

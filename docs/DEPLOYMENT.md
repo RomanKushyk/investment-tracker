@@ -102,7 +102,7 @@ Trust policy — replace `<account-id>`:
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk/investment-tracker:environment:*"
+          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*"
         }
       }
     }
@@ -116,11 +116,23 @@ Trust policy — replace `<account-id>`:
 with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The two forms are mutually
 exclusive: a job either has an environment or it does not.
 
+**The owner and repo carry immutable numeric IDs.** GitHub repositories created after
+2026-07-15 use the immutable subject format `repo:OWNER@OWNER-ID/REPO@REPO-ID:…`, and those
+IDs cannot be removed from the claim. This repo's real subject is
+`repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:dev`, so a policy written
+as `repo:RomanKushyk/investment-tracker:…` never matches — it fails identically to a wrong
+branch/environment, with no hint as to why. Verify the actual claim rather than assuming the
+name-only form (§5 has the one-step diagnostic).
+
+Pinning the IDs is also strictly better than pinning names: it survives a repo or account
+rename and cannot be impersonated by a similarly-named account.
+
 **Why `environment:*` rather than `environment:dev`.** A new GitHub environment then needs no
 AWS change at all — it can assume the role the moment it exists. `StringLike` is required for
 the wildcard (`StringEquals` does not glob); `aud` stays an exact match. The boundaries that
-still hold are the ones that matter: **this repo only** (the `sub` prefix) and **this Amplify
-app's `dev` branch only** (the permission policy below). Widening trust does not widen reach.
+still hold are the ones that matter: **this repo only** (the ID-pinned `sub` prefix) and
+**this Amplify app's `dev` branch only** (the permission policy below). Widening trust does
+not widen reach.
 
 Two consequences, both deliberate:
 
@@ -219,6 +231,7 @@ takes effect on the next page load without a cache purge.
 |---------|-------|-----|
 | Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
 | Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
+| Same error with the secret and trust policy both verified | The `sub` claim does not literally equal what the policy expects — most likely the immutable `OWNER@ID/REPO@ID` form (§1.5) | Print the real claim instead of guessing. Add a temporary step **before** `configure-aws-credentials` and compare its `sub` to the policy: `TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \| jq -r .value)`, then base64url-decode the second dot-segment and `jq '{iss,aud,sub}'`. **Print claims only — never the token**, which is a live credential, in a public repo |
 | `UnauthorizedException` on an `amplify:` call | Resource ARN shape | Widen resource to `apps/<appId>/*` per §1.5, record it here |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
 | A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |
