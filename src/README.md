@@ -8,7 +8,7 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 |------|----------------|
 | `main.tsx` | Fonts, `QueryClientProvider`, `RouterProvider`, `<Toaster/>` (Task 3+) |
 | `index.css` | Tailwind import + `@theme` tokens + base styles |
-| `routes.tsx` | `createBrowserRouter`: `Layout` wraps 9 eager routes |
+| `routes.tsx` | `createBrowserRouter`: `Layout` wraps 10 eager routes (incl. `/settings`, next-phase P2) |
 | `app/` | Shell: `Layout.tsx`, `Sidebar.tsx` |
 | `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` · `xirr` · `backup/` (+ colocated vitest specs) — see `core/README.md` |
 | `lib/` | Persistence/infra only: `db` · `repository` · `seed` (+ seed tests) |

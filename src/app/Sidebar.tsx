@@ -1,14 +1,9 @@
-import type { CSSProperties } from 'react';
 import { NavLink } from 'react-router';
 
-import { Button } from '../components/ui/Button';
-import { useExportAll, useSnapshots, useTransactions } from '../hooks/queries';
+import { useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
-import { buildBackup } from '../core/backup/json';
-import { todayIso } from '../core/dates';
 import { headlineKpis } from '../core/derive';
 import { fmtPct, fmtProse, fmtProseWhole, toUsd } from '../core/money';
-import { dbVersion } from '../lib/repository';
 import { useSettings } from '../state/settings';
 
 const ANALYTICS = [
@@ -61,58 +56,6 @@ function useCapitalCard() {
     : { value: fmtProse(tweened, 'USD'), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(total)}` };
 }
 
-// The flagged pre-design exception (NEXT-PHASE-PLAN P1): durability must not
-// wait for the Settings design — one visually quiet backup download next to
-// the capital card, restyled/relocated into Settings→Data in Phase 2.
-// The outline variant is authored for light surfaces (border/text `ink`,
-// hover fill `sidebar-text`), so its two paint tokens are remapped for the
-// dark sidebar at the element level — token-to-token, no ad-hoc hex, and no
-// two same-property utilities fighting over generated-CSS order.
-const ON_DARK_OUTLINE = {
-  '--color-ink': 'var(--color-sidebar-nav)',
-  '--color-sidebar-text': 'var(--color-sidebar-hover)',
-} as CSSProperties;
-
-function BackupButton() {
-  const exportAll = useExportAll();
-  const { currency, usdRate } = useSettings();
-
-  async function download() {
-    const tables = await exportAll.mutateAsync();
-    const envelope = buildBackup(
-      tables.assets,
-      tables.snapshots,
-      tables.transactions,
-      { currency, usdRate },
-      'demo', // the dataset flag lands in P2 (G4) — today everything IS the demo dataset
-      new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
-      dbVersion,
-    );
-    const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `kubushka-backup-${todayIso()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  return (
-    // Motion (D7) rides on the Button base: `transition active:scale-[.97]`
-    // plus the soft hover fill from the remapped token above.
-    <Button
-      variant="outline"
-      size="sm"
-      className="relative mt-2.5 w-full"
-      style={ON_DARK_OUTLINE}
-      disabled={exportAll.isPending}
-      onClick={download}
-    >
-      Backup
-    </Button>
-  );
-}
-
 export function Sidebar() {
   const { currency, setCurrency } = useSettings();
   const capital = useCapitalCard();
@@ -156,6 +99,13 @@ export function Sidebar() {
         </NavLink>
       ))}
 
+      {/* Third nav group (P2 S1): exact clone of the existing group-label +
+          pill anatomy — same motion, same active treatment. */}
+      <GroupLabel className="mt-4">Settings</GroupLabel>
+      <NavLink to="/settings" className={pillClass('py-2')}>
+        Settings
+      </NavLink>
+
       <div className="relative mt-auto mb-2.5 flex gap-1 rounded-full bg-sidebar-inset p-1">
         {/* sliding thumb (D7): shares the two buttons' geometry (p-1 + gap-1) so
             translateX(100% + gap) lands it exactly under the other segment */}
@@ -192,7 +142,7 @@ export function Sidebar() {
         <div className="text-[11px] font-semibold text-pos-on-dark">{capital.sub}</div>
       </div>
 
-      <BackupButton />
+      {/* (no sidebar Backup pill — relocated to Settings→Data in P2, S7) */}
 
       <div className="relative mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sidebar-muted uppercase">
         v{__APP_VERSION__}

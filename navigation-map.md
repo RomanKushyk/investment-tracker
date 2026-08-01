@@ -16,7 +16,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px; Backup download button (next-phase P1) |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px; third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1) |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
 | `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware; values tween ~300ms on toggle (Task 7) |
 | `/balances` | Balances | Task 6 | done |
@@ -26,17 +26,18 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/seasonality` | Seasonality | Task 6 | done |
 | `/portfolio` | Portfolio | Task 5 | done |
 | `/allocation` | Allocation | Task 6 | done |
+| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance live; asset manager, targets, dataset switch and erase/reset land in the remaining P2 tasks |
 
 ## Global shell (visible on every route)
 
 Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a short window — footer cards must never clip).
 
 - Logo circle shows the **current currency symbol** (₴ default), wordmark "Kubushka" / "INVEST TRACKER".
-- Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills. Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
+- Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills; "SETTINGS" group → "Settings" pill (next-phase P2 — same pill anatomy/motion, no icon). Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
 - Currency toggle (₴ / $ segmented pill) near the bottom.
 - **Total capital card:** value `₴149,016` (whole ₴), sub-line `+3.08% · $3,324.03`. After toggling to $: logo symbol becomes `$`, value/sub-line flip to the USD form (`$…` main, `… · ₴149,016.36` sub); choice **survives a page reload**.
-- **Backup button** (quiet small outline pill directly below the capital card, label "Backup"): visible gray border/text on the dark sidebar, soft hover fill + press scale (D7). Click downloads `kubushka-backup-<yyyy-MM-dd>.json` (today's date) — a `kubushka-backup` formatVersion-1 JSON envelope holding ALL rows: on seed 4 assets / 174 snapshots / 18 transactions + settings, and it re-validates via `core/backup/json.parseBackup` (temporary pre-design home; moves to Settings→Data in next-phase P2).
-- **Version badge** at the very bottom (below the Backup button, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
+- **No sidebar Backup pill** (removed in next-phase P2 per S7) — the backup download lives on `/settings` → Data.
+- **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
 - No horizontal scroll at 360px viewport width on any route.
 
 ## `/` — Daily quotes (landing)
@@ -111,6 +112,24 @@ On seed:
 - Donut (30px ring, asset colors) with center **"₴149k / 4 assets + cash"** + legend.
 - "Current vs target" pills: fill = current share, black 2px tick at target. Deltas: REIT **+6.1 (red — overweight)**, …8976 **−6.4 (red)**, …6475 **−0.1 (green — near target)**. Color encodes **off-target severity, not sign**.
 - Rebalance plan: numbered actions — top up …8976 **≈₴11,429** (D5#4), trim REIT **≈₴9,095**.
+
+## `/settings` — Settings home (next-phase P2, shell so far)
+
+On seed:
+- Header **"Settings"** + subtitle "Preferences, data and portfolio configuration".
+- 4 stacked white cards (radius 24) in pinned order, staggered fade/slide on mount (D7): **Portfolio → Data → Automation → Appearance**, each with a 10px uppercase microlabel.
+- **Portfolio:** interim placeholder lines for the asset manager and (after a divider, "TARGETS" microlabel) the targets editor — real controls land in `feat/asset-form` / `feat/targets-editor`.
+- **Data:** dataset-switch placeholder line; **Backup row** — title "Backup", helper mentioning `kubushka-backup-<date>.json`, outline button **"Download backup"** (right side; identical behavior to the removed sidebar pill: downloads the formatVersion-1 envelope, on seed 4 assets / 174 snapshots / 18 transactions + settings); erase/reset placeholder line.
+- **Automation:** placeholder copy "Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders arrive in the next release."
+- **Appearance:** "Currency" row with a light-surface ₴ UAH / $ USD segmented control (sliding thumb like the sidebar toggle); "₴/$ rate" row with a 110px right-aligned decimal input prefilled **44.83**; "Theme and language settings are coming later." placeholder.
+
+Interactions to verify:
+1. Sidebar "SETTINGS" group sits between Analytics and the currency toggle; the Settings pill activates (light bg, bold, `aria-current="page"`) on `/settings`.
+2. Currency control mirrors the sidebar toggle both ways (flip in Settings → sidebar thumb + logo symbol follow, and vice versa); thumb slides ~300ms (D7).
+3. Editing the rate to a valid number (comma or dot decimals) updates the sidebar `$` sub-figure and the Overview subtitle `rate … ₴/$` immediately, and **persists across reload** (`kubushka-settings.state.usdRate`).
+4. Invalid input (`0`, `-1`, `abc`, or emptied on blur) → neg border + "Enter a rate above 0." message; the store keeps the last valid rate (headline figures unchanged).
+5. "Download backup" disabled while pending; failure shows toast "Could not build the backup — please try again."
+6. 360px: cards stack, control rows wrap (label above control), no horizontal scroll.
 
 ## Cross-cutting recipes
 

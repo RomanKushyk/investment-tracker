@@ -18,7 +18,7 @@
 |---|-------|----------|--------|
 | 0 | Repo hygiene | `chore/next-phase-prep` | **done** (2026-07-28) |
 | 1 | Core consolidation & write surface (+ formula audit) | `refactor/core-folder` … `docs/design-brief-phase-2` | **done** (2026-07-29) |
-| 2 | Settings home & real-data era | `feat/settings-shell` … `docs/design-brief-phase-3` | todo |
+| 2 | Settings home & real-data era | `feat/settings-shell` … `docs/design-brief-phase-3` | **in progress** (started 2026-08-01) |
 | 3 | Living data: Inzhur fetch, fixed yield, reminders | `feat/inzhur-client` … `docs/design-brief-phase-4` | todo |
 | 4 | Data portability: import, CSV, mirror | `feat/backup-import` … `docs/design-brief-phase-5` | todo |
 | 5 | Appearance & language: dark theme + UK | `feat/dark-theme`, `feat/i18n-uk`, `docs/design-brief-phase-6` | todo |
@@ -121,7 +121,7 @@ Comparison of the doc's six challenges against the app's actual derivations, num
 **Goal:** a Settings home; create/edit every Asset field, set targets, hold REAL data in a separate live dataset with safe clear/reset; surface the audited metrics. **Covers:** 2, 2a, 2b, 2d(part), 2e(part), 7, 14.
 **Rationale:** the user cannot correct real maturities or run a clean portfolio today; P3 automation would otherwise operate on wrong metadata or fake data. Dataset split promoted here because it IS the real-data enabler; approved migration is zero-code (`kubushka` stays demo).
 
-- [ ] `feat/settings-shell` — `/settings` route + third sidebar group per design; flat route, stacked section cards: **Portfolio** (asset manager entry, targets), **Data** (dataset switch, backup button relocated, reset/erase), **Automation** (placeholder), **Appearance** (currency + editable `usdRate`; theme/lang placeholders). Store: `usdRate` persisted+settable.
+- [x] `feat/settings-shell` — `/settings` route + third sidebar group per design; flat route, stacked section cards: **Portfolio** (asset manager entry, targets), **Data** (dataset switch, backup button relocated, reset/erase), **Automation** (placeholder), **Appearance** (currency + editable `usdRate`; theme/lang placeholders). Store: `usdRate` persisted+settable.
 - [ ] `feat/asset-form` — standalone `AssetForm` (create+edit; own types — replaces transaction-form-welded `NewAssetFields`): all Asset fields incl. previously seed-only `maturity/couponAmount/nextCoupon/payoutSchedule('none' allowed on edit)/reinvestPolicy`; **Inzhur group:** toggle → `{kind: fund|bond, ref: slug|ISIN (manual text this phase; live picker in P3), units}` — when linked, quantity replaces value-centric fields; type extension `inzhur?: {kind, ref, units}` (optional → no Dexie bump). TransactionPanel keeps inline quick-create rendering the same AssetForm (atomic `recordTransaction(tx, newAsset)` unchanged).
 - [ ] `feat/targets-editor` — per-asset `targetPct` editor + live Σ indicator (warn ≠100, non-blocking) + share preview; pure helpers + tests.
 - [ ] `feat/dataset-split` — G4 wiring: db factory, repository binds active DB at init, toggle+reload, `kubushka-live` created empty, demo reseeds-if-empty, sidebar DEMO badge, "Reset demo data"; navigation-map doctrine: all seed-pinned checkpoints run in demo.

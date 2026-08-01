@@ -9,6 +9,7 @@ import { Overview } from './screens/Overview';
 import { Payouts } from './screens/Payouts';
 import { Portfolio } from './screens/Portfolio';
 import { Seasonality } from './screens/Seasonality';
+import { Settings } from './screens/Settings';
 import { Yield } from './screens/Yield';
 
 export const router = createBrowserRouter([
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: 'seasonality', element: <Seasonality /> },
       { path: 'portfolio', element: <Portfolio /> },
       { path: 'allocation', element: <Allocation /> },
+      { path: 'settings', element: <Settings /> },
     ],
   },
 ]);

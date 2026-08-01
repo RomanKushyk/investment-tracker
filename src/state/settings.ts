@@ -5,14 +5,16 @@ interface SettingsState {
   currency: 'UAH' | 'USD';
   usdRate: number;
   setCurrency: (c: 'UAH' | 'USD') => void;
+  setUsdRate: (rate: number) => void;
 }
 
-/** The v1 persisted payload — keep in exact sync with `partialize` below. */
+/** The persisted payload — keep in exact sync with `partialize` below. */
 export interface PersistedSettings {
   currency: 'UAH' | 'USD';
+  usdRate: number;
 }
 
-const PERSISTED_DEFAULTS: PersistedSettings = { currency: 'UAH' };
+const PERSISTED_DEFAULTS: PersistedSettings = { currency: 'UAH', usdRate: 44.83 };
 
 /**
  * Additive-safe migration (G3): whatever shape is on disk (a v0 payload,
@@ -29,6 +31,12 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
       p.currency === 'UAH' || p.currency === 'USD'
         ? p.currency
         : PERSISTED_DEFAULTS.currency,
+    // Same validity rule as the Settings→Appearance field (S8): a rate is a
+    // finite number above 0 — anything else falls back to the default.
+    usdRate:
+      typeof p.usdRate === 'number' && Number.isFinite(p.usdRate) && p.usdRate > 0
+        ? p.usdRate
+        : PERSISTED_DEFAULTS.usdRate,
   };
 }
 
@@ -57,12 +65,15 @@ export const useSettings = create<SettingsState>()(
       currency: 'UAH',
       usdRate: 44.83,
       setCurrency: (currency) => set({ currency }),
+      // Callers validate BEFORE calling (S8: invalid input never writes) —
+      // the Settings screen parses via core/schemas.quoteInputSchema.
+      setUsdRate: (usdRate) => set({ usdRate }),
     }),
     {
       name: 'kubushka-settings',
       version: 1,
       migrate: migrateSettings,
-      partialize: (s) => ({ currency: s.currency }),
+      partialize: (s) => ({ currency: s.currency, usdRate: s.usdRate }),
     },
   ),
 );
