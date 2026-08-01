@@ -1,8 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Plus } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { AssetFormFields } from '../components/forms/AssetForm';
+import { assetFormDefaults } from '../components/forms/asset-form';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { DatePicker } from '../components/ui/DatePicker';
@@ -12,16 +15,19 @@ import {
   useRecordTransaction,
   useTransactions,
 } from '../hooks/queries';
-import { buildNewAsset } from '../core/asset-builder';
+import { assetFromForm } from '../core/asset-builder';
+import { COLOR_KEYS } from '../core/colors';
 import { todayIso } from '../core/dates';
 import { fmtDateShort, fmtProse } from '../core/money';
 import {
+  assetFormSchema,
   transactionSchema,
+  type AssetFormInput,
+  type AssetFormValues,
   type TransactionFormInput,
   type TransactionFormValues,
 } from '../core/schemas';
-import type { Transaction, TxType } from '../core/types';
-import { NewAssetFields } from './NewAssetFields';
+import type { Asset, Transaction, TxType } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 
 const TYPE_OPTIONS: { value: TxType; label: string }[] = [
@@ -78,6 +84,15 @@ export function TransactionPanel() {
     },
   });
 
+  // The quick-create sub-form is the standalone AssetForm's fields on their
+  // own form instance (P2 feat/asset-form — replaces the schema-welded
+  // NewAssetFields). Validated only when Asset = "+ New asset…"; the record
+  // itself stays the atomic recordTransaction(tx, newAsset).
+  const assetForm = useForm<AssetFormInput, unknown, AssetFormValues>({
+    resolver: zodResolver(assetFormSchema('create')),
+    defaultValues: assetFormDefaults(),
+  });
+
   const assetId = form.watch('assetId');
   const isNewAsset = assetId === 'new';
 
@@ -89,20 +104,13 @@ export function TransactionPanel() {
     }
   }, [assets, form]);
 
-  // newAsset must be cleared whenever it's not in play: newAssetSchema
-  // validates it whenever present (the superRefine only ADDS a requirement
-  // for assetId === 'new', it doesn't skip validating leftover values) —
-  // without this, a stale sub-form value would silently fail every later
-  // submit on an existing asset.
+  // Reset the sub-form whenever it leaves play so stale values/errors never
+  // linger into a later "+ New asset…" round.
   useEffect(() => {
-    if (!isNewAsset) form.setValue('newAsset', undefined);
-  }, [isNewAsset, form]);
+    if (!isNewAsset) assetForm.reset(assetFormDefaults());
+  }, [isNewAsset, assetForm]);
 
-  function onSubmit(values: TransactionFormValues) {
-    const newAsset =
-      isNewAsset && values.newAsset
-        ? buildNewAsset(values.newAsset, values.date, assets.length)
-        : undefined;
+  function record(values: TransactionFormValues, newAsset: Asset | undefined) {
     const tx: Transaction = {
       id: crypto.randomUUID(),
       date: values.date,
@@ -123,10 +131,24 @@ export function TransactionPanel() {
             amount: '',
             source: 'own',
           });
+          assetForm.reset(assetFormDefaults());
         },
         onError: () => toast.error('Could not record transaction — please try again.'),
       },
     );
+  }
+
+  function onSubmit(values: TransactionFormValues) {
+    if (isNewAsset) {
+      // Both forms must pass; assetForm.handleSubmit surfaces the sub-form's
+      // field errors and only calls through when it validates. firstPurchase
+      // keeps deriving from the transaction date (quick-create rule).
+      void assetForm.handleSubmit((assetValues) => {
+        record(values, assetFromForm(assetValues, values.date, assets.length));
+      })();
+      return;
+    }
+    record(values, undefined);
   }
 
   const recent = [...transactions].slice(-3).reverse();
@@ -205,7 +227,21 @@ export function TransactionPanel() {
 
           {isNewAsset && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <NewAssetFields register={form.register} control={form.control} />
+              {/* Same dashed reveal panel as v1 (design lines 116-124), now
+                  hosting the shared AssetFormFields inline: create-mode core
+                  fields only — no First purchase (derived from the tx date). */}
+              <div className="border-faint flex flex-col gap-2.5 rounded-2xl border border-dashed bg-white p-3.5">
+                <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
+                  <Plus size={13} strokeWidth={2.75} />
+                  New asset details
+                </div>
+                <AssetFormFields
+                  form={assetForm}
+                  mode="create"
+                  layout="inline"
+                  avatarColorKey={COLOR_KEYS[assets.length % COLOR_KEYS.length]}
+                />
+              </div>
             </div>
           )}
 
@@ -243,7 +279,8 @@ export function TransactionPanel() {
           >
             Record transaction
           </Button>
-          {Object.keys(form.formState.errors).length > 0 && (
+          {(Object.keys(form.formState.errors).length > 0 ||
+            Object.keys(assetForm.formState.errors).length > 0) && (
             <p className="text-neg text-xs">
               Check the highlighted fields and try again.
             </p>

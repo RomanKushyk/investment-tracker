@@ -34,6 +34,10 @@ export interface Asset {
   couponAmount?: number;
   nextCoupon?: string;
   reinvestPolicy?: string;
+  // Inzhur link (P2 feat/asset-form): valued as units × fetched sell price
+  // once P3's fetch lands. `ref` = fund slug ('inzhur-reit') or bond ISIN
+  // ('UA4000238976'). Optional object field — no Dexie version bump (D9).
+  inzhur?: { kind: 'fund' | 'bond'; ref: string; units: number };
 }
 
 export interface Snapshot {

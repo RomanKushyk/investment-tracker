@@ -12,9 +12,13 @@ const BG: Record<ColorKey, string> = {
 export function ShareBar({ segments }: { segments: { colorKey: ColorKey; pct: number }[] }) {
   return (
     <div className="flex h-3 overflow-hidden rounded-full">
-      {segments.map((s) => (
+      {segments.map((s, i) => (
         <div
-          key={s.colorKey}
+          // colorKey alone is NOT unique once a 5th asset wraps the 4-hue
+          // cycle (P2 asset manager makes that a first-class flow) — the
+          // position suffix keeps keys unique while segment order stays
+          // stable (assets render in createdAt order).
+          key={`${i}-${s.colorKey}`}
           className={`h-full transition-[width] duration-500 ease-soft ${BG[s.colorKey]}`}
           style={{ width: `${s.pct}%` }}
         />

@@ -44,11 +44,17 @@ export function DatePicker({
   onChange,
   className = 'w-[130px] text-right',
   id,
+  placeholder,
+  invalid = false,
+  bg = 'card',
 }: {
-  value: string; // ISO yyyy-MM-dd
+  value: string; // ISO yyyy-MM-dd; '' = unset (renders the placeholder)
   onChange: (iso: string) => void;
   className?: string; // width/alignment override for the trigger button
   id?: string; // lets a sibling <label htmlFor> associate with the trigger
+  placeholder?: string; // shown muted while value is '' (optional dates, P2 AssetForm)
+  invalid?: boolean; // error styling per the form-error idiom (border neg)
+  bg?: 'card' | 'page'; // explicit variant, same rationale as Select's `bg`
 }) {
   const [open, setOpen] = useState(false);
 
@@ -58,10 +64,15 @@ export function DatePicker({
         <button
           type="button"
           id={id}
-          aria-label={`Date: ${fmtDate(value)}`}
-          className={`border-hairline font-body text-ink hover:border-ink bg-card h-9 rounded-[10px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
+          aria-label={value ? `Date: ${fmtDate(value)}` : (placeholder ?? 'Pick a date')}
+          aria-invalid={invalid || undefined}
+          className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[10px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
-          {fmtDate(value)}
+          {value ? (
+            fmtDate(value)
+          ) : (
+            <span className="text-muted">{placeholder ?? 'Pick a date'}</span>
+          )}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -72,7 +83,8 @@ export function DatePicker({
         >
           <DayPicker
             mode="single"
-            selected={isoToDate(value)}
+            selected={value ? isoToDate(value) : undefined}
+            defaultMonth={value ? isoToDate(value) : undefined}
             onSelect={(d) => {
               if (!d) return;
               onChange(dateToIso(d));

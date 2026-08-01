@@ -153,7 +153,7 @@ describe('parseBackup round-trip', () => {
     expect(result.data.settings).toEqual(SETTINGS);
   });
 
-  it('accepts the forward-compatible inzhur asset link (P2 field)', () => {
+  it('accepts a hand-injected inzhur link on a raw envelope (P2 field)', () => {
     const text = mutated((env) => {
       (env.assets as Record<string, unknown>[])[0].inzhur = {
         kind: 'fund',
@@ -163,6 +163,46 @@ describe('parseBackup round-trip', () => {
     });
     const result = parseBackup(text);
     expect(result.ok).toBe(true);
+  });
+
+  it('round-trips an inzhur-linked asset losslessly (fund + bond kinds)', () => {
+    const linked: Asset[] = [
+      {
+        ...ASSETS[0],
+        inzhur: { kind: 'fund', ref: 'inzhur-reit', units: 6164 },
+      },
+      {
+        ...ASSETS[1],
+        id: 'ovdp8976',
+        name: 'OVDP UA4000238976',
+        yieldType: 'fixed_coupon',
+        payoutSchedule: 'semiannual',
+        inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
+      },
+    ];
+    const env = buildBackup(
+      linked,
+      [],
+      [],
+      SETTINGS,
+      'live',
+      '2026-08-01T12:00:00',
+      2,
+    );
+    const result = parseBackup(JSON.stringify(env));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.assets).toEqual(linked);
+    expect(result.data.assets[0].inzhur).toEqual({
+      kind: 'fund',
+      ref: 'inzhur-reit',
+      units: 6164,
+    });
+    expect(result.data.assets[1].inzhur).toEqual({
+      kind: 'bond',
+      ref: 'UA4000238976',
+      units: 15,
+    });
   });
 });
 
@@ -306,6 +346,37 @@ describe('parseBackup rejections', () => {
       ),
     );
     expect(zero).toMatchObject({ ok: false });
+  });
+
+  it('rejects an unknown key inside inzhur (nested strictObject) and a bad kind', () => {
+    const extraKey = parseBackup(
+      mutated(
+        (env) =>
+          void ((env.assets as Record<string, unknown>[])[0].inzhur = {
+            kind: 'fund',
+            ref: 'inzhur-reit',
+            units: 6164,
+            price: 11.1389,
+          }),
+      ),
+    );
+    expect(extraKey).toMatchObject({ ok: false });
+    if (extraKey.ok) return;
+    expect(extraKey.issues.some((i) => i.startsWith('assets.0.inzhur'))).toBe(true);
+
+    const badKind = parseBackup(
+      mutated(
+        (env) =>
+          void ((env.assets as Record<string, unknown>[])[0].inzhur = {
+            kind: 'etf',
+            ref: 'x',
+            units: 1,
+          }),
+      ),
+    );
+    expect(badKind).toMatchObject({ ok: false });
+    if (badKind.ok) return;
+    expect(badKind.issues.some((i) => i.startsWith('assets.0.inzhur.kind'))).toBe(true);
   });
 
   it('rejects an unknown dataset value', () => {

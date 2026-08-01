@@ -26,7 +26,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/seasonality` | Seasonality | Task 6 | done |
 | `/portfolio` | Portfolio | Task 5 | done |
 | `/allocation` | Allocation | Task 6 | done |
-| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance live; asset manager, targets, dataset switch and erase/reset land in the remaining P2 tasks |
+| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) live; targets, dataset switch and erase/reset land in the remaining P2 tasks |
 
 ## Global shell (visible on every route)
 
@@ -54,7 +54,7 @@ Interactions to verify:
 2. Typed drafts survive a reload (persisted draft store).
 3. "Copy yesterday" fills all 4 inputs with yesterday's quotes.
 4. "Save snapshot" → toast **"Snapshot saved"**, "Last saved" updates, IndexedDB row for the date is UPSERTED (re-saving the same day must not add a row).
-5. Transaction form: selecting Asset = "+ New asset…" reveals the dashed **New asset details** sub-card; any other asset hides it. Submitting with a new asset creates asset + transaction atomically → toast **"Transaction recorded"**, Recent list updates, new asset appears as a 5th quote row with a cycled avatar tint.
+5. Transaction form: selecting Asset = "+ New asset…" reveals the dashed **New asset details** sub-card; any other asset hides it. Submitting with a new asset creates asset + transaction atomically → toast **"Transaction recorded"**, Recent list updates, new asset appears as a 5th quote row with a cycled avatar tint. *Since next-phase P2 the sub-card renders the shared AssetForm fields (create mode, no First purchase — still derived from the transaction date): Name, Code (avatar preview, auto-derived from Name until edited), Yield type, Expected/Target, Payout schedule (never 'none'), plus the conditional Fixed-coupon group (yield type = Fixed coupon) and the "Link to Inzhur" toggle (off by default). The atomic `recordTransaction(tx, newAsset)` path is unchanged.*
 
 ## `/overview`
 
@@ -113,12 +113,12 @@ On seed:
 - "Current vs target" pills: fill = current share, black 2px tick at target. Deltas: REIT **+6.1 (red — overweight)**, …8976 **−6.4 (red)**, …6475 **−0.1 (green — near target)**. Color encodes **off-target severity, not sign**.
 - Rebalance plan: numbered actions — top up …8976 **≈₴11,429** (D5#4), trim REIT **≈₴9,095**.
 
-## `/settings` — Settings home (next-phase P2, shell so far)
+## `/settings` — Settings home (next-phase P2, in progress)
 
 On seed:
 - Header **"Settings"** + subtitle "Preferences, data and portfolio configuration".
 - 4 stacked white cards (radius 24) in pinned order, staggered fade/slide on mount (D7): **Portfolio → Data → Automation → Appearance**, each with a 10px uppercase microlabel.
-- **Portfolio:** interim placeholder lines for the asset manager and (after a divider, "TARGETS" microlabel) the targets editor — real controls land in `feat/asset-form` / `feat/targets-editor`.
+- **Portfolio (asset manager, `feat/asset-form`):** the 4 demo assets as rows — color dot · name · short yield label (`div + cap` / `cap` / `coupon` / `coupon`) · outline **Edit** pill · neg-outline **Delete** pill; row hover = soft page tint; footer outline button **"+ Add asset"**. After the divider, "TARGETS" microlabel with an interim placeholder (lands in `feat/targets-editor`).
 - **Data:** dataset-switch placeholder line; **Backup row** — title "Backup", helper mentioning `kubushka-backup-<date>.json`, outline button **"Download backup"** (right side; identical behavior to the removed sidebar pill: downloads the formatVersion-1 envelope, on seed 4 assets / 174 snapshots / 18 transactions + settings); erase/reset placeholder line.
 - **Automation:** placeholder copy "Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders arrive in the next release."
 - **Appearance:** "Currency" row with a light-surface ₴ UAH / $ USD segmented control (sliding thumb like the sidebar toggle); "₴/$ rate" row with a 110px right-aligned decimal input prefilled **44.83**; "Theme and language settings are coming later." placeholder.
@@ -129,7 +129,11 @@ Interactions to verify:
 3. Editing the rate to a valid number (comma or dot decimals) updates the sidebar `$` sub-figure and the Overview subtitle `rate … ₴/$` immediately, and **persists across reload** (`kubushka-settings.state.usdRate`).
 4. Invalid input (`0`, `-1`, `abc`, or emptied on blur) → neg border + "Enter a rate above 0." message; the store keeps the last valid rate (headline figures unchanged).
 5. "Download backup" disabled while pending; failure shows toast "Could not build the backup — please try again."
-6. 360px: cards stack, control rows wrap (label above control), no horizontal scroll.
+6. 360px: cards stack, control rows wrap (label above control), no horizontal scroll; the AssetForm dialog fits unclipped (scrolls internally when tall).
+7. **Add asset** opens the AssetForm dialog (create): heading "＋ New asset details", fields Name / Code (avatar preview cycles the next free hue; auto-derives from Name until Code is edited) / Yield type / Expected+Target / Payout schedule (4 options, never 'none') + First purchase (prefilled today); Fixed-coupon group (Maturity, Next coupon, Coupon amount, Reinvest policy) revealed only for yield type = Fixed coupon; "Link to Inzhur" toggle reveals Units (emphasized, units-first) + Fund/Bond kind segment + slug/ISIN text ref + helper line. Submit "Add asset" → toast **"Asset added"**, row appears, new quote row on `/`, card on `/attributes`.
+8. **Edit** opens the same dialog prefilled ("Edit asset" / "Save changes"): e.g. changing …8976's Maturity updates the Attributes card and Overview "Next payouts" after save (toast **"Asset updated"**). Editing Energy (payout schedule 'none') additionally offers "None (price only)" in the schedule select — no other asset gets that option.
+9. **Delete** opens a confirm dialog stating the cascade: "This removes the asset and everything recorded for it — N transactions and quotes on M days." (on seed: REIT 9 transactions / 174 days, Energy 1/173, …8976 2/171, …6475 3/54) with **"Download backup first"** (flips to "Backup downloaded ✓") + neg **"Delete asset"** → toast **"Asset deleted"**, cascade removes its transactions and quote cells everywhere (no typed-name arming here — that's reserved for erase/reset).
+10. Validation: submitting an empty create form highlights fields with the pinned messages ("Name is required." · "Code is 1–2 letters." · "Enter a percentage." · "Enter the number of units." …) + summary "Check the highlighted fields and try again."; the linked-ref message follows the kind ("Enter the fund slug." / "Enter the bond ISIN.").
 
 ## Cross-cutting recipes
 

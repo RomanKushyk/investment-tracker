@@ -47,7 +47,8 @@ const assetRowSchema = z.strictObject({
   couponAmount: z.number().optional(),
   nextCoupon: isoDate.optional(),
   reinvestPolicy: z.string().optional(),
-  // P2 feat/asset-form's Inzhur link — accepted ahead of time (forward-compat).
+  // Asset.inzhur (P2 feat/asset-form) — field names mirror core/types.ts
+  // exactly: { kind: 'fund' | 'bond'; ref: string; units: number }.
   inzhur: z
     .strictObject({
       kind: z.enum(['fund', 'bond']),

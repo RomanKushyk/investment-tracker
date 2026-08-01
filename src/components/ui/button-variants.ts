@@ -12,6 +12,11 @@ export const buttonVariants = cva(
         primary: 'bg-ink text-white hover:bg-sidebar-hover',
         outline: 'border-[1.5px] border-ink bg-transparent text-ink hover:bg-sidebar-text',
         ghost: 'bg-transparent text-ink hover:opacity-85',
+        // Destructive pair (design/extensions/settings.dc.html S6): the
+        // outline trigger opens a confirm; the full neg fill is reserved for
+        // the dialog's armed action.
+        outlineDanger: 'border-[1.5px] border-neg bg-transparent text-neg hover:bg-neg/8',
+        danger: 'bg-neg text-card hover:opacity-90',
       },
       // Explicit variant (not a className override) so callers needing bold
       // text don't end up with two font-weight utilities fighting over

@@ -1,15 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useExportAll } from '../hooks/queries';
-import { buildBackup } from '../core/backup/json';
-import { todayIso } from '../core/dates';
 import { quoteInputSchema } from '../core/schemas';
-import { dbVersion } from '../lib/repository';
 import { useSettings } from '../state/settings';
+import { AssetManager } from './settings/AssetManager';
+import { useBackupDownload } from './settings/useBackupDownload';
 
 // Section microlabel — the card-label idiom shared with Overview's cards
 // (design/extensions/settings.dc.html S2, 10px uppercase tracking .12em).
@@ -58,39 +55,20 @@ function Placeholder({ children }: { children: string }) {
 }
 
 // S7 — the P1 sidebar Backup pill relocated to its designed home. Identical
-// download path (repo.exportAll → buildBackup → Blob link); the outline
+// download path (repo.exportAll → buildBackup → Blob link, shared via
+// useBackupDownload with the destructive dialogs' backup CTA); the outline
 // variant is back on its native light palette, so the sidebar's
 // ON_DARK_OUTLINE token remap is gone with the pill.
 function BackupButton() {
-  const exportAll = useExportAll();
-  const { currency, usdRate } = useSettings();
-
-  async function download() {
-    try {
-      const tables = await exportAll.mutateAsync();
-      const envelope = buildBackup(
-        tables.assets,
-        tables.snapshots,
-        tables.transactions,
-        { currency, usdRate },
-        'demo', // the dataset flag lands in P2 feat/dataset-split (G4) — today everything IS the demo dataset
-        new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
-        dbVersion,
-      );
-      const blob = new Blob([JSON.stringify(envelope, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `kubushka-backup-${todayIso()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Could not build the backup — please try again.');
-    }
-  }
-
+  const backup = useBackupDownload();
   return (
-    <Button variant="outline" disabled={exportAll.isPending} onClick={download}>
+    <Button
+      variant="outline"
+      disabled={backup.pending}
+      onClick={() => {
+        void backup.download();
+      }}
+    >
       Download backup
     </Button>
   );
@@ -170,11 +148,12 @@ function UsdRateField() {
   );
 }
 
-// /settings — the Settings home (NEXT-PHASE-PLAN P2 feat/settings-shell,
-// design/extensions/settings.dc.html S1/S2/S7/S8). This task ships the shell:
-// four stacked section cards in the pinned order with the relocated Backup
-// and the live Appearance controls; the Portfolio manager/targets editor,
-// dataset switch and erase/reset dialogs land in the follow-up P2 tasks.
+// /settings — the Settings home (NEXT-PHASE-PLAN P2, design/extensions/
+// settings.dc.html S1/S2/S7/S8 + asset-form.dc.html S3): four stacked section
+// cards in the pinned order, with the relocated Backup, the live Appearance
+// controls and the Portfolio asset manager (feat/asset-form); the targets
+// editor, dataset switch and erase/reset dialogs land in the remaining P2
+// tasks.
 export function Settings() {
   return (
     <div>
@@ -183,10 +162,7 @@ export function Settings() {
       <div className="flex flex-col gap-3.5">
         <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">
           <SectionLabel>Portfolio</SectionLabel>
-          <Placeholder>
-            Asset manager arrives later in this release — you will create and edit every asset
-            here.
-          </Placeholder>
+          <AssetManager />
           <Divider />
           <SectionLabel className="mb-3">Targets</SectionLabel>
           <Placeholder>

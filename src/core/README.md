@@ -11,8 +11,8 @@ The app's pure domain layer per decision G1 (`docs/NEXT-PHASE-PLAN.md`) and `doc
 | `money.ts` | Number/currency/date formatting (README §8) + **the one signing helper** `signed()` — U+2212 minus everywhere (D8) |
 | `dates.ts` | Pure ISO date math: `todayIso` (single source, was triplicated), `daysBetween`, `latestSnapshotDate`, `addMonths` (month-end clamped) |
 | `colors.ts` | Chart paint as `var(--color-chart-*)` strings (aliases resolve in `src/index.css` `@theme`); `COLOR_KEYS` cycle for new assets |
-| `asset-builder.ts` | `buildNewAsset` for the Transaction panel's inline quick-create |
-| `schemas.ts` | zod form schemas |
+| `asset-builder.ts` | `buildNewAsset` (quick-create pinned rules) + the P2 AssetForm mappers `assetFromForm` (create) / `assetPatchFromForm` (edit patch; hidden fixed-coupon fields are never touched, visible emptied ones clear via explicit `undefined`) |
+| `schemas.ts` | zod form schemas: `quoteInputSchema`, `assetFormSchema(mode)` (all editable Asset fields incl. the `inzhur {kind, ref, units}` group; `'none'` schedule accepted in edit mode only), `transactionSchema` — schemas emit paths, never English (D8) |
 | `xirr.ts` | Money-weighted annualized return (Newton–Raphson + bisection fallback) per the P1 formula audit (D13, `docs/FORMULA-AUDIT.md` §6.1) |
 | `backup/` | `json.ts` — backup envelope v1 (`kubushka-backup`) serializer + zod validator (D12) |
 | `inzhur/` | `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28); Phase 3's `parse.ts` lands here |
