@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/asset-form.dc.html — Phase 2 design reference (G7/D14)
+  Surface: S3 AssetForm — the single standalone asset form (create + edit),
+  replacing the transaction-welded NewAssetFields. Hosts: Settings→Portfolio
+  ("+ Add asset" and per-row "Edit" open it as a DIALOG, card radius 24);
+  the TransactionPanel quick-create renders the SAME form INLINE (nested
+  dashed panel radius 16, master lines 116–124) with the unchanged atomic
+  recordTransaction(tx, newAsset).
+  Brief (copy/behavior authority): docs/design-briefs/phase-2-settings-real-data.md §S3.
+
+  Field anatomy (v1 idiom, pinned): label 11px #6f6e6a (token `label`), gap
+  4px; input h 36, radius 10, border 1px #e8e7e4 (`hairline`), bg #f6f5f3
+  (`page`) inside white surfaces / #fff (`card`) on the beige panel; text
+  13px #26262a; hover border → #b3b2ae (`faint`), 150ms. Paired fields sit
+  in a 2-column grid (Expected/Target, Maturity/Next coupon, …) and stack
+  at narrow widths; the form fits 360px unclipped.
+
+  D7 motion: group reveal (yield type / Inzhur toggle) = fade + slide-from-
+  top + height, 300ms soft; hide symmetric; kind/segment flip = sliding
+  thumb transform 300ms soft (currency-toggle clone); field error message =
+  fade + slide-from-top-1 220ms; submit press scale .97; border-color
+  150ms; reduced-motion: instant show/hide/jump.
+
+  DASHED-BORDER CHIPS ARE SPEC ANNOTATIONS, never UI.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Asset form" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 · AssetForm — create + edit (dialog host)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- ── CREATE MODE — dialog (from Settings→Portfolio "+ Add asset").
+         Yield type = Fixed coupon → the fixed-coupon group is REVEALED.
+         Inzhur toggle OFF → group hidden. First purchase prefilled today.
+         Payout schedule NEVER offers "None (price only)" on create. -->
+    <div style="flex:1 1 380px;max-width:520px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Create · fixed-coupon group revealed · Inzhur off</span>
+      <div style="background:#fff;border-radius:24px;padding:24px;box-shadow:0 12px 40px rgba(38,38,42,.18);box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>New asset details</div>
+
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Name</label>
+            <input placeholder="OVDP UA4000241234" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+          </div>
+          <!-- Code: 2 letters, avatar-circle live preview beside the input.
+               Auto-derived from the first two letters of Name while
+               untouched; editable. Avatar tint = the next free asset hue
+               from core/colors COLOR_KEY_CYCLE. -->
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Code</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
+              <input placeholder="GB" maxlength="2" style="width:80px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box;text-transform:uppercase">
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Yield type</label>
+            <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Fixed coupon</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Expected, %</label>
+              <input placeholder="16.5" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Target, %</label>
+              <input placeholder="10" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Payout schedule</label>
+              <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Semi-annual</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">First purchase</label>
+              <input value="27.07.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"><!-- prefilled today; dd.MM.yyyy via DatePicker -->
+            </div>
+          </div>
+
+          <!-- fixed-coupon group — revealed when Yield type = Fixed coupon.
+               Group heading style = pos-tint-text 11px bold uppercase.
+               D7: fade + slide-from-top + height 300ms soft; hide symmetric. -->
+          <div style="border-top:1px solid #e8e7e4;padding-top:11px;display:flex;flex-direction:column;gap:11px">
+            <div style="font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase">Fixed coupon</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Maturity</label>
+                <input placeholder="25.02.2027" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Next coupon</label>
+                <input placeholder="25.08.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Coupon amount, ₴</label>
+                <input placeholder="1 240,00" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Reinvest policy</label>
+                <input placeholder="Auto (dividends)" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+            </div>
+          </div>
+
+          <!-- Inzhur toggle row — OFF: group hidden. Switch: track 40×22
+               radius 999 (off: bg hairline, border panel-border; on: bg ink),
+               thumb 16px card w/ card shadow. D7: thumb transform 220ms soft. -->
+          <div style="border-top:1px solid #e8e7e4;padding-top:11px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:13px;font-weight:600">Link to Inzhur</span>
+            <span style="display:inline-flex;align-items:center;width:40px;height:22px;border-radius:999px;background:#e8e7e4;border:1px solid #dedcd8;padding:2px;box-sizing:border-box;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:3px;flex-wrap:wrap">
+            <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+            <!-- disabled opacity .5 while the mutation is pending -->
+            <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Add asset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EDIT MODE — dialog (from a Portfolio row's "Edit"), prefilled with
+         the demo …8976 asset; the dialog opens only once data is loaded.
+         Inzhur toggle ON → group revealed, kind = Bond, UNITS-FIRST framing:
+         while the link is on, Units takes the visual position/weight of the
+         value-centric fields — quantity is the input, value is derived
+         (h 44, Space Grotesk 15px 600). -->
+    <div style="flex:1 1 380px;max-width:520px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Edit · Inzhur linked (bond) · units-first</span>
+      <div style="background:#fff;border-radius:24px;padding:24px;box-shadow:0 12px 40px rgba(38,38,42,.18);box-sizing:border-box">
+        <div style="font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px">Edit asset</div>
+
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Name</label>
+            <input value="OVDP UA4000238976" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Code</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e4e8eb;display:grid;place-items:center;color:#525c64;font-size:12px;font-weight:700">GB</div>
+              <input value="GB" maxlength="2" style="width:80px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box;text-transform:uppercase">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Yield type</label>
+              <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Fixed coupon</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Payout schedule</label>
+              <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Semi-annual</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Expected, %</label>
+              <input value="16.4" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Target, %</label>
+              <input value="17" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">First purchase</label>
+            <input value="05.02.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"><!-- editable on edit -->
+          </div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:11px;display:flex;flex-direction:column;gap:11px">
+            <div style="font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase">Fixed coupon</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Maturity</label>
+                <input value="25.02.2027" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Next coupon</label>
+                <input value="25.08.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Coupon amount, ₴</label>
+                <input value="1 240,00" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Reinvest policy</label>
+                <input placeholder="Auto (dividends)" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              </div>
+            </div>
+          </div>
+
+          <!-- Inzhur group ON — reveal below the toggle. Units FIRST and
+               emphasized (units-first framing), then kind + ref pair,
+               then the helper line. -->
+          <div style="border-top:1px solid #e8e7e4;padding-top:11px;display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <span style="font-size:13px;font-weight:600">Link to Inzhur</span>
+              <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Units</label>
+              <input value="15" inputmode="decimal" style="width:100%;height:44px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:#26262a;box-sizing:border-box">
+            </div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:end">
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Kind</label>
+                <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:3px;gap:3px">
+                  <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Fund</button>
+                  <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Bond</button>
+                </div>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond ISIN</label>
+                <input value="UA4000238976" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"><!-- manual text this phase; live picker in Phase 3 -->
+              </div>
+            </div>
+            <div style="font-size:11px;color:#8b8a86;line-height:1.5">Linked assets are valued as units × the fetched sell price. Fetching arrives in the next release — the link and units are stored now.</div>
+          </div>
+
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:3px;flex-wrap:wrap">
+            <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+            <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ fragments: Inzhur fund variant · schedule `none` nuance ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Fragments — Inzhur fund variant · payout schedule nuance</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- Inzhur group, kind = FUND: ref label flips to "Fund slug" with the
+         slug placeholder; units keep the emphasized slot. -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Inzhur group · kind = fund</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:13px;font-weight:600">Link to Inzhur</span>
+            <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Units</label>
+            <input placeholder="6 164" inputmode="decimal" style="width:100%;height:44px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:#26262a;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:end">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Kind</label>
+              <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:3px;gap:3px">
+                <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Fund</button>
+                <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Bond</button>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Fund slug</label>
+              <input placeholder="inzhur-reit" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            </div>
+          </div>
+          <div style="font-size:11px;color:#8b8a86;line-height:1.5">Linked assets are valued as units × the fetched sell price. Fetching arrives in the next release — the link and units are stored now.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payout schedule on EDIT of an asset already holding the seed-only
+         `none` (Inzhur Energy): the option list additionally shows
+         "None (price only)". Create never offers it. Options panel: card,
+         radius 12, hairline border, active row page bg. -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Payout schedule · edit of a `none` asset (Energy)</span>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start">
+        <div style="flex:1 1 180px">
+          <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Payout schedule</label>
+          <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>None (price only)</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+        </div>
+        <div style="flex:none;width:200px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px">
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">At maturity</div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Monthly</div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Quarterly</div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Semi-annual</div>
+          <div style="padding:8px 12px;border-radius:8px;background:#f6f5f3;font-weight:600;cursor:pointer">None (price only)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ validation / error states ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Validation — error anatomy + full message vocabulary</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- error anatomy: invalid field = border neg + 11px neg message under
+         it (fade + slide-from-top-1, 220ms); summary line appears below the
+         submit row. Submit disabled opacity .5 while pending. -->
+    <div style="flex:1 1 380px;max-width:520px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Create · submit attempted with invalid fields</span>
+      <div style="background:#fff;border-radius:24px;padding:24px;box-shadow:0 12px 40px rgba(38,38,42,.18);box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase;margin-bottom:14px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>New asset details</div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Name</label>
+            <input style="width:100%;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+            <div style="font-size:11px;color:#a8695a;margin-top:4px">Name is required.</div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Code</label>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">KU</div>
+              <input value="KUB" style="width:80px;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box;text-transform:uppercase">
+            </div>
+            <div style="font-size:11px;color:#a8695a;margin-top:4px">Code is 1–2 letters.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Expected, %</label>
+              <input value="abc" style="width:100%;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              <div style="font-size:11px;color:#a8695a;margin-top:4px">Enter a percentage.</div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">First purchase</label>
+              <input style="width:100%;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+              <div style="font-size:11px;color:#a8695a;margin-top:4px">Pick a date.</div>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Units</label>
+            <input style="width:100%;height:44px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:#26262a;box-sizing:border-box">
+            <div style="font-size:11px;color:#a8695a;margin-top:4px">Enter the number of units.</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:3px;flex-wrap:wrap">
+            <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+            <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Add asset</button>
+          </div>
+          <div style="font-size:12px;color:#a8695a;text-align:right">Check the highlighted fields and try again.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- per-field message vocabulary (verbatim, 11px neg under the field) -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Message vocabulary</span>
+      <div style="background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:12.5px;line-height:2">
+        <div><span style="color:#8b8a86">Name —</span> <span style="color:#a8695a">Name is required.</span></div>
+        <div><span style="color:#8b8a86">Code —</span> <span style="color:#a8695a">Code is 1–2 letters.</span></div>
+        <div><span style="color:#8b8a86">Expected / Target —</span> <span style="color:#a8695a">Enter a percentage.</span></div>
+        <div><span style="color:#8b8a86">Coupon amount —</span> <span style="color:#a8695a">Enter an amount.</span></div>
+        <div><span style="color:#8b8a86">Dates —</span> <span style="color:#a8695a">Pick a date.</span></div>
+        <div><span style="color:#8b8a86">Fund ref —</span> <span style="color:#a8695a">Enter the fund slug.</span></div>
+        <div><span style="color:#8b8a86">Bond ref —</span> <span style="color:#a8695a">Enter the bond ISIN.</span></div>
+        <div><span style="color:#8b8a86">Units —</span> <span style="color:#a8695a">Enter the number of units.</span></div>
+        <div><span style="color:#8b8a86">Summary —</span> <span style="color:#a8695a">Check the highlighted fields and try again.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TransactionPanel quick-create context — the SAME AssetForm rendered
+       inline inside the dashed sub-panel (radius 16), inputs on card bg
+       #fff → sub-panel fields use page bg per the master's inversion.
+       First purchase is NOT shown here — quick-create keeps deriving it
+       from the transaction date; submit stays the panel's own
+       "Record transaction" (atomic recordTransaction(tx, newAsset)). ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Quick-create — same form inline in the Transaction panel</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="max-width:360px;background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600">Transaction</div>
+      <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">occasional</span>
+    </div>
+    <p style="font-size:12px;color:#8b8a86;margin:0 0 14px">Deposits, buys, accruals, reinvests — opened only when something happened.</p>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Date</label><input value="27.07.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Type</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Buy</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+      </div>
+      <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Asset</label><div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><!-- emphasized border = `faint` (v1 shipped idiom for the new-asset state) --><span>+ New asset…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#4c5a48;letter-spacing:.06em;text-transform:uppercase"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>New asset details</div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Name</label><input placeholder="OVDP UA4000241234" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Code</label><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div><input placeholder="GB" maxlength="2" style="width:80px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box;text-transform:uppercase"></div></div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Yield type</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Dividends</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Expected, %</label><input placeholder="16.5" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+          <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Target, %</label><input placeholder="10" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+        </div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Payout schedule</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Monthly</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+        <!-- fixed-coupon group + Inzhur toggle render here exactly as in the
+             dialog when applicable (same form component, First purchase
+             excepted — derived from the transaction date) -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e8e7e4;padding-top:10px">
+          <span style="font-size:13px;font-weight:600">Link to Inzhur</span>
+          <span style="display:inline-flex;align-items:center;width:40px;height:22px;border-radius:999px;background:#e8e7e4;border:1px solid #dedcd8;padding:2px;box-sizing:border-box;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label><input placeholder="10 000,00" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Source of funds</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Own funds</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+      </div>
+      <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Record transaction</button>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

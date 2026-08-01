@@ -34,7 +34,13 @@ Read-only handoff artifacts. **Never edit the original handoff files** (the thre
 
 ## Extensions (`design/extensions/`)
 
-New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.html` per brief scope, produced by a **separate Claude design session** from a brief in `docs/design-briefs/` (pipeline + brief template: `docs/design-briefs/README.md`; decision `docs/DECISIONS.md` D14).
+New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.html` per brief scope, produced by a **separate Claude design session** from a brief in `docs/design-briefs/` (pipeline + brief template: `docs/design-briefs/README.md`; decision `docs/DECISIONS.md` D14). Local rules: `extensions/README.md`.
+
+| File | Purpose |
+|------|---------|
+| `extensions/settings.dc.html` | Phase 2 `/settings` screen: sidebar Settings group/pill, 4 section cards, targets editor + Σ pill, dataset switch + DEMO badge, destructive typed-name dialogs, relocated Backup, editable ₴/$ rate — and the minted `--color-warn/-tint/-tint-text` values (header comment). |
+| `extensions/asset-form.dc.html` | Phase 2 AssetForm: create + edit modes, fixed-coupon group, Inzhur link group (kind/ref/units, units-first), validation states, TransactionPanel quick-create context. |
+| `extensions/metrics-exposure.dc.html` | Phase 2 metric exposure fragments: Overview KPI relabel + Total return (net) card + net-of-tax line, Yield Total return/XIRR columns, Portfolio Capital-gain relabel, ledger-drift chip, Withdrawal/Redemption type options. |
 
 - Extensions use the master reference's idiom: inline styles, every exact color/size/spacing literal in the markup, same `.dc.html` format.
 - Once merged, an extension is as binding as the master file for its surfaces: the reference wins visual disputes; its brief wins copy/behavior disputes.

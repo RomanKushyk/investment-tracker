@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/metrics-exposure.dc.html — Phase 2 design reference
+  (G7/D14). Surfaces: S9a Overview KPI relabel + placements · S9b Yield
+  total-return/XIRR columns · S9c Portfolio relabel · S9d ledger-drift chip ·
+  S10 TransactionPanel type list. Rendered as IN-CONTEXT FRAGMENTS of the
+  master screens (lines 147–210 Overview, 303–339 Yield, 459–495 Portfolio,
+  110–146 Transaction panel) — everything not shown here is UNCHANGED.
+  Brief (copy/behavior authority): docs/design-briefs/phase-2-settings-real-data.md §S9–S10.
+
+  BINDING INVARIANT (D5, additive-only): no pinned demo figure changes —
+  ₴149,016.36 · +₴4,452.61/+3.08% · ₴143,176 · ₴1,387.38 · ₴5,040.94 ·
+  ₴7.75 and the Yield/Portfolio per-asset cells are byte-identical to v1.
+  Only LABELS change ("Net result" → "Capital gain"; "P&L" → "Capital
+  gain") and NEW metrics are added beside them (audit figures, D13/
+  FORMULA-AUDIT: totalNetProfit +₴5,839.99, globalRoi +4.08%).
+
+  New-metric mock cells (Total return, XIRR) are ILLUSTRATIVE derivations
+  from the demo seed — the app derives real values via core/derive +
+  core/xirr; the pinned TEST fixtures live in the audit, not here.
+
+  Uses the warn token family minted in settings.dc.html:
+  --color-warn #8f6b33 · --color-warn-tint #f0e6cb · --color-warn-tint-text
+  #6b5527 (S9d chip = tint/tint-text — never `neg`: drift is a
+  reconciliation nudge, not an error).
+
+  DASHED-BORDER CHIPS ARE SPEC ANNOTATIONS, never UI.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Metrics exposure" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ── S9a: Overview KPI row — 5 cards in the existing auto-fit grid
+       (min 200px; single column at 360px). Card 2 RELABELED "Net result" →
+       "Capital gain" (value/sub unchanged). NEW card 3 "Total return (net)":
+       value totalNetProfit (signed prose, pos/neg), sub "<globalRoi> on net
+       deposits" ("—" when globalRoi is null). Currency toggle converts it
+       like its siblings. D7: the new card joins the staggered mount (fade +
+       slide-from-bottom 300ms, next 75ms delay step); values tween via
+       useTweenedNumber ~300ms; reduced-motion: instant. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S9a · Overview KPI row — demo values</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px">
+    <div style="background:#26262a;color:#fff;border-radius:24px;padding:20px 22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Total capital</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴149,016.36</div>
+      <div style="font-size:12px;color:#b9cdb4">$3,324.03 · rate 44.83</div>
+    </div>
+    <!-- RELABEL ONLY: was "Net result" — value + sub byte-identical (D5) -->
+    <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Capital gain</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#5c7355;white-space:nowrap">+₴4,452.61</div>
+      <div style="font-size:12px;color:#5c7355;font-weight:600">+3.08% since 03.02</div>
+    </div>
+    <!-- NEW 5th KPI — total-return family (audit-pinned demo figures) -->
+    <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Total return (net)</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#5c7355;white-space:nowrap">+₴5,839.99</div>
+      <div style="font-size:12px;color:#5c7355;font-weight:600">+4.08% on net deposits</div>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Deposited / Reinvested</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴143,176</div>
+      <div style="font-size:12px;color:#8b8a86">+ ₴1,387.38 reinvested</div>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Free cash</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴7.75</div>
+      <div style="font-size:12px;color:#8b8a86">0.01% of account</div>
+      <!-- S9d chip lives here when |drift| > ε — hidden on untouched demo
+           (freeCashFromLedger(seed) = 7.75 = stored cash, drift 0) -->
+    </div>
+  </div>
+
+  <!-- Income received card (Overview right column): value stays GROSS,
+       sub gains a second line from incomeReceivedNet.total — equals gross
+       on demo (no seeded tax rows). -->
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin-bottom:14px">
+    <div style="flex:1 1 260px;max-width:340px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Income received · + net-of-tax line</span>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:6px">Income received</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:600">₴5,040.94</div>
+        <div style="font-size:12px;color:#8b8a86">dividends ₴3,641.44 · coupons ₴1,399.50</div>
+        <div style="font-size:12px;color:#8b8a86">net of tax ₴5,040.94</div>
+      </div>
+    </div>
+
+    <!-- S9d: cash-reconciliation warning chip — warn-tint pill under the
+         Free-cash sub line; chip idiom = the "1 of 4 filled" pill. Hidden
+         while |stored − derived| ≤ ε (ε = 0.01 ₴); amount = signedProse,
+         U+2212. Non-interactive; native `title` tooltip this phase.
+         D7: appear = fade + zoom-in-95 200ms soft; value change re-keys the
+         chip (re-run entry, 150ms); reduced-motion: instant.
+         LIVE-DATASET ILLUSTRATION (demo drift is 0 by construction). -->
+    <div style="flex:1 1 260px;max-width:340px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">S9d · Free cash with ledger drift (live)</span>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Free cash</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴2,376.55</div>
+        <div style="font-size:12px;color:#8b8a86">1.59% of account</div>
+        <div style="margin-top:8px"><span title="Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash." style="display:inline-block;font-size:12px;padding:4px 12px;border-radius:999px;background:#f0e6cb;color:#6b5527;font-weight:600">Ledger drift −₴123.45</span></div>
+      </div>
+    </div>
+
+    <!-- Total return (net) card variants -->
+    <div style="flex:1 1 260px;max-width:340px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Total return · negative / null / loading</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <!-- negative: value + sub flip to neg -->
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Total return (net)</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#a8695a;white-space:nowrap">−₴1,234.56</div>
+          <div style="font-size:12px;color:#a8695a;font-weight:600">−0.86% on net deposits</div>
+        </div>
+        <!-- null globalRoi (netDeposits ≤ 0) → sub renders "—" -->
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Total return (net)</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#5c7355;white-space:nowrap">+₴512.34</div>
+          <div style="font-size:12px;color:#8b8a86">—</div>
+        </div>
+        <!-- loading / empty: "—" until queries resolve (existing pattern) -->
+        <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Total return (net)</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600;color:#26262a">—</div>
+          <div style="font-size:12px;color:#8b8a86">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── S9b: Yield table + Total return + XIRR (ann.) columns ─────────────
+       Existing 6 columns byte-identical; the two new right-aligned columns
+       slot AFTER "Annualized". Cell families: Total return = signed, bold,
+       pos/neg (like Δ total); XIRR = plain ink, 1 dp (like Annualized);
+       null metric → "—" in muted. Header reads "XIRR (ann.)" while the
+       portfolio history is < 365 days, plain "XIRR" after. Table min-width
+       grows and scrolls INSIDE the card (overflow-x:auto) — the page never
+       scrolls horizontally at 360px. New-column cells below are
+       illustrative derivations from the demo seed (see header comment). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S9b · Yield table — two new columns</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);overflow-x:auto">
+    <table style="width:100%;min-width:780px;border-collapse:collapse;font-size:12.5px">
+      <thead>
+        <tr style="color:#8b8a86;text-align:left">
+          <th style="padding:8px 0;font-weight:400;text-align:left">Asset</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Invested, ₴</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Value now, ₴</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Δ total</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Annualized</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Total return</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">XIRR (ann.)</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">vs expected</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">Inzhur REIT</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">65 800,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">68 702,10</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+4.41%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+9.3%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+10.12%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+23.0%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#a8695a">−4.7 pp</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">Inzhur Energy</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">59 208,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">60 086,09</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+1.48%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+3.1%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+1.48%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+3.1%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#a8695a">−6.9 pp</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">OVDP UA4000238976</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">15 390,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">15 846,30</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+2.96%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+6.2%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+10.65%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+25.8%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#a8695a">−10.2 pp</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">OVDP UA4000236475</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">4 158,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">4 374,12</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+5.20%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+10.9%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+10.96%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">+99.5%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#a8695a">−4.3 pp</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="font-size:11.5px;color:#8b8a86;margin-top:10px">Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation.</div>
+  </div>
+
+  <!-- null-metric / loading cells: "—" in muted (zero-denominator guard or
+       non-converged xirr → null; loading before queries resolve). The two
+       columns may DISAGREE with Δ total by design — audit example (real
+       …6475 shape): capital gain −2.6% with total return +5.30%. -->
+  <div style="margin-top:14px;max-width:560px">
+    <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">null metric / disagreement row (live illustration)</span>
+    <div style="background:#fff;border-radius:24px;padding:10px 22px 12px;box-shadow:0 1px 3px rgba(38,38,42,.06);overflow-x:auto">
+      <table style="width:100%;min-width:520px;border-collapse:collapse;font-size:12.5px">
+        <tbody>
+          <tr>
+            <td style="padding:8px 0;font-weight:600">OVDP UA4000236475</td>
+            <td style="padding:8px 0 8px 18px;text-align:right;color:#a8695a;font-weight:700">−2.6%</td>
+            <td style="padding:8px 0 8px 18px;text-align:right;color:#8b8a86">—</td>
+            <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+5.30%</td>
+            <td style="padding:8px 0 8px 18px;text-align:right;color:#8b8a86">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── S9c: Portfolio positions table — RELABEL ONLY: "P&L, ₴" →
+       "Capital gain, ₴", "P&L, %" → "Capital gain, %"; every cell value
+       identical to pre-P2 demo output; new muted footnote under the table.
+       All other states (hover/loading/empty) inherit the existing table. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S9c · Portfolio table — header relabel + footnote</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:#fff;border-radius:24px;padding:10px 22px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);overflow-x:auto">
+    <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:12.5px">
+      <thead>
+        <tr style="color:#8b8a86;text-align:left">
+          <th style="padding:8px 0;font-weight:400;text-align:left">Asset</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:left">Yield type</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Invested, ₴</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">of it reinvested</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Value now, ₴</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Capital gain, ₴</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Capital gain, %</th>
+          <th style="padding:8px 0 8px 18px;font-weight:400;text-align:right">Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">Inzhur REIT</td>
+          <td style="padding:8px 0 8px 18px"><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;background:#e3eadf;color:#4c5a48">div + cap</span></td>
+          <td style="padding:8px 0 8px 18px;text-align:right">65 800,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">1 171,38</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">68 702,10</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+2 902,10</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+4.41%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">46.1%</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">Inzhur Energy</td>
+          <td style="padding:8px 0 8px 18px"><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;background:#efe4e0;color:#6d5a53">cap</span></td>
+          <td style="padding:8px 0 8px 18px;text-align:right">59 208,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">—</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">60 086,09</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+878,09</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+1.48%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">40.3%</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">OVDP UA4000238976</td>
+          <td style="padding:8px 0 8px 18px"><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;background:#e4e8eb;color:#525c64">coupon</span></td>
+          <td style="padding:8px 0 8px 18px;text-align:right">15 390,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">—</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">15 846,30</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+456,30</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+2.96%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">10.6%</td>
+        </tr>
+        <tr style="border-top:1px solid #e8e7e4">
+          <td style="padding:8px 0;font-weight:600">OVDP UA4000236475</td>
+          <td style="padding:8px 0 8px 18px"><span style="display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600;background:#e8e7e4;color:#5f5e5a">coupon</span></td>
+          <td style="padding:8px 0 8px 18px;text-align:right">4 158,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">216,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">4 374,12</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+216,12</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+5.20%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right">2.9%</td>
+        </tr>
+        <tr style="border-top:2px solid #dedcd8">
+          <td style="padding:8px 0;font-weight:700;white-space:nowrap">Total + cash ₴7.75</td>
+          <td style="padding:8px 0 8px 18px"></td>
+          <td style="padding:8px 0 8px 18px;text-align:right;font-weight:700;white-space:nowrap">144 556,00</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;font-weight:700;white-space:nowrap">1 387,38</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;font-weight:700;white-space:nowrap">149 016,36</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+4 452,61</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;color:#5c7355;font-weight:700">+3.08%</td>
+          <td style="padding:8px 0 8px 18px;text-align:right;font-weight:700">100%</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="font-size:11.5px;color:#8b8a86;margin-top:10px">Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen.</div>
+  </div>
+
+  <!-- ── S10: TransactionPanel type list — Withdrawal + Redemption join the
+       Type select in the PINNED order Buy · Sell · Deposit · Withdrawal ·
+       Dividend accrual · Interest payout · Reinvest · Redemption · Tax.
+       Everything inherits the existing Select (open/close + press motion);
+       no new states. Withdrawal behaves like Deposit (portfolio-level,
+       assetId may be empty); Redemption targets an asset. The demo seed
+       contains NEITHER type — recent rows below are a LIVE illustration;
+       no pinned figure moves. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S10 · Type select — pinned option order</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:none;width:300px;background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Date</label><input value="01.08.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+        <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Type</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Withdrawal</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+      </div>
+    </div>
+
+    <!-- the open option list (fragment) — NEW rows marked by annotation
+         chips beside the panel, list itself is clean UI -->
+    <div style="flex:none;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:200px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px">
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Buy</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Sell</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Deposit</div>
+        <div style="padding:8px 12px;border-radius:8px;background:#f6f5f3;font-weight:600;cursor:pointer">Withdrawal</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Dividend accrual</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Interest payout</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Reinvest</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Redemption</div>
+        <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Tax</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:104px;padding-top:112px">
+        <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">new</span>
+        <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">new</span>
+      </div>
+    </div>
+
+    <!-- Recent transactions rows — existing label map (unchanged): a
+         portfolio-level withdrawal renders without an asset suffix;
+         redemption names its asset. LIVE illustration values. -->
+    <div style="flex:1 1 280px;max-width:360px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Recent rows (live illustration)</span>
+      <div style="background:#fff;border-radius:20px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Recent transactions</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Withdrawal</span><strong>₴2,500.00</strong><span style="color:#8b8a86">01.08</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Redemption · OVDP …8976</span><strong>₴15,000.00</strong><span style="color:#8b8a86">25.02</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Coupon · OVDP …6475</span><strong>₴216.00</strong><span style="color:#8b8a86">03.06</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

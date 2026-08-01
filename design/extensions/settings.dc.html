@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/settings.dc.html — Phase 2 design reference (G7/D14)
+  Surfaces: S1 sidebar Settings group+pill · S2 /settings layout · S4 targets
+  editor + Σ pill · S5 dataset switch + DEMO badge · S6 destructive dialogs ·
+  S7 relocated Backup · S8 editable usdRate.
+  Brief (copy/behavior authority): docs/design-briefs/phase-2-settings-real-data.md
+  Visual authority once merged: THIS file (D14 precedence).
+
+  ★★★ NEW TOKEN FAMILY — MINTED HERE (add to src/index.css @theme) ★★★
+  ★
+  ★   --color-warn:           #8f6b33   amber accent (signed text, icons)
+  ★   --color-warn-tint:      #f0e6cb   caution pill / chip / badge background
+  ★   --color-warn-tint-text: #6b5527   text on warn-tint
+  ★
+  ★ A warm muted amber (~hue 38°) matching the pastel-monochrome palette:
+  ★ saturation/lightness sit between pos #5c7355 and neg #a8695a; clearly
+  ★ distinct from the energy asset hue #c2a189 and from neg. Contrast:
+  ★ warn on card #fff ≈ 4.9:1, on page #f6f5f3 ≈ 4.5:1; warn-tint-text on
+  ★ warn-tint ≈ 5.7:1 (pos family precedent ≈ 6.0:1); warn-tint-text on
+  ★ card ≈ 7.1:1. Every caution state uses ONLY this family (Σ≠100 pill S4,
+  ★ DEMO badge S5, ledger-drift chip S9d, stale states from P3) — never
+  ★ neg, never asset hues.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  Light theme only (dark theme is Phase 5). DASHED-BORDER CHIPS ARE SPEC
+  ANNOTATIONS, never UI. Motion (D7) annotated in comments — defaults 220ms
+  cubic-bezier(0.22,1,0.36,1), hover 150ms, reveals 300–400ms, pressables
+  active:scale-[.97]; prefers-reduced-motion collapses everything.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Settings" style="display:flex;min-height:100vh">
+
+  <!-- ── S1: sidebar with the new third nav group ──────────────────────────
+       Clone of the master sidebar (lines 27–49). Additions: the "Settings"
+       group after Analytics, and the S5 DEMO badge in the logo block.
+       REMOVED vs v1.1 app: the interim sidebar "Backup" pill (P1 flagged
+       exception, D12) — it relocates into Settings→Data (S7 below); its
+       ON_DARK_OUTLINE token remap goes with it. -->
+  <aside style="width:232px;flex:none;background:#26262a;color:#e9e8e6;padding:26px 16px;display:flex;flex-direction:column;gap:3px;border-radius:0 32px 32px 0;position:sticky;top:0;height:100vh;box-sizing:border-box;overflow-y:auto;overflow-x:hidden">
+    <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#333338;opacity:.7"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin:0 6px 22px;position:relative">
+      <div style="width:36px;height:36px;border-radius:50%;background:#e9e8e6;display:grid;place-items:center;color:#26262a;font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:700">₴</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Kubushka<br><span style="font-family:inherit;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;font-weight:400">Invest tracker</span></div>
+      <!-- S5 DEMO badge: warn-tint/warn-tint-text, radius 999, persistent on
+           every route while dataset=demo; absent in live. Sits inside the
+           logo block; at the 136px rail it REPLACES the "Invest tracker"
+           microline slot (same height — the nav is never pushed down).
+           D7: first paint fade + zoom-in-95, 200ms; reduced-motion: instant. -->
+      <span title="Demo dataset — reference data. Switch in Settings → Data." style="margin-left:auto;align-self:flex-start;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:3px 8px">DEMO</span>
+    </div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px;position:relative">Daily entry</div>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:9px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Daily quotes</button>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px;position:relative">Analytics</div>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Overview</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Balances</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Payouts</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Yield</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Attributes</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Seasonality</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Portfolio</button>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:transparent;color:#cfcecb;font-weight:400" style-hover="opacity:.85">Allocation</button>
+    <!-- S1: third group — after Analytics, before the bottom (margin-top:auto)
+         block. Group label + pill are exact clones of the existing anatomy.
+         Pill shown ACTIVE (route = /settings): bg sidebar-text #e9e8e6, ink
+         text, weight 700 — pixel-identical to other active pills.
+         D7: hover opacity 150ms · press scale .97 220ms · route-activate
+         bg/color 220ms; reduced-motion: instant. -->
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px;position:relative">Settings</div>
+    <button style="position:relative;display:block;width:100%;text-align:left;padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700" style-hover="opacity:.85">Settings</button>
+    <div style="margin-top:auto;position:relative;display:flex;background:#333338;border-radius:999px;padding:4px;gap:4px;margin-bottom:10px">
+      <button style="flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:#e9e8e6;color:#26262a">₴ UAH</button>
+      <button style="flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#96959b">$ USD</button>
+    </div>
+    <div style="position:relative;background:#333338;border-radius:20px;padding:14px 16px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Total capital</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:21px;color:#fff;font-weight:600">₴149,016</div>
+      <div style="font-size:11px;color:#b9cdb4;font-weight:600">+3.08% · $3,324.03</div>
+    </div>
+    <!-- (no sidebar Backup pill — see S7) -->
+  </aside>
+
+  <main style="flex:1;min-width:0;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ── S2: /settings screen — header + 4 stacked section cards ───────────
+       Single column of full-width cards, radius 24, padding 22, gap 14,
+       pinned order Portfolio → Data → Automation → Appearance.
+       D7 route mount: per-card fade + slide-from-bottom, 300ms soft,
+       stagger 75ms; reduced-motion: instant. Inner control rows are
+       label-left / control-right and wrap to stacked below ~480px; the
+       shell holds at 360px with no page-level horizontal scroll.
+       Loading: settings controls render immediately (local store); the
+       asset list/targets rows appear when the assets query resolves. -->
+  <h2 style="margin:0 0 4px;font-size:26px">Settings</h2>
+  <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Preferences, data and portfolio configuration</p>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+
+    <!-- Card 1 · PORTFOLIO — asset manager + targets editor (S4) -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Portfolio</div>
+
+      <!-- Asset manager rows: dot · name · short yield label · per-row Edit
+           (outline sm pill). Row hover = page/60 — shown on row 2.
+           D7: row hover background 150ms; Edit press scale .97 220ms. -->
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#8ba283;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">Inzhur REIT</span>
+          <span style="font-size:12px;color:#8b8a86">div + cap</span>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:5px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6">Edit</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;border-radius:12px;background:rgba(246,245,243,.6)"><!-- hover state: page/60 -->
+          <span style="width:10px;height:10px;border-radius:50%;background:#c2a189;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">Inzhur Energy</span>
+          <span style="font-size:12px;color:#8b8a86">cap</span>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:5px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6">Edit</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#98a3ad;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000238976</span>
+          <span style="font-size:12px;color:#8b8a86">coupon</span>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:5px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6">Edit</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#5f5e5a;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000236475</span>
+          <span style="font-size:12px;color:#8b8a86">coupon</span>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:5px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6">Edit</button>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <!-- opens the AssetForm dialog in create mode (asset-form.dc.html) -->
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add asset</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- ── S4: targets editor — dot · name · muted current share · %-input.
+           Inputs ~72px, right-aligned, radius 10, h 36. Σ recomputes on every
+           keystroke; =100 → pos tint, ≠100 → warn tint (never blocks saving).
+           D7: Σ pill re-keyed on value change (fade + zoom-in-95, 150ms);
+           tint flip bg/color 220ms soft; preview bar segment widths 300ms
+           soft; row hover 150ms; reduced-motion: instant. -->
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:12px">Targets</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#8ba283;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">Inzhur REIT</span>
+          <span style="font-size:12px;color:#8b8a86">now 46.1%</span>
+          <input value="40" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#c2a189;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">Inzhur Energy</span>
+          <span style="font-size:12px;color:#8b8a86">now 40.3%</span>
+          <input value="40" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#98a3ad;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000238976</span>
+          <span style="font-size:12px;color:#8b8a86">now 10.6%</span>
+          <input value="17" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#5f5e5a;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000236475</span>
+          <span style="font-size:12px;color:#8b8a86">now 2.9%</span>
+          <input value="3" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+      </div>
+      <!-- live preview: share bar re-rendering the ENTERED targets (here the
+           demo 40/40/17/3 — Σ 100 on first paint per acceptance) -->
+      <div style="display:flex;height:12px;border-radius:999px;overflow:hidden;margin:14px 12px 0">
+        <div style="width:40%;background:#8ba283"></div><div style="width:40%;background:#c2a189"></div><div style="width:17%;background:#98a3ad"></div><div style="width:3%;background:#5f5e5a"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+        <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">Σ 100%</span>
+        <span style="margin-left:auto"></span>
+        <!-- success toast: "Targets saved" · disabled (opacity .5) while pending -->
+        <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Save targets</button>
+      </div>
+    </div>
+
+    <!-- Card 2 · DATA — S5 dataset switch · S7 relocated backup · destructive
+         entry points (S6). Shown in DEMO mode: "Reset demo data…" renders;
+         in live it is replaced by "Erase live data…" (fragment below). -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Data</div>
+
+      <!-- S5 dataset switch — light-surface segmented control: track panel
+           #eceae7, border panel-border #dedcd8, thumb card #fff (card shadow),
+           active segment bold ink, inactive muted (hover opacity .85).
+           Behavior: flip writes `dataset` top-level into kubushka-settings
+           state (D11 head-script contract), brief lockout, location.reload().
+           D7: thumb transform 300ms soft (clone of the sidebar currency
+           toggle mechanics); press scale .97; reduced-motion: jump. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Dataset</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.</div>
+        </div>
+        <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Demo</button>
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Live</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- S7 relocated Backup — the P1 sidebar pill moves here; outline
+           variant on its NATIVE light palette (no token remap). Enabled in
+           both datasets (backs up the ACTIVE one); disabled opacity .5 while
+           export pending; error toast: "Could not build the backup — please
+           try again." D7: hover fill 150ms, press scale .97. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Backup</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Full JSON backup of the active dataset — kubushka-backup-&lt;date&gt;.json. Restore arrives with import in a later release.</div>
+        </div>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Download backup</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- Destructive entry point (opens S6 dialog). Outline-in-neg trigger:
+           border/text neg — the full neg fill is reserved for the armed
+           dialog action. Hover: neg fill at 8% (token-derived alpha).
+           In demo only "Reset demo data…" renders; in live only
+           "Erase live data…" (see live-mode fragment below). -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Danger zone</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Both actions ask for a typed confirmation and offer a backup first.</div>
+        </div>
+        <button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:rgba(168,105,90,.08)">Reset demo data…</button>
+      </div>
+    </div>
+
+    <!-- Card 3 · AUTOMATION — placeholder until Phase 3 -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Automation</div>
+      <div style="font-size:13px;color:#8b8a86;line-height:1.5">Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders arrive in the next release.</div>
+    </div>
+
+    <!-- Card 4 · APPEARANCE — currency segmented control (light-surface twin
+         of the sidebar toggle) + S8 editable usdRate + placeholders -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Appearance</div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Currency</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Mirrors the sidebar toggle — headline figures only.</div>
+        </div>
+        <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+          <button style="border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">₴ UAH</button>
+          <button style="border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">$ USD</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- S8 usdRate — compact decimal field (~110px), right-aligned numerals,
+           prefilled with the persisted rate (default 44.83). Invalid/≤0 input
+           never writes to the store (last valid rate stays in effect).
+           D7: border-color 150ms; error message fade+slide 220ms; headline
+           KPIs re-tween (~300ms useTweenedNumber) when a valid rate commits. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">₴/$ rate</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Used for the $ view of headline figures. Tables always stay in ₴.</div>
+        </div>
+        <input value="44.83" inputmode="decimal" style="width:110px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <div style="font-size:13px;color:#8b8a86;line-height:1.5">Theme and language settings are coming later.</div>
+    </div>
+  </div>
+
+  <!-- ══ STATE MATRIX — spec fragments below this line, NOT part of the
+        /settings screen ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">State matrix — spec fragments</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- S2 empty state — live dataset, no assets: manager list and targets
+         editor are replaced by the empty copy; "+ Add asset" stays. -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Portfolio · empty (live, no assets)</span>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Portfolio</div>
+        <div style="font-size:13px;color:#8b8a86;line-height:1.5;margin-bottom:14px">No assets yet — add your first asset to start tracking.</div>
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add asset</button>
+      </div>
+    </div>
+
+    <!-- S4 states — Σ ≠ 100 (warn family, non-blocking) + invalid input -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Targets · Σ ≠ 100 + input error</span>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:12px">Targets</div>
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#98a3ad;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000238976</span>
+          <span style="font-size:12px;color:#8b8a86">now 10.6%</span>
+          <input value="9" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+        <!-- non-numeric input: border neg + 11px neg message -->
+        <div style="display:flex;align-items:center;gap:14px;padding:6px 12px;border-radius:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:#5f5e5a;flex:none"></span>
+          <span style="flex:1;font-size:13.5px;font-weight:600">OVDP UA4000236475</span>
+          <span style="font-size:12px;color:#8b8a86">now 2.9%</span>
+          <input value="3%" style="width:72px;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;color:#8b8a86">%</span>
+        </div>
+        <div style="font-size:11px;color:#a8695a;margin:2px 12px 0;text-align:right">Enter a percentage.</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
+          <!-- Σ≠100 pill: warn-tint / warn-tint-text — saving still allowed -->
+          <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#f0e6cb;color:#6b5527;font-weight:600">Σ 92% — targets don't add up to 100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- S5 states — Data card in LIVE mode (badge absent app-wide) and the
+         brief pre-reload lockout after a flip -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Data · live mode + pre-reload lockout</span>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Data</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600">Dataset</div>
+          <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+            <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Demo</button>
+            <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Live</button>
+          </div>
+        </div>
+        <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="font-size:13px;font-weight:600">Danger zone</div>
+          <button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:rgba(168,105,90,.08)">Erase live data…</button>
+        </div>
+        <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+        <!-- disabled: brief pre-reload lockout after click (both segments) -->
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;opacity:.5;pointer-events:none">
+            <button style="border:none;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Demo</button>
+            <button style="border:none;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Live</button>
+          </div>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">disabled — reloading</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- S8 error state — non-numeric or ≤ 0 on blur; store keeps last valid -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">₴/$ rate · error</span>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 200px;min-width:160px">
+            <div style="font-size:13px;font-weight:600">₴/$ rate</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Used for the $ view of headline figures. Tables always stay in ₴.</div>
+          </div>
+          <div>
+            <input value="0" inputmode="decimal" style="width:110px;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+            <div style="font-size:11px;color:#a8695a;margin-top:4px;text-align:right">Enter a rate above 0.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── S6: typed-name destructive confirm dialogs — the app's dialog idiom:
+       overlay = ink at 40% alpha (token-derived, no new hex), dialog card
+       radius 24, max-w 420, fits 360px with margins; buttons stack narrow.
+       Focus trapped; input auto-focused on open; Esc cancels.
+       D7: open = overlay fade + panel fade/zoom-in-95 300ms soft; close
+       symmetric 220ms; arm = button bg/opacity 220ms soft; backup-CTA label
+       crossfade 220ms; press scale .97; reduced-motion: instant. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S6 · destructive dialogs (rendered inline for spec)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- Erase variant — UNARMED default: input empty (no error styling —
+         arming is progressive), destructive button disabled opacity .5.
+         Armed only when input === "live" (case-insensitive, trimmed).
+         Clear failure → toast "Could not complete — nothing was deleted."
+         and the dialog stays open. Success toast: "Live data erased". -->
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Erase · unarmed (live dataset)</span>
+      <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center"><!-- overlay: ink @ 40% -->
+        <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+          <h3 style="margin:0 0 8px;font-size:18px">Erase live data?</h3>
+          <p style="font-size:13px;color:#6f6e6a;line-height:1.5;margin:0 0 14px">This permanently deletes every asset, snapshot and transaction in the live dataset. This cannot be undone.</p>
+          <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Type live to confirm</label>
+          <input style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"><!-- auto-focused on open -->
+          <button style="display:block;width:100%;margin-top:12px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;box-sizing:border-box" style-hover="background:#e9e8e6">Download backup first</button>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+            <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+            <button disabled style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Erase live data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset variant — ARMED: typed name matches, destructive enabled
+         (bg neg, text card; hover darken via opacity). Backup CTA shown in
+         its post-success state: label flipped to "Backup downloaded ✓",
+         muted (border panel-border, text muted) — download happened WITHOUT
+         closing the dialog. Success toast: "Demo data reset". -->
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">Reset · armed + backup downloaded (demo dataset)</span>
+      <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center"><!-- overlay: ink @ 40% -->
+        <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:420px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+          <h3 style="margin:0 0 8px;font-size:18px">Reset demo data?</h3>
+          <p style="font-size:13px;color:#6f6e6a;line-height:1.5;margin:0 0 14px">This replaces everything in the demo dataset with the built-in reference portfolio. Any changes you made in demo mode are lost.</p>
+          <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Type demo to confirm</label>
+          <input value="demo" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+          <button style="display:block;width:100%;margin-top:12px;border:1.5px solid #dedcd8;color:#8b8a86;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;box-sizing:border-box">Backup downloaded ✓</button>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">
+            <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+            <button style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.9">Reset demo data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast copy inventory for this screen (sonner, existing motion) ── -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Toast copy — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Targets saved</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Live data erased</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Demo data reset</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not complete — nothing was deleted.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not build the backup — please try again.</div>
+  </div>
+
+  </main>
+</div>
+
+</x-dc>
+</body>
+</html>

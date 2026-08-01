@@ -23,11 +23,15 @@ one surface must never span two files.
   `sidebar-hover`, `sidebar-nav`, `pos`, `pos-tint`, `pos-tint-text`,
   `pos-on-dark`, `pos-border`, `neg`, the 4 asset hues (`reit`, `energy`,
   `ovdp8976`, `ovdp6475` + `-tint`/`-tint-text`) and `chart-*` aliases.
-  **New tokens this phase mints (values = design session's choice):**
-  `--color-warn`, `--color-warn-tint`, `--color-warn-tint-text` — a warm amber
-  family for caution states (Σ≠100, ledger drift, DEMO badge, stale), visually
-  distinct from the `energy` asset hue and from `neg`. No other new tokens; no
-  ad-hoc hex anywhere.
+  **New tokens this phase mints — values chosen by the design session
+  (2026-08-01, `design/extensions/settings.dc.html` header comment):**
+  `--color-warn: #8f6b33` · `--color-warn-tint: #f0e6cb` ·
+  `--color-warn-tint-text: #6b5527` — a warm muted amber (~hue 38°) family
+  for caution states (Σ≠100, ledger drift, DEMO badge, stale), visually
+  distinct from the `energy` asset hue and from `neg`; contrast warn on
+  card ≈ 4.9:1 / on page ≈ 4.5:1, warn-tint-text on warn-tint ≈ 5.7:1.
+  Implementers copy these exact values into `src/index.css` `@theme`.
+  No other new tokens; no ad-hoc hex anywhere.
 - **Layout:** cards radius 20–24 px; pills/badges/segments radius 999; inputs
   radius 10; nested sub-panels radius 16; sidebar 232 px (136 px below `sm`);
   the shell holds at 360 px with no page-level horizontal scroll (wide tables
@@ -587,7 +591,9 @@ card (lines 147–210); chip idiom: the "N of 4 filled" pill on Daily quotes
 | drift value changes | re-keyed by value: re-run entry animation | 150 ms | instant |
 
 **Tokens:** `warn-tint`, `warn-tint-text` ONLY (never `neg` — drift is a
-reconciliation nudge, not an error).
+reconciliation nudge, not an error). Minted values (design session,
+2026-08-01): `--color-warn: #8f6b33`, `--color-warn-tint: #f0e6cb`,
+`--color-warn-tint-text: #6b5527`.
 **Layout:** pill radius 999, fits inside the KPI card without growing it.
 **Acceptance:**
 - [ ] Chip absent on untouched demo; appears after recording e.g. an unmatched `withdrawal`.
