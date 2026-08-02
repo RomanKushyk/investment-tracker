@@ -1,20 +1,29 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import type { Dataset } from '../core/backup/json';
+
 interface SettingsState {
   currency: 'UAH' | 'USD';
   usdRate: number;
+  dataset: Dataset;
   setCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
+  setDataset: (d: Dataset) => void;
 }
 
 /** The persisted payload — keep in exact sync with `partialize` below. */
 export interface PersistedSettings {
   currency: 'UAH' | 'USD';
   usdRate: number;
+  dataset: Dataset;
 }
 
-const PERSISTED_DEFAULTS: PersistedSettings = { currency: 'UAH', usdRate: 44.83 };
+const PERSISTED_DEFAULTS: PersistedSettings = {
+  currency: 'UAH',
+  usdRate: 44.83,
+  dataset: 'demo',
+};
 
 /**
  * Additive-safe migration (G3): whatever shape is on disk (a v0 payload,
@@ -37,6 +46,9 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
       typeof p.usdRate === 'number' && Number.isFinite(p.usdRate) && p.usdRate > 0
         ? p.usdRate
         : PERSISTED_DEFAULTS.usdRate,
+    // G4: anything but the exact 'live' literal means demo — the same rule
+    // lib/db.ts applies when it binds the active DB at boot (must agree).
+    dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
   };
 }
 
@@ -48,10 +60,10 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
  *    SAME COMMIT that introduces it — a field missing from `partialize`
  *    silently resets on every reload. Extend `PersistedSettings`,
  *    `PERSISTED_DEFAULTS`, and `migrateSettings` in that same commit.
- * 2. `theme` and `dataset` (landing P5 / P2) MUST stay TOP-LEVEL under
- *    `state` in the persisted JSON: the future index.html head scripts
- *    (FOUC-free theme flip, dataset-at-boot DB selection) read
- *    localStorage['kubushka-settings'] and expect
+ * 2. `theme` (landing P5) and `dataset` MUST stay TOP-LEVEL under `state`
+ *    in the persisted JSON: the boot-time readers (P5's FOUC-free theme
+ *    head script; lib/db.ts binding the active DB before React exists, G4)
+ *    read localStorage['kubushka-settings'] and expect
  *    JSON.parse(raw).state.theme / JSON.parse(raw).state.dataset.
  *    Never nest or rename them.
  * 3. Bump `version` ONLY for an incompatible reshape of the persisted
@@ -61,19 +73,35 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
  */
 export const useSettings = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       currency: 'UAH',
       usdRate: 44.83,
+      dataset: 'demo',
       setCurrency: (currency) => set({ currency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
       // the Settings screen parses via core/schemas.quoteInputSchema.
       setUsdRate: (usdRate) => set({ usdRate }),
+      // G4 reload-on-toggle: persist the flag (zustand writes localStorage
+      // synchronously) and reload — lib/db.ts rebinds the whole app to the
+      // other dataset's DB at the next boot. Never a live cache migration.
+      setDataset: (dataset) => {
+        if (get().dataset === dataset) return;
+        set({ dataset });
+        location.reload();
+      },
     }),
     {
       name: 'kubushka-settings',
       version: 1,
       migrate: migrateSettings,
-      partialize: (s) => ({ currency: s.currency, usdRate: s.usdRate }),
+      partialize: (s) => ({ currency: s.currency, usdRate: s.usdRate, dataset: s.dataset }),
     },
   ),
 );
+
+// Demo-mode guard contract (G4/D16): surfaces that must not operate on the
+// demo dataset read this selector and disable themselves when it returns
+// 'demo' — P3 Inzhur fetch, P4 file mirror, and the live-only "Erase live
+// data" flow. (The dataset can only change together with a full reload, so
+// the value is stable for the life of the page.)
+export const useDataset = (): Dataset => useSettings((s) => s.dataset);

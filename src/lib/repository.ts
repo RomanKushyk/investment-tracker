@@ -1,5 +1,5 @@
 // The ONLY module that touches the database. UI consumes it via hooks/queries.ts.
-import { db } from './db';
+import { activeDataset, db } from './db';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 
@@ -140,9 +140,12 @@ export const repo = {
   },
 };
 
-// Seeds the reference dataset on first run only: assets empty AND never
-// seeded before (meta flag) — so deliberate emptiness stays empty.
+// Seeds the reference dataset on first run only — and ONLY into the demo DB
+// (G4/D16): live starts empty and stays empty until the user writes or
+// imports into it. Within demo: assets empty AND never seeded before (meta
+// flag) — so deliberate emptiness stays empty.
 export async function ensureSeeded(): Promise<void> {
+  if (activeDataset !== 'demo') return;
   await db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
     if ((await db.assets.count()) > 0) return;
     if (await db.meta.get('seeded')) return;

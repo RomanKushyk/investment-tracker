@@ -4,11 +4,11 @@
 // beforeEach gives every test a fresh, isolated database.
 import 'fake-indexeddb/auto';
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { db } from './db';
+import { activeDataset, db, makeDb } from './db';
 import { dbVersion, ensureSeeded, repo } from './repository';
-import { buildSeedSnapshots, SEED_TRANSACTIONS } from './seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 import type { Snapshot } from '../core/types';
 
 beforeEach(async () => {
@@ -149,5 +149,66 @@ describe('exportAll', () => {
     expect(all.assets).toHaveLength(4);
     expect(all.snapshots).toHaveLength(174);
     expect(all.transactions).toHaveLength(18);
+  });
+});
+
+// --- Dataset split (G4/D16) ------------------------------------------------
+
+describe('makeDb factory (G4)', () => {
+  it('returns an independent instance per name — rows never bleed across', async () => {
+    const a = makeDb('kubushka-test-a');
+    const b = makeDb('kubushka-test-b');
+    try {
+      expect(a).not.toBe(b);
+      expect(a.name).toBe('kubushka-test-a');
+      expect(b.name).toBe('kubushka-test-b');
+
+      await a.assets.add(SEED_ASSETS[0]);
+      expect(await a.assets.count()).toBe(1);
+      expect(await b.assets.count()).toBe(0);
+    } finally {
+      await a.delete();
+      await b.delete();
+    }
+  });
+
+  it('binds the demo DB (kubushka) when no dataset flag is persisted', () => {
+    // The node test env persists no kubushka-settings → the boot-time read
+    // falls back to 'demo', whose DB name is the pre-split 'kubushka'
+    // (zero-migration rule, D16).
+    expect(activeDataset).toBe('demo');
+    expect(db.name).toBe('kubushka');
+  });
+});
+
+describe('dataset boot binding (G4)', () => {
+  it('binds kubushka-live and never auto-seeds it when the persisted dataset is live', async () => {
+    // Re-init the module graph with a stubbed localStorage carrying the live
+    // flag — the same synchronous read the browser performs before React.
+    vi.resetModules();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) =>
+        key === 'kubushka-settings'
+          ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
+          : null,
+    });
+    try {
+      const freshDb = await import('./db');
+      const freshRepo = await import('./repository');
+
+      expect(freshDb.activeDataset).toBe('live');
+      expect(freshDb.db.name).toBe('kubushka-live');
+
+      await freshRepo.ensureSeeded(); // must be a no-op against live
+      expect(await freshDb.db.assets.count()).toBe(0);
+      expect(await freshDb.db.snapshots.count()).toBe(0);
+      expect(await freshDb.db.transactions.count()).toBe(0);
+      expect(await freshDb.db.meta.count()).toBe(0); // not even the seeded flag
+
+      await freshDb.db.delete();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
   });
 });

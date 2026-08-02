@@ -4,8 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { quoteInputSchema } from '../core/schemas';
-import { useSettings } from '../state/settings';
+import { useDataset, useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
+import { DatasetSwitch } from './settings/DatasetSwitch';
+import { ResetDemoButton } from './settings/ResetDemoButton';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 
@@ -150,12 +152,13 @@ function UsdRateField() {
 }
 
 // /settings — the Settings home (NEXT-PHASE-PLAN P2, design/extensions/
-// settings.dc.html S1/S2/S7/S8 + asset-form.dc.html S3): four stacked section
-// cards in the pinned order, with the relocated Backup, the live Appearance
-// controls and the Portfolio asset manager (feat/asset-form); the targets
-// editor, dataset switch and erase/reset dialogs land in the remaining P2
-// tasks.
+// settings.dc.html S1/S2/S5/S7/S8 + asset-form.dc.html S3): four stacked
+// section cards in the pinned order, with the relocated Backup, the live
+// Appearance controls, the Portfolio asset manager + targets editor and the
+// S5 dataset switch; the typed-name erase/reset dialogs land in
+// feat/clear-data.
 export function Settings() {
+  const dataset = useDataset();
   return (
     <div>
       <ScreenHeader title="Settings" subtitle="Preferences, data and portfolio configuration" />
@@ -174,7 +177,12 @@ export function Settings() {
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-75 duration-300"
         >
           <SectionLabel>Data</SectionLabel>
-          <Placeholder>Dataset switching (demo / live) arrives later in this release.</Placeholder>
+          <SettingRow
+            title="Dataset"
+            helper="Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app."
+          >
+            <DatasetSwitch />
+          </SettingRow>
           <Divider />
           <SettingRow
             title="Backup"
@@ -185,7 +193,16 @@ export function Settings() {
             <BackupButton />
           </SettingRow>
           <Divider />
-          <Placeholder>Erase and reset controls arrive later in this release.</Placeholder>
+          {dataset === 'demo' ? (
+            <SettingRow
+              title="Danger zone"
+              helper="Asks for a confirmation and offers a backup first."
+            >
+              <ResetDemoButton />
+            </SettingRow>
+          ) : (
+            <Placeholder>Erase controls arrive later in this release.</Placeholder>
+          )}
         </Card>
 
         <Card

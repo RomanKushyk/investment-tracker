@@ -4,7 +4,7 @@ import { useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { headlineKpis } from '../core/derive';
 import { fmtPct, fmtProse, fmtProseWhole, toUsd } from '../core/money';
-import { useSettings } from '../state/settings';
+import { useDataset, useSettings } from '../state/settings';
 
 const ANALYTICS = [
   { to: '/overview', label: 'Overview' },
@@ -56,8 +56,13 @@ function useCapitalCard() {
     : { value: fmtProse(tweened, 'USD'), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(total)}` };
 }
 
+// S5: persistent while dataset==='demo' (absent in live) — warn-tint family
+// only, never pos/neg/asset hues. D7: fade + zoom-in on first paint, 200ms.
+const DEMO_BADGE_TITLE = 'Demo dataset — reference data. Switch in Settings → Data.';
+
 export function Sidebar() {
   const { currency, setCurrency } = useSettings();
+  const demo = useDataset() === 'demo';
   const capital = useCapitalCard();
   return (
     // w-[232px] is the design's fixed desktop sidebar; below `sm` (640px) it
@@ -81,10 +86,30 @@ export function Sidebar() {
         <div className="font-display text-base max-sm:text-[13px] leading-[1.15] font-semibold">
           Kubushka
           <br />
-          <span className="text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase">
+          {/* at the 136px rail the DEMO badge REPLACES this microline slot,
+              so the nav is never pushed down (S5) */}
+          <span
+            className={`text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase ${demo ? 'max-sm:hidden' : ''}`}
+          >
             Invest tracker
           </span>
+          {demo && (
+            <span
+              title={DEMO_BADGE_TITLE}
+              className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text hidden rounded-full px-1.5 py-px text-[8px] font-bold tracking-[.08em] uppercase duration-200 max-sm:inline-block"
+            >
+              DEMO
+            </span>
+          )}
         </div>
+        {demo && (
+          <span
+            title={DEMO_BADGE_TITLE}
+            className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text ml-auto self-start rounded-full px-2 py-[3px] text-[10px] font-bold tracking-[.08em] uppercase duration-200 max-sm:hidden"
+          >
+            DEMO
+          </span>
+        )}
       </div>
 
       <GroupLabel>Daily entry</GroupLabel>

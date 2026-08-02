@@ -12,7 +12,7 @@ import { useSettings } from '../../state/settings';
 
 export function useBackupDownload() {
   const exportAll = useExportAll();
-  const { currency, usdRate } = useSettings();
+  const { currency, usdRate, dataset } = useSettings();
 
   async function download(): Promise<boolean> {
     try {
@@ -22,7 +22,7 @@ export function useBackupDownload() {
         tables.snapshots,
         tables.transactions,
         { currency, usdRate },
-        'demo', // the dataset flag lands in P2 feat/dataset-split (G4) — today everything IS the demo dataset
+        dataset, // the ACTIVE dataset — exportAll reads the DB bound to it (G4)
         new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
         dbVersion,
       );

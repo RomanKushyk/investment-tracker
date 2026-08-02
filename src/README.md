@@ -11,7 +11,7 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `routes.tsx` | `createBrowserRouter`: `Layout` wraps 10 eager routes (incl. `/settings`, next-phase P2) |
 | `app/` | Shell: `Layout.tsx`, `Sidebar.tsx` |
 | `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` · `xirr` · `backup/` (+ colocated vitest specs) — see `core/README.md` |
-| `lib/` | Persistence/infra only: `db` · `repository` · `seed` (+ seed tests) |
+| `lib/` | Persistence/infra only: `db` (Dexie factory `makeDb(name)`; binds the active dataset's DB — `kubushka` demo / `kubushka-live` — at module init from the persisted `dataset` flag, G4/D16) · `repository` · `seed` (+ tests) |
 | `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation |
 | `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
 | `components/ui/` | Reusable primitives (CVA variants as they appear; `Dialog.tsx` = the S6 modal idiom) |

@@ -2,13 +2,15 @@
 
 Route-by-route map of the app for manual/agentic verification. Every expected value below is what the app must show **on fresh seed data** (they mirror `docs/BUILD-PLAN.md` fixtures and `docs/DECISIONS.md` D5). Update the Status column and checkpoints whenever a task changes a screen or flow.
 
-> **Next phase in progress** — see `docs/NEXT-PHASE-PLAN.md`. From its Phase 2 (dataset split) on, all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/settings`, `/data`) get their own sections as they land.
+> **Next phase in progress** — see `docs/NEXT-PHASE-PLAN.md`. Since Phase 2's dataset split (G4/D16), all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/data`) get their own sections as they land.
 
 ## Connecting & resetting
 
 - App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.
 - **Checkpoints also run against the deployed site** — `https://dev.d17m4jf400my6.amplifyapp.com` (see `docs/DEPLOYMENT.md`). Use a **fresh browser profile** when verifying a deploy: the seed only loads into an empty IndexedDB, so an existing profile shows your own data instead of the pinned values.
-- **Reset to seed state:** DevTools → Application → delete IndexedDB database `kubushka` and localStorage keys `kubushka-settings`, `kubushka-draft` → reload. The app reseeds automatically.
+- **Two datasets, two Dexie DBs (G4/D16):** `kubushka` = **demo** (the reference seed; the app's default) and `kubushka-live` = **live** (starts and stays empty until the user writes into it — it never auto-seeds). The active DB binds at boot from `localStorage['kubushka-settings']` → `state.dataset`; flip it on `/settings` → Data (the app reloads). **All seed-pinned checkpoints in this file run in DEMO mode** — confirm the sidebar DEMO badge before testing.
+- **Reset to seed state (demo):** either `/settings` → Data → "Reset demo data…" (confirm in the dialog), or DevTools → Application → delete IndexedDB database `kubushka` and localStorage keys `kubushka-settings`, `kubushka-draft` → reload. The demo DB reseeds automatically. Deleting the `kubushka-settings` key also resets the dataset flag to demo.
+- **Reset live to empty:** DevTools → Application → delete IndexedDB database `kubushka-live` → reload while in live mode (it comes back empty — no reseed). The in-app "Erase live data" flow lands with `feat/clear-data`.
 - Number formats: tables/inputs `68 702,10` (NBSP thousands, comma decimals); prose/KPIs `₴68,629.36`; dates `dd.MM.yyyy`.
 - **Do NOT flag D5 deviations as bugs** — see the last section.
 
@@ -26,13 +28,14 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/seasonality` | Seasonality | Task 6 | done |
 | `/portfolio` | Portfolio | Task 5 | done |
 | `/allocation` | Allocation | Task 6 | done |
-| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) live; dataset switch and erase/reset land in the remaining P2 tasks |
+| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) + dataset switch (demo/live, reload-on-toggle) + "Reset demo data…" live; typed-name erase/reset dialogs land in `feat/clear-data` |
 
 ## Global shell (visible on every route)
 
 Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a short window — footer cards must never clip).
 
 - Logo circle shows the **current currency symbol** (₴ default), wordmark "Kubushka" / "INVEST TRACKER".
+- **DEMO badge (S5/D16):** while the demo dataset is active, an amber `DEMO` pill (warn-tint tokens, radius 999) sits at the right of the logo block on **every route**, `title` tooltip "Demo dataset — reference data. Switch in Settings → Data."; it fades/zooms in on first paint (D7). Below 640px it replaces the "INVEST TRACKER" microline (nav never pushed down). In live mode the badge is absent and the microline always shows.
 - Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills; "SETTINGS" group → "Settings" pill (next-phase P2 — same pill anatomy/motion, no icon). Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
 - Currency toggle (₴ / $ segmented pill) near the bottom.
 - **Total capital card:** value `₴149,016` (whole ₴), sub-line `+3.08% · $3,324.03`. After toggling to $: logo symbol becomes `$`, value/sub-line flip to the USD form (`$…` main, `… · ₴149,016.36` sub); choice **survives a page reload**.
@@ -120,7 +123,7 @@ On seed:
 - 4 stacked white cards (radius 24) in pinned order, staggered fade/slide on mount (D7): **Portfolio → Data → Automation → Appearance**, each with a 10px uppercase microlabel.
 - **Portfolio (asset manager, `feat/asset-form`):** the 4 demo assets as rows — color dot · name · short yield label (`div + cap` / `cap` / `coupon` / `coupon`) · outline **Edit** pill · neg-outline **Delete** pill; row hover = soft page tint; footer outline button **"+ Add asset"**.
 - **Portfolio (targets editor, `feat/targets-editor`, S4):** after the divider, "TARGETS" microlabel + one row per asset — color dot · name · muted current share (**now 46.1% / 40.3% / 10.6% / 2.9%** on seed) · 72px right-aligned decimal input (prefilled **40 / 40 / 17 / 3**) · muted `%` suffix; below the rows a 12px share-preview bar re-rendering the ENTERED targets (ShareBar; a Σ<100 entry leaves it short of full width); footer: **Σ pill** — on seed green tint **"Σ 100%"** — and dark primary **"Save targets"** on the right. No assets → the whole sub-section (divider + label included) is hidden behind the Portfolio empty state.
-- **Data:** dataset-switch placeholder line; **Backup row** — title "Backup", helper mentioning `kubushka-backup-<date>.json`, outline button **"Download backup"** (right side; identical behavior to the removed sidebar pill: downloads the formatVersion-1 envelope, on seed 4 assets / 174 snapshots / 18 transactions + settings); erase/reset placeholder line.
+- **Data (dataset switch, `feat/dataset-split`, S5):** "Dataset" row — helper "Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app."; light-surface **Demo / Live** segmented control (track panel, white sliding thumb, active segment bold ink) — Demo active on seed. Then the **Backup row** — title "Backup", helper mentioning `kubushka-backup-<date>.json`, outline button **"Download backup"** (right side; identical behavior to the removed sidebar pill: downloads the formatVersion-1 envelope, on seed 4 assets / 174 snapshots / 18 transactions + settings; the envelope's `dataset` field = the active dataset). Then the **Danger zone row** (demo mode): helper "Asks for a confirmation and offers a backup first." + neg-outline **"Reset demo data…"**; in live mode that row is a placeholder line ("Erase controls arrive later in this release." — typed-name dialogs land in `feat/clear-data`).
 - **Automation:** placeholder copy "Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders arrive in the next release."
 - **Appearance:** "Currency" row with a light-surface ₴ UAH / $ USD segmented control (sliding thumb like the sidebar toggle); "₴/$ rate" row with a 110px right-aligned decimal input prefilled **44.83**; "Theme and language settings are coming later." placeholder.
 
@@ -138,6 +141,9 @@ Interactions to verify:
 11. **Targets — Σ recompute:** every keystroke recomputes the Σ pill: exactly 100 → green tint `Σ 100%`; anything else → amber (warn tokens) **"Σ 92% — targets don't add up to 100%"**-style (e.g. …8976 17→9); the pill re-animates on each value change and the preview bar segments re-tween (D7). Comma and dot decimals both accepted (`17,5` = `17.5`).
 12. **Targets — non-blocking warn vs blocking error:** Σ≠100 never disables "Save targets" (saving at Σ 92 works); an unparseable/out-of-range entry (`3%`, `abc`, `101`) shows a neg border + right-aligned "Enter a percentage." under the row and DOES disable Save; the preview bar/Σ keep using that row's stored value meanwhile.
 13. **Targets — save:** "Save targets" patches only the changed assets via `updateAsset` → toast **"Targets saved"**; …8976 17→9 then `/allocation` shows **"10.6% / 9%"** delta **+1.6** (red, now overweight) and the plan flips to "Trim OVDP …8976 −₴2,435"; Attributes targets follow. Restoring 17 returns the pinned seed checkpoints (−6.4, top up ≈₴11,429). Unsaved drafts are ephemeral (reload discards them).
+14. **Dataset flip → live:** click **Live** → both segments briefly disable (pre-reload lockout) → the app reloads with `kubushka-settings.state.dataset = "live"`. After reload: **no DEMO badge**, every screen shows its v1 empty state (sidebar total **₴0** / "+0.00% · $0.00", Daily quotes "0 of 0 filled", Balances "No snapshots yet…", zero-value Overview KPIs — no crash anywhere), Settings→Portfolio shows "No assets yet — add your first asset to start tracking.", the Danger zone row is the erase placeholder. Reloading again stays empty — live NEVER auto-seeds (not even the `meta` seeded flag is written). IndexedDB now contains both `kubushka` and `kubushka-live`.
+15. **Dataset flip → demo:** click **Demo** → reload → DEMO badge returns and every seed checkpoint above is intact (the demo DB was untouched by the excursion to live).
+16. **Reset demo data:** in demo, "Reset demo data…" opens the confirm dialog — title "Reset demo data?", body about replacing the demo dataset, **"Download backup first"** (flips to "Backup downloaded ✓" after downloading without closing), ghost Cancel, danger **"Reset demo data"** → `clearAll({reseed:true})` → toast **"Demo data reset"** and all seed checkpoints (4/174/18 rows, ₴149,016.36 …) are restored after any demo edits. Esc / Cancel closes without changes. (Typed-name arming arrives with `feat/clear-data`.)
 
 ## Cross-cutting recipes
 
