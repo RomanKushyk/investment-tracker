@@ -42,21 +42,45 @@ const VARIANTS: Record<
 // Settings→Data danger zone (S6/D17): one trigger per dataset — "Erase live
 // data…" only ever renders in live (clearAll({reseed:false})), "Reset demo
 // data…" only in demo (clearAll({reseed:true})) — both opening the typed-name
-// AlertDialog below. Mount-per-open resets the typed/backed-up state.
+// AlertDialog below. A fresh session key per open resets the typed/backed-up
+// state while the closed dialog stays mounted through its 220ms symmetric
+// exit (D7/S6 — unmounting on close would skip the animation).
 export function DangerZone() {
   const dataset = useDataset();
   const [open, setOpen] = useState(false);
+  const [session, setSession] = useState(0);
   return (
     <>
-      <Button variant="outlineDanger" onClick={() => setOpen(true)}>
+      <Button
+        variant="outlineDanger"
+        onClick={() => {
+          setSession((s) => s + 1);
+          setOpen(true);
+        }}
+      >
         {VARIANTS[dataset].trigger}
       </Button>
-      {open && <ClearDataDialog dataset={dataset} onClose={() => setOpen(false)} />}
+      {session > 0 && (
+        <ClearDataDialog
+          key={session}
+          dataset={dataset}
+          open={open}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }
 
-function ClearDataDialog({ dataset, onClose }: { dataset: Dataset; onClose: () => void }) {
+function ClearDataDialog({
+  dataset,
+  open,
+  onClose,
+}: {
+  dataset: Dataset;
+  open: boolean;
+  onClose: () => void;
+}) {
   const v = VARIANTS[dataset];
   const clearAll = useClearAll();
   const backup = useBackupDownload();
@@ -90,7 +114,7 @@ function ClearDataDialog({ dataset, onClose }: { dataset: Dataset; onClose: () =
 
   return (
     <AlertDialog
-      open
+      open={open}
       onOpenChange={(o) => !o && onClose()}
       onOpenAutoFocus={(e) => {
         e.preventDefault(); // Radix would focus the Cancel button

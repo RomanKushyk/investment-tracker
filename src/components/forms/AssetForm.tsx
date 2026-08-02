@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
 import { Switch as RadixSwitch } from 'radix-ui';
+import { useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import {
   Controller,
@@ -61,6 +62,41 @@ function Field({
         </span>
       )}
     </label>
+  );
+}
+
+// S3 group reveal/hide (brief motion table): reveal = fade + slide-from-top
+// 300ms; hide = SYMMETRIC fade/slide-out 300ms — the group stays mounted
+// until its exit animation ends (a bare `{flag && …}` unmount would skip
+// it). fill-mode-forwards holds the exited frame until React removes the
+// node; reduced-motion collapses both to ~0 via the global kill-switch.
+function Reveal({
+  show,
+  className,
+  children,
+}: {
+  show: boolean;
+  className: string;
+  children: ReactNode;
+}) {
+  const [present, setPresent] = useState(show);
+  // Sanctioned adjust-state-on-render: re-entering while (or after) the exit
+  // played must remount the group in the same render pass.
+  if (show && !present) setPresent(true);
+  if (!show && !present) return null;
+  return (
+    <div
+      className={`${className} duration-300 ${
+        show
+          ? 'animate-in fade-in slide-in-from-top-2'
+          : 'animate-out fade-out slide-out-to-top-2 fill-mode-forwards'
+      }`}
+      onAnimationEnd={(e) => {
+        if (!show && e.target === e.currentTarget) setPresent(false);
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -308,11 +344,10 @@ export function AssetFormFields({
         </>
       )}
 
-      {isBond && (
-        <div className="border-hairline animate-in fade-in slide-in-from-top-2 flex flex-col gap-2.5 border-t pt-2.5 duration-300">
-          <div className="text-pos-tint-text text-[11px] font-bold tracking-[.06em] uppercase">
-            Fixed coupon
-          </div>
+      <Reveal show={isBond} className="border-hairline flex flex-col gap-2.5 border-t pt-2.5">
+        <div className="text-pos-tint-text text-[11px] font-bold tracking-[.06em] uppercase">
+          Fixed coupon
+        </div>
           <div className="grid grid-cols-2 gap-2.5">
             <Field label="Maturity" error={!!errors.maturity && MSG.maturity}>
               <Controller
@@ -364,8 +399,7 @@ export function AssetFormFields({
               />
             </Field>
           </div>
-        </div>
-      )}
+      </Reveal>
 
       <div className="border-hairline border-t pt-2.5">
         <div className="flex items-center justify-between gap-3">
@@ -383,8 +417,7 @@ export function AssetFormFields({
             }}
           />
         </div>
-        {linked && (
-          <div className="animate-in fade-in slide-in-from-top-2 mt-2.5 flex flex-col gap-2.5 duration-300">
+        <Reveal show={linked} className="mt-2.5 flex flex-col gap-2.5">
             {/* Units-first framing (S3): while linked, quantity is the input —
                 value is derived — so Units leads, emphasized (h 44, display
                 font 15/600). */}
@@ -426,8 +459,7 @@ export function AssetFormFields({
               Linked assets are valued as units × the fetched sell price. Fetching arrives in the
               next release — the link and units are stored now.
             </p>
-          </div>
-        )}
+        </Reveal>
       </div>
     </>
   );

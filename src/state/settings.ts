@@ -26,10 +26,13 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
 };
 
 /**
- * Additive-safe migration (G3): whatever shape is on disk (a v0 payload,
+ * Additive-safe sanitizer (G3): whatever shape is on disk (a v0 payload,
  * hand-edited JSON, a future rollback), pick only the known persisted fields
  * and merge them onto defaults — unknown fields are dropped, missing or
- * invalid ones fall back to their default. Exported pure for unit tests.
+ * invalid ones fall back to their default. Wired as BOTH persist options:
+ * `migrate` (zustand calls it only when the stored version differs) and
+ * `merge` via mergeSettings below (every rehydrate — without it a tampered
+ * same-version payload would hydrate unvalidated). Exported pure for tests.
  */
 export function migrateSettings(persisted: unknown): PersistedSettings {
   const p = (
@@ -50,6 +53,20 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     // lib/db.ts applies when it binds the active DB at boot (must agree).
     dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
   };
+}
+
+/**
+ * The persist `merge` option, exported pure for unit tests. zustand runs
+ * `migrate` ONLY when the stored version differs from the store's, so a
+ * same-version payload (hand-edited localStorage is the shape that matters)
+ * would otherwise land in the store unvalidated — e.g. dataset:'garbage'
+ * crashing /settings while lib/db.ts independently binds demo via its own
+ * exact-'live' rule (D16), or usdRate:0 rendering Infinity. `merge` runs on
+ * EVERY rehydrate, migrated or not — routing it through migrateSettings
+ * keeps store and DB in agreement on all paths.
+ */
+export function mergeSettings(persisted: unknown, current: SettingsState): SettingsState {
+  return { ...current, ...migrateSettings(persisted) };
 }
 
 /*
@@ -94,6 +111,7 @@ export const useSettings = create<SettingsState>()(
       name: 'kubushka-settings',
       version: 1,
       migrate: migrateSettings,
+      merge: mergeSettings, // sanitize EVERY hydrate, not only version bumps
       partialize: (s) => ({ currency: s.currency, usdRate: s.usdRate, dataset: s.dataset }),
     },
   ),

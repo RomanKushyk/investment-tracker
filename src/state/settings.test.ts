@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { migrateSettings } from './settings';
+import { mergeSettings, migrateSettings, useSettings } from './settings';
 
 // v0 payloads are what zustand persisted before `version: 1` landed —
 // `{"state":{"currency":…},"version":0}`; migrate receives the `state` part.
@@ -118,5 +118,38 @@ describe('migrateSettings', () => {
       usdRate: 44.83,
       dataset: 'demo',
     });
+  });
+});
+
+// The persist `merge` option (mergeSettings): zustand runs `migrate` ONLY
+// when the stored version differs from the store's, so same-version payloads
+// reach the store exclusively through `merge` — it must apply the same
+// sanitization (a hand-edited v1 payload is the shape that matters: lib/db.ts
+// would bind demo via its own exact-'live' rule while an unsanitized store
+// hydrated dataset:'garbage' / usdRate:0 → /settings crash, Infinity in $
+// figures). Pure tests per D4; the option wiring is one declarative line,
+// same trust level as `migrate: migrateSettings` above.
+describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
+  const current = useSettings.getInitialState();
+
+  it('sanitizes a tampered same-version (v1) payload', () => {
+    const merged = mergeSettings({ currency: 'UAH', usdRate: 0, dataset: 'garbage' }, current);
+    expect(merged.dataset).toBe('demo'); // exact-'live' rule (G4/D16)
+    expect(merged.usdRate).toBe(44.83); // S8 rule: finite and > 0
+    expect(merged.currency).toBe('UAH');
+  });
+
+  it('keeps a valid persisted payload intact', () => {
+    const merged = mergeSettings({ currency: 'USD', usdRate: 41.2, dataset: 'live' }, current);
+    expect(merged.dataset).toBe('live');
+    expect(merged.usdRate).toBe(41.2);
+    expect(merged.currency).toBe('USD');
+  });
+
+  it('preserves the non-persisted store surface (actions)', () => {
+    const merged = mergeSettings({ dataset: 'live' }, current);
+    expect(merged.setCurrency).toBe(current.setCurrency);
+    expect(merged.setUsdRate).toBe(current.setUsdRate);
+    expect(merged.setDataset).toBe(current.setDataset);
   });
 });

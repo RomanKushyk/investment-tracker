@@ -8,6 +8,7 @@ import {
   fmtProseWhole,
   fmtSavedAt,
   fmtTable,
+  fmtUnits,
   signed,
   signedPp,
   signedProse,
@@ -31,6 +32,12 @@ it('table format: NBSP thousands, comma decimals', () => {
   expect(fmtTable(68702.1)).toBe('68 702,10');
   expect(fmtTable(7.75)).toBe('7,75');
   expect(fmtTable(1183.5)).toBe('1 183,50');
+});
+
+it('units format: table locale without forced decimals (S3 Units prefill)', () => {
+  expect(fmtUnits(6164)).toBe('6 164'); // NBSP grouping, no ",00"
+  expect(fmtUnits(15)).toBe('15'); // integers stay bare (edit reference shows "15")
+  expect(fmtUnits(15.5)).toBe('15,5'); // fractions keep exact digits
 });
 
 it('percent format: explicit sign, default 2 dp, optional dp override', () => {

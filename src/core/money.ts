@@ -30,6 +30,16 @@ export function fmtTable(n: number): string {
   return tableFmt.format(n).replace(/\s/g, '\u00A0');
 }
 
+const unitsFmt = new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 20 });
+
+// 6 164 / 15 / 15,5 \u2014 the table locale WITHOUT forced decimals: unit counts
+// (AssetForm Units prefill). The S3 edit reference shows a bare "15"
+// (asset-form.dc.html), and a prefill must never round digits a resave would
+// then persist \u2014 fractions keep their exact representation.
+export function fmtUnits(n: number): string {
+  return unitsFmt.format(n).replace(/\s/g, '\u00A0');
+}
+
 // THE one signing helper — every signed display string in the app goes
 // through it, so the sign glyph is pinned in exactly one place: U+2212 minus,
 // never ASCII '-'. The design reference's mock copy prints ASCII hyphens, but

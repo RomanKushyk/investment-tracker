@@ -3,6 +3,7 @@
 // English copy lives HERE, in the component layer (structured returns, D8):
 // core/schemas emits paths, this map owns the pinned S3 message vocabulary.
 import { todayIso } from '../../core/dates';
+import { fmtTable, fmtUnits } from '../../core/money';
 import type { AssetFormInput } from '../../core/schemas';
 import type { Asset, PayoutSchedule } from '../../core/types';
 import { SCHEDULE_LABEL } from '../ui/schedule-labels';
@@ -46,7 +47,11 @@ export function deriveCode(name: string): string {
 }
 
 // Fresh defaultValues per mode. Numbers/dates are the raw string inputs of
-// AssetFormInput; edit prefills from the stored asset.
+// AssetFormInput; edit prefills from the stored asset. Amount-family prefills
+// use the pinned input format (navigation-map "Number formats"; the design
+// edit fragment shows Coupon amount `1 240,00` and Units `15`) — fmtTable /
+// fmtUnits, which quoteInputSchema parses straight back. Percent fields stay
+// plain dot-decimal strings (the edit fragment pins `16.4`).
 export function assetFormDefaults(asset?: Asset): AssetFormInput {
   if (!asset) {
     return {
@@ -73,11 +78,11 @@ export function assetFormDefaults(asset?: Asset): AssetFormInput {
     payoutSchedule: asset.payoutSchedule,
     firstPurchase: asset.firstPurchase,
     maturity: asset.maturity ?? '',
-    couponAmount: asset.couponAmount !== undefined ? String(asset.couponAmount) : '',
+    couponAmount: asset.couponAmount !== undefined ? fmtTable(asset.couponAmount) : '',
     nextCoupon: asset.nextCoupon ?? '',
     reinvestPolicy: asset.reinvestPolicy ?? '',
     inzhur: asset.inzhur
-      ? { kind: asset.inzhur.kind, ref: asset.inzhur.ref, units: String(asset.inzhur.units) }
+      ? { kind: asset.inzhur.kind, ref: asset.inzhur.ref, units: fmtUnits(asset.inzhur.units) }
       : undefined,
   };
 }

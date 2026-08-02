@@ -5,7 +5,13 @@ import { toast } from 'sonner';
 import { AssetForm } from '../../components/forms/AssetForm';
 import { Button } from '../../components/ui/Button';
 import { ColorDot } from '../../components/ui/ColorDot';
-import { Dialog, DialogTitle } from '../../components/ui/Dialog';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  Dialog,
+} from '../../components/ui/Dialog';
 import { YIELD_LABEL_SHORT } from '../../components/ui/yield-labels';
 import { assetFromForm, assetPatchFromForm } from '../../core/asset-builder';
 import type { AssetFormValues } from '../../core/schemas';
@@ -27,14 +33,17 @@ type DialogState =
   | { kind: 'delete'; asset: Asset }
   | null;
 
-// Simple confirm with cascade counts + backup CTA — the S6 dialog idiom
-// without the typed-name arming (per the task brief: typed confirm is
-// reserved for the whole-dataset erase/reset).
+// Destructive confirm with cascade counts + backup CTA on the D17 AlertDialog
+// idiom (outside click never dismisses, Esc cancels, focus trapped) — but
+// WITHOUT the typed-name arming: per the task brief that stays reserved for
+// the whole-dataset erase/reset (brief S2 addendum, 2026-08-02).
 function DeleteAssetDialog({
   asset,
+  open,
   onClose,
 }: {
   asset: Asset;
+  open: boolean;
   onClose: () => void;
 }) {
   const transactions = useTransactions().data ?? [];
@@ -58,14 +67,16 @@ function DeleteAssetDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogTitle asChild>
+    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <AlertDialogTitle asChild>
         <h3 className="mt-0 mb-2 text-lg">Delete {asset.name}?</h3>
-      </DialogTitle>
-      <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
-        This removes the asset and everything recorded for it — {counts.transactions} {txNoun} and
-        quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
-      </p>
+      </AlertDialogTitle>
+      <AlertDialogDescription asChild>
+        <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
+          This removes the asset and everything recorded for it — {counts.transactions} {txNoun}{' '}
+          and quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
+        </p>
+      </AlertDialogDescription>
       <Button
         variant="outline"
         className="w-full"
@@ -77,14 +88,14 @@ function DeleteAssetDialog({
         {backedUp ? 'Backup downloaded ✓' : 'Download backup first'}
       </Button>
       <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
-        <Button variant="ghost" onClick={onClose}>
-          Cancel
-        </Button>
+        <AlertDialogCancel asChild>
+          <Button variant="ghost">Cancel</Button>
+        </AlertDialogCancel>
         <Button variant="danger" disabled={deleteAsset.isPending} onClick={confirm}>
           Delete asset
         </Button>
       </div>
-    </Dialog>
+    </AlertDialog>
   );
 }
 
@@ -96,7 +107,19 @@ export function AssetManager() {
   const addAsset = useAddAsset();
   const updateAsset = useUpdateAsset();
   const [dialog, setDialog] = useState<DialogState>(null);
+  // `dialog` drives the open flags; `shown` keeps the LAST dialog's content
+  // rendered while it plays its 220ms symmetric exit (D7 — Radix only
+  // animates data-[state=closed] on a still-mounted node). Sanctioned
+  // adjust-state-on-render; the session key gives each open a fresh mount
+  // (form defaults / backup state reset).
+  const [shown, setShown] = useState<Exclude<DialogState, null> | null>(null);
+  if (dialog !== null && dialog !== shown) setShown(dialog);
+  const [session, setSession] = useState(0);
 
+  const openDialog = (d: Exclude<DialogState, null>) => {
+    setSession((s) => s + 1);
+    setDialog(d);
+  };
   const close = () => setDialog(null);
 
   function submitCreate(values: AssetFormValues) {
@@ -148,14 +171,14 @@ export function AssetManager() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDialog({ kind: 'edit', asset: a })}
+                onClick={() => openDialog({ kind: 'edit', asset: a })}
               >
                 Edit
               </Button>
               <Button
                 variant="outlineDanger"
                 size="sm"
-                onClick={() => setDialog({ kind: 'delete', asset: a })}
+                onClick={() => openDialog({ kind: 'delete', asset: a })}
               >
                 Delete
               </Button>
@@ -165,29 +188,40 @@ export function AssetManager() {
       )}
 
       <div className="mt-3">
-        <Button variant="outline" onClick={() => setDialog({ kind: 'create' })}>
+        <Button variant="outline" onClick={() => openDialog({ kind: 'create' })}>
           <Plus size={13} strokeWidth={2.75} />
           Add asset
         </Button>
       </div>
 
-      {(dialog?.kind === 'create' || dialog?.kind === 'edit') && (
-        <Dialog open onOpenChange={(open) => !open && close()} width={520}>
+      {(shown?.kind === 'create' || shown?.kind === 'edit') && (
+        <Dialog
+          open={dialog?.kind === 'create' || dialog?.kind === 'edit'}
+          onOpenChange={(open) => !open && close()}
+          width={520}
+        >
           <AssetForm
-            key={dialog.kind === 'edit' ? dialog.asset.id : 'create'}
-            mode={dialog.kind}
-            asset={dialog.kind === 'edit' ? dialog.asset : undefined}
+            key={session}
+            mode={shown.kind}
+            asset={shown.kind === 'edit' ? shown.asset : undefined}
             existingAssetCount={assets.length}
             pending={addAsset.isPending || updateAsset.isPending}
             onCancel={close}
             onSubmit={(values) =>
-              dialog.kind === 'edit' ? submitEdit(dialog.asset, values) : submitCreate(values)
+              shown.kind === 'edit' ? submitEdit(shown.asset, values) : submitCreate(values)
             }
           />
         </Dialog>
       )}
 
-      {dialog?.kind === 'delete' && <DeleteAssetDialog asset={dialog.asset} onClose={close} />}
+      {shown?.kind === 'delete' && (
+        <DeleteAssetDialog
+          key={session}
+          asset={shown.asset}
+          open={dialog?.kind === 'delete'}
+          onClose={close}
+        />
+      )}
     </div>
   );
 }

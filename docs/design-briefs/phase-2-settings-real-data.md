@@ -636,3 +636,45 @@ assetId may be empty), `Redemption` targets an asset. demo-disabled: n/a.
       copy (use the D5 figures verbatim where shown).
 - [ ] Every interactive element has all applicable states drawn or annotated;
       motion annotations may be comments in the markup.
+
+---
+
+## Superseding sections (2026-08-02 — added after the extension merged)
+
+Per the pipeline rule (`README.md` here): a brief is never amended in place
+once its extension is merged — changes land as new sections, and the merged
+extension is never reworked in place either. Two implementation-time pins
+from the Phase 2 review:
+
+### S6 — superseded erase body copy (D17 erase scope)
+
+The Erase variant body is now (supersedes the S6 inventory above; DECISIONS
+D17 pins the erase scope and that the dialog copy documents it):
+
+`This permanently deletes every asset, snapshot and transaction in the live dataset. The unsaved quote draft is cleared too — settings are kept. This cannot be undone.`
+
+The middle sentence is the addition. The extension's erase fragment
+(`design/extensions/settings.dc.html`, erase dialog body) still shows the
+original two-sentence copy — copy authority is the brief (D14), so this
+section wins; the reference stays untouched.
+
+### S2 — addendum: per-row Delete on the asset manager
+
+The plan's Phase 2 verify line requires an in-app delete path ("delete last
+live asset → NO reseed"), so each asset-manager row also renders a
+neg-outline `Delete` pill (sm, same danger-trigger idiom as the S6 triggers)
+after `Edit`. It opens a destructive confirm on the D17 AlertDialog idiom
+(outside click inert, Esc cancels, focus trapped) WITHOUT typed-name arming —
+that stays reserved for the whole-dataset erase/reset — showing the cascade
+impact and the standing one-click backup CTA:
+
+- Title: `Delete <asset name>?`
+- Body: `This removes the asset and everything recorded for it — <N> transaction(s) and quotes on <M> day(s). This cannot be undone.`
+- Secondary: `Download backup first` (flips to `Backup downloaded ✓`);
+  ghost `Cancel`; destructive: `Delete asset`.
+- Toasts: `Asset deleted` / `Could not complete — nothing was deleted.`
+- Motion: the shared dialog idiom (open 300 ms, symmetric close 220 ms).
+
+The extension's S2 rows predate this and draw only `Edit`; the Delete pill
+follows the existing danger-trigger visuals rather than a new drawn
+reference.
