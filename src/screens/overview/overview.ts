@@ -1,8 +1,17 @@
 // Pure glue for the Overview screen's derived (non-KPI-grid) cards — imports
 // core/ only, returns structured tokens (G1). Covered by overview.test.ts.
 import { addMonths } from '../../core/dates';
-import { allocationDeltaPp, sharePct, topUpAmount } from '../../core/derive';
-import type { Asset, Transaction } from '../../core/types';
+import {
+  allocationDeltaPp,
+  globalRoi,
+  headlineTotal,
+  latestCash,
+  ledgerCashDrift,
+  netDeposits,
+  sharePct,
+  topUpAmount,
+} from '../../core/derive';
+import type { Asset, Snapshot, Transaction } from '../../core/types';
 
 export interface UnderweightResult {
   asset: Asset;
@@ -31,6 +40,41 @@ export function mostUnderweightAsset(
     }
   }
   return best;
+}
+
+export interface TotalReturnKpi {
+  uah: number; // the audit's NetFinancialResult = totalCapital − netDeposits
+  roi: number | null; // globalRoi fraction; null when netDeposits ≤ 0 → UI renders "—"
+}
+
+// "Total return (net)" KPI (S9a) — the §5 total-return family (D13,
+// docs/FORMULA-AUDIT.md): performance against EXTERNAL deposits only, shipped
+// ADDITIVELY beside the D5-pinned capital-gain KPI (relabeled, never changed).
+// Demo: +₴5,839.99 / +4.08% (149 016,36 − 143 176,37 over 143 176,37).
+export function totalReturnKpi(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+): TotalReturnKpi {
+  const total = headlineTotal(snapshots);
+  const deposits = netDeposits(transactions);
+  return { uah: total - deposits, roi: globalRoi(total, deposits) };
+}
+
+// S9d chip threshold: |stored − derived| must EXCEED this to surface (₴).
+export const LEDGER_DRIFT_EPSILON = 0.01;
+
+// Ledger-drift chip value (S9d): stored observed cash vs freeCashFromLedger
+// (D13 reconciliation check). Returns the signed drift when |drift| > ε,
+// null otherwise (chip hidden) — also null with no snapshots (nothing
+// observed to reconcile; covers the loading/empty states). Demo is 0 by
+// construction (deposits 143 176,37 − buys 143 168,62 = 7,75 = stored cash).
+export function ledgerDriftChip(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+): number | null {
+  if (snapshots.length === 0) return null;
+  const drift = ledgerCashDrift(latestCash(snapshots), transactions);
+  return Math.abs(drift) > LEDGER_DRIFT_EPSILON ? drift : null;
 }
 
 export interface PayoutRow {

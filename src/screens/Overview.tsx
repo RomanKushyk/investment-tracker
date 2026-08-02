@@ -14,6 +14,7 @@ import {
   depositedTotal,
   headlineTotal,
   incomeReceived,
+  incomeReceivedNet,
   investedByAsset,
   latestCash,
   latestQuotes,
@@ -37,7 +38,12 @@ import {
 } from '../core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
-import { mostUnderweightAsset, nextPayoutRows } from './overview/overview';
+import {
+  ledgerDriftChip,
+  mostUnderweightAsset,
+  nextPayoutRows,
+  totalReturnKpi,
+} from './overview/overview';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
@@ -56,6 +62,9 @@ export function Overview() {
   const deposited = depositedTotal(transactions);
   const reinvested = reinvestedTotal(transactions);
   const income = incomeReceived(transactions);
+  const incomeNet = incomeReceivedNet(transactions);
+  const totalReturn = totalReturnKpi(snapshots, transactions);
+  const drift = ledgerDriftChip(snapshots, transactions);
 
   // Currency-aware KPI grid (renderVals ovCap/ovCapSub/ovNet/ovDep/ovDepSub/ovCash) —
   // only these headline cards convert; tables and every other card stay ₴.
@@ -69,6 +78,15 @@ export function Overview() {
 
   const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, usdRate) : net.uah);
   const netValue = usd ? signedProse(tweenedNet, 'USD') : signedProse(tweenedNet);
+
+  // Total return (net) — S9a's new total-return-family KPI, currency-aware
+  // like its siblings; the globalRoi sub stays a % (no conversion), "—" when null.
+  const tweenedTotalReturn = useTweenedNumber(
+    usd ? toUsd(totalReturn.uah, usdRate) : totalReturn.uah,
+  );
+  const totalReturnValue = usd
+    ? signedProse(tweenedTotalReturn, 'USD')
+    : signedProse(tweenedTotalReturn);
 
   const depositedUsd = toUsd(deposited, usdRate);
   const reinvestedUsd = toUsd(reinvested, usdRate);
@@ -108,25 +126,58 @@ export function Overview() {
           sub={capital.sub}
           subClassName="text-pos-on-dark"
         />
+        {/* S9a relabel (D13): capital-gain family — value/sub D5-pinned, label only. */}
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-75 duration-300"
-          label="Net result"
+          label="Capital gain"
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
           sub={`${fmtPct(net.pct)} since ${fmtDateShort(PORTFOLIO_START)}`}
           subClassName={`font-semibold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}
         />
+        {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-150 duration-300"
+          label="Total return (net)"
+          value={totalReturnValue}
+          valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
+          sub={totalReturn.roi === null ? '—' : `${fmtPct(totalReturn.roi)} on net deposits`}
+          subClassName={
+            totalReturn.roi === null
+              ? 'text-muted'
+              : `font-semibold ${totalReturn.roi < 0 ? 'text-neg' : 'text-pos'}`
+          }
+        />
+        <KpiCard
+          className="animate-in fade-in slide-in-from-bottom-1 delay-200 duration-300"
           label="Deposited / Reinvested"
           value={deposit.value}
           sub={deposit.sub}
         />
         <KpiCard
-          className="animate-in fade-in slide-in-from-bottom-1 delay-200 duration-300"
+          className="animate-in fade-in slide-in-from-bottom-1 delay-300 duration-300"
           label="Free cash"
           value={cashValue}
-          sub={`${cashSharePct.toFixed(2)}% of account`}
+          sub={
+            <>
+              {cashSharePct.toFixed(2)}% of account
+              {/* S9d ledger-drift chip: warn tokens only (a reconciliation
+                  nudge, not an error); hidden while |drift| ≤ ₴0.01 — demo
+                  drift is 0 by construction. Re-keyed by value so a change
+                  re-runs the entry animation (D7). */}
+              {drift !== null && (
+                <div className="mt-2">
+                  <span
+                    key={drift}
+                    title="Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash."
+                    className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-full px-3 py-1 text-xs font-semibold duration-200"
+                  >
+                    Ledger drift {signedProse(drift)}
+                  </span>
+                </div>
+              )}
+            </>
+          }
         />
       </div>
 
@@ -208,7 +259,14 @@ export function Overview() {
             label="Income received"
             value={fmtProse(income.total)}
             valueSize="md"
-            sub={`dividends ${fmtProse(income.dividends)} · coupons ${fmtProse(income.coupons)}`}
+            sub={
+              <>
+                dividends {fmtProse(income.dividends)} · coupons {fmtProse(income.coupons)}
+                {/* S9a net-of-tax line (incomeReceivedNet.total) — equals the
+                    gross value while no tax rows exist (demo: taxes 0). */}
+                <div>net of tax {fmtProse(incomeNet.total)}</div>
+              </>
+            }
           />
         </div>
       </div>

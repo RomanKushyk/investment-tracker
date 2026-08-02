@@ -61,8 +61,10 @@ export function Portfolio() {
               <th className="py-2 text-right font-normal">Invested, ₴</th>
               <th className="py-2 text-right font-normal">of it reinvested</th>
               <th className="py-2 text-right font-normal">Value now, ₴</th>
-              <th className="py-2 text-right font-normal">P&amp;L, ₴</th>
-              <th className="py-2 text-right font-normal">P&amp;L, %</th>
+              {/* S9c relabel (D13): capital-gain family, disambiguated from
+                  the Yield screen's Total return — values unchanged. */}
+              <th className="py-2 text-right font-normal">Capital gain, ₴</th>
+              <th className="py-2 text-right font-normal">Capital gain, %</th>
               <th className="py-2 text-right font-normal">Share</th>
             </tr>
           </thead>
@@ -115,6 +117,10 @@ export function Portfolio() {
             </tr>
           </tbody>
         </table>
+        <div className="text-muted mt-2.5 text-[11.5px]">
+          Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total
+          return on the Yield screen.
+        </div>
       </Card>
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">

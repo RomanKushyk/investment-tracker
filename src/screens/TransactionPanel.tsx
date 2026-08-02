@@ -30,21 +30,25 @@ import {
 import type { Asset, Transaction, TxType } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 
+// Pinned option order (S10, metrics-exposure reference): Withdrawal after
+// Deposit (portfolio-level, like Deposit), Redemption after Reinvest
+// (targets an asset) — the P1 domain types (D13), exposed since P2.
 const TYPE_OPTIONS: { value: TxType; label: string }[] = [
   { value: 'buy', label: 'Buy' },
   { value: 'sell', label: 'Sell' },
   { value: 'deposit', label: 'Deposit' },
+  { value: 'withdrawal', label: 'Withdrawal' },
   { value: 'dividend_accrual', label: 'Dividend accrual' },
   { value: 'interest_payout', label: 'Interest payout' },
   { value: 'reinvest', label: 'Reinvest' },
+  { value: 'redemption', label: 'Redemption' },
   { value: 'tax', label: 'Tax' },
 ];
 
 // The Recent transactions rows use "Coupon" for interest_payout — matches
 // design copy (line 145) even though the Type select spells out "Interest
-// payout"; the other 6 select types share their select label. withdrawal/
-// redemption are domain-only until P2 (not in TYPE_OPTIONS) but the Record
-// must stay total over TxType.
+// payout"; the other 8 select types share their select label. The Record
+// stays total over TxType.
 const RECENT_TYPE_LABEL: Record<TxType, string> = {
   buy: 'Buy',
   sell: 'Sell',

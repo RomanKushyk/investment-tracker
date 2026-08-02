@@ -19,14 +19,14 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
 | — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px; third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1) |
-| `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live |
-| `/overview` | Overview | Task 5 | done — all 4 KPIs currency-aware; values tween ~300ms on toggle (Task 7) |
+| `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live; type select incl. Withdrawal/Redemption (P2 `feat/metrics-exposure`, S10) |
+| `/overview` | Overview | Task 5 | done — 5 KPIs currency-aware (5th "Total return (net)" + "Capital gain" relabel + net-of-tax income line + drift chip, P2 `feat/metrics-exposure`); values tween ~300ms on toggle (Task 7) |
 | `/balances` | Balances | Task 6 | done |
 | `/payouts` | Payouts | Task 6 | done |
-| `/yield` | Yield | Task 6 | done |
+| `/yield` | Yield | Task 6 | done — + Total return & XIRR (ann.) columns (P2 `feat/metrics-exposure`, S9b) |
 | `/attributes` | Attributes | Task 5 | done |
 | `/seasonality` | Seasonality | Task 6 | done |
-| `/portfolio` | Portfolio | Task 5 | done |
+| `/portfolio` | Portfolio | Task 5 | done — P&L headers relabeled "Capital gain, ₴/%" + footnote, values unchanged (P2 `feat/metrics-exposure`, S9c) |
 | `/allocation` | Allocation | Task 6 | done |
 | `/settings` | Settings | next-phase P2 | done for P2 — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) + dataset switch (demo/live, reload-on-toggle) + typed-name erase/reset dialogs (S6, `feat/clear-data`); Automation/theme/language stay placeholders (P3/P5) |
 
@@ -51,6 +51,7 @@ On seed:
 - Buttons: dark pill **"Save snapshot"**, outline **"Copy yesterday"**; right text **"Last saved 25.07, 21:14"**.
 - Yield teaser strip: "Yield since start: REIT **+4.41%** · Energy **+1.48%** · …8976 **+2.96%** · …6475 **+5.20%**" + ghost "Yield chart →" (navigates to `/yield`).
 - Side panel: **Transaction** card (panel bg/border tokens, radius 24, "OCCASIONAL" microlabel) + **Recent transactions** card (last 3, "Type · Asset — amount — date"). *"Interest payout" renders with a "Coupon" label per the design reference; the new-asset appears-in-Attributes checkpoint becomes testable once Task 5 ships that screen.*
+- **Type select (P2 `feat/metrics-exposure`, S10) — 9 options in the pinned order:** Buy · Sell · Deposit · **Withdrawal** · Dividend accrual · Interest payout · Reinvest · **Redemption** · Tax. Both new types record via the existing schema/`recordTransaction` path (demo seed contains neither — no pinned figure moves); a recorded withdrawal shifts `netDeposits` and surfaces the `/overview` ledger-drift chip until the snapshot cash is corrected.
 
 Interactions to verify:
 1. Type into an empty input → its delta chip computes live vs yesterday's value; pill count increments ("2 of 4 filled"). Comma and dot decimals both accepted.
@@ -63,9 +64,14 @@ Interactions to verify:
 
 On seed:
 - Subtitle contains the current date and "rate 44.83 ₴/$".
-- KPIs: **Total capital ₴149,016.36** (dark card; converts with currency toggle) · **Net result +₴4,452.61 / +3.08% since 03.02** (green) · **Deposited ₴143,176** with sub "+ ₴1,387.38 reinvested" · **Free cash ₴7.75**.
+- KPIs — **5 cards since P2 `feat/metrics-exposure` (S9a)**, all currency-aware, staggered mount order Total capital → Capital gain → Total return (net) → Deposited → Free cash:
+  - **Total capital ₴149,016.36** (dark card; converts with currency toggle).
+  - **Capital gain +₴4,452.61 / +3.08% since 03.02** (green) — *relabeled from "Net result" in P2; value/sub byte-identical (D5-pinned)*.
+  - **Total return (net) +₴5,839.99** with sub **"+4.08% on net deposits"** (green; new total-return-family KPI = totalCapital − netDeposits with globalRoi sub; tweens + converts like its siblings; sub "—" muted when netDeposits ≤ 0).
+  - **Deposited ₴143,176** with sub "+ ₴1,387.38 reinvested".
+  - **Free cash ₴7.75** — **NO ledger-drift chip on untouched demo** (drift 0 by construction, S9d). After recording e.g. an unmatched Withdrawal ₴100 the amber warn-tint pill **"Ledger drift +₴100.00"** (U+2212 on negatives) appears under the sub with a `title` tooltip; it disappears once |stored − derived| ≤ ₴0.01 again.
 - Assets card: 4 rows (color dot, name, meta like "div + cap · 46.1%", value, green +%) + 12px stacked share bar.
-- Right stack: "Next payouts" (green tint; bond rows from coupon attributes, REIT row estimated "~₴…" — see D5#7), "Rebalance hint" (**top up ≈₴11,429** — NOT the reference's 11,413, D5#4; "Open Allocation →" navigates), "Income received" **₴5,040.94** (dividends ₴3,641.44 / coupons ₴1,399.50).
+- Right stack: "Next payouts" (green tint; bond rows from coupon attributes, REIT row estimated "~₴…" — see D5#7), "Rebalance hint" (**top up ≈₴11,429** — NOT the reference's 11,413, D5#4; "Open Allocation →" navigates), "Income received" **₴5,040.94** (dividends ₴3,641.44 / coupons ₴1,399.50, **plus the P2 second sub line "net of tax ₴5,040.94"** — equals gross on demo, no seeded tax rows).
 
 ## `/balances`
 
@@ -87,8 +93,11 @@ On seed:
 
 On seed:
 - 4 cumulative-% lines in asset colors with end dots.
-- Table: Asset | Invested | Value now | Δ total | Annualized | vs expected. Check: …6475 annualized **+10.9%** (global 03.02 basis — D5#5; NOT +34.5%), REIT Δ **+4.41%**; negative "vs expected" gaps in terracotta with "pp".
-- Footnote about 365-day scaling from first purchase (03.02.2026).
+- Table (8 columns since P2 `feat/metrics-exposure`, S9b): Asset | Invested | Value now | Δ total | Annualized | **Total return** | **XIRR (ann.)** | vs expected. Existing-column checks unchanged: …6475 annualized **+10.9%** (global 03.02 basis — D5#5; NOT +34.5%), REIT Δ **+4.41%**; negative "vs expected" gaps in terracotta with "pp".
+- **Total return column** (signed bold, net of taxes, incl. payouts; ÷ investedOwn): REIT **+10.12%** · Energy **+1.48%** · …8976 **+10.65%** · …6475 **+10.96%**. May disagree with Δ total by design (illusion-of-loss, FORMULA-AUDIT §2).
+- **XIRR column** (plain ink, 1 dp, money-weighted): REIT **+23.0%** · Energy **+3.1%** · …8976 **+25.8%** · …6475 **+99.4%** (D18: derived figures, not D5-pinned; the extension mock's +99.5% was illustrative rounding). Header reads **"XIRR (ann.)"** while portfolio history < 365 days (demo: yes, 174 days); plain "XIRR" after a full year. Null/unquoted metrics render "—" muted.
+- Table min-width grew (780px) — it scrolls INSIDE the card; the page still has no horizontal scroll at 360px.
+- Footnote (extended in P2): "Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation."
 
 ## `/attributes`
 
@@ -106,7 +115,8 @@ On seed:
 ## `/portfolio`
 
 On seed:
-- Positions table: Asset | Yield-type tag | Invested | of it reinvested (**REIT 1 171,38 / …6475 216,00**) | Value now | P&L ₴ | P&L % | Share; bold Total row **"Total + cash ₴7.75"** with value **149 016,36**.
+- Positions table: Asset | Yield-type tag | Invested | of it reinvested (**REIT 1 171,38 / …6475 216,00**) | Value now | **Capital gain, ₴** | **Capital gain, %** | Share; bold Total row **"Total + cash ₴7.75"** with value **149 016,36**. *Headers relabeled from "P&L, ₴/%" in P2 `feat/metrics-exposure` (S9c) — every cell value identical to pre-P2 output (+2 902,10/+4.41% … total +4 452,61/+3.08%).*
+- Footnote under the table (P2): "Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen."
 - Cards: Best performer **…6475 +5.20%** · Laggard **Energy** · Income engine **REIT** (green tint).
 
 ## `/allocation`
