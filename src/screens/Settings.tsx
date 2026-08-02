@@ -4,10 +4,10 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { quoteInputSchema } from '../core/schemas';
-import { useDataset, useSettings } from '../state/settings';
+import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
+import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
-import { ResetDemoButton } from './settings/ResetDemoButton';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 
@@ -152,13 +152,11 @@ function UsdRateField() {
 }
 
 // /settings — the Settings home (NEXT-PHASE-PLAN P2, design/extensions/
-// settings.dc.html S1/S2/S5/S7/S8 + asset-form.dc.html S3): four stacked
+// settings.dc.html S1/S2/S5/S6/S7/S8 + asset-form.dc.html S3): four stacked
 // section cards in the pinned order, with the relocated Backup, the live
-// Appearance controls, the Portfolio asset manager + targets editor and the
-// S5 dataset switch; the typed-name erase/reset dialogs land in
-// feat/clear-data.
+// Appearance controls, the Portfolio asset manager + targets editor, the
+// S5 dataset switch and the S6 typed-name erase/reset danger zone.
 export function Settings() {
-  const dataset = useDataset();
   return (
     <div>
       <ScreenHeader title="Settings" subtitle="Preferences, data and portfolio configuration" />
@@ -193,16 +191,12 @@ export function Settings() {
             <BackupButton />
           </SettingRow>
           <Divider />
-          {dataset === 'demo' ? (
-            <SettingRow
-              title="Danger zone"
-              helper="Asks for a confirmation and offers a backup first."
-            >
-              <ResetDemoButton />
-            </SettingRow>
-          ) : (
-            <Placeholder>Erase controls arrive later in this release.</Placeholder>
-          )}
+          <SettingRow
+            title="Danger zone"
+            helper="Both actions ask for a typed confirmation and offer a backup first."
+          >
+            <DangerZone />
+          </SettingRow>
         </Card>
 
         <Card

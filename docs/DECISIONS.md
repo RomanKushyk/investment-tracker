@@ -186,3 +186,29 @@ Phase 2 `feat/dataset-split` implements decision G4 of `docs/NEXT-PHASE-PLAN.md`
 - **Checkpoint doctrine:** every seed-pinned checkpoint in `navigation-map.md` runs
   against the DEMO dataset from now on; the reset recipe is per-DB (`kubushka` = demo,
   `kubushka-live` = live; the in-app "Reset demo data" is the demo shortcut).
+
+## D17 — Destructive clears: typed-name AlertDialog idiom + erase scope (2026-08-02)
+
+Phase 2 `feat/clear-data` implements the S6 dialogs (draft item 7, standing invariant
+"destructive confirms always offer one-click backup"):
+
+- **Radix `AlertDialog` (umbrella package) is the destructive-confirm primitive** —
+  exported from `components/ui/Dialog.tsx` beside `Dialog`, sharing its exact visual
+  shell (ink/40 overlay, radius-24 card, fade/zoom-in-95 300ms enter) but with alert
+  semantics: outside click never dismisses, Esc cancels, focus trapped;
+  `AlertDialogDescription` carries the body copy (Radix wires `aria-describedby`);
+  initial focus is steered onto the confirm input via `onOpenAutoFocus`.
+- **Typed-name arming:** the destructive button stays disabled until the input equals
+  the dataset name (`'live'`/`'demo'`), case-insensitive and trimmed. The in-dialog
+  "Download backup first" CTA reuses `useBackupDownload` (D12 envelope of the ACTIVE
+  dataset) and never closes the dialog; on success it flips to an inert muted
+  "Backup downloaded ✓" (`outlineMuted` button variant — a whole-variant swap per the
+  D12 no-fighting-utilities rationale). Clear failure keeps the dialog open
+  ("Could not complete — nothing was deleted." — `clearAll` is one rw transaction).
+- **Erase scope (pinned):** "Erase live data" = `clearAll({reseed:false})` on the live
+  DB **plus resetting the `kubushka-draft` quote draft** (it references erased asset
+  ids; the store is one localStorage key across datasets); `kubushka-settings`
+  (currency/usdRate/dataset/…) is retained — documented in the dialog body copy.
+  "Reset demo data" keeps the draft (seed asset ids stay valid after reseeding).
+- **Visibility, not disablement:** the Erase trigger renders only in live, Reset only
+  in demo (S6 state matrix); the demo-guard contract stays `useDataset()` (D16).

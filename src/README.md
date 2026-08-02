@@ -14,7 +14,7 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `lib/` | Persistence/infra only: `db` (Dexie factory `makeDb(name)`; binds the active dataset's DB — `kubushka` demo / `kubushka-live` — at module init from the persisted `dataset` flag, G4/D16) · `repository` · `seed` (+ tests) |
 | `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation |
 | `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
-| `components/ui/` | Reusable primitives (CVA variants as they appear; `Dialog.tsx` = the S6 modal idiom) |
+| `components/ui/` | Reusable primitives (CVA variants as they appear; `Dialog.tsx` = the S6 modal idiom — `Dialog` plus the `AlertDialog` destructive-confirm variant, D17) |
 | `components/charts/` | One wrapper per recharts chart (Task 6) |
 | `components/forms/` | Shared form bodies: `AssetForm.tsx` (standalone create/edit + the fields component the TransactionPanel quick-create reuses) + its non-component companion `asset-form.ts` (defaults, options, pinned error copy) |
 | `screens/` | One component per route (per-route pieces in `screens/<route>/`, e.g. `screens/settings/AssetManager.tsx`) |

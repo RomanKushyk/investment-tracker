@@ -211,4 +211,36 @@ describe('dataset boot binding (G4)', () => {
       vi.resetModules();
     }
   });
+
+  // The S6 "Erase live data" flow (feat/clear-data): clearAll({reseed:false})
+  // against the live binding leaves the app truly empty across reloads.
+  it('erase — clearAll({reseed:false}) on live stays empty across re-inits', async () => {
+    vi.resetModules();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) =>
+        key === 'kubushka-settings'
+          ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
+          : null,
+    });
+    try {
+      const freshDb = await import('./db');
+      const freshRepo = await import('./repository');
+
+      // a real live portfolio: the user wrote an asset into kubushka-live
+      await freshDb.db.assets.add(SEED_ASSETS[0]);
+      expect(await freshDb.db.assets.count()).toBe(1);
+
+      await freshRepo.repo.clearAll({ reseed: false });
+      await freshRepo.ensureSeeded(); // simulated reload — no-op on live
+
+      expect(await freshDb.db.assets.count()).toBe(0);
+      expect(await freshDb.db.snapshots.count()).toBe(0);
+      expect(await freshDb.db.transactions.count()).toBe(0);
+
+      await freshDb.db.delete();
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
+  });
 });

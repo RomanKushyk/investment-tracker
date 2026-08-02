@@ -17,6 +17,10 @@ export const buttonVariants = cva(
         // the dialog's armed action.
         outlineDanger: 'border-[1.5px] border-neg bg-transparent text-neg hover:bg-neg/8',
         danger: 'bg-neg text-card hover:opacity-90',
+        // Inert done-state outline (S6 "Backup downloaded ✓": panel-border +
+        // muted at FULL opacity per the reference — a whole-variant swap, not
+        // a className override, so no two color utilities ever fight).
+        outlineMuted: 'pointer-events-none border-[1.5px] border-panel-border bg-transparent text-muted',
       },
       // Explicit variant (not a className override) so callers needing bold
       // text don't end up with two font-weight utilities fighting over
