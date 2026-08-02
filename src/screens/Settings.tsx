@@ -6,6 +6,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { quoteInputSchema } from '../core/schemas';
 import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
+import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 
 // Section microlabel — the card-label idiom shared with Overview's cards
@@ -163,12 +164,9 @@ export function Settings() {
         <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">
           <SectionLabel>Portfolio</SectionLabel>
           <AssetManager />
-          <Divider />
-          <SectionLabel className="mb-3">Targets</SectionLabel>
-          <Placeholder>
-            Targets editor arrives later in this release — per-asset allocation targets with a
-            live Σ check.
-          </Placeholder>
+          {/* S4 targets editor — brings its own divider + microlabel so the
+              sub-section vanishes with the Portfolio empty state */}
+          <TargetsEditor />
         </Card>
 
         <Card

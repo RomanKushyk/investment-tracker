@@ -30,6 +30,13 @@
   --color-pos-on-dark: #b9cdb4;
   --color-pos-border: #c9d4c4;
   --color-neg: #a8695a;
+  /* Caution family — minted by the P2 design session (design/extensions/
+     settings.dc.html header comment, brief phase-2 "Global constraints").
+     Every caution state uses ONLY these: Σ≠100 pill (S4), DEMO badge (S5),
+     ledger-drift chip (S9d), stale chips — never pos/neg/asset hues. */
+  --color-warn: #8f6b33;
+  --color-warn-tint: #f0e6cb;
+  --color-warn-tint-text: #6b5527;
   --color-reit: #8ba283;
   --color-reit-tint: #e3eadf;
   --color-reit-tint-text: #4c5a48;

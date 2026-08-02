@@ -26,7 +26,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/seasonality` | Seasonality | Task 6 | done |
 | `/portfolio` | Portfolio | Task 5 | done |
 | `/allocation` | Allocation | Task 6 | done |
-| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) live; targets, dataset switch and erase/reset land in the remaining P2 tasks |
+| `/settings` | Settings | next-phase P2 | in progress — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) live; dataset switch and erase/reset land in the remaining P2 tasks |
 
 ## Global shell (visible on every route)
 
@@ -118,7 +118,8 @@ On seed:
 On seed:
 - Header **"Settings"** + subtitle "Preferences, data and portfolio configuration".
 - 4 stacked white cards (radius 24) in pinned order, staggered fade/slide on mount (D7): **Portfolio → Data → Automation → Appearance**, each with a 10px uppercase microlabel.
-- **Portfolio (asset manager, `feat/asset-form`):** the 4 demo assets as rows — color dot · name · short yield label (`div + cap` / `cap` / `coupon` / `coupon`) · outline **Edit** pill · neg-outline **Delete** pill; row hover = soft page tint; footer outline button **"+ Add asset"**. After the divider, "TARGETS" microlabel with an interim placeholder (lands in `feat/targets-editor`).
+- **Portfolio (asset manager, `feat/asset-form`):** the 4 demo assets as rows — color dot · name · short yield label (`div + cap` / `cap` / `coupon` / `coupon`) · outline **Edit** pill · neg-outline **Delete** pill; row hover = soft page tint; footer outline button **"+ Add asset"**.
+- **Portfolio (targets editor, `feat/targets-editor`, S4):** after the divider, "TARGETS" microlabel + one row per asset — color dot · name · muted current share (**now 46.1% / 40.3% / 10.6% / 2.9%** on seed) · 72px right-aligned decimal input (prefilled **40 / 40 / 17 / 3**) · muted `%` suffix; below the rows a 12px share-preview bar re-rendering the ENTERED targets (ShareBar; a Σ<100 entry leaves it short of full width); footer: **Σ pill** — on seed green tint **"Σ 100%"** — and dark primary **"Save targets"** on the right. No assets → the whole sub-section (divider + label included) is hidden behind the Portfolio empty state.
 - **Data:** dataset-switch placeholder line; **Backup row** — title "Backup", helper mentioning `kubushka-backup-<date>.json`, outline button **"Download backup"** (right side; identical behavior to the removed sidebar pill: downloads the formatVersion-1 envelope, on seed 4 assets / 174 snapshots / 18 transactions + settings); erase/reset placeholder line.
 - **Automation:** placeholder copy "Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders arrive in the next release."
 - **Appearance:** "Currency" row with a light-surface ₴ UAH / $ USD segmented control (sliding thumb like the sidebar toggle); "₴/$ rate" row with a 110px right-aligned decimal input prefilled **44.83**; "Theme and language settings are coming later." placeholder.
@@ -134,6 +135,9 @@ Interactions to verify:
 8. **Edit** opens the same dialog prefilled ("Edit asset" / "Save changes"): e.g. changing …8976's Maturity updates the Attributes card and Overview "Next payouts" after save (toast **"Asset updated"**). Editing Energy (payout schedule 'none') additionally offers "None (price only)" in the schedule select — no other asset gets that option.
 9. **Delete** opens a confirm dialog stating the cascade: "This removes the asset and everything recorded for it — N transactions and quotes on M days." (on seed: REIT 9 transactions / 174 days, Energy 1/173, …8976 2/171, …6475 3/54) with **"Download backup first"** (flips to "Backup downloaded ✓") + neg **"Delete asset"** → toast **"Asset deleted"**, cascade removes its transactions and quote cells everywhere (no typed-name arming here — that's reserved for erase/reset).
 10. Validation: submitting an empty create form highlights fields with the pinned messages ("Name is required." · "Code is 1–2 letters." · "Enter a percentage." · "Enter the number of units." …) + summary "Check the highlighted fields and try again."; the linked-ref message follows the kind ("Enter the fund slug." / "Enter the bond ISIN.").
+11. **Targets — Σ recompute:** every keystroke recomputes the Σ pill: exactly 100 → green tint `Σ 100%`; anything else → amber (warn tokens) **"Σ 92% — targets don't add up to 100%"**-style (e.g. …8976 17→9); the pill re-animates on each value change and the preview bar segments re-tween (D7). Comma and dot decimals both accepted (`17,5` = `17.5`).
+12. **Targets — non-blocking warn vs blocking error:** Σ≠100 never disables "Save targets" (saving at Σ 92 works); an unparseable/out-of-range entry (`3%`, `abc`, `101`) shows a neg border + right-aligned "Enter a percentage." under the row and DOES disable Save; the preview bar/Σ keep using that row's stored value meanwhile.
+13. **Targets — save:** "Save targets" patches only the changed assets via `updateAsset` → toast **"Targets saved"**; …8976 17→9 then `/allocation` shows **"10.6% / 9%"** delta **+1.6** (red, now overweight) and the plan flips to "Trim OVDP …8976 −₴2,435"; Attributes targets follow. Restoring 17 returns the pinned seed checkpoints (−6.4, top up ≈₴11,429). Unsaved drafts are ephemeral (reload discards them).
 
 ## Cross-cutting recipes
 
