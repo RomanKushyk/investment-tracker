@@ -85,7 +85,7 @@ On seed:
 
 On seed:
 - Stacked monthly bars (dividends green, coupons blue-gray, value labels on top).
-- Cards: **Received ₴5,040.94** (dark) · Upcoming (green tint, attribute-based) · **Reinvested ₴1,387.38 · 27.5% of income**.
+- Cards: **Received ₴5,040.94** (dark) · Upcoming (green tint, attribute-based) · **Reinvested ₴1,387.38 · 27.5% of received income**.
 - Payout log table: Date | Asset | Type tag | Amount | Destination — destinations show **"reinvested (₴687,02)"**-style when a same-date reinvest exists, else "account". One row is seeded as **472,13 on 10.05** (adjusted per D5#3).
 - Recording a new dividend/interest transaction on `/` updates bars + log.
 
@@ -103,7 +103,7 @@ On seed:
 
 On seed:
 - 2×2 grid of read-only asset cards: avatar + name + yield-type tag + ~6-fact `<dl>`.
-- Check: targets 40/40/17/3; **Energy shows "None (price only)"** for payout schedule; bond cards swap in YTM / Coupon amount / Maturity / Next coupon.
+- Check: targets 40/40/17/3; **Energy shows "None (price only)"** for payout schedule; bond cards swap in YTM at purchase / Coupon / Maturity / Next coupon.
 - Assets created via the transaction form appear here with their entered attributes.
 
 ## `/seasonality`
@@ -124,7 +124,7 @@ On seed:
 On seed:
 - Donut (30px ring, asset colors) with center **"₴149k / 4 assets + cash"** + legend.
 - "Current vs target" pills: fill = current share, black 2px tick at target. Deltas: REIT **+6.1 (red — overweight)**, …8976 **−6.4 (red)**, …6475 **−0.1 (green — near target)**. Color encodes **off-target severity, not sign**.
-- Rebalance plan: numbered actions — top up …8976 **≈₴11,429** (D5#4), trim REIT **≈₴9,095**.
+- Rebalance plan: numbered actions — top up …8976 **≈₴11,429** (D5#4), trim REIT **≈₴9,096** (derived 9 095,56, prose-rounded).
 
 ## `/settings` — Settings home (next-phase P2)
 
