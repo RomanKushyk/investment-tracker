@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/import-dialog.dc.html — Phase 4 design reference
+  (G7/D14). Surfaces: S3 the import preview & diff dialog (preview with a
+  diff · preview with warnings + the settings opt-in · pending "Replacing…"
+  incl. the write-lock wait) · S4 the rejected-file report (single-reason
+  forms + the row-error list) · the DIALOG-side deltas of S6 (the CSV
+  variant: scope strip, detection line, snapshot-scoped replace banner,
+  "Replace snapshots").
+  Parent: a modal opened from the Settings → Data import row — the row, the
+  drop target and the rest of the Data card live in
+  design/extensions/data-portability.dc.html (no surface spans two files;
+  S6's Data-card deltas are drawn there).
+  Refs: the D17 AlertDialog shell (design/extensions/settings.dc.html
+  402–460: ink/40 overlay, radius-24 card, fade/zoom-in-95 300ms enter,
+  symmetric 220ms exit, outside click inert, Esc cancels, focus trapped) ·
+  the tall internally-scrolling dialog band 460–520px
+  (design/extensions/asset-form.dc.html 55–148) · the numeric-column rhythm
+  of the master snapshot table (211–241) · the muted footnote voice
+  (master 303–339) · the validation-message idiom (11px `neg` under the
+  offending thing, asset-form.dc.html error fragments).
+  Brief (copy/behavior authority): docs/design-briefs/phase-4-data-portability.md
+  §S3, S4, S6. Visual authority once merged: THIS file (D14).
+
+  ★★★ NO NEW TOKENS IN THIS PHASE — ONE DOCUMENTED WIDENING ★★★
+  ★
+  ★ The P3 reference reserved neg-tint/neg-tint-text for "the overdue
+  ★ reminder severity" only (design/extensions/reminders.dc.html header).
+  ★ Phase 4 widens that reservation to irreversible-harm framing at BLOCK
+  ★ scale — two sites and no more:
+  ★     1. the S3 "Replaces everything" banner  (THIS file)
+  ★     2. the S8 danger-zone panel border + microlabel
+  ★        (data-portability.dc.html)
+  ★ The widened rule, verbatim from the brief:
+  ★
+  ★   **`neg-tint`/`neg-tint-text` are block-level framing for overdue
+  ★   reminders and irreversible-harm surfaces — never for validation
+  ★   messages (those stay `neg` text on `card`), never for numbers, deltas
+  ★   or counts, never for a routine control or a pressable's own fill.**
+  ★
+  ★ Why: raw neg #a8695a carries a 13px sentence at only ~3.6:1 on `card`,
+  ★ while neg-tint-text #693f35 is 6.08:1 on neg-tint #f0cec7 and 8.89:1 on
+  ★ card. Values are UNCHANGED (minted in reminders.dc.html); this phase
+  ★ mints nothing. Note the two consequences visible in this file: the S4
+  ★ rejection lead line is plain `neg` on `card` (nothing was destroyed —
+  ★ no tint), and the diff counts are RAW accents (never tinted pills), so
+  ★ the tint families keep meaning "block", not "number". The implementing
+  ★ task records the widening in docs/DECISIONS.md.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  ★★★ SAFETY-FIRST DOCTRINE — the phase's binding rule (brief Global) ★★★
+  ★ validate fully → show a diff → the user confirms → ONE rw transaction.
+  ★ THE CONFIRM PRESS IS THE SOLE WRITE PATH: nothing is written by the
+  ★ parse that produced this dialog, by opening it, by hovering it, by
+  ★ toggling the settings checkbox, or by the drag that started it. Cancel,
+  ★ Esc and close leave the dataset byte-identical.
+  ★ The safety backup (kubushka-before-import-<date>.json) is BUILT AND
+  ★ HANDED TO THE BROWSER BEFORE replaceAll — and always through
+  ★ <a download>, never showSaveFilePicker: a guarantee must not be
+  ★ cancellable. If it cannot be built, the import NEVER STARTS.
+  ★ Every destructive sentence NAMES ITS DATASET.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  ★★★ THE ONE DASHED THING IN PHASE 4 ★★★
+  ★ P3 pinned 1px dashed `faint` #b3b2ae as the ONLY carrier of "proposed,
+  ★ not saved", crossed to solid only by a press (daily-quotes-live.dc.html
+  ★ header). Phase 4 inherits it exactly: the import preview's DIFF PANEL is
+  ★ dashed `faint` — it shows data that is not written yet, and
+  ★ "Replace all data" is the press that crosses the line. NO CONTROL in
+  ★ this phase is dashed (which is why the S2 drop target is a solid
+  ★ panel-border frame). Everything else in these dialogs is solid.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  NO TYPED-NAME ARMING HERE (pinned, with the reason): P2/D17 reserves
+  typed-name arming for the whole-dataset erase/reset. This dialog earns the
+  exemption honestly — the user chose a specific file, is reading an itemized
+  diff, and the safety backup is AUTOMATIC rather than merely offered (the
+  erase dialog's backup is a CTA the user can skip; that asymmetry is what
+  the typed name compensates for there). Deliberateness is carried by the
+  non-dismissible neg-tint banner and the danger-variant "Replace all data"
+  label. A typed name would be friction without added safety.
+
+  Tokens used — all existing (src/index.css @theme): page #f6f5f3 · ink
+  #26262a · card #fff · muted #8b8a86 · faint #b3b2ae (the dashed diff
+  panel) · hairline #e8e7e4 · panel #eceae7 · panel-border #dedcd8 · label
+  #6f6e6a · pos #5c7355 · neg #a8695a · neg-tint #f0cec7 / neg-tint-text
+  #693f35 (the replace banner only) · warn #8f6b33 · warn-tint #f0e6cb /
+  warn-tint-text #6b5527 (the warnings block). Overlay = ink at 40%
+  (rgba(38,38,42,.4), the pinned P2 literal — token-derived, no raw hex
+  hue); dialog shadow 0 12px 40px rgba(38,38,42,.18).
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  The dialogs are rendered INLINE inside their overlay blocks for spec (the
+  P2 S6 precedent). Light theme only (dark theme is Phase 5). DASHED-BORDER
+  CHIPS WITH 10px UPPERCASE TEXT ON #fff ARE SPEC ANNOTATIONS, never UI —
+  the one dashed UI element is called out in the rule box above. Motion (D7)
+  annotated in comments — defaults 220ms cubic-bezier(0.22,1,0.36,1), hover
+  150ms, reveals 300–400ms, pressables active:scale-[.97];
+  prefers-reduced-motion collapses everything.
+
+  DATA: the worked diff is a LIVE-dataset illustration — yesterday's live
+  backup (4 assets / 173 snapshots / 18 transactions) imported over today's
+  live data (174 snapshots / 19 transactions), which is exactly the case
+  worth reading a diff for, since it silently drops today's work. The CSV
+  variant illustrates the demo seed's 174 days × 4 assets. NO D5-pinned
+  demo figure is altered anywhere in this file.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Import dialog" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S3 · STATE 1 — PREVIEW WITH A DIFF (the default)
+       ══════════════════════════════════════════════════════════════════
+       Section order is PINNED: title → subline → replace banner → diff
+       panel → warnings → settings opt-in → safety-backup line → buttons.
+       Dialog: card #fff radius 24, padding 24, max-w 480, max-h
+       calc(100dvh − 48px) with INTERNAL scroll.
+       Initial focus lands on "Cancel" (Radix default — the destructive
+       control is never pre-focused); focus is trapped; Esc cancels while
+       idle; an outside click is inert.
+       D7: open = overlay fade + panel fade/zoom-in-95 300ms soft · close
+       (cancel or success) = symmetric 220ms · diff rows = fade +
+       slide-from-top-1, stagger 40ms per TABLE row, 220ms soft · press
+       scale .97; reduced-motion: instant, no stagger. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 · 1 — preview with a diff</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center;margin-bottom:8px"><!-- overlay: ink @ 40% -->
+    <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+
+      <!-- title — the dataset name is interpolated, always ("Import into
+           demo" in demo). A destructive sentence never omits its target. -->
+      <h3 style="margin:0 0 6px;font-size:18px">Import into live</h3>
+      <!-- subline: file name in mono, then the file's own facts -->
+      <div style="font-size:11px;color:#8b8a86;line-height:1.6;margin-bottom:14px"><span style="font-family:'Spline Sans Mono',monospace">kubushka-backup-2026-08-03.json</span> · exported 03.08.2026 21:14 · from live</div>
+
+      <!-- REPLACE BANNER — always visible, NEVER dismissible. neg-tint block
+           + neg-tint-text sentences (the widened rule, site 1 of 2), alert
+           icon 16px, radius 16. It names the dataset it destroys. -->
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#f0cec7;color:#693f35;margin-bottom:16px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <div style="flex:1;font-size:12.5px;line-height:1.55">Replaces everything in the live dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.</div>
+      </div>
+
+      <!-- DIFF PANEL — 1px DASHED faint, radius 16: this is PROPOSED data
+           (the one dashed thing in the phase). 4-column grid borrowing the
+           master snapshot table's numeric rhythm (211–241): label left,
+           counts right-aligned.
+           Cell formatting: added `+4` in `pos`, replaced UNSIGNED in `warn`,
+           removed with U+2212 in `neg`, a zero `muted` with no accent. The
+           brief's "replaced plain 173" pins the SIGN (none), and its token
+           list pins the three accents — resolved as: plain = unsigned, the
+           accent comes from the count's meaning. Raw accents only — never
+           tinted pills, so the tint families keep meaning "block". -->
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:14px 16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">What changes</div>
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px 14px;font-size:12.5px;align-items:center">
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Table</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Added</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Replaced</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Removed</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Assets</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">4</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Snapshots</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">173</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#a8695a;font-weight:700">−1</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Transactions</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">18</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#a8695a;font-weight:700">−1</div>
+        </div>
+        <!-- added-count example for the record (a file bringing new rows):
+             `+4` renders in pos #5c7355 with the plus sign — assets by id,
+             snapshots by date, transactions by id. -->
+        <div style="font-size:11px;color:#b3b2ae;margin-top:10px">an added count reads <span style="color:#5c7355;font-weight:700">+4</span> · matching keys: assets by id, snapshots by date, transactions by id</div>
+      </div>
+
+      <!-- result line = added + replaced, per table -->
+      <div style="font-size:13px;margin-top:14px">After import: 4 assets · 173 snapshots · 18 transactions.</div>
+
+      <!-- safety-backup line — 11px muted with a download icon, directly
+           above the buttons. It states a fact about what WILL happen before
+           any write, and it is not a control. -->
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:14px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>A backup of your current live data downloads automatically before anything is replaced — kubushka-before-import-2026-08-04.json.</span>
+      </div>
+
+      <!-- buttons: ghost Cancel · danger "Replace all data" (D17 fill idiom:
+           bg neg, text card; hover darkens via opacity). At 360px they stack
+           full width with "Replace all data" LAST. -->
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;outline:2px solid #26262a;outline-offset:2px" style-hover="opacity:.85">Cancel</button><!-- initial focus -->
+        <button style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.9">Replace all data</button>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#8b8a86;max-width:720px;line-height:1.7;margin-bottom:8px">Worked illustration (live dataset): yesterday's backup over today's live data — it silently drops today's snapshot and today's transaction, which is exactly why the diff is worth reading. The demo seed is untouched by this example (4 assets / 174 snapshots / 18 transactions stay pinned).</div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S3 · STATE 2 — PREVIEW WITH WARNINGS + THE SETTINGS OPT-IN
+       ══════════════════════════════════════════════════════════════════
+       The warnings list is ONE warn-tint block with warn-tint-text glyphs
+       and sentences — a list of cautions reads as one object (raw `warn`
+       stays for inline microcopy elsewhere). Every warning is
+       NON-BLOCKING: the confirm stays enabled.
+       The settings checkbox is default OFF. Applying settings goes through
+       the store's setters / migrateSettings sanitizer (G3/D11) — never a
+       direct localStorage write — and unchecked leaves every persisted
+       field untouched. Dataset, automation and reminder preferences are
+       never touched either way.
+       D7: warnings block appears = height reveal + fade 300ms soft ·
+       checkbox toggle = check draw/fill 150ms · checkbox row hover =
+       page/60 background. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 · 2 — warnings + settings opt-in</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center">
+    <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+      <h3 style="margin:0 0 6px;font-size:18px">Import into live</h3>
+      <div style="font-size:11px;color:#8b8a86;line-height:1.6;margin-bottom:14px"><span style="font-family:'Spline Sans Mono',monospace">kubushka-backup-2026-07-23.json</span> · exported 23.07.2026 09:02 · from demo</div>
+
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#f0cec7;color:#693f35;margin-bottom:16px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <div style="flex:1;font-size:12.5px;line-height:1.55">Replaces everything in the live dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.</div>
+      </div>
+
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:14px 16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">What changes</div>
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px 14px;font-size:12.5px;align-items:center">
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Table</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Added</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Replaced</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Removed</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Assets</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#5c7355;font-weight:700">+1</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">3</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Snapshots</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#a8695a;font-weight:700">−174</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Transactions</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#5c7355;font-weight:700">+6</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">12</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+        </div>
+        <!-- all four cell treatments in one grid: added `+n` pos · replaced
+             unsigned warn · removed U+2212 neg · zero muted, no accent. The
+             illustration is internally consistent: the file (4 assets, 0
+             snapshots, 18 transactions) lands over a live dataset that
+             already holds 3 of those asset ids, 12 of those transaction ids
+             and 174 saved days — so the result line below equals
+             added + replaced, per table. -->
+      </div>
+
+      <div style="font-size:13px;margin-top:14px">After import: 4 assets · 0 snapshots · 18 transactions.</div>
+
+      <!-- WARNINGS — microlabel renders only when at least one fires -->
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin:16px 0 8px">Check before you continue</div>
+      <div style="background:#f0e6cb;color:#6b5527;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file has no snapshots — all 174 saved days in live would be removed.</span></div>
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file was exported from the demo dataset.</span></div>
+        <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>Exported 12 days ago (23.07.2026).</span></div>
+      </div>
+
+      <!-- SETTINGS OPT-IN — checkbox, default OFF (drawn ON here to pin the
+           checked state); the helper names exactly what would change. -->
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:16px;padding:8px;border-radius:12px;background:rgba(246,245,243,.6);cursor:pointer"><!-- hover: page/60 -->
+        <span style="flex:none;width:16px;height:16px;border-radius:5px;background:#26262a;display:grid;place-items:center;margin-top:1px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+        <span style="flex:1">
+          <span style="display:block;font-size:13px">Also apply the settings saved in this file</span>
+          <span style="display:block;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:3px">Replaces your currency and ₴/$ rate (₴ UAH · 44.83). Dataset, automation and reminder preferences are never touched.</span>
+        </span>
+      </label>
+
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:14px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>A backup of your current live data downloads automatically before anything is replaced — kubushka-before-import-2026-08-04.json.</span>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+        <button style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.9">Replace all data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- the complete warning vocabulary, verbatim — a real dialog shows only
+       the ones that fire; the unchecked-checkbox and no-settings variants
+       are pinned here too. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">warning + opt-in copy inventory — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 380px;max-width:560px;background:#f0e6cb;color:#6b5527;border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>1 snapshot and 1 transaction in live are missing from this file — they will be removed.</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file was exported from the demo dataset.</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>Exported 12 days ago (23.07.2026).</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file has no snapshots — all 174 saved days in live would be removed.</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file has no assets — the dataset will be empty after import.</span></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>The file comes from a newer database version (3 vs 2) — fields this app doesn't know are ignored.</span></div>
+    </div>
+    <div style="flex:1 1 300px;max-width:420px;display:flex;flex-direction:column;gap:12px">
+      <!-- checkbox default: UNCHECKED (this is the state a fresh dialog opens in) -->
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">settings opt-in · DEFAULT (off)</span>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <span style="flex:none;width:16px;height:16px;border-radius:5px;border:1px solid #dedcd8;background:#f6f5f3;margin-top:1px"></span>
+          <span style="flex:1">
+            <span style="display:block;font-size:13px">Also apply the settings saved in this file</span>
+            <span style="display:block;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:3px">Replaces your currency and ₴/$ rate (₴ UAH · 44.83). Dataset, automation and reminder preferences are never touched.</span>
+          </span>
+        </label>
+      </div>
+      <!-- no settings block in the file → the checkbox is REPLACED by a line
+           (never a disabled checkbox: there is nothing to opt into) -->
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">file carries no settings — the checkbox is replaced</span>
+        <div style="font-size:11px;color:#8b8a86">This file carries no settings.</div>
+      </div>
+      <!-- demo target: the title changes and the banner gains one sentence -->
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">demo target — ACTIVE, nothing disabled</span>
+        <h3 style="margin:0 0 8px;font-size:16px">Import into demo</h3>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#f0cec7;color:#693f35">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+          <div style="flex:1;font-size:12.5px;line-height:1.55">Replaces everything in the demo dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone. "Reset demo data…" restores the reference portfolio afterwards.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S3 · STATE 3 — PENDING ("Replacing…") + the write-lock wait
+       ══════════════════════════════════════════════════════════════════
+       Both buttons disabled (the checkbox too — its value is already
+       committed to the run). Esc and outside click are INERT. There is
+       deliberately NO percentage bar: the write is one atomic transaction
+       and a progress number would be fiction.
+       Lock contention (navigator.locks 'kubushka-db', another tab writing)
+       shows "Waiting for another tab…" in the SAME slot — same treatment,
+       different word, so the user never sees two competing progress ideas.
+       D7: confirm → pending = label crossfade + 1.2s opacity pulse loop;
+       reduced-motion: instant swap, no pulse. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 · 3 — pending + lock wait</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 380px;max-width:560px">
+      <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:28px 18px;display:grid;place-items:center">
+        <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+          <h3 style="margin:0 0 6px;font-size:18px">Import into live</h3>
+          <div style="font-size:11px;color:#8b8a86;line-height:1.6;margin-bottom:14px"><span style="font-family:'Spline Sans Mono',monospace">kubushka-backup-2026-08-03.json</span> · exported 03.08.2026 21:14 · from live</div>
+          <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#f0cec7;color:#693f35;margin-bottom:16px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            <div style="flex:1;font-size:12.5px;line-height:1.55">Replaces everything in the live dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.</div>
+          </div>
+          <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:14px 16px;opacity:.7"><!-- the diff stays legible, dimmed with the disabled block -->
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">What changes</div>
+            <div style="font-size:12.5px;color:#26262a">Assets <span style="color:#8f6b33;font-weight:700">4</span> · Snapshots <span style="color:#8f6b33;font-weight:700">173</span> <span style="color:#a8695a;font-weight:700">−1</span> · Transactions <span style="color:#8f6b33;font-weight:700">18</span> <span style="color:#a8695a;font-weight:700">−1</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:14px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Safety backup downloaded — kubushka-before-import-2026-08-04.json.</span>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+            <button disabled style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Cancel</button>
+            <button disabled style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.7">Replacing…</button>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#8b8a86;line-height:1.7;margin-top:8px">The safety-backup line switches to the past tense once the file has been handed to the browser — the guarantee is stated as a FACT before the write and as a FACT after it, never as a promise mid-flight. Button opacity follows the two D23 disabled tiers: busy .7 on the working control, gated .5 on Cancel.</div>
+    </div>
+
+    <div style="flex:1 1 300px;max-width:420px;display:flex;flex-direction:column;gap:12px">
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">lock contention — same slot, different word</span>
+        <button disabled style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.7">Waiting for another tab…</button>
+      </div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">error — the dialog STAYS OPEN, buttons re-enabled</span>
+        <div style="font-size:12px;color:#8b8a86;line-height:1.6">A failed write leaves the dataset exactly as it was (replaceAll is all-or-nothing), so the dialog returns to its DEFAULT state with the same diff — nothing is recomputed, nothing is closed. The failure is a toast.</div>
+      </div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">resolved (success)</span>
+        <div style="font-size:12px;color:#8b8a86;line-height:1.6">The dialog closes on the same symmetric 220ms exit, the success toast fires, and every screen re-renders from the new data (full query invalidation). Other open tabs get exactly one plain toast.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S6 · THE CSV VARIANT OF THE DIALOG
+       ══════════════════════════════════════════════════════════════════
+       CSV import covers SNAPSHOTS ONLY (plan flagged scope cut) and runs
+       through the SAME S2 → S3 → S4 pipeline; only the deltas below change.
+       Detection happens during S2's "Reading…" state — the dialog NEVER
+       opens in an undetected state, and a layout that cannot be detected
+       opens S4 instead (single-reason form).
+       Scope strip = `panel` + `label` with an `i` glyph: this is
+       INFORMATION, not caution, so it is deliberately NOT the warn family.
+       It sits directly under the subline and above the banner — and at
+       360px it must not push the banner below the fold, so the banner comes
+       first in reading/tab order after it.
+       D7: the scope strip joins the dialog's content reveal (fade +
+       slide-from-top-1, 220ms, no separate stagger). Everything else
+       inherits S3. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S6 · CSV variant of the dialog</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center">
+    <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+      <h3 style="margin:0 0 6px;font-size:18px">Import into live</h3>
+      <!-- subline row carries the file name AND the detection line -->
+      <div style="font-size:11px;color:#8b8a86;line-height:1.6"><span style="font-family:'Spline Sans Mono',monospace">kubushka-snapshots-2026-08-04.csv</span></div>
+      <div style="font-size:11px;color:#8b8a86;line-height:1.6;margin-bottom:14px">Detected wide layout — 174 dates × 4 asset columns.</div>
+
+      <!-- SCOPE STRIP — panel block, radius 16, padding 12×14 -->
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#eceae7;color:#6f6e6a;margin-bottom:12px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+        <div style="flex:1;font-size:12px;line-height:1.55">CSV import covers snapshots only — assets and transactions stay exactly as they are. Restore those from a JSON backup.</div>
+      </div>
+
+      <!-- SCOPED replace banner — honest about what it destroys: every saved
+           DAY, not every row in the dataset. -->
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:16px;background:#f0cec7;color:#693f35;margin-bottom:16px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <div style="flex:1;font-size:12.5px;line-height:1.55">Replaces every saved day in the live dataset. Snapshots are deleted and rebuilt from this file. This cannot be undone.</div>
+      </div>
+
+      <!-- diff: Snapshots carries the counts; the other two read `unchanged`
+           across all three columns (muted) — provably untouched. -->
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:14px 16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">What changes</div>
+        <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:4px 14px;font-size:12.5px;align-items:center">
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Table</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Added</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Replaced</div>
+          <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:right">Removed</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Assets</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86;grid-column:2 / span 3">unchanged</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Snapshots</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8f6b33;font-weight:700">174</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86">0</div>
+
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">Transactions</div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px;text-align:right;color:#8b8a86;grid-column:2 / span 3">unchanged</div>
+        </div>
+      </div>
+
+      <div style="font-size:13px;margin-top:14px">After import: 174 snapshots.</div>
+      <!-- EMPTY-CELL RESTATEMENT — 12px muted, under the diff. The rule is a
+           COPY obligation, not only a parser rule: a spreadsheet user will
+           otherwise type 0. -->
+      <div style="font-size:12px;color:#8b8a86;line-height:1.6;margin-top:8px">Empty cells stay empty — those days keep no quote for that asset, and no figure treats them as zero.</div>
+
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:14px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span>A backup of your current live data downloads automatically before anything is replaced — kubushka-before-import-2026-08-04.json.</span>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Cancel</button>
+        <!-- snapshot-scoped confirm — NEVER S3's whole-dataset wording -->
+        <button style="background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.9">Replace snapshots</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV variants: the long-layout detection line and the empty-file case
+       (a deliberate wipe is allowed — it is a warning, not a block). -->
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin-top:14px">
+    <div style="flex:1 1 300px;max-width:420px;background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">detection line — long layout</span>
+      <div style="font-size:11px;color:#8b8a86">Detected long layout — 696 quote rows over 174 dates.</div>
+    </div>
+    <div style="flex:1 1 380px;max-width:560px;background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">empty CSV — header, no data rows (still confirmable)</span>
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:12px 14px;font-size:12.5px">Snapshots <span style="color:#8b8a86">0 added</span> · <span style="color:#8b8a86">0 replaced</span> · <span style="color:#a8695a;font-weight:700">−174</span> removed</div>
+      <div style="background:#f0e6cb;color:#6b5527;border-radius:16px;padding:12px 14px;margin-top:10px;display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5"><span style="flex:none;font-weight:700;line-height:1.4">!</span><span>This file has no rows — all 174 saved days would be removed.</span></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S4 · REJECTED-FILE REPORT
+       ══════════════════════════════════════════════════════════════════
+       Same dialog shell as S3. NOTHING here mutates and nothing here may
+       suggest something was written — the lead line says so first.
+       Lead line in `neg`; the list lives in a `panel` sub-panel, radius 16,
+       with INTERNAL scroll (max-h ~200px) so the page never scrolls. Items
+       are mono 11.5px, location FIRST, inert but selectable (a user can copy
+       a line — no copy button needed). NEVER neg-tint (nothing was
+       destroyed) and never dashed (nothing is proposed).
+       Initial focus on "Close"; Esc closes. No toast — the dialog IS the
+       message.
+       D7: open 300ms soft · list items fade only, NO stagger (a wall of
+       staggered errors reads as an animation, not a report) · close
+       symmetric 220ms · press scale .97. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S4 · rejected file — row errors</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:rgba(38,38,42,.4);border-radius:24px;padding:36px 20px;display:grid;place-items:center">
+    <div style="background:#fff;border-radius:24px;padding:24px;width:100%;max-width:480px;box-sizing:border-box;box-shadow:0 12px 40px rgba(38,38,42,.18)">
+      <h3 style="margin:0 0 6px;font-size:18px">This file can't be imported</h3>
+      <div style="font-size:11px;color:#8b8a86;font-family:'Spline Sans Mono',monospace;margin-bottom:12px">kubushka-backup-2026-08-01.json</div>
+      <div style="font-size:13px;color:#a8695a;line-height:1.5;margin-bottom:14px">Nothing was changed. Fix the file and try again.</div>
+
+      <!-- exact count; singular "1 problem found"; NO cap line when ≤ 10 -->
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">12 problems found — showing the first 10</div>
+      <div style="background:#eceae7;border-radius:16px;padding:12px 14px;max-height:200px;overflow-y:auto">
+        <!-- long ids/paths wrap at CHARACTER boundaries rather than
+             overflowing; every wording comes from structured issue tokens in
+             the component layer (D8) — only the D12 parser strings appear as
+             mono technical detail, and only in the single-reason forms
+             below. -->
+        <div style="font-size:11.5px;line-height:1.9;color:#26262a;overflow-wrap:anywhere">
+          <div>transactions.tx-0007 — unknown asset id "a-9"</div>
+          <div>snapshots.2026-07-25 — quote for an unknown asset "a-9"</div>
+          <div>snapshots — duplicate date 2026-07-25 (date is the primary key)</div>
+          <div>assets.2.createdAt — expected timezone-less yyyy-MM-ddTHH:mm:ss</div>
+          <div>transactions.tx-0012.amount — expected a positive number</div>
+          <div>transactions.tx-0013 — unknown asset id "a-9"</div>
+          <div>transactions.tx-0021.amount — expected a positive number</div>
+          <div>snapshots.2026-07-26 — quote for an unknown asset "a-9"</div>
+          <div>assets.3.createdAt — expected timezone-less yyyy-MM-ddTHH:mm:ss</div>
+          <div>transactions.tx-0044 — unknown asset id "a-9"</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#8b8a86;line-height:1.6;margin-top:10px">Rows are checked before anything is written — one bad row stops the whole import.</div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;outline:2px solid #26262a;outline-offset:2px" style-hover="opacity:.85">Close</button><!-- initial focus -->
+        <!-- re-opens the file dialog DIRECTLY from here — never a dead end -->
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Choose another file…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SINGLE-REASON FORMS — a format-level rejection is ONE sentence, never
+       a list (the row list would be noise). Each may carry ONE mono 11.5px
+       muted technical detail line quoted verbatim from the parser: the D12
+       issue strings live HERE and nowhere else. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S4 · single-reason forms + their mono technical detail</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <div style="flex:1 1 340px;max-width:520px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;color:#a8695a;line-height:1.5">That file isn't valid JSON.</div>
+      <div style="font-size:11.5px;color:#8b8a86;font-family:'Spline Sans Mono',monospace;margin-top:6px;overflow-wrap:anywhere">Not valid JSON: Unexpected token } in JSON at position 4193</div>
+    </div>
+
+    <div style="flex:1 1 340px;max-width:520px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;color:#a8695a;line-height:1.5">This isn't a Kubushka backup — it has no "kubushka-backup" marker.</div>
+      <div style="font-size:11.5px;color:#8b8a86;font-family:'Spline Sans Mono',monospace;margin-top:6px;overflow-wrap:anywhere">Not a kubushka-backup file (format: 'undefined').</div>
+    </div>
+
+    <div style="flex:1 1 340px;max-width:520px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;color:#a8695a;line-height:1.5">This backup was written by a newer version of the app (format 2). Update the app, or export again from the version that wrote it.</div>
+      <div style="font-size:11.5px;color:#8b8a86;font-family:'Spline Sans Mono',monospace;margin-top:6px;overflow-wrap:anywhere">Unsupported formatVersion 2 — this app reads formatVersion 1 only.</div>
+    </div>
+
+    <div style="flex:1 1 340px;max-width:520px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;color:#a8695a;line-height:1.5">Couldn't read the header row.</div>
+      <!-- the ONE place a machine-format string legitimately appears on
+           screen: a mono technical-detail line, never display copy -->
+      <div style="font-size:11.5px;color:#8b8a86;font-family:'Spline Sans Mono',monospace;margin-top:6px;overflow-wrap:anywhere">expected date,cash,&lt;Asset name (id)&gt;… (wide) or date,assetId,quote (long)</div>
+    </div>
+  </div>
+
+  <!-- CSV ROW ERRORS — the same list treatment, CSV vocabulary. A
+       Z-suffixed datetime and a display-formatted number are BOTH
+       rejections, by design (D12: timezone-less ISO by plain regex; the
+       machine/display split). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S4 · CSV row errors + header-matching errors (verbatim)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="max-width:560px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">6 problems found</div>
+    <div style="background:#eceae7;border-radius:16px;padding:12px 14px">
+      <div style="font-size:11.5px;line-height:1.9;color:#26262a;overflow-wrap:anywhere">
+        <div>Row 5 — "31.07.2026" is not a yyyy-MM-dd date</div>
+        <div>Row 12 — "68 702,10" is not a machine number (use 68702.10)</div>
+        <div>Row 18 — duplicate date 2026-07-25</div>
+        <div>Row 3 — cash is missing</div>
+        <div>Header column 3 — "OVDP" doesn't match any asset in live</div>
+        <div>Header column 3 — "OVDP" matches 2 assets in live — use the "Asset name (id)" form</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:#b3b2ae;margin-top:8px;line-height:1.6">(one dialog shows only the errors that fired; no cap line at all when ≤ 10, and the singular microlabel reads exactly "1 problem found")</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       360px — THE DIALOG
+       ══════════════════════════════════════════════════════════════════
+       Below ~420px each table becomes its OWN BLOCK: name line, then the
+       three counts inline as `+4 · 173 · −1` with their column words as
+       10px labels. Buttons stack full width with the destructive one LAST.
+       The dialog keeps max-h calc(100dvh − 48px) and scrolls INTERNALLY —
+       the page never scrolls horizontally. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 at 360px — per-table blocks</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="width:360px;background:rgba(38,38,42,.4);border-radius:24px;padding:12px;box-sizing:border-box">
+    <div style="background:#fff;border-radius:24px;padding:18px;box-sizing:border-box">
+      <h3 style="margin:0 0 6px;font-size:17px;line-height:1.25">Import into live</h3>
+      <div style="font-size:11px;color:#8b8a86;line-height:1.6;margin-bottom:12px;overflow-wrap:anywhere"><span style="font-family:'Spline Sans Mono',monospace">kubushka-backup-2026-08-03.json</span> · exported 03.08.2026 21:14 · from live</div>
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:12px;border-radius:16px;background:#f0cec7;color:#693f35;margin-bottom:14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <div style="flex:1;font-size:12px;line-height:1.5">Replaces everything in the live dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.</div>
+      </div>
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:12px 14px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">What changes</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <div style="font-size:12.5px;font-weight:600">Assets</div>
+            <div style="display:flex;gap:14px;margin-top:2px;font-size:12.5px">
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">added </span><span style="color:#8b8a86">0</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">replaced </span><span style="color:#8f6b33;font-weight:700">4</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">removed </span><span style="color:#8b8a86">0</span></span>
+            </div>
+          </div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">
+            <div style="font-size:12.5px;font-weight:600">Snapshots</div>
+            <div style="display:flex;gap:14px;margin-top:2px;font-size:12.5px">
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">added </span><span style="color:#8b8a86">0</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">replaced </span><span style="color:#8f6b33;font-weight:700">173</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">removed </span><span style="color:#a8695a;font-weight:700">−1</span></span>
+            </div>
+          </div>
+          <div style="border-top:1px solid #e8e7e4;padding-top:8px">
+            <div style="font-size:12.5px;font-weight:600">Transactions</div>
+            <div style="display:flex;gap:14px;margin-top:2px;font-size:12.5px">
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">added </span><span style="color:#8b8a86">0</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">replaced </span><span style="color:#8f6b33;font-weight:700">18</span></span>
+              <span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">removed </span><span style="color:#a8695a;font-weight:700">−1</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:13px;margin-top:12px;line-height:1.5">After import: 4 assets · 173 snapshots · 18 transactions.</div>
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#8b8a86;line-height:1.6;margin-top:12px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:3px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <span style="overflow-wrap:anywhere">A backup of your current live data downloads automatically before anything is replaced — kubushka-before-import-2026-08-04.json.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px">
+        <button style="width:100%;background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;box-sizing:border-box">Cancel</button>
+        <button style="width:100%;background:#a8695a;color:#fff;border:none;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;box-sizing:border-box">Replace all data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TOAST COPY — VERBATIM (sonner, existing motion)
+       ══════════════════════════════════════════════════════════════════
+       The other-tab notice is the ONLY cross-tab visible element: one plain
+       toast in every OTHER open tab (BroadcastChannel 'kubushka-sync'),
+       which then re-renders with the new data. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Toast copy — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Data imported — 4 assets, 173 snapshots, 18 transactions.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Snapshots imported — 174 days.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not import — nothing was changed.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not create the safety backup — nothing was imported.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Data was replaced in another tab.</div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

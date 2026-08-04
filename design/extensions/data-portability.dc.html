@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/data-portability.dc.html — Phase 4 design reference
+  (G7/D14). Surfaces: S1 the FINISHED Settings → Data card (final row
+  order, drawn complete in BOTH datasets) · S2 the import row (file field +
+  solid drop target) · S5 the CSV export row + button group · S6 the
+  Data-card side of the CSV-import deltas · S7 all seven file-mirror states
+  (incl. the ABSENT row on non-Chromium) · S8 the danger zone's final look.
+  Parent screen: `/settings` — the P2 card stack (design/extensions/
+  settings.dc.html lines 104–305; the Data card as it stood: 208–261;
+  live-mode fragment 354–383). Master reference: card/microlabel anatomy
+  147–210, nested sub-panel geometry 116–125, footnote voice 303–339.
+  Brief (copy/behavior authority): docs/design-briefs/phase-4-data-portability.md
+  §S1, S2, S5, S6, S7, S8. Visual authority once merged: THIS file (D14).
+
+  The import DIALOG (S3 preview/diff + S4 rejected-file report + the
+  dialog-side CSV deltas of S6) is a different surface and lives in
+  design/extensions/import-dialog.dc.html — nothing spans two files.
+
+  ★★★ NO NEW TOKENS IN THIS PHASE — ONE DOCUMENTED WIDENING ★★★
+  ★
+  ★ The P3 reference reserved neg-tint/neg-tint-text for "the overdue
+  ★ reminder severity" only (design/extensions/reminders.dc.html header).
+  ★ Phase 4 widens that reservation to irreversible-harm framing at BLOCK
+  ★ scale — two sites and no more:
+  ★     1. the S3 "Replaces everything" banner  (import-dialog.dc.html)
+  ★     2. the S8 danger-zone panel border + microlabel  (THIS file)
+  ★ The widened rule, verbatim from the brief:
+  ★
+  ★   **`neg-tint`/`neg-tint-text` are block-level framing for overdue
+  ★   reminders and irreversible-harm surfaces — never for validation
+  ★   messages (those stay `neg` text on `card`), never for numbers, deltas
+  ★   or counts, never for a routine control or a pressable's own fill.**
+  ★
+  ★ Why: raw neg #a8695a carries a 13px sentence at only ~3.6:1 on `card`,
+  ★ while neg-tint-text #693f35 is 6.08:1 on neg-tint #f0cec7 and 8.89:1 on
+  ★ card. Values are UNCHANGED (minted in reminders.dc.html); this phase
+  ★ mints nothing. The implementing task records the widening in
+  ★ docs/DECISIONS.md.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  ★★★ SAFETY-FIRST DOCTRINE — the phase's binding rule (brief Global) ★★★
+  ★ Every import is: validate fully → show a diff → the user confirms →
+  ★ ONE rw transaction. NOTHING on this screen writes, replaces or deletes
+  ★ on a parse, a preview, a hover, a drag or a mount — a press is the only
+  ★ way anything changes, and the S3 Confirm is the sole import write path.
+  ★ A safety backup DOWNLOADS BEFORE anything is replaced. IndexedDB stays
+  ★ the only system of record: an imported file is data the user pushed in,
+  ★ the mirror file is a copy the app pushes out, and NO FILE IS EVER READ
+  ★ BACK on its own. Every destructive sentence NAMES ITS DATASET.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  Tokens used — all existing (src/index.css @theme): page #f6f5f3 · ink
+  #26262a · card #fff · muted #8b8a86 · faint #b3b2ae · hairline #e8e7e4 ·
+  panel #eceae7 · panel-border #dedcd8 · label #6f6e6a · pos #5c7355 ·
+  pos-tint #e3eadf · pos-tint-text #4c5a48 · neg #a8695a · neg-tint #f0cec7
+  · neg-tint-text #693f35 (S8 border + microlabel ONLY — the widened rule
+  above) · warn #8f6b33 · warn-tint #f0e6cb · warn-tint-text #6b5527 ·
+  the 4 asset hues. Card shadow 0 1px 3px rgba(38,38,42,.06) and the
+  overlay/dialog shadow 0 12px 40px rgba(38,38,42,.18) are the pinned v1
+  literals, both token-derived (ink at low alpha).
+
+  DASHED IN THIS FILE: only the 10px-uppercase SPEC-ANNOTATION chips — no
+  UI control in Phase 4 is dashed (P3's rule: dashed = PROPOSED, and the
+  only proposed thing in this phase is the import preview panel, drawn in
+  import-dialog.dc.html). The drop target is therefore a SOLID
+  panel-border frame on panel.
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  Light theme only (dark theme is Phase 5). Motion (D7) annotated in
+  comments — defaults 220ms cubic-bezier(0.22,1,0.36,1), hover 150ms,
+  reveals 300–400ms, pressables active:scale-[.97]; prefers-reduced-motion
+  collapses everything.
+
+  DATA: the demo card shows the D5 seed unchanged (4 assets / 174 snapshots
+  / 18 transactions · ₴149,016.36 — no pinned figure is altered anywhere in
+  this file). Mirror times/names and the live card's file name are
+  live-dataset illustrations, annotated in place; the app derives everything.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Data portability" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S1 · THE FINISHED DATA CARD — LIVE DATASET
+       ══════════════════════════════════════════════════════════════════
+       Rendered in its place inside the /settings card stack (pinned P2
+       order Portfolio → Data → Automation → Appearance — this phase adds
+       ROWS, never a fifth card). Neighbours are drawn collapsed at
+       opacity .55; they are UNCHANGED (settings.dc.html, automation.dc.html).
+       Card: radius 24, padding 22. SIX blocks, pinned order:
+         1 Dataset  2 Backup  3 Import  4 Spreadsheet export (CSV)
+         5 Keep a file in sync  6 Danger zone (a sub-panel, not a row)
+       Rows 1–5 are separated by the existing 1px hairline Divider (my 16px).
+       The danger sub-panel gets 18px of air above it and NO divider — its
+       border is the separation.
+       There is no hover state on the card or its rows (nothing in the label
+       column is clickable); every hover/focus/disabled state below belongs
+       to a control. FOCUS is the global `:focus-visible` 2px `ink` ring at
+       offset 2 (the &lt;style&gt; block above) on every control in the card —
+       drawn once on the S2 button and inherited everywhere else.
+       LOADING: every row renders immediately (all controls are local); only
+       counts inside a row wait for their query. ERROR belongs to the row
+       that caused it, never to the section. EMPTY: an empty active dataset
+       changes nothing here — Backup and the CSV buttons stay enabled (a
+       valid empty file is a valid export) and Import is the way in. STALE:
+       n/a, nothing in this card caches.
+       D7: route mount = the card joins the existing staggered entry (fade +
+       slide-from-bottom-1, 300ms soft, 75ms step) · a row's content height
+       changing (mirror status, rejection message) = height + fade 220ms soft;
+       reduced-motion: instant. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S1 · Data card — LIVE (mirror linked · Erase)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="max-width:720px;display:flex;flex-direction:column;gap:14px">
+
+    <!-- neighbour: Portfolio card (unchanged, collapsed for context) -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);opacity:.55">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Portfolio</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:6px">Asset manager · Targets — unchanged (settings.dc.html)</div>
+    </div>
+
+    <!-- ══ THE CARD ══ -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Data</div>
+
+      <!-- ── 1 · Dataset — UNCHANGED from P2 S5 (settings.dc.html 214–230).
+           Live is active here, so the sidebar DEMO badge is absent app-wide. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Dataset</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.</div>
+        </div>
+        <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Demo</button>
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Live</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- ── 2 · Backup — the P2 row with SUPERSEDED helper copy: the promise
+           "Restore arrives with import in a later release." is GONE and now
+           points at the Import row below. Button unchanged (outline md).
+           Enabled in both datasets and while the dataset is EMPTY (a valid
+           empty export is a valid export). Error toast unchanged:
+           "Could not build the backup — please try again."
+           D7: hover fill 150ms · press scale .97 220ms. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Backup</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Full JSON backup of the active dataset — kubushka-backup-&lt;date&gt;.json. Restore it with Import below.</div>
+        </div>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Download backup</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- ── 3 · Import (S2) — label block spans the full row width (there is
+           no right-hand control: the ONE "Choose file…" button lives inside
+           the drop panel, so the row adds exactly one tab stop and drop stays
+           a pointer-only enhancement).
+           Panel: bg panel #eceae7, SOLID 1px panel-border #dedcd8 (never
+           dashed — a dashed affordance would read as a machine's guess),
+           radius 16, padding 20, centered.
+           Nothing is read, parsed or written until a file arrives, and even
+           then reading resolves into exactly one of two DIALOGS (S3 preview
+           or S4 report) — never a silent no-op, never a write.
+           D7: drag enter = bg panel → hairline + border panel-border → ink,
+           150ms · drag leave symmetric 150ms · reading = label opacity pulse
+           1.2s ease-in-out loop · rejection message = fade +
+           slide-from-top-1 220ms in, fade 220ms out · press scale .97;
+           reduced-motion: instant, no pulse. -->
+      <div>
+        <div style="font-size:13px;font-weight:600">Import</div>
+        <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5;max-width:520px">Restore a JSON backup, or load a CSV of snapshots. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.</div>
+        <div style="margin-top:12px;background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="font-size:13px">Drop a .json or .csv file here</div>
+          <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+          <!-- the visually hidden <input type="file" accept=".json,.csv"> is
+               label-bound to this button, so keyboard users never meet the
+               drag path -->
+          <button style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Choose file…</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- ── 4 · Spreadsheet export (CSV) (S5) — three outline pills in a
+           right-aligned wrap group, then TWO muted note lines spanning the
+           row. Pill geometry = the existing `header` size variant (padding
+           8px 18px, 13px Space Grotesk 600, icon 13px): the brief asks for
+           "outline `sm`, 13 px" and those name two different existing things
+           (`sm` is 12px), so the 13px type scale wins and `header` already
+           delivers it — no new size variant is minted.
+           Save-picker parity (pinned): where showSaveFilePicker exists the
+           browser's Save-as dialog opens; elsewhere the file lands in
+           Downloads via <a download>. The UI never mentions the difference
+           and a CANCELLED Save-as is not an error (AbortError swallowed —
+           no toast, no message). Same rule for "Download backup". The one
+           exception: the S3 automatic pre-import safety backup ALWAYS uses
+           <a download> — a guarantee must not be cancellable.
+           D7: hover fill 150ms · press scale .97 220ms · the pressed button's
+           disabled flip while its file builds = opacity 220ms soft (the other
+           two stay live); reduced-motion: instant. -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Spreadsheet export (CSV)</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">One file per table, ready for a spreadsheet. Snapshots export wide — one row per date, one column per asset; an empty cell means no quote was saved that day, never zero.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Assets</button>
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Snapshots</button>
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Transactions</button>
+        </div>
+      </div>
+      <!-- the two format notes: footnote voice (master 303–339), 11px muted -->
+      <div style="font-size:11px;color:#8b8a86;margin-top:10px;line-height:1.6">Machine format: dot decimals, comma separators, UTF-8, CRLF. The app's own 68 702,10 display formatting never goes into a file.</div>
+      <div style="font-size:11px;color:#8b8a86;margin-top:2px;line-height:1.6">Snapshot columns are named "Asset name (id)" — the id in brackets is what a re-import matches on.</div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- ── 5 · Keep a file in sync (S7) — LINKED state: chip right of the
+           title on the label line, file name as the label block's third
+           line, buttons right. Chromium only (the whole row is ABSENT
+           elsewhere — see the S7 fragments) and disabled in demo.
+           WRITE-ONLY: the file is a copy the app pushes out; it is never
+           read back and never authoritative.
+           Times are the LOCAL clock (a file write happens on the user's
+           machine) — contrast P3, where Inzhur times are Kyiv because the
+           prices are stamped there.
+           D7: chip appears / label changes = re-keyed fade + zoom-in-95
+           150ms · chip state flip = bg/color crossfade 220ms soft · link /
+           unlink = row content crossfade + height 220ms soft · status line
+           reveal = height + fade + slide-from-top-1 300ms soft;
+           reduced-motion: instant. -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Keep a file in sync</span>
+            <span title="Last written 13:42 — the app's database is the source of truth." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">Synced 13:42</span>
+          </div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Written after every change. The previous contents are kept beside it as &lt;name&gt;.bak.</div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:4px">kubushka-mirror.json</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Sync now</button>
+          <!-- unlinking needs no confirmation: the file stays on disk and
+               nothing is destroyed. Toast: "File mirror unlinked" -->
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="opacity:.85">Unlink</button>
+        </div>
+      </div>
+
+      <!-- ── 6 · Danger zone (S8) — a nested sub-panel, NOT a SettingRow, and
+           the last block in the card. 18px of air above, no Divider: the
+           tint border IS the separation (the routine rows are hairline, so a
+           tint border already reads as "different"; a full-strength
+           terracotta frame would shout over the trigger it contains).
+           Geometry from the master's "New asset details" panel (116–125) —
+           geometry only, SOLID border here.
+           neg-tint appears ONLY as this border and the microlabel: no tinted
+           background block, no tinted numbers (the widened rule in the
+           header).
+           Trigger visibility by dataset (D17, unchanged): live shows
+           "Erase live data…", demo shows "Reset demo data…" — never both,
+           never a disabled one. The trigger is always live; the DIALOG does
+           the typed-name arming, and its copy/toasts are untouched from
+           P2 S6 / D17.
+           D7: trigger hover = neg fill at 8% 150ms · press scale .97 220ms ·
+           dialog open/close = the D17 shell (300ms open, symmetric 220ms). -->
+      <div style="margin-top:18px;background:#fff;border:1px solid #f0cec7;border-radius:16px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#693f35;font-weight:700">Danger zone</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:6px;line-height:1.5">These actions delete data outright. Both ask you to type the dataset name and offer a backup first. Import also replaces everything — it lives above, with its own automatic backup.</div>
+        </div>
+        <button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:rgba(168,105,90,.08)">Erase live data…</button>
+      </div>
+    </div>
+
+    <!-- neighbours: Automation + Appearance (unchanged, collapsed) -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);opacity:.55">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Automation</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:6px">Quote suggestions · Coupon suggestions · Reminders — unchanged (automation.dc.html)</div>
+    </div>
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);opacity:.55">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Appearance</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:6px">Currency · ₴/$ rate · theme + language placeholders — unchanged (settings.dc.html)</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S1 · THE SAME CARD — DEMO DATASET
+       ══════════════════════════════════════════════════════════════════
+       Differences, and ONLY these: the Dataset segment shows Demo · the
+       Import row carries the demo note · the mirror control is DISABLED at
+       opacity .5 with an in-button DEMO micro-tag and a title tooltip on a
+       HIT-TESTABLE wrapper (a disabled button is not hit-testable —
+       disabled:pointer-events-none — so its own title never fires: P3 S1 /
+       D23) · the danger zone shows "Reset demo data…".
+       Import, Backup and CSV are FULLY ENABLED in demo: import targets the
+       ACTIVE dataset and "Reset demo data…" is the escape hatch (G4/D16).
+       The section keeps its shape in both datasets — no row is hidden by
+       disablement. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S1 · Data card — DEMO (mirror off · Reset · note)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="max-width:720px">
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Data</div>
+
+      <!-- 1 · Dataset — Demo active (sidebar DEMO badge is showing app-wide) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Dataset</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.</div>
+        </div>
+        <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Demo</button>
+          <button style="border:none;cursor:pointer;padding:6px 22px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Live</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- 2 · Backup — identical copy; backs up the ACTIVE (demo) dataset,
+           and the envelope stamps dataset:"demo" (D16) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Backup</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Full JSON backup of the active dataset — kubushka-backup-&lt;date&gt;.json. Restore it with Import below.</div>
+        </div>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Download backup</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- 3 · Import — ACTIVE in demo; the 11px muted demo note is the only
+           difference, and it names the dataset it would replace. -->
+      <div>
+        <div style="font-size:13px;font-weight:600">Import</div>
+        <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5;max-width:520px">Restore a JSON backup, or load a CSV of snapshots. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.</div>
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px;line-height:1.6;max-width:520px">You're in the demo dataset — importing here replaces the reference portfolio. "Reset demo data…" brings it back.</div>
+        <div style="margin-top:12px;background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="font-size:13px">Drop a .json or .csv file here</div>
+          <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+          <button style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Choose file…</button>
+        </div>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- 4 · CSV — ACTIVE in demo, exports the ACTIVE dataset exactly like
+           "Download backup". A demo snapshots export re-imported into demo
+           returns every D5-pinned figure unchanged (acceptance). -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Spreadsheet export (CSV)</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">One file per table, ready for a spreadsheet. Snapshots export wide — one row per date, one column per asset; an empty cell means no quote was saved that day, never zero.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Assets</button>
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Snapshots</button>
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Transactions</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#8b8a86;margin-top:10px;line-height:1.6">Machine format: dot decimals, comma separators, UTF-8, CRLF. The app's own 68 702,10 display formatting never goes into a file.</div>
+      <div style="font-size:11px;color:#8b8a86;margin-top:2px;line-height:1.6">Snapshot columns are named "Asset name (id)" — the id in brackets is what a re-import matches on.</div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- 5 · Mirror — DEMO-DISABLED. No chip, no file line (nothing is
+           linked and no handle can be created here). The tooltip rides on a
+           hit-testable <span> wrapper AND on the button (the wrapper makes
+           it fire, the attribute keeps the accessible description) — D23. -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Keep a file in sync</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Kubushka rewrites one JSON file after every change. Put it in a synced folder and another device gets a copy. The app's database stays the source of truth — the file is written, never read back.</div>
+        </div>
+        <span title="Mirroring is disabled in the demo dataset — switch to Live in Settings → Data." style="display:inline-flex">
+          <button disabled title="Mirroring is disabled in the demo dataset — switch to Live in Settings → Data." style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 14px 9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Choose file…<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 7px">DEMO</span></button>
+        </span>
+      </div>
+
+      <!-- 6 · Danger zone — the demo variant of the trigger; the panel frame
+           and copy are identical. -->
+      <div style="margin-top:18px;background:#fff;border:1px solid #f0cec7;border-radius:16px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#693f35;font-weight:700">Danger zone</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:6px;line-height:1.5">These actions delete data outright. Both ask you to type the dataset name and offer a backup first. Import also replaces everything — it lives above, with its own automatic backup.</div>
+        </div>
+        <button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:rgba(168,105,90,.08)">Reset demo data…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S2 · IMPORT ROW — STATES
+       ══════════════════════════════════════════════════════════════════
+       A dropped file and a picked file take the identical code path and
+       produce the identical outcome. Dragging over the panel must not
+       scroll the page or let the browser open the file in the tab; a drag
+       that LEAVES the panel returns to default with NO message.
+       Import is never disabled — it is the recovery path in every dataset;
+       a mutation in flight is the S3 dialog's business. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S2 · drop target — 4 states</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- hover: border → faint; the copy stays put (no lift, no scale — the
+         panel is a container, not a pressable) -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">hover over the panel (150ms)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="background:#eceae7;border:1px solid #b3b2ae;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="font-size:13px">Drop a .json or .csv file here</div>
+          <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+          <button style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Choose file…</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- drag-over: bg → hairline-level fill, border → ink, first line
+         replaced. Still nothing is read — the drop is what reads. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">drag-over — a file is hovering</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="background:#e8e7e4;border:1px solid #26262a;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#26262a" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="font-size:13px;font-weight:600">Release to read the file</div>
+          <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+          <button style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Choose file…</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- loading: the panel BODY swaps to one reading line (1.2s opacity
+         pulse) and the button is disabled. Long names truncate in the
+         MIDDLE and the line never wraps. Reading a 5 MB file must never
+         freeze the row silently — this state is the proof it did not. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">loading · reading (pulse 1.2s)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="opacity:.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <div style="font-size:13px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%">Reading kubushka-backup-2026-08-04.json…</div>
+          <button disabled style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Choose file…</button>
+        </div>
+        <div style="font-size:11px;color:#b3b2ae;margin-top:8px">middle-truncated variant: kubushka-back…-08-04.json</div>
+      </div>
+    </div>
+
+    <!-- focus: the ring lands on "Choose file…" only — the panel is NOT
+         focusable and adds no second tab stop. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">focus-visible — one tab stop</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <div style="font-size:13px">Drop a .json or .csv file here</div>
+          <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+          <button style="margin-top:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;outline:2px solid #26262a;outline-offset:2px">Choose file…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILE-LEVEL REJECTIONS — the pinned messages, `warn` (never `neg`:
+       picking the wrong file is not an error worth alarming about). They
+       render UNDER the panel, leave the panel in its default state, open
+       NOTHING, and touch no data. Each clears on the next attempt or after
+       ~5s. Parse-level rejections are a different thing entirely — they
+       open the S4 report (import-dialog.dc.html). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S2 · error — file-level rejections (warn)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="max-width:560px;background:#fff;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;flex-direction:column;gap:9px">
+    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#8f6b33;line-height:1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>That file type isn't supported — pick a .json backup or a .csv table.</span></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#8f6b33;line-height:1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>That file is larger than 25 MB — it doesn't look like a Kubushka export.</span></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#8f6b33;line-height:1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>Drop one file at a time.</span></div>
+    <div style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#8f6b33;line-height:1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="flex:none;margin-top:3px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg><span>That file is empty.</span></div>
+    <!-- COUNT NOTE (flagged, not invented): the brief's acceptance line says
+         "All five file-level rejections show their pinned copy", while its
+         copy inventory pins FOUR strings — type · size · count · empty. This
+         reference draws the four verbatim and names the fifth OUTCOME rather
+         than inventing a fifth sentence: a file that clears all four gates
+         goes on to PARSING, and a parse failure is the S4 report
+         (import-dialog.dc.html), not a file-level message. If a fifth
+         file-level string is intended, the brief owns that copy decision
+         (D14: the brief wins copy). -->
+    <div style="font-size:11px;color:#b3b2ae;line-height:1.6">Four pinned file-level strings; the fifth outcome is "the file is fine, keep going" → parse → S3 preview or S4 report. Every one of these leaves the active dataset untouched.</div>
+  </div>
+
+  <!-- 360px — the import row: copy wraps to three lines, the button sits
+       under it, full-width-capped at ~200px; no page-level horizontal
+       scroll. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S2 at 360px — stacks, never scrolls</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:16px;box-sizing:border-box">
+    <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;font-weight:600">Import</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Restore a JSON backup, or load a CSV of snapshots. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.</div>
+      <div style="margin-top:12px;background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <div style="font-size:13px;line-height:1.45">Drop a .json or .csv file here</div>
+        <div style="font-size:11px;color:#8b8a86">or use Choose file…</div>
+        <button style="margin-top:6px;width:100%;max-width:200px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;box-sizing:border-box">Choose file…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S5 · CSV EXPORT — STATES
+       ══════════════════════════════════════════════════════════════════
+       An EMPTY table exports a header-only file and its button stays
+       ENABLED: a valid empty export is the honest answer, and disabling it
+       would look like a bug. No success toast — the browser's own download
+       indication is the feedback (same as "Download backup", D12). No
+       spinner: sub-second at seed scale (174 rows × 4 columns). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S5 · hover · building · 360px stack</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">hover on Snapshots (150ms)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;gap:8px;flex-wrap:wrap">
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Assets</button>
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:#e9e8e6;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Snapshots</button>
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Transactions</button>
+      </div>
+    </div>
+
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">building — ONLY the pressed button disables (.5)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;gap:8px;flex-wrap:wrap">
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Assets</button>
+        <button disabled style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;opacity:.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Snapshots</button>
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Transactions</button>
+      </div>
+    </div>
+
+    <!-- below ~480px the button group wraps to its own line under the label
+         block; at 360px the three pills stack full width. -->
+    <div style="flex:0 0 auto">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">CSV group at 360px — stacked full width</span>
+      <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:16px;box-sizing:border-box">
+        <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:13px;font-weight:600">Spreadsheet export (CSV)</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">One file per table, ready for a spreadsheet. Snapshots export wide — one row per date, one column per asset; an empty cell means no quote was saved that day, never zero.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+            <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Assets</button>
+            <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Snapshots</button>
+            <button style="display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Transactions</button>
+          </div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:10px;line-height:1.6">Machine format: dot decimals, comma separators, UTF-8, CRLF. The app's own 68 702,10 display formatting never goes into a file.</div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:2px;line-height:1.6">Snapshot columns are named "Asset name (id)" — the id in brackets is what a re-import matches on.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S6 · CSV IMPORT — THE DATA-CARD SIDE OF THE DELTAS
+       ══════════════════════════════════════════════════════════════════
+       S6 is a set of DELTAS to two different surfaces, so it is drawn in
+       two places without either surface spanning two files:
+         • the DIALOG deltas (scope strip, snapshot-scoped replace banner,
+           detection line, empty-cell restatement, "Replace snapshots",
+           the CSV row-error copy) are states of the S3/S4 dialog →
+           design/extensions/import-dialog.dc.html §S6;
+         • the DATA-CARD deltas are here: the import row already accepts
+           .csv (its helper says so and the drop target names both
+           extensions), and the CSV row states the machine format and the
+           empty-cell rule IN WORDS.
+       Scope (plan flagged cut): CSV import covers SNAPSHOTS ONLY — assets
+       and transactions restore from a JSON backup and are provably
+       untouched by a CSV import.
+       The machine/display split, pinned: the UI keeps 68 702,10 / ₴68,629.36
+       / dd.MM.yyyy; FILES carry 68702.10 / 2026-07-27. The app never shows a
+       machine-formatted number in a display context and never writes a
+       display-formatted one into a file. The ONE place a machine string
+       legitimately appears on screen is an S4 mono technical-detail line. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S6 · empty cell ≠ 0 — three views</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- 1 · what the APP shows (master 211–241, unchanged): pending, not 0 -->
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">display context — the app's own table (unchanged)</span>
+      <div style="background:#fff;border-radius:16px;padding:10px 16px 14px;box-shadow:0 1px 3px rgba(38,38,42,.06);overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+          <thead><tr><th style="text-align:left;padding:8px 6px;color:#8b8a86;font-weight:600;border-bottom:1px solid #e8e7e4">Snapshot</th><th style="text-align:right;padding:8px 6px;color:#8b8a86;font-weight:600;border-bottom:1px solid #e8e7e4">Inzhur REIT</th><th style="text-align:right;padding:8px 6px;color:#8b8a86;font-weight:600;border-bottom:1px solid #e8e7e4">Inzhur Energy</th><th style="text-align:right;padding:8px 6px;color:#8b8a86;font-weight:600;border-bottom:1px solid #e8e7e4">Cash</th></tr></thead>
+          <tbody>
+            <tr><td style="padding:8px 6px;font-weight:600">27.07.2026</td><td style="padding:8px 6px;text-align:right">68 702,10</td><td style="padding:8px 6px;text-align:right;color:#b3b2ae">pending</td><td style="padding:8px 6px;text-align:right">7,75</td></tr>
+            <tr><td style="padding:8px 6px;font-weight:600">25.07.2026</td><td style="padding:8px 6px;text-align:right">68 629,36</td><td style="padding:8px 6px;text-align:right">60 086,09</td><td style="padding:8px 6px;text-align:right">7,75</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:11.5px;color:#8b8a86;margin-top:10px">Space thousands, comma decimals, ₴ in prose only — never in a file.</div>
+      </div>
+    </div>
+
+    <!-- 2 · what the FILE holds. This block is a SPEC ANNOTATION of the
+         file's bytes — it is NEVER rendered anywhere in the app. It is here
+         because the serializer and the header-matching rule are visual
+         contracts of the CSV surfaces: wide layout = date,cash,<Asset name
+         (id)>… and a pending quote is an EMPTY cell, never 0 and never the
+         word "pending". -->
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">file bytes — spec annotation, never rendered in the app</span>
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:14px 16px;overflow-x:auto">
+        <pre style="margin:0;font-size:11.5px;line-height:1.8;color:#26262a;white-space:pre">date,cash,Inzhur REIT (reit),Inzhur Energy (energy)
+2026-07-25,7.75,68629.36,60086.09
+2026-07-27,7.75,68702.10,</pre>
+        <div style="font-size:11px;color:#8b8a86;margin-top:10px;line-height:1.6">Wide: one row per date, one column per asset. The trailing empty cell on 2026-07-27 is Energy's PENDING quote — no quote was saved that day. A literal 0 would mean the position was worth zero, and the two must never collapse into each other.</div>
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px;line-height:1.6">Long: date,assetId,quote — one row per quote; a pending quote is simply an absent row. Both layouts auto-detect from the header row, and the detected shape is stated in the dialog.</div>
+      </div>
+    </div>
+
+    <!-- 3 · header matching — the rule behind the pinned S4 error copy -->
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">column matching — id first, then unique name</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:12px;color:#26262a;line-height:1.7">
+        <div>1 · the id in the LAST bracketed group wins — "Inzhur REIT (reit)" → <span style="color:#8b8a86">reit</span> (so an asset name may itself contain brackets).</div>
+        <div>2 · otherwise an exact trimmed, case-insensitive NAME match, and only when that name is unique in the dataset.</div>
+        <div style="margin-top:8px;color:#8b8a86">Anything else is a row error in the S4 list — pinned copy: <span style="font-size:11.5px">Header column 3 — "OVDP" doesn't match any asset in live</span> · <span style="font-size:11.5px">Header column 3 — "OVDP" matches 2 assets in live — use the "Asset name (id)" form</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S7 · FILE MIRROR — ALL SEVEN STATES
+       ══════════════════════════════════════════════════════════════════
+       Best-effort by design: NEVER `neg` anywhere in this row (a mirror
+       failure is a caution, not a data error) and never `pos-border` (that
+       means a parsed, valid quote). The copy states only "last written"
+       facts and never claims a sync guarantee.
+       A mirror write NEVER blocks, delays or rolls back the repository
+       write that triggered it. The handle lives in Dexie `meta`
+       (D9, key `mirrorHandle`) — never localStorage — and a handle whose
+       permission cannot be verified resolves to permission-needs-rearm,
+       NOT to unlinked: losing the user's chosen file silently would be
+       worse than asking.
+       Chip geometry (all four identical, the P3 S2 chip): 10px uppercase,
+       letter-spacing .08em, weight 700, radius 999, padding 2px 8px.
+       Chips are inert (native `title` only).
+       D7 per chip/line/row is annotated on the live card above; the
+       Syncing… pulse is a 1.2s ease-in-out opacity loop (static under
+       reduced motion). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S7 · the seven mirror states</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;max-width:720px">
+
+    <!-- 1 · UNLINKED (default) — title + helper + "Choose file…"; no chip,
+         no file line. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">1 · unlinked (default, live + Chromium)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Keep a file in sync</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Kubushka rewrites one JSON file after every change. Put it in a synced folder and another device gets a copy. The app's database stays the source of truth — the file is written, never read back.</div>
+        </div>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Choose file…</button>
+      </div>
+    </div>
+
+    <!-- 2 · LINKING — the OS picker is open: the button is disabled with its
+         label UNCHANGED (the picker itself is the feedback). A cancelled
+         picker (AbortError) returns to unlinked SILENTLY — no toast, no
+         error styling. Linking writes once immediately, so state 3 never
+         sits in a "linked but never written" limbo. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">2 · linking — OS picker open (label unchanged, cancel is silent)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Keep a file in sync</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Kubushka rewrites one JSON file after every change. Put it in a synced folder and another device gets a copy. The app's database stays the source of truth — the file is written, never read back.</div>
+        </div>
+        <button disabled style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Choose file…</button>
+      </div>
+    </div>
+
+    <!-- 3 · LINKED — chip pos-tint "Synced HH:MM" (today) / "Synced 25.07
+         13:42" when older; file line; Sync now + Unlink. Toast on linking:
+         "File mirror linked". An EMPTY dataset still writes (a valid empty
+         envelope) and the chip stays normal. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">3 · linked + last-synced (pos-tint) · older variant shown under it</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Keep a file in sync</span>
+            <span title="Last written 13:42 — the app's database is the source of truth." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">Synced 13:42</span>
+          </div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Written after every change. The previous contents are kept beside it as &lt;name&gt;.bak.</div>
+          <!-- long names truncate in the MIDDLE and expose the full
+               path-free name via title -->
+          <div title="kubushka-mirror.json" style="font-size:11px;color:#8b8a86;margin-top:4px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">kubushka-mirror.json</div>
+          <div style="font-size:11px;color:#b3b2ae;margin-top:8px">chip when the last write was not today: <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">Synced 25.07 13:42</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Sync now</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="opacity:.85">Unlink</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 · SYNCING — chip panel/muted with the 1.2s pulse; buttons stay
+         LIVE (a queued write coalesces — the debounce ~2s IS the queue).
+         There is no blocking state anywhere in this row. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">4 · syncing — write in flight (buttons stay live)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Keep a file in sync</span>
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#eceae7;color:#8b8a86;border-radius:999px;padding:2px 8px;opacity:.75">Syncing…</span>
+          </div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Written after every change. The previous contents are kept beside it as &lt;name&gt;.bak.</div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:4px">kubushka-mirror.json</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Sync now</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer">Unlink</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 · PERMISSION-NEEDS-REARM — warn-tint chip + the permission line +
+         "Re-allow access" (must be a USER GESTURE). Granting writes
+         immediately and flips to Synced HH:MM; denial keeps this state and
+         toasts "Permission denied — the file wasn't written." -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">5 · permission needs re-arm (warn family, user gesture)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Keep a file in sync</span>
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">Permission needed</span>
+          </div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Your browser needs permission to write this file again — that happens after a restart.</div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:4px">kubushka-mirror.json</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Re-allow access</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="opacity:.85">Unlink</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 · WRITE-FAILED — warn-tint chip + the failure line + "Sync now".
+         The chip PERSISTS until the next successful write (it is status, not
+         a message); the toast is dismissible and fires once per failure
+         burst. The app's own write already succeeded — the data is safe. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">6 · last write failed (status, never blocks the app's write)</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:600">Keep a file in sync</span>
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">Last write failed</span>
+          </div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Couldn't write the file at 13:42 — the folder may be offline. Your data is safe in the app.</div>
+          <div style="font-size:11px;color:#8b8a86;margin-top:4px">kubushka-mirror.json</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Sync now</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="opacity:.85">Unlink</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 · UNSUPPORTED BROWSER — drawn as an annotated GAP, because the
+         correct rendering is NOTHING AT ALL. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">7 · unsupported browser — the row is ABSENT</span>
+      <!-- The gap below is bounded by dashed SPEC annotation only: on
+           Firefox/Safari the Data card renders
+           Dataset → Backup → Import → Spreadsheet export (CSV) → Danger
+           zone, with NO fifth row, NO divider where it would have been, no
+           placeholder and no "your browser doesn't support this" apology.
+           Backup + CSV are the portability story there. Absent from FIRST
+           PAINT — never mounted and animated away. -->
+      <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:18px;display:flex;align-items:center;justify-content:center;text-align:center">
+        <div style="font-size:11px;color:#8b8a86;line-height:1.7;max-width:520px">nothing renders here · the CSV row's divider is the last one in the card · the Danger zone follows directly<br><span style="color:#b3b2ae">(this dashed frame is a spec annotation, not UI)</span></div>
+      </div>
+    </div>
+
+    <!-- demo-disabled — repeated from the demo card so the seven-state set
+         reads in one place; the row keeps its SHAPE in both datasets. -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">demo-disabled (G4/D16) — DEMO tag + tooltip on a hit-testable wrapper</span>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Keep a file in sync</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Kubushka rewrites one JSON file after every change. Put it in a synced folder and another device gets a copy. The app's database stays the source of truth — the file is written, never read back.</div>
+        </div>
+        <span title="Mirroring is disabled in the demo dataset — switch to Live in Settings → Data." style="display:inline-flex">
+          <button disabled title="Mirroring is disabled in the demo dataset — switch to Live in Settings → Data." style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 14px 9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5">Choose file…<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 7px">DEMO</span></button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- mirror row at 360px — the chip wraps UNDER the title, the file line
+       stays the label block's last line, the buttons take their own line. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:26px 0 14px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S7 at 360px</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:16px;box-sizing:border-box">
+    <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:13px;font-weight:600">Keep a file in sync</div>
+      <div style="margin-top:5px"><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">Synced 13:42</span></div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:5px;line-height:1.5">Written after every change. The previous contents are kept beside it as &lt;name&gt;.bak.</div>
+      <div style="font-size:11px;color:#8b8a86;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">kubushka-mirror.json</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button style="display:inline-flex;align-items:center;gap:6px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Sync now</button>
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:6px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer">Unlink</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S8 · DANGER ZONE — hover + 360px
+       ══════════════════════════════════════════════════════════════════
+       An already-empty live dataset STILL shows "Erase live data…"
+       (idempotent, and hiding it would read as a missing feature). The
+       dialogs, their typed-name arming, the backup CTA and every toast are
+       UNCHANGED from P2 S6 / D17 — Phase 4 changes the frame, not the
+       dialogs. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S8 · hover · 360px</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 380px;max-width:560px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">hover on the trigger (150ms) — the panel itself is inert</span>
+      <div style="background:#fff;border:1px solid #f0cec7;border-radius:16px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 240px;min-width:200px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#693f35;font-weight:700">Danger zone</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:6px;line-height:1.5">These actions delete data outright. Both ask you to type the dataset name and offer a backup first. Import also replaces everything — it lives above, with its own automatic backup.</div>
+        </div>
+        <button style="border:1.5px solid #a8695a;color:#a8695a;background:rgba(168,105,90,.08);border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Erase live data…</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">S8 at 360px — microlabel → helper → trigger (capped ~220px)</span>
+      <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:16px;box-sizing:border-box">
+        <div style="background:#fff;border:1px solid #f0cec7;border-radius:16px;padding:16px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#693f35;font-weight:700">Danger zone</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:6px;line-height:1.5">These actions delete data outright. Both ask you to type the dataset name and offer a backup first. Import also replaces everything — it lives above, with its own automatic backup.</div>
+          <button style="margin-top:12px;width:100%;max-width:220px;border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;box-sizing:border-box">Erase live data…</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       TOAST COPY — VERBATIM (sonner, existing motion)
+       ══════════════════════════════════════════════════════════════════
+       This card owns only the toasts of its own rows; the import dialog's
+       toasts are inventoried in import-dialog.dc.html. Note what is
+       DELIBERATELY absent: a CSV export success toast (the browser's
+       download indication is the feedback) and any message for a cancelled
+       Save-as or a cancelled file picker. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Toast copy — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">File mirror linked</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">File mirror unlinked</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#8f6b33">Mirror write failed — your data is safe in the app.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#8f6b33">Permission denied — the file wasn't written.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not build the CSV — please try again.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;color:#a8695a">Could not build the backup — please try again.</div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

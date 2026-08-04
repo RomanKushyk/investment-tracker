@@ -20,7 +20,7 @@
 | 1 | Core consolidation & write surface (+ formula audit) | `refactor/core-folder` … `docs/design-brief-phase-2` | **done** (2026-07-29) |
 | 2 | Settings home & real-data era | `feat/settings-shell` … `docs/design-brief-phase-3` | **done** (2026-08-02) |
 | 3 | Living data: Inzhur fetch, fixed yield, reminders | `feat/inzhur-client` … `docs/design-brief-phase-4` | **done** (2026-08-04) |
-| 4 | Data portability: import, CSV, mirror | `feat/backup-import` … `docs/design-brief-phase-5` | todo |
+| 4 | Data portability: import, CSV, mirror | `feat/backup-import` … `docs/design-brief-phase-5` | **in progress** (2026-08-04) |
 | 5 | Appearance & language: dark theme + UK | `feat/dark-theme`, `feat/i18n-uk`, `docs/design-brief-phase-6` | todo |
 | 6 | Chart analytics: ranges + cap-by-day | `feat/chart-toolbar` … `docs/design-brief-phase-7` | todo |
 | 7 | Full control: DB browser | `feat/db-browser` | todo |
@@ -152,6 +152,7 @@ Comparison of the doc's six challenges against the app's actual derivations, num
 
 **Goal:** complete durability: lossless restore, CSV both ways, Chromium file mirror ("spreadsheet as DB" closed). **Covers:** 5, 6(CSV half), 8, 2d(rest).
 **Rationale:** envelope freezes AFTER P2/P3 asset fields exist (formatVersion stays 1, fields optional); import is the bulk path for corrections; mirror reuses serializers + repo write hook; logic-heavy/design-light — fast phase after two design-heavy ones.
+**Design gate (G7) — OPEN:** `design/extensions/data-portability.dc.html` (S1, S2, S5, S6 Data-card side, S7, S8) + `design/extensions/import-dialog.dc.html` (S3, S4, S6 dialog side) merged 2026-08-04 by the design session — the phase mints no token; its one novelty is the widened `neg-tint`/`neg-tint-text` rule (two sites), which the implementing task records in DECISIONS.
 
 - [ ] `feat/backup-import` — `core/backup/import.ts`: full zod validation + referential-integrity pass + `formatVersion` dispatch (reject newer, clear message); `diffBackup(current, incoming)` → preview (per-table added/replaced/removed, warnings); UI: Settings→Data import (`<input type=file>`), preview dialog, **auto-download safety backup before** `repo.replaceAll` (acceptance criterion); one rw transaction; `navigator.locks.request('kubushka-db')` around replace/clear/reset; `BroadcastChannel('kubushka-sync')` → other tabs invalidate. Targets the active dataset (demo import allowed). Settings block applied on opt-in checkbox.
 - [ ] `feat/csv-roundtrip` — `pnpm add papaparse @types/papaparse`; `core/backup/csv.ts`: hand-rolled RFC 4180 serializer (dot-decimal, no grouping, UTF-8 BOM, CRLF; snapshots **wide** — empty cell = pending, never 0; assets/transactions long); export per table; import **snapshots only** (wide+long auto-detect) through the same validation+preview pipeline — assets/transactions restore is JSON-only (flagged scope cut); `showSaveFilePicker` enhancement on all exports (swallow `AbortError`), `<a download>` fallback.
