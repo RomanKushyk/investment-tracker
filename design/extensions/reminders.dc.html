@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/reminders.dc.html — Phase 3 design reference (G7/D14)
+  Surface: S6 ReminderStrip + app-open toast — the serverless
+  derive-don't-schedule reminders (`core/reminders.computeReminders` →
+  quote-missing:today · coupon:id:date · coupon-overdue:id:date ·
+  maturity:id:date). Parents: a strip ABOVE the screen content on `/`
+  (above the header row, master line 58) and on `/overview` (above the
+  ScreenHeader, master lines 147–150); one sonner toast per app open.
+  Brief (copy/behavior authority): docs/design-briefs/phase-3-living-data.md
+  §S6. Visual authority once merged: THIS file (D14 precedence).
+
+  ★★★ NEW TOKEN FAMILY — MINTED HERE (add to src/index.css @theme) ★★★
+  ★
+  ★   --color-neg-tint:      #f0cec7   OVERDUE banner background
+  ★   --color-neg-tint-text: #693f35   text + icon on neg-tint
+  ★
+  ★ A soft tint family of the existing --color-neg #a8695a terracotta,
+  ★ reserved for the OVERDUE reminder severity and NOTHING else.
+  ★ • Hue matches the parent exactly: neg is hsl(11.5°, 31%, 51%);
+  ★   neg-tint hsl(10°, 58%, 86%) · neg-tint-text hsl(11.5°, 33%, 31%)
+  ★   — the tint-text mirrors neg's hue AND saturation, only darker, so
+  ★   the family reads as one colour at three weights.
+  ★ • Distinct from its two neighbours by construction:
+  ★     energy-tint #efe4e0 = hsl(16°, 32%, 91%)  → far less saturated,
+  ★       lighter; side by side neg-tint is visibly rose, energy is greige.
+  ★     warn-tint   #f0e6cb = hsl(44°, 55%, 87%)  → same lightness and
+  ★       saturation band, 34° away in hue: cream vs blush. The three
+  ★       severities therefore carry equal visual WEIGHT and differ only
+  ★       in hue — exactly what a severity scale needs.
+  ★ • Contrast (WCAG 2.1, computed):
+  ★     neg-tint-text on neg-tint  = 6.08:1  ✓ (≥ 4.5 required;
+  ★       precedent: warn-tint-text/warn-tint 5.7:1, pos family ≈ 6.0:1)
+  ★     neg-tint-text on card #fff = 8.89:1  ✓
+  ★     neg-tint-text on page      = 8.16:1  ✓
+  ★     (raw neg #a8695a on neg-tint is only 2.97:1 → the banner text is
+  ★      ALWAYS neg-tint-text, never neg. Same rule as the pos/warn tints.)
+  ★ • Used ONLY for the overdue reminder severity. Not for validation
+  ★   errors (those stay `neg` on `card`), not for deltas, not for the
+  ★   suggestion language (dashed borders carry that — see
+  ★   design/extensions/daily-quotes-live.dc.html).
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  Other tokens used: page #f6f5f3 · ink #26262a · card #fff · muted
+  #8b8a86 · faint #b3b2ae · hairline #e8e7e4 · panel-border #dedcd8 ·
+  pos-tint #e3eadf / pos-tint-text #4c5a48 (INFO — an upcoming payout is
+  good news, matching the "Next payouts" green-tint idiom) · warn-tint
+  #f0e6cb / warn-tint-text #6b5527 (WARN — the P2-minted caution family).
+  Banner text NEVER uses raw `pos`/`neg` — the tint-text tokens carry the
+  contrast.
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  Light theme only (dark theme is Phase 5). DASHED-BORDER CHIPS WITH 10px
+  UPPERCASE TEXT ON #fff ARE SPEC ANNOTATIONS, never UI. Motion (D7)
+  annotated in comments — defaults 220ms cubic-bezier(0.22,1,0.36,1),
+  hover 150ms, reveals 300–400ms, pressables active:scale-[.97];
+  prefers-reduced-motion collapses everything.
+
+  DATA: reminder copy is verbatim from the brief; dates are demo-seed /
+  fixture illustrations (coupon 25.07/25.08.2026, maturity 27.09.2028 =
+  the fixture's UA4000236475 maturityDate). Reminders are PURE derivations
+  → ACTIVE in the demo dataset (G4/D16); `remindersEnabled` (S8) is the
+  only global gate.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Reminders" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       PLACEMENT A · /overview — the strip sits ABOVE the ScreenHeader
+       ══════════════════════════════════════════════════════════════════
+       Full content width (the strip is not a card — it is a stack of
+       banner rows), gap 8 between banners, 22px below the last banner
+       before the h2. Ordering: overdue → warn → info; inside a severity,
+       by date ascending. Everything below the strip is the unchanged
+       master screen (lines 147–210).
+       D7: strip mount = banners fade + slide-from-top-1, stagger 60ms,
+       300ms soft; reduced-motion: instant. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Placement A · /overview · 3 severities stacked</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px">
+
+    <!-- OVERDUE — the minted neg-tint family. Action link only on
+         /overview (on `/` the S5 coupon card is right there). -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes. <a href="#" style="color:inherit;font-weight:700;text-decoration:none;white-space:nowrap" style-hover="text-decoration:underline">Open Daily quotes →</a></div>
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px" style-hover="opacity:1">✕</button>
+    </div>
+
+    <!-- WARN — quote-missing. SUPPRESSED on `/` itself (the progress pill
+         already says it); shown here with its navigating action link. -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0e6cb;color:#6b5527">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5">No quotes saved today yet. <a href="#" style="color:inherit;font-weight:700;text-decoration:none;white-space:nowrap" style-hover="text-decoration:underline">Enter quotes →</a></div>
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px" style-hover="opacity:1">✕</button>
+    </div>
+
+    <!-- INFO — upcoming coupon. pos-tint: an upcoming payout IS good news
+         (same idiom as the Overview "Next payouts" card). -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 pays a coupon in 5 days (25.08.2026).</div>
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px" style-hover="opacity:1">✕</button>
+    </div>
+  </div>
+
+  <!-- unchanged /overview header (master lines 147–150) — pinned here only
+       to show the strip's relationship to it: strip, 22px, h2. -->
+  <h2 style="margin:0 0 4px;font-size:26px">Overview</h2>
+  <p style="font-size:13px;color:#8b8a86;margin:0 0 22px">Portfolio at a glance · 27.07.2026 · rate 44.83 ₴/$</p>
+  <div style="background:#26262a;color:#fff;border-radius:24px;padding:20px 22px;max-width:260px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Total capital</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:600">₴149,016.36</div>
+    <div style="font-size:12px;color:#b9cdb4">$3,324.03 · rate 44.83</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       PLACEMENT B · / — above the Daily-quotes header row
+       ══════════════════════════════════════════════════════════════════
+       quote-missing is SUPPRESSED here; the overdue coupon banner carries
+       NO action link (the S5 card is one screen-inch away). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Placement B · / · quote-missing suppressed, no action link</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="max-width:760px">
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px">
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.</div>
+        <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+        <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000236475 matures in 23 days (27.09.2028).</div>
+        <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap">
+      <h2 style="margin:0;font-size:26px">Daily quotes</h2>
+      <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">1 of 4 filled</span>
+    </div>
+    <p style="font-size:13px;color:#8b8a86;margin:0">The everyday ritual — nothing else competes with it.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       BANNER ANATOMY
+       ══════════════════════════════════════════════════════════════════
+       row: display flex, align-items flex-start, gap 10
+       radius 16 · padding 12px 16px · full content width · gap 8 between
+       icon: lucide 16px, stroke-width 2.25, currentColor, margin-top 2
+              (info = circle-info · warn = circle-alert · overdue = clock)
+       text: 13px, line-height 1.5, wraps freely
+       link: inherits the tint-text colour, weight 700, underline on hover
+       ✕:    currentColor at opacity .65 → 1 on hover, 13px, hit area 6px
+              left padding so it never crowds the text
+       No border, no shadow: the tint IS the container. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Severities side by side + hover/focus</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:760px">
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5"><strong style="font-weight:700">info</strong> — pos-tint #e3eadf on pos-tint-text #4c5a48 · upcoming coupons and maturities</div>
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0e6cb;color:#6b5527">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5"><strong style="font-weight:700">warn</strong> — warn-tint #f0e6cb on warn-tint-text #6b5527 · today's quotes still missing</div>
+      <!-- ✕ hover state (opacity 1) -->
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      <div style="flex:1;font-size:13px;line-height:1.5"><strong style="font-weight:700">overdue</strong> — neg-tint #f0cec7 on neg-tint-text #693f35 · MINTED HERE, used nowhere else</div>
+      <!-- ✕ focus-visible: global 2px ink ring, offset 2 -->
+      <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px;outline:2px solid #26262a;outline-offset:2px">✕</button>
+    </div>
+  </div>
+
+  <!-- side-by-side tint proof: the three severities against the two tints
+       they must never be confused with -->
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px">
+    <div style="width:150px;height:56px;border-radius:16px;background:#e3eadf;color:#4c5a48;display:grid;place-items:center;font-size:11px">pos-tint · info</div>
+    <div style="width:150px;height:56px;border-radius:16px;background:#f0e6cb;color:#6b5527;display:grid;place-items:center;font-size:11px">warn-tint · warn</div>
+    <div style="width:150px;height:56px;border-radius:16px;background:#f0cec7;color:#693f35;display:grid;place-items:center;font-size:11px">neg-tint · overdue</div>
+    <div style="width:150px;height:56px;border-radius:16px;background:#efe4e0;color:#6d5a53;display:grid;place-items:center;font-size:11px">energy-tint · asset</div>
+    <div style="width:150px;height:56px;border-radius:16px;background:#e4e8eb;color:#525c64;display:grid;place-items:center;font-size:11px">…8976-tint · asset</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       STACKING · the 3-banner cap · "+N more"
+       ══════════════════════════════════════════════════════════════════
+       The strip renders at most 3 banners; the remainder collapse into a
+       final muted line, pressable, which expands the strip in place.
+       D7: expand = height reveal 300ms soft; dismiss = height collapse +
+       fade 220ms, banners below slide up; reduced-motion: instant. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Stacking · capped at 3 + "+N more" · expanded</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 340px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">collapsed — 5 reminders, 3 shown</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0e6cb;color:#6b5527">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">No quotes saved today yet. <a href="#" style="color:inherit;font-weight:700;text-decoration:none;white-space:nowrap">Enter quotes →</a></div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 pays a coupon in 5 days (25.08.2026).</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <!-- muted, pressable, no tint — it is a control, not a reminder -->
+        <button style="align-self:flex-start;border:none;background:transparent;color:#8b8a86;font-size:12px;cursor:pointer;padding:2px 4px" style-hover="opacity:.85">+2 more reminders</button>
+      </div>
+    </div>
+
+    <div style="flex:1 1 340px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">expanded — all 5, ordering overdue → warn → info</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000236475 coupon was due 26.07.2026 — record it on Daily quotes.</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0e6cb;color:#6b5527">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">No quotes saved today yet. <a href="#" style="color:inherit;font-weight:700;text-decoration:none;white-space:nowrap">Enter quotes →</a></div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 pays a coupon in 5 days (25.08.2026).</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#e3eadf;color:#4c5a48">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000236475 matures in 23 days (27.09.2028).</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       EMPTY / ALL-DISMISSED · 360px · app-open toast
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Empty · 360px wrap · toast</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- EMPTY (nothing fires) and ALL-DISMISSED are the SAME state: the
+         strip renders NOTHING — zero height, no placeholder, no "all
+         clear" message. The screen is byte-identical to P2. There is no
+         in-strip restore control; the restore path is
+         Settings → Automation → "Restore dismissed (N)" (S8, see
+         design/extensions/automation.dc.html). -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">empty / all dismissed / remindersEnabled off</div>
+      <div style="background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="border:1px dashed #dedcd8;border-radius:12px;padding:10px 12px;font-size:11px;color:#b3b2ae;text-align:center">strip renders nothing — 0px, no layout shift</div>
+        <h2 style="margin:14px 0 4px;font-size:26px">Overview</h2>
+        <p style="font-size:13px;color:#8b8a86;margin:0">Portfolio at a glance · 27.07.2026 · rate 44.83 ₴/$</p>
+      </div>
+    </div>
+
+    <!-- 360px: text wraps, the ✕ stays top-right, no horizontal scroll -->
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">360px</div>
+      <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:12px;box-sizing:border-box">
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:16px;background:#f0cec7;color:#693f35">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div style="flex:1;font-size:13px;line-height:1.5">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.</div>
+          <button aria-label="Dismiss reminder" style="flex:none;border:none;background:transparent;color:currentColor;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:2px 2px 2px 6px">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- app-open toast: ONE per app load, only when ≥1 undismissed
+         reminder exists; text = the highest-severity banner's copy, with
+         " · +N more" appended when others exist. Default sonner look and
+         motion (library handles enter/exit, reduced-motion included).
+         Informational — no action button, no severity tint (the strip
+         carries the colour; the toast is a nudge to look at it). -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">app-open toast — single &amp; multi</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.</div>
+        <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes. · +2 more</div>
+        <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Dismissed reminders restored</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Copy inventory + behaviour pins — verbatim ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Copy inventory + behaviour pins</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:12.5px;line-height:1.9;max-width:820px">
+    <div><span style="color:#8b8a86">quote-missing (warn) —</span> No quotes saved today yet. <span style="color:#8b8a86">+ link on /overview:</span> Enter quotes →</div>
+    <div><span style="color:#8b8a86">coupon upcoming (info) —</span> OVDP UA4000238976 pays a coupon in 5 days (25.08.2026).</div>
+    <div><span style="color:#8b8a86">coupon overdue (overdue) —</span> OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes. <span style="color:#8b8a86">+ link on /overview:</span> Open Daily quotes →</div>
+    <div><span style="color:#8b8a86">maturity (info) —</span> OVDP UA4000236475 matures in 23 days (27.09.2028).</div>
+    <div><span style="color:#8b8a86">dismiss (aria-label) —</span> Dismiss reminder</div>
+    <div><span style="color:#8b8a86">overflow line —</span> +2 more reminders</div>
+    <div><span style="color:#8b8a86">toast suffix —</span> · +2 more</div>
+    <div style="height:1px;background:#e8e7e4;margin:10px 0"></div>
+    <div><span style="color:#8b8a86">ordering —</span> overdue → warn → info; within a severity by date ascending.</div>
+    <div><span style="color:#8b8a86">dismissal —</span> the banner's DERIVED id joins <code>dismissedReminders</code> in settings; ids expire naturally when the condition passes (a new coupon date is a new id). Restore = Settings → Automation (S8).</div>
+    <div><span style="color:#8b8a86">suppression —</span> quote-missing never renders on <code>/</code>; the progress pill already says it.</div>
+    <div><span style="color:#8b8a86">gating —</span> <code>remindersEnabled</code> off hides strip + toast entirely; <code>reminderLeadDays</code> re-windows the coupon reminders immediately, no reload.</div>
+    <div><span style="color:#8b8a86">demo —</span> ACTIVE — reminders are pure local derivations; the demo seed legitimately fires quote-missing.</div>
+    <div><span style="color:#8b8a86">loading —</span> the strip appears WITH the data (no skeleton); error state n/a — nothing can fail locally.</div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

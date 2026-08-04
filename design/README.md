@@ -41,6 +41,9 @@ New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.
 | `extensions/settings.dc.html` | Phase 2 `/settings` screen: sidebar Settings group/pill, 4 section cards, targets editor + Σ pill, dataset switch + DEMO badge, destructive typed-name dialogs, relocated Backup, editable ₴/$ rate — and the minted `--color-warn/-tint/-tint-text` values (header comment). |
 | `extensions/asset-form.dc.html` | Phase 2 AssetForm: create + edit modes, fixed-coupon group, Inzhur link group (kind/ref/units, units-first), validation states, TransactionPanel quick-create context. |
 | `extensions/metrics-exposure.dc.html` | Phase 2 metric exposure fragments: Overview KPI relabel + Total return (net) card + net-of-tax line, Yield Total return/XIRR columns, Portfolio Capital-gain relabel, ledger-drift chip, Withdrawal/Redemption type options. |
+| `extensions/daily-quotes-live.dc.html` | Phase 3 living `/` screen: Fetch-quotes 5-state button (+ DEMO tag), auto/manual/stale provenance chips, dirty-field "Use fetched?" offer, ghost "suggested" accrual input, coupon-due card — and the pinned **suggestion visual language** (header comment). |
+| `extensions/reminders.dc.html` | Phase 3 ReminderStrip (`/` + `/overview`) and app-open toast: banner anatomy, info/warn/overdue severities, stacking cap + "+N more", dismiss/empty/restore — and the minted `--color-neg-tint/-tint-text` values (header comment). |
+| `extensions/automation.dc.html` | Phase 3 AssetForm Inzhur live picker (loading/loaded/error→manual/empty/stale/demo) and the filled-in Settings → Automation card (suggest toggles, reminders switch + lead days + restore dismissed). |
 
 - Extensions use the master reference's idiom: inline styles, every exact color/size/spacing literal in the markup, same `.dc.html` format.
 - Once merged, an extension is as binding as the master file for its surfaces: the reference wins visual disputes; its brief wins copy/behavior disputes.

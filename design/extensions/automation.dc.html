@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/automation.dc.html — Phase 3 design reference (G7/D14)
+  Surfaces: S7 AssetForm Inzhur ref → live picker upgrade · S8 Settings →
+  Automation section (the P2 placeholder card, filled in).
+  Parents: the AssetForm Inzhur group in BOTH hosts (Settings dialog +
+  TransactionPanel quick-create) — extensions/asset-form.dc.html; and the
+  third card of the /settings stack — extensions/settings.dc.html card 3.
+  Brief (copy/behavior authority): docs/design-briefs/phase-3-living-data.md
+  §S7–S8. Visual authority once merged: THIS file (D14 precedence).
+
+  RELATION TO THE SUGGESTION LANGUAGE (daily-quotes-live.dc.html header):
+  nothing on this page is a suggestion. The picker is a CHOICE the user
+  makes and the toggles are settings — so every border here is SOLID and
+  every committed value is INK. Dashed borders stay reserved for proposed
+  values (S3/S4/S5). The one exception is the spec-annotation chips.
+
+  Tokens used (all existing): page #f6f5f3 · ink #26262a · card #fff ·
+  muted #8b8a86 · faint #b3b2ae · hairline #e8e7e4 · panel #eceae7 ·
+  panel-border #dedcd8 · label #6f6e6a · warn #8f6b33 · warn-tint #f0e6cb /
+  warn-tint-text #6b5527 (P2 family — the stale list footer and the DEMO
+  idiom) · neg #a8695a (validation messages only). No new tokens here; the
+  phase's `--color-neg-tint`/`-tint-text` are minted in
+  design/extensions/reminders.dc.html and belong to overdue reminders only.
+
+  Anatomy reused verbatim: Select trigger (h 36, radius 10, `page` bg,
+  `hairline` border, 14px chevron) and options panel (card, radius 12,
+  hairline border, 12px-40px shadow, rows radius 8, active row `page` bg)
+  from asset-form.dc.html; SettingRow (title+helper left, control right),
+  Divider (1px hairline, margin 16 0) and the switch (track 40×22 radius
+  999 — off `hairline` bg + `panel-border` border, on `ink`; thumb 16px
+  `card` with card shadow) from settings.dc.html.
+
+  DATA: option rows come from the trimmed live fixture
+  src/core/inzhur/__fixtures__/assets-sample.json (funds inzhur-reit /
+  inzhur-energy; bonds UA4000238976 matures 24.03.2027, UA4000236475
+  matures 27.09.2028). No D5-pinned demo figure appears here.
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  Light theme only (dark theme is Phase 5). DASHED-BORDER CHIPS WITH 10px
+  UPPERCASE TEXT ON #fff ARE SPEC ANNOTATIONS, never UI. Motion (D7)
+  annotated in comments — defaults 220ms cubic-bezier(0.22,1,0.36,1),
+  hover 150ms, reveals 300–400ms, pressables active:scale-[.97];
+  prefers-reduced-motion collapses everything.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Automation" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S7 · ASSETFORM INZHUR GROUP — the ref field becomes a live picker
+       ══════════════════════════════════════════════════════════════════
+       The P2 group is unchanged except for the ref slot and the helper
+       line: the toggle, the units-first emphasis (h 44, Space Grotesk 15px
+       600) and the Kind segment all stay exactly as pinned in
+       asset-form.dc.html. The picker inherits the ref field's grid slot
+       (Kind left / ref right, `grid-template-columns:auto 1fr`).
+       The feed is fetched ON FIRST OPEN per form mount — opening the form
+       never fires a request by itself.
+       D7: picker open/close = the existing Select fade + zoom-in-95 220ms ·
+       loading row opacity oscillation 1.2s ease-in-out loop · picker↔manual
+       swap = crossfade + height 220ms · option hover bg `page` 150ms ·
+       trigger press scale .97; reduced-motion: instant swaps, static row. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S7 · Inzhur ref — live picker (default · open · selected)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- DEFAULT — closed trigger with the placeholder; the manual escape
+         hatch is ALWAYS visible under it (11px ghost link). -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">default · kind = Bond · nothing picked</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <span style="font-size:13px;font-weight:600">Link to Inzhur</span>
+            <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Units</label>
+            <input value="15" inputmode="decimal" style="width:100%;height:44px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;color:#26262a;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:end">
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Kind</label>
+              <div style="display:flex;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:3px;gap:3px">
+                <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86" style-hover="opacity:.85">Fund</button>
+                <button style="border:none;cursor:pointer;padding:5px 16px;border-radius:999px;font-size:12px;font-weight:700;background:#fff;color:#26262a;box-shadow:0 1px 3px rgba(38,38,42,.06)">Bond</button>
+              </div>
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond</label>
+              <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+            </div>
+          </div>
+          <!-- always-visible mode toggle; round-trips to the exact P2 text
+               field and back -->
+          <button style="align-self:flex-start;border:none;background:transparent;color:#26262a;font-size:11px;cursor:pointer;padding:0" style-hover="opacity:.85">Enter manually</button>
+          <div style="font-size:11px;color:#8b8a86;line-height:1.5">Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPEN + LOADED (bonds) — option row = ISIN + muted maturity.
+         Option list max-h ~240px, scrolls internally. -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">open · loaded · kind = Bond</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></div>
+        <div style="margin-top:6px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px;max-height:240px;overflow:auto">
+          <!-- hover state on row 1 (bg `page`, 150ms) -->
+          <div style="padding:8px 12px;border-radius:8px;background:#f6f5f3;cursor:pointer">UA4000238976 <span style="color:#8b8a86">· matures 24.03.2027</span></div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">UA4000236475 <span style="color:#8b8a86">· matures 27.09.2028</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OPEN + LOADED (funds) — option row = title + muted slug -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">open · loaded · kind = Fund</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Fund</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></div>
+        <div style="margin-top:6px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px;max-height:240px;overflow:auto">
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Inzhur REIT <span style="color:#8b8a86">· inzhur-reit</span></div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Inzhur Energy <span style="color:#8b8a86">· inzhur-energy</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SELECTED — the trigger shows the option's PRIMARY text and stores
+         exactly the string the manual field would have stored (slug/ISIN),
+         so schema + patch mappers are untouched. -->
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">selected · ref = "UA4000238976"</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>UA4000238976</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+        <button style="margin-top:11px;border:none;background:transparent;color:#26262a;font-size:11px;cursor:pointer;padding:0">Enter manually</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- loading · error→manual · empty · stale · demo -->
+  <div style="display:flex;align-items:center;gap:12px;margin:24px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S7 · loading · error → manual · empty · stale · demo</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- LOADING — non-selectable muted row with a subtle opacity pulse -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">loading (first open)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></div>
+        <div style="margin-top:6px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px">
+          <div style="padding:8px 12px;border-radius:8px;color:#8b8a86;opacity:.75">Loading Inzhur assets…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ERROR → the list closes INTO a working manual input. Helper is
+         `muted`, NOT `neg`: being offline is normal, not a user mistake.
+         Linking is never blocked by the network. Retry = "Pick from the
+         list". Any ref already chosen is preserved in the input. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">error → manual fallback (never `neg`)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond ISIN</label>
+        <input value="UA4000238976" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <div style="font-size:11px;color:#8b8a86;margin-top:4px">Couldn't load the list — enter it manually.</div>
+        <button style="margin-top:11px;border:none;background:transparent;color:#26262a;font-size:11px;cursor:pointer;padding:0">Pick from the list</button>
+      </div>
+    </div>
+
+    <!-- EMPTY — feed parsed, zero entries of the active kind -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">empty · none of this kind in the feed</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Fund</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></div>
+        <div style="margin-top:6px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px">
+          <div style="padding:8px 12px;border-radius:8px;color:#8b8a86">Nothing of this kind in the feed — enter it manually.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STALE — live fetch failed but a last-good cache exists: options
+         render normally, a warn footer states the payload date. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">stale · list served from the last-good cache</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Fund</label>
+        <div style="height:36px;border-radius:10px;border:1px solid #b3b2ae;background:#f6f5f3;padding:0 12px;font-size:13px;color:#8b8a86;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box"><span>Pick from Inzhur…</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg></div>
+        <div style="margin-top:6px;background:#fff;border:1px solid #e8e7e4;border-radius:12px;padding:4px;box-shadow:0 12px 40px rgba(38,38,42,.18);font-size:13px">
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Inzhur REIT <span style="color:#8b8a86">· inzhur-reit</span></div>
+          <div style="padding:8px 12px;border-radius:8px;cursor:pointer" style-hover="background:#f6f5f3">Inzhur Energy <span style="color:#8b8a86">· inzhur-energy</span></div>
+          <div style="padding:6px 12px;font-size:11px;color:#8f6b33">as of 25.07</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEMO — the picker never renders; the P2 manual text field stays,
+         explained. No request ever leaves the app in demo (G4/D16). -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">demo-disabled · manual mode forced</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Fund slug</label>
+        <input placeholder="inzhur-reit" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <div style="font-size:11px;color:#8b8a86;margin-top:4px">Live list is disabled in demo — enter the slug or ISIN manually.</div>
+        <!-- no "Pick from the list" link in demo — there is nothing to pick -->
+        <div style="font-size:11px;color:#8b8a86;line-height:1.5;margin-top:11px">Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.</div>
+      </div>
+    </div>
+
+    <!-- MANUAL MODE (live) — the exact P2 field, reachable any time via the
+         toggle; the pinned P2 validation messages apply here unchanged. -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">manual mode · pinned P2 validation</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Bond ISIN</label>
+        <input style="width:100%;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <div style="font-size:11px;color:#a8695a;margin-top:4px">Enter the bond ISIN.</div>
+        <div style="font-size:11px;color:#8b8a86;margin-top:8px">Fund variant: <span style="color:#a8695a">Enter the fund slug.</span></div>
+        <button style="margin-top:11px;border:none;background:transparent;color:#26262a;font-size:11px;cursor:pointer;padding:0">Pick from the list</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S8 · SETTINGS → AUTOMATION — the P2 placeholder card, filled in
+       ══════════════════════════════════════════════════════════════════
+       Rendered in its place inside the /settings card stack (pinned order
+       Portfolio → Data → Automation → Appearance, single column, cards
+       radius 24, padding 22, gap 14). Neighbouring cards are drawn
+       collapsed here — they are UNCHANGED (see settings.dc.html).
+       The P2 copy "Nothing to configure yet — Inzhur quote fetching,
+       coupon suggestions and reminders arrive in the next release." is
+       fully GONE.
+       Fetching itself has no toggle (a manual click by construction), so
+       the demo constraint of S1/S7 is not repeated here — this card is
+       identical in both datasets.
+       D7: switch flip = thumb transform + track colour 220ms soft (jump
+       under reduced motion) · sub-rows reveal/collapse = height + fade +
+       slide-from-top-1 300ms soft · error message fade + slide 220ms ·
+       restore label re-keyed fade 150ms on count change · press scale .97. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S8 · Automation card in the /settings stack — default (all on)</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="max-width:720px;display:flex;flex-direction:column;gap:14px">
+
+    <!-- neighbour: Data card (unchanged, collapsed for context) -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);opacity:.55">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Data</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:6px">Dataset · Backup · Danger zone — unchanged (settings.dc.html)</div>
+    </div>
+
+    <!-- THE CARD -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Automation</div>
+
+      <!-- Row 1 — autoQuoteSuggest (default ON) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Quote suggestions</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Pre-fill ghost values for unquoted fixed-coupon assets from coupon accrual. Suggestions stay ghosts until you accept them.</div>
+        </div>
+        <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer;flex:none"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- Row 2 — couponSuggest (default ON) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Coupon suggestions</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Offer one-tap recording when a coupon date arrives. Every entry is confirmed by you — amounts stay editable.</div>
+        </div>
+        <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer;flex:none"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+      <!-- Row 3 — remindersEnabled (default ON) + its two sub-rows -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div style="flex:1 1 260px;min-width:200px">
+          <div style="font-size:13px;font-weight:600">Reminders</div>
+          <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">In-app banners for missing quotes, upcoming and overdue coupons, and maturities. Nothing leaves the app.</div>
+        </div>
+        <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;cursor:pointer;flex:none"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+      </div>
+
+      <!-- sub-rows: indent 12px behind a hairline left rule, no dividers
+           between them (they belong to the row above) -->
+      <div style="margin-top:14px;padding-left:12px;border-left:1px solid #e8e7e4;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 240px;min-width:180px">
+            <div style="font-size:13px;font-weight:600">Lead time, days</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">How many days ahead coupon reminders appear.</div>
+          </div>
+          <input value="7" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box;flex:none">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 240px;min-width:180px">
+            <div style="font-size:13px;font-weight:600">Dismissed reminders</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Dismissed banners stay hidden until their date passes.</div>
+          </div>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer;flex:none" style-hover="background:#e9e8e6">Restore dismissed (3)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- neighbour: Appearance card (unchanged, collapsed for context) -->
+    <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);opacity:.55">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Appearance</div>
+      <div style="font-size:12px;color:#8b8a86;margin-top:6px">Currency · ₴/$ rate · theme + language placeholders — unchanged (settings.dc.html)</div>
+    </div>
+  </div>
+
+  <!-- S8 states -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S8 · reminders off · lead-days error · restore at 0 · 360px</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- REMINDERS OFF — sub-rows 4–5 collapse (height + fade). The strip,
+         the toast and the coupon-reminder banners all cease; the S5 coupon
+         CARDS are governed by `couponSuggest`, not by this switch. -->
+    <div style="flex:1 1 340px;max-width:520px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">reminders off · sub-rows collapsed</div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Automation</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 260px;min-width:200px">
+            <div style="font-size:13px;font-weight:600">Reminders</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">In-app banners for missing quotes, upcoming and overdue coupons, and maturities. Nothing leaves the app.</div>
+          </div>
+          <!-- OFF: track hairline bg + panel-border border, thumb left -->
+          <span style="display:inline-flex;align-items:center;width:40px;height:22px;border-radius:999px;background:#e8e7e4;border:1px solid #dedcd8;padding:2px;box-sizing:border-box;cursor:pointer;flex:none"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEAD-DAYS ERROR — neg border + pinned message; the store keeps the
+         last valid value (the P2 usdRate precedent), so reminders keep
+         using 7 while the field is invalid. Valid range 1–30 integers. -->
+    <div style="flex:1 1 340px;max-width:520px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">lead time · invalid input</div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="padding-left:12px;border-left:1px solid #e8e7e4;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 240px;min-width:180px">
+            <div style="font-size:13px;font-weight:600">Lead time, days</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">How many days ahead coupon reminders appear.</div>
+          </div>
+          <div style="flex:none">
+            <input value="45" inputmode="decimal" style="width:72px;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 10px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+            <div style="font-size:11px;color:#a8695a;margin-top:4px;text-align:right">Enter 1–30 days.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESTORE AT 0 — disabled opacity .5, label WITHOUT the count -->
+    <div style="flex:1 1 340px;max-width:520px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">restore · nothing dismissed (disabled)</div>
+      <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="padding-left:12px;border-left:1px solid #e8e7e4;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div style="flex:1 1 240px;min-width:180px">
+            <div style="font-size:13px;font-weight:600">Dismissed reminders</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Dismissed banners stay hidden until their date passes.</div>
+          </div>
+          <button disabled style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;opacity:.5;flex:none">Restore dismissed</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 360px — rows stack (label above control), inputs and buttons keep
+         their sizes, sub-rows keep the 12px indent + hairline rule -->
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">360px · rows stacked</div>
+      <div style="width:360px;background:#fff;border-radius:24px;padding:18px;box-sizing:border-box;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Automation</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1 1 200px;min-width:180px">
+            <div style="font-size:13px;font-weight:600">Coupon suggestions</div>
+            <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Offer one-tap recording when a coupon date arrives. Every entry is confirmed by you — amounts stay editable.</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;justify-content:flex-end;width:40px;height:22px;border-radius:999px;background:#26262a;padding:2px;box-sizing:border-box;flex:none"><span style="width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></span></span>
+        </div>
+        <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+        <div style="padding-left:12px;border-left:1px solid #e8e7e4">
+          <div style="font-size:13px;font-weight:600">Dismissed reminders</div>
+          <div style="font-size:12px;color:#8b8a86;margin:3px 0 10px;line-height:1.5">Dismissed banners stay hidden until their date passes.</div>
+          <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Restore dismissed (3)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Copy inventory + persistence pins — verbatim ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Copy inventory + persistence pins</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:12.5px;line-height:1.9;max-width:820px">
+    <div><span style="color:#8b8a86">S7 placeholder —</span> Pick from Inzhur…</div>
+    <div><span style="color:#8b8a86">S7 loading row —</span> Loading Inzhur assets…</div>
+    <div><span style="color:#8b8a86">S7 error helper —</span> Couldn't load the list — enter it manually.</div>
+    <div><span style="color:#8b8a86">S7 empty row —</span> Nothing of this kind in the feed — enter it manually.</div>
+    <div><span style="color:#8b8a86">S7 mode toggle —</span> Enter manually ↔ Pick from the list</div>
+    <div><span style="color:#8b8a86">S7 demo note —</span> Live list is disabled in demo — enter the slug or ISIN manually.</div>
+    <div><span style="color:#8b8a86">S7 group helper (BOTH hosts) —</span> Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.</div>
+    <div><span style="color:#8b8a86">S8 lead-days error —</span> Enter 1–30 days.</div>
+    <div><span style="color:#8b8a86">S8 restore toast —</span> Dismissed reminders restored</div>
+    <div style="height:1px;background:#e8e7e4;margin:10px 0"></div>
+    <div><span style="color:#8b8a86">persistence (G3/D11) —</span> <code>autoQuoteSuggest</code> ON · <code>couponSuggest</code> ON · <code>remindersEnabled</code> ON · <code>reminderLeadDays</code> 7 · <code>dismissedReminders</code> [] — all five enter <code>partialize</code> + <code>PersistedSettings</code> + <code>PERSISTED_DEFAULTS</code> + <code>migrateSettings</code> in the SAME commit.</div>
+    <div><span style="color:#8b8a86">immediacy —</span> every toggle takes effect on its surfaces (S4 ghosts, S5 cards, S6 strip/toast) without a reload; invalid lead-days never writes.</div>
+    <div><span style="color:#8b8a86">restore —</span> clears <code>dismissedReminders</code> entirely, re-surfacing everything still in window — including coupons skipped from the S5 card.</div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

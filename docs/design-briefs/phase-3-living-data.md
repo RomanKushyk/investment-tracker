@@ -37,13 +37,19 @@ may split differently; one surface must never span two files.
   `--color-warn-tint-text: #6b5527` — every stale/caution state in this
   phase reuses it), the 4 asset hues + `-tint`/`-tint-text`, `chart-*`
   aliases. **New tokens this phase mints — values chosen by the design
-  session:** `--color-neg-tint` + `--color-neg-tint-text` — a soft tint
-  family of the existing `--color-neg` (#a8695a terracotta) for the
-  OVERDUE reminder severity (S6); must stay visually distinct from the
-  `energy` asset tint (#efe4e0) and from `warn-tint` (#f0e6cb), with
-  tint-text on tint ≥ 4.5:1. The extension file's header comment is the
-  single source for the minted values (D14 precedent); implementers copy
-  them into `src/index.css` `@theme`. No other new tokens; no ad-hoc hex.
+  session (2026-08-04, `design/extensions/reminders.dc.html` header
+  comment):** `--color-neg-tint: #f0cec7` · `--color-neg-tint-text:
+  #693f35` — a soft tint family of the existing `--color-neg` (#a8695a
+  terracotta) for the OVERDUE reminder severity (S6) and nothing else.
+  Hue matches the parent exactly (neg hsl 11.5°/31%/51%; tint
+  hsl 10°/58%/86%; tint-text hsl 11.5°/33%/31%), which keeps it distinct
+  from the `energy` asset tint (#efe4e0 — hsl 16°/32%/91%, far less
+  saturated) and from `warn-tint` (#f0e6cb — hsl 44°/55%/87%, same weight
+  band, 34° away in hue). Computed contrast: tint-text on tint **6.08:1**
+  ✓, tint-text on card 8.89:1, tint-text on page 8.16:1 (raw `neg` on the
+  tint is only 2.97:1 — banner text is ALWAYS tint-text). Implementers copy
+  these exact values into `src/index.css` `@theme`. No other new tokens; no
+  ad-hoc hex.
 - **Layout:** cards radius 20–24 px; pills/badges/segments/chips radius
   999; inputs radius 10; nested sub-panels radius 16; sidebar 232 px
   (136 px below `sm`); the shell holds at 360 px with no page-level
@@ -453,8 +459,9 @@ final muted line `+2 more reminders` (pressable, expands the strip).
 
 **Tokens:** `pos-tint(-text)` (info), `warn-tint(-text)` (warn),
 `neg-tint(-text)` (overdue — minted this phase, values from the extension
-header), `muted` (`+N more`). Banner text NEVER uses raw `neg`/`pos` — the
-tint-text tokens carry the contrast.
+header: `--color-neg-tint: #f0cec7`, `--color-neg-tint-text: #693f35`,
+contrast 6.08:1), `muted` (`+N more`). Banner text NEVER uses raw
+`neg`/`pos` — the tint-text tokens carry the contrast.
 **Layout:** full content width above the screen header; radius 16; at
 360 px text wraps, `×` stays top-right, no horizontal scroll.
 **Acceptance:**

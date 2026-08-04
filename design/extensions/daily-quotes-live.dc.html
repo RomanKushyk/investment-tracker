@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/daily-quotes-live.dc.html — Phase 3 design reference
+  (G7/D14). Surfaces: S1 Fetch-quotes button (5-state machine + gating) ·
+  S2 per-row provenance chips (auto/manual/stale) · S3 dirty-field
+  "Use fetched?" affordance · S4 ghost "suggested" quote-input state ·
+  S5 coupon-due suggestion card.
+  Parent screen: `/` Daily quotes — master reference lines 55–146.
+  Brief (copy/behavior authority): docs/design-briefs/phase-3-living-data.md
+  §S1–S5. Visual authority once merged: THIS file (D14 precedence).
+
+  ★★★ SUGGESTION VISUAL LANGUAGE — the phase's one binding rule ★★★
+  ★
+  ★   DASHED border + MUTED value/ghost text  = PROPOSED (machine's guess)
+  ★   SOLID hairline #e8e7e4 + INK #26262a    = YOURS (a real typed draft)
+  ★   SOLID pos-border #c9d4c4 + INK          = VALID / SAVED (v1 idiom)
+  ★
+  ★ • Dashed is the ONLY carrier of "proposed", and it is ONE stroke
+  ★   everywhere — 1px dashed `faint` #b3b2ae: S3 offer pill, S4 ghost
+  ★   input, S5 coupon card. Nothing else in the app is dashed (the P2
+  ★   "New asset details" sub-panel shares the stroke by inheritance —
+  ★   it, too, is content that is not saved yet). Hover deepens the dash
+  ★   to `muted` #8b8a86; the stale variant swaps it for `warn-tint`.
+  ★ • pos-border / pos-tint NEVER decorate a suggestion — green means the
+  ★   value is real and parsed (v1 pinned, master line 68). The `auto` chip
+  ★   IS pos-tint, but it describes a value the user already ACCEPTED, so
+  ★   green stays honest: green = a number that will be saved.
+  ★ • The dashed→solid transition happens ONLY on a press (G5 suggest-only):
+  ★   accept the offer, or type. Nothing crosses it by itself, ever.
+  ★ • Ghosts never count in "N of M filled", never show a delta, never save.
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  Tokens used here — existing (src/index.css @theme): page #f6f5f3 · ink
+  #26262a · card #fff · muted #8b8a86 · faint #b3b2ae · hairline #e8e7e4 ·
+  panel #eceae7 · panel-border #dedcd8 · label #6f6e6a · pos #5c7355 ·
+  pos-tint #e3eadf · pos-tint-text #4c5a48 · pos-border #c9d4c4 · neg
+  #a8695a · warn #8f6b33 · warn-tint #f0e6cb · warn-tint-text #6b5527
+  (warn family minted in settings.dc.html — every stale/caution state in
+  this phase reuses it) · the 4 asset hues. NO new tokens are minted in
+  this file (the phase's `--color-neg-tint`/`-tint-text` are minted in
+  design/extensions/reminders.dc.html and are used ONLY there).
+
+  DATA: this screen is drawn in the LIVE dataset (fetch is disabled in
+  demo, S1). Quote values are the trimmed live fixture
+  src/core/inzhur/__fixtures__/assets-sample.json: REIT sellUAH 11.1389 ×
+  6 164 units = 68 660,18 · Energy 6 675,8848 × 9 = 60 082,96 · …8976
+  1 057,67 × 15 = 15 865,05 · coupon 7840 kopecks = ₴78,40/unit ·
+  maturities 24.03.2027 / 27.09.2028. "Yesterday" sublines and the coupon
+  attributes reuse the demo seed's figures unchanged (D5 additive-only —
+  no pinned demo figure is altered anywhere in this file).
+
+  Idiom: master-reference inline styles — every color/size/spacing literal.
+  Light theme only (dark theme is Phase 5). DASHED-BORDER CHIPS WITH 10px
+  UPPERCASE TEXT ON #fff ARE SPEC ANNOTATIONS, never UI (the UI's dashed
+  borders are listed in the rule box above). Motion (D7) annotated in
+  comments — defaults 220ms cubic-bezier(0.22,1,0.36,1), hover 150ms,
+  reveals 300–400ms, pressables active:scale-[.97]; prefers-reduced-motion
+  collapses everything.
+════════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Daily quotes — living data" style="min-height:100vh;padding:32px 36px 48px;box-sizing:border-box">
+
+  <div style="display:flex;align-items:center;gap:12px;margin:0 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Screen · live dataset · fetch succeeded 13:05</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       THE SCREEN — everything not annotated below is byte-identical to
+       the master (lines 55–146): title, subtitle, row anatomy, Save/Copy
+       actions, yield teaser, Transaction panel, Recent transactions.
+       New in Phase 3: the Fetch button + microcopy in the header row (S1),
+       the provenance chips in the row sublines (S2), the offer line under
+       a dirty input (S3), the ghost input (S4), the coupon card at the TOP
+       of the aside (S5).
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1 1 560px;min-width:0">
+
+      <!-- ── S1 · header row: h2 · progress pill · [Fetch quotes] · microcopy
+           · Date (ml-auto). The button sits BETWEEN the pill and the Date
+           group — it is the phase's headline control and part of the daily
+           ritual, not a table action.
+           Button anatomy: outline pill (master line 92 "Copy yesterday"),
+           1.5px ink border, transparent bg, radius 999, h 34 (padding
+           8px 18px, 13px Space Grotesk 600) — one notch below the 36px
+           md button so it reads as a header control next to the 36px Date
+           field; refresh icon 13px, 8px gap left of the label.
+           D7: hover bg #e9e8e6 150ms · press scale .97 220ms · icon
+           rotation 1s linear while loading · label crossfade 220ms on the
+           success flash · microcopy color crossfade 220ms;
+           reduced-motion: instant, icon static.
+           At 360px the header wraps to: title+pill / button+microcopy /
+           Date — see the narrow-column render further down. -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap">
+        <h2 style="margin:0;font-size:26px">Daily quotes</h2>
+        <!-- fetch-filled rows increment this pill exactly like typed ones;
+             the S4 ghost row does NOT count → 3 of 4 -->
+        <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">3 of 4 filled</span>
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#e9e8e6"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+        <!-- persistent header microcopy once a fetch has EVER succeeded;
+             muted while fresh, warn while serving a stale cache -->
+        <span style="font-size:11px;color:#8b8a86">Inzhur 13:05</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px"><label style="font-size:13px;white-space:nowrap">Date</label><input value="27.07.2026" style="width:130px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+      </div>
+      <p style="font-size:13px;color:#8b8a86;margin:0 0 18px">The everyday ritual — nothing else competes with it.</p>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+
+        <!-- ROW 1 · Inzhur-linked fund, filled by the fetch → S2 `auto` chip
+             + "fetched 13:05" microcopy. Value = 6 164 × 11.1389 = 68 660,18.
+             Input is a REAL draft: solid border, ink text (pos-border only
+             once it parses valid — it does, so the v1 green border applies).
+             D7: fetch fill = input text + chip fade/zoom-in-95, 200ms,
+             stagger 50ms per row; reduced-motion: instant. -->
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e3eadf;display:grid;place-items:center;color:#4c5a48;font-size:12px;font-weight:700">RE</div>
+          <div style="flex:1;min-width:110px">
+            <div style="font-weight:600;font-size:14px">Inzhur REIT</div>
+            <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span>₴68,629.36 yesterday</span>
+              <span title="Filled from Inzhur (units × sell price)." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span>
+              <span style="font-size:10px;color:#8b8a86">fetched 13:05</span>
+            </div>
+          </div>
+          <input value="68 660,18" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.04%</span>
+        </div>
+
+        <!-- ROW 2 · Inzhur-linked fund the user had ALREADY typed into →
+             chip stays `manual` (fetch never overwrites, G5) and the fetched
+             number is OFFERED on a second row line (S3). The row grows
+             vertically; rows below slide down softly.
+             Offer value = 9 × 6 675,8848 = 60 082,96 ≠ typed 60 100,00 →
+             the offer exists (equality guard: identical values never offer).
+             D7: affordance appears fade + slide-from-top-1 + height reveal
+             300ms soft; accept/dismiss collapse 220ms; reduced-motion:
+             instant. -->
+        <div style="display:flex;flex-direction:column;gap:8px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#efe4e0;display:grid;place-items:center;color:#6d5a53;font-size:12px;font-weight:700">EN</div>
+            <div style="flex:1;min-width:110px">
+              <div style="font-weight:600;font-size:14px">Inzhur Energy</div>
+              <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span>₴60,086.09 yesterday</span>
+                <span title="Typed by hand — fetch never overwrites it." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#eceae7;color:#8b8a86;border-radius:999px;padding:2px 8px">manual</span>
+              </div>
+            </div>
+            <input value="60 100,00" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+            <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.02%</span>
+          </div>
+          <!-- S3 line: right-aligned under the input column (padding-right
+               68px = the 52px delta column + its 16px gap). Ghost pill =
+               dashed faint border + transparent bg + ink label 11px. -->
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-right:68px">
+            <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer" style-hover="background:#f6f5f3">Use fetched 60 082,96?</button>
+            <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px" style-hover="opacity:1">✕</button>
+          </div>
+        </div>
+
+        <!-- ROW 3 · Inzhur-linked BOND, filled by the fetch: 15 × 1 057,67
+             = 15 865,05 (units × sellUAH — bonds and funds share one rule). -->
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e4e8eb;display:grid;place-items:center;color:#525c64;font-size:12px;font-weight:700">GB</div>
+          <div style="flex:1;min-width:110px">
+            <div style="font-weight:600;font-size:14px">OVDP UA4000238976</div>
+            <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span>₴15,846.30 yesterday</span>
+              <span title="Filled from Inzhur (units × sell price)." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span>
+              <span style="font-size:10px;color:#8b8a86">fetched 13:05</span>
+            </div>
+          </div>
+          <input value="15 865,05" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+          <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.12%</span>
+        </div>
+
+        <!-- ROW 4 · fixed-coupon asset that is NOT Inzhur-linked → the fetch
+             has nothing to fill, so the accrual GHOST (S4) is the fallback
+             suggestion path. Ghost = dashed hairline border, muted value
+             rendered as real text (NOT `placeholder`), `suggested` micro-tag
+             9px faint immediately left of the input, delta stays "—", the
+             row is NOT counted in "3 of 4 filled", nothing saves.
+             Value 4 376,49 = last quote 4 374,12 + 2 days × daily accrual
+             1,18 (couponAmount 216,00 × 2/yr ÷ 365) — illustrative; the app
+             derives it in core/accrual.suggestedQuote.
+             NEVER pos-border here — a ghost must not look saved. -->
+        <div style="display:flex;flex-direction:column;gap:8px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
+            <div style="flex:1;min-width:110px">
+              <div style="font-weight:600;font-size:14px">OVDP UA4000236475</div>
+              <div style="font-size:11px;color:#8b8a86">₴4,374.12 yesterday</div>
+            </div>
+            <span style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b3b2ae;flex:none">suggested</span>
+            <input title="Suggested from coupon accrual — accept or type your own." value="4 376,49" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px dashed #b3b2ae;background:#fff;padding:0 12px;font-size:13px;color:#8b8a86;text-align:right;box-sizing:border-box">
+            <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+          </div>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-right:68px">
+            <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer" style-hover="background:#f6f5f3">Use suggested 4 376,49?</button>
+            <button aria-label="Dismiss suggestion" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px" style-hover="opacity:1">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions — UNCHANGED (master line 90–94). G5: the fetch fills
+           drafts only; this button is still the sole write path. -->
+      <div style="display:flex;gap:10px;margin-top:18px;align-items:center;flex-wrap:wrap">
+        <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Save snapshot</button>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="background:#e9e8e6">Copy yesterday</button>
+        <span style="font-size:12px;color:#8b8a86;margin-left:auto">Last saved 25.07, 21:14</span>
+      </div>
+
+      <!-- Yield teaser — UNCHANGED (master lines 95–99), omitted markup for
+           brevity is NOT permission to change it; it renders as in v1. -->
+      <div style="margin-top:24px;background:#fff;border-radius:20px;padding:16px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#26262a" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="m7 14 4-4 4 4 5-6"></path></svg>
+        <div style="flex:1;font-size:13px"><strong>Yield since start:</strong> REIT +4.41% · Energy +1.48% · …8976 +2.96% · …6475 +5.20%</div>
+        <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 16px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer" style-hover="opacity:.85">Yield chart →</button>
+      </div>
+    </div>
+
+    <!-- ── aside: S5 coupon card FIRST, then Transaction, then Recent
+         transactions. At 360px the aside stacks under the rows in exactly
+         this order. -->
+    <aside style="flex:1 1 300px;max-width:360px;display:flex;flex-direction:column;gap:14px">
+
+      <!-- ── S5 · coupon-due suggestion card. Card radius 20 on #fff with a
+           DASHED 1px faint border — the suggestion language again: this is
+           an offer, not a record. Overdue date micro-pill uses the warn
+           family (urgency lives in the reminder strip, not in this border).
+           Amount is EDITABLE and prefilled from the asset's couponAmount
+           (linked variant prefills from the Inzhur paymentSchedule — see the
+           fragment strip below). NO tax row is ever drafted (D13/G5).
+           D7: card appears fade + slide-from-bottom-1 300ms soft with the
+           aside mount; confirm/skip = height collapse + fade 300ms, cards
+           below slide up; checkbox draw 150ms; press scale .97;
+           reduced-motion: instant. -->
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Coupon due</span>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">25.07</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — coupon ₴1,240.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 12px">Scheduled for 25.07.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label>
+        <input value="1 240,00" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;cursor:pointer">
+          <span style="width:16px;height:16px;flex:none;border-radius:5px;border:1px solid #dedcd8;background:#f6f5f3;margin-top:1px"></span>
+          <span style="font-size:12px;line-height:1.45">Also record a reinvest of this amount<span style="display:block;font-size:11px;color:#8b8a86">Same date, same asset — the payout then counts as reinvested, not paid out.</span></span>
+        </label>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#3d3d42">Record coupon</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="opacity:.85">Skip</button>
+        </div>
+      </div>
+
+      <!-- Transaction panel — UNCHANGED (master lines 101–133; the P2
+           quick-create AssetForm body renders inside it per
+           extensions/asset-form.dc.html). Shown collapsed-to-its-frame here
+           only to pin the S5 card's position ABOVE it. -->
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600">Transaction</div>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">occasional</span>
+        </div>
+        <p style="font-size:12px;color:#8b8a86;margin:0 0 14px">Deposits, buys, accruals, reinvests — opened only when something happened.</p>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Date</label><input value="27.07.2026" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+            <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Type</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Buy</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+          </div>
+          <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Asset</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Inzhur REIT</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label><input placeholder="10 000,00" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+            <div><label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Source of funds</label><div style="height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;cursor:pointer"><span>Own funds</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b8a86" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div></div>
+          </div>
+          <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer" style-hover="background:#3d3d42">Record transaction</button>
+        </div>
+      </div>
+
+      <div style="background:#fff;border-radius:20px;padding:16px 20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Recent transactions</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Reinvest · REIT</span><strong>₴687.02</strong><span style="color:#8b8a86">10.07</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Dividend accrual · REIT</span><strong>₴700.36</strong><span style="color:#8b8a86">10.07</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>Coupon · OVDP …6475</span><strong>₴216.00</strong><span style="color:#8b8a86">03.06</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S1 · FETCH-QUOTES BUTTON — the 5-state machine + gating states
+       ══════════════════════════════════════════════════════════════════
+       Machine: idle → loading (click) → success | error;
+                error → stale-cache (user applies the cached feed) → idle;
+                a click while the query is still fresh re-serves the cache
+                INSTANTLY and renders as success (values + chips), not as a
+                new roundtrip; a payload dated before today's ~13:00 Kyiv
+                refresh is still SUCCESS (freshness is the payload's).
+       Never `neg`: a failed fetch is a toast, not a red button. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S1 · fetch button — all states side by side</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">1 · idle (default)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">1b · hover (150ms)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- hover fill = #e9e8e6 (the outline variant's pinned hover) -->
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:#e9e8e6;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">1c · focus-visible</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- global :focus-visible — 2px ink outline, offset 2 -->
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer;outline:2px solid #26262a;outline-offset:2px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">2 · loading</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- disabled while in flight; icon rotates 1s linear loop (drawn
+             mid-rotation here); draft inputs stay untouched until resolve.
+             reduced-motion: icon static, the label alone signals. -->
+        <button disabled style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;opacity:.7"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(70deg)"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetching…</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">3 · success flash (~2.5s)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- transient: icon → check, border+text flush `pos`, label
+             "Fetched HH:MM"; reverts to idle after ~2.5s (label crossfade
+             220ms). The PERSISTENT record lives in the row chips (S2) and
+             the header microcopy. -->
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #5c7355;color:#5c7355;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>Fetched 13:05</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">5 · stale-cache (button back to idle)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+        <!-- microcopy flips muted → warn (color crossfade 220ms) -->
+        <span style="font-size:11px;color:#8f6b33">Inzhur as of 25.07</span>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">disabled · no linked assets (live)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <button disabled title="No Inzhur-linked assets yet — link one in Settings → Portfolio." style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;opacity:.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">demo-disabled (G4/D16)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- NEVER removed from the layout — the ritual header keeps its
+             shape in both datasets. In-button DEMO micro-pill = the warn
+             family (same idiom as the sidebar badge, D16). No request ever
+             leaves the app in demo. -->
+        <button disabled title="Fetching is disabled in the demo dataset — switch to Live in Settings → Data." style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 14px 8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;opacity:.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes<span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 7px">DEMO</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 · error — the button itself returns to idle; the failure is a toast.
+       The stale action appears ONLY when a last-good cache exists; pressing
+       it applies the cached feed to the draft and moves the screen to state
+       5 (rows get warn chips per S2). -->
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;margin-top:14px">
+    <div style="flex:1 1 320px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">4 · error — toast (no cache)</div>
+      <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Couldn't reach Inzhur — check your connection.</div>
+    </div>
+    <div style="flex:1 1 320px;max-width:420px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">4b · error — toast with cache action</div>
+      <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="flex:1">Couldn't reach Inzhur — check your connection.</span>
+        <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:5px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;cursor:pointer" style-hover="background:#e9e8e6">Use values from 25.07</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- header microcopy variants + the 360px header wrap -->
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin-top:14px">
+    <div style="flex:1 1 260px;max-width:340px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">header microcopy — fresh vs stale</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:11px;line-height:2.2">
+        <div><span style="color:#8b8a86">Inzhur 13:05</span> <span style="color:#b3b2ae">— muted, payload is today's</span></div>
+        <div><span style="color:#8f6b33">Inzhur as of 25.07</span> <span style="color:#b3b2ae">— warn, serving last-good cache</span></div>
+        <div><span style="color:#b3b2ae">(absent) — no fetch has ever succeeded</span></div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">header at 360px — wraps, never scrolls</div>
+      <!-- title+pill row, then button+microcopy row, then Date row -->
+      <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:16px;padding:16px;box-sizing:border-box">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 style="margin:0;font-size:26px">Daily quotes</h2>
+          <span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">3 of 4 filled</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
+          <button style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:8px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Fetch quotes</button>
+          <span style="font-size:11px;color:#8b8a86">Inzhur 13:05</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><label style="font-size:13px;white-space:nowrap">Date</label><input value="27.07.2026" style="flex:1;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S2 · PER-ROW PROVENANCE CHIPS — auto / manual / stale
+       ══════════════════════════════════════════════════════════════════
+       Geometry (all three identical): 10px uppercase, letter-spacing .08em,
+       weight 700, radius 999, padding 2px 8px — living in the name block's
+       SUBLINE row, after "₴… yesterday". They describe the DRAFT: saving
+       does not clear them, tomorrow's fresh draft does.
+       Transitions: typing into an `auto`/`stale` row flips it to `manual`
+       on the FIRST keystroke; accepting an S3 offer flips it back to `auto`.
+       D7: re-keyed chip = fade + zoom-in-95 150ms; reduced-motion: instant.
+       Chips render ONLY on Inzhur-linked rows that carry a draft value —
+       never in demo (fetch is off there, so `auto`/`stale` are impossible
+       and `manual` would be noise on every row). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S2 · provenance chips — 3 variants + tooltips</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:640px">
+    <!-- auto -->
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e3eadf;display:grid;place-items:center;color:#4c5a48;font-size:12px;font-weight:700">RE</div>
+      <div style="flex:1;min-width:110px">
+        <div style="font-weight:600;font-size:14px">Inzhur REIT</div>
+        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴68,629.36 yesterday</span><span title="Filled from Inzhur (units × sell price)." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span><span style="font-size:10px;color:#8b8a86">fetched 13:05</span></div>
+      </div>
+      <input value="68 660,18" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.04%</span>
+    </div>
+    <!-- auto · accepted accrual suggestion → microcopy reads "accrual" -->
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
+      <div style="flex:1;min-width:110px">
+        <div style="font-weight:600;font-size:14px">OVDP UA4000236475</div>
+        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴4,374.12 yesterday</span><span title="Filled from Inzhur (units × sell price)." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span><span style="font-size:10px;color:#8b8a86">accrual</span></div>
+      </div>
+      <input value="4 376,49" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.05%</span>
+    </div>
+    <!-- manual -->
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#efe4e0;display:grid;place-items:center;color:#6d5a53;font-size:12px;font-weight:700">EN</div>
+      <div style="flex:1;min-width:110px">
+        <div style="font-weight:600;font-size:14px">Inzhur Energy</div>
+        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴60,086.09 yesterday</span><span title="Typed by hand — fetch never overwrites it." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#eceae7;color:#8b8a86;border-radius:999px;padding:2px 8px">manual</span></div>
+      </div>
+      <input value="60 100,00" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.02%</span>
+    </div>
+    <!-- stale — the DATE is the message, so no extra microcopy -->
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e4e8eb;display:grid;place-items:center;color:#525c64;font-size:12px;font-weight:700">GB</div>
+      <div style="flex:1;min-width:110px">
+        <div style="font-weight:600;font-size:14px">OVDP UA4000238976</div>
+        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴15,846.30 yesterday</span><span title="From the last successful fetch — Inzhur was unreachable." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">as of 25.07</span></div>
+      </div>
+      <input value="15 852,60" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.04%</span>
+    </div>
+    <!-- default: linked row without a draft → NO chip (an empty row is just
+         an empty row); unlinked rows never carry chips at all -->
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e3eadf;display:grid;place-items:center;color:#4c5a48;font-size:12px;font-weight:700">RE</div>
+      <div style="flex:1;min-width:110px">
+        <div style="font-weight:600;font-size:14px">Inzhur REIT</div>
+        <div style="font-size:11px;color:#8b8a86">₴68,629.36 yesterday</div>
+      </div>
+      <input placeholder="68 629,36" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+      <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S3 · DIRTY-FIELD "USE FETCHED?" AFFORDANCE
+       ══════════════════════════════════════════════════════════════════
+       The no-silent-overwrite rule made visible. Appears per row, ONLY when
+       a dirty draft AND a DIFFERING fetched value both exist (equality guard:
+       typed "60 082,96" vs fetched 60082.96 → no offer at all, and the chip
+       stays `manual` — it is still the user's number).
+       Both the pill and the ✕ are tabbable with the global focus ring.
+       Accept → draft = the offered value, chip flips to `auto`.
+       Dismiss → nothing changes; the offer stays hidden until the NEXT
+       fetch resolves. -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S3 · offer pill — default · hover · stale · resolved</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">default</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:8px">
+        <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use fetched 60 082,96?</button>
+        <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px;opacity:.85">✕</button>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">hover (150ms) + ✕ at full opacity</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:8px">
+        <button style="border:1px dashed #b3b2ae;background:#f6f5f3;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use fetched 60 082,96?</button>
+        <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px">✕</button>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">focus-visible (pill and ✕ separately)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:8px">
+        <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer;outline:2px solid #26262a;outline-offset:2px">Use fetched 60 082,96?</button>
+        <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px">✕</button>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">stale variant — cached value offered</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:8px">
+        <!-- dashed border + label flip to the warn family; still dashed —
+             a cached number is still only a proposal -->
+        <button style="border:1px dashed #f0e6cb;background:transparent;color:#6b5527;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use 60 082,96 (as of 25.07)?</button>
+        <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px">✕</button>
+      </div>
+    </div>
+    <div style="flex:1 1 320px;max-width:460px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">resolved — accepted (offer gone, chip `auto`)</div>
+      <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#efe4e0;display:grid;place-items:center;color:#6d5a53;font-size:12px;font-weight:700">EN</div>
+        <div style="flex:1;min-width:110px">
+          <div style="font-weight:600;font-size:14px">Inzhur Energy</div>
+          <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴60,086.09 yesterday</span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span><span style="font-size:10px;color:#8b8a86">fetched 13:05</span></div>
+        </div>
+        <input value="60 082,96" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+        <!-- delta recomputes against yesterday; signed values use U+2212 (D8) -->
+        <span style="font-size:12px;font-weight:700;color:#a8695a;width:52px;text-align:right">−0.01%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S4 · THE FOUR INPUT STATES, SIDE BY SIDE
+       ══════════════════════════════════════════════════════════════════
+       This strip is the acceptance test for the suggestion language: the
+       ghost must be unmistakable next to the other three. Input geometry is
+       identical everywhere (h 36, radius 10, max-w 160, right-aligned) —
+       only border style, border color and text color carry the meaning.
+       Gated by `autoQuoteSuggest` (S8): off → no ghosts anywhere.
+       ACTIVE in the demo dataset — accrual is pure local math (G4/D16). -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S4 · empty · ghost-suggested · typed · valid-green</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">1 · empty + placeholder</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- solid hairline, `placeholder` (disappears on focus), faint "—" -->
+        <input placeholder="15 846,30" style="width:160px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px">not counted · delta —</div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">2 · ghost-suggested (proposed)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- DASHED faint border + muted REAL text (not a placeholder) +
+             `suggested` micro-tag.
+             DESIGN-SESSION REFINEMENT of the brief's "dashed 1px hairline":
+             the resting dash is `faint` #b3b2ae — the SAME stroke as the S3
+             offer pill and the S5 card — so one dashed line means "proposed"
+             everywhere. At 1px a hairline dash on white is effectively
+             invisible, which would have left the ghost indistinguishable
+             from an empty input at a glance. Hover deepens to `muted`
+             #8b8a86 (150ms). Visual call only — every other pin from the
+             brief's S4 row (muted text, no pos-border, not counted, no
+             delta) stands. -->
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b3b2ae">suggested</span>
+          <input title="Suggested from coupon accrual — accept or type your own." value="15 907,45" style="width:160px;height:36px;border-radius:10px;border:1px dashed #b3b2ae;background:#fff;padding:0 12px;font-size:13px;color:#8b8a86;text-align:right;box-sizing:border-box">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use suggested 15 907,45?</button>
+          <button aria-label="Dismiss suggestion" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px">✕</button>
+        </div>
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px">not counted · delta — · never saved</div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">3 · typed, still parsing</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- solid hairline + INK text: it is the user's number the moment
+             the first key lands (the ghost text and micro-tag fade out in
+             150ms on that keystroke) -->
+        <input value="15 90" style="width:160px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px">not yet valid · delta —</div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">4 · valid / saved (pos-border)</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- v1 pinned (master line 68): green border ONLY for a parsed,
+             real value. Never for a suggestion. -->
+        <input value="15 907,45" style="width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+        <div style="font-size:11px;color:#5c7355;margin-top:6px;font-weight:700">counted · +0.39%</div>
+      </div>
+    </div>
+    <div style="flex:0 0 auto">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">empty · no last quote → no ghost</div>
+      <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <!-- an asset that was never quoted has nothing to carry forward -->
+        <input style="width:160px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+        <div style="font-size:11px;color:#8b8a86;margin-top:6px">plain empty input</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       S5 · COUPON-DUE CARD — variants
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">S5 · coupon card — linked prefill · error · stacked · pending</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+
+    <!-- linked prefill: the amount comes from the Inzhur paymentSchedule —
+         7840 kopecks = ₴78,40 per bond × 15 units = 1 176,00. Kopecks→₴
+         happens in exactly one tested place (core/inzhur/parse). The user
+         can still overwrite it (G5: seed precedent paid 1 183,50 vs
+         scheduled 1 240). Reinvest checkbox CHECKED here. -->
+    <div style="flex:1 1 320px;max-width:360px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">linked prefill · reinvest checked</div>
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Coupon due</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — coupon ₴1,176.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 12px">Scheduled for 22.09.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label>
+        <input value="1 176,00" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;cursor:pointer">
+          <span style="width:16px;height:16px;flex:none;border-radius:5px;background:#26262a;display:grid;place-items:center;margin-top:1px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+          <span style="font-size:12px;line-height:1.45">Also record a reinvest of this amount<span style="display:block;font-size:11px;color:#8b8a86">Same date, same asset — the payout then counts as reinvested, not paid out.</span></span>
+        </label>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="background:#3d3d42">Record coupon</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer" style-hover="opacity:.85">Skip</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- error: invalid amount → neg border + 11px neg message; confirm
+         blocked. The card border stays dashed faint (it is still a
+         suggestion; `neg` is validation only). -->
+    <div style="flex:1 1 320px;max-width:360px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">error · empty amount</div>
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Coupon due</span>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">25.07</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — coupon ₴1,240.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 12px">Scheduled for 25.07.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label>
+        <input inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #a8695a;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <div style="font-size:11px;color:#a8695a;margin-top:4px">Enter an amount.</div>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer">Record coupon</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer">Skip</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- pending (mutation in flight): confirm disabled opacity .5 -->
+    <div style="flex:1 1 320px;max-width:360px">
+      <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">disabled · confirm pending</div>
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Coupon due</div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000236475 — coupon ₴216.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 12px">Scheduled for 03.12.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+        <label style="display:block;font-size:11px;color:#6f6e6a;margin-bottom:4px">Amount, ₴</label>
+        <input value="216,00" inputmode="decimal" style="width:100%;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;box-sizing:border-box">
+        <div style="display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap">
+          <button disabled style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:9px 18px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;opacity:.5">Record coupon</button>
+          <button style="background:transparent;border:none;color:#26262a;border-radius:999px;padding:9px 14px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;cursor:pointer">Skip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- stacking: one card per due coupon, in the aside, above Transaction.
+       Order inside the aside: cards → Transaction → Recent transactions. -->
+  <div style="margin-top:14px;max-width:360px">
+    <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">stacked · 2 due coupons (gap 14)</div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Coupon due</span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">25.07</span></div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — coupon ₴1,240.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 0">Scheduled for 25.07.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+      </div>
+      <div style="background:#fff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Coupon due</span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#f0e6cb;color:#6b5527;border-radius:999px;padding:2px 8px">26.07</span></div>
+        <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000236475 — coupon ₴216.00</div>
+        <p style="font-size:12px;color:#8b8a86;line-height:1.5;margin:6px 0 0">Scheduled for 26.07.2026. Confirm to record it — the amount is editable, history is never rewritten.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- empty: no due coupons → NO cards at all; the aside starts with the
+       Transaction panel and is byte-identical to the P2 screen.
+       `couponSuggest` off (S8) has exactly the same result.
+       confirmed → card collapses; exactly one `interest_payout` (+ the
+       paired `reinvest` when checked, same date/asset/amount) is recorded
+       through the existing transaction path and `nextCoupon` rolls forward
+       ONCE (clamped at maturity; at maturity the asset is flagged and stops
+       suggesting).
+       skipped → card collapses; the derived id `coupon:assetId:date` joins
+       `dismissedReminders`; the NEXT coupon date suggests normally; the
+       restore path is Settings → Automation (S8). -->
+
+  <!-- ══ Toast copy inventory — verbatim (sonner, existing motion) ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Toast copy — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Coupon recorded</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Coupon + reinvest recorded</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Couldn't reach Inzhur — check your connection.</div>
+    <div style="background:#fff;border-radius:16px;padding:12px 16px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:13px">Snapshot saved</div>
+  </div>
+
+  <!-- ══ Tooltip / a11y copy inventory — verbatim ══ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">title / aria-label copy — verbatim</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:16px 18px;box-shadow:0 1px 3px rgba(38,38,42,.06);font-size:12.5px;line-height:2;max-width:760px">
+    <div><span style="color:#8b8a86">button, no links —</span> No Inzhur-linked assets yet — link one in Settings → Portfolio.</div>
+    <div><span style="color:#8b8a86">button, demo —</span> Fetching is disabled in the demo dataset — switch to Live in Settings → Data.</div>
+    <div><span style="color:#8b8a86">chip auto —</span> Filled from Inzhur (units × sell price).</div>
+    <div><span style="color:#8b8a86">chip manual —</span> Typed by hand — fetch never overwrites it.</div>
+    <div><span style="color:#8b8a86">chip stale —</span> From the last successful fetch — Inzhur was unreachable.</div>
+    <div><span style="color:#8b8a86">ghost input —</span> Suggested from coupon accrual — accept or type your own.</div>
+    <div><span style="color:#8b8a86">S3 dismiss (aria-label) —</span> Keep my value</div>
+    <div><span style="color:#8b8a86">S4 dismiss (aria-label) —</span> Dismiss suggestion</div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>
