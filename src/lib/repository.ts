@@ -103,6 +103,18 @@ export const repo = {
     });
   },
 
+  // Key-value side table (D9). First app occupant: the Inzhur last-good cache
+  // ('inzhur:lastFetch', P3); P4's mirror handle follows. Values are `unknown`
+  // in IndexedDB, so the caller owns the row shape and must read it
+  // defensively — the cast is a convenience, not a guarantee.
+  async getMeta<T>(key: string): Promise<T | undefined> {
+    return (await db.meta.get(key))?.value as T | undefined;
+  },
+
+  async setMeta(key: string, value: unknown): Promise<void> {
+    await db.meta.put({ key, value });
+  },
+
   // One consistent read of all three tables (backup export basis).
   async exportAll(): Promise<AllTables> {
     return db.transaction('r', [db.assets, db.snapshots, db.transactions], async () => ({

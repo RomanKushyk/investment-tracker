@@ -152,6 +152,29 @@ describe('exportAll', () => {
   });
 });
 
+describe('meta accessors (P3 Inzhur last-good cache)', () => {
+  it('round-trips an arbitrary value and overwrites it in place', async () => {
+    expect(await repo.getMeta('inzhur:lastFetch')).toBeUndefined();
+
+    await repo.setMeta('inzhur:lastFetch', { payload: [{ slug: 'inzhur-reit' }], fetchedAt: 'x' });
+    expect(await repo.getMeta('inzhur:lastFetch')).toEqual({
+      payload: [{ slug: 'inzhur-reit' }],
+      fetchedAt: 'x',
+    });
+
+    await repo.setMeta('inzhur:lastFetch', { payload: [], fetchedAt: 'y' });
+    expect(await repo.getMeta('inzhur:lastFetch')).toEqual({ payload: [], fetchedAt: 'y' });
+    expect(await db.meta.count()).toBe(1);
+  });
+
+  it('leaves the seeding flag alone', async () => {
+    await ensureSeeded();
+    await repo.setMeta('inzhur:lastFetch', { payload: [], fetchedAt: 'z' });
+
+    expect(await repo.getMeta('seeded')).toBe(true);
+  });
+});
+
 // --- Dataset split (G4/D16) ------------------------------------------------
 
 describe('makeDb factory (G4)', () => {

@@ -12,7 +12,7 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `app/` | Shell: `Layout.tsx`, `Sidebar.tsx` |
 | `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` · `xirr` · `backup/` (+ colocated vitest specs) — see `core/README.md` |
 | `lib/` | Persistence/infra only: `db` (Dexie factory `makeDb(name)`; binds the active dataset's DB — `kubushka` demo / `kubushka-live` — at module init from the persisted `dataset` flag, G4/D16) · `repository` · `seed` (+ tests) |
-| `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation |
+| `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation · `useInzhurAssets.ts` — the Inzhur feed's network half (manual-only query, bare GET, last-good `meta` cache, demo-disabled; policy D19) |
 | `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
 | `components/ui/` | Reusable primitives (CVA variants as they appear; `Dialog.tsx` = the S6 modal idiom — `Dialog` plus the `AlertDialog` destructive-confirm variant, D17) |
 | `components/charts/` | One wrapper per recharts chart (Task 6) |
