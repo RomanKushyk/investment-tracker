@@ -10,9 +10,13 @@ import type { InzhurMatch } from '../../core/inzhur/parse';
 import { quoteInputSchema } from '../../core/schemas';
 import type { Asset, QuoteOrigin } from '../../core/types';
 
-/** S2 provenance chip tokens — `at` is an instant; the component formats it. */
+/**
+ * S2 provenance chip tokens — `at` is an instant; the component formats it.
+ * `note: 'accrual'` marks an accepted S4 suggestion: same `auto` pill, but the
+ * microcopy beside it reads "accrual" instead of "fetched HH:MM".
+ */
 export type ProvenanceChip =
-  | { chip: 'auto'; at: string }
+  | { chip: 'auto'; at: string; note?: 'accrual' }
   | { chip: 'stale'; at: string }
   | { chip: 'manual' };
 
@@ -71,8 +75,9 @@ export function provenanceChip(
   if (!linked) return undefined; // unlinked rows have no provenance to show
   if (row.raw === undefined || row.raw.trim() === '') return undefined;
   if (row.origin === undefined) return { chip: 'manual' };
-  return row.origin.source === 'cache'
-    ? { chip: 'stale', at: row.origin.at }
+  if (row.origin.source === 'cache') return { chip: 'stale', at: row.origin.at };
+  return row.origin.source === 'accrual'
+    ? { chip: 'auto', at: row.origin.at, note: 'accrual' }
     : { chip: 'auto', at: row.origin.at };
 }
 

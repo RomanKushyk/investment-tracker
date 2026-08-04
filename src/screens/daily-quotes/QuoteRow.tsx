@@ -20,6 +20,13 @@ const CHIP_TITLE = {
   stale: 'From the last successful fetch — Inzhur was unreachable.',
 };
 
+// S2's title vocabulary has no accrual entry (S4 mints the microcopy) — the
+// pill's tooltip states the source in the same voice.
+const ACCRUAL_CHIP_TITLE = 'Filled from coupon accrual — a suggestion you accepted.';
+
+// S4 input tooltip, verbatim from the reference.
+const GHOST_TITLE = 'Suggested from coupon accrual — accept or type your own.';
+
 function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
   const paint =
     chip.chip === 'auto'
@@ -27,28 +34,72 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
       : chip.chip === 'stale'
         ? 'bg-warn-tint text-warn-tint-text'
         : 'bg-panel text-muted';
+  const accrual = chip.chip === 'auto' && chip.note === 'accrual';
   return (
     <>
       <span
         key={chip.chip}
-        title={CHIP_TITLE[chip.chip]}
+        title={accrual ? ACCRUAL_CHIP_TITLE : CHIP_TITLE[chip.chip]}
         className={`animate-in fade-in zoom-in-95 rounded-full px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 ${paint}`}
       >
         {chip.chip === 'stale' ? `as of ${fmtDateShort(kyivDateIso(new Date(chip.at)))}` : chip.chip}
       </span>
       {chip.chip === 'auto' && (
         <span className="text-muted text-[10px]">
-          fetched {kyivTimeHm(new Date(chip.at))}
+          {accrual ? 'accrual' : `fetched ${kyivTimeHm(new Date(chip.at))}`}
         </span>
       )}
     </>
   );
 }
 
+// The shared "proposed value" line under an input — S3's fetched offer and S4's
+// accrual suggestion are the same affordance: one DASHED ghost pill (dashed =
+// proposed, the phase's binding visual rule) plus a dismiss ✕. The stale variant
+// swaps the stroke and label to `warn`.
+function OfferLine({
+  label,
+  dismissLabel,
+  stale = false,
+  onAccept,
+  onDismiss,
+}: {
+  label: string;
+  dismissLabel: string;
+  stale?: boolean;
+  onAccept: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    // The right gutter (delta column 52 + its 16 gap) aligns the pill under the
+    // input column; below `sm` the row is already stacked, so the pill gets the
+    // full width instead of wrapping inside a 68px-narrower box.
+    <div className="animate-in fade-in slide-in-from-top-1 flex items-center justify-end gap-2 pr-0 duration-300 sm:pr-[68px]">
+      <button
+        type="button"
+        onClick={onAccept}
+        className={`cursor-pointer rounded-full border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
+          stale
+            ? 'border-warn text-warn hover:bg-page'
+            : 'border-faint text-ink hover:border-muted hover:bg-page'
+        }`}
+      >
+        {label}
+      </button>
+      <button
+        type="button"
+        aria-label={dismissLabel}
+        onClick={onDismiss}
+        className="text-muted cursor-pointer p-1 opacity-85 transition hover:opacity-100 active:scale-[.97]"
+      >
+        <X size={11} strokeWidth={2.75} />
+      </button>
+    </div>
+  );
+}
+
 // S3 — the no-silent-overwrite rule made visible: the fetched number is
-// OFFERED under the input of a row the user typed, never applied. Dashed
-// border = proposed (the phase's suggestion language); the stale variant swaps
-// the stroke and label to `warn`.
+// OFFERED under the input of a row the user typed, never applied.
 function UseFetchedOffer({
   offer,
   onAccept,
@@ -60,32 +111,17 @@ function UseFetchedOffer({
 }) {
   const value = fmtTable(offer.value);
   return (
-    // The right gutter (delta column 52 + its 16 gap) aligns the pill under the
-    // input column; below `sm` the row is already stacked, so the pill gets the
-    // full width instead of wrapping inside a 68px-narrower box.
-    <div className="animate-in fade-in slide-in-from-top-1 flex items-center justify-end gap-2 pr-0 duration-300 sm:pr-[68px]">
-      <button
-        type="button"
-        onClick={onAccept}
-        className={`cursor-pointer rounded-full border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
-          offer.stale
-            ? 'border-warn text-warn hover:bg-page'
-            : 'border-faint text-ink hover:border-muted hover:bg-page'
-        }`}
-      >
-        {offer.stale
+    <OfferLine
+      label={
+        offer.stale
           ? `Use ${value} (as of ${fmtDateShort(kyivDateIso(new Date(offer.at)))})?`
-          : `Use fetched ${value}?`}
-      </button>
-      <button
-        type="button"
-        aria-label="Keep my value"
-        onClick={onDismiss}
-        className="text-muted cursor-pointer p-1 opacity-85 transition hover:opacity-100 active:scale-[.97]"
-      >
-        <X size={11} strokeWidth={2.75} />
-      </button>
-    </div>
+          : `Use fetched ${value}?`
+      }
+      dismissLabel="Keep my value"
+      stale={offer.stale}
+      onAccept={onAccept}
+      onDismiss={onDismiss}
+    />
   );
 }
 
@@ -95,23 +131,36 @@ export function QuoteRow({
   yesterday,
   chip,
   offer,
+  suggestion,
   onChange,
   onAcceptOffer,
   onDismissOffer,
+  onAcceptSuggestion,
+  onDismissSuggestion,
 }: {
   asset: Asset;
   raw: string | undefined; // undefined = untouched (not yet prefilled or typed)
   yesterday: number | undefined;
   chip: ProvenanceChip | undefined;
   offer: QuoteOffer | undefined;
+  /** S4 accrual ghost — already gated by the toggle/dismissal upstream. */
+  suggestion: number | undefined;
   onChange: (v: string) => void;
   onAcceptOffer: () => void;
   onDismissOffer: () => void;
+  onAcceptSuggestion: () => void;
+  onDismissSuggestion: () => void;
 }) {
   const parsed = raw !== undefined ? quoteInputSchema.safeParse(raw) : undefined;
   const filled = parsed?.success === true;
   const delta =
     filled && yesterday !== undefined ? yieldSinceStart(parsed.data, yesterday) : undefined;
+  // S4: the ghost lives only while the row has NO draft of its own — the first
+  // keystroke (and an accepted suggestion, which fills the draft) clears it. A
+  // ghost is not a draft: it is never counted in "N of M filled", never shows a
+  // delta and never saves.
+  const ghost = raw === undefined || raw.trim() === '' ? suggestion : undefined;
+  const ghostId = `quote-${asset.id}-suggested`;
 
   return (
     <Card className="animate-in flex flex-col gap-2 fade-in px-5 py-3.5 duration-300 slide-in-from-bottom-1">
@@ -124,19 +173,45 @@ export function QuoteRow({
             {chip !== undefined && <ProvenanceChipPill chip={chip} />}
           </div>
         </div>
-        <input
-          id={`quote-${asset.id}`}
-          name={`quote-${asset.id}`}
-          className={
-            'bg-card h-9 max-w-[160px] min-w-[90px] flex-1 rounded-[10px] border px-3 text-right font-body text-[13px] transition ' +
-            (filled ? 'border-pos-border' : 'border-hairline')
-          }
-          value={raw ?? ''}
-          placeholder={yesterday !== undefined ? fmtTable(yesterday) : undefined}
-          onChange={(e) => onChange(e.target.value)}
-          inputMode="decimal"
-          aria-label={`${asset.name} quote`}
-        />
+        {ghost !== undefined && (
+          <span className="text-faint animate-in fade-in flex-none text-[9px] tracking-[.12em] uppercase duration-300">
+            suggested
+          </span>
+        )}
+        {/* The input keeps its geometry; the ghost is real text rendered OVER
+            its empty value (never a placeholder — a placeholder would vanish on
+            focus and could never be told apart from yesterday's hint). */}
+        <div className="relative flex max-w-[160px] min-w-[90px] flex-1 items-center">
+          <input
+            id={`quote-${asset.id}`}
+            name={`quote-${asset.id}`}
+            title={ghost !== undefined ? GHOST_TITLE : undefined}
+            className={
+              'bg-card h-9 w-full rounded-[10px] border px-3 text-right font-body text-[13px] transition ' +
+              (filled
+                ? 'border-pos-border'
+                : ghost !== undefined
+                  ? 'border-faint border-dashed hover:border-muted'
+                  : 'border-hairline')
+            }
+            value={raw ?? ''}
+            placeholder={
+              ghost === undefined && yesterday !== undefined ? fmtTable(yesterday) : undefined
+            }
+            onChange={(e) => onChange(e.target.value)}
+            inputMode="decimal"
+            aria-label={`${asset.name} quote`}
+            aria-describedby={ghost !== undefined ? ghostId : undefined}
+          />
+          {ghost !== undefined && (
+            <span
+              id={ghostId}
+              className="text-muted animate-in fade-in pointer-events-none absolute right-3 text-[13px] duration-300"
+            >
+              {fmtTable(ghost)}
+            </span>
+          )}
+        </div>
         <span
           key={delta ?? 'empty'}
           className={
@@ -149,6 +224,14 @@ export function QuoteRow({
       </div>
       {offer !== undefined && (
         <UseFetchedOffer offer={offer} onAccept={onAcceptOffer} onDismiss={onDismissOffer} />
+      )}
+      {offer === undefined && ghost !== undefined && (
+        <OfferLine
+          label={`Use suggested ${fmtTable(ghost)}?`}
+          dismissLabel="Dismiss suggestion"
+          onAccept={onAcceptSuggestion}
+          onDismiss={onDismissSuggestion}
+        />
       )}
     </Card>
   );

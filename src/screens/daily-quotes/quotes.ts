@@ -2,21 +2,31 @@
 // untouched per Task 3 scope). Covered by quotes.test.ts.
 import type { Asset, Snapshot } from '../../core/types';
 
-// The latest quote for this asset strictly BEFORE the selected date — the
-// row subline always reads "yesterday" even when the actual gap is bigger
-// (seed: no 26.07 snapshot, so 27.07's "yesterday" is 25.07 — README §6.1).
-export function yesterdayQuote(
+// The latest quote for this asset strictly BEFORE the selected date, WITH its
+// date — the accrual carry-forward needs both (S4: value + how many days ago).
+export function lastQuoteBefore(
   snapshots: Snapshot[],
   assetId: string,
   selectedDate: string,
-): number | undefined {
+): { value: number; date: string } | undefined {
   let best: Snapshot | undefined;
   for (const s of snapshots) {
     if (s.date < selectedDate && s.quotes[assetId] !== undefined) {
       if (!best || s.date > best.date) best = s;
     }
   }
-  return best?.quotes[assetId];
+  return best === undefined ? undefined : { value: best.quotes[assetId], date: best.date };
+}
+
+// The same quote as a bare number — the row subline always reads "yesterday"
+// even when the actual gap is bigger (seed: no 26.07 snapshot, so 27.07's
+// "yesterday" is 25.07 — README §6.1).
+export function yesterdayQuote(
+  snapshots: Snapshot[],
+  assetId: string,
+  selectedDate: string,
+): number | undefined {
+  return lastQuoteBefore(snapshots, assetId, selectedDate)?.value;
 }
 
 // Most recent savedAt across all snapshots — feeds "Last saved" (only

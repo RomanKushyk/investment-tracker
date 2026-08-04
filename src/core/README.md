@@ -15,9 +15,10 @@ The app's pure domain layer per decision G1 (`docs/NEXT-PHASE-PLAN.md`) and `doc
 | `schemas.ts` | zod form schemas: `quoteInputSchema`, `assetFormSchema(mode)` (all editable Asset fields incl. the `inzhur {kind, ref, units}` group; `'none'` schedule accepted in edit mode only), `transactionSchema` — schemas emit paths, never English (D8) |
 | `xirr.ts` | Money-weighted annualized return (Newton–Raphson + bisection fallback) per the P1 formula audit (D13, `docs/FORMULA-AUDIT.md` §6.1) |
 | `backup/` | `json.ts` — backup envelope v1 (`kubushka-backup`) serializer + zod validator (D12) |
+| `accrual.ts` | Fixed-yield automation (P3 D21): `dailyAccrual` (stated coupon ÷ period, else the `expectedPct × invested` fallback — ACT/365), `couponsInGap` (a coupon paid in the gap DROPS the price), `suggestedQuote` (S4's ghost carry-forward, clamped at maturity), `dueCoupons` (S5, deduped ±7 days against recorded `interest_payout` rows), `rollNextCoupon` (clamps onto `maturity`, then flags `matured`), `couponProjection` (the Overview/Seasonality projection incl. user-created bonds), `couponReminderId` (the derived id the S5 skip and the S6 reminders share) |
 | `inzhur/` | `parse.ts` — tolerant pick-parse of the public feed (unknown fields ignored, per-entry skip), `kopecksToUah` (the ONE ₴ conversion), `positionValue`, `nextPaymentOnOrAfter`/`couponForecast`, `matchAssets` (slug/ISIN, trimmed + case-insensitive), the feed `title` for the S7 picker rows — policy in D19; `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28) is the test basis |
 
-Later per the plan: `accrual`, `reminders`, `day-deltas`.
+Later per the plan: `reminders`, `day-deltas`.
 
 ## Rules
 

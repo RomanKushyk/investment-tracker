@@ -145,20 +145,77 @@ describe('nextPayoutRows', () => {
     expect(withNew.some((r) => r.assetId === 'new1')).toBe(false);
   });
 
-  it('a bond missing couponAmount/nextCoupon is skipped', () => {
-    const bareBond: Asset = {
-      id: 'bond2',
-      name: 'OVDP UA0000000000',
-      code: 'GB',
-      colorKey: 'energy',
-      yieldType: 'fixed_coupon',
-      expectedPct: 15,
-      targetPct: 5,
-      payoutSchedule: 'semiannual',
-      firstPurchase: '2026-07-27',
-      createdAt: '2026-07-27T10:00:00',
-    };
+  it('a bond with neither a coupon date nor a maturity date is skipped (no date is invented)', () => {
     const txs: Transaction[] = [];
-    expect(nextPayoutRows([bareBond], txs)).toEqual([]);
+    expect(nextPayoutRows([userBond()], txs)).toEqual([]);
+  });
+});
+
+// A user-created fixed-coupon asset: the P3 fix (feat/fixed-yield) is that these
+// stop being skipped in silence. The seed's own bonds carry both attributes,
+// which is exactly why the gap was invisible — and why no D5 figure moves.
+function userBond(over: Partial<Asset> = {}): Asset {
+  return {
+    id: 'bond2',
+    name: 'OVDP UA0000000000',
+    code: 'GB',
+    colorKey: 'energy',
+    yieldType: 'fixed_coupon',
+    expectedPct: 15,
+    targetPct: 5,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-07-27',
+    createdAt: '2026-07-27T10:00:00',
+    ...over,
+  };
+}
+
+describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
+  const buy: Transaction = {
+    id: 'b9',
+    date: '2026-07-27',
+    type: 'buy',
+    assetId: 'bond2',
+    amount: 10000,
+    source: 'own',
+  };
+
+  it('projects an estimated coupon when the asset states no couponAmount', () => {
+    const rows = nextPayoutRows([userBond({ nextCoupon: '2026-09-15' })], [buy]);
+    // 15 % of ₴10 000,00 a year, half-yearly = ₴750,00, flagged approx ('~').
+    expect(rows).toEqual([
+      {
+        assetId: 'bond2',
+        kind: 'coupon',
+        assetRef: '…0000',
+        amount: 750,
+        approx: true,
+        date: '2026-09-15',
+      },
+    ]);
+  });
+
+  it('dates a stated coupon at maturity when no next coupon is recorded', () => {
+    const rows = nextPayoutRows([userBond({ couponAmount: 500, maturity: '2027-03-01' })], [buy]);
+    expect(rows).toEqual([
+      {
+        assetId: 'bond2',
+        kind: 'coupon',
+        assetRef: '…0000',
+        amount: 500,
+        approx: false,
+        date: '2027-03-01',
+      },
+    ]);
+  });
+
+  it('leaves every seed row byte-identical (additive-only, D5)', () => {
+    const withUser = nextPayoutRows(
+      [...SEED_ASSETS, userBond({ nextCoupon: '2026-09-15' })],
+      [...SEED_TRANSACTIONS, buy],
+    );
+    expect(withUser.filter((r) => r.assetId !== 'bond2')).toEqual(
+      nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS),
+    );
   });
 });

@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { kyivDateIso } from '../../core/dates';
-import { matchAssets } from '../../core/inzhur/parse';
+import { matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
 import { fmtDateShort, fmtTable } from '../../core/money';
 import type { Asset, QuoteSource } from '../../core/types';
 import {
@@ -50,6 +50,12 @@ export interface QuoteFetch {
   freshness: FeedFreshness | undefined;
   /** Instant to render in the transient "Fetched 13:05" label. */
   flashAt: string | undefined;
+  /**
+   * Whatever feed is in hand (live payload, else the last-good cache) — the S5
+   * coupon card reads its `paymentSchedule` for a linked bond's amount forecast.
+   * Undefined until something has been fetched; always undefined in demo.
+   */
+  feed: ParsedFeed | undefined;
   fetchQuotes: () => void;
   chipFor: (asset: Asset) => ProvenanceChip | undefined;
   offerFor: (asset: Asset) => QuoteOffer | undefined;
@@ -182,6 +188,7 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       new Date(),
     ),
     flashAt,
+    feed: data?.feed ?? lastGood?.feed,
     fetchQuotes,
     chipFor,
     offerFor,

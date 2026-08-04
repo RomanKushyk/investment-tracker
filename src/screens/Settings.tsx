@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
 import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
@@ -151,6 +152,37 @@ function UsdRateField() {
   );
 }
 
+// S8 (design/extensions/automation.dc.html) — the two suggestion switches.
+// Both features are pure local derivations, so the card is identical in demo
+// and live (fetching itself has no toggle: it is a manual click by
+// construction). Reminders keep their placeholder until `feat/reminders`.
+function AutomationRows() {
+  const { autoQuoteSuggest, couponSuggest, setAutoQuoteSuggest, setCouponSuggest } = useSettings();
+  return (
+    <>
+      <SettingRow
+        title="Quote suggestions"
+        helper="Pre-fill ghost values for unquoted fixed-coupon assets from coupon accrual. Suggestions stay ghosts until you accept them."
+      >
+        <Switch
+          label="Quote suggestions"
+          checked={autoQuoteSuggest}
+          onCheckedChange={setAutoQuoteSuggest}
+        />
+      </SettingRow>
+      <Divider />
+      <SettingRow
+        title="Coupon suggestions"
+        helper="Offer one-tap recording when a coupon date arrives. Every entry is confirmed by you — amounts stay editable."
+      >
+        <Switch label="Coupon suggestions" checked={couponSuggest} onCheckedChange={setCouponSuggest} />
+      </SettingRow>
+      <Divider />
+      <Placeholder>Reminder banners, lead time and dismissals are coming later.</Placeholder>
+    </>
+  );
+}
+
 // /settings — the Settings home (NEXT-PHASE-PLAN P2, design/extensions/
 // settings.dc.html S1/S2/S5/S6/S7/S8 + asset-form.dc.html S3): four stacked
 // section cards in the pinned order, with the relocated Backup, the live
@@ -203,11 +235,8 @@ export function Settings() {
           radius={24}
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-150 duration-300"
         >
-          <SectionLabel className="mb-2.5">Automation</SectionLabel>
-          <Placeholder>
-            Nothing to configure yet — Inzhur quote fetching, coupon suggestions and reminders
-            arrive in the next release.
-          </Placeholder>
+          <SectionLabel>Automation</SectionLabel>
+          <AutomationRows />
         </Card>
 
         <Card

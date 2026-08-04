@@ -60,8 +60,11 @@ export interface Transaction {
 // draft in `state/draft.ts`, not in any Dexie row: it describes an unsaved
 // input, and the saved Snapshot keeps no notion of provenance. A draft with no
 // origin is the user's own value — the fact G5 protects. 'cache' = the
-// last-good payload served after a failed fetch (the amber "as of 25.07").
-export type QuoteSource = 'fetch' | 'cache';
+// last-good payload served after a failed fetch (the amber "as of 25.07");
+// 'accrual' = an accepted S4 coupon-accrual suggestion (chip `auto` + the
+// microcopy "accrual"). Both machine sources may be refilled by a later fetch —
+// only a value with NO origin is the user's and untouchable.
+export type QuoteSource = 'fetch' | 'cache' | 'accrual';
 
 export interface QuoteOrigin {
   source: QuoteSource;

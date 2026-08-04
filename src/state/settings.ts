@@ -7,9 +7,16 @@ interface SettingsState {
   currency: 'UAH' | 'USD';
   usdRate: number;
   dataset: Dataset;
+  autoQuoteSuggest: boolean;
+  couponSuggest: boolean;
+  dismissedReminders: string[];
   setCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
   setDataset: (d: Dataset) => void;
+  setAutoQuoteSuggest: (on: boolean) => void;
+  setCouponSuggest: (on: boolean) => void;
+  dismissReminder: (id: string) => void;
+  restoreDismissed: () => void;
 }
 
 /** The persisted payload — keep in exact sync with `partialize` below. */
@@ -17,12 +24,23 @@ export interface PersistedSettings {
   currency: 'UAH' | 'USD';
   usdRate: number;
   dataset: Dataset;
+  // Automation (S8): the two suggestion switches, both ON by default — the
+  // suggestions are the phase's headline and they never write anything (G5).
+  autoQuoteSuggest: boolean;
+  couponSuggest: boolean;
+  // Derived ids the user dismissed (`coupon:<assetId>:<date>` from the S5 card
+  // skip, later the S6 reminder banners). Derived ids expire by themselves once
+  // the occurrence passes out of scope, so this list needs no pruning.
+  dismissedReminders: string[];
 }
 
 const PERSISTED_DEFAULTS: PersistedSettings = {
   currency: 'UAH',
   usdRate: 44.83,
   dataset: 'demo',
+  autoQuoteSuggest: true,
+  couponSuggest: true,
+  dismissedReminders: [],
 };
 
 /**
@@ -52,6 +70,17 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     // G4: anything but the exact 'live' literal means demo — the same rule
     // lib/db.ts applies when it binds the active DB at boot (must agree).
     dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
+    autoQuoteSuggest:
+      typeof p.autoQuoteSuggest === 'boolean'
+        ? p.autoQuoteSuggest
+        : PERSISTED_DEFAULTS.autoQuoteSuggest,
+    couponSuggest:
+      typeof p.couponSuggest === 'boolean' ? p.couponSuggest : PERSISTED_DEFAULTS.couponSuggest,
+    // Only strings survive: a corrupt entry would otherwise hide banners
+    // nothing can restore.
+    dismissedReminders: Array.isArray(p.dismissedReminders)
+      ? p.dismissedReminders.filter((id): id is string => typeof id === 'string')
+      : [...PERSISTED_DEFAULTS.dismissedReminders],
   };
 }
 
@@ -94,6 +123,9 @@ export const useSettings = create<SettingsState>()(
       currency: 'UAH',
       usdRate: 44.83,
       dataset: 'demo',
+      autoQuoteSuggest: true,
+      couponSuggest: true,
+      dismissedReminders: [],
       setCurrency: (currency) => set({ currency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
       // the Settings screen parses via core/schemas.quoteInputSchema.
@@ -106,13 +138,33 @@ export const useSettings = create<SettingsState>()(
         set({ dataset });
         location.reload();
       },
+      // S8 automation switches — no validation to do (a switch is a boolean)
+      // and no reload: every surface reads the flag at render time.
+      setAutoQuoteSuggest: (autoQuoteSuggest) => set({ autoQuoteSuggest }),
+      setCouponSuggest: (couponSuggest) => set({ couponSuggest }),
+      // Derived-id dismissals (S5 skip today, S6 banners next). Idempotent: the
+      // same occurrence can only be in the list once.
+      dismissReminder: (id) =>
+        set((s) =>
+          s.dismissedReminders.includes(id)
+            ? s
+            : { dismissedReminders: [...s.dismissedReminders, id] },
+        ),
+      restoreDismissed: () => set({ dismissedReminders: [] }),
     }),
     {
       name: 'kubushka-settings',
       version: 1,
       migrate: migrateSettings,
       merge: mergeSettings, // sanitize EVERY hydrate, not only version bumps
-      partialize: (s) => ({ currency: s.currency, usdRate: s.usdRate, dataset: s.dataset }),
+      partialize: (s) => ({
+        currency: s.currency,
+        usdRate: s.usdRate,
+        dataset: s.dataset,
+        autoQuoteSuggest: s.autoQuoteSuggest,
+        couponSuggest: s.couponSuggest,
+        dismissedReminders: s.dismissedReminders,
+      }),
     },
   ),
 );

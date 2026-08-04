@@ -1,10 +1,12 @@
 // Pure glue for the Overview screen's derived (non-KPI-grid) cards — imports
 // core/ only, returns structured tokens (G1). Covered by overview.test.ts.
+import { couponProjection } from '../../core/accrual';
 import { addMonths } from '../../core/dates';
 import {
   allocationDeltaPp,
   globalRoi,
   headlineTotal,
+  investedByAsset,
   latestCash,
   ledgerCashDrift,
   netDeposits,
@@ -86,25 +88,31 @@ export interface PayoutRow {
   date: string; // ISO; chronological sort key — the UI renders '10 Aug'
 }
 
-// Next payouts card (design lines 187-194, D5#7): bonds read couponAmount +
-// nextCoupon directly; dividend-bearing assets estimate their latest
-// dividend_accrual amount, with the next date = that accrual's date + one
-// payout-schedule period. Assets with payoutSchedule 'none' (Energy) or
-// missing the attributes/history needed to estimate are omitted. Structured
-// tokens only — the component layer assembles the visible strings (G1).
+// Next payouts card (design lines 187-194, D5#7): bonds read their coupon
+// projection (core/accrual.couponProjection — stated couponAmount + nextCoupon
+// when present, otherwise the expectedPct estimate and/or the maturity date, in
+// which case the row is `approx` and renders with a '~'; P3 feat/fixed-yield
+// fixed user-created bonds being skipped here in silence); dividend-bearing
+// assets estimate their latest dividend_accrual amount, with the next date =
+// that accrual's date + one payout-schedule period. Assets with payoutSchedule
+// 'none' (Energy) or missing the attributes/history needed to estimate are
+// omitted. Structured tokens only — the component layer assembles the visible
+// strings (G1).
 export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): PayoutRow[] {
   const rows: PayoutRow[] = [];
+  const invested = investedByAsset(transactions);
 
   for (const asset of assets) {
     if (asset.yieldType === 'fixed_coupon') {
-      if (asset.couponAmount === undefined || !asset.nextCoupon) continue;
+      const coupon = couponProjection(asset, invested[asset.id] ?? 0);
+      if (coupon === undefined) continue;
       rows.push({
         assetId: asset.id,
         kind: 'coupon',
         assetRef: `…${asset.name.slice(-4)}`,
-        amount: asset.couponAmount,
-        approx: false,
-        date: asset.nextCoupon,
+        amount: coupon.amount,
+        approx: coupon.estimated,
+        date: coupon.date,
       });
       continue;
     }

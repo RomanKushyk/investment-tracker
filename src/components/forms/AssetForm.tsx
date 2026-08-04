@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
-import { Switch as RadixSwitch } from 'radix-ui';
 import { useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import {
@@ -26,6 +25,7 @@ import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { DialogTitle } from '../ui/Dialog';
 import { Select } from '../ui/Select';
+import { Switch } from '../ui/Switch';
 import {
   ASSET_FIELD_MESSAGE as MSG,
   assetFormDefaults,
@@ -111,33 +111,6 @@ function inputClass(invalid: boolean): string {
   return `h-9 rounded-[10px] border bg-page px-3 font-body text-[13px] text-ink transition ${
     invalid ? 'border-neg' : 'border-hairline hover:border-faint'
   }`;
-}
-
-// Track 40×22 radius 999 (off: hairline bg + panel-border; on: ink), 16px
-// card thumb — D7 thumb transform rides the 220ms soft default.
-function InzhurSwitch({
-  checked,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  onCheckedChange: (on: boolean) => void;
-}) {
-  return (
-    <RadixSwitch.Root
-      checked={checked}
-      onCheckedChange={onCheckedChange}
-      aria-label="Link to Inzhur"
-      className={`h-[22px] w-10 flex-none cursor-pointer rounded-full border p-[2px] transition active:scale-[.97] ${
-        checked ? 'border-ink bg-ink' : 'border-panel-border bg-hairline'
-      }`}
-    >
-      <RadixSwitch.Thumb
-        className={`bg-card block size-4 rounded-full shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform ${
-          checked ? 'translate-x-[18px]' : 'translate-x-0'
-        }`}
-      />
-    </RadixSwitch.Root>
-  );
 }
 
 // Fund/Bond segmented control — sliding-thumb clone of the currency toggle
@@ -538,7 +511,8 @@ export function AssetFormFields({
       <div className="border-hairline border-t pt-2.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-ink text-[13px] font-semibold">Link to Inzhur</span>
-          <InzhurSwitch
+          <Switch
+            label="Link to Inzhur"
             checked={linked}
             onCheckedChange={(on) => {
               if (on) {

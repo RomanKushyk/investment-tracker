@@ -1,12 +1,14 @@
 // Pure data-shaping for the Seasonality screen (day-of-month bars + insight
 // cards) — not in src/lib, that layer stays untouched per this task's scope.
 // Covered by seasonality.test.ts.
+import { couponProjection } from '../../core/accrual';
+import { investedByAsset } from '../../core/derive';
 import type { Asset, Transaction } from '../../core/types';
 
 export interface SeasonalityDay {
   day: number; // 1-31
   actual: number; // Σ dividend_accrual + interest_payout on this day-of-month, all months
-  expected?: number; // couponAmount of a bond whose nextCoupon falls on this day-of-month
+  expected?: number; // projected coupon of a bond paying on this day-of-month
 }
 
 function dayOfMonth(iso: string): number {
@@ -23,19 +25,27 @@ export function incomeByDayOfMonth(transactions: Transaction[]): Record<number, 
   return out;
 }
 
-function expectedByDayOfMonth(assets: Asset[]): Record<number, number> {
+// Expected coupon bars come from core/accrual.couponProjection, so a bond
+// missing couponAmount and/or nextCoupon still projects (estimated amount /
+// maturity date) instead of vanishing from the chart — P3 feat/fixed-yield.
+function expectedByDayOfMonth(
+  assets: Asset[],
+  transactions: Transaction[],
+): Record<number, number> {
   const out: Record<number, number> = {};
+  const invested = investedByAsset(transactions);
   for (const a of assets) {
-    if (a.yieldType !== 'fixed_coupon' || a.couponAmount === undefined || !a.nextCoupon) continue;
-    const day = dayOfMonth(a.nextCoupon);
-    out[day] = (out[day] ?? 0) + a.couponAmount;
+    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    if (coupon === undefined) continue;
+    const day = dayOfMonth(coupon.date);
+    out[day] = (out[day] ?? 0) + coupon.amount;
   }
   return out;
 }
 
 export function seasonalityDays(transactions: Transaction[], assets: Asset[]): SeasonalityDay[] {
   const actual = incomeByDayOfMonth(transactions);
-  const expected = expectedByDayOfMonth(assets);
+  const expected = expectedByDayOfMonth(assets, transactions);
   const days: SeasonalityDay[] = [];
   for (let day = 1; day <= 31; day++) {
     days.push({ day, actual: actual[day] ?? 0, expected: expected[day] });
@@ -71,16 +81,21 @@ export function dominantAssetOnDay(transactions: Transaction[], day: number): st
 }
 
 // The asset contributing the most expected coupon income on a given
-// day-of-month (mirrors dominantAssetOnDay, but over assets' nextCoupon
-// dates rather than posted transactions).
-export function dominantExpectedAssetOnDay(assets: Asset[], day: number): string | undefined {
+// day-of-month (mirrors dominantAssetOnDay, but over projected coupon dates
+// rather than posted transactions).
+export function dominantExpectedAssetOnDay(
+  assets: Asset[],
+  transactions: Transaction[],
+  day: number,
+): string | undefined {
   let bestId: string | undefined;
   let bestAmount = -Infinity;
+  const invested = investedByAsset(transactions);
   for (const a of assets) {
-    if (a.yieldType !== 'fixed_coupon' || a.couponAmount === undefined || !a.nextCoupon) continue;
-    if (dayOfMonth(a.nextCoupon) !== day) continue;
-    if (a.couponAmount > bestAmount) {
-      bestAmount = a.couponAmount;
+    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    if (coupon === undefined || dayOfMonth(coupon.date) !== day) continue;
+    if (coupon.amount > bestAmount) {
+      bestAmount = coupon.amount;
       bestId = a.id;
     }
   }

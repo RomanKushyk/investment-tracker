@@ -1,123 +1,101 @@
 import { describe, expect, it } from 'vitest';
-import { mergeSettings, migrateSettings, useSettings } from './settings';
+import { mergeSettings, migrateSettings, useSettings, type PersistedSettings } from './settings';
+
+// The full persisted shape at its defaults — spread into every expectation so a
+// new field (P3 added the two automation switches + dismissedReminders) does not
+// rewrite twenty assertions.
+const DEFAULTS: PersistedSettings = {
+  currency: 'UAH',
+  usdRate: 44.83,
+  dataset: 'demo',
+  autoQuoteSuggest: true,
+  couponSuggest: true,
+  dismissedReminders: [],
+};
 
 // v0 payloads are what zustand persisted before `version: 1` landed —
 // `{"state":{"currency":…},"version":0}`; migrate receives the `state` part.
 // v0/v1.1 payloads carry no usdRate or dataset — both fill from defaults.
 describe('migrateSettings', () => {
   it('keeps a valid persisted currency from a v0 payload', () => {
-    expect(migrateSettings({ currency: 'USD' })).toEqual({
-      currency: 'USD',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 'UAH' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
+    expect(migrateSettings({ currency: 'USD' })).toEqual({ ...DEFAULTS, currency: 'USD' });
+    expect(migrateSettings({ currency: 'UAH' })).toEqual({ ...DEFAULTS, currency: 'UAH' });
   });
 
   it('drops unknown fields', () => {
-    expect(
-      migrateSettings({ currency: 'USD', theme: 'dark', legacy: true }),
-    ).toEqual({ currency: 'USD', usdRate: 44.83, dataset: 'demo' });
+    expect(migrateSettings({ currency: 'USD', theme: 'dark', legacy: true })).toEqual({
+      ...DEFAULTS,
+      currency: 'USD',
+    });
   });
 
   it('fills defaults for missing or invalid fields', () => {
-    expect(migrateSettings({})).toEqual({ currency: 'UAH', usdRate: 44.83, dataset: 'demo' });
-    expect(migrateSettings({ currency: 'EUR' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 44.83 })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
+    expect(migrateSettings({})).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'EUR' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 44.83 })).toEqual(DEFAULTS);
   });
 
   it('falls back to defaults for non-object payloads', () => {
-    expect(migrateSettings(undefined)).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings(null)).toEqual({ currency: 'UAH', usdRate: 44.83, dataset: 'demo' });
-    expect(migrateSettings('garbage')).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
+    expect(migrateSettings(undefined)).toEqual(DEFAULTS);
+    expect(migrateSettings(null)).toEqual(DEFAULTS);
+    expect(migrateSettings('garbage')).toEqual(DEFAULTS);
   });
 
   it('keeps a valid persisted usdRate', () => {
     expect(migrateSettings({ currency: 'UAH', usdRate: 41.2 })).toEqual({
-      currency: 'UAH',
+      ...DEFAULTS,
       usdRate: 41.2,
-      dataset: 'demo',
     });
   });
 
   it('falls back to the default rate for invalid usdRate values', () => {
     // S8 validity rule: finite number above 0.
-    expect(migrateSettings({ currency: 'UAH', usdRate: '44.83' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 'UAH', usdRate: 0 })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 'UAH', usdRate: -5 })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 'UAH', usdRate: NaN })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
-    expect(migrateSettings({ currency: 'UAH', usdRate: Infinity })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
+    expect(migrateSettings({ currency: 'UAH', usdRate: '44.83' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH', usdRate: 0 })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH', usdRate: -5 })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH', usdRate: NaN })).toEqual(DEFAULTS);
+    expect(migrateSettings({ currency: 'UAH', usdRate: Infinity })).toEqual(DEFAULTS);
   });
 
   it('keeps a persisted live dataset (G4)', () => {
     expect(migrateSettings({ currency: 'UAH', dataset: 'live' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
+      ...DEFAULTS,
       dataset: 'live',
     });
-    expect(migrateSettings({ dataset: 'demo' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
-    });
+    expect(migrateSettings({ dataset: 'demo' })).toEqual(DEFAULTS);
   });
 
   it('treats anything but the exact "live" literal as demo (G4, matches lib/db.ts)', () => {
-    expect(migrateSettings({ dataset: 'staging' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
+    expect(migrateSettings({ dataset: 'staging' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ dataset: 'LIVE' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ dataset: 1 })).toEqual(DEFAULTS);
+  });
+
+  // P3 feat/fixed-yield (S8): both switches default ON, and a v1 payload from
+  // before them (the shape on every existing profile) must hydrate to ON.
+  it('defaults the automation switches ON and keeps an explicit OFF', () => {
+    expect(migrateSettings({ currency: 'UAH', usdRate: 44.83, dataset: 'demo' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ autoQuoteSuggest: false, couponSuggest: false })).toEqual({
+      ...DEFAULTS,
+      autoQuoteSuggest: false,
+      couponSuggest: false,
     });
-    expect(migrateSettings({ dataset: 'LIVE' })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
+  });
+
+  it('ignores non-boolean switch values', () => {
+    expect(migrateSettings({ autoQuoteSuggest: 'false', couponSuggest: 0 })).toEqual(DEFAULTS);
+  });
+
+  it('keeps dismissed reminder ids and drops non-string entries', () => {
+    expect(migrateSettings({ dismissedReminders: ['coupon:ovdp8976:2026-08-25'] })).toEqual({
+      ...DEFAULTS,
+      dismissedReminders: ['coupon:ovdp8976:2026-08-25'],
     });
-    expect(migrateSettings({ dataset: 1 })).toEqual({
-      currency: 'UAH',
-      usdRate: 44.83,
-      dataset: 'demo',
+    expect(migrateSettings({ dismissedReminders: ['a', 3, null, { id: 'b' }] })).toEqual({
+      ...DEFAULTS,
+      dismissedReminders: ['a'],
     });
+    expect(migrateSettings({ dismissedReminders: 'coupon:x:2026-01-01' })).toEqual(DEFAULTS);
   });
 });
 
@@ -133,17 +111,32 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   const current = useSettings.getInitialState();
 
   it('sanitizes a tampered same-version (v1) payload', () => {
-    const merged = mergeSettings({ currency: 'UAH', usdRate: 0, dataset: 'garbage' }, current);
+    const merged = mergeSettings(
+      { currency: 'UAH', usdRate: 0, dataset: 'garbage', autoQuoteSuggest: 'yes' },
+      current,
+    );
     expect(merged.dataset).toBe('demo'); // exact-'live' rule (G4/D16)
     expect(merged.usdRate).toBe(44.83); // S8 rule: finite and > 0
     expect(merged.currency).toBe('UAH');
+    expect(merged.autoQuoteSuggest).toBe(true); // non-boolean → default ON
   });
 
   it('keeps a valid persisted payload intact', () => {
-    const merged = mergeSettings({ currency: 'USD', usdRate: 41.2, dataset: 'live' }, current);
+    const merged = mergeSettings(
+      {
+        currency: 'USD',
+        usdRate: 41.2,
+        dataset: 'live',
+        couponSuggest: false,
+        dismissedReminders: ['coupon:ovdp8976:2026-08-25'],
+      },
+      current,
+    );
     expect(merged.dataset).toBe('live');
     expect(merged.usdRate).toBe(41.2);
     expect(merged.currency).toBe('USD');
+    expect(merged.couponSuggest).toBe(false);
+    expect(merged.dismissedReminders).toEqual(['coupon:ovdp8976:2026-08-25']);
   });
 
   it('preserves the non-persisted store surface (actions)', () => {
@@ -151,5 +144,35 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
     expect(merged.setCurrency).toBe(current.setCurrency);
     expect(merged.setUsdRate).toBe(current.setUsdRate);
     expect(merged.setDataset).toBe(current.setDataset);
+    expect(merged.setAutoQuoteSuggest).toBe(current.setAutoQuoteSuggest);
+    expect(merged.setCouponSuggest).toBe(current.setCouponSuggest);
+    expect(merged.dismissReminder).toBe(current.dismissReminder);
+    expect(merged.restoreDismissed).toBe(current.restoreDismissed);
+  });
+});
+
+// The automation actions themselves (G3/D11: a persisted field lands with its
+// store test in the same commit).
+describe('automation actions', () => {
+  it('flips the suggestion switches', () => {
+    useSettings.getState().setAutoQuoteSuggest(false);
+    useSettings.getState().setCouponSuggest(false);
+    expect(useSettings.getState().autoQuoteSuggest).toBe(false);
+    expect(useSettings.getState().couponSuggest).toBe(false);
+    useSettings.getState().setAutoQuoteSuggest(true);
+    useSettings.getState().setCouponSuggest(true);
+    expect(useSettings.getState().autoQuoteSuggest).toBe(true);
+    expect(useSettings.getState().couponSuggest).toBe(true);
+  });
+
+  it('dismisses an occurrence once and restores every dismissal', () => {
+    const id = 'coupon:ovdp8976:2026-08-25';
+    useSettings.getState().dismissReminder(id);
+    useSettings.getState().dismissReminder(id); // idempotent — one entry only
+    expect(useSettings.getState().dismissedReminders).toEqual([id]);
+    useSettings.getState().dismissReminder('coupon:ovdp6475:2026-12-03');
+    expect(useSettings.getState().dismissedReminders).toHaveLength(2);
+    useSettings.getState().restoreDismissed();
+    expect(useSettings.getState().dismissedReminders).toEqual([]);
   });
 });

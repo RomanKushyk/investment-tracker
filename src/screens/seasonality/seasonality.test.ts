@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
+import type { Asset, Transaction } from '../../core/types';
 import {
   anchorAssetGrowth,
   bondCouponInfo,
@@ -48,15 +49,15 @@ describe('dominantAssetOnDay', () => {
 
 describe('dominantExpectedAssetOnDay', () => {
   it('day 3 expected coupon is attributed to …6475 (nextCoupon 2026-12-03)', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, 3)).toBe('ovdp6475');
+    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 3)).toBe('ovdp6475');
   });
 
   it('day 25 expected coupon is attributed to …8976 (nextCoupon 2026-08-25)', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, 25)).toBe('ovdp8976');
+    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 25)).toBe('ovdp8976');
   });
 
   it('a day with no upcoming coupon has no attribution', () => {
-    expect(dominantExpectedAssetOnDay(SEED_ASSETS, 10)).toBeUndefined();
+    expect(dominantExpectedAssetOnDay(SEED_ASSETS, SEED_TRANSACTIONS, 10)).toBeUndefined();
   });
 });
 
@@ -72,6 +73,46 @@ describe('quietStretch', () => {
   it('finds the trailing zero-income run, days 26-31', () => {
     const days = seasonalityDays(SEED_TRANSACTIONS, SEED_ASSETS);
     expect(quietStretch(days)).toEqual({ from: 26, to: 31 });
+  });
+});
+
+// The P3 fix (feat/fixed-yield): a user-created fixed-coupon asset used to be
+// skipped by the expected bars whenever couponAmount or nextCoupon was blank.
+describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
+  const userBond: Asset = {
+    id: 'bond2',
+    name: 'OVDP UA0000000000',
+    code: 'GB',
+    colorKey: 'energy',
+    yieldType: 'fixed_coupon',
+    expectedPct: 16,
+    targetPct: 5,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-07-27',
+    createdAt: '2026-07-27T10:00:00',
+    nextCoupon: '2026-09-15',
+  };
+  const buy: Transaction = {
+    id: 'b9',
+    date: '2026-07-27',
+    type: 'buy',
+    assetId: 'bond2',
+    amount: 10000,
+    source: 'own',
+  };
+  const days = seasonalityDays([...SEED_TRANSACTIONS, buy], [...SEED_ASSETS, userBond]);
+
+  it('projects the estimated coupon on its day-of-month (16 % of ₴10 000 half-yearly = ₴800)', () => {
+    expect(days.find((d) => d.day === 15)!.expected).toBeCloseTo(800, 2);
+    expect(dominantExpectedAssetOnDay([...SEED_ASSETS, userBond], [...SEED_TRANSACTIONS, buy], 15)).toBe(
+      'bond2',
+    );
+  });
+
+  it('leaves the seed bars untouched (additive-only, D5)', () => {
+    expect(days.find((d) => d.day === 25)!.expected).toBeCloseTo(1240, 2);
+    expect(days.find((d) => d.day === 3)!.expected).toBeCloseTo(216, 2);
+    expect(days.find((d) => d.day === 10)!.actual).toBeCloseTo(3641.44, 2);
   });
 });
 

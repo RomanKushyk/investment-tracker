@@ -46,7 +46,8 @@ export function Seasonality() {
   const chartData: SeasonalityChartPoint[] = days.map((d) => {
     const dominantId = d.actual > 0 ? dominantAssetOnDay(transactions, d.day) : undefined;
     const dominantAsset = assets.find((a) => a.id === dominantId);
-    const expectedId = d.expected !== undefined ? dominantExpectedAssetOnDay(assets, d.day) : undefined;
+    const expectedId =
+      d.expected !== undefined ? dominantExpectedAssetOnDay(assets, transactions, d.day) : undefined;
     const expectedAsset = assets.find((a) => a.id === expectedId);
     return {
       day: d.day,
