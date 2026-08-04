@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { Dataset } from '../core/backup/json';
+import { DEFAULT_LEAD_DAYS, isLeadDays } from '../core/reminders';
 
 interface SettingsState {
   currency: 'UAH' | 'USD';
@@ -9,12 +10,16 @@ interface SettingsState {
   dataset: Dataset;
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
+  remindersEnabled: boolean;
+  reminderLeadDays: number;
   dismissedReminders: string[];
   setCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
   setDataset: (d: Dataset) => void;
   setAutoQuoteSuggest: (on: boolean) => void;
   setCouponSuggest: (on: boolean) => void;
+  setRemindersEnabled: (on: boolean) => void;
+  setReminderLeadDays: (days: number) => void;
   dismissReminder: (id: string) => void;
   restoreDismissed: () => void;
 }
@@ -28,9 +33,13 @@ export interface PersistedSettings {
   // suggestions are the phase's headline and they never write anything (G5).
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
+  // Reminders (S6/S8): the global gate plus the coupon lead time in days.
+  remindersEnabled: boolean;
+  reminderLeadDays: number;
   // Derived ids the user dismissed (`coupon:<assetId>:<date>` from the S5 card
-  // skip, later the S6 reminder banners). Derived ids expire by themselves once
-  // the occurrence passes out of scope, so this list needs no pruning.
+  // skip, plus the S6 reminder banners' own ids). Derived ids expire by
+  // themselves once the occurrence passes out of scope, so this list needs no
+  // pruning — "Restore dismissed" (S8) clears it wholesale.
   dismissedReminders: string[];
 }
 
@@ -40,6 +49,8 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
+  remindersEnabled: true,
+  reminderLeadDays: DEFAULT_LEAD_DAYS,
   dismissedReminders: [],
 };
 
@@ -76,6 +87,15 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
         : PERSISTED_DEFAULTS.autoQuoteSuggest,
     couponSuggest:
       typeof p.couponSuggest === 'boolean' ? p.couponSuggest : PERSISTED_DEFAULTS.couponSuggest,
+    remindersEnabled:
+      typeof p.remindersEnabled === 'boolean'
+        ? p.remindersEnabled
+        : PERSISTED_DEFAULTS.remindersEnabled,
+    // Same rule as the S8 field (core/reminders.isLeadDays): a whole number of
+    // days inside 1–30 — anything else falls back to the default.
+    reminderLeadDays: isLeadDays(p.reminderLeadDays)
+      ? p.reminderLeadDays
+      : PERSISTED_DEFAULTS.reminderLeadDays,
     // Only strings survive: a corrupt entry would otherwise hide banners
     // nothing can restore.
     dismissedReminders: Array.isArray(p.dismissedReminders)
@@ -125,6 +145,8 @@ export const useSettings = create<SettingsState>()(
       dataset: 'demo',
       autoQuoteSuggest: true,
       couponSuggest: true,
+      remindersEnabled: true,
+      reminderLeadDays: DEFAULT_LEAD_DAYS,
       dismissedReminders: [],
       setCurrency: (currency) => set({ currency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
@@ -142,6 +164,13 @@ export const useSettings = create<SettingsState>()(
       // and no reload: every surface reads the flag at render time.
       setAutoQuoteSuggest: (autoQuoteSuggest) => set({ autoQuoteSuggest }),
       setCouponSuggest: (couponSuggest) => set({ couponSuggest }),
+      setRemindersEnabled: (remindersEnabled) => set({ remindersEnabled }),
+      // Callers validate BEFORE calling (S8: an invalid entry never writes —
+      // the last valid lead time stays in effect); the guard here is the
+      // store's own floor, matching the persist sanitizer.
+      setReminderLeadDays: (days) => {
+        if (isLeadDays(days)) set({ reminderLeadDays: days });
+      },
       // Derived-id dismissals (S5 skip today, S6 banners next). Idempotent: the
       // same occurrence can only be in the list once.
       dismissReminder: (id) =>
@@ -163,6 +192,8 @@ export const useSettings = create<SettingsState>()(
         dataset: s.dataset,
         autoQuoteSuggest: s.autoQuoteSuggest,
         couponSuggest: s.couponSuggest,
+        remindersEnabled: s.remindersEnabled,
+        reminderLeadDays: s.reminderLeadDays,
         dismissedReminders: s.dismissedReminders,
       }),
     },

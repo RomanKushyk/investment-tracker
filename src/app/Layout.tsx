@@ -1,9 +1,14 @@
 import { Outlet, useLocation } from 'react-router';
 
+import { useReminderToast } from '../hooks/useReminders';
 import { Sidebar } from './Sidebar';
 
 export function Layout() {
   const { pathname } = useLocation();
+  // S6's single app-open reminder toast lives here: the layout is the one mount
+  // point that spans every route, so the toast fires once on app open and never
+  // again on navigation.
+  useReminderToast();
   return (
     <div className="flex min-h-screen">
       <Sidebar />

@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
+import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ShareBar } from '../components/ui/ShareBar';
 import { YIELD_LABEL_SHORT } from '../components/ui/yield-labels';
@@ -109,6 +110,9 @@ export function Overview() {
 
   return (
     <div>
+      {/* S6 — the strip sits ABOVE the ScreenHeader; it renders nothing when no
+          reminder fires, so the screen keeps its exact pre-P3 layout. */}
+      <ReminderStrip place="overview" />
       <ScreenHeader
         title="Overview"
         subtitle={`Portfolio at a glance · ${fmtDate(todayIso())} · rate ${usdRate} ₴/$`}

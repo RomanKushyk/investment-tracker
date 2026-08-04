@@ -24,6 +24,7 @@ import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 import { DialogTitle } from '../ui/Dialog';
+import { Reveal } from '../ui/Reveal';
 import { Select } from '../ui/Select';
 import { Switch } from '../ui/Switch';
 import {
@@ -67,41 +68,6 @@ function Field({
         </span>
       )}
     </label>
-  );
-}
-
-// S3 group reveal/hide (brief motion table): reveal = fade + slide-from-top
-// 300ms; hide = SYMMETRIC fade/slide-out 300ms — the group stays mounted
-// until its exit animation ends (a bare `{flag && …}` unmount would skip
-// it). fill-mode-forwards holds the exited frame until React removes the
-// node; reduced-motion collapses both to ~0 via the global kill-switch.
-function Reveal({
-  show,
-  className,
-  children,
-}: {
-  show: boolean;
-  className: string;
-  children: ReactNode;
-}) {
-  const [present, setPresent] = useState(show);
-  // Sanctioned adjust-state-on-render: re-entering while (or after) the exit
-  // played must remount the group in the same render pass.
-  if (show && !present) setPresent(true);
-  if (!show && !present) return null;
-  return (
-    <div
-      className={`${className} duration-300 ${
-        show
-          ? 'animate-in fade-in slide-in-from-top-2'
-          : 'animate-out fade-out slide-out-to-top-2 fill-mode-forwards'
-      }`}
-      onAnimationEnd={(e) => {
-        if (!show && e.target === e.currentTarget) setPresent(false);
-      }}
-    >
-      {children}
-    </div>
   );
 }
 

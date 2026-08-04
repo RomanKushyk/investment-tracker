@@ -139,6 +139,25 @@ export function suggestedQuote(input: QuoteSuggestionInput): number | null {
  */
 export const COUPON_MATCH_WINDOW_DAYS = 7;
 
+/**
+ * Is a coupon scheduled for `date` already recorded? The one dedupe predicate,
+ * shared by `dueCoupons` (S5 cards) and `core/reminders` (S6 coupon banners) so
+ * a manually entered coupon silences BOTH surfaces by the same rule.
+ */
+export function couponRecorded(
+  transactions: Transaction[],
+  assetId: string,
+  date: string,
+  windowDays: number = COUPON_MATCH_WINDOW_DAYS,
+): boolean {
+  return transactions.some(
+    (t) =>
+      t.type === 'interest_payout' &&
+      t.assetId === assetId &&
+      Math.abs(daysBetween(date, t.date)) <= windowDays,
+  );
+}
+
 export interface DueCoupon {
   assetId: string;
   /** The scheduled date that has arrived (the asset's `nextCoupon`). */
@@ -167,13 +186,7 @@ export function dueCoupons(
     if (asset.yieldType !== 'fixed_coupon') continue;
     const date = asset.nextCoupon;
     if (!date || date > today) continue;
-    const recorded = transactions.some(
-      (t) =>
-        t.type === 'interest_payout' &&
-        t.assetId === asset.id &&
-        Math.abs(daysBetween(date, t.date)) <= windowDays,
-    );
-    if (recorded) continue;
+    if (couponRecorded(transactions, asset.id, date, windowDays)) continue;
     due.push({
       assetId: asset.id,
       date,

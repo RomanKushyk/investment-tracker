@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
+import { ReminderStrip } from '../components/ui/ReminderStrip';
 import {
   useAssets,
   useSaveSnapshot,
@@ -119,97 +120,102 @@ export function DailyQuotes() {
     : [];
 
   return (
-    <div className="flex flex-wrap items-start gap-6">
-      <div className="min-w-0 flex-[1_1_560px]">
-        <div className="mb-1 flex flex-wrap items-center gap-3">
-          <h2 className="text-[26px]">Daily quotes</h2>
-          <span
-            key={filledCount}
-            className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-full px-3 py-1 text-xs font-semibold duration-150"
-          >
-            {filledCount} of {assets.length} filled
-          </span>
-          <FetchQuotesButton
-            state={fetch.state}
-            freshness={fetch.freshness}
-            flashAt={fetch.flashAt}
-            onFetch={fetch.fetchQuotes}
-          />
-          <div className="ml-auto flex items-center gap-2">
-            <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
-              Date
-            </label>
-            <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
+    <>
+      {/* S6 — above the header row, full content width; quote-missing is
+          suppressed here (the progress pill already says it). */}
+      <ReminderStrip place="daily-quotes" />
+      <div className="flex flex-wrap items-start gap-6">
+        <div className="min-w-0 flex-[1_1_560px]">
+          <div className="mb-1 flex flex-wrap items-center gap-3">
+            <h2 className="text-[26px]">Daily quotes</h2>
+            <span
+              key={filledCount}
+              className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-full px-3 py-1 text-xs font-semibold duration-150"
+            >
+              {filledCount} of {assets.length} filled
+            </span>
+            <FetchQuotesButton
+              state={fetch.state}
+              freshness={fetch.freshness}
+              flashAt={fetch.flashAt}
+              onFetch={fetch.fetchQuotes}
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
+                Date
+              </label>
+              <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
+            </div>
           </div>
-        </div>
-        <p className="text-muted mb-[18px] text-[13px]">
-          The everyday ritual — nothing else competes with it.
-        </p>
+          <p className="text-muted mb-[18px] text-[13px]">
+            The everyday ritual — nothing else competes with it.
+          </p>
 
-        <div className="flex flex-col gap-2.5">
-          {assets.map((a) => (
-            <QuoteRow
-              key={a.id}
-              asset={a}
-              raw={quotes[a.id]}
-              yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
-              chip={fetch.chipFor(a)}
-              offer={fetch.offerFor(a)}
-              suggestion={suggestionFor(a.id)}
-              onChange={(v) => setQuote(a.id, v)}
-              onAcceptOffer={() => fetch.acceptOffer(a.id)}
-              onDismissOffer={() => fetch.dismissOffer(a.id)}
-              onAcceptSuggestion={() => {
-                const value = suggestionFor(a.id);
-                if (value === undefined) return;
-                fillQuote(a.id, fmtTable(value), {
-                  source: 'accrual',
-                  at: new Date().toISOString(),
-                });
-              }}
-              onDismissSuggestion={() =>
-                setDismissed({
-                  date: selectedDate,
-                  ids: dismissedSuggestions.includes(a.id)
-                    ? dismissedSuggestions
-                    : [...dismissedSuggestions, a.id],
-                })
-              }
-            />
-          ))}
+          <div className="flex flex-col gap-2.5">
+            {assets.map((a) => (
+              <QuoteRow
+                key={a.id}
+                asset={a}
+                raw={quotes[a.id]}
+                yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
+                chip={fetch.chipFor(a)}
+                offer={fetch.offerFor(a)}
+                suggestion={suggestionFor(a.id)}
+                onChange={(v) => setQuote(a.id, v)}
+                onAcceptOffer={() => fetch.acceptOffer(a.id)}
+                onDismissOffer={() => fetch.dismissOffer(a.id)}
+                onAcceptSuggestion={() => {
+                  const value = suggestionFor(a.id);
+                  if (value === undefined) return;
+                  fillQuote(a.id, fmtTable(value), {
+                    source: 'accrual',
+                    at: new Date().toISOString(),
+                  });
+                }}
+                onDismissSuggestion={() =>
+                  setDismissed({
+                    date: selectedDate,
+                    ids: dismissedSuggestions.includes(a.id)
+                      ? dismissedSuggestions
+                      : [...dismissedSuggestions, a.id],
+                  })
+                }
+              />
+            ))}
+          </div>
+
+          <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
+            <Button onClick={handleSave}>Save snapshot</Button>
+            <Button variant="outline" onClick={handleCopyYesterday}>
+              Copy yesterday
+            </Button>
+            <span className="text-muted ml-auto text-xs">
+              {lastSavedAt
+                ? `Last saved ${fmtSavedAt(lastSavedAt)}`
+                : 'Not saved yet'}
+            </span>
+          </div>
+
+          <YieldTeaser assets={assets} values={values} invested={invested} />
         </div>
 
-        <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
-          <Button onClick={handleSave}>Save snapshot</Button>
-          <Button variant="outline" onClick={handleCopyYesterday}>
-            Copy yesterday
-          </Button>
-          <span className="text-muted ml-auto text-xs">
-            {lastSavedAt
-              ? `Last saved ${fmtSavedAt(lastSavedAt)}`
-              : 'Not saved yet'}
-          </span>
-        </div>
-
-        <YieldTeaser assets={assets} values={values} invested={invested} />
+        <aside className="min-w-0 flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
+          {/* S5 cards first, then Transaction, then Recent transactions. */}
+          {due.map((d) => {
+            const asset = assets.find((a) => a.id === d.assetId)!;
+            return (
+              <CouponDueCard
+                key={couponReminderId(d.assetId, d.date)}
+                asset={asset}
+                due={d}
+                prefill={couponPrefill(asset, d, fetch.feed)}
+                onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
+              />
+            );
+          })}
+          <TransactionPanel />
+        </aside>
       </div>
-
-      <aside className="min-w-0 flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
-        {/* S5 cards first, then Transaction, then Recent transactions. */}
-        {due.map((d) => {
-          const asset = assets.find((a) => a.id === d.assetId)!;
-          return (
-            <CouponDueCard
-              key={couponReminderId(d.assetId, d.date)}
-              asset={asset}
-              due={d}
-              prefill={couponPrefill(asset, d, fetch.feed)}
-              onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
-            />
-          );
-        })}
-        <TransactionPanel />
-      </aside>
-    </div>
+    </>
   );
 }

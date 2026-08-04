@@ -30,6 +30,13 @@
   --color-pos-on-dark: #b9cdb4;
   --color-pos-border: #c9d4c4;
   --color-neg: #a8695a;
+  /* Overdue family — minted by the P3 design session (design/extensions/
+     reminders.dc.html header comment, brief phase-3 "Global constraints"):
+     a soft tint of `neg` (same hue) for the OVERDUE reminder severity and
+     NOTHING else. Banner text is always -tint-text (6.08:1 on the tint);
+     raw `neg` on it would be 2.97:1. */
+  --color-neg-tint: #f0cec7;
+  --color-neg-tint-text: #693f35;
   /* Caution family — minted by the P2 design session (design/extensions/
      settings.dc.html header comment, brief phase-2 "Global constraints").
      Every caution state uses ONLY these: Σ≠100 pill (S4), DEMO badge (S5),

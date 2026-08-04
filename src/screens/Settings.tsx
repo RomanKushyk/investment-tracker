@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
@@ -9,6 +11,7 @@ import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
+import { parseLeadDays } from './settings/settings';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 
@@ -152,12 +155,84 @@ function UsdRateField() {
   );
 }
 
-// S8 (design/extensions/automation.dc.html) — the two suggestion switches.
-// Both features are pure local derivations, so the card is identical in demo
-// and live (fetching itself has no toggle: it is a manual click by
-// construction). Reminders keep their placeholder until `feat/reminders`.
+// S8 row 4 — "Lead time, days": how far ahead coupon reminders appear. Same
+// arming rule as the ₴/$ rate above (validation via a pure parser; an invalid
+// entry never reaches the store, so the last valid lead time stays in effect
+// and the banners keep using it), and empty only errors on blur.
+function LeadDaysField() {
+  const { reminderLeadDays, setReminderLeadDays } = useSettings();
+  const [raw, setRaw] = useState(() => String(reminderLeadDays));
+  const [error, setError] = useState(false);
+
+  function handleChange(value: string) {
+    setRaw(value);
+    const days = parseLeadDays(value);
+    if (days !== null) {
+      setError(false);
+      setReminderLeadDays(days);
+    } else {
+      setError(value.trim() !== '');
+    }
+  }
+
+  return (
+    <div>
+      <input
+        id="reminder-lead-days"
+        name="reminderLeadDays"
+        value={raw}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setError(parseLeadDays(raw) === null)}
+        inputMode="decimal"
+        aria-label="Reminder lead time, days"
+        aria-invalid={error}
+        className={`bg-page h-9 w-[72px] rounded-[10px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+      />
+      {error && (
+        <div className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200">
+          Enter 1–30 days.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// S8 row 5 — the only way back from a dismissal (banner ✕ or an S5 card skip):
+// clears `dismissedReminders` wholesale, re-surfacing everything still in
+// window. Disabled with no count while nothing is dismissed; the label re-keys
+// so a count change fades (D7).
+function RestoreDismissedButton() {
+  const { dismissedReminders, restoreDismissed } = useSettings();
+  const count = dismissedReminders.length;
+  return (
+    <Button
+      variant="outline"
+      disabled={count === 0}
+      onClick={() => {
+        restoreDismissed();
+        toast.success('Dismissed reminders restored');
+      }}
+    >
+      <span key={count} className="animate-in fade-in duration-150">
+        {count === 0 ? 'Restore dismissed' : `Restore dismissed (${count})`}
+      </span>
+    </Button>
+  );
+}
+
+// S8 (design/extensions/automation.dc.html) — the suggestion switches plus the
+// reminders block (gate + lead time + restore). All three features are pure
+// local derivations, so the card is identical in demo and live (fetching itself
+// has no toggle: it is a manual click by construction).
 function AutomationRows() {
-  const { autoQuoteSuggest, couponSuggest, setAutoQuoteSuggest, setCouponSuggest } = useSettings();
+  const {
+    autoQuoteSuggest,
+    couponSuggest,
+    remindersEnabled,
+    setAutoQuoteSuggest,
+    setCouponSuggest,
+    setRemindersEnabled,
+  } = useSettings();
   return (
     <>
       <SettingRow
@@ -178,7 +253,34 @@ function AutomationRows() {
         <Switch label="Coupon suggestions" checked={couponSuggest} onCheckedChange={setCouponSuggest} />
       </SettingRow>
       <Divider />
-      <Placeholder>Reminder banners, lead time and dismissals are coming later.</Placeholder>
+      <SettingRow
+        title="Reminders"
+        helper="In-app banners for missing quotes, upcoming and overdue coupons, and maturities. Nothing leaves the app."
+      >
+        <Switch
+          label="Reminders"
+          checked={remindersEnabled}
+          onCheckedChange={setRemindersEnabled}
+        />
+      </SettingRow>
+      {/* The two sub-rows belong to the row above: indented behind a hairline
+          left rule, no dividers between them, and they collapse with the gate
+          (300ms both ways — the shared Reveal idiom). */}
+      <Reveal
+        show={remindersEnabled}
+        distance={1}
+        className="border-hairline mt-3.5 flex flex-col gap-3.5 border-l pl-3"
+      >
+        <SettingRow title="Lead time, days" helper="How many days ahead coupon reminders appear.">
+          <LeadDaysField />
+        </SettingRow>
+        <SettingRow
+          title="Dismissed reminders"
+          helper="Dismissed banners stay hidden until their date passes."
+        >
+          <RestoreDismissedButton />
+        </SettingRow>
+      </Reveal>
     </>
   );
 }

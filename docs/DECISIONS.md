@@ -479,3 +479,83 @@ per-screen glue: `src/screens/daily-quotes/suggestions.ts`; write path:
   `feat/reminders`' UI). The reminders block keeps a placeholder. The P2 switch
   anatomy moved into `components/ui/Switch.tsx` (AssetForm's private
   `InzhurSwitch` now delegates to it) so the app keeps ONE switch.
+
+## D22 — Reminders: derived ids, self-expiring dismissals, one toast per open (2026-08-04)
+
+Phase 3 `feat/reminders` implements S6 of `design/extensions/reminders.dc.html`
+and the reminders half of S8 (`design/extensions/automation.dc.html`). Pure
+half: `src/core/reminders.ts`; glue: `src/hooks/useReminders.ts`; UI:
+`src/components/ui/ReminderStrip.tsx` + `reminder-labels.ts`. The
+suggest-don't-silently-write doctrine is already pinned (D20/D21) and needs no
+extension: reminders write NOTHING at all — the only state they touch is the
+user's own dismissal list.
+
+- **`Reminder` is a pinned Phase-3 contract** — `{id, kind, severity, date,
+  days, assetId?}`, tokens only (D8; the sentences live in
+  `components/ui/reminder-labels.ts`). Four kinds with **derived** ids:
+  `quote-missing:<date>` · `coupon:<assetId>:<date>` ·
+  `coupon-overdue:<assetId>:<date>` · `maturity:<assetId>:<date>`.
+  Derive-don't-schedule (plan key fact #8): a local-only SPA has no background
+  wake, so every reminder is recomputed per render and **dismissals expire by
+  themselves** — when an occurrence leaves scope its id stops being produced and
+  its entry in `dismissedReminders` goes inert. Nothing prunes the list;
+  "Restore dismissed" clears it wholesale. Severity → tint is 1:1 with the
+  reference: info `pos-tint`, warn `warn-tint`, overdue the **minted
+  `neg-tint`/`neg-tint-text`** (`#f0cec7` / `#693f35`, copied from the extension
+  header into `@theme`; that one severity and nothing else). Order: overdue →
+  warn → info, by date inside a severity; the strip caps at 3 with a pressable
+  `+N more reminders` line.
+- **quote-missing counts a PARTIAL day as missing** (the plan's Verify item): an
+  asset with no quote key is pending, never 0 (D5#1), so the ritual is
+  unfinished and the banner stays. With zero assets it never fires — there is
+  nothing to quote. It is suppressed on `/` (the progress pill already says it)
+  and carries the `Enter quotes →` link only on `/overview`.
+- **Both coupon kinds reuse the S5 dedupe.** `dueCoupons`'s ±7-day
+  recorded-payout check became the exported `core/accrual.couponRecorded`, so the
+  card and the banners share ONE rule: a coupon recorded by hand (either side of
+  its date) is never announced. `coupon` is `0 < days ≤ leadDays`; `days ≤ 0` is
+  `coupon-overdue` and is announced however old it is — the lead time windows the
+  FUTURE only.
+- **Skipping the S5 card silences that occurrence's overdue banner** — the skip
+  files the shared `coupon:<assetId>:<date>` id (D21) and `computeReminders`
+  checks it beside `coupon-overdue:…`. The reverse does NOT hold: dismissing the
+  banner leaves the card standing (the card is the tool, the banner the nudge).
+- **Maturity is forward-only** (`0 ≤ days ≤ 30`) and keys off the asset's own
+  `maturity` field regardless of yield type — a date the asset states is a date
+  it pays out on. A maturity already past is never announced (the brief's copy
+  only reads forward, and a redeemed bond needs no reminder).
+- **One lead-days rule, two entry points.** `core/reminders.isLeadDays`
+  (whole days, 1–30) backs the S8 field's parser
+  (`screens/settings/settings.parseLeadDays`), `setReminderLeadDays` AND
+  `migrateSettings`, so an invalid entry can never write and a tampered payload
+  can never disagree with the screen (P2 usdRate precedent: the last valid value
+  stays in effect while the field shows "Enter 1–30 days.").
+- **Exactly one toast per app open.** `useReminderToast()` is hosted in
+  `app/Layout` — the one mount point that spans every route — behind a
+  MODULE-level latch: a ref would satisfy StrictMode's double-invoked effect, but
+  the latch must also survive anything that remounts a host, and the toast has to
+  fire on app open whatever route the user lands on. It fires on the first
+  resolved read with the highest-severity sentence + ` · +N more`, and never
+  again on navigation (browser-verified: one toast across four client-side
+  navigations). `remindersEnabled` off at boot means no toast at all.
+- **Dismiss commits on a TIMEOUT, not on `animationend`.** The banner plays its
+  220 ms exit and the store records the id when the timer fires: a throttled or
+  occluded tab never fires animation events (observed live during verification —
+  a whole page's animation clock sat at 0), and a dismissal must be recorded
+  whatever the compositor is doing. `prefers-reduced-motion` skips straight to
+  the write.
+- **`components/ui/Reveal.tsx`** — the AssetForm's private symmetric reveal/hide
+  group became the app's ONE reveal idiom (same reasoning as D21's Switch
+  extraction), with a `distance` prop because the S8 sub-rows travel 1 and the
+  form groups 2. The reminder sub-rows (lead time + restore) collapse through it.
+- **Three copy extensions beyond the reference's literals**, each an unavoidable
+  edge of its own pattern: `in 1 day` (singular), `matures today (dd.MM.yyyy)`
+  (a same-day maturity), `+1 more reminder` (singular overflow line).
+- **The action link's `white-space:nowrap` holds from `sm` up only.** At 360 px
+  the content column beside the 136 px rail is ~200 px, and a non-wrapping
+  `Open Daily quotes →` pushed the page into 9 px of horizontal scroll
+  (measured); below `sm` the link wraps and the strip holds at 360 px.
+- **Settings (G3/D11):** `remindersEnabled` (default ON) and `reminderLeadDays`
+  (default 7) enter `PersistedSettings` + `PERSISTED_DEFAULTS` +
+  `migrateSettings` + `partialize` + store tests in this commit; the S8 restore
+  row wires the `restoreDismissed` action D21 already added.

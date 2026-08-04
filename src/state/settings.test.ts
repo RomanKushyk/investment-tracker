@@ -10,6 +10,8 @@ const DEFAULTS: PersistedSettings = {
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
+  remindersEnabled: true,
+  reminderLeadDays: 7,
   dismissedReminders: [],
 };
 
@@ -86,6 +88,27 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ autoQuoteSuggest: 'false', couponSuggest: 0 })).toEqual(DEFAULTS);
   });
 
+  // P3 feat/reminders (S8): the reminders gate defaults ON and the lead time to
+  // 7 days — a v1 payload from before them (every existing profile) must
+  // hydrate to exactly that.
+  it('defaults the reminders gate ON and the lead time to 7', () => {
+    expect(migrateSettings({ autoQuoteSuggest: true, couponSuggest: true })).toEqual(DEFAULTS);
+    expect(migrateSettings({ remindersEnabled: false, reminderLeadDays: 14 })).toEqual({
+      ...DEFAULTS,
+      remindersEnabled: false,
+      reminderLeadDays: 14,
+    });
+    expect(migrateSettings({ reminderLeadDays: 1 })).toEqual({ ...DEFAULTS, reminderLeadDays: 1 });
+    expect(migrateSettings({ reminderLeadDays: 30 })).toEqual({ ...DEFAULTS, reminderLeadDays: 30 });
+  });
+
+  it('falls back to the default lead time for values outside 1–30 integers', () => {
+    for (const bad of [0, 31, 7.5, -3, '7', NaN, Infinity, null]) {
+      expect(migrateSettings({ reminderLeadDays: bad })).toEqual(DEFAULTS);
+    }
+    expect(migrateSettings({ remindersEnabled: 'yes' })).toEqual(DEFAULTS);
+  });
+
   it('keeps dismissed reminder ids and drops non-string entries', () => {
     expect(migrateSettings({ dismissedReminders: ['coupon:ovdp8976:2026-08-25'] })).toEqual({
       ...DEFAULTS,
@@ -121,6 +144,11 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
     expect(merged.autoQuoteSuggest).toBe(true); // non-boolean → default ON
   });
 
+  it('sanitizes a tampered lead time', () => {
+    expect(mergeSettings({ reminderLeadDays: 90 }, current).reminderLeadDays).toBe(7);
+    expect(mergeSettings({ reminderLeadDays: 21 }, current).reminderLeadDays).toBe(21);
+  });
+
   it('keeps a valid persisted payload intact', () => {
     const merged = mergeSettings(
       {
@@ -146,6 +174,8 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
     expect(merged.setDataset).toBe(current.setDataset);
     expect(merged.setAutoQuoteSuggest).toBe(current.setAutoQuoteSuggest);
     expect(merged.setCouponSuggest).toBe(current.setCouponSuggest);
+    expect(merged.setRemindersEnabled).toBe(current.setRemindersEnabled);
+    expect(merged.setReminderLeadDays).toBe(current.setReminderLeadDays);
     expect(merged.dismissReminder).toBe(current.dismissReminder);
     expect(merged.restoreDismissed).toBe(current.restoreDismissed);
   });
@@ -163,6 +193,23 @@ describe('automation actions', () => {
     useSettings.getState().setCouponSuggest(true);
     expect(useSettings.getState().autoQuoteSuggest).toBe(true);
     expect(useSettings.getState().couponSuggest).toBe(true);
+  });
+
+  it('flips the reminders gate and takes only valid lead times', () => {
+    useSettings.getState().setRemindersEnabled(false);
+    expect(useSettings.getState().remindersEnabled).toBe(false);
+    useSettings.getState().setRemindersEnabled(true);
+    expect(useSettings.getState().remindersEnabled).toBe(true);
+
+    useSettings.getState().setReminderLeadDays(21);
+    expect(useSettings.getState().reminderLeadDays).toBe(21);
+    // The store's own floor: an invalid value never lands (S8 — the last valid
+    // lead time stays in effect while the field shows its error).
+    useSettings.getState().setReminderLeadDays(0);
+    useSettings.getState().setReminderLeadDays(31);
+    useSettings.getState().setReminderLeadDays(7.5);
+    expect(useSettings.getState().reminderLeadDays).toBe(21);
+    useSettings.getState().setReminderLeadDays(7);
   });
 
   it('dismisses an occurrence once and restores every dismissal', () => {
