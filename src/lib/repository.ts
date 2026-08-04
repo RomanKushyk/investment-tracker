@@ -1,6 +1,7 @@
 // The ONLY module that touches the database. UI consumes it via hooks/queries.ts.
 import { activeDataset, db } from './db';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { postDbSync, withDbLock } from './sync';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 
 export interface AllTables {
@@ -127,28 +128,41 @@ export const repo = {
   // All-or-nothing replace: clear all three tables + bulkAdd in ONE rw
   // transaction — any row failure aborts the whole thing, previous data
   // stays. Stamps the seeded flag (imported data must never be reseeded over).
-  async replaceAll(data: AllTables): Promise<void> {
-    await db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
-      await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
-      await db.assets.bulkAdd(data.assets);
-      await db.snapshots.bulkAdd(data.snapshots);
-      await db.transactions.bulkAdd(data.transactions);
-      await db.meta.put({ key: 'seeded', value: true });
-    });
+  // Held under the cross-tab lock so a second tab's replace/clear cannot
+  // interleave with this one (P4/D24); `onBlocked` fires only while another
+  // tab holds it, and feeds the S3 dialog's "Waiting for another tab…".
+  async replaceAll(data: AllTables, opts: { onBlocked?: () => void } = {}): Promise<void> {
+    await withDbLock(
+      () =>
+        db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
+          await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
+          await db.assets.bulkAdd(data.assets);
+          await db.snapshots.bulkAdd(data.snapshots);
+          await db.transactions.bulkAdd(data.transactions);
+          await db.meta.put({ key: 'seeded', value: true });
+        }),
+      opts.onBlocked,
+    );
+    // Only ever after a COMMITTED write: other tabs are told the data changed,
+    // never that it might have.
+    postDbSync('replace');
   },
 
   // reseed:true → reset to the reference seed; reseed:false → deliberately
   // empty, and the seeded flag keeps ensureSeeded() from resurrecting the
-  // seed across reloads.
+  // seed across reloads. Same cross-tab lock + notification as replaceAll.
   async clearAll(opts: { reseed: boolean }): Promise<void> {
-    await db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
-      await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
-      if (opts.reseed) {
-        await seedTables();
-      } else {
-        await db.meta.put({ key: 'seeded', value: true });
-      }
-    });
+    await withDbLock(() =>
+      db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
+        await Promise.all([db.assets.clear(), db.snapshots.clear(), db.transactions.clear()]);
+        if (opts.reseed) {
+          await seedTables();
+        } else {
+          await db.meta.put({ key: 'seeded', value: true });
+        }
+      }),
+    );
+    postDbSync('clear');
   },
 };
 

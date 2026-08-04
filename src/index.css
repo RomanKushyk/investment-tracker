@@ -30,11 +30,17 @@
   --color-pos-on-dark: #b9cdb4;
   --color-pos-border: #c9d4c4;
   --color-neg: #a8695a;
-  /* Overdue family — minted by the P3 design session (design/extensions/
-     reminders.dc.html header comment, brief phase-3 "Global constraints"):
-     a soft tint of `neg` (same hue) for the OVERDUE reminder severity and
-     NOTHING else. Banner text is always -tint-text (6.08:1 on the tint);
-     raw `neg` on it would be 2.97:1. */
+  /* Irreversible-harm family — minted by the P3 design session
+     (design/extensions/reminders.dc.html header comment) for the OVERDUE
+     reminder severity, and WIDENED by P4 (D25, restated verbatim in
+     design/extensions/data-portability.dc.html + import-dialog.dc.html):
+     `neg-tint`/`neg-tint-text` are block-level framing for overdue reminders
+     and irreversible-harm surfaces — never for validation messages (those stay
+     `neg` text on `card`), never for numbers, deltas or counts, never for a
+     routine control or a pressable's own fill. Exactly three sites today: the
+     overdue reminder banner, the S3 import replace banner, the S8 danger-zone
+     panel. Banner text is always -tint-text (6.08:1 on the tint); raw `neg` on
+     it would be 2.97:1. Values unchanged — P4 mints nothing. */
   --color-neg-tint: #f0cec7;
   --color-neg-tint-text: #693f35;
   /* Caution family — minted by the P2 design session (design/extensions/

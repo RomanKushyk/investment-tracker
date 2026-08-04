@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router';
 
+import { useDbSync } from '../hooks/useDbSync';
 import { useReminderToast } from '../hooks/useReminders';
 import { Sidebar } from './Sidebar';
 
@@ -9,6 +10,9 @@ export function Layout() {
   // point that spans every route, so the toast fires once on app open and never
   // again on navigation.
   useReminderToast();
+  // Same reason: another tab replacing or clearing the dataset must reach this
+  // tab whatever route it is sitting on (P4/D24).
+  useDbSync();
   return (
     <div className="flex min-h-screen">
       <Sidebar />

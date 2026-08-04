@@ -103,10 +103,18 @@ export function useExportAll() {
   return useMutation({ mutationFn: () => repo.exportAll() });
 }
 
+// Whole-dataset replace (P4 import). `onBlocked` is forwarded to the Web Lock
+// so the caller can say "Waiting for another tab…" instead of "Replacing…".
 export function useReplaceAll() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Parameters<typeof repo.replaceAll>[0]) => repo.replaceAll(data),
+    mutationFn: ({
+      data,
+      onBlocked,
+    }: {
+      data: Parameters<typeof repo.replaceAll>[0];
+      onBlocked?: () => void;
+    }) => repo.replaceAll(data, { onBlocked }),
     onSuccess: () => qc.invalidateQueries(),
   });
 }

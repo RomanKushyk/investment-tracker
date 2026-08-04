@@ -6,9 +6,13 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { diffBackup, validateImport } from '../core/backup/import';
+import { buildBackup } from '../core/backup/json';
+import { headlineKpis, headlineTotal } from '../core/derive';
 import { activeDataset, db, makeDb } from './db';
 import { dbVersion, ensureSeeded, repo } from './repository';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { SYNC_CHANNEL } from './sync';
 import type { Snapshot } from '../core/types';
 
 beforeEach(async () => {
@@ -110,6 +114,119 @@ describe('replaceAll', () => {
 
     await repo.replaceAll(data);
     expect(await repo.exportAll()).toEqual(data);
+  });
+});
+
+// --- Import round-trip (P4 feat/backup-import, D24) ------------------------
+// The headline invariant: export → erase → import must return the dataset
+// byte-identical, D5-pinned figures included. Lives here (not beside
+// core/backup) because it needs the real DB and the seed — core tests may not
+// import src/lib (G1).
+
+async function exportSeedEnvelope() {
+  const tables = await repo.exportAll();
+  return buildBackup(
+    tables.assets,
+    tables.snapshots,
+    tables.transactions,
+    { currency: 'UAH', usdRate: 44.83 },
+    'demo',
+    '2026-08-04T12:00:00',
+    dbVersion,
+  );
+}
+
+describe('export → erase → import round-trip', () => {
+  it('restores the seed byte-identically, with every D5-pinned figure intact', async () => {
+    await ensureSeeded();
+    const before = await repo.exportAll();
+    const text = JSON.stringify(await exportSeedEnvelope());
+
+    await repo.clearAll({ reseed: false }); // the S6 erase, mid round-trip
+    expect(await db.assets.count()).toBe(0);
+
+    const validation = validateImport(text);
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) return;
+    await repo.replaceAll({
+      assets: validation.envelope.assets,
+      snapshots: validation.envelope.snapshots,
+      transactions: validation.envelope.transactions,
+    });
+
+    const after = await repo.exportAll();
+    expect(after).toEqual(before);
+    expect(after.assets).toHaveLength(4);
+    expect(after.snapshots).toHaveLength(174);
+    expect(after.transactions).toHaveLength(18);
+
+    // D5 checkpoints, derived from the re-imported rows.
+    const kpis = headlineKpis(after.snapshots, after.transactions);
+    expect(kpis.total).toBeCloseTo(149016.36, 2);
+    expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
+    expect(kpis.net.pct * 100).toBeCloseTo(3.08, 2);
+    expect(headlineTotal(after.snapshots)).toBeCloseTo(149016.36, 2);
+  });
+
+  it('previews the same-dataset re-import as all-replaced, nothing lost', async () => {
+    await ensureSeeded();
+    const current = await repo.exportAll();
+    const envelope = await exportSeedEnvelope();
+
+    const diff = diffBackup(current, envelope, {
+      dataset: 'demo',
+      today: '2026-08-04',
+      dbVersion,
+    });
+    expect(diff.assets).toEqual({ added: 0, replaced: 4, removed: 0 });
+    expect(diff.snapshots).toEqual({ added: 0, replaced: 174, removed: 0 });
+    expect(diff.transactions).toEqual({ added: 0, replaced: 18, removed: 0 });
+    expect(diff.after).toEqual({ assets: 4, snapshots: 174, transactions: 18 });
+    expect(diff.warnings).toEqual([]);
+  });
+
+  it('a rejected file writes nothing — validation happens before any write', async () => {
+    await ensureSeeded();
+    const before = await repo.exportAll();
+    const broken = JSON.parse(JSON.stringify(await exportSeedEnvelope())) as Record<
+      string,
+      unknown
+    >;
+    (broken.assets as Record<string, unknown>[])[0].createdAt = '2026-02-03T10:00:00Z';
+
+    expect(validateImport(JSON.stringify(broken)).ok).toBe(false);
+    expect(await repo.exportAll()).toEqual(before);
+    expect(await db.assets.count()).toBe(4);
+  });
+
+  it('tells other tabs after a committed replace, never before', async () => {
+    await ensureSeeded();
+    // A second channel object stands in for a second tab: the repository's own
+    // channel never delivers to itself (that is what keeps the acting tab from
+    // toasting at itself).
+    const otherTab = new BroadcastChannel(SYNC_CHANNEL);
+    const heard: unknown[] = [];
+    otherTab.onmessage = (e: MessageEvent) => void heard.push(e.data);
+    try {
+      const bad = { assets: SEED_ASSETS, snapshots: [], transactions: SEED_TRANSACTIONS };
+      // A rejected write must stay silent: bulkAdd of transactions referencing
+      // no snapshots is fine, so break it with a duplicate primary key instead.
+      await expect(
+        repo.replaceAll({ ...bad, assets: [...SEED_ASSETS, SEED_ASSETS[0]] }),
+      ).rejects.toThrow();
+      await Promise.resolve();
+      expect(heard).toEqual([]);
+
+      await repo.replaceAll(bad);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(heard).toEqual([{ kind: 'replace' }]);
+
+      await repo.clearAll({ reseed: false });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(heard).toEqual([{ kind: 'replace' }, { kind: 'clear' }]);
+    } finally {
+      otherTab.close();
+    }
   });
 });
 

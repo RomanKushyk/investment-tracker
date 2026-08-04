@@ -1,7 +1,10 @@
 // Backup envelope v1 (NEXT-PHASE-PLAN P1 / DECISIONS D12) — pure build +
 // parse for the JSON safety backup. The envelope is the app-owned stable
 // contract (dexie-export-import rejected, see D12); P4's import feature
-// reuses parseBackup as its validation front door.
+// EXTENDS this module rather than forking it — `core/backup/import.ts` reuses
+// `readEnvelopeHead` (the format/version gate), `backupEnvelopeSchema` and
+// `integrityIssues` verbatim and only adds the structured zod-issue mapping
+// and the preview diff (D24).
 import { z } from 'zod';
 
 import type { Asset, Settings, Snapshot, Transaction } from '../types';
@@ -144,26 +147,42 @@ export function buildBackup(
 export type ParseBackupResult =
   { ok: true; data: BackupEnvelope } | { ok: false; issues: string[] };
 
-export function parseBackup(text: string): ParseBackupResult {
+// --- Format-level gate (shared) --------------------------------------------
+// The gate `parseBackup` has always applied, extracted in P4 so the import
+// validator (core/backup/import.ts) dispatches on the same decision instead of
+// re-deriving it: `code` is what the S4 report branches on, `issue` is the ONE
+// verbatim sentence it prints as its mono technical-detail line. One
+// implementation, so the two can never drift.
+export type EnvelopeHeadCode =
+  | 'not-json'
+  | 'not-an-object'
+  | 'not-a-backup'
+  | 'unsupported-version';
+
+export type EnvelopeHead =
+  | { ok: true; raw: Record<string, unknown> }
+  | { ok: false; code: EnvelopeHeadCode; version?: unknown; issue: string };
+
+export function readEnvelopeHead(text: string): EnvelopeHead {
   let raw: unknown;
   try {
     raw = JSON.parse(text) as unknown;
   } catch (e) {
-    return { ok: false, issues: [`Not valid JSON: ${(e as Error).message}`] };
+    return { ok: false, code: 'not-json', issue: `Not valid JSON: ${(e as Error).message}` };
   }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return {
       ok: false,
-      issues: [`Not a ${BACKUP_FORMAT} file (expected a JSON object).`],
+      code: 'not-an-object',
+      issue: `Not a ${BACKUP_FORMAT} file (expected a JSON object).`,
     };
   }
   const head = raw as Record<string, unknown>;
   if (head.format !== BACKUP_FORMAT) {
     return {
       ok: false,
-      issues: [
-        `Not a ${BACKUP_FORMAT} file (format: '${String(head.format)}').`,
-      ],
+      code: 'not-a-backup',
+      issue: `Not a ${BACKUP_FORMAT} file (format: '${String(head.format)}').`,
     };
   }
   // Version gate BEFORE the row schemas so a newer backup gets one clear
@@ -171,12 +190,18 @@ export function parseBackup(text: string): ParseBackupResult {
   if (head.formatVersion !== BACKUP_FORMAT_VERSION) {
     return {
       ok: false,
-      issues: [
-        `Unsupported formatVersion ${String(head.formatVersion)} — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
-      ],
+      code: 'unsupported-version',
+      version: head.formatVersion,
+      issue: `Unsupported formatVersion ${String(head.formatVersion)} — this app reads formatVersion ${BACKUP_FORMAT_VERSION} only.`,
     };
   }
-  const parsed = backupEnvelopeSchema.safeParse(raw);
+  return { ok: true, raw: head };
+}
+
+export function parseBackup(text: string): ParseBackupResult {
+  const head = readEnvelopeHead(text);
+  if (!head.ok) return { ok: false, issues: [head.issue] };
+  const parsed = backupEnvelopeSchema.safeParse(head.raw);
   if (!parsed.success) {
     return {
       ok: false,
@@ -187,33 +212,106 @@ export function parseBackup(text: string): ParseBackupResult {
   }
   const issues = integrityIssues(parsed.data);
   return issues.length > 0
-    ? { ok: false, issues }
+    ? { ok: false, issues: issues.map(renderIssue) }
     : { ok: true, data: parsed.data };
+}
+
+// --- Structured row issues (D8) --------------------------------------------
+// The envelope's own issue vocabulary: a location (table + row address +
+// field) plus a CODE, never an English sentence — the S4 report renders the
+// words (core/backup/import.ts maps zod issues onto the same shape, and
+// screens/settings/import-labels.ts owns the copy). `parseBackup` keeps its
+// P1 string contract by rendering these through `renderIssue` below.
+export type IssueTable = 'assets' | 'snapshots' | 'transactions' | 'settings' | 'envelope';
+
+export type IssueCode =
+  | 'unknown-asset-id'
+  | 'unknown-quote-asset'
+  | 'duplicate-key'
+  | 'unknown-key'
+  | 'expected-datetime'
+  | 'expected-date'
+  | 'expected-positive-amount'
+  | 'invalid';
+
+export interface RowIssue {
+  table: IssueTable;
+  /** Row address — a snapshot date, a transaction id, or an array index. */
+  at?: string;
+  /** Field inside the row, or the primary-key name for a duplicate. */
+  field?: string;
+  code: IssueCode;
+  /** The offending value the sentence quotes (an id, a date, a key list). */
+  value?: string;
+  /** Verbatim validator message — rendered only by the 'invalid' fallback. */
+  detail?: string;
 }
 
 // Post-parse referential integrity — schema-valid rows can still contradict
 // each other; nothing orphaned or ambiguous may pass (standing invariant).
-function integrityIssues(env: BackupEnvelope): string[] {
-  const issues: string[] = [];
-  const assetIds = new Set(env.assets.map((a) => a.id));
+// Duplicate primary keys join the pass in P4: a duplicated asset/transaction
+// id survives the row schemas, silently collapses in the id set, and would
+// then abort `replaceAll`'s bulkAdd with an opaque ConstraintError instead of
+// a row-addressed reason.
+export function integrityIssues(env: BackupEnvelope): RowIssue[] {
+  const issues: RowIssue[] = [];
+
+  const assetIds = new Set<string>();
+  for (const a of env.assets) {
+    if (assetIds.has(a.id)) {
+      issues.push({ table: 'assets', field: 'id', code: 'duplicate-key', value: a.id });
+    }
+    assetIds.add(a.id);
+  }
+
+  const txIds = new Set<string>();
   for (const tx of env.transactions) {
+    if (txIds.has(tx.id)) {
+      issues.push({ table: 'transactions', field: 'id', code: 'duplicate-key', value: tx.id });
+    }
+    txIds.add(tx.id);
     if (tx.assetId !== '' && !assetIds.has(tx.assetId)) {
-      issues.push(`transactions.${tx.id}: unknown assetId '${tx.assetId}'`);
+      issues.push({
+        table: 'transactions',
+        at: tx.id,
+        code: 'unknown-asset-id',
+        value: tx.assetId,
+      });
     }
   }
+
   const seenDates = new Set<string>();
   for (const s of env.snapshots) {
     for (const key of Object.keys(s.quotes)) {
       if (!assetIds.has(key)) {
-        issues.push(`snapshots.${s.date}: quote for unknown asset '${key}'`);
+        issues.push({
+          table: 'snapshots',
+          at: s.date,
+          code: 'unknown-quote-asset',
+          value: key,
+        });
       }
     }
     if (seenDates.has(s.date)) {
-      issues.push(
-        `snapshots: duplicate date '${s.date}' (date is the primary key)`,
-      );
+      issues.push({ table: 'snapshots', field: 'date', code: 'duplicate-key', value: s.date });
     }
     seenDates.add(s.date);
   }
   return issues;
+}
+
+// The P1 string form of an integrity issue — kept byte-identical so
+// `parseBackup`'s contract (and its fixtures) never moved.
+function renderIssue(i: RowIssue): string {
+  const at = i.at ? `${i.table}.${i.at}` : i.table;
+  switch (i.code) {
+    case 'unknown-asset-id':
+      return `${at}: unknown assetId '${i.value ?? ''}'`;
+    case 'unknown-quote-asset':
+      return `${at}: quote for unknown asset '${i.value ?? ''}'`;
+    case 'duplicate-key':
+      return `${at}: duplicate ${i.field ?? 'key'} '${i.value ?? ''}' (${i.field ?? 'key'} is the primary key)`;
+    default:
+      return `${[at, i.field].filter(Boolean).join('.')}: ${i.detail ?? i.code}`;
+  }
 }

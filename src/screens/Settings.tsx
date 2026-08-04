@@ -11,6 +11,7 @@ import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
+import { ImportRow } from './settings/ImportRow';
 import { parseLeadDays } from './settings/settings';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
@@ -324,14 +325,21 @@ export function Settings() {
             <DatasetSwitch />
           </SettingRow>
           <Divider />
+          {/* Helper superseded by P4 S1: the P2 promise ("Restore arrives with
+              import in a later release.") is kept, and now points at the row
+              that keeps it. */}
           <SettingRow
             title="Backup"
             helper={
-              'Full JSON backup of the active dataset — kubushka-backup-<date>.json. Restore arrives with import in a later release.'
+              'Full JSON backup of the active dataset — kubushka-backup-<date>.json. Restore it with Import below.'
             }
           >
             <BackupButton />
           </SettingRow>
+          <Divider />
+          {/* S2 — the label block spans the full row: the one "Choose file…"
+              button lives inside the drop panel. */}
+          <ImportRow />
           <Divider />
           <SettingRow
             title="Danger zone"

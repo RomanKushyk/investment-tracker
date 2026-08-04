@@ -57,20 +57,31 @@ export function AlertDialog({
   open,
   onOpenChange,
   onOpenAutoFocus,
+  onEscapeKeyDown,
+  width = 420,
   children,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenAutoFocus?: (event: Event) => void;
+  /** Called before Esc closes — preventDefault() makes it inert (P4 S3 pending). */
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  /** 480 = the P4 import dialog's band (it carries a 4-column diff). */
+  width?: 420 | 480;
   children: ReactNode;
 }) {
+  // The 480 band also becomes a container-query context: the import diff has
+  // to reflow by the DIALOG's width, not the viewport's. Scoped to that band so
+  // the two P2 dialogs keep their exact (containment-free) layout.
+  const widthClass = width === 480 ? 'max-w-[480px] @container' : 'max-w-[420px]';
   return (
     <RadixAlertDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixAlertDialog.Portal>
         <RadixAlertDialog.Overlay className={OVERLAY_CLASS} />
         <RadixAlertDialog.Content
           onOpenAutoFocus={onOpenAutoFocus}
-          className={`${PANEL_CLASS} max-w-[420px]`}
+          onEscapeKeyDown={onEscapeKeyDown}
+          className={`${PANEL_CLASS} ${widthClass}`}
         >
           {children}
         </RadixAlertDialog.Content>
