@@ -42,12 +42,12 @@ Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a
 - **No sidebar Backup pill** (removed in next-phase P2 per S7) — the backup download lives on `/settings` → Data.
 - **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
 - **App-open reminder toast (P3 `feat/reminders`, S6):** on every app OPEN (a full page load), if at least one undismissed reminder exists, exactly ONE plain sonner toast appears carrying the highest-severity banner sentence (+ ` · +N more` when others exist) — on the untouched demo seed that is **"No quotes saved today yet."**. It never repeats on client-side navigation (verified across four route changes) and never fires twice under StrictMode; `Reminders` OFF at boot means no toast at all.
-- No horizontal scroll at 360px viewport width on any route.
+- No horizontal scroll at 360px viewport width on any route — **except two known pre-existing v1 layout defects** measured in the P3 close sweep and filed as `docs/FOLLOW-UPS.md` items 10–11: `/attributes` overflows ~100px (the yield-type tag pills are `whitespace-nowrap` beside long asset names) and `/overview` overflows 4px when a classic 15px scrollbar shrinks the layout viewport to 345px (the Assets card rows need 349px; with overlay/mobile scrollbars it fits). Neither comes from Phase 3 (verified with the ReminderStrip off) — do not report them as regressions.
 
 ## `/` — Daily quotes (landing)
 
 On seed:
-- Progress pill **"1 of 4 filled"** (green tint) — REIT's quote for 27.07 is already saved.
+- Progress pill **"1 of 4 filled"** (green tint) — REIT's quote for 27.07 is already saved. *These two bullets describe the screen with the **Date field on 27.07.2026** (the seed's last saved day — pick it in the Date picker). On any later date nothing is saved yet, so the pill reads **"0 of 4 filled"**, every input is empty, and the two bonds show S4 ghosts (below).*
 - 4 asset rows, each: tinted 34px avatar with 2-letter code, name, subline like **"₴68,629.36 yesterday"** (REIT). REIT input pre-filled `68 702,10` with green border + delta chip **"+0.11%"**; the other three empty with placeholders `60 086,09` / `15 846,30` / `4 374,12` and "—" chips.
 - Buttons: dark pill **"Save snapshot"**, outline **"Copy yesterday"**; right text **"Last saved 25.07, 21:14"**.
 - Yield teaser strip: "Yield since start: REIT **+4.41%** · Energy **+1.48%** · …8976 **+2.96%** · …6475 **+5.20%**" + ghost "Yield chart →" (navigates to `/yield`).

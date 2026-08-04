@@ -2,7 +2,9 @@
 
 Backlog carried out of the 7-task build (see `BUILD-PLAN.md` Status table). All items below were found by task/final reviews, judged **non-blocking** (cosmetic or reachable only on degenerate/empty data), and consciously shipped as-is on 2026-07-28. One branch (`chore/cosmetic-sweep`) can clear the lot.
 
-> **Sweep completed 2026-07-28** — `chore/cosmetic-sweep` squash-merged to `dev`: items **1–6 done** (144 tests, all gates green, browser-verified incl. empty-DB states), item **7 skipped** (optional; no natural touch-point), item **8 no-action** as documented. Backlog is clear.
+> **Sweep completed 2026-07-28** — `chore/cosmetic-sweep` squash-merged to `dev`: items **1–6 done** (144 tests, all gates green, browser-verified incl. empty-DB states), item **7 skipped** (optional; no natural touch-point), item **8 no-action** as documented.
+>
+> **Items 9–11 arrived later and are still OPEN** — 9 from the deploy (2026-07-29), 10–11 from the Phase-3 close regression sweep (2026-08-04, both pre-existing v1 layout defects at 360px). Same ground rules; they need no plan phase of their own.
 
 None of these affect data correctness, derivations, or the §9 behavior checklist — do not reopen §9 for them.
 
@@ -19,6 +21,8 @@ None of these affect data correctness, derivations, or the §9 behavior checklis
 | 7 | `src/screens/Yield.tsx` (table row render) | The `x === undefined ? '—' : fmt(x)` ternary repeats 4× per row. Stylistic; the codebase convention ("no abstraction for single-use code") tolerates it. | Optional: tiny local `dashIf` helper if touching the file anyway. |
 | 8 | `src/screens/TransactionPanel.tsx` (lint) | Known react-compiler bailout warning on react-hook-form `watch()` — accepted (compiler skips optimizing the component; no correctness impact). | No action; revisit only if the warning multiplies or RHF ships a compiler-compatible API. |
 | 9 | `index.html` (no favicon) | The app ships no favicon, so every page load requests `/favicon.ico` and gets a 404 (one console error on the deployed site; previously masked locally and by the old catch-all rewrite, which returned `index.html` for it). Cosmetic only. | Add a favicon to `public/` and link it in `index.html` — a `₴`-mark glyph matching the sidebar logo circle would suit; note the design reference has no favicon asset, so this is a new decision. |
+| 10 | `src/screens/Attributes.tsx` (card header) | At a 360px viewport the page scrolls horizontally by ~100px: the yield-type tag pill (`whitespace-nowrap`, pushed right by `ml-auto`) cannot share the header row with a long asset name ("Inzhur Energy", "OVDP UA4000238976"). Pre-existing since v1 Task 5; measured in the Phase-3 close sweep. | Let the header wrap below `sm` (tag on its own line) or shorten/allow-wrap the tag at narrow widths. |
+| 11 | `src/screens/Overview.tsx` (Assets card rows) | At exactly 360px **with classic scrollbars** the page scrolls horizontally by 4px: the vertical scrollbar leaves 345px of layout width while the `min-w-fit` asset rows (name + meta + `w-[110px]` value + `w-[60px]` percent) need 349px. Invisible with overlay/mobile scrollbars. Pre-existing (verified identical with the P3 ReminderStrip disabled). | Trim ~4px from the row's fixed columns below `sm`, or let the meta line wrap. |
 
 ## Ground rules for the sweep
 
