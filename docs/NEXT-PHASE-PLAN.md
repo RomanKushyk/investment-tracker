@@ -19,7 +19,7 @@
 | 0 | Repo hygiene | `chore/next-phase-prep` | **done** (2026-07-28) |
 | 1 | Core consolidation & write surface (+ formula audit) | `refactor/core-folder` … `docs/design-brief-phase-2` | **done** (2026-07-29) |
 | 2 | Settings home & real-data era | `feat/settings-shell` … `docs/design-brief-phase-3` | **done** (2026-08-02) |
-| 3 | Living data: Inzhur fetch, fixed yield, reminders | `feat/inzhur-client` … `docs/design-brief-phase-4` | todo |
+| 3 | Living data: Inzhur fetch, fixed yield, reminders | `feat/inzhur-client` … `docs/design-brief-phase-4` | **in progress** (started 2026-08-04; all five tasks done, review findings applied — closer tags) |
 | 4 | Data portability: import, CSV, mirror | `feat/backup-import` … `docs/design-brief-phase-5` | todo |
 | 5 | Appearance & language: dark theme + UK | `feat/dark-theme`, `feat/i18n-uk`, `docs/design-brief-phase-6` | todo |
 | 6 | Chart analytics: ranges + cap-by-day | `feat/chart-toolbar` … `docs/design-brief-phase-7` | todo |

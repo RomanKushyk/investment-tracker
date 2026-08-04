@@ -4,7 +4,7 @@
 //
 // Nothing here writes portfolio data (G5): a fetch produces values in memory —
 // only the user's Save/Confirm press in the P3 UI ever records anything.
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { msUntilNextKyivHour } from '../core/dates';
@@ -146,6 +146,12 @@ export function useInzhurAssets(): UseInzhurAssets {
     networkMode: 'always',
   });
 
+  // Parsed once per cached row, not per render: `readCache` zod-parses the whole
+  // raw payload (~300 KB live), and the consumers re-render on every keystroke in
+  // a quote input. Memoizing also keeps `lastGood`'s identity stable, so the
+  // callbacks built on it stop churning.
+  const lastGood = useMemo(() => readCache(cached), [cached]);
+
   const fetchAssets = useCallback(async () => {
     if (disabled) return undefined;
     const result = await refetch();
@@ -160,7 +166,7 @@ export function useInzhurAssets(): UseInzhurAssets {
 
   return {
     data,
-    lastGood: readCache(cached),
+    lastGood,
     isFetching,
     isError,
     error,

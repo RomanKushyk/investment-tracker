@@ -201,6 +201,37 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
     ];
     expect(computeReminders([asset], quoted, other, TODAY)).toHaveLength(1);
   });
+
+  // Regression: the dedupe used to read `asset.nextCoupon` alone, and that field
+  // only moves through the S5 confirm — so a coupon recorded by hand (or skipped)
+  // silenced every LATER occurrence of that bond too, forever.
+  it('announces the next occurrence once the pointer one is settled', () => {
+    const asset = bond({ nextCoupon: '2026-07-25' }); // recorded by hand on the day
+    const recorded = [payout({ date: '2026-07-25' })];
+    // 2027-01-25 is the next date: silent now, announced inside its lead window.
+    expect(computeReminders([asset], quoted, recorded, TODAY)).toEqual([]);
+    const later = computeReminders(
+      [asset],
+      [snapshot('2027-01-20', { ovdp8976: 15846.3 })],
+      recorded,
+      '2027-01-20',
+    );
+    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-25']);
+  });
+
+  it('announces the next occurrence after a skip (S5 → S6 hand-over)', () => {
+    const asset = bond({ nextCoupon: '2026-07-25' });
+    const skipped = { dismissed: [couponReminderId('ovdp8976', '2026-07-25')] };
+    expect(computeReminders([asset], quoted, [], TODAY, skipped)).toEqual([]);
+    const later = computeReminders(
+      [asset],
+      [snapshot('2027-01-20', { ovdp8976: 15846.3 })],
+      [],
+      '2027-01-20',
+      skipped,
+    );
+    expect(later.map((r) => r.id)).toEqual(['coupon:ovdp8976:2027-01-25']);
+  });
 });
 
 describe('maturity window', () => {

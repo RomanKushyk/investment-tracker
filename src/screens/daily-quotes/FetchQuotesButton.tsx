@@ -32,44 +32,65 @@ export function FetchQuotesButton({
   flashAt: string | undefined;
   onFetch: () => void;
 }) {
-  const disabled = state === 'demo' || state === 'unlinked' || state === 'loading';
+  const gated = state === 'demo' || state === 'unlinked';
+  const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
   const title = state === 'demo' ? COPY.demo : state === 'unlinked' ? COPY.unlinked : undefined;
 
+  const button = (
+    <Button
+      variant="outline"
+      size="header"
+      // The gating states read at .5, the in-flight one at .7 — "you can't press
+      // this" and "it is working" must not look the same (S1).
+      disabledTone={gated ? 'gated' : 'busy'}
+      onClick={onFetch}
+      disabled={disabled}
+      title={title}
+      // No aria-label: the button has visible text, and a fixed label would
+      // override it — the accessible name has to follow "Fetching…"/"Fetched
+      // 13:05" (WCAG 2.5.3), which is also how AT hears the state change.
+      className={success ? 'border-pos text-pos' : undefined}
+    >
+      {success ? (
+        <Check size={13} strokeWidth={2.75} />
+      ) : (
+        <RefreshCw
+          size={13}
+          strokeWidth={2.75}
+          className={state === 'loading' ? 'animate-spin' : undefined}
+        />
+      )}
+      {/* Re-keyed so every label change crossfades instead of swapping (D7). */}
+      <span key={state} className="animate-in fade-in duration-200">
+        {state === 'loading'
+          ? COPY.loading
+          : success
+            ? `Fetched ${kyivTimeHm(new Date(flashAt))}`
+            : COPY.idle}
+      </span>
+      {state === 'demo' && (
+        <span className="bg-warn-tint text-warn-tint-text rounded-full px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] uppercase">
+          DEMO
+        </span>
+      )}
+    </Button>
+  );
+
   return (
     <>
-      <Button
-        variant="outline"
-        size="header"
-        onClick={onFetch}
-        disabled={disabled}
-        title={title}
-        aria-label={COPY.idle}
-        className={success ? 'border-pos text-pos' : undefined}
-      >
-        {success ? (
-          <Check size={13} strokeWidth={2.75} />
-        ) : (
-          <RefreshCw
-            size={13}
-            strokeWidth={2.75}
-            className={state === 'loading' ? 'animate-spin' : undefined}
-          />
-        )}
-        {/* Re-keyed so every label change crossfades instead of swapping (D7). */}
-        <span key={state} className="animate-in fade-in duration-200">
-          {state === 'loading'
-            ? COPY.loading
-            : success
-              ? `Fetched ${kyivTimeHm(new Date(flashAt))}`
-              : COPY.idle}
+      {/* A disabled button is un-hittable (`disabled:pointer-events-none` on the
+          shared base), so its OWN native tooltip can never fire — and in the
+          gating states the `title` is the only explanation S1 gives. The wrapper
+          is hit-testable, so the tooltip appears; the button keeps the attribute
+          so the accessible description survives. */}
+      {title === undefined ? (
+        button
+      ) : (
+        <span title={title} className="inline-flex">
+          {button}
         </span>
-        {state === 'demo' && (
-          <span className="bg-warn-tint text-warn-tint-text rounded-full px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] uppercase">
-            DEMO
-          </span>
-        )}
-      </Button>
+      )}
       {freshness !== undefined && (
         <span
           key={freshness.state}

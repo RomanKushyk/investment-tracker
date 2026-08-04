@@ -159,6 +159,8 @@ function UsdRateField() {
 // arming rule as the ₴/$ rate above (validation via a pure parser; an invalid
 // entry never reaches the store, so the last valid lead time stays in effect
 // and the banners keep using it), and empty only errors on blur.
+const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
+
 function LeadDaysField() {
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
   const [raw, setRaw] = useState(() => String(reminderLeadDays));
@@ -186,10 +188,16 @@ function LeadDaysField() {
         inputMode="decimal"
         aria-label="Reminder lead time, days"
         aria-invalid={error}
+        // The message lives outside the label, so the link has to be explicit —
+        // otherwise assistive tech announces "invalid" with no reason.
+        aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
         className={`bg-page h-9 w-[72px] rounded-[10px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
-        <div className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200">
+        <div
+          id={LEAD_DAYS_ERROR_ID}
+          className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200"
+        >
           Enter 1–30 days.
         </div>
       )}

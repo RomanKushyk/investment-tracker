@@ -639,6 +639,7 @@ line 60); `pos-tint` status idiom from the "Next payouts" card (master
 | **demo-disabled** | the row renders in full with `Choose file…` disabled at opacity .5, the in-button `DEMO` micro-tag and the `title` tooltip — the section keeps its shape in both datasets (P3 S1 precedent) |
 | hover | buttons per their variants, 150 ms; chips are inert (native `title` only) |
 | focus | ring per button |
+| disabled | n/a as a state of its own — the row's controls are only ever disabled by **linking** (the OS picker is open) and **demo-disabled** above; there is no other gate, so nothing else greys them. Note for both: a disabled button is not hit-testable (`disabled:pointer-events-none`), so a `title` on the button alone never shows — carry it on a hit-testable wrapper, per P3 S1 (D23) |
 | loading | `Syncing…` is the only loading treatment — there is no blocking state |
 | error | covered by write-failed / permission rows above; never `neg` — the mirror is best-effort by design (plan risk note: "show last-synced, never promise more") |
 | empty | linked to a file while the dataset is empty: still writes (a valid empty envelope), chip normal |

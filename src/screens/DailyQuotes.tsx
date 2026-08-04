@@ -111,12 +111,12 @@ export function DailyQuotes() {
     return value === null ? undefined : value;
   }
 
-  // S5 — coupons whose date has arrived with nothing recorded for them, minus
-  // the occurrences the user skipped (derived ids, shared with the reminders).
+  // S5 — coupons whose date has arrived with nothing recorded for them. The
+  // skipped occurrences (derived ids, shared with the reminders) go INTO the
+  // derivation rather than filtering its result: a skipped coupon must step
+  // aside for the next one on the grid, not silence the asset (D23).
   const due = couponSuggest
-    ? dueCoupons(assets, transactions, todayIso()).filter(
-        (d) => !dismissedReminders.includes(couponReminderId(d.assetId, d.date)),
-      )
+    ? dueCoupons(assets, transactions, todayIso(), { dismissed: dismissedReminders })
     : [];
 
   return (

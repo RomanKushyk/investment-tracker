@@ -31,7 +31,13 @@ export function CouponDueCard({
   prefill: number | undefined;
   onSkip: () => void;
 }) {
-  const [amount, setAmount] = useState(prefill === undefined ? '' : fmtTable(prefill));
+  // The field mirrors the prefill until the user touches it — `edited` is the
+  // discriminator, so a prefill that only becomes available LATER (a linked
+  // bond's `paymentSchedule` forecast arrives with the first fetch, and the card
+  // never remounts) still lands in an untouched field, while a typed value is
+  // never overwritten by it (G5).
+  const [edited, setEdited] = useState<string | undefined>(undefined);
+  const amount = edited ?? (prefill === undefined ? '' : fmtTable(prefill));
   const [reinvest, setReinvest] = useState(false);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -40,6 +46,7 @@ export function CouponDueCard({
   // One confirm per card, whatever the browser or StrictMode does with the
   // handler: the latch is checked and set synchronously, before any await.
   const confirmed = useRef(false);
+  const errorId = `coupon-amount-${asset.id}-error`;
 
   function tx(type: Transaction['type'], value: number): Transaction {
     return {
@@ -67,7 +74,10 @@ export function CouponDueCard({
         // The paired reinvest makes the payout count as reinvested rather than
         // paid out (same date + asset is what the derivations match on).
         if (reinvest) await recordTransaction.mutateAsync({ tx: tx('reinvest', parsed.data) });
-        const roll = rollNextCoupon(asset);
+        // Rolled off the occurrence just recorded, not off the asset's stored
+        // pointer: the two differ whenever an earlier occurrence was settled by
+        // hand, and the pointer must land on a date that is still open.
+        const roll = rollNextCoupon(asset, due.date);
         if (roll?.kind === 'rolled') {
           await updateAsset.mutateAsync({ id: asset.id, patch: { nextCoupon: roll.nextCoupon } });
         }
@@ -111,17 +121,23 @@ export function CouponDueCard({
         name={`coupon-amount-${asset.id}`}
         value={amount}
         onChange={(e) => {
-          setAmount(e.target.value);
+          setEdited(e.target.value);
           if (error) setError(false);
         }}
         inputMode="decimal"
         aria-invalid={error}
+        // The message sits outside the label, so it needs the explicit link —
+        // otherwise assistive tech announces "invalid" with no reason.
+        aria-describedby={error ? errorId : undefined}
         className={`bg-page h-9 w-full rounded-[10px] border px-3 font-body text-[13px] transition ${
           error ? 'border-neg' : 'border-hairline hover:border-faint'
         }`}
       />
       {error && (
-        <div className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-[11px] duration-200">
+        <div
+          id={errorId}
+          className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-[11px] duration-200"
+        >
           Enter an amount.
         </div>
       )}

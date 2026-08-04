@@ -7,6 +7,7 @@ import {
   couponsInGap,
   dailyAccrual,
   dueCoupons,
+  nextUnsettledCoupon,
   rollNextCoupon,
   suggestedQuote,
 } from './accrual';
@@ -115,6 +116,40 @@ describe('couponsInGap', () => {
   it('is 0 without the attributes it needs', () => {
     expect(couponsInGap(bond({ couponAmount: undefined }), '2026-08-20', '2026-08-27')).toBe(0);
     expect(couponsInGap(bond({ nextCoupon: undefined }), '2026-08-20', '2026-08-27')).toBe(0);
+  });
+
+  // Regression: the grid used to be rebuilt by stepping BACK with addMonths and
+  // then forward again, which is not an inverse once the month-end clamp fires
+  // (2026-08-31 −1m → 07-31 −1m → 06-30, then +1m → 07-30 ≠ 07-31). A month-end
+  // anchor therefore drifted onto dates the asset never pays on and counted a
+  // phantom coupon — money the S4 ghost subtracts.
+  describe('a month-end anchor stays on the asset own grid (clamp regression)', () => {
+    const eom = (over: Partial<Asset> = {}) => bond({ nextCoupon: '2026-08-31', ...over });
+
+    it('counts the real monthly dates, not the drifted ones', () => {
+      // Real grid around the gap: 06-30, 07-31 (08-31 is past `to`).
+      expect(couponsInGap(eom({ payoutSchedule: 'monthly' }), '2026-06-15', '2026-08-30')).toBe(
+        2 * 1240,
+      );
+    });
+
+    it('counts the real quarterly date', () => {
+      // Real grid: 2026-02-28, 05-31, 08-31 → only 05-31 is inside the gap.
+      expect(couponsInGap(eom({ payoutSchedule: 'quarterly' }), '2026-04-01', '2026-08-30')).toBe(
+        1240,
+      );
+    });
+
+    it('counts the real semiannual date', () => {
+      // Real grid: 2026-02-28, 08-31 → only 02-28 is inside the gap.
+      expect(couponsInGap(eom(), '2025-12-01', '2026-08-30')).toBe(1240);
+    });
+
+    it('keeps the anchor itself on the grid it reconstructs', () => {
+      expect(couponsInGap(eom({ payoutSchedule: 'monthly' }), '2026-08-30', '2026-08-31')).toBe(
+        1240,
+      );
+    });
   });
 });
 
@@ -245,7 +280,35 @@ describe('dueCoupons', () => {
   });
 
   it('takes a custom match window', () => {
-    expect(dueCoupons([bond()], [tx({ date: '2026-09-01' })], '2026-09-04', 30)).toEqual([]);
+    expect(
+      dueCoupons([bond()], [tx({ date: '2026-09-01' })], '2026-09-04', { windowDays: 30 }),
+    ).toEqual([]);
+  });
+
+  // Regression: `nextCoupon` only ever moves through the S5 confirm, so a coupon
+  // recorded in the Transaction panel used to freeze the pointer AND silence the
+  // card for good. The walk hands the floor to the next occurrence instead.
+  it('advances to the next occurrence when the pointer sits on a settled one', () => {
+    const recorded = [tx()]; // the 25.08 coupon, entered by hand
+    // Nothing is due yet — the February coupon is still ahead.
+    expect(dueCoupons([bond()], recorded, '2026-09-04')).toEqual([]);
+    // …and once IT arrives, the card offers it, pointer untouched.
+    expect(dueCoupons([bond()], recorded, '2027-02-25')).toEqual([
+      { assetId: 'ovdp8976', date: '2027-02-25', overdueDays: 0, amount: 1240 },
+    ]);
+  });
+
+  it('advances past an occurrence the user SKIPPED (brief S5 "skipped" row)', () => {
+    const skipped = { dismissed: [couponReminderId('ovdp8976', '2026-08-25')] };
+    expect(dueCoupons([bond()], [], '2026-09-04', skipped)).toEqual([]);
+    expect(dueCoupons([bond()], [], '2027-02-25', skipped)).toEqual([
+      { assetId: 'ovdp8976', date: '2027-02-25', overdueDays: 0, amount: 1240 },
+    ]);
+  });
+
+  it('stops at maturity — a bond whose last coupon is settled offers nothing', () => {
+    const both = [tx(), tx({ id: 't2', date: '2027-02-25' })];
+    expect(dueCoupons([bond()], both, '2027-06-01')).toEqual([]);
   });
 
   it('skips assets that are not fixed-coupon and assets with no next coupon', () => {
@@ -263,6 +326,38 @@ describe('dueCoupons', () => {
       'ovdp6475',
       'ovdp8976',
     ]);
+  });
+});
+
+describe('nextUnsettledCoupon', () => {
+  it('is the pointer itself while that occurrence is open', () => {
+    expect(nextUnsettledCoupon(bond(), [])).toEqual({ date: '2026-08-25', amount: 1240 });
+  });
+
+  it('steps over recorded and skipped occurrences, one by one', () => {
+    expect(nextUnsettledCoupon(bond(), [tx()])).toEqual({ date: '2027-02-25', amount: 1240 });
+    expect(
+      nextUnsettledCoupon(bond(), [], { dismissed: [couponReminderId('ovdp8976', '2026-08-25')] }),
+    ).toEqual({ date: '2027-02-25', amount: 1240 });
+    // Both settled → the grid ends on the maturity coupon, so nothing is open.
+    expect(
+      nextUnsettledCoupon(bond(), [tx()], {
+        dismissed: [couponReminderId('ovdp8976', '2027-02-25')],
+      }),
+    ).toBeUndefined();
+  });
+
+  it('walks a long catch-up without inventing dates past maturity', () => {
+    const monthly = bond({ payoutSchedule: 'monthly', nextCoupon: '2026-08-25' });
+    expect(
+      nextUnsettledCoupon(monthly, [tx(), tx({ id: 't2', date: '2026-09-25' })]),
+    ).toEqual({ date: '2026-10-25', amount: 1240 });
+  });
+
+  it('has nothing to walk without a schedule pointer or the right yield type', () => {
+    expect(nextUnsettledCoupon(bond({ nextCoupon: undefined }), [])).toBeUndefined();
+    expect(nextUnsettledCoupon(bond({ nextCoupon: '' }), [])).toBeUndefined();
+    expect(nextUnsettledCoupon(bond({ yieldType: 'dividends' }), [])).toBeUndefined();
   });
 });
 
@@ -313,6 +408,20 @@ describe('rollNextCoupon', () => {
 
   it('has nothing to roll without a next coupon', () => {
     expect(rollNextCoupon(bond({ nextCoupon: undefined }))).toBeUndefined();
+  });
+
+  it('rolls off an explicit occurrence date when the pointer lags behind it', () => {
+    // The confirm records the occurrence the CARD offered (2027-02-25 here) while
+    // the stored pointer still sits on a settled 2026-08-25.
+    expect(rollNextCoupon(bond(), '2026-02-25')).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2026-08-25',
+    });
+    expect(rollNextCoupon(bond(), '2027-02-25')).toEqual({ kind: 'matured' });
+    expect(rollNextCoupon(bond({ nextCoupon: undefined }), '2026-08-25')).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2027-02-25',
+    });
   });
 });
 

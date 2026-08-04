@@ -85,14 +85,22 @@ export function couponsInGap(asset: Asset, fromExclusive: string, toInclusive: s
     return anchor > fromExclusive && anchor <= toInclusive ? amount : 0;
   }
 
-  // Step back to the last grid date at or before the gap, then forward through it.
-  let date = anchor;
-  for (let i = 0; i < MAX_GRID_STEPS && date > fromExclusive; i++) {
-    date = addMonths(date, -months);
-  }
+  // EVERY grid date is computed FROM THE ANCHOR (`anchor + k periods`), never by
+  // stepping a running date: `addMonths` clamps to month-end (2026-08-31 −1m →
+  // 2026-07-31 −1m → 2026-06-30), so back-stepping and then forward-stepping is
+  // NOT an inverse — an anchor past the 28th drifted onto a grid the asset never
+  // pays on and over-counted a coupon, which the S4 ghost then subtracted from a
+  // money value the user accepts with one press.
+  const [anchorYear, anchorMonth] = anchor.split('-').map(Number);
+  const [fromYear, fromMonth] = fromExclusive.split('-').map(Number);
+  const monthsToGap = (fromYear - anchorYear) * 12 + (fromMonth - anchorMonth);
+  // One whole period of margin behind the gap start: a day-of-month difference
+  // can never span a full period, so no counted date sits before this index.
+  const startIndex = Math.floor(monthsToGap / months) - 1;
+
   let count = 0;
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
-    date = addMonths(date, months);
+    const date = addMonths(anchor, (startIndex + i) * months);
     if (date > toInclusive) break;
     if (date > fromExclusive) count++;
   }
@@ -158,9 +166,67 @@ export function couponRecorded(
   );
 }
 
+export interface CouponOccurrence {
+  /** The occurrence's scheduled date, on the asset's own coupon grid. */
+  date: string;
+  /** The asset's stated `couponAmount`, when it has one. */
+  amount: number | undefined;
+}
+
+export interface CouponWalkOptions {
+  /** Recorded-payout match window (defaults to `COUPON_MATCH_WINDOW_DAYS`). */
+  windowDays?: number;
+  /**
+   * Derived ids the user has already settled by hand — an S5 skip files
+   * `coupon:<assetId>:<date>` (D21), and a skipped occurrence must not block the
+   * ones behind it.
+   */
+  dismissed?: readonly string[];
+}
+
+/**
+ * The next coupon occurrence still OPEN for an asset: walk its own grid forward
+ * from `nextCoupon`, stepping over every occurrence already SETTLED — recorded
+ * as an `interest_payout` inside the match window, or skipped from the S5 card.
+ *
+ * Why a walk and not `asset.nextCoupon` itself: `nextCoupon` only ever moves
+ * through the S5 confirm, so a coupon the user recorded in the Transaction panel
+ * (or skipped, or whose roll failed after the payout was written) left the field
+ * frozen on a settled date — and the dedupe then silenced the card AND the
+ * banners for that asset forever. Reading the grid instead of the pointer makes
+ * the surfaces self-healing and delivers the brief's pinned S5 `skipped` rule
+ * ("the NEXT coupon date suggests normally"). Nothing here writes: the pointer
+ * is still rolled only by the user's Confirm press (G5).
+ */
+export function nextUnsettledCoupon(
+  asset: Asset,
+  transactions: Transaction[],
+  opts: CouponWalkOptions = {},
+): CouponOccurrence | undefined {
+  if (asset.yieldType !== 'fixed_coupon') return undefined;
+  let date = asset.nextCoupon;
+  if (!date) return undefined;
+
+  const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
+  const dismissed = opts.dismissed ?? [];
+
+  for (let i = 0; i < MAX_GRID_STEPS; i++) {
+    const settled =
+      couponRecorded(transactions, asset.id, date, windowDays) ||
+      dismissed.includes(couponReminderId(asset.id, date));
+    if (!settled) return { date, amount: asset.couponAmount };
+    // Same stepper the confirm writes with, so the walk can never land on a date
+    // the roll would not produce (and it stops at maturity rather than past it).
+    const roll = rollNextCoupon(asset, date);
+    if (roll === undefined || roll.kind === 'matured') return undefined;
+    date = roll.nextCoupon;
+  }
+  return undefined;
+}
+
 export interface DueCoupon {
   assetId: string;
-  /** The scheduled date that has arrived (the asset's `nextCoupon`). */
+  /** The scheduled date that has arrived (the next unsettled occurrence). */
   date: string;
   /** 0 = due today; > 0 = overdue by that many days (S5's warn date pill). */
   overdueDays: number;
@@ -171,27 +237,26 @@ export interface DueCoupon {
 /**
  * S5: coupons whose date has arrived with NO matching `interest_payout` already
  * recorded — the dedupe that keeps a manually entered coupon from being offered
- * a second time (a plan Verify item). One occurrence per asset: the roll after a
- * confirm re-derives the next one.
+ * a second time (a plan Verify item). One occurrence per asset, taken from
+ * `nextUnsettledCoupon`, so a settled occurrence yields the floor to the next
+ * one instead of silencing the asset.
  */
 export function dueCoupons(
   assets: Asset[],
   transactions: Transaction[],
   today: string,
-  windowDays: number = COUPON_MATCH_WINDOW_DAYS,
+  opts: CouponWalkOptions = {},
 ): DueCoupon[] {
   const due: DueCoupon[] = [];
 
   for (const asset of assets) {
-    if (asset.yieldType !== 'fixed_coupon') continue;
-    const date = asset.nextCoupon;
-    if (!date || date > today) continue;
-    if (couponRecorded(transactions, asset.id, date, windowDays)) continue;
+    const occurrence = nextUnsettledCoupon(asset, transactions, opts);
+    if (occurrence === undefined || occurrence.date > today) continue;
     due.push({
       assetId: asset.id,
-      date,
-      overdueDays: daysBetween(date, today),
-      amount: asset.couponAmount,
+      date: occurrence.date,
+      overdueDays: daysBetween(occurrence.date, today),
+      amount: occurrence.amount,
     });
   }
 
@@ -206,9 +271,14 @@ export type CouponRoll = { kind: 'rolled'; nextCoupon: string } | { kind: 'matur
  * the date NEVER moves past `maturity` (the final coupon lands on it, together
  * with the principal), and an asset already at maturity stops suggesting.
  * `undefined` = nothing scheduled, nothing to roll.
+ *
+ * `from` overrides the starting date for callers that know the occurrence they
+ * are stepping off (the confirm rolls from the date it just recorded, and
+ * `nextUnsettledCoupon` walks with it) — the asset's own `nextCoupon` may lag
+ * behind it and would otherwise roll to a date already settled.
  */
-export function rollNextCoupon(asset: Asset): CouponRoll | undefined {
-  const current = asset.nextCoupon;
+export function rollNextCoupon(asset: Asset, from?: string): CouponRoll | undefined {
+  const current = from ?? asset.nextCoupon;
   if (!current) return undefined;
 
   const maturity = asset.maturity;

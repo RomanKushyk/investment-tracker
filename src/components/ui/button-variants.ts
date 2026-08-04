@@ -5,7 +5,7 @@ import { cva } from 'class-variance-authority';
 // (e.g. "Yield chart →") can reuse the classes on an <a>/<Link> while keeping
 // Button.tsx a component-only export for react-refresh.
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-display transition active:scale-[.97] disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-display transition active:scale-[.97] disabled:pointer-events-none',
   {
     variants: {
       variant: {
@@ -41,6 +41,17 @@ export const buttonVariants = cva(
         header: 'pr-[18px] py-2 text-[13px]',
         sm: 'pr-3.5 py-1.5 text-xs',
       },
+      // Two disabled tiers, per the S1 drawings
+      // (design/extensions/daily-quotes-live.dc.html: loading at opacity .7,
+      // line 358; gated — nothing to fetch / demo — at .5, lines 385 + 396).
+      // A control that is BUSY must not read like one you may never press.
+      // Expressed as a variant rather than a className override for the same
+      // reason as `weight`/`size`: two opacity utilities on one element would
+      // fight over generated-CSS order.
+      disabledTone: {
+        gated: 'disabled:opacity-50',
+        busy: 'disabled:opacity-70',
+      },
       // Left padding as its own variant so ghost links flush against a card
       // edge (e.g. "Open Allocation →", design line 198 `padding-left:0`) can
       // drop it without a className px collision. The size-matched value
@@ -55,6 +66,12 @@ export const buttonVariants = cva(
       { size: 'header', inset: 'normal', class: 'pl-[18px]' },
       { size: 'sm', inset: 'normal', class: 'pl-3.5' },
     ],
-    defaultVariants: { variant: 'primary', weight: 'semibold', size: 'md', inset: 'normal' },
+    defaultVariants: {
+      variant: 'primary',
+      weight: 'semibold',
+      size: 'md',
+      inset: 'normal',
+      disabledTone: 'gated',
+    },
   },
 );
