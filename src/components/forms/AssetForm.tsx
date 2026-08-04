@@ -12,12 +12,15 @@ import {
 } from 'react-hook-form';
 
 import { COLOR_KEYS } from '../../core/colors';
+import { kyivDateIso } from '../../core/dates';
+import { fmtDateShort } from '../../core/money';
 import {
   assetFormSchema,
   type AssetFormInput,
   type AssetFormValues,
 } from '../../core/schemas';
 import type { Asset, ColorKey } from '../../core/types';
+import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
@@ -27,6 +30,8 @@ import {
   ASSET_FIELD_MESSAGE as MSG,
   assetFormDefaults,
   deriveCode,
+  INZHUR_PICKER_COPY as PICK,
+  inzhurRefOptions,
   scheduleOptions,
   YIELD_TYPE_OPTIONS,
 } from './asset-form';
@@ -166,6 +171,135 @@ function KindSegment({
       {segment('fund', 'Fund')}
       {segment('bond', 'Bond')}
     </div>
+  );
+}
+
+// The Inzhur link group — Units (units-first framing, S3) + Kind + the ref
+// field, which in Phase 3 became a LIVE PICKER of the public feed
+// (automation.dc.html S7). Own `useFormState`/`useWatch` subscriptions for the
+// same reason AssetFormFields holds its own (the form arrives via props).
+//
+// Three rules the states below implement:
+//   · the feed is fetched on FIRST OPEN, never on mount — opening the form
+//     fires no request;
+//   · linking is NEVER blocked by the network: every failure path lands in a
+//     working manual input (and offline is `muted`, not `neg` — it is not a
+//     user mistake);
+//   · demo forces manual mode with the specced note (G4/D16: no request can
+//     leave the app there).
+function InzhurGroup({ form }: { form: AssetFormHandle }) {
+  const { errors } = useFormState({ control: form.control });
+  const inzhur = useWatch({ control: form.control, name: 'inzhur' });
+  const kind = inzhur?.kind ?? 'fund';
+  const { data, lastGood, isFetching, isError, disabled, fetchAssets } = useInzhurAssets();
+  const [manual, setManual] = useState(false);
+
+  // The cache feeds the list whenever a live payload is not in hand — the
+  // footer then states its date rather than pretending the prices are today's.
+  const feed = data ?? lastGood;
+  const stale = data === undefined && lastGood !== undefined;
+  const options =
+    feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '');
+  const failed = isError && !isFetching && options.length === 0;
+  const showManual = disabled || manual || failed;
+
+  const note = disabled ? PICK.demo : failed ? PICK.failed : undefined;
+  // Before the first open there is no feed and no error yet — the open list is
+  // about to fetch, so it reads "loading" rather than flashing "nothing here".
+  const loading = isFetching || (feed === undefined && !isError);
+  const status = loading ? (
+    <div className="text-muted animate-pulse px-3 py-2 text-[13px]">{PICK.loading}</div>
+  ) : options.length === 0 ? (
+    <div className="text-muted px-3 py-2 text-[13px]">{PICK.empty}</div>
+  ) : stale ? (
+    <div className="text-warn px-3 py-1.5 text-[11px]">
+      as of {fmtDateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}
+    </div>
+  ) : undefined;
+
+  function ensureFeed() {
+    if (data === undefined && !isFetching) void fetchAssets();
+  }
+
+  return (
+    <>
+      {/* Units-first framing (S3): while linked, quantity is the input —
+          value is derived — so Units leads, emphasized (h 44, display
+          font 15/600). */}
+      <Field label="Units" error={!!errors.inzhur?.units && MSG.units}>
+        <input
+          className={`h-11 rounded-[10px] border px-3 font-display text-[15px] font-semibold ${
+            errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
+          } bg-page text-ink transition`}
+          placeholder="6 164"
+          inputMode="decimal"
+          {...form.register('inzhur.units')}
+        />
+      </Field>
+      <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
+        <div className="text-label flex flex-col gap-1 text-[11px]">
+          Kind
+          <Controller
+            control={form.control}
+            name="inzhur.kind"
+            render={({ field }) => (
+              <KindSegment value={field.value ?? 'fund'} onChange={field.onChange} />
+            )}
+          />
+        </div>
+        <Field
+          label={showManual ? PICK.manualLabel[kind] : PICK.pickerLabel[kind]}
+          error={!!errors.inzhur?.ref && (kind === 'bond' ? MSG.refBond : MSG.refFund)}
+        >
+          <Controller
+            control={form.control}
+            name="inzhur.ref"
+            render={({ field }) =>
+              showManual ? (
+                <input
+                  className={inputClass(!!errors.inzhur?.ref)}
+                  placeholder={kind === 'bond' ? 'UA4000238976' : 'inzhur-reit'}
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                />
+              ) : (
+                <Select
+                  value={field.value ?? ''}
+                  onValueChange={field.onChange}
+                  options={options}
+                  placeholder={PICK.placeholder}
+                  bg="page"
+                  onOpenChange={(open) => open && ensureFeed()}
+                  status={status}
+                  scrollList
+                />
+              )
+            }
+          />
+        </Field>
+      </div>
+      {/* Note under the row, not inside the field: the Kind segment and the ref
+          control stay bottom-aligned exactly as P2 pinned them. */}
+      {note !== undefined && (
+        <p className="text-muted animate-in fade-in m-0 text-[11px] duration-200">{note}</p>
+      )}
+      {/* The escape hatch is always one press away — except in demo, where
+          there is nothing to pick. */}
+      {!disabled && (
+        <button
+          type="button"
+          onClick={() => {
+            setManual(!showManual);
+            if (showManual) ensureFeed(); // going back to the list = a retry
+          }}
+          className="text-ink cursor-pointer self-start p-0 text-[11px] transition hover:opacity-85 active:scale-[.97]"
+        >
+          {showManual ? PICK.toPicker : PICK.toManual}
+        </button>
+      )}
+      <p className="text-muted m-0 text-[11px] leading-normal">{PICK.helper}</p>
+    </>
   );
 }
 
@@ -418,47 +552,7 @@ export function AssetFormFields({
           />
         </div>
         <Reveal show={linked} className="mt-2.5 flex flex-col gap-2.5">
-            {/* Units-first framing (S3): while linked, quantity is the input —
-                value is derived — so Units leads, emphasized (h 44, display
-                font 15/600). */}
-            <Field label="Units" error={!!errors.inzhur?.units && MSG.units}>
-              <input
-                className={`h-11 rounded-[10px] border px-3 font-display text-[15px] font-semibold ${
-                  errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
-                } bg-page text-ink transition`}
-                placeholder="6 164"
-                inputMode="decimal"
-                {...form.register('inzhur.units')}
-              />
-            </Field>
-            <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
-              <div className="text-label flex flex-col gap-1 text-[11px]">
-                Kind
-                <Controller
-                  control={form.control}
-                  name="inzhur.kind"
-                  render={({ field }) => (
-                    <KindSegment value={field.value ?? 'fund'} onChange={field.onChange} />
-                  )}
-                />
-              </div>
-              <Field
-                label={inzhur?.kind === 'bond' ? 'Bond ISIN' : 'Fund slug'}
-                error={
-                  !!errors.inzhur?.ref && (inzhur?.kind === 'bond' ? MSG.refBond : MSG.refFund)
-                }
-              >
-                <input
-                  className={inputClass(!!errors.inzhur?.ref)}
-                  placeholder={inzhur?.kind === 'bond' ? 'UA4000238976' : 'inzhur-reit'}
-                  {...form.register('inzhur.ref')}
-                />
-              </Field>
-            </div>
-            <p className="text-muted m-0 text-[11px] leading-normal">
-              Linked assets are valued as units × the fetched sell price. Fetching arrives in the
-              next release — the link and units are stored now.
-            </p>
+          <InzhurGroup form={form} />
         </Reveal>
       </div>
     </>

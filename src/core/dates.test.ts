@@ -4,6 +4,7 @@ import {
   addMonths,
   daysBetween,
   kyivDateIso,
+  kyivTimeHm,
   latestSnapshotDate,
   msUntilNextKyivHour,
   todayIso,
@@ -80,6 +81,18 @@ describe('kyivDateIso', () => {
   it('keeps the local calendar day across midnight UTC', () => {
     expect(kyivDateIso(new Date('2026-01-15T21:30:00Z'))).toBe('2026-01-15'); // 23:30 Kyiv
     expect(kyivDateIso(new Date('2026-01-15T22:30:00Z'))).toBe('2026-01-16'); // 00:30 Kyiv
+  });
+});
+
+describe('kyivTimeHm (the "fetched 13:05" microcopy)', () => {
+  it('reads the Kyiv wall clock on both DST sides — never a hardcoded offset', () => {
+    expect(kyivTimeHm(new Date('2026-08-04T10:05:00.000Z'))).toBe('13:05'); // +3
+    expect(kyivTimeHm(new Date('2026-01-15T11:05:00.000Z'))).toBe('13:05'); // +2
+  });
+
+  it('pads and renders midnight as 00:00', () => {
+    expect(kyivTimeHm(new Date('2026-01-15T22:00:00.000Z'))).toBe('00:00');
+    expect(kyivTimeHm(new Date('2026-01-15T07:09:00.000Z'))).toBe('09:09');
   });
 });
 

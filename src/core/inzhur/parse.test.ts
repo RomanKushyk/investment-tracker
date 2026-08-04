@@ -60,6 +60,24 @@ describe('parseAssetsFeed on the live fixture', () => {
     expect(entry('UA4000238976').sellUAH).toBe(1057.67);
   });
 
+  it('picks the display title, whitespace-collapsed (S7 picker rows)', () => {
+    expect(entry('inzhur-reit').title).toBe('Inzhur REIT');
+    expect(entry('inzhur-energy').title).toBe('Inzhur Energy');
+    // The bonds' own title carries a hard line break — collapsed, not split.
+    expect(entry('UA4000238976').title).toBe('Державні облігації України');
+  });
+
+  it('leaves the title absent when the feed omits or blanks it', () => {
+    const payload = [
+      { slug: 'inzhur-reit', title: '   \n ', assetDetails: { prices: { sellUAH: 11.1389 } } },
+      { slug: 'inzhur-energy', assetDetails: { prices: { sellUAH: 1 } } },
+    ];
+    expect(parseAssetsFeed(payload).entries.map((e) => e.title)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
   it('gives funds no maturity and an empty schedule', () => {
     expect(entry('inzhur-energy').maturity).toBeUndefined();
     expect(entry('inzhur-energy').paymentSchedule).toEqual([]);

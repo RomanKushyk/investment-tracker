@@ -6,16 +6,16 @@ The app's pure domain layer per decision G1 (`docs/NEXT-PHASE-PLAN.md`) and `doc
 
 | Module | Responsibility |
 |--------|----------------|
-| `types.ts` | Domain types (`Asset`, `Snapshot`, `Transaction`, …) — v1 pinned contracts, moved verbatim |
+| `types.ts` | Domain types (`Asset`, `Snapshot`, `Transaction`, …) — v1 pinned contracts, moved verbatim; plus `QuoteOrigin`/`QuoteSource`, the provenance of an unsaved quote DRAFT (P3 D20 — stored in `state/draft.ts`, never in a Dexie row) |
 | `derive.ts` | Every displayed figure derives from these (D5 reconciliation rules); `headlineKpis` is the sidebar's single KPI source |
 | `money.ts` | Number/currency/date formatting (README §8) + **the one signing helper** `signed()` — U+2212 minus everywhere (D8) |
-| `dates.ts` | Pure ISO date math: `todayIso` (single source, was triplicated), `daysBetween`, `latestSnapshotDate`, `addMonths` (month-end clamped) + the Europe/Kyiv helpers `kyivDateIso` / `msUntilNextKyivHour` (offset always read from `Intl`, never a hardcoded +2/+3 — D19) |
+| `dates.ts` | Pure ISO date math: `todayIso` (single source, was triplicated), `daysBetween`, `latestSnapshotDate`, `addMonths` (month-end clamped) + the Europe/Kyiv helpers `kyivDateIso` / `kyivTimeHm` / `msUntilNextKyivHour` (offset always read from `Intl`, never a hardcoded +2/+3 — D19) |
 | `colors.ts` | Chart paint as `var(--color-chart-*)` strings (aliases resolve in `src/index.css` `@theme`); `COLOR_KEYS` cycle for new assets |
 | `asset-builder.ts` | `buildNewAsset` (quick-create pinned rules) + the P2 AssetForm mappers `assetFromForm` (create) / `assetPatchFromForm` (edit patch; hidden fixed-coupon fields are never touched, visible emptied ones clear via explicit `undefined`) |
 | `schemas.ts` | zod form schemas: `quoteInputSchema`, `assetFormSchema(mode)` (all editable Asset fields incl. the `inzhur {kind, ref, units}` group; `'none'` schedule accepted in edit mode only), `transactionSchema` — schemas emit paths, never English (D8) |
 | `xirr.ts` | Money-weighted annualized return (Newton–Raphson + bisection fallback) per the P1 formula audit (D13, `docs/FORMULA-AUDIT.md` §6.1) |
 | `backup/` | `json.ts` — backup envelope v1 (`kubushka-backup`) serializer + zod validator (D12) |
-| `inzhur/` | `parse.ts` — tolerant pick-parse of the public feed (unknown fields ignored, per-entry skip), `kopecksToUah` (the ONE ₴ conversion), `positionValue`, `nextPaymentOnOrAfter`/`couponForecast`, `matchAssets` (slug/ISIN, trimmed + case-insensitive) — policy in D19; `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28) is the test basis |
+| `inzhur/` | `parse.ts` — tolerant pick-parse of the public feed (unknown fields ignored, per-entry skip), `kopecksToUah` (the ONE ₴ conversion), `positionValue`, `nextPaymentOnOrAfter`/`couponForecast`, `matchAssets` (slug/ISIN, trimmed + case-insensitive), the feed `title` for the S7 picker rows — policy in D19; `__fixtures__/assets-sample.json` (trimmed live capture of `GET https://www.inzhur.reit/_api/assets`, 2026-07-28) is the test basis |
 
 Later per the plan: `accrual`, `reminders`, `day-deltas`.
 

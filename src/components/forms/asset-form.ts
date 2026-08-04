@@ -3,9 +3,11 @@
 // English copy lives HERE, in the component layer (structured returns, D8):
 // core/schemas emits paths, this map owns the pinned S3 message vocabulary.
 import { todayIso } from '../../core/dates';
-import { fmtTable, fmtUnits } from '../../core/money';
+import type { InzhurQuote } from '../../core/inzhur/parse';
+import { fmtDate, fmtTable, fmtUnits } from '../../core/money';
 import type { AssetFormInput } from '../../core/schemas';
 import type { Asset, PayoutSchedule } from '../../core/types';
+import type { SelectOption } from '../ui/Select';
 import { SCHEDULE_LABEL } from '../ui/schedule-labels';
 
 export const YIELD_TYPE_OPTIONS = [
@@ -40,6 +42,58 @@ export const ASSET_FIELD_MESSAGE = {
   units: 'Enter the number of units.',
   summary: 'Check the highlighted fields and try again.',
 } as const;
+
+// ── S7: the Inzhur ref field's live picker (automation.dc.html S7). Copy is
+// the brief's, verbatim; the option rows are derived below.
+export const INZHUR_PICKER_COPY = {
+  placeholder: 'Pick from Inzhur…',
+  loading: 'Loading Inzhur assets…',
+  failed: "Couldn't load the list — enter it manually.",
+  empty: 'Nothing of this kind in the feed — enter it manually.',
+  toManual: 'Enter manually',
+  toPicker: 'Pick from the list',
+  demo: 'Live list is disabled in demo — enter the slug or ISIN manually.',
+  helper:
+    'Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.',
+  pickerLabel: { fund: 'Fund', bond: 'Bond' },
+  manualLabel: { fund: 'Fund slug', bond: 'Bond ISIN' },
+} as const;
+
+/**
+ * Option rows for the active kind: funds read "Inzhur REIT · inzhur-reit"
+ * (feed title + slug), bonds "UA4000238976 · matures 24.03.2027". The stored
+ * value is EXACTLY the string the manual field would hold (slug / ISIN), so
+ * schema and patch mappers stay untouched.
+ *
+ * `currentRef` keeps an already-linked ref selectable even when the feed does
+ * not carry it (an offline session, a delisted bond, a hand-typed slug) — the
+ * trigger must never fall back to the placeholder over a value that is set.
+ */
+export function inzhurRefOptions(
+  entries: InzhurQuote[],
+  kind: 'fund' | 'bond',
+  currentRef: string,
+): SelectOption[] {
+  const options = entries
+    .filter((entry) => entry.kind === kind)
+    .map((entry) =>
+      kind === 'fund'
+        ? {
+            value: entry.ref,
+            label: entry.title ?? entry.ref,
+            ...(entry.title === undefined ? {} : { hint: entry.ref }),
+          }
+        : {
+            value: entry.ref,
+            label: entry.ref,
+            ...(entry.maturity === undefined ? {} : { hint: `matures ${fmtDate(entry.maturity)}` }),
+          },
+    );
+  const ref = currentRef.trim();
+  return ref !== '' && !options.some((o) => o.value === ref)
+    ? [...options, { value: ref, label: ref }]
+    : options;
+}
 
 // Code auto-derivation while untouched — same rule as core buildNewAsset.
 export function deriveCode(name: string): string {

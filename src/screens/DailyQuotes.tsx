@@ -15,7 +15,9 @@ import { fmtSavedAt, fmtTable } from '../core/money';
 import { quoteInputSchema } from '../core/schemas';
 import type { Snapshot } from '../core/types';
 import { useDraft } from '../state/draft';
+import { FetchQuotesButton } from './daily-quotes/FetchQuotesButton';
 import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
+import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
@@ -26,6 +28,9 @@ export function DailyQuotes() {
   const transactions = useTransactions().data ?? [];
   const { date, quotes, setDate, setQuote } = useDraft();
   const saveSnapshot = useSaveSnapshot();
+  // S1–S3: the fetch ritual. It only ever writes the draft store — "Save
+  // snapshot" below stays the sole write path (G5).
+  const fetch = useQuoteFetch(assets);
 
   // First run ever: default the draft to today.
   useEffect(() => {
@@ -88,6 +93,12 @@ export function DailyQuotes() {
           >
             {filledCount} of {assets.length} filled
           </span>
+          <FetchQuotesButton
+            state={fetch.state}
+            freshness={fetch.freshness}
+            flashAt={fetch.flashAt}
+            onFetch={fetch.fetchQuotes}
+          />
           <div className="ml-auto flex items-center gap-2">
             <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
               Date
@@ -106,7 +117,11 @@ export function DailyQuotes() {
               asset={a}
               raw={quotes[a.id]}
               yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
+              chip={fetch.chipFor(a)}
+              offer={fetch.offerFor(a)}
               onChange={(v) => setQuote(a.id, v)}
+              onAcceptOffer={() => fetch.acceptOffer(a.id)}
+              onDismissOffer={() => fetch.dismissOffer(a.id)}
             />
           ))}
         </div>

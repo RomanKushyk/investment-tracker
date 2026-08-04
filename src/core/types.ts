@@ -56,6 +56,19 @@ export interface Transaction {
   source: TxSource;
 }
 
+// Where a quote DRAFT value came from (P3 S2 provenance chips). Lives with the
+// draft in `state/draft.ts`, not in any Dexie row: it describes an unsaved
+// input, and the saved Snapshot keeps no notion of provenance. A draft with no
+// origin is the user's own value — the fact G5 protects. 'cache' = the
+// last-good payload served after a failed fetch (the amber "as of 25.07").
+export type QuoteSource = 'fetch' | 'cache';
+
+export interface QuoteOrigin {
+  source: QuoteSource;
+  /** ISO instant of the fetch that produced the value. */
+  at: string;
+}
+
 export interface Settings {
   currency: 'UAH' | 'USD';
   usdRate: number; // 44.83

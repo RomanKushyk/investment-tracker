@@ -33,8 +33,12 @@ export const buttonVariants = cva(
       // padding/font-size className collision. `md` = the former base classes
       // (every pre-existing button is byte-identical); `sm` is the compact
       // pill for tight shells (sidebar Backup button).
+      // `header` = the P3 "Fetch quotes" control (daily-quotes-live.dc.html
+      // S1): padding 8/18, 13px — one notch below `md` so it reads as a header
+      // control beside the 36px Date field instead of a primary action.
       size: {
         md: 'pr-5 py-2.5 text-[13.5px]',
+        header: 'pr-[18px] py-2 text-[13px]',
         sm: 'pr-3.5 py-1.5 text-xs',
       },
       // Left padding as its own variant so ghost links flush against a card
@@ -48,6 +52,7 @@ export const buttonVariants = cva(
     },
     compoundVariants: [
       { size: 'md', inset: 'normal', class: 'pl-5' },
+      { size: 'header', inset: 'normal', class: 'pl-[18px]' },
       { size: 'sm', inset: 'normal', class: 'pl-3.5' },
     ],
     defaultVariants: { variant: 'primary', weight: 'semibold', size: 'md', inset: 'normal' },

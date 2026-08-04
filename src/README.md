@@ -13,11 +13,11 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 | `core/` | **Pure domain layer** (G1, D8): `types` · `derive` · `money` · `dates` · `colors` · `asset-builder` · `schemas` · `xirr` · `backup/` (+ colocated vitest specs) — see `core/README.md` |
 | `lib/` | Persistence/infra only: `db` (Dexie factory `makeDb(name)`; binds the active dataset's DB — `kubushka` demo / `kubushka-live` — at module init from the persisted `dataset` flag, G4/D16) · `repository` · `seed` (+ tests) |
 | `hooks/` | `queries.ts` — TanStack Query hooks + mutation invalidation · `useInzhurAssets.ts` — the Inzhur feed's network half (manual-only query, bare GET, last-good `meta` cache, demo-disabled; policy D19) |
-| `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` |
+| `state/` | Persisted zustand stores: `settings.ts`, `draft.ts` (quote drafts + the `origins` provenance map — `setQuote` = the user's path and drops the origin, `fillQuote` = the machine's, D20) |
 | `components/ui/` | Reusable primitives (CVA variants as they appear; `Dialog.tsx` = the S6 modal idiom — `Dialog` plus the `AlertDialog` destructive-confirm variant, D17) |
 | `components/charts/` | One wrapper per recharts chart (Task 6) |
-| `components/forms/` | Shared form bodies: `AssetForm.tsx` (standalone create/edit + the fields component the TransactionPanel quick-create reuses) + its non-component companion `asset-form.ts` (defaults, options, pinned error copy) |
-| `screens/` | One component per route (per-route pieces in `screens/<route>/`, e.g. `screens/settings/AssetManager.tsx`) |
+| `components/forms/` | Shared form bodies: `AssetForm.tsx` (standalone create/edit + the fields component the TransactionPanel quick-create reuses; its `InzhurGroup` holds the S7 live ref picker with the manual fallback) + its non-component companion `asset-form.ts` (defaults, options, pinned error copy, `inzhurRefOptions`) |
+| `screens/` | One component per route (per-route pieces in `screens/<route>/`, e.g. `screens/settings/AssetManager.tsx`); `screens/daily-quotes/` holds the fetch ritual — pure `fetch-quotes.ts` (provenance/reconciliation/machine tokens) + `useQuoteFetch.ts` wiring + `FetchQuotesButton.tsx` |
 
 ## Hard rules
 

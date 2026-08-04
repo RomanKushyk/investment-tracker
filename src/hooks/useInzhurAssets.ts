@@ -117,6 +117,12 @@ export function useInzhurAssets(): UseInzhurAssets {
     queryFn: ({ signal }) => fetchFeed(signal),
     enabled: false, // manual only — the user's click is the sole trigger
     retry: 1,
+    // 'always' instead of the default 'online': with the default, a press made
+    // while the browser is offline PAUSES the query — no request, no error, so
+    // the UI would sit there silently (and would then fill drafts by itself
+    // whenever the connection came back, which G5 forbids). We want the attempt
+    // to happen and to FAIL, so the S1 error path can offer the last-good cache.
+    networkMode: 'always',
     // Measured from the FETCH instant (a function, so it is evaluated lazily
     // and never during render): a payload stays fresh until the feed's next
     // ~13:00 Kyiv refresh, whether that is in 10 minutes or 23 hours.
@@ -129,9 +135,15 @@ export function useInzhurAssets(): UseInzhurAssets {
 
   const { data: cached } = useQuery({
     queryKey: inzhurKeys.lastFetch,
-    queryFn: () => repo.getMeta<InzhurLastFetch>(INZHUR_LAST_FETCH_KEY),
+    // `?? null`: TanStack rejects `undefined` as query data (it logs an error
+    // and leaves the query failed), and "no cache row yet" is the normal state
+    // on a fresh profile — null says "read it, there is nothing".
+    queryFn: async () => (await repo.getMeta<InzhurLastFetch>(INZHUR_LAST_FETCH_KEY)) ?? null,
     staleTime: Infinity,
     gcTime: Infinity,
+    // A local IndexedDB read — never let it be paused for being "offline":
+    // offline is exactly when the last-good cache has to be readable.
+    networkMode: 'always',
   });
 
   const fetchAssets = useCallback(async () => {

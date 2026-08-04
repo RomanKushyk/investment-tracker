@@ -27,6 +27,12 @@ export interface InzhurQuote {
   kind: 'fund' | 'bond';
   /** Fund slug ('inzhur-reit') or bond ISIN ('UA4000238976'), as published. */
   ref: string;
+  /**
+   * The feed's own display title ('Inzhur REIT'), whitespace-collapsed — the
+   * S7 picker's primary text for funds. Absent when the feed omits it; bonds
+   * carry a generic Ukrainian title and are labeled by ISIN instead.
+   */
+  title?: string;
   sellUAH: number;
   buyUAH?: number;
   navUAH?: number;
@@ -91,6 +97,7 @@ const detailsSchema = z.object({
 
 const entrySchema = z.object({
   slug: z.string().optional(),
+  title: z.string().optional(),
   assetDetails: detailsSchema,
 });
 
@@ -119,6 +126,13 @@ function pickSchedule(rows: unknown[] | undefined): InzhurPayment[] {
   return payments.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
 }
 
+// Titles arrive with hard line breaks in them ("Державні \nоблігації України"),
+// so runs of whitespace collapse to single spaces before the UI ever sees one.
+function pickTitle(raw: string | undefined): string | undefined {
+  const title = raw?.replace(/\s+/g, ' ').trim() ?? '';
+  return title === '' ? undefined : title;
+}
+
 // Best-effort identifier for an entry we are about to skip, so the caller can
 // name what was dropped.
 function labelOf(raw: unknown, index: number): string {
@@ -145,7 +159,7 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
       skipped.push(labelOf(raw, index));
       return;
     }
-    const { slug, assetDetails: details } = parsed.data;
+    const { slug, title, assetDetails: details } = parsed.data;
     const isin = details.isin?.trim() ?? '';
     // Funds are keyed by slug, bonds by ISIN — ISIN presence IS the kind (no
     // live fund carries one, and every live bond does).
@@ -156,9 +170,11 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
     }
     const maturity =
       details.maturityDate === undefined ? undefined : feedDate(details.maturityDate);
+    const label = pickTitle(title);
     entries.push({
       kind: isin !== '' ? 'bond' : 'fund',
       ref,
+      ...(label === undefined ? {} : { title: label }),
       sellUAH: details.prices.sellUAH,
       ...(details.prices.buyUAH === undefined ? {} : { buyUAH: details.prices.buyUAH }),
       ...(details.prices.navUAH === undefined ? {} : { navUAH: details.prices.navUAH }),

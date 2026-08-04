@@ -105,6 +105,14 @@ export function kyivDateIso(instant: Date): string {
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
+// An instant's Kyiv wall-clock time as 'HH:MM' — the S1/S2 "fetched 13:05"
+// microcopy. The feed's prices are stamped on Kyiv's clock (D19), so the time
+// the app shows beside them is Kyiv's too, whatever the viewer's zone is.
+export function kyivTimeHm(instant: Date): string {
+  const p = kyivPartsOf(instant);
+  return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
+}
+
 // Milliseconds from `now` until the next `hour`:00 in Kyiv (strictly future) —
 // the Inzhur query's staleTime: quotes stay fresh until the feed refreshes.
 export function msUntilNextKyivHour(now: Date, hour: number): number {
