@@ -38,7 +38,9 @@ h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;co
   ★   input, S5 coupon card. Nothing else in the app is dashed (the P2
   ★   "New asset details" sub-panel shares the stroke by inheritance —
   ★   it, too, is content that is not saved yet). Hover deepens the dash
-  ★   to `muted` #8b8a86; the stale variant swaps it for `warn-tint`.
+  ★   to `muted` #8b8a86; the stale variant swaps it for `warn` #8f6b33
+  ★   (never `warn-tint` — a 1px dash in a near-white tint vanishes on #fff
+  ★   and the dash is the whole message).
   ★ • pos-border / pos-tint NEVER decorate a suggestion — green means the
   ★   value is real and parsed (v1 pinned, master line 68). The `auto` chip
   ★   IS pos-tint, but it describes a value the user already ACCEPTED, so
@@ -172,7 +174,7 @@ h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;co
                dashed faint border + transparent bg + ink label 11px. -->
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-right:68px">
             <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer" style-hover="background:#f6f5f3">Use fetched 60 082,96?</button>
-            <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px" style-hover="opacity:1">✕</button>
+            <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px;opacity:.85" style-hover="opacity:1">✕</button>
           </div>
         </div>
 
@@ -215,7 +217,7 @@ h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;co
           </div>
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-right:68px">
             <button style="border:1px dashed #b3b2ae;background:transparent;color:#26262a;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer" style-hover="background:#f6f5f3">Use suggested 4 376,49?</button>
-            <button aria-label="Dismiss suggestion" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px" style-hover="opacity:1">✕</button>
+            <button aria-label="Dismiss suggestion" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px;opacity:.85" style-hover="opacity:1">✕</button>
           </div>
         </div>
       </div>
@@ -470,12 +472,18 @@ h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;co
       <input value="68 660,18" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
       <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.04%</span>
     </div>
-    <!-- auto · accepted accrual suggestion → microcopy reads "accrual" -->
+    <!-- auto · accepted accrual suggestion → microcopy reads "accrual".
+         NOTE: this variant carries NO `title`. The brief pins exactly one
+         `auto` tooltip — "Filled from Inzhur (units × sell price)." — which
+         describes FETCH provenance and would be factually wrong over a value
+         derived from local coupon accrual. The `accrual` microcopy is the
+         provenance here. If an accrual-specific tooltip string is ever
+         wanted, the brief owns that copy decision (D14). -->
     <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;background:#fff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
       <div style="width:34px;height:34px;flex:none;border-radius:50%;background:#e8e7e4;display:grid;place-items:center;color:#5f5e5a;font-size:12px;font-weight:700">GB</div>
       <div style="flex:1;min-width:110px">
         <div style="font-weight:600;font-size:14px">OVDP UA4000236475</div>
-        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴4,374.12 yesterday</span><span title="Filled from Inzhur (units × sell price)." style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span><span style="font-size:10px;color:#8b8a86">accrual</span></div>
+        <div style="font-size:11px;color:#8b8a86;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span>₴4,374.12 yesterday</span><span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#e3eadf;color:#4c5a48;border-radius:999px;padding:2px 8px">auto</span><span style="font-size:10px;color:#8b8a86">accrual</span></div>
       </div>
       <input value="4 376,49" style="flex:1 1 120px;min-width:90px;max-width:160px;height:36px;border-radius:10px;border:1px solid #c9d4c4;background:#fff;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
       <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0.05%</span>
@@ -555,8 +563,15 @@ h1,h2,h3,h4{font-family:"Space Grotesk",sans-serif !important;font-weight:600;co
       <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;display:inline-block;margin-bottom:8px">stale variant — cached value offered</div>
       <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:8px">
         <!-- dashed border + label flip to the warn family; still dashed —
-             a cached number is still only a proposal -->
-        <button style="border:1px dashed #f0e6cb;background:transparent;color:#6b5527;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use 60 082,96 (as of 25.07)?</button>
+             a cached number is still only a proposal.
+             The warn stroke is `warn` #8f6b33, NOT `warn-tint` #f0e6cb: the
+             same rationale as the S4 ghost's hairline→faint refinement below
+             — a 1px dash in a near-white tint is invisible on #fff, and this
+             is the ONE offer variant that must still read as "proposed" while
+             also reading as "stale". Both border and label therefore use
+             `warn` (the brief's S3 token list sanctions `warn-tint`/`warn`
+             for this variant's border/text; label contrast 4.86:1 on card). -->
+        <button style="border:1px dashed #8f6b33;background:transparent;color:#8f6b33;border-radius:999px;padding:4px 12px;font-size:11px;cursor:pointer">Use 60 082,96 (as of 25.07)?</button>
         <button aria-label="Keep my value" style="border:none;background:transparent;color:#8b8a86;font-size:11px;line-height:1;cursor:pointer;padding:4px">✕</button>
       </div>
     </div>
