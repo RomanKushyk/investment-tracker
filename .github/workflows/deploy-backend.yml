@@ -64,10 +64,31 @@ jobs:
         working-directory: infra
         run: |
           npx --yes esbuild@0.28.2 src/capture.ts \
-            --bundle --platform=node --target=node22 --format=esm \
-            --outfile=dist/capture.mjs --sourcemap \
-            --external:@aws-sdk/* --external:pg-native
+            --bundle --platform=node --target=node22 --format=cjs \
+            --outfile=dist/capture.js --sourcemap \
+            --external:pg-native
           ls -la dist/
+
+      # Catches what typecheck cannot: that the bundle actually LOADS. The first
+      # deploy shipped an ESM bundle and died at runtime on `Dynamic require of
+      # "events"` — pg is CommonJS, and `require` does not exist in ESM output.
+      #
+      # Run from a directory with no package.json, exactly like the Lambda zip:
+      # infra/package.json declares "type": "module", which would make node read
+      # the same file as ESM here and give a misleading result.
+      - name: Smoke-test the bundle
+        run: |
+          mkdir -p /tmp/bundle-check
+          cp infra/dist/capture.js /tmp/bundle-check/
+          cd /tmp/bundle-check
+          node -e "
+            const m = require('./capture.js');
+            if (typeof m.handler !== 'function') throw new Error('handler missing from bundle');
+            if (m.asOfFor(new Date('2026-08-11T22:00:00Z')) !== '2026-08-11') {
+              throw new Error('asOfFor wrong: Kyiv date arithmetic broken in the bundle');
+            }
+            console.log('bundle loads, handler present, as_of correct');
+          "
 
       - uses: aws-actions/setup-sam@v2
         with:
