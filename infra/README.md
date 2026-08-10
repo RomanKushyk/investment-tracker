@@ -141,7 +141,9 @@ at the end that AWS does not support resource-level permissions for.
       "Effect": "Allow",
       "Action": ["dsql:CreateCluster", "dsql:GetCluster", "dsql:UpdateCluster",
                  "dsql:DeleteCluster", "dsql:TagResource", "dsql:UntagResource",
-                 "dsql:ListTagsForResource", "dsql:PutMultiRegionProperties"],
+                 "dsql:ListTagsForResource", "dsql:PutMultiRegionProperties",
+                 "dsql:GetClusterPolicy", "dsql:PutClusterPolicy",
+                 "dsql:DeleteClusterPolicy", "dsql:GetVpcEndpointServiceName"],
       "Resource": "arn:aws:dsql:eu-north-1:<account-id>:cluster/*"
     },
     {
