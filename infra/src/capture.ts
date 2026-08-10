@@ -132,9 +132,13 @@ async function ensureSchema(client: Client): Promise<void> {
       payload_gzip BYTEA NOT NULL, payload_bytes INT NOT NULL,
       payload_sha256 TEXT NOT NULL, parser_version TEXT NOT NULL,
       PRIMARY KEY (id))`);
+  // No DESC: DSQL rejects a sort direction in index keys outright ("specifying
+  // sort order not supported for index keys"). Immaterial here — the planner
+  // can walk an ascending index backwards, and at ~365 rows/year the direction
+  // never decides a query plan anyway.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
-       ON price_capture (as_of DESC, requested_at DESC)`,
+       ON price_capture (as_of, requested_at)`,
   );
 }
 

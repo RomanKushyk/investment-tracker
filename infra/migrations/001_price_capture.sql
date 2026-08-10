@@ -66,5 +66,10 @@ CREATE TABLE IF NOT EXISTS price_capture (
 
 -- Answers "did the job run on day D" and "show me the last N runs" without a
 -- full scan. ASYNC because DSQL builds indexes non-blocking.
+--
+-- No DESC: DSQL rejects a sort direction in index keys ("specifying sort order
+-- not supported for index keys"). Immaterial — the planner can walk an
+-- ascending index backwards, and at ~365 rows/year direction never decides a
+-- plan.
 CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
-  ON price_capture (as_of DESC, requested_at DESC);
+  ON price_capture (as_of, requested_at);
