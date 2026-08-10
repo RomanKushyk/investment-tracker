@@ -25,3 +25,15 @@ Thumbs.db
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Real financial statements — NEVER commit. This repo is public.
+docs/statements_*.xlsx
+*.xlsx
+
+# Scratch artifacts from manual testing
+.tmp-*
+
+# Exports and throwaway fixtures dropped at the repo root. Root-anchored so that
+# real fixtures under src/**/__fixtures__/ stay committable. A CSV export of the
+# LIVE dataset is real financial data — this rule is a safety net, not tidiness.
+/*.csv

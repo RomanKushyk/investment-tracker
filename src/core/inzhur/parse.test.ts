@@ -102,6 +102,63 @@ describe('parseAssetsFeed on the live fixture', () => {
       amount: 1000,
     });
   });
+
+  it('picks the published yield on bonds, and none on funds', () => {
+    expect(entry('UA4000238976').returnRates).toEqual({ buy: 15.55, sell: 15.55 });
+    expect(entry('UA4000236475').returnRates).toEqual({ buy: 16.3, sell: 16.3 });
+    expect(entry('inzhur-reit').returnRates).toBeUndefined();
+    expect(entry('inzhur-energy').returnRates).toBeUndefined();
+  });
+
+  it('picks the lifecycle status verbatim, without filtering on it (D19)', () => {
+    // Every fixture entry is active; the point is that the value survives the
+    // parse. A 'completed' bond must still appear as an entry, because the user
+    // may hold one — matching never consults this field.
+    expect(feed.entries.map((e) => e.status)).toEqual([
+      'active',
+      'active',
+      'active',
+      'active',
+    ]);
+  });
+
+  it('keeps the entry when the yield is unreadable, absent or blank', () => {
+    const priced = { prices: { sellUAH: 1000 } };
+    const payload = [
+      { slug: 'a', assetDetails: { ...priced, returnRates: 'nonsense' } },
+      { slug: 'b', assetDetails: { ...priced, returnRates: { buy: 'x', sell: 'y' } } },
+      { slug: 'c', assetDetails: { ...priced, returnRates: {} } },
+      { slug: 'd', assetDetails: priced },
+    ];
+    const parsed = parseAssetsFeed(payload);
+    // Tolerance is the contract: a drifted yield costs the yield, never the price.
+    expect(parsed.skipped).toEqual([]);
+    expect(parsed.entries.map((e) => e.sellUAH)).toEqual([1000, 1000, 1000, 1000]);
+    expect(parsed.entries.map((e) => e.returnRates)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('keeps a half-published yield, dropping only the missing side', () => {
+    const payload = [
+      { slug: 'a', assetDetails: { prices: { sellUAH: 1000 }, returnRates: { sell: 16.3 } } },
+    ];
+    expect(parseAssetsFeed(payload).entries[0]?.returnRates).toEqual({ sell: 16.3 });
+  });
+
+  it('leaves the status absent when the feed omits or blanks it', () => {
+    const payload = [
+      { slug: 'a', status: '  ', assetDetails: { prices: { sellUAH: 1 } } },
+      { slug: 'b', assetDetails: { prices: { sellUAH: 1 } } },
+    ];
+    expect(parseAssetsFeed(payload).entries.map((e) => e.status)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
 });
 
 describe('kopecksToUah — the one conversion place', () => {

@@ -23,6 +23,12 @@ export interface InzhurPayment {
   amount: number;
 }
 
+/** Published annual yield, percent. Bonds only — funds carry none. */
+export interface InzhurReturnRates {
+  buy?: number;
+  sell?: number;
+}
+
 export interface InzhurQuote {
   kind: 'fund' | 'bond';
   /** Fund slug ('inzhur-reit') or bond ISIN ('UA4000238976'), as published. */
@@ -40,6 +46,26 @@ export interface InzhurQuote {
   maturity?: string;
   /** Bonds only; ascending by date then amount. Funds get an empty list. */
   paymentSchedule: InzhurPayment[];
+  /**
+   * Bonds only. The feed's bond price is not a market quote but a discounted
+   * cash flow over `paymentSchedule` whose ONLY free parameter is this rate
+   * (verified out-of-sample 2026-07-28 → 2026-08-10: predicted 1063.1288 vs
+   * quoted 1063.13). So it is the one field that lets a stored price be
+   * re-derived, date-stamped, or checked for a silent yield revision — none of
+   * which is possible from the price alone. Absent on funds.
+   */
+  returnRates?: InzhurReturnRates;
+  /**
+   * The feed's lifecycle flag, verbatim — 'active' and 'completed' are the only
+   * live values, but it is kept as a plain string so a third one is captured
+   * rather than dropped.
+   *
+   * Recorded, NEVER filtered on (D19): a completed bond the user still holds
+   * must keep matching. Worth capturing because it flips WITHOUT the price
+   * moving — a matured bond keeps quoting its last value indefinitely — so the
+   * flip is observable only if it is recorded on the day it happens.
+   */
+  status?: string;
 }
 
 export interface ParsedFeed {
@@ -86,6 +112,11 @@ const paymentSchema = z.object({
   amount: z.union([z.number(), z.string().regex(/^-?\d+(?:\.\d+)?$/)]),
 });
 
+const ratesSchema = z.object({
+  buy: z.number().optional(),
+  sell: z.number().optional(),
+});
+
 const detailsSchema = z.object({
   isin: z.string().optional(),
   prices: pricesSchema,
@@ -93,11 +124,16 @@ const detailsSchema = z.object({
   // Rows are validated one by one below, so one malformed payment cannot cost
   // the bond its quote.
   paymentSchedule: z.array(z.unknown()).optional(),
+  // Validated separately (pickRates) for the same reason: returnRates is a
+  // nice-to-have for the quote path, so a drift in its shape must never cost
+  // the entry its price.
+  returnRates: z.unknown().optional(),
 });
 
 const entrySchema = z.object({
   slug: z.string().optional(),
   title: z.string().optional(),
+  status: z.string().optional(),
   assetDetails: detailsSchema,
 });
 
@@ -124,6 +160,19 @@ function pickSchedule(rows: unknown[] | undefined): InzhurPayment[] {
     payments.push({ date, amount: kopecksToUah(kopecks) });
   }
   return payments.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount);
+}
+
+// Yields are picked, never required: an unreadable or absent returnRates yields
+// `undefined` and the entry keeps its price. A rate that is present but not a
+// finite number is dropped rather than stored, so a consumer never has to guard
+// against NaN in the DCF.
+function pickRates(raw: unknown): InzhurReturnRates | undefined {
+  const parsed = ratesSchema.safeParse(raw);
+  if (!parsed.success) return undefined;
+  const buy = Number.isFinite(parsed.data.buy) ? parsed.data.buy : undefined;
+  const sell = Number.isFinite(parsed.data.sell) ? parsed.data.sell : undefined;
+  if (buy === undefined && sell === undefined) return undefined;
+  return { ...(buy === undefined ? {} : { buy }), ...(sell === undefined ? {} : { sell }) };
 }
 
 // Titles arrive with hard line breaks in them ("Державні \nоблігації України"),
@@ -159,7 +208,7 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
       skipped.push(labelOf(raw, index));
       return;
     }
-    const { slug, title, assetDetails: details } = parsed.data;
+    const { slug, title, status, assetDetails: details } = parsed.data;
     const isin = details.isin?.trim() ?? '';
     // Funds are keyed by slug, bonds by ISIN — ISIN presence IS the kind (no
     // live fund carries one, and every live bond does).
@@ -171,6 +220,8 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
     const maturity =
       details.maturityDate === undefined ? undefined : feedDate(details.maturityDate);
     const label = pickTitle(title);
+    const rates = pickRates(details.returnRates);
+    const lifecycle = status?.trim();
     entries.push({
       kind: isin !== '' ? 'bond' : 'fund',
       ref,
@@ -180,6 +231,8 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
       ...(details.prices.navUAH === undefined ? {} : { navUAH: details.prices.navUAH }),
       ...(maturity === undefined ? {} : { maturity }),
       paymentSchedule: pickSchedule(details.paymentSchedule),
+      ...(rates === undefined ? {} : { returnRates: rates }),
+      ...(lifecycle === undefined || lifecycle === '' ? {} : { status: lifecycle }),
     });
   });
 
