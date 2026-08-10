@@ -240,9 +240,17 @@ wanted — and add that ARN, rather than broadening to `*`. This is the same
 discipline `docs/DEPLOYMENT.md` §5 already documents for the frontend role, and
 it is why the policy above is a starting point rather than a guarantee.
 
-**Create the SAM artifact bucket** `kubushka-sam-artifacts-<account-id>` in
-`eu-north-1`, block all public access, and add a lifecycle rule expiring objects
-after 30 days — otherwise every Lambda zip ever pushed accumulates forever.
+**Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has
+credentials:
+
+```bash
+bash infra/scripts/create-artifact-bucket.sh
+```
+
+It derives the account ID from `sts get-caller-identity`, creates
+`kubushka-sam-artifacts-<account-id>` in `eu-north-1`, blocks public access, and
+adds a 30-day expiry rule — without which every Lambda bundle ever pushed
+(~330 KB per deploy) accumulates forever. Idempotent, so it is safe to re-run.
 
 **GitHub:** add `AWS_BACKEND_ROLE_ARN` to the `dev` environment's secrets. Use
 the web UI — the local `gh` CLI is authenticated as a different account and
