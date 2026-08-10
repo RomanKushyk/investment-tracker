@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    // Node 22 on Lambda, not a browser. Deliberately does NOT extend the root
+    // tsconfig: that one targets the SPA (DOM libs, vite/client types, JSX) and
+    // none of it applies here.
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    // Deliberately the same strictness as the root project, no more: src/core
+    // is shared code compiled by both, and a flag enabled only here would make
+    // the same file pass one config and fail the other.
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  // src/capture.ts imports the parser from ../../src/core, so those files are
+  // pulled in by resolution and typechecked as part of this project.
+  "include": ["src"]
+}

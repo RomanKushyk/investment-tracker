@@ -1,0 +1,81 @@
+name: Deploy backend
+
+# Separate workflow from the frontend deploy, not a job inside it. The two have
+# different blast radii, different IAM roles and different failure modes: a
+# broken SPA build must never block the price capture, and a stack rollback must
+# never hold up a UI fix. They also change on completely different cadences.
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'infra/**'
+      # The handler bundles the parser from src/core, so a parser change is a
+      # backend change even though nothing under infra/ moved.
+      - 'src/core/inzhur/**'
+      - 'src/core/dates.ts'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false # never interrupt a CloudFormation update in flight
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Enable pnpm via corepack
+        run: corepack enable
+
+      # The app's own deps: the handler imports zod through src/core.
+      - run: pnpm install --frozen-lockfile
+
+      # --ignore-workspace: infra is not a member of the root pnpm workspace and
+      # must resolve its own lockfile, not the app's.
+      - name: Install backend deps
+        working-directory: infra
+        run: pnpm install --frozen-lockfile --ignore-workspace
+
+      # The parser is shared code, so its tests gate the backend too. Runs
+      # before any AWS credential exists — a failing test cannot deploy.
+      - run: pnpm vitest run src/core/inzhur
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Build
+        working-directory: infra
+        run: sam build
+
+      - name: Deploy
+        working-directory: infra
+        run: |
+          sam deploy \
+            --stack-name kubushka-backend \
+            --region "$AWS_REGION" \
+            --s3-bucket "kubushka-sam-artifacts-${AWS_ACCOUNT_ID}" \
+            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/kubushka-backend-cfn-exec" \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}

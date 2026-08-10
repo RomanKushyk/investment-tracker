@@ -1,0 +1,222 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Kubushka Phase 1 — daily capture of the Inzhur price feed into Aurora DSQL.
+  Raw payloads only; the observation schema is deferred until ~3 weeks of real
+  data exist. See docs/superpowers/specs/2026-08-04-data-model.md.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Where cron failures and silence alarms are delivered.
+    Default: romankushyk0@gmail.com
+  FeedUrl:
+    Type: String
+    Default: https://www.inzhur.reit/_api/assets
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    # 20% cheaper per GB-second than x86 at an identical request price, and Node
+    # 22 runs natively. Free either way at this volume — a free choice.
+    Architectures: [arm64]
+    MemorySize: 256
+    # SAM's default is 3 SECONDS. Fetching and parsing 165 KB of JSON blows
+    # through that on a cold start.
+    Timeout: 60
+    Tracing: Active
+
+Resources:
+  # --------------------------------------------------------------------------
+  # Database
+  # --------------------------------------------------------------------------
+  # No VPC anywhere in this stack. DSQL is a public IAM-authenticated endpoint
+  # and Lambda has internet egress by default, so nothing here needs a VPC —
+  # which is the single most important cost decision in the file. A NAT Gateway
+  # is ~$33/month, roughly 1600x the rest of this stack combined.
+  PriceCluster:
+    Type: AWS::DSQL::Cluster
+    # Retain on stack delete: the provider publishes no price history, so this
+    # archive is the only copy that will ever exist. A `sam delete` must not be
+    # able to destroy it.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: app
+          Value: kubushka
+
+  # --------------------------------------------------------------------------
+  # Capture function
+  # --------------------------------------------------------------------------
+  CaptureFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Target: node22
+        Sourcemap: true
+        OutExtension: ['.js=.mjs']
+        EntryPoints: [src/capture.ts]
+        # Bundled from src/core so client and server can never disagree about a
+        # price. Explicitly NOT a second parser.
+        External: ['@aws-sdk/*']
+    Properties:
+      Handler: capture.handler
+      ReservedConcurrentExecutions: 2
+      Environment:
+        Variables:
+          FEED_URL: !Ref FeedUrl
+          # `Endpoint`, not `VpcEndpointServiceName` — the latter exists to
+          # reach the cluster from inside a VPC, which is precisely what this
+          # stack avoids.
+          DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
+          DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt PriceCluster.ResourceArn
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt CaptureDlq.Arn
+
+  # Declared explicitly rather than letting Lambda auto-create it: the implicit
+  # log group defaults to "Never expire", which is the one line here that would
+  # grow without bound.
+  CaptureLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${CaptureFunction}
+      RetentionInDays: 30
+
+  CaptureDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600 # 14 days
+
+  # --------------------------------------------------------------------------
+  # Schedule
+  # --------------------------------------------------------------------------
+  CaptureSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Description: Capture the Inzhur feed at 01:00 Europe/Kyiv.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      # Six fields, and one of day-of-month / day-of-week must be '?'.
+      ScheduleExpression: cron(0 1 * * ? *)
+      # Load-bearing. Ukraine still observes DST in 2026 — the 2024 abolition law
+      # was never signed and clocks moved on 29 March — so a fixed-UTC schedule
+      # would silently drift an hour twice a year. Kyiv transitions at 03:00
+      # local, so a 01:00 run never lands in a skipped or repeated hour.
+      ScheduleExpressionTimezone: Europe/Kyiv
+      Target:
+        Arn: !GetAtt CaptureFunction.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+        # Scheduler's defaults are 185 attempts over 24 hours. A retry that lands
+        # tomorrow would stamp the wrong as_of, so both are cut hard.
+        RetryPolicy:
+          MaximumRetryAttempts: 3
+          MaximumEventAgeInSeconds: 3600
+        DeadLetterConfig:
+          Arn: !GetAtt CaptureDlq.Arn
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeCapture
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt CaptureFunction.Arn
+
+  # --------------------------------------------------------------------------
+  # Alarms — 3 of the 10 always-free
+  # --------------------------------------------------------------------------
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: The capture function threw.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref CaptureFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # THE important one. A scheduler that never fires produces no logs, no errors
+  # and no metrics — it is invisible by construction, and a missed day is
+  # permanently unrecoverable because the provider publishes no history.
+  #
+  # `TreatMissingData: breaching` is the whole point: the default (`missing`)
+  # parks a dead job in INSUFFICIENT_DATA and emails nothing, forever. This is
+  # the single most common way solo-operator cron monitoring silently fails.
+  SilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: The capture function did not run in 24h.
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Dimensions: [{ Name: FunctionName, Value: !Ref CaptureFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlertTopic]
+
+  DlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: A capture invocation landed in the dead-letter queue.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions: [{ Name: QueueName, Value: !GetAtt CaptureDlq.QueueName }]
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+Outputs:
+  ClusterIdentifier:
+    Value: !GetAtt PriceCluster.Identifier
+  ClusterArn:
+    Value: !GetAtt PriceCluster.ResourceArn
+  FunctionName:
+    Value: !Ref CaptureFunction
+  AlertTopicArn:
+    Value: !Ref AlertTopic

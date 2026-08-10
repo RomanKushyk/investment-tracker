@@ -9,6 +9,11 @@ on:
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
+      # The backend is a separate stack with its own workflow and its own IAM
+      # role. Nothing under infra/ can change dist/, so a backend-only commit
+      # must not rebuild and redeploy the SPA.
+      - 'infra/**'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
 # Always reflect the newest push: supersede an in-flight deploy rather than racing it.

@@ -1,0 +1,13 @@
+{
+  "name": "kubushka-infra",
+  "private": true,
+  "type": "module",
+  "description": "Phase 1 price capture — see infra/README.md",
+  "dependencies": {
+    "@aws-sdk/dsql-signer": "^3.1106.0",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.21.0"
+  }
+}
