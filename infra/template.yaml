@@ -53,16 +53,11 @@ Resources:
   CaptureFunction:
     Type: AWS::Serverless::Function
     Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Format: esm
-        Target: node22
-        Sourcemap: true
-        OutExtension: ['.js=.mjs']
-        EntryPoints: [src/capture.ts]
-        # Bundled from src/core so client and server can never disagree about a
-        # price. Explicitly NOT a second parser.
-        External: ['@aws-sdk/*']
+      # makefile, not SAM's builtin esbuild builder: the builtin runs CopySource
+      # first and copies only infra/, so the handler's ../../src/core imports do
+      # not exist in the sandbox. The makefile builder runs in place, which is
+      # what keeps the parser bundled from its single source rather than copied.
+      BuildMethod: makefile
     Properties:
       Handler: capture.handler
       ReservedConcurrentExecutions: 2

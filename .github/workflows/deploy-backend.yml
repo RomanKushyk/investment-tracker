@@ -52,15 +52,6 @@ jobs:
       # before any AWS credential exists — a failing test cannot deploy.
       - run: pnpm vitest run src/core/inzhur
 
-      # SAM's esbuild build method shells out to an esbuild binary and does not
-      # bring one. Installed globally rather than as an infra devDependency for
-      # two reasons: SAM runs `npm install --production` on the copied source,
-      # so a devDependency would not be there; and the root pnpm-workspace sets
-      # `allowBuilds: esbuild: false`, which blocks the postinstall that fetches
-      # the platform binary. Pinned so a build is reproducible.
-      - name: Install esbuild for the SAM builder
-        run: npm install -g esbuild@0.28.2
-
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
