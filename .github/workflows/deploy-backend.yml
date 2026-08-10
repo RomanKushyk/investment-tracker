@@ -42,11 +42,14 @@ jobs:
       # The app's own deps: the handler imports zod through src/core.
       - run: pnpm install --frozen-lockfile
 
-      # --ignore-workspace: infra is not a member of the root pnpm workspace and
-      # must resolve its own lockfile, not the app's.
+      # npm, not pnpm, and deliberately so. pnpm's symlinked store left `pg`
+      # unable to resolve its own transitive deps (pg-types, pg-protocol) when
+      # esbuild bundled it on the runner. infra has three dependencies and is
+      # not a workspace member, so pnpm buys nothing here while a flat
+      # node_modules removes an entire class of resolution problem.
       - name: Install backend deps
         working-directory: infra
-        run: pnpm install --frozen-lockfile --ignore-workspace
+        run: npm ci
 
       # The parser is shared code, so its tests gate the backend too. Runs
       # before any AWS credential exists — a failing test cannot deploy.
