@@ -185,10 +185,13 @@ unrecoverable DROP/CREATE, not a migration.
 
 ### Raw payloads
 
-~165 KB/day = ~60 MB/year raw. Stored **gzipped** and in a **separate table** — DSQL primary keys
-are index-organized and carry every column, so a wide row inflates every range scan proportionally.
-Uncompressed this would cross the 1 GB free allowance around year 17; gzipped it is ~160 MB at
-year 20.
+~156–165 KB/day raw. Stored **gzipped** and in a **separate table** — DSQL primary keys are
+index-organized and carry every column, so a wide row inflates every range scan proportionally.
+
+**Measured on the first live capture (2026-08-10): 156,117 bytes → 12 kB, ~92% compression.**
+That is **~4.4 MB/year**, roughly half the 8 MB/year this spec originally estimated, and about
+0.4% of the 1 GB always-free allowance per year. Uncompressed it would have crossed 1 GB around
+year 17; compressed the question does not arise this century.
 
 The reason to keep them is **correctability, not provenance**: if the parser is ever wrong — unit
 drift, a renamed field, a percentage that becomes a fraction — the raw payload is the only

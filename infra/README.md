@@ -272,6 +272,43 @@ adds a 30-day expiry rule — without which every Lambda bundle ever pushed
 the web UI — the local `gh` CLI is authenticated as a different account and
 returns 403 on writes to this repo.
 
+## Field notes — things only the first deploy revealed
+
+Nine runs, eight failures. Recorded because none of these are in the docs that
+were read beforehand, and each cost a cycle.
+
+- **`sam build` cannot see sibling directories.** Both the builtin esbuild
+  builder and the makefile builder copy `CodeUri` into a sandbox first, so the
+  handler's `../../src/core` imports resolve to nothing. The workflow therefore
+  runs esbuild itself and hands SAM a finished bundle (`CodeUri: dist/`, no
+  `BuildMethod`).
+- **Bundle as CJS, not ESM.** `pg` is CommonJS and requires node builtins; an
+  ESM bundle dies at first invoke on `Dynamic require of "events"`.
+- **Do not mark `@aws-sdk/*` external.** `dsql-signer` is recent and assuming the
+  Lambda runtime ships it is an untested bet. Bundling costs ~800 KB.
+- **DSQL rejects `DESC` in index keys** — *"specifying sort order not supported
+  for index keys"*. Not in the documented compatibility differences.
+- **DSQL needs a service-linked role** (`AWSServiceRoleForAuroraDsql`). Creating
+  a cluster normally creates it, but only if the caller holds
+  `iam:CreateServiceLinkedRole`. Created once in `bootstrap-account.sh` instead
+  of widening the execution role.
+- **The DSQL CloudFormation handler calls more than the template uses** —
+  `GetClusterPolicy`, `GetVpcEndpointServiceName` — regardless of whether the
+  template sets those properties. Grant a handler its whole surface, not the
+  minimum the property docs imply.
+- **The SAM transform is expanded by the EXECUTION role**, so it needs
+  `cloudformation:CreateChangeSet` on
+  `arn:aws:cloudformation:<region>:aws:transform/Serverless-2016-10-31`.
+  Granting it to the calling role is not enough.
+- **A new AWS account cannot use `ReservedConcurrentExecutions`** — reserving any
+  concurrency drops the unreserved pool below the required floor of 10.
+- **A stack that fails its first create lands in `ROLLBACK_COMPLETE`** and cannot
+  be updated; the next deploy fails with a misleading "cannot be updated".
+  `bootstrap-account.sh` clears it.
+
+Verified live 2026-08-10: `{"ok":true,"asOf":"2026-08-09","entries":35}`, one row
+in `price_capture`, alarm → SNS → email confirmed end to end.
+
 ## Phase 2 gate
 
 After ~3 weeks of captures, the raw archive answers what a schema decision would
