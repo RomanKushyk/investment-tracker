@@ -63,9 +63,46 @@ aws s3api put-bucket-lifecycle-configuration \
 # key, against a ~$0.02/month baseline). The default SSE-S3 encryption is free.
 
 echo
-echo "verifying:"
+echo "verifying bucket:"
 aws s3api get-bucket-location --bucket "$BUCKET" --output text
 aws s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" \
   --query 'Rules[0].[ID,Status,Expiration.Days]' --output text
+
+# --- Aurora DSQL service-linked role ---------------------------------------
+#
+# Creating a cluster normally creates AWSServiceRoleForAuroraDsql automatically,
+# but that requires the CALLER to hold iam:CreateServiceLinkedRole — and the
+# stack's execution role deliberately does not. Creating it once here, out of
+# band, means the execution role never needs that permission at all, which is
+# strictly better than widening it: a service-linked role is account-wide and
+# permanent, so it is bootstrap, not deploy.
 echo
-echo "done — ${BUCKET} ready in ${REGION}"
+echo "service-linked role:"
+if aws iam get-role --role-name AWSServiceRoleForAuroraDsql >/dev/null 2>&1; then
+  echo "-> AWSServiceRoleForAuroraDsql already exists"
+else
+  aws iam create-service-linked-role --aws-service-name dsql.amazonaws.com >/dev/null
+  echo "-> created AWSServiceRoleForAuroraDsql"
+fi
+
+# --- Clear a rolled-back stack ---------------------------------------------
+#
+# A stack that fails on its FIRST create lands in ROLLBACK_COMPLETE, and
+# CloudFormation cannot update a stack in that state — the next deploy fails
+# with a confusing "cannot be updated" rather than the original error. It must
+# be deleted first. Only ever deletes in this one state, and the DSQL cluster
+# carries DeletionPolicy: Retain, so no data can be lost here.
+STACK=kubushka-backend
+STATE="$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
+  --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NONE)"
+echo
+echo "stack ${STACK}: ${STATE}"
+if [[ "$STATE" == "ROLLBACK_COMPLETE" ]]; then
+  aws cloudformation delete-stack --stack-name "$STACK" --region "$REGION"
+  echo "-> deleting; waiting"
+  aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$REGION"
+  echo "-> deleted, ready for a clean deploy"
+fi
+
+echo
+echo "done"

@@ -258,7 +258,7 @@ it is why the policy above is a starting point rather than a guarantee.
 credentials:
 
 ```bash
-bash infra/scripts/create-artifact-bucket.sh
+bash infra/scripts/bootstrap-account.sh
 ```
 
 It derives the account ID from `sts get-caller-identity`, creates
