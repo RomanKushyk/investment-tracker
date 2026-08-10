@@ -215,6 +215,12 @@ at the end that AWS does not support resource-level permissions for.
       "Resource": "arn:aws:s3:::kubushka-sam-artifacts-<account-id>/*"
     },
     {
+      "Sid": "ApplyTheSamTransform",
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:eu-north-1:aws:transform/Serverless-2016-10-31"
+    },
+    {
       "Sid": "NoResourceLevelSupport",
       "Effect": "Allow",
       "Action": ["cloudwatch:DescribeAlarms", "logs:DescribeLogGroups",
@@ -224,6 +230,14 @@ at the end that AWS does not support resource-level permissions for.
   ]
 }
 ```
+
+`ApplyTheSamTransform` is non-obvious and was missing from the first version:
+`AWS::Serverless-2016-10-31` is a macro that CloudFormation expands, and it
+expands it **as the execution role**, not as the principal that called
+`sam deploy`. Granting `CreateChangeSet` to the GitHub role alone is not enough.
+The failure is explicit — *"not authorized to perform: cloudformation:CreateChangeSet
+on resource: .../transform/Serverless-2016-10-31"* — which is exactly the
+read-the-ARN-out-of-the-error loop described below.
 
 Two things this policy deliberately does **not** grant, and must never:
 
