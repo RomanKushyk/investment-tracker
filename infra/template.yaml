@@ -62,7 +62,12 @@ Resources:
       # out of the equation entirely.
       CodeUri: dist/
       Handler: capture.handler
-      ReservedConcurrentExecutions: 2
+      # No ReservedConcurrentExecutions. A new AWS account's Lambda concurrency
+      # quota is small, and reserving any of it drops the unreserved pool below
+      # the required minimum of 10 — the deploy fails outright. It bought little
+      # anyway: this function is invoked once a day by a schedule capped at 3
+      # retries with a DLQ, so its concurrency is already bounded by the trigger
+      # rather than by a reservation.
       Environment:
         Variables:
           FEED_URL: !Ref FeedUrl
