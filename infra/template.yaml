@@ -52,13 +52,15 @@ Resources:
   # --------------------------------------------------------------------------
   CaptureFunction:
     Type: AWS::Serverless::Function
-    Metadata:
-      # makefile, not SAM's builtin esbuild builder: the builtin runs CopySource
-      # first and copies only infra/, so the handler's ../../src/core imports do
-      # not exist in the sandbox. The makefile builder runs in place, which is
-      # what keeps the parser bundled from its single source rather than copied.
-      BuildMethod: makefile
     Properties:
+      # No BuildMethod, deliberately. Both SAM builders — the builtin esbuild one
+      # and the makefile one — copy the CodeUri directory into a sandbox before
+      # running, so the handler's `../../src/core` imports resolve to nothing.
+      # The workflow therefore runs esbuild itself, from the repo, and hands SAM
+      # a finished bundle to package. That keeps the parser bundled from its
+      # single source instead of duplicated, and takes SAM's builder semantics
+      # out of the equation entirely.
+      CodeUri: dist/
       Handler: capture.handler
       ReservedConcurrentExecutions: 2
       Environment:

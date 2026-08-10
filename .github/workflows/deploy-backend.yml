@@ -55,6 +55,20 @@ jobs:
       # before any AWS credential exists — a failing test cannot deploy.
       - run: pnpm vitest run src/core/inzhur
 
+      # Bundled here rather than by `sam build`: both SAM builders copy the
+      # CodeUri directory into a sandbox first, so `../../src/core` — the shared
+      # parser the handler deliberately imports rather than duplicates — is not
+      # present when they run. Running esbuild against the real checkout is the
+      # only way to keep one parser and one source of truth.
+      - name: Bundle the handler
+        working-directory: infra
+        run: |
+          npx --yes esbuild@0.28.2 src/capture.ts \
+            --bundle --platform=node --target=node22 --format=esm \
+            --outfile=dist/capture.mjs --sourcemap \
+            --external:@aws-sdk/* --external:pg-native
+          ls -la dist/
+
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
@@ -64,10 +78,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Build
-        working-directory: infra
-        run: sam build
-
+      # No `sam build` step — `sam deploy` packages CodeUri (dist/) as-is.
       - name: Deploy
         working-directory: infra
         run: |

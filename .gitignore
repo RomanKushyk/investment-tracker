@@ -37,3 +37,7 @@ docs/statements_*.xlsx
 # real fixtures under src/**/__fixtures__/ stay committable. A CSV export of the
 # LIVE dataset is real financial data — this rule is a safety net, not tidiness.
 /*.csv
+
+# Built by the deploy workflow; never committed.
+infra/dist/
+infra/.aws-sam/
