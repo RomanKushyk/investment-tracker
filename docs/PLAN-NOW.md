@@ -13,7 +13,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section A** | **Time-critical** | | | |
 | A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | **done** (2026-08-11) |
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
-| A2 | Raw payloads out of `price_capture` | `infra/payload-split` | M | todo |
+| A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48) |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | todo |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | todo |
 | **Section C** | **App — pure, independent** | | | |
@@ -73,7 +73,17 @@ The next real coupon on UA4000238976 is **2026-09-23**, and the grid would offer
 
 # Section B — Backend, cheaper before the archive grows
 
-## A2 — Raw payloads out of `price_capture` — `infra/payload-split`
+## A2 — ~~Raw payloads out of `price_capture`~~ → the index it actually needed — **DONE 2026-08-11 (D48)**
+
+> **The split was cancelled by its own first step.** DSQL projects only the
+> columns a query asks for, so `payload_gzip` is never read and moving 31.9 MiB
+> of live archive would have bought nothing. What the measurement did find:
+> both queries full-scanning 6,628 rows to return 3, at ~730 ms. One index
+> leading with `source` took them to **2.26 ms** and **32.8 ms**, the latter
+> now an Index Only Scan.
+>
+> Note for next time: `CREATE INDEX ASYNC` finishes after the deploy reports
+> success — the first measurement still showed the old plan.
 
 **Goal:** the capture journal is narrow enough that scanning it is free.
 
