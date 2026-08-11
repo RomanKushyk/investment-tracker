@@ -21,6 +21,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
+| A12 | NBU parser reads the historical layouts | `infra/nbu-legacy-layouts` | M | **todo — found 2026-08-11** |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
@@ -207,6 +208,22 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 **Contracts:** settings `theme` / `language`; the final token vocabulary; i18n namespace `screen.section.item`. **DECISIONS:** theme architecture (token redefinition, FOUC contract, persist key); i18n architecture (typed dict, keys-in-tests, formats-never-localize, `date-fns` dep — G6 entry).
 **Verify:** unit — key parity compile-time and runtime, formatter invariance under `uk`. Browser — every route in dark, system and reduced-motion; hard-reload in dark with no white flash; UK with localised calendar, `<html lang>`, unchanged numbers and dates, 360 px overflow sweep; contrast spot-checks. Gates + build; tag.
 **Risk:** the i18n sweep is wide though mechanical — freeze other UI branches while it runs.
+
+## A12 — The NBU parser reads the historical layouts — `infra/nbu-legacy-layouts`
+
+**Goal:** the fair-value archive holds parsed observations for its whole range, not only for dates after ~2022.
+
+**Rationale (D43).** `parseNbu` was written against the current 18-field layout. The file has changed shape at least four times — **8 fields in 2016, 16 in 2018, 17 in 2021, 18 from 2022** — so every date before roughly 2022 fetches successfully and then fails to parse. Found by noticing the backfill reporting `published: 0` for 1,200 consecutive business days, which no calendar explains.
+
+Nothing is lost: `payload_gzip` is written regardless of parse outcome, exactly as the design promises. What is missing is derived metadata — `entry_count`, `skipped_refs`, `quotes_sha256` — and derived metadata is regenerable by definition. **This predates the rename**; the old cluster carries the same gap.
+
+- [ ] Dispatch on the **header row**, which every generation carries, never on the date. A date-based boundary would encode a cutover nobody has verified and would break again at the next change.
+- [ ] Sample the archive to find every distinct header before writing the parser — four generations are confirmed, and there is no reason to believe that is all of them.
+- [ ] **Reprocess from stored payloads, do not re-fetch.** The bytes are already held, it spares NBU ~3,900 requests, and it is the first real exercise of the correctability rule the raw payloads exist for.
+- [ ] Fix the completeness check while here: it counts a date as done when a row **exists**, not when a row **parsed**, which is precisely what let this hide. Deliberately not changed mid-backfill — it would re-fetch everything.
+
+**Verify:** a date from each generation (2016, 2018, 2021, 2024) parses to a non-zero row count with `calc_date` matching its filename; re-running the reprocess is a no-op; the two tracked ISINs resolve wherever they existed.
+**Risk:** none to stored data — reprocessing reads payloads and updates derived columns; the bytes are never rewritten.
 
 ---
 
