@@ -7,7 +7,8 @@ quality gate, builds `dist/`, and pushes the artifact to Amplify. Amplify never 
 Rationale and the rejected alternatives: `docs/DECISIONS.md` D15.
 Design spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 
-Region: **`eu-north-1`** (Europe / Stockholm). App name: `kubushka`. Branch label: `dev`.
+Region: **`eu-north-1`** (Europe / Stockholm). App name: `kubushka` in the console
+(cosmetic, see §1.5a). Branch label: `dev`.
 
 The design spec proposed `eu-central-1`; the app was created in Stockholm and there is no
 benefit to moving it — CloudFront fronts the content either way, and recreating the app
@@ -30,7 +31,7 @@ configuration.
 ### 1.1 Create the app
 
 1. Amplify console → **Create new app** → **Deploy without Git** → Next.
-2. App name `kubushka`, branch name `dev`.
+2. App name `quirenote`, branch name `dev`.
 3. Method **Drag and drop**, and upload any placeholder zip (a zip containing a one-line
    `index.html` is fine). The first workflow run replaces it.
 4. Note the **App ID** (`d…`) from the app's URL or settings, and the resulting site URL
@@ -99,7 +100,7 @@ Skip if the account already has this provider.
 
 ### 1.5 IAM role
 
-Create a role with **Custom trust policy**, name it `kubushka-github-deploy`.
+Create a role with **Custom trust policy**, name it `quirenote-frontend-deploy`.
 
 Trust policy — replace `<account-id>`:
 
@@ -159,7 +160,7 @@ Two consequences, both deliberate:
   widen the permission policy's `branches/dev` to `branches/<name>` or `branches/*`. Left
   pinned deliberately: nothing needs it yet.
 
-Inline permission policy `kubushka-amplify-deploy` — replace `<account-id>` and `<appId>`:
+Inline permission policy `quirenote-amplify-deploy` — replace `<account-id>` and `<appId>`:
 
 ```json
 {
@@ -196,17 +197,14 @@ compromised workflow cannot reconfigure hosting. If a future `AccessDeniedExcept
 resource outside this branch, add that exact ARN rather than broadening to `apps/<appId>/*` —
 the error message always states the resource it wanted.
 
-### 1.5a Renaming the role to `quirenote-frontend-deploy` (D42, Plan A E2)
+### 1.5a Why the role is named that (D42)
 
-The role above was called `kubushka-github-deploy`. It is renamed for two
-reasons, and only the first is the product rename.
-
-**The old name described the mechanism, not the target.** Its sibling on the
-backend was `kubushka-backend-deploy` — named for what it deploys. Both roles
-are assumed by GitHub Actions, so "github" distinguishes nothing: it is noise in
-one name and absent from the other. The scheme is now
-`quirenote-<target>-<function>`, so what a role deploys is readable from its
-name:
+It was `kubushka-github-deploy` until 2026-08-11, and the rename fixed more than
+the product name. **The old name described the mechanism, not the target.** Its
+sibling on the backend was `kubushka-backend-deploy` — named for what it
+deploys. Both roles are assumed by GitHub Actions, so "github" distinguished
+nothing: noise in one name, absent from the other. The scheme is now
+`quirenote-<target>-<function>`:
 
 ```
 quirenote-frontend-deploy     → Amplify hosting
@@ -214,63 +212,23 @@ quirenote-backend-deploy      → the CloudFormation stack
 quirenote-backend-cfn-exec    → CloudFormation's own execution role
 ```
 
-**This is independent of the backend rename** and carries no data risk. It
-touches Amplify only, the site keeps serving its last successful build
-throughout, and rollback is switching one secret back.
+The secrets follow the same scheme: `AWS_FRONTEND_ROLE_ARN` and
+`AWS_BACKEND_ROLE_ARN`, both in the **`dev` environment** scope.
 
-Create it with **Custom trust policy**, name `quirenote-frontend-deploy`. The
-trust policy is **byte-identical to §1.5's** — it pins immutable numeric owner
-and repo IDs and keys on `environment:*`, none of which a role rename changes.
+**Two things that cutover taught, worth keeping for the next one:**
 
-Inline permission policy `quirenote-amplify-deploy` — replace `<account-id>`;
-`<appId>` is `d17m4jf400my6`, public because it is part of the URL:
+- **Add a secret, never rename one.** A renamed secret is broken from the moment
+  of the rename until the workflow catches up, and the workflow cannot be
+  changed atomically with it. Both must coexist until the new path is verified.
+- **`role-to-assume` needs the full ARN.** A bare role name does not error — the
+  action retries the STS call with backoff, so the step hangs for minutes and
+  reads as a slow runner. See §5.
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AmplifyManualDeploy",
-      "Effect": "Allow",
-      "Action": [
-        "amplify:CreateDeployment",
-        "amplify:StartDeployment",
-        "amplify:GetBranch",
-        "amplify:GetJob"
-      ],
-      "Resource": [
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/d17m4jf400my6/branches/dev",
-        "arn:aws:amplify:eu-north-1:<account-id>:apps/d17m4jf400my6/branches/dev/*"
-      ]
-    }
-  ]
-}
-```
-
-Both resource lines are still required, for the reason §1.5 gives: the four
-actions authorize against three different sub-resources. `amplify:UpdateApp`
-stays deliberately absent — hosting config remains console-managed (D15).
-
-**Cutover, in order:**
-
-1. Create the role and attach the policy.
-2. **Add a NEW secret `AWS_FRONTEND_ROLE_ARN`** in the **`dev` environment scope**
-   (where `AWS_ROLE_ARN` lives — repo-level-only is the documented trap in §5),
-   holding the new role ARN. Adding rather than renaming is the point: until
-   step 4 both secrets exist, so putting the workflow line back is a complete
-   rollback. **Never rename a secret in place** — between the rename and the
-   workflow change the frontend cannot deploy at all.
-3. Re-run the frontend workflow and confirm the deploy succeeds and the site
-   still serves. A failure here costs nothing: the last build stays live, and
-   Amplify only swaps in a new one once a deployment finishes.
-4. Only then: delete the `AWS_ROLE_ARN` secret and the
-   `kubushka-github-deploy` role.
-
-**The Amplify app's own name** (`kubushka` in the console) is cosmetic and
-changes in E4. The **App ID does not change**, so
-`https://dev.d17m4jf400my6.amplifyapp.com` stays exactly as it is until the
-custom domain from `PLAN-NOW.md` A11 lands. Renaming the app does not move the
-site.
+**The Amplify app's own name** is still `kubushka` in the console. It is
+cosmetic, and the **App ID does not change**, so
+`https://dev.d17m4jf400my6.amplifyapp.com` is unaffected either way. Renaming
+the app does not move the site; the URL changes only when the custom domain
+from `PLAN-NOW.md` A11 lands.
 
 ## 2. GitHub repository configuration
 

@@ -31,7 +31,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
-| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | todo |
+| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11) |
 
 ---
 
@@ -408,18 +408,25 @@ capturing.
 **Rollback at any point before the teardown:** switch the GitHub secret and the
 workflow back. The old stack never stopped working.
 
-## E4 — The last identifiers and the docs
+## E4 — The last identifiers and the docs — **DONE 2026-08-11**
 
-- [ ] `infra/src/capture.ts` — `USER_AGENT`. Its URL should become
+> `infra/README` now documents only the roles that exist, with the move's
+> field notes appended; `DEPLOYMENT` §1.5/§1.5a describe the current role and
+> keep only the two lessons the cutover taught; `CLAUDE.md` warns that the
+> missing SNS topic is deliberate. The Amplify **app name** stays `kubushka`
+> in the console — cosmetic, and the App ID it does not change is what the URL
+> depends on.
+
+- [x] `infra/src/capture.ts` — `USER_AGENT`. Its URL should become
       `https://quirenote.com` once A11 and the Amplify custom domain land; until
       then the Amplify URL stays, because a User-Agent that points nowhere is
       worse than one that points somewhere old.
-- [ ] `infra/README.md` — both role policies verbatim, every prefix, and a field
+- [x] `infra/README.md` — both role policies verbatim, every prefix, and a field
       note recording what the move actually cost.
-- [ ] `docs/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
+- [x] `docs/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
 - [ ] Amplify app name in the console — cosmetic, unrelated to the custom domain
       in A11.
-- [ ] Update `PLAN-WAITING.md` W1/W3/W4 dates by the days actually lost, measured
+- [x] Update `PLAN-WAITING.md` W1/W3/W4 dates by the days actually lost, measured
       against the E3 baseline rather than estimated.
 
 ---
