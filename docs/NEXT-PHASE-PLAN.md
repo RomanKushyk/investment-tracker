@@ -1,6 +1,14 @@
 # Kubushka Next-Phase Plan (v1.0.0 → cloud)
 
-> **For agentic workers:** this is the living plan of record. Pick the first non-done task, branch as named, tick the checkbox here, keep the Status table current, update `navigation-map.md` + folder READMEs, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test`).
+> **For agentic workers:** this file is the **plan of record and the index**. It holds the shipped record, the retired items and the governing decisions. **Execution lives in three sibling plans — go there for tasks:**
+>
+> | Plan | What is in it | How to use it |
+> |---|---|---|
+> | **`PLAN-NOW.md`** | Everything startable today, in four sections ordered by deadline pressure then irreversibility. Full phase ceremony. | Pick the first non-done task in section order. |
+> | **`PLAN-WAITING.md`** | Everything gated on elapsed time or an external event, with earliest dates, which are hard, and the cost of missing each. | **Read its dated table at the start of any session touching `infra/` or the migration.** |
+> | **`PLAN-OPEN.md`** | Questions with no answer, in four rounds by cost of getting them wrong. Round 1 is irreversible on DSQL. | **Never implement from it.** Needing an answer is the signal to ask, not to choose quietly. |
+>
+> Branch as named, tick the checkbox in the plan that owns the task, update `navigation-map.md` + folder READMEs, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test`).
 
 **Rewritten 2026-08-11.** The original plan (approved 2026-07-28) assumed a permanently local-first app. A planning session on 2026-08-04 redirected the project to a cloud backend with auth, and the first stage of that work is **deployed and running**. This file now carries only what is still live: the shipped record, the retired items with their reasons, and the work that can actually start today. Everything cut is listed under **Retired** rather than deleted silently — the reasoning is the useful part.
 
@@ -8,19 +16,20 @@
 
 ## Status
 
-| # | Phase | Status |
-|---|-------|--------|
-| 0 | Repo hygiene | **done** (2026-07-28) |
-| 1 | Core consolidation, write surface, formula audit | **done** (2026-07-29) — v1.1.0 |
-| 2 | Settings home & real-data era | **done** (2026-08-02) — v1.2.0 |
-| 3 | Living data: Inzhur fetch, fixed yield, reminders | **done** (2026-08-04) — v1.3.0 |
-| 4 | Data portability | **closed** — JSON export/import + CSV export shipped; CSV import + mirror retired (D29) |
-| B1 | Backend: price capture archive | **done, live** (2026-08-11) |
-| B2 | Backend: observation schema + read API | **blocked on evidence** — NBU half ready now, Inzhur half ~2026-09-01 |
-| B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper |
-| 5 | Appearance & language: dark theme + UK | **todo — startable now** |
-| 6 | Chart analytics: ranges + cap-by-day | todo — startable, but re-verify after B3 |
-| 7 | Full control: DB browser | todo — after B3 by construction |
+| # | Phase | Status | Executable work |
+|---|-------|--------|-----------------|
+| 0 | Repo hygiene | **done** (2026-07-28) | — |
+| 1 | Core consolidation, write surface, formula audit | **done** (2026-07-29) — v1.1.0 | — |
+| 2 | Settings home & real-data era | **done** (2026-08-02) — v1.2.0 | — |
+| 3 | Living data: Inzhur fetch, fixed yield, reminders | **done** (2026-08-04) — v1.3.0 | — |
+| 4 | Data portability | **closed** — JSON export/import + CSV export shipped; CSV import + mirror retired (D29) | — |
+| B1 | Backend: price capture archive | **done, live** (2026-08-11) | payload split + durability gate → `PLAN-NOW.md` A2–A3 |
+| B2 | Backend: observation schema + read API | **split by evidence** | NBU half → `PLAN-NOW.md` A4 · Inzhur half → `PLAN-WAITING.md` W3–W4 |
+| B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper | `PLAN-WAITING.md` W7, gated on `PLAN-OPEN.md` Round 1 |
+| 5 | Appearance & language: dark theme + UK | todo | `PLAN-NOW.md` A8–A10 |
+| 6 | Chart analytics: ranges + cap-by-day | todo | `PLAN-WAITING.md` W13 |
+| 7 | Full control: DB browser | todo | `PLAN-WAITING.md` W14 |
+| — | Coupon dates walk the published schedule | **todo, dated** | `PLAN-NOW.md` A1 — must land before 2026-09-23 |
 
 Current version: **v1.3.0**. Per-phase tags continue per `docs/VERSIONING.md`.
 
@@ -60,86 +69,22 @@ Current version: **v1.3.0**. Per-phase tags continue per `docs/VERSIONING.md`.
 
 ---
 
-## What can be started right now
+## Where the executable work lives
 
-Four tracks. N1 and N2 are pure and independent of everything; N3 is the backend's own next step and is partly gated on elapsed time; N4 is the largest ready block of user-visible work.
+The four tracks that used to be listed here, plus everything queued behind the migration, moved into the three sibling plans on 2026-08-11 so that "what can I start" and "what am I waiting for" stop sharing a page.
 
-### N1 — Bond price re-derivation from `returnRates` — branch `feat/bond-dcf`
+| Was here | Now in |
+|---|---|
+| bond DCF · parse diagnostics · the NBU half of the observation schema · theme + Ukrainian | `PLAN-NOW.md` A1–A10, alongside the coupon-date fix, the payload split and the durability gate |
+| B3 migration · the Inzhur observation window · super-admin surface · Phase 6 charts · Phase 7 DB browser | `PLAN-WAITING.md`, each with its gate and its earliest date |
+| Archive row schema · fund basis · past-date prefill · the seed's fate | `PLAN-OPEN.md`, in rounds by cost of getting them wrong |
 
-Pure core, no dependencies, no design gate. The feed's bond price is not a market quote — it is a discounted cash flow over `paymentSchedule` whose only free parameter is `returnRates.sell`:
+**The pinned scope of the two post-migration phases stays recorded here**, because their trap fixes were bought with a formula audit and must not be re-derived:
 
-`P(D) = Σ CFᵢ × (1 + y)^(−ACT_days/365)`
+- **Phase 6 — chart analytics.** `ChartCard` + `ChartToolbar` (7d/1m/1y/all + custom range), `useDateRange` on `useSearchParams`, pure `core/dates.filterRange`. Wire all five chart screens with the pinned trap fixes: Balances YAxis domain from filtered data; **annualized keeps the PORTFOLIO_START `daysHeld` basis regardless of window**; Payouts month labels year-qualified across years; hardcoded "Feb — Jul 2026" subtitles derive from the actual range; sparse-window empty state. Then `core/day-deltas.ts` — per-asset day-over-day **percentage** return, flow-adjusted (subtract same-day buy/reinvest before dividing by prior value; seed reinvests 687,02/484,36/216 are the regression fixtures), unit-price basis where units are known, averaged per day-of-month normalised by occurrence count.
+- **Phase 7 — DB browser.** `/data` route, three tabs, edit dialogs, typed confirms with impact hints derived from core (`"removes 14 transactions, quotes on 174 days; Income received −₴472,13"`). Note the retired `deleteAsset`: the browser may edit, but asset deletion is no longer a product requirement.
 
-Verified out-of-sample (2026-07-28 → 2026-08-10: predicted 1063.1288 vs quoted 1063.13). `returnRates` and `status` are captured as of `dee6b47`, so the inputs exist in every stored row from 2026-08-10 onward.
-
-- [ ] `core/inzhur/dcf.ts`: `derivePrice(schedule, yield, onIso)` + `impliedYield(price, schedule, onIso)` (bisection; the inverse is what detects a revision when only the price moved).
-- [ ] Compare stored price vs derived price on fetch; a mismatch beyond a kopeck tolerance is a **surfaced anomaly**, never a silent correction (G5).
-- [ ] Feed the same function to the capture Lambda in a later infra commit so the anomaly is caught nightly, not only when the app is open.
-
-**Why it earns its place:** a yield revision is invisible in the price alone, and it is the one upstream change that silently rewrites what the portfolio is worth. Verify: the out-of-sample pair above as a fixture, plus a round-trip `impliedYield(derivePrice(s, y)) ≈ y`.
-
-### N2 — Parse errors become visible — branch `feat/parse-diagnostics`
-
-The owner asked for parsing to be **controllable via super-admin settings and for parse errors to be visible**. The control half needs the B3 user model; the visibility half needs nothing.
-
-`parse.ts` already returns `{entries, skipped}` and every caller discards `skipped`. Today a provider that renames a field silently drops that asset from the fetch and the UI shows only an unlinked row.
-
-- [ ] Surface `skipped` in the Daily-quotes fetch result: count + per-entry reason, expandable, non-blocking.
-- [ ] Persist the last parse outcome in `meta` alongside `inzhur:lastFetch` so the diagnosis survives a reload.
-- [ ] Settings → Automation: a read-only "last parse" panel (the editable super-admin controls land in B3).
-
-**Verify:** a fixture with one deliberately malformed entry produces one skip with its reason, and the other entries still parse — the tolerant-parse contract from D-Inzhur must not regress into all-or-nothing.
-
-### N3 — Backend Phase 2: observation schema + read API — branch `infra/observation-schema`
-
-The archive stores raw capture rows. Nothing reads them yet, and the app does not know the backend exists.
-
-**Evidence gate, stated honestly:** B2's whole point is deciding the schema *with evidence in hand*.
-
-- **NBU half is ready now.** The backfill to 2016-01-04 is complete and verified (`captured: 0, complete: true` on re-run), weekend/holiday behaviour is characterised (404 on weekends), `calc_date` matched the filename date on 14/14 sampled dates across 2016–2026, and the malformed header (field 17 declares three columns, data carries one) is understood. The NBU observation schema can be finalised today.
-- **Inzhur half is not.** Capture began 2026-08-10; two days of data cannot show weekend behaviour, holiday behaviour, or yield stability. The spec asks for ~3 weeks. **Earliest honest date: ~2026-09-01.** Until then the frozen-feed detector accumulates the evidence by itself and needs no attention.
-
-- [ ] Finalise + create the NBU observation table; backfill it from the stored raw rows (they regenerate any schema retroactively — that is why they are stored).
-- [ ] Measure real DPU against the documented `max(BytesRead, 2048) × 0.00000183105` and record the figure in the spec's cost section.
-- [ ] Verify DSQL backup/PITR actually works before any user data depends on it. This is the gate the spec names; if it disappoints, price history moves to S3 + CloudFront.
-- [ ] *(after ~2026-09-01)* the same three steps for Inzhur.
-
-### N4 — Phase 5: dark theme + Ukrainian — branches `feat/dark-theme`, `feat/i18n-uk`
-
-**The largest block of ready work, and the one the migration cannot invalidate** — it touches design tokens and strings, not persistence. Doing it now means B3 lands on an already-themed, already-localised app instead of doubling the surface to re-verify. Phase 1's `var()`-emitting colors and structured-returns rule were built to make both sweeps mechanical.
-
-- [ ] `docs/design-briefs/phase-5-appearance-language.md` — **the gate (G7)**: dark palette sheet (every token incl. the 4 asset hues at ≥4.5:1, shadows, chart grid/tooltip, sidebar-vs-page, focus/selection), theme + language segmented controls, UK reference copy (~20–30 % longer than EN). Nothing below starts before the design session merges `design/extensions/*.dc.html`.
-- [ ] `feat/dark-theme` — split double-duty tokens into surface/on-surface pairs (`ink`, `sidebar-text`); purge literal `bg-white`/`text-white` (TransactionPanel, AssetForm, Select, Sidebar, KpiCard, DatePicker, button-variants) and rgba shadows (Card, KpiCard, Select, DatePicker) into tokens; `[data-theme=dark]` block for all tokens incl. `--color-chart-*`; theme the recharts Tooltip and cursor; FOUC-free head script in `index.html` + `<meta name="color-scheme">`; store `theme` + `matchMedia` for `system`; stable chart `key`s across flips; toggle in Settings → Appearance.
-- [ ] `feat/i18n-uk` — `src/i18n/messages.ts` (`en` canonical, `Dict` derived from it, `uk satisfies Dict`), `useT()` on `settings.language`; sweep ~200 strings across ~26 files, one mechanical commit per screen; label maps return keys and their tests re-assert keys; `pnpm add date-fns` → DayPicker `locale={uk}` + `weekStartsOn`; `document.documentElement.lang`; MONTH_SHORT and ordinals move into i18n; runtime key-parity test. **Pinned: `fmtTable`/`fmtProse`/`fmtDate` are byte-identical in both languages** — formats never follow language.
-
-**Contracts:** settings `theme`/`language`; the final token vocabulary; i18n namespace `screen.section.item`. **DECISIONS:** theme architecture (token redefinition, FOUC contract, persist key) and i18n architecture (typed dict, keys-in-tests, formats-never-localize, date-fns dep).
-**Verify:** unit — key parity (compile-time and runtime), formatter invariance under `uk`. Browser — every route in dark, system and reduced-motion; hard-reload in dark with no white flash; UK: calendar localised, `<html lang>` set, numbers and dates unchanged, 360 px overflow sweep; contrast spot-checks. Gates + build; tag.
-**Risk:** the i18n sweep is wide though mechanical — freeze other UI branches while it runs.
-
----
-
-## Queued behind the migration
-
-### B3 — Auth, user schema, `repository.ts` → HTTP client (the migration proper)
-
-The one irreversible-feeling step, and the reason everything above was staged in front of it. Scope per the spec: user schema in DSQL, Cognito, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, PWA shell, test repair, cutover. Accepted costs are front-loaded and known: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop, schema deliberately kept inside the DSQL subset, real DSQL in CI).
-
-Pinned by the owner and binding on the design:
-- Prices are a **global single source of truth**; an account stores only user-specific data (amounts, transactions).
-- Accounts are independent. Last-write-wins on the per-date snapshot key is acceptable.
-- **Offline is expressly not a requirement** — "its okay to lose offline everywhere". This is what collapses the sync problem; do not reintroduce it.
-- The scheduler auto-registers newly listed provider assets **into the catalog, never into a portfolio**.
-- Exactly one automation: the 01:00 capture. Nothing else runs on a timer.
-
-Retires D2, D16/G4, the demo/live split and the dataset guards. `navigation-map.md` needs a full re-baseline in the same phase — its checkpoints currently assume the demo seed in IndexedDB.
-
-### Phase 6 — Chart analytics: ranges + cap-by-day
-
-Startable today (the logic is pure), but every browser checkpoint would need re-verifying after B3, so it is cheaper after. Scope unchanged: `ChartCard` + `ChartToolbar` (7d/1m/1y/all + custom range), `useDateRange` on `useSearchParams`, pure `core/dates.filterRange`; wire all five chart screens with the pinned trap fixes (Balances YAxis domain from filtered data; **annualized keeps the PORTFOLIO_START `daysHeld` basis regardless of window**; Payouts month labels year-qualified across years; hardcoded "Feb — Jul 2026" subtitles derive from the actual range; sparse-window empty state). Then `core/day-deltas.ts`: per-asset day-over-day **percentage** return, flow-adjusted (subtract same-day buy/reinvest before dividing by prior value — seed reinvests 687,02/484,36/216 are the regression fixtures), unit-price basis where units are known, averaged per day-of-month normalised by occurrence count.
-
-### Phase 7 — Full control: DB browser
-
-After B3 by construction — it is built directly on the repository write surface, which B3 replaces. `/data` route, three tabs, edit dialogs, typed confirms with impact hints derived from core (`"removes 14 transactions, quotes on 174 days; Income received −₴472,13"`). Note the retired `deleteAsset`: the browser may edit, but asset deletion is no longer a product requirement.
+**B3, the migration proper**, is `PLAN-WAITING.md` W7. Its owner-pinned constraints stay binding wherever it is executed: prices are a **global single source of truth** and an account stores only user-specific data · accounts are independent, last-write-wins on the per-date key is acceptable · **offline is expressly not a requirement** and must not be reintroduced · the scheduler registers newly listed provider assets **into the catalog, never into a portfolio** · exactly one automation, the 01:00 capture.
 
 ---
 

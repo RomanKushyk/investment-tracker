@@ -14,7 +14,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 
 ## Working agreements
 - Follow README §10 build order; keep the behavior checklist (§9) green.
-- **docs/NEXT-PHASE-PLAN.md is the living plan** (v1 is done — docs/BUILD-PLAN.md is its record; v1 pinned contracts stay binding until a phase supersedes them). Pick up the first non-done phase/task there and keep checkboxes + Status table updated. Decisions log: docs/DECISIONS.md.
+- **docs/NEXT-PHASE-PLAN.md is the plan of record and index** (v1 is done — docs/BUILD-PLAN.md is its record; v1 pinned contracts stay binding until a phase supersedes them). Execution is split into three sibling plans: **docs/PLAN-NOW.md** (startable today — pick the first non-done task in section order), **docs/PLAN-WAITING.md** (dated; read its table before any `infra/` or migration session), **docs/PLAN-OPEN.md** (unanswered questions — never implement from it; needing an answer means ask). Keep checkboxes + Status tables updated. Decisions log: docs/DECISIONS.md.
 - **Every top-level folder has a README.md with its local rules** (design/, docs/, src/ once created) — read it before working there, create one for any new folder, keep them current.
 - **navigation-map.md (root) is the agentic manual-testing map** — per-route expected seed values and checkpoints. Use it to verify; update route Status + checkpoints whenever screens or flows change.
 - **Deployment is `docs/DEPLOYMENT.md`** — Amplify Hosting manual-deploy app fed by `.github/workflows/deploy.yml`; hosting config (SPA 200 rewrite, cache headers) is console-managed and CI has no permission to change it (see DECISIONS D15).
