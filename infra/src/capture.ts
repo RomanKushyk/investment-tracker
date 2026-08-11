@@ -964,15 +964,27 @@ async function diagnose(client: Client) {
       ORDER BY instrument_ref, basis, source`,
   );
 
-  // The denominator that reconciliation needs: published NBU days in the span
-  // the observations actually cover. An observation cannot exist for a day the
-  // archive never captured, so this is the ceiling.
-  const publishedDays = await client.query(
-    `SELECT count(DISTINCT as_of)::text AS days
-       FROM price_capture
-      WHERE source = 'nbu_fv' AND ok = true
-        AND as_of BETWEEN (SELECT min(as_of) FROM price_observation)
-                      AND (SELECT max(as_of) FROM price_observation)`,
+  // The denominator, computed per ref over ITS OWN span. One shared span would
+  // measure the younger instrument against days that predate its issuance and
+  // report a false gap — which is the same mistake as D43, one level up.
+  const reconciled = [];
+  for (const o of observations.rows) {
+    const { rows } = await client.query<{ days: string }>(
+      `SELECT count(DISTINCT as_of)::text AS days
+         FROM price_capture
+        WHERE source = 'nbu_fv' AND ok = true AND as_of BETWEEN $1 AND $2`,
+      [o.first_as_of, o.last_as_of],
+    );
+    reconciled.push({ ...o, publishedDays: rows[0].days, gaps: Number(rows[0].days) - Number(o.dates) });
+  }
+
+  // Three real rows, prices included, so the archive can be checked against the
+  // provider's own file by hand. A count that reconciles proves the plumbing;
+  // only a value proves the parse.
+  const sample = await client.query(
+    `SELECT to_char(as_of, 'YYYY-MM-DD') AS as_of, instrument_ref, basis,
+            price::text, ytm::text, clean_rate::text
+       FROM price_observation ORDER BY as_of DESC, instrument_ref LIMIT 3`,
   );
 
   const instruments = await client.query(
@@ -987,8 +999,8 @@ async function diagnose(client: Client) {
     mode: 'diagnose' as const,
     size: size.rows[0],
     bySource: bySource.rows,
-    observations: observations.rows,
-    publishedDaysInSpan: publishedDays.rows[0]?.days ?? '0',
+    observations: reconciled,
+    sample: sample.rows,
     instruments: instruments.rows,
     plans,
   };
