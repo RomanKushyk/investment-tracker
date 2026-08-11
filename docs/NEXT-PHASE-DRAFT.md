@@ -1,19 +1,5 @@
-- encapsulate core formulas  into core folder for easier access
-- settings|preferences tab
-  - move add new asset
-  - set targets (attribution/cap/perc/share/total)
-  - reminder/notification
-  - db configs
-  - consider what else can be customizable
-- theme toggle
-- language toggle
-- import from json/csv
-- export to json/csv
-- clear
-- select spreadsheet as DB
-- auto track fixed yield
-- quick read from the Inzhur site
-- transaction/qutes/full DB simplified view with edit/delete ability
-- filter by date range, especially for chart with spans (week, month, year, custom)
-- add one more seasonality chart with cap by day by asset(helps find best way to buy new amount asset)
-- mock mode to display mock data (for presentations)
+- mobile version, responsiveness
+- analytics pages can be editable (edit button top right), for example: target setting move into allocation page, settings>portfolio move into portfolio page
+- live ₴/$ rate from Google finances
+- upgrade new asset form: first show dropdown with asset provider e.g. Inzhur, custom; after selecting provider show list of fetched assets, for custom show name input; if provider specified fill all possible inputs automatically. Main idea is that user should input minimum data, especially minimum sensitive data, so with that approach user will input only asset name and amount
+- currency in settings should set default currency on app open, while currency toggle value in the sidebar shouldn't be saved anywhere its just quick preview

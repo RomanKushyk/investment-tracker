@@ -150,6 +150,18 @@ After B3 by construction — it is built directly on the repository write surfac
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
+## Ungroomed input — `docs/NEXT-PHASE-DRAFT.md`
+
+The draft was replaced with a fresh wishlist (the old items are all shipped or retired above). **Nothing below is planned yet** — it is raw input, listed here so it is not orphaned:
+
+- mobile version, responsiveness
+- analytics pages become editable in place (an edit button top-right): target setting moves onto the Allocation page, Settings → Portfolio onto the Portfolio page
+- live ₴/$ rate instead of the hand-entered `usdRate`
+- asset form reworked around the provider: pick provider → pick from its fetched asset list → every derivable field fills itself. The stated goal is **minimum input, especially minimum sensitive input** — ideally the user types only an amount.
+- currency in Settings sets the default on app open; the sidebar toggle stays a throwaway preview and persists nowhere
+
+Two of these interact with decisions already made and should be groomed with that in mind: the provider-first asset form overlaps B3's catalog (the scheduler already registers newly listed provider assets), and the live rate is a second scheduled fetch — which the "exactly one automation" ruling forbids unless it rides the 01:00 capture.
+
 ## Flagged deviations from the original draft
 
 1. Asset CRUD and the DB browser live on `/data` (Settings links to it) rather than literally inside the Settings tab — preferences and entity-management have different lifecycles.
