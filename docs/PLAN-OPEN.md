@@ -4,16 +4,16 @@
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-WAITING.md` (dated). Parent: `NEXT-PHASE-PLAN.md`. Answers land in `DECISIONS.md` and the item leaves this file.
 
-Written 2026-08-11. **Resolved the same day, 13 of 16 items** — Rounds 1, 2 and 4 are closed, in D30–D35. What remains is Round 3, which was never a gap: three derivations that are deliberately deferred at zero migration cost, plus the one genuinely evidence-gated item.
+Written 2026-08-11. **Resolved the same day, 16 of 17 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and one new item that costs money and is therefore the owner's.
 
 ## Status
 
 | # | Question | Round | Outcome |
 |---|----------|-------|---------|
-| O1 | Auth model: which Cognito shape | 1 | **closed — D32** Essentials tier, managed login, email + password, HTTP API JWT authorizer, refresh token in years |
+| O1 | Auth model: which Cognito shape | 1 | **closed — D32/D36/D39** Essentials, managed login, HTTP API JWT authorizer, refresh token in years, **passkey-first** onboarding |
 | O2 | `basis` vocabulary from row one | 1 | **closed — D30** `buy \| sell \| nav \| fair`; currency is not a basis |
 | O3 | `instrument_ref` allocation scheme | 1 | **closed — D30** `isin` for bonds, `slug` for funds; the feed's `id` rejected |
-| O4 | Account bootstrap and registration policy | 1 | **closed — D32** open registration (owner ruling); $0 to 10,000 MAU |
+| O4 | Account bootstrap and registration policy | 1 | **closed — D38/D39** an application creates a DB row, not a Cognito user; super-admin approves; toggle opens it fully |
 | O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; the non-key columns stay gated on `PLAN-WAITING.md` W3 |
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
@@ -26,10 +26,26 @@ Written 2026-08-11. **Resolved the same day, 13 of 16 items** — Rounds 1, 2 an
 | O14 | Which parse controls are stored settings vs code | 4 | **closed — D35** toggles are settings, mappings are code |
 | O15 | The cash-reconciliation warning after stored cash | 4 | **closed — D35** retires; supersedes D13's cash half |
 | O16 | CSV export after the repository becomes HTTP | 4 | **closed — D35** a scope note, not a decision |
+| O17 | **SES sender identity — domain or address** | 1 | **open** — costs money, blocks `PLAN-NOW.md` A11 and therefore W7 |
 
 ---
 
 # Still open
+
+## O17 — the SES sender identity — blocks A11, and therefore W7
+
+**The question.** D39 moves email to SES. SES will only send from a **verified identity** — a domain, or a single address. The project has neither: `dev.d17m4jf400my6.amplifyapp.com` is an Amplify hosting domain and cannot be verified for mail.
+
+**Why it is the owner's call and not mine:** every path costs something.
+
+- **Buy a domain.** Best deliverability and DMARC alignment, a From address that looks like the product, and it makes the app's public URL nicer too. Costs a registration fee plus a **Route 53 hosted zone at $0.50/mo, which is on the standing "no" list** — small, but it is the first standing charge the project would carry.
+- **Verify a personal address** (e.g. the owner's Gmail). Free and immediate. But sending as a Gmail address through SES fails DMARC alignment, so invitations are more likely to land in spam — and an invitation that lands in spam is an applicant who never gets in.
+- **Use a domain already owned**, if there is one. Cheapest good option; I do not know whether there is one.
+
+**What it blocks.** `PLAN-NOW.md` A11 cannot start, and A11 exists specifically to take SES production access off W7's critical path. So this quietly gates the migration even though it looks like a detail.
+
+**What it does not block:** everything else in Plan A. This is the only task in that plan with an external dependency.
+
 
 ## O5 (part) — the archive row's non-key columns — gated on W3
 
@@ -65,6 +81,11 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D33 — `user_price` overlay | The migration must carry the 174 snapshots across, not discard them | `PLAN-WAITING.md` W7 |
 | D34 — seed rewritten to reconcile | Withdrawal and `tax` rows with `settles_payout_id` added to the seed | `PLAN-WAITING.md` W7 |
 | D35 — parse-control boundary | The super-admin surface knows which controls are settings | `PLAN-WAITING.md` W8 |
+| D36 — one account per email | `usernameAttributes` pinned before `CreateUserPool`; linking trigger with the `email_verified` condition | `PLAN-WAITING.md` W7 |
+| D37 — no MAU metric exists | Three instruments instead of one: Free Tier alerts, a usage budget, and `EstimatedNumberOfUsers` on the 01:00 capture | `PLAN-WAITING.md` W7 |
+| D38 — approval gate | `app_user` status checked by the API on every request, because token-time checks cannot revoke | `PLAN-WAITING.md` W7 |
+| D39 — applications never reach Cognito | The application endpoint, its four free defences, and passkey-first onboarding | `PLAN-WAITING.md` W7 |
+| D39 — SES replaces the default mail | Production access requested early so it is off the migration's critical path | `PLAN-NOW.md` A11 |
 
 ---
 

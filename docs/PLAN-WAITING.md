@@ -120,6 +120,10 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Approval gate (D38).** The intuitive design — a pre-authentication trigger that refuses unapproved users — is **insufficient and must not be the gate**: AWS documents that the trigger does not fire when the user has an existing session, and with a refresh token measured in years an existing session lasts approximately forever. Anything checked at token-issue time can grant but never revoke.
 
+- [ ] **`POST /v1/applications` creates a DSQL row and NO Cognito user (D39).** This is what protects the MAU allowance — Cognito marks a user active at sign-up, so an application that reaches `SignUp` has already cost an MAU whether or not it is ever approved. The Cognito user is created by `AdminCreateUser` **on approval**, which also makes approval the verification step: the invitation reaches only the address's owner.
+- [ ] Abuse defences on that endpoint, all free: **API Gateway route throttling** (what WAF is usually bought for), a **unique index on email** so a flood becomes one row, and **no email sent on submission** — mailing an address on submission would let anyone type a stranger's address and have this domain deliver to it.
+- [ ] **Pre-sign-up trigger rejects federated sign-ins with no approved application** — a Google user is created on first IdP sign-in, which is the second route to `SignUp`. Auto-approve when the open-registration toggle is on.
+- [ ] Verify the flagged inference with one test sign-up: a trigger-rejected sign-up should cost no MAU (no user is created), but AWS does not document it.
 - [ ] `app_user(user_id, email, status, role, applied_at, decided_at, decided_by)` in DSQL. `status ∈ pending | active | rejected`, `role ∈ user | super_admin`. **This is the authoritative record**, and the API Lambda checks it on every request — it already loads the row to scope data by `user_id`, so the check is free and there is one place where "may this person act" is answered.
 - [ ] **Post-confirmation trigger** creates the row `pending`, or `active` when the open-registration toggle is on.
 - [ ] A `pending` caller gets a distinct response, not 401 — they are genuinely signed in and simply may not act yet. The client renders "awaiting review".
@@ -129,6 +133,17 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 - [ ] Super-admin screen: users table with approve / reject / delete.
 - [ ] **Delete is scoped to `pending` and `rejected` users only** — they own no portfolio data, so no cascade exists and it is genuinely cleanup. **Deleting an `active` user with transactions is not implemented and not decided**: it is exactly the cascade the ledger model forbids. Rejecting or disabling achieves every operational purpose without destroying a ledger.
 - [ ] Open-registration toggle: one settings row, read by the post-confirmation trigger, default **off**. Its warning states the specific consequence — anyone who signs up gets in immediately and there is no threat protection behind it (Plus has no free tier, WAF is $15/mo and on the standing "no" list).
+
+**Onboarding is passkey-first (D39).** Approval → invitation with a temporary password → user sets their own password (`NEW_PASSWORD_REQUIRED`) → **registers a passkey immediately** → every later sign-in uses the passkey and sends no email.
+
+- [ ] **Do not enable email OTP as a sign-in factor.** The password the user sets is the recovery path, so OTP is not needed, and enabling it would make email the critical path for every new session. It stays available later at zero migration cost — it is a pool setting, not a schema decision.
+- [ ] **Do not set MFA to required** — OTP flows are incompatible with it, which would close that door pre-emptively. A passkey with user verification can satisfy MFA anyway (`FactorConfiguration: MULTI_FACTOR_WITH_USER_VERIFICATION`).
+- [ ] Headroom to know: 20 passkeys per user, 5 linked federated identities. Email volume across an account's whole life is **two messages** — the invitation, and a reset if ever needed.
+
+**Email delivery moves to SES (D39).**
+
+- [ ] Configure the pool with `EmailSendingAccount: DEVELOPER`. **The default is unusable here, and volume is not the reason** — hard-bounced addresses go onto an AWS-managed suppression list that **cannot be cleared** while the pool uses the default, possibly indefinitely, and a registration system that mails strangers will collect typo'd addresses. The 50 messages/day/account cap (non-adjustable, resets 09:00 UTC) would also have been fatal had OTP been chosen.
+- [ ] Confirm SES production access is granted before cutover — see `PLAN-NOW.md` A11, which raises the request early precisely so this is not discovered here.
 
 **Account linking (D36).**
 

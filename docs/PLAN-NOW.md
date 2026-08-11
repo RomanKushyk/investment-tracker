@@ -20,6 +20,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
+| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **blocked on O17** |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
@@ -153,6 +154,22 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 - [ ] Settings → Automation: a read-only "last parse" panel. Editable controls land with B3.
 
 **Verify:** a fixture with one malformed entry yields exactly one skip with its reason **and** parses the rest — the tolerant-parse contract must not regress into all-or-nothing.
+
+## A11 — SES production access, requested early — `infra/ses-identity`
+
+**Goal:** the migration is never blocked waiting on a support queue.
+
+**Rationale:** D39 moves email to SES, and new SES accounts sit in a **sandbox — 200 messages per 24 hours, 1 per second, and delivery only to verified addresses.** Until production access is granted, approving a stranger's application cannot work at all. The request is free, but its turnaround is unpredictable and it can come back asking for more detail. Nothing about it depends on the user pool existing, so it can be done months ahead — and doing it late means discovering it during the cutover, which is the one moment it must not appear.
+
+Granted accounts default to 50,000 messages/day, which is four orders of magnitude beyond the two-messages-per-account-lifetime that passkey-first onboarding needs.
+
+- [ ] **Blocked on `PLAN-OPEN.md` O17 — the sender identity.** SES verifies a domain or an address, and the project has neither: `dev.d17m4jf400my6.amplifyapp.com` cannot be verified for mail, and a Route 53 zone is $0.50/mo and on the standing "no" list. This one costs money, so it is the owner's call.
+- [ ] Verify the chosen identity in `eu-north-1` — SES sandbox status is **per Region**, so verifying elsewhere does not help.
+- [ ] Request production access, stating the actual use case: transactional mail only, invitations and password resets, single-digit volume.
+- [ ] Record the granted quota in `infra/README.md` field notes.
+
+**Verify:** `GetSendQuota` reports a production quota rather than the 200/day sandbox one, and a test message reaches an address that was never verified.
+**Risk:** none to the running system — SES is not wired into anything until W7. The only failure mode is leaving it too late.
 
 ---
 
