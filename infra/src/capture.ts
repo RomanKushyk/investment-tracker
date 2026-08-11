@@ -114,6 +114,21 @@ const TRACKED_ISINS = ['UA4000238976', 'UA4000236475'];
 interface ParsedNbu {
   rows: number;
   missing: string[];
+  quotesDigest: string;
+}
+
+/**
+ * A hash over the PRICE-BEARING FIELDS ONLY — never the whole payload.
+ *
+ * Measured: two Inzhur captures seconds apart differed by 6 bytes because
+ * `availableQuantity` ticks with live sales. So `payload_sha256` is unique on
+ * every fetch and cannot detect "the prices did not move". This digest can.
+ *
+ * Sorted before hashing so that a reordered feed is not mistaken for a changed
+ * one — the feed makes no ordering guarantee.
+ */
+function digestOf(parts: string[]): string {
+  return createHash('sha256').update(parts.sort().join('\n'), 'utf8').digest('hex');
 }
 
 /**
@@ -131,11 +146,20 @@ function parseNbu(body: string): ParsedNbu {
   const lines = body.split(/\r?\n/).filter((l) => l.trim() !== '');
   const data = lines.slice(1); // drop the header row
   const seen = new Set<string>();
+  const parts: string[] = [];
   for (const line of data) {
-    const isin = line.split(';')[1]?.trim();
-    if (isin !== undefined && isin !== '') seen.add(isin);
+    const f = line.split(';');
+    const isin = f[1]?.trim();
+    if (isin === undefined || isin === '') continue;
+    seen.add(isin);
+    // fair_value + ytm: the two numbers that must move if the file is live.
+    parts.push(`${isin}:${f[3] ?? ''}:${f[4] ?? ''}`);
   }
-  return { rows: data.length, missing: TRACKED_ISINS.filter((i) => !seen.has(i)) };
+  return {
+    rows: data.length,
+    missing: TRACKED_ISINS.filter((i) => !seen.has(i)),
+    quotesDigest: digestOf(parts),
+  };
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -242,6 +266,12 @@ async function ensureSchema(client: Client): Promise<void> {
   // came from the Inzhur feed, because it was the only source. Idempotent, and
   // a no-op once done.
   await client.query(`UPDATE price_capture SET source = $1 WHERE source IS NULL`, [SOURCE.inzhur]);
+
+  // A hash over the price fields alone — see digestOf. Deliberately separate
+  // from payload_sha256, which is unique on every fetch and therefore useless
+  // for detecting a frozen upstream. Not backfillable for rows written before
+  // it existed, which is precisely why it goes in now.
+  await client.query('ALTER TABLE price_capture ADD COLUMN IF NOT EXISTS quotes_sha256 TEXT');
   // No DESC: DSQL rejects a sort direction in index keys outright ("specifying
   // sort order not supported for index keys"). Immaterial here — the planner
   // can walk an ascending index backwards, and at ~365 rows/year the direction
@@ -258,7 +288,49 @@ interface CaptureResult {
   ok: boolean;
   entries: number;
   error: string | null;
+  /** Consecutive BUSINESS days ending today whose price digest is unchanged. */
+  unchangedDays?: number;
 }
+
+/**
+ * How many consecutive business days, ending with this capture, carry an
+ * identical price digest.
+ *
+ * Business days only. Counting calendar days would report a streak of 3 every
+ * Monday, because a Saturday and Sunday capture legitimately repeat Friday's
+ * price — the alarm would fire weekly and be muted within a month.
+ *
+ * Derived from stored hashes rather than kept as a counter column: a
+ * denormalised streak drifts the moment a row is backfilled or re-captured out
+ * of order, and this is cheap at 15 rows.
+ */
+async function unchangedStreak(client: Client, source: string, digest: string): Promise<number> {
+  const { rows } = await client.query<{ quotes_sha256: string | null; as_of: string }>(
+    `SELECT quotes_sha256, to_char(as_of, 'YYYY-MM-DD') AS as_of
+       FROM price_capture
+      WHERE source = $1 AND ok = true AND quotes_sha256 IS NOT NULL
+      ORDER BY as_of DESC
+      LIMIT 15`,
+    [source],
+  );
+  let streak = 1; // this capture itself
+  for (const r of rows) {
+    if (isWeekend(r.as_of)) continue;
+    if (r.quotes_sha256 !== digest) break;
+    streak += 1;
+  }
+  return streak;
+}
+
+/**
+ * Business days of identical prices before it is worth saying so.
+ *
+ * Deliberately loose and env-tunable rather than fixed at the 2–3 the research
+ * suggested: the right value is an empirical question about how often OVDP
+ * quotes genuinely sit flat, and nobody has 30 days of data yet. A threshold
+ * that cries wolf gets muted, and a muted alarm is worse than none.
+ */
+const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
 
 /**
  * One source, one date, one row. ALWAYS writes — including a 404 weekend and a
@@ -274,6 +346,7 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
   let entryCount: number | null = null;
   let skipped: string | null = null;
   let error = outcome.error ?? null;
+  let digest: string | null = null;
 
   if (outcome.ok && outcome.body !== undefined && outcome.body !== '') {
     try {
@@ -281,6 +354,7 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
         const parsed = parseNbu(outcome.body);
         entryCount = parsed.rows;
         skipped = parsed.missing.join(',');
+        digest = parsed.quotesDigest;
         // A published file that omits a bond we hold is the signal worth having:
         // it matured, was renamed, or the file changed shape.
         if (parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
@@ -292,6 +366,13 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
         const feed = parseAssetsFeed(JSON.parse(outcome.body));
         entryCount = feed.entries.length;
         skipped = feed.skipped.join(',');
+        // Prices only. availableQuantity and the marketing fields are excluded
+        // on purpose — they change constantly and would mask a frozen price.
+        digest = digestOf(
+          feed.entries.map(
+            (e) => `${e.kind}:${e.ref.toLowerCase()}:${e.sellUAH}:${e.buyUAH ?? ''}:${e.navUAH ?? ''}`,
+          ),
+        );
         // Zero readable entries means shape drift or an error page. Recorded as
         // a failure so the alarm fires — but the payload is still stored,
         // because a payload we cannot parse today is exactly what a future
@@ -303,11 +384,28 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
     }
   }
 
+  // Only meaningful for a capture that actually parsed, and only when the date
+  // is a business day — a weekend capture repeating Friday is not a symptom.
+  let unchangedDays: number | undefined;
+  if (digest !== null && error === null && !isWeekend(asOf)) {
+    unchangedDays = await unchangedStreak(client, source, digest);
+    if (unchangedDays >= STALE_AFTER_DAYS) {
+      // A distinct, greppable line rather than a thrown error. A frozen
+      // upstream is not a transient fault: throwing would make EventBridge
+      // retry three times and write three more rows for the same day, none of
+      // which would help. A metric filter turns this into an alarm instead.
+      console.warn(
+        `STALE_PRICES source=${source} asOf=${asOf} unchangedBusinessDays=${unchangedDays}`,
+      );
+    }
+  }
+
   const body = outcome.body ?? '';
   await client.query(
     `INSERT INTO price_capture (id, requested_at, as_of, source, ok, http_status, error,
-       entry_count, skipped_refs, payload_gzip, payload_bytes, payload_sha256, parser_version)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+       entry_count, skipped_refs, payload_gzip, payload_bytes, payload_sha256, quotes_sha256,
+       parser_version)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
     [
       requestedAt.toISOString(),
       asOf,
@@ -323,11 +421,19 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
       // different Content-Encoding, which would make every hash unique and
       // silently disable change detection without any error.
       createHash('sha256').update(body, 'utf8').digest('hex'),
+      digest,
       PARSER_VERSION,
     ],
   );
 
-  return { source, asOf, ok: error === null, entries: entryCount ?? 0, error };
+  return {
+    source,
+    asOf,
+    ok: error === null,
+    entries: entryCount ?? 0,
+    error,
+    ...(unchangedDays === undefined ? {} : { unchangedDays }),
+  };
 }
 
 /** Business day in the Gregorian sense only — Ukrainian public holidays are not

@@ -82,6 +82,11 @@ Resources:
           DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
+          # Business days of identical prices before the stale-price alarm.
+          # An environment variable rather than a constant so it can be
+          # recalibrated from real data without a deploy — the right value is
+          # an empirical question nobody can answer yet.
+          STALE_AFTER_DAYS: '5'
       Policies:
         - Statement:
             - Sid: ConnectToDsqlAsAdmin
@@ -200,6 +205,41 @@ Resources:
       Threshold: 1
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # A frozen upstream is the one failure that looks exactly like success: the
+  # fetch returns 200, the parse yields all 35 entries, every value is a
+  # plausible number — and none of them has moved. Neither the error alarm nor
+  # the silence alarm can see it, because nothing errored and the job did run.
+  #
+  # A metric filter over the log line costs nothing (filters are free; the
+  # metric is one of 10 free custom metrics) and needs no extra IAM.
+  StalePricesMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: STALE_PRICES
+      MetricTransformations:
+        - MetricNamespace: Kubushka
+          MetricName: StalePrices
+          MetricValue: '1'
+          DefaultValue: 0
+
+  StalePricesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Prices have not moved for several consecutive business days.
+      Namespace: Kubushka
+      MetricName: StalePrices
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      # notBreaching, unlike the silence alarm: no data here means no stale
+      # capture was logged, which is the healthy state. The silence alarm is
+      # what covers "nothing ran at all".
+      TreatMissingData: notBreaching
       AlarmActions: [!Ref AlertTopic]
 
   DlqAlarm:
