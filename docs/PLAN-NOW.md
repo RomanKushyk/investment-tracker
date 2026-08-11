@@ -26,7 +26,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
 | A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
 | **Section E** | **Finish the rename (D42)** | | | |
-| E1 | App-side renames | `chore/rename-quirenote-app` | M | todo |
+| E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles | console | S | todo |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | todo |
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | todo |
@@ -232,28 +232,35 @@ days, because the streak history and the observation window are per-cluster.
 No AWS, fully reversible, and nothing here depends on E2–E4. Do it first so the
 destructive phase starts from a clean tree.
 
-- [ ] `src/lib/sync.ts` — `DB_LOCK` and `SYNC_CHANNEL` to `quirenote-db` /
+- [x] `src/lib/sync.ts` — `DB_LOCK` and `SYNC_CHANNEL` to `quirenote-db` /
       `quirenote-sync`. **These persist nothing** — the only effect is that a tab
       left open across the deploy will not hear a tab opened after it, for one
       session.
-- [ ] `src/lib/db.ts` — `class KubushkaDB` → `QuirenoteDB`, and the Dexie names
+- [x] `src/lib/db.ts` — `class KubushkaDB` → `QuirenoteDB`, and the Dexie names
       to `quirenote` / `quirenote-live`. **No IndexedDB migration is written**:
       live is empty and demo reseeds itself, which is the migration. The old
       databases are left on disk rather than deleted — a rename that also
       destroys data is two operations pretending to be one.
-- [ ] `src/state/settings.ts` and `src/state/draft.ts` — keys to
+- [x] `src/state/settings.ts` and `src/state/draft.ts` — keys to
       `quirenote-settings` / `quirenote-draft`, **with a real migration**: on
       boot, if the new key is absent and the old one present, copy it across and
       then remove the old. Here the key *is* the data, so a bare rename silently
       discards currency, ₴/$ rate and every dismissed reminder. The settings
       store already has the `migrate` hook (G3) this belongs in.
-- [ ] `src/core/backup/json.ts` — export `format: 'quirenote-backup'`; the
+- [x] `src/core/backup/json.ts` — export `format: 'quirenote-backup'`; the
       importer **accepts both markers** so every file ever exported stays
       readable. Then the D41 message can finally read cleanly, and its comment
       about the deliberate mismatch comes out.
-- [ ] `package.json` `name`.
-- [ ] `navigation-map.md` — the DB names and localStorage keys appear in roughly
+- [x] `package.json` `name`.
+- [x] `navigation-map.md` — the DB names and localStorage keys appear in roughly
       fifteen checkpoints; all of them move.
+
+**Done 2026-08-11.** Verified in the browser, not only in tests: an old-key
+profile with currency USD, rate 41.5, lead time 14, a dismissal and a quote
+draft all survived the reload under the new keys, with the old keys gone;
+demo reseeded under `quirenote` to 4/174/18 with every D5-pinned figure
+intact; a `kubushka-backup` file still imports and a fresh export carries the
+new marker. Six tests cover the migration paths. 512 tests green.
 
 **Verify (browser, not just tests):** set a non-default currency and ₴/$ rate and
 dismiss a reminder → reload → **all three survive** under the new key. Demo
