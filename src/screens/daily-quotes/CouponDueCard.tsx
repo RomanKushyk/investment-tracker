@@ -23,12 +23,20 @@ export function CouponDueCard({
   asset,
   due,
   prefill,
+  schedule,
   onSkip,
 }: {
   asset: Asset;
   due: DueCoupon;
   /** Amount to prefill (feed forecast or the stated coupon); undefined = empty. */
   prefill: number | undefined;
+  /**
+   * The provider's published payment dates, when the asset is linked. The roll
+   * below uses them instead of a month grid: the real bonds pay every 182 days
+   * on a Wednesday, and `addMonths` drifts 2 days by the next coupon and 5 by
+   * 2028 — so without this the pointer lands on a date the asset never pays on.
+   */
+  schedule: readonly string[] | undefined;
   onSkip: () => void;
 }) {
   // The field mirrors the prefill until the user touches it — `edited` is the
@@ -77,7 +85,7 @@ export function CouponDueCard({
         // Rolled off the occurrence just recorded, not off the asset's stored
         // pointer: the two differ whenever an earlier occurrence was settled by
         // hand, and the pointer must land on a date that is still open.
-        const roll = rollNextCoupon(asset, due.date);
+        const roll = rollNextCoupon(asset, due.date, schedule);
         if (roll?.kind === 'rolled') {
           await updateAsset.mutateAsync({ id: asset.id, patch: { nextCoupon: roll.nextCoupon } });
         }

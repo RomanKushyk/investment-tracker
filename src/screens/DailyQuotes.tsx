@@ -21,7 +21,7 @@ import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
 import { FetchQuotesButton } from './daily-quotes/FetchQuotesButton';
 import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
-import { accrualSuggestion, couponPrefill } from './daily-quotes/suggestions';
+import { accrualSuggestion, couponPrefill, feedSchedule } from './daily-quotes/suggestions';
 import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
@@ -215,6 +215,7 @@ export function DailyQuotes() {
                 asset={asset}
                 due={d}
                 prefill={couponPrefill(asset, d, fetch.feed)}
+                schedule={feedSchedule(asset, fetch.feed)}
                 onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
               />
             );

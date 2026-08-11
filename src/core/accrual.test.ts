@@ -505,3 +505,54 @@ describe('dailyAccrual over a real coupon period', () => {
     expect(couponPeriodDays(schedule, '2026-09-24')).toBe(182);
   });
 });
+
+describe('the published schedule beats the month grid (A1)', () => {
+  // UA4000238976 as the feed actually publishes it: every 182 days, always a
+  // Wednesday. `addMonths(anchor, 6)` from the same anchor lands on the 25th.
+  const REAL = ['2026-03-24', '2026-09-23', '2027-03-24'];
+  const linked = () =>
+    bond({ nextCoupon: '2026-09-25', couponAmount: 1240, maturity: '2027-03-24' });
+
+  it('counts the coupon on the real date, not the grid date', () => {
+    const a = linked();
+    // A gap that contains the REAL date but ends before the grid's 25th.
+    expect(couponsInGap(a, '2026-09-20', '2026-09-24', REAL)).toBe(1240);
+    // Without the schedule the same gap sees nothing — the defect, pinned.
+    expect(couponsInGap(a, '2026-09-20', '2026-09-24')).toBe(0);
+  });
+
+  it('does not count it twice when the gap spans both dates', () => {
+    expect(couponsInGap(linked(), '2026-09-01', '2026-09-30', REAL)).toBe(1240);
+  });
+
+  it('counts the maturity date once, though the schedule lists it twice', () => {
+    // The final row is coupon AND principal on one date; only one is a coupon.
+    const withDuplicate = [...REAL, '2027-03-24'];
+    expect(couponsInGap(linked(), '2027-03-01', '2027-03-31', withDuplicate)).toBe(1240);
+  });
+
+  it('rolls to the published date', () => {
+    expect(rollNextCoupon(linked(), '2026-03-24', REAL)).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2026-09-23',
+    });
+    // Same call without the schedule drifts to the 24th of the grid month.
+    expect(rollNextCoupon(linked(), '2026-03-24')).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2026-09-24',
+    });
+  });
+
+  it('still clamps at maturity with a schedule', () => {
+    expect(rollNextCoupon(linked(), '2027-03-24', REAL)).toEqual({ kind: 'matured' });
+  });
+
+  it('falls back to the grid for an asset with no linked schedule', () => {
+    // The non-regression that protects every existing seed-coupled test.
+    expect(couponsInGap(linked(), '2026-09-20', '2026-09-26', undefined)).toBe(1240);
+    expect(rollNextCoupon(linked(), '2026-03-25', undefined)).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2026-09-25',
+    });
+  });
+});

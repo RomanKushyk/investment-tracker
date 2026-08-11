@@ -117,14 +117,37 @@ export function couponPeriodDays(dates: string[], onIso: string): number | undef
  *
  * The gap crossing MATTERS: a bond's price DROPS by the coupon on payment day,
  * so a carry-forward that only adds accrual would over-suggest by one coupon
- * (an explicit plan Verify item). The grid is walked from the anchor because
+ * (an explicit plan Verify item).
+ *
+ * `schedule` — the provider's published payment dates. Pass them whenever they
+ * exist; the month grid below is the FALLBACK for an asset with no linked
+ * schedule, exactly as `dailyAccrual` keeps its annualised approximation.
+ *
+ * The grid is walked from the anchor because
  * `nextCoupon` may sit on either side of the gap — before it once the user has
  * confirmed that coupon, after it while the payment is still pending.
  */
-export function couponsInGap(asset: Asset, fromExclusive: string, toInclusive: string): number {
+export function couponsInGap(
+  asset: Asset,
+  fromExclusive: string,
+  toInclusive: string,
+  schedule?: readonly string[],
+): number {
   const amount = asset.couponAmount;
   const anchor = asset.nextCoupon;
   if (amount === undefined || amount <= 0 || !anchor) return 0;
+
+  // The provider's own dates beat any grid derived from them. The real bonds
+  // pay every 182 days and always on a Wednesday, which no month arithmetic
+  // reproduces: from a 25.03.2026 anchor the grid is 2 days late by the next
+  // coupon and 5 days late by 2028. Dates deduped because the final row lands
+  // twice — the last coupon and the principal share the maturity date, and only
+  // one of them is a coupon.
+  if (schedule !== undefined && schedule.length > 0) {
+    const dates = [...new Set(schedule)];
+    const count = dates.filter((d) => d > fromExclusive && d <= toInclusive).length;
+    return count * amount;
+  }
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
   if (months === undefined) {
@@ -323,7 +346,11 @@ export type CouponRoll = { kind: 'rolled'; nextCoupon: string } | { kind: 'matur
  * `nextUnsettledCoupon` walks with it) — the asset's own `nextCoupon` may lag
  * behind it and would otherwise roll to a date already settled.
  */
-export function rollNextCoupon(asset: Asset, from?: string): CouponRoll | undefined {
+export function rollNextCoupon(
+  asset: Asset,
+  from?: string,
+  schedule?: readonly string[],
+): CouponRoll | undefined {
   const current = from ?? asset.nextCoupon;
   if (!current) return undefined;
 
@@ -331,7 +358,14 @@ export function rollNextCoupon(asset: Asset, from?: string): CouponRoll | undefi
   if (maturity !== undefined && current >= maturity) return { kind: 'matured' };
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
-  const next = months === undefined ? maturity : addMonths(current, months);
+  // Published dates first, for the reason couponsInGap gives. The maturity
+  // clamp below still applies: with a real schedule it becomes expressible from
+  // the data rather than asserted, since the schedule ends there too.
+  const scheduled =
+    schedule === undefined
+      ? undefined
+      : [...new Set(schedule)].sort().find((d) => d > current);
+  const next = scheduled ?? (months === undefined ? maturity : addMonths(current, months));
   if (next === undefined) return { kind: 'matured' }; // no period and no maturity date
   if (maturity !== undefined && next > maturity) return { kind: 'rolled', nextCoupon: maturity };
   return { kind: 'rolled', nextCoupon: next };

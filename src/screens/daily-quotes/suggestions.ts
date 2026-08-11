@@ -16,22 +16,29 @@ import type { Asset, Snapshot } from '../../core/types';
 import { lastQuoteBefore } from './quotes';
 
 /**
- * The real coupon period for `asset` around `onIso`, from the provider's own
- * payment dates. Undefined for an unlinked asset, a feed that does not carry it
- * or a date the schedule cannot bracket — the caller then falls back.
+ * The provider's published payment dates for `asset`. Undefined for an unlinked
+ * asset, or a feed that does not carry it — every caller then falls back to the
+ * month grid.
+ *
+ * One extractor on purpose: the accrual divisor, the gap count and the roll all
+ * have to agree about which dates exist, and the cheapest way to guarantee that
+ * is for them to read the same function.
  */
+export function feedSchedule(asset: Asset, feed: ParsedFeed | undefined): string[] | undefined {
+  if (feed === undefined) return undefined;
+  const [match] = matchAssets([asset], feed).linked;
+  if (match === undefined) return undefined;
+  const dates = match.quote.paymentSchedule.map((p) => p.date);
+  return dates.length > 0 ? dates : undefined;
+}
+
 function feedPeriodDays(
   asset: Asset,
   feed: ParsedFeed | undefined,
   onIso: string,
 ): number | undefined {
-  if (feed === undefined) return undefined;
-  const [match] = matchAssets([asset], feed).linked;
-  if (match === undefined) return undefined;
-  return couponPeriodDays(
-    match.quote.paymentSchedule.map((p) => p.date),
-    onIso,
-  );
+  const dates = feedSchedule(asset, feed);
+  return dates === undefined ? undefined : couponPeriodDays(dates, onIso);
 }
 
 /**
@@ -68,7 +75,10 @@ export function accrualSuggestion(
       { expectedPct: asset.expectedPct, invested },
       feedPeriodDays(asset, feed, selectedDate),
     ),
-    couponsInGap: couponsInGap(asset, last.date, selectedDate),
+    // The SAME dates the divisor came from. If the accrual rate and the gap
+    // count ever disagreed about when a coupon lands, the ghost would drift by
+    // a whole coupon at exactly the boundary the user is looking at.
+    couponsInGap: couponsInGap(asset, last.date, selectedDate, feedSchedule(asset, feed)),
     maturity: asset.maturity,
   });
 }

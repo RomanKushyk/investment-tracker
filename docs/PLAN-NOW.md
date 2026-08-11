@@ -11,7 +11,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
 | **Section A** | **Time-critical** | | | |
-| A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | todo |
+| A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | **done** (2026-08-11) |
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
 | A2 | Raw payloads out of `price_capture` | `infra/payload-split` | M | todo |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | todo |
@@ -37,7 +37,14 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 # Section A — Time-critical
 
-## A1 — Coupon dates walk the published schedule — `fix/coupon-schedule-grid`
+## A1 — Coupon dates walk the published schedule — **DONE 2026-08-11**
+
+> Verified against the live feed, not only in tests. The published dates are
+> `2026-03-25`, `2026-09-23`, `2027-03-24` **twice** (coupon and principal
+> share the maturity date, deduped), period exactly **182 days**. In the
+> 20–23.09 window the coupon now counts as **78,40**; the month grid returns
+> **0** — it misses the September coupon entirely, which is the defect. The
+> grid still runs for an asset with no linked schedule.
 
 **Goal:** the app proposes a coupon on the date the provider actually pays it.
 
@@ -53,10 +60,10 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 The next real coupon on UA4000238976 is **2026-09-23**, and the grid would offer it on the 25th. That is the same date `PLAN-WAITING.md` W5 needs clean for the cum/ex observation, and it is a money value the user confirms with one press. `dailyAccrual` was fixed on 2026-08-11 (commit `290b26f`) to take the real period length; the date grid is the untouched half of the same defect.
 
-- [ ] `core/accrual.ts` — `couponsInGap` and `rollNextCoupon` accept the provider's payment dates and walk **those**, not a month grid. Reuse the existing `couponPeriodDays` bracketing rather than inventing a second traversal.
-- [ ] Keep the `addMonths` grid as the fallback for an asset with no linked schedule — an unlinked bond has nothing better, exactly as `dailyAccrual` keeps its approximation. Do not delete it.
-- [ ] Thread the feed to the callers. `DailyQuotes.tsx` already holds `fetch.feed`; audit every `dueCoupons` call site and pass it where it exists.
-- [ ] `rollNextCoupon` must still clamp at maturity and still return `{kind:'matured'}` past it — the schedule ends there too, so the clamp is now expressible from the data rather than asserted.
+- [x] `core/accrual.ts` — `couponsInGap` and `rollNextCoupon` accept the provider's payment dates and walk **those**, not a month grid. Reuse the existing `couponPeriodDays` bracketing rather than inventing a second traversal.
+- [x] Keep the `addMonths` grid as the fallback for an asset with no linked schedule — an unlinked bond has nothing better, exactly as `dailyAccrual` keeps its approximation. Do not delete it.
+- [x] Thread the feed to the callers. `DailyQuotes.tsx` already holds `fetch.feed`; audit every `dueCoupons` call site and pass it where it exists.
+- [x] `rollNextCoupon` must still clamp at maturity and still return `{kind:'matured'}` past it — the schedule ends there too, so the clamp is now expressible from the data rather than asserted.
 
 **Contracts:** `couponsInGap` / `rollNextCoupon` signatures gain an optional schedule argument — additive, so no caller breaks. **DECISIONS:** amend the D-Inzhur family: published schedule beats derived grid wherever the provider supplies one.
 **Verify:** the drift table above becomes fixtures (real date accepted, grid date rejected). A gap spanning 2026-09-23 subtracts exactly one coupon, not zero and not two. An unlinked bond keeps its current behaviour byte-for-byte — that is the non-regression, and it protects the ~97 seed-coupled test blocks. Browser: with the feed loaded, the coupon card appears on the 23rd.
