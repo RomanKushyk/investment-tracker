@@ -17,7 +17,7 @@ REGION="${REGION:-eu-north-1}"
 # account ID out of tracked files on purpose — which is also why the deploy role
 # ARN lives in a GitHub secret rather than in the workflow.
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-BUCKET="kubushka-sam-artifacts-${ACCOUNT_ID}"
+BUCKET="quirenote-sam-artifacts-${ACCOUNT_ID}"
 
 echo "bucket: ${BUCKET}"
 echo "region: ${REGION}"
@@ -92,7 +92,7 @@ fi
 # with a confusing "cannot be updated" rather than the original error. It must
 # be deleted first. Only ever deletes in this one state, and the DSQL cluster
 # carries DeletionPolicy: Retain, so no data can be lost here.
-STACK=kubushka-backend
+STACK=quirenote-backend
 STATE="$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
   --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NONE)"
 echo

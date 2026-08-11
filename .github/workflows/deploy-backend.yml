@@ -104,10 +104,10 @@ jobs:
         working-directory: infra
         run: |
           sam deploy \
-            --stack-name kubushka-backend \
+            --stack-name quirenote-backend \
             --region "$AWS_REGION" \
-            --s3-bucket "kubushka-sam-artifacts-${AWS_ACCOUNT_ID}" \
-            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/kubushka-backend-cfn-exec" \
+            --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
+            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset

@@ -49,7 +49,7 @@ Resources:
       DeletionProtectionEnabled: true
       Tags:
         - Key: app
-          Value: kubushka
+          Value: quirenote
 
   # --------------------------------------------------------------------------
   # Capture function

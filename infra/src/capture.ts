@@ -46,7 +46,7 @@ const MAX_ATTEMPTS = 3;
  * client sends none by default. Browsers always send one, which is why this
  * never surfaced while the fetch lived in the SPA.
  */
-const USER_AGENT = 'kubushka-price-capture/1.0 (+https://dev.d17m4jf400my6.amplifyapp.com)';
+const USER_AGENT = 'quirenote-price-capture/1.0 (+https://dev.d17m4jf400my6.amplifyapp.com)';
 
 interface FetchOutcome {
   ok: boolean;
