@@ -163,7 +163,13 @@ Resources:
   # --------------------------------------------------------------------------
   # Alarms — 3 of the 10 always-free
   # --------------------------------------------------------------------------
-  AlertTopic:
+  # Renamed from `AlertTopic` on 2026-08-11, which mints a NEW topic ARN — that
+  # is the point, not a side effect (D44). SNS deactivated the email
+  # subscription on the previous ARN immediately, three times running, while the
+  # same address on an older topic kept delivering. The suppression appears to
+  # be keyed to the endpoint+topic pair, so a fresh ARN is the way out. The name
+  # is also simply better: it says what the topic alerts about.
+  CaptureAlertTopic:
     Type: AWS::SNS::Topic
     Properties:
       Subscription:
@@ -183,7 +189,7 @@ Resources:
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
-      AlarmActions: [!Ref AlertTopic]
+      AlarmActions: [!Ref CaptureAlertTopic]
 
   # THE important one. A scheduler that never fires produces no logs, no errors
   # and no metrics — it is invisible by construction, and a missed day is
@@ -205,7 +211,7 @@ Resources:
       Threshold: 1
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
-      AlarmActions: [!Ref AlertTopic]
+      AlarmActions: [!Ref CaptureAlertTopic]
 
   # A frozen upstream is the one failure that looks exactly like success: the
   # fetch returns 200, the parse yields all 35 entries, every value is a
@@ -240,7 +246,7 @@ Resources:
       # capture was logged, which is the healthy state. The silence alarm is
       # what covers "nothing ran at all".
       TreatMissingData: notBreaching
-      AlarmActions: [!Ref AlertTopic]
+      AlarmActions: [!Ref CaptureAlertTopic]
 
   # The streak VALUE, published on every business-day capture rather than only
   # when it is bad. This is what makes the staleness check itself observable:
@@ -284,7 +290,7 @@ Resources:
       Threshold: 0
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
-      AlarmActions: [!Ref AlertTopic]
+      AlarmActions: [!Ref CaptureAlertTopic]
 
   DlqAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -299,7 +305,7 @@ Resources:
       Threshold: 0
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
-      AlarmActions: [!Ref AlertTopic]
+      AlarmActions: [!Ref CaptureAlertTopic]
 
 Outputs:
   ClusterIdentifier:
@@ -308,5 +314,5 @@ Outputs:
     Value: !GetAtt PriceCluster.ResourceArn
   FunctionName:
     Value: !Ref CaptureFunction
-  AlertTopicArn:
-    Value: !Ref AlertTopic
+  CaptureAlertTopicArn:
+    Value: !Ref CaptureAlertTopic
