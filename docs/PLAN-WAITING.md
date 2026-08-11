@@ -107,7 +107,31 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 
-- **Auth (D32):** Cognito user pool on the **Essentials** tier, **managed login**, **email + password**, **open registration** (owner ruling), refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
+- **Auth (D32, amended by D36):** Cognito user pool on the **Essentials** tier, **managed login**, **open registration** (owner ruling), refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
+- **Three sign-in methods, one account per email (D36):** password + Google + passkey. Passkeys add no duplication risk — a passkey is a credential on an existing user, not an account. The duplication pair is local-vs-federated, and it needs **both** mechanisms below.
+- **Free-tier watch (D37):** there is no CloudWatch MAU metric; three instruments stand in for one.
+
+**Pool-creation checklist — the immutable parts (D36).** `usernameAttributes` cannot be changed after the pool is created; getting it wrong means recreating the pool, so this is checked before `CreateUserPool`, not after:
+
+- [ ] `usernameAttributes: ['email']`. **Not `aliasAttributes`** — aliases let several users hold one email and resolve it as "only the last user who verified it can sign in", which silently takes sign-in away from an existing account.
+- [ ] Essentials tier (passkeys are not in Lite).
+- [ ] Refresh token in years; access and ID tokens left at 60 minutes.
+
+**Account linking (D36).**
+
+- [ ] Pre-sign-up Lambda trigger calling `AdminLinkProviderForUser`, linking the incoming federated identity to the existing local user **before** Cognito mints a duplicate profile.
+- [ ] **Link only when the IdP asserts `email_verified: true`, read explicitly in the trigger.** AWS's own warning: use it only with IdPs and attributes you trust. Linking an unverified address hands the account to anyone who can claim it. Google does assert the claim — the trigger still reads it, because the day a second provider is added is the day an assumption becomes a takeover.
+- [ ] Direction is fixed: **local user is the destination, federated identity is the source.** The account that owns the portfolio must not be the one that disappears when an external provider is removed.
+- [ ] Ceiling to respect: five federated identities per user.
+
+**Free-tier monitoring (D37).**
+
+- [ ] Confirm the **root account email** is monitored — AWS Free Tier usage alerts fire at 85% of the limit automatically, and they go there (Billing → Preferences → Alert preferences). Zero code; the only work is making sure someone reads it.
+- [ ] Add an **AWS Budgets usage budget at 100% of the Cognito free tier**. This is the second of the two budgets that fit in Budgets' own free allowance (60 budget-days/month); the $5 cost budget is the first. A third costs $0.02/day.
+- [ ] Emit `DescribeUserPool.EstimatedNumberOfUsers` from the **01:00 capture** — no second schedule, because "exactly one automation" is a pinned ruling — as a log line, turned into a metric by a **metric filter** (free; only 10 custom metrics are). Total users is a strict upper bound on MAU, so it fires early and never late.
+- [ ] Alarm at **8,000 users (80%)**, deliberately ahead of the 85% billing alert — a guard that fires with the bill is not a guard. `TreatMissingData: notBreaching`, unlike the capture-silence alarm: a missing count means the emitter stopped, which the existing liveness alarm already catches.
+- [ ] Dashboard: user count beside `SignUpSuccesses`. Neither is MAU — say so on the chart. `SignUpSuccesses` is the one that shows the risk open registration actually adds, a signup spike.
+- [ ] Role change to make consciously: the capture role gains `cognito-idp:DescribeUserPool` and nothing else. That reads **pool configuration, not users** — no attribute, list or user datum becomes reachable, so the boundary that makes suggest-only a permission rather than a convention holds.
 - **Value derivation (D33):** there is no past-date prefill, because there is nothing to prefill — `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`, computed at read time. **The migration must carry the existing 174 snapshots into a per-user `user_price` overlay**; discarding them deletes five months of history no source can regenerate.
 - **Seed (D34):** rewritten to reconcile under the ledger model — withdrawal rows and `tax` rows carrying `settles_payout_id` — so every D5-pinned figure and every `navigation-map.md` checkpoint stays valid. 97 `it()` blocks across 12 files ride on it.
 

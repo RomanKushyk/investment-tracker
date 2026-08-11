@@ -1014,7 +1014,7 @@ registration is $0 until this project has ten thousand monthly users.
 It includes Managed Login and passwordless options; Lite has only the classic
 hosted UI and no passkeys. **Plus has no free tier**, which matters below.
 
-**Sign-in is email + password through Cognito's managed login.** This one was
+**Sign-in is email + password through Cognito's managed login.** *(Amended by D36: social and passkey were added, with the one-account-per-email rules that go with them.)* This one was
 left unanswered and is therefore decided here, and open registration is what
 makes it near-mandatory rather than merely convenient: a public sign-up path
 needs email verification, password reset and throttling on all of them. Managed
@@ -1130,3 +1130,117 @@ D13's cash half**; its day-count and metric-family rulings stand.
 reads through `repository.ts`, which becomes an HTTP client; exporting full
 history then means fetching the cached yearly NDJSON the read contract already
 defines. No decision required — listed so it is not rediscovered mid-migration.
+
+## D36 — Three sign-in methods, one account per email (2026-08-11)
+
+Amends D32, which specified email + password alone. The owner wants **password
++ social + passkey**, and raised the Cognito trap: one email can end up with a
+separate account per method. Researched before deciding, because the fix is
+partly a pool setting that **cannot be changed after the pool is created**.
+
+**The premise is right for social and wrong for passkey.** A passkey is not an
+account — it is a WebAuthn credential registered onto an existing user
+(`StartWebAuthnRegistration` requires an access token, so the user is already
+signed in), and sign-in is `AuthFlow: USER_AUTH` with `PREFERRED_CHALLENGE:
+WEB_AUTHN` against an existing `USERNAME`. Passkeys therefore add zero
+duplication risk. **The duplication problem is exactly one pair: a local
+(email + password) user versus a federated (Google) user.**
+
+Two mechanisms, and both are required — neither covers the other's case.
+
+**1. `usernameAttributes: ['email']` — uniqueness among LOCAL users.** AWS's own
+comparison table is explicit: with username attributes you *cannot* assign the
+same email to more than one user, and a duplicate sign-up fails rather than
+succeeding quietly. **This is immutable after pool creation** — getting it wrong
+means recreating the pool — which is why it is settled now rather than during
+the build.
+
+`aliasAttributes` is **rejected**. It permits several users to hold the same
+email and resolves the conflict with "only the last user who has verified the
+attribute can sign in with it". A rule under which verifying an email silently
+takes sign-in away from another account is not a rule this project wants.
+
+**2. A pre-sign-up Lambda trigger calling `AdminLinkProviderForUser` —
+uniqueness ACROSS providers.** Nothing in the pool's configuration stops Google
+from minting a second profile for an address that already has a local user;
+only the trigger does, by linking the incoming federated identity to the
+existing local user *before* Cognito creates the duplicate. Afterwards the
+Google sign-in resolves to the same account, with the same data. Ceiling: **five
+federated identities per user**, far beyond one provider.
+
+**The security condition on linking is not optional.** AWS states it directly:
+*"it is critical that it only be used with external IdPs and linked attributes
+that you trust."* Concretely — **link only when the IdP asserts
+`email_verified: true`, checked explicitly in the trigger, never assumed.**
+Linking on an unverified address means anyone who can present an identity
+claiming that address inherits the account. Google does assert the claim; the
+trigger must still read it, because the day a second provider is added is the
+day an assumption becomes a takeover.
+
+Direction is also decided: **the local account is the destination, the
+federated identity is the source.** A local user exists whether or not Google
+does, and the account that owns the portfolio should not be the one that
+disappears if an external provider is removed.
+
+**Cost note:** AWS recommends linking as a cost measure — a federated user who
+signs in through a linked local account is billed as a local user. It barely
+applies here (Google counts as a *social* provider, already inside the 10,000
+MAU free tier, unlike the 50 MAU SAML/OIDC tier), but it points the same way.
+
+## D37 — Watching the 10,000 MAU free tier: what exists and what does not (2026-08-11)
+
+The owner asked for an alarm as usage approaches the free-tier limit, plus a
+chart. Researched first, and the first finding changes the design.
+
+**There is no CloudWatch metric for MAU.** `AWS/Cognito` publishes activity
+counts — `SignUpSuccesses`, `SignInSuccesses`, `TokenRefreshSuccesses` — and
+none of them is MAU: one user signing in thirty times is one MAU and thirty
+`SignInSuccesses`. AWS's own cost page routes this to the Billing console,
+Service Quotas utilisation and CloudTrail queries, not to a metric. So an alarm
+"at 8,500 MAU" cannot be built directly, and anything claiming to be one is
+measuring something else.
+
+Three instruments together, each honest about what it is:
+
+**1. AWS Free Tier usage alerts — exact, automatic, already on.** They notify at
+**85% of the free-tier limit per service**, are enabled by default for
+individual accounts, and cover always-free offerings. Zero code, zero cost. The
+one action needed: the alert goes to the **root account email**, so confirm that
+address is monitored (Billing → Preferences → Alert preferences).
+
+**2. An AWS Budgets usage budget at 100% of the free tier — exact, and the
+second of two free budgets.** Budgets bills 60 budget-days/month free, roughly
+two always-on budgets; the project already runs one $5 cost budget, so this one
+is still free. A third would cost $0.02/day.
+
+**3. `EstimatedNumberOfUsers` — the leading indicator, and the chart.** Both
+instruments above are billing-side and therefore lag. The pool's total user
+count is a **strict upper bound on MAU** — MAU can never exceed the number of
+users that exist — so alarming on it fires early and never late, which is the
+right direction for a cost guard. It is one `DescribeUserPool` call, and
+critically it does **not** mark anyone active, unlike `AdminGetUser`, which AWS
+warns contributes to MAU. Charting `SignUpSuccesses` beside it shows the shape
+of the risk that open registration (D32) actually introduces: a signup spike.
+
+**It rides the 01:00 capture, because "exactly one automation" is a pinned
+owner ruling.** No second schedule is created. The capture Lambda emits the
+count as a log line, a **metric filter** turns it into a metric — free, and the
+same pattern already used for `unchangedDays` (D28), which matters because only
+10 custom metrics are free.
+
+This widens the capture role by exactly one action, `cognito-idp:DescribeUserPool`.
+Stated plainly because the role's narrowness is load-bearing: that action reads
+**pool configuration, not users**. No user attribute, no user list and no user
+data becomes reachable, so the boundary that makes suggest-only a permission
+rather than a convention is intact.
+
+**Thresholds.** Alarm at **8,000 users** (80%) rather than 85%, so it precedes
+the billing-side alert instead of arriving with it — a guard that fires at the
+same moment as the bill is not a guard. `TreatMissingData: notBreaching` here,
+the opposite of the capture-silence alarm: a missing user count means the
+emitter stopped, which is what the existing liveness alarm already catches, and
+duplicating it would only produce two alarms for one fault.
+
+**None of this can be built before the user pool exists** (W7). It is specified
+now because `usernameAttributes` in D36 is immutable at creation, and a pool
+built without the monitor in mind is a pool that gets it retrofitted.
