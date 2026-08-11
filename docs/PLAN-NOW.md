@@ -247,10 +247,10 @@ destructive phase starts from a clean tree.
       then remove the old. Here the key *is* the data, so a bare rename silently
       discards currency, ₴/$ rate and every dismissed reminder. The settings
       store already has the `migrate` hook (G3) this belongs in.
-- [x] `src/core/backup/json.ts` — export `format: 'quirenote-backup'`; the
-      importer **accepts both markers** so every file ever exported stays
-      readable. Then the D41 message can finally read cleanly, and its comment
-      about the deliberate mismatch comes out.
+- [x] `src/core/backup/json.ts` — the marker becomes `quirenote-backup`, full
+      stop. Dual acceptance was written and then removed on the owner's
+      correction: one user, no real data, so keeping the old marker readable was
+      flexibility nobody asked for. The D41 mismatch message goes with it.
 - [x] `package.json` `name`.
 - [x] `navigation-map.md` — the DB names and localStorage keys appear in roughly
       fifteen checkpoints; all of them move.
@@ -259,8 +259,7 @@ destructive phase starts from a clean tree.
 profile with currency USD, rate 41.5, lead time 14, a dismissal and a quote
 draft all survived the reload under the new keys, with the old keys gone;
 demo reseeded under `quirenote` to 4/174/18 with every D5-pinned figure
-intact; a `kubushka-backup` file still imports and a fresh export carries the
-new marker. Six tests cover the migration paths. 512 tests green.
+intact; and a fresh export carries the new marker. Six tests cover the migration paths. 512 tests green.
 
 **Verify (browser, not just tests):** set a non-default currency and ₴/$ rate and
 dismiss a reminder → reload → **all three survive** under the new key. Demo

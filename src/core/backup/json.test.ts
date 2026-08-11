@@ -389,17 +389,8 @@ describe('parseBackup rejections', () => {
   });
 });
 
-describe('the pre-rename marker stays readable (D42)', () => {
-  it('accepts a kubushka-backup file so an already-downloaded backup still works', () => {
-    const legacy = { ...envelope(), format: 'kubushka-backup' };
-    const result = parseBackup(JSON.stringify(legacy));
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.data.format).toBe('kubushka-backup');
-    expect(result.data.assets).toHaveLength(legacy.assets.length);
-  });
-
-  it('writes the new marker on export', () => {
+describe('the envelope marker (D42)', () => {
+  it('writes quirenote-backup on export', () => {
     expect(envelope().format).toBe('quirenote-backup');
   });
 });

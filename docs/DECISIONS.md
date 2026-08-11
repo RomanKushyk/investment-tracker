@@ -1590,9 +1590,14 @@ rename will ever be.
 **Four items D41 misclassified**, corrected here: the Web Lock `kubushka-db` and
 the BroadcastChannel `kubushka-sync` persist **nothing** — they are runtime
 strings, and renaming them is free. `class KubushkaDB`, the npm `name` and the
-capture `USER_AGENT` likewise. `BACKUP_FORMAT` is cheap if the importer accepts
-**both** markers while the exporter writes the new one, which keeps every file
-ever exported readable. Only the localStorage keys need real care, and the
+capture `USER_AGENT` likewise. `BACKUP_FORMAT` is a one-line change.
+
+*(Amended during E1, on the owner's correction: dual-marker acceptance was
+written and then removed. It was justified as "a downloaded backup must stay
+readable" — but there is one user and no real data, so it was flexibility
+nobody asked for, which CLAUDE.md rule 2 forbids. The marker is simply
+renamed; a pre-rename file is now rejected, and that is correct because no
+such file matters.)* Only the localStorage keys need real care, and the
 settings store already has the `migrate` hook (G3) that does it.
 
 **The order is deploy-new-then-delete-old, never the reverse.** The new stack

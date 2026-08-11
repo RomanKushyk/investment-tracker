@@ -37,9 +37,6 @@ export function formatReasonSentence(code: FormatRejectionCode, version?: number
   switch (code) {
     case 'not-json':
       return "That file isn't valid JSON.";
-    // Names the CURRENT marker only. A file carrying the pre-rename
-    // `kubushka-backup` marker is still accepted (D42), so it never reaches
-    // this message — which is why the sentence does not have to mention it.
     case 'not-a-backup':
       return 'This isn\'t a Quirenote backup — it has no "quirenote-backup" marker.';
     case 'newer-format':

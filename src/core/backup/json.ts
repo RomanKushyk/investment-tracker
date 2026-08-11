@@ -10,14 +10,6 @@ import { z } from 'zod';
 import type { Asset, Settings, Snapshot, Transaction } from '../types';
 
 export const BACKUP_FORMAT = 'quirenote-backup';
-/**
- * Markers a file may carry and still be read. The exporter writes
- * `BACKUP_FORMAT`; `kubushka-backup` is the pre-rename marker (D42) and stays
- * accepted permanently — a rename must not make a backup someone already
- * downloaded unreadable, and the whole point of a safety backup is that it
- * still works on the day it is needed.
- */
-export const ACCEPTED_FORMATS = [BACKUP_FORMAT, 'kubushka-backup'] as const;
 export const BACKUP_FORMAT_VERSION = 1;
 
 export type Dataset = 'demo' | 'live';
@@ -108,7 +100,7 @@ const settingsSchema = z.strictObject({
 });
 
 export const backupEnvelopeSchema = z.strictObject({
-  format: z.enum(ACCEPTED_FORMATS),
+  format: z.literal(BACKUP_FORMAT),
   formatVersion: z.literal(BACKUP_FORMAT_VERSION),
   exportedAt: isoDateTime,
   dbVersion: z.number().int().positive(),
@@ -186,7 +178,7 @@ export function readEnvelopeHead(text: string): EnvelopeHead {
     };
   }
   const head = raw as Record<string, unknown>;
-  if (!ACCEPTED_FORMATS.includes(head.format as (typeof ACCEPTED_FORMATS)[number])) {
+  if (head.format !== BACKUP_FORMAT) {
     return {
       ok: false,
       code: 'not-a-backup',

@@ -252,6 +252,242 @@ Two things this policy deliberately does **not** grant, and must never:
   ~$0.02 baseline. Withholding the permission is a stronger guarantee than
   remembering not to add one.
 
+---
+
+## E2 — the two replacement roles (D42, Plan A Section E)
+
+Copy-paste ready. **Create these alongside the existing roles; delete the old
+pair only after E3 finishes.** Replace `<account-id>` with `<AWS_ACCOUNT_ID>`.
+
+Three things changed from the pair above, and one deliberately did not:
+
+- every `kubushka-backend-*` → `quirenote-backend-*`, in **eight** ARN patterns;
+- the SAM artifacts bucket → `quirenote-sam-artifacts-<account-id>`, which is a
+  **new bucket** (S3 names cannot be renamed) holding only disposable upload
+  artifacts;
+- the role names themselves;
+- **the DSQL resource stays `cluster/*`** — DSQL cluster IDs are generated, not
+  named, so there is no prefix to change. A consequence worth knowing during E3:
+  the new exec role can therefore reach the *old* cluster too. CloudFormation
+  will not touch it, because it is not in the new stack, but the teardown does
+  not need extra permission either.
+
+The trust policy's `sub` condition is unchanged — it keys on the **environment**
+rather than the branch, and the owner/repo carry immutable numeric IDs, so a new
+role reuses it verbatim.
+
+### Prerequisite — the new artifacts bucket
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws s3api create-bucket \
+  --bucket "quirenote-sam-artifacts-${ACCOUNT_ID}" \
+  --region eu-north-1 \
+  --create-bucket-configuration LocationConstraint=eu-north-1
+aws s3api put-public-access-block \
+  --bucket "quirenote-sam-artifacts-${ACCOUNT_ID}" \
+  --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+```
+
+The old bucket is emptied and deleted in E4, not now — it still serves the
+running stack until E3 cuts over.
+
+### Role 1 — `quirenote-backend-deploy`
+
+Trust policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+      "StringLike": { "token.actions.githubusercontent.com:sub": "repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*" }
+    }
+  }]
+}
+```
+
+Inline permission policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DriveTheStack",
+      "Effect": "Allow",
+      "Action": ["cloudformation:CreateStack", "cloudformation:UpdateStack",
+                 "cloudformation:DescribeStacks", "cloudformation:DescribeStackEvents",
+                 "cloudformation:DescribeStackResources", "cloudformation:GetTemplateSummary",
+                 "cloudformation:CreateChangeSet", "cloudformation:DescribeChangeSet",
+                 "cloudformation:ExecuteChangeSet", "cloudformation:DeleteChangeSet",
+                 "cloudformation:ListStackResources"],
+      "Resource": ["arn:aws:cloudformation:eu-north-1:<account-id>:stack/quirenote-backend/*",
+                   "arn:aws:cloudformation:eu-north-1:aws:transform/Serverless-2016-10-31"]
+    },
+    {
+      "Sid": "HandOffToCloudFormationOnly",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-cfn-exec",
+      "Condition": { "StringEquals": { "iam:PassedToService": "cloudformation.amazonaws.com" } }
+    },
+    {
+      "Sid": "SamArtifacts",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"],
+      "Resource": ["arn:aws:s3:::quirenote-sam-artifacts-<account-id>",
+                   "arn:aws:s3:::quirenote-sam-artifacts-<account-id>/*"]
+    }
+  ]
+}
+```
+
+### Role 2 — `quirenote-backend-cfn-exec`
+
+Trust policy — CloudFormation only:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "cloudformation.amazonaws.com" },
+    "Action": "sts:AssumeRole",
+    "Condition": { "StringEquals": { "aws:SourceAccount": "<account-id>" } }
+  }]
+}
+```
+
+Inline permission policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Database",
+      "Effect": "Allow",
+      "Action": ["dsql:CreateCluster", "dsql:GetCluster", "dsql:UpdateCluster",
+                 "dsql:DeleteCluster", "dsql:TagResource", "dsql:UntagResource",
+                 "dsql:ListTagsForResource", "dsql:PutMultiRegionProperties",
+                 "dsql:GetClusterPolicy", "dsql:PutClusterPolicy",
+                 "dsql:DeleteClusterPolicy", "dsql:GetVpcEndpointServiceName"],
+      "Resource": "arn:aws:dsql:eu-north-1:<account-id>:cluster/*"
+    },
+    {
+      "Sid": "Function",
+      "Effect": "Allow",
+      "Action": ["lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction",
+                 "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode",
+                 "lambda:UpdateFunctionConfiguration", "lambda:AddPermission",
+                 "lambda:RemovePermission", "lambda:GetPolicy",
+                 "lambda:PutFunctionConcurrency", "lambda:DeleteFunctionConcurrency",
+                 "lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"],
+      "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-*"
+    },
+    {
+      "Sid": "RolesTheStackOwns",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:DeleteRole", "iam:GetRole",
+                 "iam:PutRolePolicy", "iam:DeleteRolePolicy", "iam:GetRolePolicy",
+                 "iam:AttachRolePolicy", "iam:DetachRolePolicy",
+                 "iam:ListRolePolicies", "iam:ListAttachedRolePolicies",
+                 "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole",
+                 "iam:PassRole"],
+      "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-*"
+    },
+    {
+      "Sid": "Logs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:DeleteLogGroup",
+                 "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy",
+                 "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource",
+                 "logs:PutMetricFilter", "logs:DeleteMetricFilter",
+                 "logs:DescribeMetricFilters"],
+      "Resource": "arn:aws:logs:eu-north-1:<account-id>:log-group:/aws/lambda/quirenote-backend-*"
+    },
+    {
+      "Sid": "DeadLetterQueue",
+      "Effect": "Allow",
+      "Action": ["sqs:CreateQueue", "sqs:DeleteQueue", "sqs:GetQueueAttributes",
+                 "sqs:SetQueueAttributes", "sqs:GetQueueUrl", "sqs:TagQueue",
+                 "sqs:UntagQueue", "sqs:ListQueueTags"],
+      "Resource": "arn:aws:sqs:eu-north-1:<account-id>:quirenote-backend-*"
+    },
+    {
+      "Sid": "AlertTopic",
+      "Effect": "Allow",
+      "Action": ["sns:CreateTopic", "sns:DeleteTopic", "sns:GetTopicAttributes",
+                 "sns:SetTopicAttributes", "sns:Subscribe", "sns:Unsubscribe",
+                 "sns:ListSubscriptionsByTopic", "sns:TagResource",
+                 "sns:UntagResource", "sns:ListTagsForResource"],
+      "Resource": "arn:aws:sns:eu-north-1:<account-id>:quirenote-backend-*"
+    },
+    {
+      "Sid": "Alarms",
+      "Effect": "Allow",
+      "Action": ["cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms",
+                 "cloudwatch:TagResource", "cloudwatch:UntagResource",
+                 "cloudwatch:ListTagsForResource"],
+      "Resource": "arn:aws:cloudwatch:eu-north-1:<account-id>:alarm:quirenote-backend-*"
+    },
+    {
+      "Sid": "Schedule",
+      "Effect": "Allow",
+      "Action": ["scheduler:CreateSchedule", "scheduler:GetSchedule",
+                 "scheduler:UpdateSchedule", "scheduler:DeleteSchedule",
+                 "scheduler:TagResource", "scheduler:UntagResource",
+                 "scheduler:ListTagsForResource"],
+      "Resource": "arn:aws:scheduler:eu-north-1:<account-id>:schedule/default/quirenote-backend-*"
+    },
+    {
+      "Sid": "ReadTemplateAndArtifacts",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": "arn:aws:s3:::quirenote-sam-artifacts-<account-id>/*"
+    },
+    {
+      "Sid": "ApplyTheSamTransform",
+      "Effect": "Allow",
+      "Action": "cloudformation:CreateChangeSet",
+      "Resource": "arn:aws:cloudformation:eu-north-1:aws:transform/Serverless-2016-10-31"
+    },
+    {
+      "Sid": "NoResourceLevelSupport",
+      "Effect": "Allow",
+      "Action": ["cloudwatch:DescribeAlarms", "logs:DescribeLogGroups",
+                 "scheduler:ListSchedules", "dsql:ListClusters"],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### The two traps, restated because they cost eight CI cycles last time
+
+**`ApplyTheSamTransform` is not optional and is not obvious.**
+`AWS::Serverless-2016-10-31` is a macro CloudFormation expands **as the
+execution role**, not as the principal that ran `sam deploy`. Granting
+`CreateChangeSet` on the transform to the deploy role alone is not enough — it
+must be on this role too, which is why the ARN appears in both policies.
+
+**`RolesTheStackOwns` must match the new prefix or nothing deploys.** SAM
+creates the function's execution role named after the stack, so it becomes
+`quirenote-backend-*`. If this statement still said `kubushka-backend-*` the
+stack would fail on role creation — and the message names the role, not the
+policy, which is what makes it slow to diagnose.
+
+Two grants this policy still deliberately withholds: **`iam:*` outside the
+prefix** (unprefixed IAM write on an execution role is account-admin by another
+name) and **anything EC2 or VPC**.
+
+
 **Expect the first deploy to fail once or twice on `AccessDeniedException`.**
 Read the resource ARN out of the error — AWS always states exactly what it
 wanted — and add that ARN, rather than broadening to `*`. This is the same
