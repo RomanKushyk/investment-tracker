@@ -4,7 +4,7 @@
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-WAITING.md` (dated). Parent: `NEXT-PHASE-PLAN.md`. Answers land in `DECISIONS.md` and the item leaves this file.
 
-Written 2026-08-11. **Resolved the same day, 16 of 17 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and one new item that costs money and is therefore the owner's.
+Written 2026-08-11. **Resolved the same day, 17 of 18 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and one new item that costs money and is therefore the owner's.
 
 ## Status
 
@@ -26,26 +26,29 @@ Written 2026-08-11. **Resolved the same day, 16 of 17 items** — D30–D35 clos
 | O14 | Which parse controls are stored settings vs code | 4 | **closed — D35** toggles are settings, mappings are code |
 | O15 | The cash-reconciliation warning after stored cash | 4 | **closed — D35** retires; supersedes D13's cash half |
 | O16 | CSV export after the repository becomes HTTP | 4 | **closed — D35** a scope note, not a decision |
-| O17 | **SES sender identity — domain or address** | 1 | **open** — costs money, blocks `PLAN-NOW.md` A11 and therefore W7 |
+| O17 | SES sender identity — domain or address | 1 | **closed — D40** `quirenote.com`, acquired 2026-08-11; A11 unblocked |
+| O18 | **Is the app renamed from Kubushka to match the domain?** | 4 | **open** — the user-facing half is cheap, the infrastructure half is not |
 
 ---
 
 # Still open
 
-## O17 — the SES sender identity — blocks A11, and therefore W7
+## O18 — is the app renamed from Kubushka to match the domain?
 
-**The question.** D39 moves email to SES. SES will only send from a **verified identity** — a domain, or a single address. The project has neither: `dev.d17m4jf400my6.amplifyapp.com` is an Amplify hosting domain and cannot be verified for mail.
+**The question.** `quirenote.com` is bought (D40) and the owner has said Kubushka reads as nothing to most people. Renaming looks like a find-and-replace. It is not one thing — it is two, with very different prices.
 
-**Why it is the owner's call and not mine:** every path costs something.
+**Cheap, and probably worth doing:** the page `<title>`, the sidebar wordmark, README and CLAUDE.md headings, prose in `docs/`. Nothing depends on these; changing them is a commit.
 
-- **Buy a domain.** Best deliverability and DMARC alignment, a From address that looks like the product, and it makes the app's public URL nicer too. Costs a registration fee plus a **Route 53 hosted zone at $0.50/mo, which is on the standing "no" list** — small, but it is the first standing charge the project would carry.
-- **Verify a personal address** (e.g. the owner's Gmail). Free and immediate. But sending as a Gmail address through SES fails DMARC alignment, so invitations are more likely to land in spam — and an invitation that lands in spam is an applicant who never gets in.
-- **Use a domain already owned**, if there is one. Cheapest good option; I do not know whether there is one.
+**Expensive, and probably not worth doing:**
 
-**What it blocks.** `PLAN-NOW.md` A11 cannot start, and A11 exists specifically to take SES production access off W7's critical path. So this quietly gates the migration even though it looks like a detail.
+- **The CloudFormation stack name** `kubushka-backend`. CloudFormation cannot rename a stack — you create a new one and delete the old. The DSQL cluster carries `DeletionPolicy: Retain` **and** deletion protection, so the old stack's delete would leave the cluster orphaned: alive, holding the archive, and no longer managed by any stack. That is a genuinely bad state to enter for a cosmetic reason.
+- **IAM roles** `kubushka-github-deploy` and `kubushka-backend-cfn-exec`, which are console-created and referenced by the workflows.
+- **The backup envelope's `format: 'kubushka-backup'`** — a pinned contract. Changing it makes every existing backup file unreadable unless the importer accepts both, which is a migration for no user benefit.
+- **The Dexie database name** `kubushka` — retiring anyway when B3 replaces the persistence layer (D2 superseded). Renaming it now means migrating a database that is about to be deleted.
 
-**What it does not block:** everything else in Plan A. This is the only task in that plan with an external dependency.
+**Recommendation, not yet a decision:** rename what a person reads, keep what a machine addresses. Internal identifiers that no user sees are not required to agree with the product name, and every one of the expensive items above is invisible to users.
 
+**What must not happen:** a rename that starts as a docs commit and quietly grows into recreating the backend stack.
 
 ## O5 (part) — the archive row's non-key columns — gated on W3
 
@@ -86,6 +89,7 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D38 — approval gate | `app_user` status checked by the API on every request, because token-time checks cannot revoke | `PLAN-WAITING.md` W7 |
 | D39 — applications never reach Cognito | The application endpoint, its four free defences, and passkey-first onboarding | `PLAN-WAITING.md` W7 |
 | D39 — SES replaces the default mail | Production access requested early so it is off the migration's critical path | `PLAN-NOW.md` A11 |
+| D40 — `quirenote.com` acquired | A11 unblocked; DKIM/SPF/DMARC records specified, DNS kept off Route 53 | `PLAN-NOW.md` A11 |
 
 ---
 

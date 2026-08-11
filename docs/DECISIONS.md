@@ -1464,9 +1464,59 @@ work at all. Production access is a free request with an unpredictable
 turnaround, so it is raised early rather than discovered during the cutover.
 Granted accounts default to 50,000 messages/day.
 
-**Unresolved and it blocks SES:** the sender identity. SES requires a verified
+**Unresolved and it blocks SES:** *(resolved 2026-08-11 by D40 — `quirenote.com`.)* the sender identity. SES requires a verified
 domain or address; the project has only `dev.d17m4jf400my6.amplifyapp.com`,
 which cannot be verified for mail, and a Route 53 zone is $0.50/mo and on the
 standing "no" list. Verifying a personal address works but gives poor
 deliverability and DMARC alignment for a From address. Filed as PLAN-OPEN O17
 because it involves spending money, which is the owner's call.
+
+## D40 — The domain is `quirenote.com` (2026-08-11)
+
+Resolves PLAN-OPEN O17 and unblocks `PLAN-NOW.md` A11, which unblocks the SES
+half of W7.
+
+**Chosen: `quirenote.com`.** A quire is a gathering of leaves bound into a book;
+a note is both a record and a banknote. Both halves of what the app does, in one
+word, and the compound reads on first sight because `note` is one of the most
+familiar word-openings in English.
+
+Selected from **116 candidates checked against registry RDAP across four
+sweeps** (`.com`, `.org`, `.app`), then filtered a second time for phonetic
+collisions. Two findings from that process are worth keeping, because they will
+recur the next time anything here needs naming:
+
+**Quality and `.com` availability are close to mutually exclusive.** Every
+precise term was gone in all three zones — `daycount`, `daymark`, `tickmark`,
+`dayclose`, `tallymark`, and twenty single words including `alidade`,
+`astrolabe`, `gnomon`, `computus` and `registrum`. What survived was compound,
+transliterated, or built on an unexploited prefix.
+
+**The collision audit killed better-sounding names than the availability check
+did.** `dayquire` was the front-runner until the owner heard **DayQuil** in it —
+a Procter & Gamble pharma brand, plus Daiquiri behind it. Re-auditing the whole
+list then removed `markquire` (**Macquarie**, an investment bank — same sector,
+worse), `duquire` (**Duquesne Capital**), and `notchbook` (one letter from
+`notebook`). The pattern: **`-quire` as an ending is structurally mined**, and
+half the neighbours are financial. `quirenote` survives precisely because
+`quire` sits at the front, where those collisions do not form.
+
+**`notequire` was the owner's leading choice and was set aside** on a reading
+risk: spoken aloud it is close to *"not acquire"*, which is an unfortunate thing
+for an investment tracker to be called. `quirenote` is the same two words
+reversed — the meaning is kept, the negation cannot form.
+
+**DNS does not go to Route 53.** A hosted zone is $0.50/mo and on the standing
+"no" list, and nothing needs it: SES wants DNS records, which any registrar's
+free DNS serves, and Amplify supports third-party DNS with its own free
+certificate. This is what keeps the domain from adding a standing AWS charge —
+the whole cost is the registration fee.
+
+**Records required for SES**, all in `eu-north-1` because identity and sandbox
+status are per-Region: three CNAMEs for Easy DKIM, one MX plus one SPF TXT for a
+custom MAIL FROM subdomain (without which DMARC passes on DKIM alone), and a
+`_dmarc` TXT starting at `p=none` with a `rua` address.
+
+**Not decided here:** whether the application is renamed from Kubushka to match.
+Filed as PLAN-OPEN O18 — the user-facing half is cheap and the infrastructure
+half is not, and conflating them is how a rename becomes an outage.

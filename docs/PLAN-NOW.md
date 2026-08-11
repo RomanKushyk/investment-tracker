@@ -20,7 +20,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
-| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **blocked on O17** |
+| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
@@ -163,8 +163,10 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 Granted accounts default to 50,000 messages/day, which is four orders of magnitude beyond the two-messages-per-account-lifetime that passkey-first onboarding needs.
 
-- [ ] **Blocked on `PLAN-OPEN.md` O17 — the sender identity.** SES verifies a domain or an address, and the project has neither: `dev.d17m4jf400my6.amplifyapp.com` cannot be verified for mail, and a Route 53 zone is $0.50/mo and on the standing "no" list. This one costs money, so it is the owner's call.
-- [ ] Verify the chosen identity in `eu-north-1` — SES sandbox status is **per Region**, so verifying elsewhere does not help.
+- [x] Sender identity chosen: **`quirenote.com`**, acquired 2026-08-11 (D40).
+- [ ] **DNS stays off Route 53.** A hosted zone is $0.50/mo and on the standing "no" list, and nothing needs it — the registrar's free DNS serves every record below, and Amplify supports third-party DNS with its own free certificate. This is what keeps the domain from adding a standing AWS charge.
+- [ ] Verify the domain in `eu-north-1` — identity **and** sandbox status are per-Region, so verifying elsewhere does not help.
+- [ ] Records: **3 CNAMEs** for Easy DKIM · **1 MX + 1 SPF TXT** on a custom MAIL FROM subdomain (`mail.quirenote.com`) so DMARC has SPF alignment and not DKIM alone · **`_dmarc` TXT** starting at `p=none` with a `rua` address.
 - [ ] Request production access, stating the actual use case: transactional mail only, invitations and password resets, single-digit volume.
 - [ ] Record the granted quota in `infra/README.md` field notes.
 
