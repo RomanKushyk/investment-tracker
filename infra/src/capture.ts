@@ -304,19 +304,37 @@ interface CaptureResult {
  * denormalised streak drifts the moment a row is backfilled or re-captured out
  * of order, and this is cheap at 15 rows.
  */
-async function unchangedStreak(client: Client, source: string, digest: string): Promise<number> {
+async function unchangedStreak(
+  client: Client,
+  source: string,
+  digest: string,
+  asOf: string,
+): Promise<number> {
   const { rows } = await client.query<{ quotes_sha256: string | null; as_of: string }>(
     `SELECT quotes_sha256, to_char(as_of, 'YYYY-MM-DD') AS as_of
        FROM price_capture
       WHERE source = $1 AND ok = true AND quotes_sha256 IS NOT NULL
-      ORDER BY as_of DESC
-      LIMIT 15`,
+      ORDER BY as_of DESC, requested_at DESC
+      LIMIT 60`,
     [source],
   );
-  let streak = 1; // this capture itself
+
+  // ONE row per date. A date can hold several captures — a manual re-invoke, a
+  // repaired day, a scheduler retry — and counting rows instead of dates turned
+  // two captures of the same afternoon into a two-day streak. Caught by
+  // invoking twice in a row; the ordering above makes the first row seen for a
+  // date the newest one, which is the one that counts.
+  const latestPerDate = new Map<string, string | null>();
   for (const r of rows) {
-    if (isWeekend(r.as_of)) continue;
-    if (r.quotes_sha256 !== digest) break;
+    if (!latestPerDate.has(r.as_of)) latestPerDate.set(r.as_of, r.quotes_sha256);
+  }
+
+  let streak = 1; // the capture being written now
+  for (const [date, hash] of latestPerDate) {
+    // The date being captured is already counted as that 1. Re-capturing a day
+    // must not make its own streak grow.
+    if (date === asOf || isWeekend(date)) continue;
+    if (hash !== digest) break;
     streak += 1;
   }
   return streak;
@@ -388,7 +406,7 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
   // is a business day — a weekend capture repeating Friday is not a symptom.
   let unchangedDays: number | undefined;
   if (digest !== null && error === null && !isWeekend(asOf)) {
-    unchangedDays = await unchangedStreak(client, source, digest);
+    unchangedDays = await unchangedStreak(client, source, digest, asOf);
 
     // Emitted on EVERY business-day capture, not only when stale. A metric that
     // exists only on failure cannot distinguish "healthy" from "the check
