@@ -20,7 +20,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
-| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
+| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **submitted 2026-08-11, awaiting AWS** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
@@ -172,10 +172,11 @@ Granted accounts default to 50,000 messages/day, which is four orders of magnitu
 
 - [x] Sender identity chosen: **`quirenote.com`**, acquired 2026-08-11 (D40).
 - [ ] **DNS stays off Route 53.** A hosted zone is $0.50/mo and on the standing "no" list, and nothing needs it — the registrar's free DNS serves every record below, and Amplify supports third-party DNS with its own free certificate. This is what keeps the domain from adding a standing AWS charge.
-- [ ] Verify the domain in `eu-north-1` — identity **and** sandbox status are per-Region, so verifying elsewhere does not help.
-- [ ] Records: **3 CNAMEs** for Easy DKIM · **1 MX + 1 SPF TXT** on a custom MAIL FROM subdomain (`mail.quirenote.com`) so DMARC has SPF alignment and not DKIM alone · **`_dmarc` TXT** starting at `p=none` with a `rua` address.
-- [ ] Request production access, stating the actual use case: transactional mail only, invitations and password resets, single-digit volume.
-- [ ] Record the granted quota in `infra/README.md` field notes.
+- [x] Verified in `eu-north-1` on 2026-08-11: DKIM `SUCCESS`, signing enabled. Custom MAIL FROM `mail.quirenote.com` still `PENDING` — the MX resolves publicly, SES just re-checks on its own schedule.
+- [x] Six records live in Cloudflare and confirmed against a public resolver: 3 DKIM CNAMEs (**DNS-only, not proxied** — a proxied CNAME resolves to Cloudflare and DKIM never verifies), MX + SPF on `mail.`, and `_dmarc` at `p=none` with `rua=mailto:dmarc@quirenote.com`, forwarded to the owner by Cloudflare Email Routing.
+- [x] Checked for the one conflict that matters: **exactly one SPF record per name**. Cloudflare's sits on the apex, ours on `mail.` — two on one name would be a permerror and neither would pass. Multiple DKIM keys cannot conflict at all, since DKIM is selector-addressed.
+- [x] Requested 2026-08-11 via `PutAccountDetails`, stating the case that carries the most weight: **sign-up creates a request, not an account**, so every recipient is an address the owner explicitly approved and a typo is caught at approval rather than by a bounce.
+- [ ] **Waiting on AWS.** Watch for `ProductionAccessEnabled: true` and the quota moving from 200/day to 50,000. Record the granted figure in `infra/README.md` field notes.
 
 **Verify:** `GetSendQuota` reports a production quota rather than the 200/day sandbox one, and a test message reaches an address that was never verified.
 **Risk:** none to the running system — SES is not wired into anything until W7. The only failure mode is leaving it too late.
