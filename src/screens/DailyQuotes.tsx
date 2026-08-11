@@ -107,7 +107,13 @@ export function DailyQuotes() {
     if (!autoQuoteSuggest || dismissedSuggestions.includes(assetId)) return undefined;
     const asset = assets.find((a) => a.id === assetId);
     if (asset === undefined) return undefined;
-    const value = accrualSuggestion(asset, snapshots, invested[assetId] ?? 0, selectedDate);
+    const value = accrualSuggestion(
+      asset,
+      snapshots,
+      invested[assetId] ?? 0,
+      selectedDate,
+      fetch.feed,
+    );
     return value === null ? undefined : value;
   }
 

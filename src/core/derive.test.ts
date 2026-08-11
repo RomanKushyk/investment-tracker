@@ -273,3 +273,32 @@ describe('§5 netDeposits / globalRoi (external capital denominator)', () => {
     expect(globalRoi(149016.36, 143176.37)! * 100).toBeCloseTo(4.0789, 4);
   });
 });
+
+describe('netResult with closed positions (sold term)', () => {
+  const values = { reit: 68702.1, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 };
+  const invested = { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 };
+  // …8976 redeemed: its quote disappears, its cost basis does not.
+  const withoutRedeemed = (v: Record<string, number>) =>
+    Object.fromEntries(Object.entries(v).filter(([id]) => id !== 'ovdp8976'));
+
+  it('is unchanged when nothing was ever sold — the D5-pinned figure', () => {
+    expect(netResult(values, invested).uah).toBeCloseTo(4452.61, 2);
+    expect(netResult(values, invested, 0).uah).toBeCloseTo(4452.61, 2);
+  });
+
+  it('does NOT invert when a position is redeemed', () => {
+    const rest = withoutRedeemed(values);
+    // Without the sold term this reads as a total loss of the position.
+    expect(netResult(rest, invested).uah).toBeCloseTo(-11393.69, 2);
+    // With the proceeds counted, only the real capital difference remains:
+    // 15 390,00 invested returned at 15 390,00 → the other assets' gain stands.
+    expect(netResult(rest, invested, 15390).uah).toBeCloseTo(3996.31, 2);
+  });
+
+  it('carries a redemption above or below cost into the result', () => {
+    const rest = withoutRedeemed(values);
+    const atCost = netResult(rest, invested, 15390).uah;
+    expect(netResult(rest, invested, 15500).uah - atCost).toBeCloseTo(110, 6);
+    expect(netResult(rest, invested, 15000).uah - atCost).toBeCloseTo(-390, 6);
+  });
+});

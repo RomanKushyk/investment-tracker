@@ -23,6 +23,7 @@ import {
   PORTFOLIO_START,
   reinvestedTotal,
   sharePct,
+  soldAmount,
   yieldSinceStart,
 } from '../core/derive';
 import { fmtPayoutDate } from '../components/ui/date-labels';
@@ -59,7 +60,7 @@ export function Overview() {
   const invested = investedByAsset(transactions);
   const total = headlineTotal(snapshots);
   const cash = latestCash(snapshots);
-  const net = netResult(values, invested);
+  const net = netResult(values, invested, soldAmount(transactions));
   const deposited = depositedTotal(transactions);
   const reinvested = reinvestedTotal(transactions);
   const income = incomeReceived(transactions);

@@ -95,7 +95,13 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
    honest metric. Revisit only if lot-level tracking ever becomes a requirement.
 4. **Day count = ACT/365** everywhere (annualizedPct ×365/daysHeld, xirr
    exponents) — matches Excel XIRR and the OVDP convention; leap days count as
-   actual days over a 365 denominator.
+   actual days over a 365 denominator. **Exception (2026-08-11):**
+   `dailyAccrual` spreads a KNOWN coupon over its OWN period (ACT/ACT in-period)
+   when the provider's `paymentSchedule` supplies the dates. That is not a rate
+   annualisation but the amortisation of a scheduled cash flow, and only this
+   basis makes the ghost land exactly on the coupon — the real bonds pay every
+   182 days, so ACT/365 leaves a ₴1 240 coupon ₴3,40 short at the payment date.
+   With no schedule available the ACT/365 approximation still applies.
 5. **Percentages are fractions in core** (0.053 = +5.3 %), matching
    `yieldSinceStart`; display multiplies. (`sharePct` is the pre-existing v1
    exception — it returns 0–100 and stays pinned.)

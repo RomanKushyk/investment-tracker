@@ -5,7 +5,10 @@
 // turns stored data into a NUMBER the UI may offer, or TOKENS describing an
 // occurrence — the user's Confirm/Save press stays the only write path.
 //
-// Day count is ACT/365 throughout (D13 / docs/FORMULA-AUDIT.md ruling 4).
+// Day count is ACT/365 throughout (D13 / docs/FORMULA-AUDIT.md ruling 4) — with
+// ONE deliberate exception: spreading a KNOWN coupon over its own period is an
+// amortisation of a cash flow, not the annualisation of a rate, so it divides by
+// the real period length when that is known. See `dailyAccrual`.
 // Money this module CREATES (a suggested quote, a coupon estimate) is rounded
 // once, at creation, to kopecks — the same rule core/inzhur/parse.ts follows:
 // D13's "round at display only" governs derivations over stored data, not a
@@ -46,23 +49,66 @@ export interface AccrualFallback {
 }
 
 /**
- * ₴ a fixed-coupon position accrues per day. Primary basis: the stated coupon
- * spread over its period (`couponAmount × payments/year ÷ 365`). Fallback for an
- * asset whose coupon attributes were never filled in: `expectedPct × invested ÷
- * 365` — the plan's pinned fallback. 0 means "not derivable" and callers must
- * then suggest nothing.
+ * ₴ a fixed-coupon position accrues per day. 0 means "not derivable" and callers
+ * must then suggest nothing.
+ *
+ * **Pass `periodDays` whenever the real coupon period is known** — from the
+ * provider's `paymentSchedule`, as the gap between consecutive payments. Then
+ * accrual is `couponAmount / periodDays` (ACT/ACT in-period) and it lands
+ * EXACTLY on the coupon at the payment date.
+ *
+ * Without it, the annualised approximation `couponAmount × payments/year ÷ 365`
+ * is used, and it never lands on the coupon: the user's real bonds pay every
+ * 182 days (verified against the live feed — always a Wednesday, not "six
+ * calendar months"), so a ₴1 240 semiannual coupon accrues at ₴6,7945/day and
+ * reaches ₴1 236,60 over the period — ₴3,40 short. A 184-day period overshoots
+ * to ₴1 250,19. The error is small daily and structural at the boundary, which
+ * is exactly where the coupon-confirm card prefills an amount.
+ *
+ * The approximation is kept rather than removed because `payoutSchedule` alone
+ * carries no dates — an asset with no linked schedule has nothing better.
+ *
+ * Fallback for an asset whose coupon attributes were never filled in:
+ * `expectedPct × invested ÷ 365`. That one is period-independent by nature — it
+ * is an annual yield, not a coupon — so `periodDays` does not apply to it.
  */
 export function dailyAccrual(
   couponAmount: number | undefined,
   schedule: PayoutSchedule,
   fallback?: AccrualFallback,
+  periodDays?: number,
 ): number {
   const perYear = PAYMENTS_PER_YEAR[schedule];
   if (couponAmount !== undefined && couponAmount > 0 && perYear > 0) {
+    if (periodDays !== undefined && periodDays > 0) return couponAmount / periodDays;
     return (couponAmount * perYear) / 365;
   }
   if (fallback === undefined || fallback.expectedPct <= 0 || fallback.invested <= 0) return 0;
   return ((fallback.expectedPct / 100) * fallback.invested) / 365;
+}
+
+/**
+ * Days between the two scheduled payments bracketing `onIso` — the divisor
+ * `dailyAccrual` wants. Undefined when the schedule cannot bracket the date
+ * (fewer than two payments, or a date outside their span), in which case the
+ * caller simply omits `periodDays` and takes the approximation.
+ *
+ * Dates are plain `yyyy-MM-dd`, so subtraction is exact integer day arithmetic
+ * with no timezone in play.
+ */
+export function couponPeriodDays(dates: string[], onIso: string): number | undefined {
+  const sorted = [...new Set(dates)].sort();
+  if (sorted.length < 2) return undefined;
+  for (let i = 1; i < sorted.length; i += 1) {
+    const from = sorted[i - 1]!;
+    const to = sorted[i]!;
+    if (onIso > from && onIso <= to) {
+      return Math.round(
+        (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000,
+      );
+    }
+  }
+  return undefined;
 }
 
 /**

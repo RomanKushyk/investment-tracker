@@ -14,6 +14,7 @@ import {
   reinvestedByAsset,
   reinvestedTotal,
   sharePct,
+  soldAmount,
   yieldSinceStart,
 } from '../core/derive';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
@@ -38,7 +39,7 @@ export function Portfolio() {
   const reinvested = reinvestedByAsset(transactions);
   const total = headlineTotal(snapshots);
   const cash = latestCash(snapshots);
-  const net = netResult(values, invested);
+  const net = netResult(values, invested, soldAmount(transactions));
   const investedTotal = Object.values(invested).reduce((a, b) => a + b, 0);
 
   const best = bestPerformer(assets, values, invested);

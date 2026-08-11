@@ -5,6 +5,7 @@ import {
   couponProjection,
   couponReminderId,
   couponsInGap,
+  couponPeriodDays,
   dailyAccrual,
   dueCoupons,
   nextUnsettledCoupon,
@@ -471,5 +472,36 @@ describe('couponProjection', () => {
 describe('couponReminderId', () => {
   it('is the derived id both the S5 skip and the S6 reminders use', () => {
     expect(couponReminderId('ovdp8976', '2026-08-25')).toBe('coupon:ovdp8976:2026-08-25');
+  });
+});
+
+describe('dailyAccrual over a real coupon period', () => {
+  // The user's UA4000238976: 78.40 per unit every 182 days, verified against the
+  // live feed (always a Wednesday, never "six calendar months").
+  const schedule = ['2026-03-25', '2026-09-23', '2027-03-24'];
+
+  it('lands exactly on the coupon when the period is known', () => {
+    const days = couponPeriodDays(schedule, '2026-05-01');
+    expect(days).toBe(182);
+    expect(dailyAccrual(78.4, 'semiannual', undefined, days) * days!).toBeCloseTo(78.4, 10);
+  });
+
+  it('the annualised approximation does NOT land on the coupon', () => {
+    // This is the defect the periodDays argument exists to fix: ₴3,40 short
+    // over a 182-day period on a ₴1 240 coupon, and ₴10,19 over on a 184-day one.
+    expect(dailyAccrual(1240, 'semiannual') * 182).toBeCloseTo(1236.6, 1);
+    expect(dailyAccrual(1240, 'semiannual') * 184).toBeCloseTo(1250.19, 1);
+    expect(dailyAccrual(1240, 'semiannual', undefined, 182) * 182).toBeCloseTo(1240, 10);
+  });
+
+  it('keeps the approximation when no period can be derived', () => {
+    expect(dailyAccrual(1240, 'semiannual', undefined, undefined)).toBeCloseTo((1240 * 2) / 365, 10);
+    expect(couponPeriodDays(['2026-03-25'], '2026-05-01')).toBeUndefined();
+    expect(couponPeriodDays(schedule, '2030-01-01')).toBeUndefined();
+  });
+
+  it('brackets on the payment date itself, not the day after', () => {
+    expect(couponPeriodDays(schedule, '2026-09-23')).toBe(182);
+    expect(couponPeriodDays(schedule, '2026-09-24')).toBe(182);
   });
 });

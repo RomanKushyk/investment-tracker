@@ -77,14 +77,29 @@ export function depositedTotal(txs: Transaction[]): number {
   return txs.filter((t) => t.type === 'deposit').reduce((a, t) => a + t.amount, 0);
 }
 
-// Σvalues − Σinvested, cash EXCLUDED → +₴4,452.61 / +3.08% on seed.
+/**
+ * Σvalues + Σsold − Σinvested, cash EXCLUDED → +₴4,452.61 / +3.08% on seed
+ * (`sold` is 0 there — nothing has ever been sold or redeemed).
+ *
+ * The `sold` term is not cosmetic. A closed position has no quote, so it leaves
+ * `values` entirely, while its cost basis stays in `invested` — without the
+ * proceeds the metric reads the whole position as a total loss. On the seed, a
+ * redemption of …8976 (invested 15 390,00) would turn +₴4 452,61 into
+ * −₴11 393,69: a sign inversion, on the day the user does the correct thing.
+ *
+ * This stays inside the capital-gain family (FORMULA-AUDIT / D13): sale and
+ * redemption proceeds are returned capital, not income. Payouts belong to
+ * `totalNetProfit` and are deliberately still absent here.
+ */
 export function netResult(
   values: Record<string, number>,
   invested: Record<string, number>,
+  sold = 0,
 ): { uah: number; pct: number } {
   const v = Object.values(values).reduce((a, b) => a + b, 0);
   const i = Object.values(invested).reduce((a, b) => a + b, 0);
-  return { uah: v - i, pct: i === 0 ? 0 : (v - i) / i };
+  const uah = v + sold - i;
+  return { uah, pct: i === 0 ? 0 : uah / i };
 }
 
 export function yieldSinceStart(value: number, invested: number): number {
@@ -138,7 +153,7 @@ export function headlineKpis(
 ): { total: number; net: { uah: number; pct: number } } {
   return {
     total: headlineTotal(snaps),
-    net: netResult(latestQuotes(snaps), investedByAsset(txs)),
+    net: netResult(latestQuotes(snaps), investedByAsset(txs), soldAmount(txs)),
   };
 }
 
