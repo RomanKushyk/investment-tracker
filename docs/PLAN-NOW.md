@@ -16,7 +16,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48) |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | todo |
-| A4 | NBU observation schema | `infra/nbu-observation-schema` | M | todo |
+| A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
@@ -141,14 +141,20 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 **Rationale:** B2 of the staged plan wants the schema decided **with evidence in hand**, and for NBU the evidence is complete: the backfill to 2016-01-04 re-runs clean (`captured: 0, complete: true`), weekend behaviour is characterised (404, recorded as `not_published`, correctly not an alarm), `calc_date` matched the filename date on 14/14 sampled dates across 2016–2026, and the malformed header is understood (field 17 declares `g_spread,z_spread,cptype`, the data carries `cptype` alone). The Inzhur half is **not** ready and is in `PLAN-WAITING.md` W1 — do not let it drag this one.
 
-- [ ] `price_observation` for the NBU source only, with the columns the spec marks unaddable-later: `basis` **in the natural key**, `observed_at` separate from `as_of`, `source` + `parser_version`, and — for the Inzhur rows that follow — `returnRates.{buy,sell}` and `status`.
-- [ ] **`basis` vocabulary is pinned by D30: `buy | sell | nav | fair`.** Enumerate all four from row one even though NBU only writes `fair` — the key is immutable and a value added later leaves the archive split. **No currency dimension**: the USD figures are a serve-time conversion (D31), so they belong on the capture, not the observation.
-- [ ] `instrument` with `listed_from` / `retired_at`. **`instrument_ref` is pinned by D30: `isin` for bonds, `slug` for funds, the feed's own `id` rejected.** Note the measured trap — all 31 bonds share `slug: "ovdp"`, so a slug-only key would collapse the entire bond universe into one row.
-- [ ] Backfill from the stored raw payloads. This is why they are stored: the schema can be wrong once and still recover.
-- [ ] Do **not** store `observation_kind`. `published | carried | computed | frozen` are derived at read time — storing a judgment in an immutable column is the specific error the whole investigation exists to avoid.
+- [x] `price_observation` created with all of it. Key **ORDER** is pinned, not just membership: `as_of` leads, because the read contract serves whole years and the key is index-organized. Per-instrument access is served by `price_observation_ref_as_of` instead — the leading-column lesson measured in A2/D48.
+- [x] **`basis` vocabulary pinned by D30: `buy | sell | nav | fair`** — all four legal from row one, NBU writes only `fair`. **No currency dimension**: the USD figures are a serve-time conversion (D31).
+- [x] `instrument` with `listed_from` + **`last_seen_on`**, not `retired_at` — a considered deviation recorded in D50: "retired" is a judgment, "last seen on" is what the cron witnessed, and the pair answers the same question. Neither is in a key, so storing the judgment later costs one `ALTER TABLE`. `instrument_ref` = ISIN for bonds, per D30.
+- [x] Backfilled from stored payloads with **no network access**: 2 684 dates scanned, **408 observations**, 0 `calc_date` mismatches.
+- [x] `observation_kind` not stored — derived at read time.
 
-**Contracts:** the natural key, and `as_of = capture_date − 1`, both pinned in writing before the first row.
-**Verify:** observation count reconciles against capture count per date; a known NBU date reproduces the fair value in the raw file; re-running the backfill is a no-op.
+**Contracts:** six of them, pinned in `infra/migrations/002_price_observation.sql` before the first row — including the key ORDER and the rule that a row whose `calc_date` disagrees with the capture's `as_of` is skipped and counted, never coerced.
+
+**Verify — all three passed:**
+- reconciliation per ref over **its own** listed span: `UA4000236475` 274 observations / 274 distinct dates / 274 published days; `UA4000238976` 134/134/134. **Zero gaps, zero duplicates.** A single shared span would have measured the younger bond against days predating its issuance and reported a false gap — the D43 mistake one level up;
+- the provider's file for 2026-08-10 gives `1111.05 / 15.691488 / 104.71` and `1063.63 / 15.456906 / 100.418`, matching the stored rows exactly. Its maturity `24.03.2027` independently confirms A1's coupon schedule;
+- re-run reports `seen: 408, written: 0` — a no-op demonstrated rather than assumed, which needed `rowCount` instead of a counter of insert attempts.
+
+**Scope, deliberately narrow:** observations cover the held ISINs, not all ~185 instruments per file (~400 000 rows). Widening is a parameter and is free — more rows under the same immutable key, re-derived from payloads already stored locally. Narrowing is not. Cost is not the constraint either way: all of August, including two ten-year backfills, metered **5.86 DPU**.
 **Risk:** DSQL keys are immutable — a wrong key is a DROP/CREATE, not a migration. `basis` in the key is the one hedge that makes a later valuation-basis decision free (`PLAN-OPEN.md` O6).
 
 ---

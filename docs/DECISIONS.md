@@ -2134,3 +2134,86 @@ established about silent failure, that is not a hypothetical.
 Nothing yet verifies that the nightly backup **ran**. The whole entry above
 argues that unverified success is the recurring defect here, so leaving it
 unwatched would be inconsistent — see A14 in `PLAN-NOW.md`.
+
+## D50 — The NBU archive becomes observations, scoped narrow on purpose (2026-08-11)
+
+**Decision:** `price_observation` and `instrument` exist, keyed
+`(as_of, instrument_ref, basis, source)` in that ORDER, backfilled from stored
+payloads with no network access. Observations cover the **held** ISINs, not the
+~185 instruments a file carries. `retired_at` is not stored.
+
+### Key order is a decision, not a formatting detail
+
+The spec pinned the key's membership. It did not pin the order, and on DSQL the
+order is the design: the primary key is index-organized, so the leading column
+decides which scans are cheap.
+
+`as_of` leads because the pinned read contract serves whole **years**
+(`/v1/prices/{YYYY}.ndjson`). Per-instrument access — the chart — is served by
+`price_observation_ref_as_of` instead. This is A2's lesson applied before rather
+than after: there, both operational queries filtered on `source` while the only
+index led with `as_of`, and each did a full scan of 6,628 rows to return 3 at
+~730 ms (D48). An index is only usable from its leading column, and a primary
+key is an index.
+
+### `last_seen_on`, not `retired_at`
+
+A considered deviation from the spec's wording. "Retired" is a judgment;
+"last seen on" is what the cron witnessed, and the pair `listed_from` +
+`last_seen_on` answers the same question exactly — before the first, it did not
+exist; after the last, it is gone; between them, a gap is a real gap.
+
+This is the spec's own rule about `observation_kind` applied one table over.
+Neither column is in a key, so if the judgment is ever wanted as well it costs
+one `ALTER TABLE` — which is precisely why the honest column is the safe one.
+
+### The parser trap the index map hid
+
+The documented index map says "17 cptype". Fetching real files across the
+archive shows the layout changed **four** times, and the instrument type is the
+**last** field at an index that moves:
+
+| Layout | Fields | `cptype` |
+|---|---|---|
+| 2016 | 8 | absent |
+| 2018 | 16 | absent |
+| 2022 | 17 | index **16** |
+| 2024–2026 | 18 | index **17** |
+
+A fixed index 17 returns `undefined` for every file of 2022 — silently, because
+a missing type mislabels nothing. It is identified by shape instead: the
+trailing field, past the base 8, that does not parse as a number. **Both
+conditions are needed**, and a test proved it: with only the numeric check, the
+8-field file reports its `maturity` (`10.05.2016`) as an instrument type. The
+parser lives in `src/core/nbu/fair-value.ts` with those real files as fixtures,
+because two parsers eventually disagree about a price and only one is tested.
+
+### Scope: narrow, because narrow is the reversible direction
+
+~185 instruments × ~2,650 archived days is roughly 400,000 rows to serve the two
+or three that anything reads. Widening is free — more rows under the same
+immutable key, re-derived from payloads already stored locally, with NBU
+additionally re-fetchable by URL. Narrowing means deleting rows 3,000 at a time.
+
+**Cost was measured and is not the constraint in either direction:** all of
+August, including two ten-year backfills and 33 MB of stored payloads, metered
+**5.86 DPU and $0.00**. The reason to start narrow is reversibility, and saying
+so plainly is better than implying a budget argument that the numbers do not
+support.
+
+### Verified three ways, and one of them found a defect in the verification
+
+- **Reconciliation, per ref over its OWN listed span:** 274/274/274 and
+  134/134/134 observations / distinct dates / published days. Zero gaps, zero
+  duplicates. The first attempt used one shared span for both instruments, which
+  measured the younger bond against days predating its issuance and reported a
+  false gap — **the D43 mistake exactly, one level up.**
+- **Against the provider:** the file for 2026-08-10 gives `1111.05 / 15.691488 /
+  104.71` and `1063.63 / 15.456906 / 100.418`, matching the stored rows to the
+  digit. Its maturity `24.03.2027` independently confirms the coupon schedule
+  A1 derived from a different feed.
+- **Re-run is a no-op:** `seen: 408, written: 0`. This needed `rowCount` rather
+  than a counter of insert attempts — with `ON CONFLICT DO NOTHING` the two
+  differ by exactly the amount that matters, and the attempt counter would have
+  reported a full re-write as success. The same defect shape as D43/D44/D49:
+  a number that cannot distinguish "worked" from "was never really checked".
