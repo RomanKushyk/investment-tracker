@@ -25,6 +25,11 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
 | A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
+| **Section E** | **Finish the rename (D42)** | | | |
+| E1 | App-side renames | `chore/rename-quirenote-app` | M | todo |
+| E2 | New IAM roles | console | S | todo |
+| E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | todo |
+| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | todo |
 
 ---
 
@@ -202,6 +207,121 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 **Contracts:** settings `theme` / `language`; the final token vocabulary; i18n namespace `screen.section.item`. **DECISIONS:** theme architecture (token redefinition, FOUC contract, persist key); i18n architecture (typed dict, keys-in-tests, formats-never-localize, `date-fns` dep — G6 entry).
 **Verify:** unit — key parity compile-time and runtime, formatter invariance under `uk`. Browser — every route in dark, system and reduced-motion; hard-reload in dark with no white flash; UK with localised calendar, `<html lang>`, unchanged numbers and dates, 360 px overflow sweep; contrast spot-checks. Gates + build; tag.
 **Risk:** the i18n sweep is wide though mechanical — freeze other UI branches while it runs.
+
+---
+
+# Section E — Finish the rename (D42)
+
+D41 renamed what a person reads. This finishes the job on every addressed
+identifier. **Read the order before starting any step** — it is what makes the
+whole thing reversible.
+
+**The governing rule: deploy the new stack, verify it, only then delete the
+old.** Never the reverse. At no point is there no working backend, and rollback
+at every step is "keep the old stack". Two clusters and two schedules coexist
+briefly; both write, last-write-wins on the per-date key, and the duplicate cost
+at this scale is not measurable.
+
+**Accepted costs, ruled on by the owner (D42):** two or three days of Inzhur
+archive, covered by the spreadsheet that continues alongside. The NBU half
+regenerates in full. `PLAN-WAITING.md` W1, W3 and W4 each slip by those same two
+days, because the streak history and the observation window are per-cluster.
+
+## E1 — App-side renames — `chore/rename-quirenote-app`
+
+No AWS, fully reversible, and nothing here depends on E2–E4. Do it first so the
+destructive phase starts from a clean tree.
+
+- [ ] `src/lib/sync.ts` — `DB_LOCK` and `SYNC_CHANNEL` to `quirenote-db` /
+      `quirenote-sync`. **These persist nothing** — the only effect is that a tab
+      left open across the deploy will not hear a tab opened after it, for one
+      session.
+- [ ] `src/lib/db.ts` — `class KubushkaDB` → `QuirenoteDB`, and the Dexie names
+      to `quirenote` / `quirenote-live`. **No IndexedDB migration is written**:
+      live is empty and demo reseeds itself, which is the migration. The old
+      databases are left on disk rather than deleted — a rename that also
+      destroys data is two operations pretending to be one.
+- [ ] `src/state/settings.ts` and `src/state/draft.ts` — keys to
+      `quirenote-settings` / `quirenote-draft`, **with a real migration**: on
+      boot, if the new key is absent and the old one present, copy it across and
+      then remove the old. Here the key *is* the data, so a bare rename silently
+      discards currency, ₴/$ rate and every dismissed reminder. The settings
+      store already has the `migrate` hook (G3) this belongs in.
+- [ ] `src/core/backup/json.ts` — export `format: 'quirenote-backup'`; the
+      importer **accepts both markers** so every file ever exported stays
+      readable. Then the D41 message can finally read cleanly, and its comment
+      about the deliberate mismatch comes out.
+- [ ] `package.json` `name`.
+- [ ] `navigation-map.md` — the DB names and localStorage keys appear in roughly
+      fifteen checkpoints; all of them move.
+
+**Verify (browser, not just tests):** set a non-default currency and ₴/$ rate and
+dismiss a reminder → reload → **all three survive** under the new key. Demo
+reseeds under `quirenote` and every D5-pinned figure holds. A backup file
+exported before this branch still imports. A fresh export carries the new marker.
+Gates green.
+
+## E2 — New IAM roles — console, owner-driven
+
+Additive. The old roles stay until E3 is finished, so this step cannot break a
+deploy.
+
+- [ ] Create `quirenote-backend-deploy` — same OIDC trust policy and repo/branch
+      condition as its predecessor.
+- [ ] Create `quirenote-backend-cfn-exec` — trusted by CloudFormation only.
+- [ ] **Rewrite every `kubushka-backend-*` prefix**, and there are more than the
+      stack name: the exec policy scopes **eight** ARN patterns —
+      `cloudformation`, `lambda`, `iam`, `logs`, `sqs`, `sns`, `cloudwatch`,
+      `scheduler`. Miss one and the deploy fails on a permission, which this
+      project has already paid for eight times (`infra/README.md` field notes).
+      The `iam:*` prefix scoping matters most: SAM creates the function's
+      execution role named after the stack, so it becomes `quirenote-backend-*`.
+- [ ] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
+      switching back is the rollback.
+
+## E3 — The stack move — the only destructive phase
+
+**Timing:** start in the Kyiv morning. The 01:00 capture then has a full day of
+margin, and if anything goes wrong the old stack is still running and still
+capturing.
+
+- [ ] **Record the baseline first**: row count per source, `min(as_of)`,
+      `max(as_of)`. Loss should be measurable afterwards, not assumed.
+- [ ] Point the workflow at the new names — `--stack-name quirenote-backend`,
+      `--role-arn …/quirenote-backend-cfn-exec` — and switch
+      `AWS_BACKEND_ROLE_ARN` to the new deploy role.
+- [ ] Deploy. **The new stack comes up beside the old one.** Both schedules now
+      exist; if one 01:00 fires before teardown, both write and the per-date key
+      absorbs it.
+- [ ] Verify the new stack before touching the old: manual invoke returns `ok`
+      for **both** sources, the five alarms and two metric filters exist, the
+      schedule is armed with `Europe/Kyiv`.
+- [ ] Re-run the NBU backfill from `2016-01-04` on the new cluster. Verified
+      idempotent; re-run until it reports `complete: true`.
+- [ ] **Only now tear down the old.** In this order: disable the old schedule so
+      it stops writing → clear `DeletionProtectionEnabled` on the old cluster →
+      delete the old stack (the cluster is retained by policy) → delete the
+      orphaned old cluster by hand.
+- [ ] Confirm the bill returns to baseline — two clusters existed for a while and
+      exactly one should remain.
+- [ ] Delete the old IAM roles.
+
+**Rollback at any point before the teardown:** switch the GitHub secret and the
+workflow back. The old stack never stopped working.
+
+## E4 — The last identifiers and the docs
+
+- [ ] `infra/src/capture.ts` — `USER_AGENT`. Its URL should become
+      `https://quirenote.com` once A11 and the Amplify custom domain land; until
+      then the Amplify URL stays, because a User-Agent that points nowhere is
+      worse than one that points somewhere old.
+- [ ] `infra/README.md` — both role policies verbatim, every prefix, and a field
+      note recording what the move actually cost.
+- [ ] `docs/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
+- [ ] Amplify app name in the console — cosmetic, unrelated to the custom domain
+      in A11.
+- [ ] Update `PLAN-WAITING.md` W1/W3/W4 dates by the days actually lost, measured
+      against the E3 baseline rather than estimated.
 
 ---
 

@@ -1524,7 +1524,8 @@ half is not, and conflating them is how a rename becomes an outage.
 ## D41 — The product is Quirenote; the machines stay Kubushka (2026-08-11)
 
 Resolves PLAN-OPEN O18. Owner ruling: **rename what a person reads, leave the
-infrastructure alone.** The line is not cosmetic-vs-important — it is whether an
+infrastructure alone.** *(Infrastructure half superseded by D42 the same day: the
+archive turned out to be two days old, so the rename goes all the way.)* The line is not cosmetic-vs-important — it is whether an
 identifier is *addressed* by something.
 
 **Renamed** — page `<title>`, the sidebar wordmark, every downloaded file name
@@ -1562,3 +1563,56 @@ records why, so a later reader does not "fix" it.
 checkpoint 20 still quoted the pre-D29 import copy offering *"a .json backup or
 a .csv table"*. CSV import was cancelled; the map now matches the shipped
 string.
+
+## D42 — The rename goes all the way, and now is when it is cheap (2026-08-11)
+
+Supersedes D41's infrastructure half. D41 kept every addressed identifier on the
+grounds that renaming the stack risked orphaning the archive. **The reasoning was
+right in form and wrong in scale**, and two facts from the owner settle it.
+
+**What deleting the cluster actually costs is two or three days.** D41 weighed
+the archive as if it were mature. Capture began 2026-08-10. The NBU half —
+backfilled to 2016-01-04 — regenerates completely from a public archive, and its
+backfill is verified idempotent (`captured: 0, complete: true` on re-run). Only
+the Inzhur days are unrecoverable, and there are two of them.
+
+**The owner keeps the originating spreadsheet**, so those prices exist outside
+the archive anyway. The gap is recorded as acceptable by ruling, not assumed.
+
+**`kubushka-live` is empty**, which removes the other expensive item: renaming
+the Dexie databases needs no IndexedDB migration. The demo DB reseeds itself and
+the live DB has nothing to carry.
+
+So the expensive list from D41 collapses to nothing that is still expensive, and
+**every day of delay adds one more unrecoverable day.** This is the cheapest the
+rename will ever be.
+
+**Four items D41 misclassified**, corrected here: the Web Lock `kubushka-db` and
+the BroadcastChannel `kubushka-sync` persist **nothing** — they are runtime
+strings, and renaming them is free. `class KubushkaDB`, the npm `name` and the
+capture `USER_AGENT` likewise. `BACKUP_FORMAT` is cheap if the importer accepts
+**both** markers while the exporter writes the new one, which keeps every file
+ever exported readable. Only the localStorage keys need real care, and the
+settings store already has the `migrate` hook (G3) that does it.
+
+**The order is deploy-new-then-delete-old, never the reverse.** The new stack
+comes up beside the old one and is verified working before anything is torn
+down, so there is no window without a backend and rollback at every step is
+"keep the old stack". Briefly there are two clusters and two schedules; both
+write, last-write-wins on the per-date key, and at this scale the duplicate cost
+is not measurable. That is a far better trade than a gap with no way back.
+
+**Two clocks restart, and both slips are small.** The frozen-feed detector's
+streak history is per-cluster, so `PLAN-WAITING.md` W1 moves out by the two days
+that had accumulated. W3's three-week Inzhur observation window restarts from
+the new first capture, so W3/W4 — and therefore B3 — move by the same two days.
+Stated because a restarted evidence clock is exactly the kind of thing that gets
+noticed in September and blamed on something else.
+
+**Not chosen: CloudFormation resource import or stack refactoring**, which could
+move the cluster between stacks with zero loss. Both exist, but whether
+`AWS::DSQL::Cluster` supports either is unverified, and chasing it buys back two
+days the owner has already written off. If the archive were a year old the
+calculus would invert — and that is precisely the argument for doing this now.
+
+Steps, ordering and verification points are `PLAN-NOW.md` Section E.
