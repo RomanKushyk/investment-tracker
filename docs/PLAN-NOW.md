@@ -15,7 +15,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
 | A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48) |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
-| A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | todo |
+| A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
