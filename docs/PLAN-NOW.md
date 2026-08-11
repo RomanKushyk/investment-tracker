@@ -22,7 +22,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
-| A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **todo — found 2026-08-11** |
+| A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
@@ -234,7 +234,13 @@ Both bonds were issued in 2025–2026, so no file from 2020 can contain them. Th
 **Verify:** a 2020 date returns `published: 1`; a date after both issuances still flags a genuinely missing tracked ISIN; the full backfill reports `complete: true` with `published` close to the business-day count rather than zero.
 **Risk:** none to stored bytes — the change only decides whether an error string is set.
 
-## A13 — The alert channel gets its own liveness signal — `infra/alert-liveness`
+## A13 — The alert channel gets its own liveness signal — **DONE 2026-08-11 (D47)**
+
+> Verified in production: `{"metric":"alertChannels","status":"ACTIVE","value":1}`,
+> six alarms in OK, and **zero SNS topics** — the topic was deleted once it
+> turned out to deliver nothing and to block the deploy. CloudWatch publishes
+> alarm state changes to EventBridge regardless of `AlarmActions`, so alarms
+> with no action still alert.
 
 **Goal:** a dead notification channel is visible, instead of looking exactly like a healthy one.
 
