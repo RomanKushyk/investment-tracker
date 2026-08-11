@@ -306,7 +306,7 @@ GitHub Actions, so "github" distinguished nothing. The scheme becomes
       execution role named after the stack, so it becomes `quirenote-backend-*`.
 - [ ] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
       switching back is the rollback.
-- [ ] **`quirenote-frontend-deploy`** (was `kubushka-github-deploy`) — trust
+- [x] **`quirenote-frontend-deploy`** (was `kubushka-github-deploy`) — **done 2026-08-11**, verified end to end: run `31512461483` green through `configure-aws-credentials` and the Amplify deploy, and the live site serves `<title>Quirenote — Invest Tracker</title>` with `/overview` still rewriting to 200. — trust
       policy byte-identical, permission policy in `docs/DEPLOYMENT.md` §1.5a.
       Independent of E3 and carrying no data risk: it touches Amplify only, the
       site keeps serving its last successful build, and it can be verified
@@ -314,6 +314,14 @@ GitHub Actions, so "github" distinguished nothing. The scheme becomes
       waiting for the stack.
 
 ## E3 — The stack move — the only destructive phase
+
+> **FIRST: re-enable the backend workflow.** It was disabled on 2026-08-11
+> (`gh workflow disable deploy-backend.yml`) so that pushing the E1–E3 commits
+> would not create the new stack as a side effect — `deploy-backend.yml`
+> triggers on `infra/**`, and those commits touch it. Until
+> `gh workflow enable deploy-backend.yml` runs, **a deploy will silently not
+> happen**, which is the worst failure mode available: no error, no stack, and
+> a schedule everyone assumes is armed.
 
 **Timing:** start in the Kyiv morning. The 01:00 capture then has a full day of
 margin, and if anything goes wrong the old stack is still running and still
