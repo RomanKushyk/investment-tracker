@@ -19,7 +19,7 @@ the IAM resource ARNs below and the `AWS_REGION` repo variable.
 - URL: `https://dev.d17m4jf400my6.amplifyapp.com`
 - App ID: `d17m4jf400my6` (public — it is part of the URL)
 - Region: `eu-north-1`
-- IAM role: `kubushka-github-deploy` (ARN held in the `AWS_ROLE_ARN` repo secret; the
+- IAM role: `quirenote-frontend-deploy` (ARN held in the `AWS_FRONTEND_ROLE_ARN` secret; the
   account ID stays out of this file deliberately)
 
 ## 1. One-time AWS console setup
@@ -254,11 +254,17 @@ stays deliberately absent — hosting config remains console-managed (D15).
 **Cutover, in order:**
 
 1. Create the role and attach the policy.
-2. Point the `AWS_ROLE_ARN` repo secret at the new ARN. **Record the old value
-   first** — putting it back is the whole rollback.
+2. **Add a NEW secret `AWS_FRONTEND_ROLE_ARN`** in the **`dev` environment scope**
+   (where `AWS_ROLE_ARN` lives — repo-level-only is the documented trap in §5),
+   holding the new role ARN. Adding rather than renaming is the point: until
+   step 4 both secrets exist, so putting the workflow line back is a complete
+   rollback. **Never rename a secret in place** — between the rename and the
+   workflow change the frontend cannot deploy at all.
 3. Re-run the frontend workflow and confirm the deploy succeeds and the site
-   still serves. A failure here costs nothing: the last build stays live.
-4. Delete `kubushka-github-deploy`.
+   still serves. A failure here costs nothing: the last build stays live, and
+   Amplify only swaps in a new one once a deployment finishes.
+4. Only then: delete the `AWS_ROLE_ARN` secret and the
+   `kubushka-github-deploy` role.
 
 **The Amplify app's own name** (`kubushka` in the console) is cosmetic and
 changes in E4. The **App ID does not change**, so
@@ -275,7 +281,7 @@ Settings → Environments → **`dev`**. All three live in that environment's sc
 |------|------|-------|
 | Variable | `AMPLIFY_APP_ID` | `d17m4jf400my6` |
 | Variable | `AWS_REGION` | `eu-north-1` |
-| Secret | `AWS_ROLE_ARN` | `arn:aws:iam::<account-id>:role/kubushka-github-deploy` |
+| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` |
 
 Repo-level (Settings → Secrets and variables → Actions) would work too — a job with an
 environment can still read repo-scoped values; environment-scoped ones just take precedence.
@@ -346,7 +352,7 @@ takes effect on the next page load without a cache purge.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
-| Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
+| Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_FRONTEND_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
 | Same error with the secret and trust policy both verified | The `sub` claim does not literally equal what the policy expects — most likely the immutable `OWNER@ID/REPO@ID` form (§1.5) | Print the real claim instead of guessing. Add a temporary step **before** `configure-aws-credentials` and compare its `sub` to the policy: `TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \| jq -r .value)`, then base64url-decode the second dot-segment and `jq '{iss,aud,sub}'`. **Print claims only — never the token**, which is a live credential, in a public repo |
 | `AccessDeniedException` on an `amplify:` call | Resource ARN shape — the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message; it states exactly what was wanted. `CreateDeployment` needed `…/branches/dev/deployments/*`, which is why §1.5 grants `…/branches/dev` **and** `…/branches/dev/*` |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |

@@ -28,7 +28,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # AMPLIFY_APP_ID / AWS_REGION / AWS_ROLE_ARN live in this environment's scope.
+    # AMPLIFY_APP_ID / AWS_REGION / AWS_FRONTEND_ROLE_ARN live in this environment's scope.
     environment:
       name: dev
       url: https://dev.d17m4jf400my6.amplifyapp.com
@@ -55,7 +55,7 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_FRONTEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Deploy to Amplify and wait for the job
