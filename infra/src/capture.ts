@@ -750,6 +750,7 @@ async function observeNbu(client: Client, req: ObserveRequest) {
   );
 
   let dates = 0;
+  let seen = 0;
   let written = 0;
   let mismatched = 0;
   let cursor = from;
@@ -771,7 +772,11 @@ async function observeNbu(client: Client, req: ObserveRequest) {
         mismatched += 1;
         continue;
       }
-      await client.query(
+      // rowCount, not a counter of attempts. `ON CONFLICT DO NOTHING` makes the
+      // two differ by exactly the amount that matters: a re-run that inserts
+      // nothing must REPORT nothing, or "re-running is a no-op" is a belief
+      // rather than an observation — the recurring defect of D43/D44/D49.
+      const ins = await client.query(
         `INSERT INTO price_observation
            (as_of, instrument_ref, basis, source, price, observed_at,
             parser_version, ytm, clean_rate)
@@ -789,7 +794,8 @@ async function observeNbu(client: Client, req: ObserveRequest) {
           row.cleanRate ?? null,
         ],
       );
-      written += 1;
+      written += ins.rowCount ?? 0;
+      seen += 1;
 
       // `listed_from` / `last_seen_on` widen monotonically, so a backfill run
       // in any order converges on the same bounds. LEAST/GREATEST over the
@@ -816,6 +822,9 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     to,
     refs,
     dates,
+    /** Rows the payloads offered for these refs. */
+    seen,
+    /** Rows actually INSERTED. `seen` with `written: 0` is a clean no-op. */
     written,
     mismatched,
     complete: !remaining,
@@ -941,7 +950,48 @@ async function diagnose(client: Client) {
   );
   plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
 
-  return { mode: 'diagnose' as const, size: size.rows[0], bySource: bySource.rows, plans };
+  // A4's reconciliation. Per ref: how many observations exist, over what span,
+  // and how many DISTINCT dates they cover — the last one is what catches a
+  // duplicate-per-date bug that a plain count would hide.
+  const observations = await client.query(
+    `SELECT instrument_ref, basis, source,
+            count(*)::text AS n,
+            count(DISTINCT as_of)::text AS dates,
+            to_char(min(as_of), 'YYYY-MM-DD') AS first_as_of,
+            to_char(max(as_of), 'YYYY-MM-DD') AS last_as_of
+       FROM price_observation
+      GROUP BY instrument_ref, basis, source
+      ORDER BY instrument_ref, basis, source`,
+  );
+
+  // The denominator that reconciliation needs: published NBU days in the span
+  // the observations actually cover. An observation cannot exist for a day the
+  // archive never captured, so this is the ceiling.
+  const publishedDays = await client.query(
+    `SELECT count(DISTINCT as_of)::text AS days
+       FROM price_capture
+      WHERE source = 'nbu_fv' AND ok = true
+        AND as_of BETWEEN (SELECT min(as_of) FROM price_observation)
+                      AND (SELECT max(as_of) FROM price_observation)`,
+  );
+
+  const instruments = await client.query(
+    `SELECT ref, kind, currency, cp_type,
+            to_char(maturity, 'YYYY-MM-DD')     AS maturity,
+            to_char(listed_from, 'YYYY-MM-DD')  AS listed_from,
+            to_char(last_seen_on, 'YYYY-MM-DD') AS last_seen_on
+       FROM instrument ORDER BY ref`,
+  );
+
+  return {
+    mode: 'diagnose' as const,
+    size: size.rows[0],
+    bySource: bySource.rows,
+    observations: observations.rows,
+    publishedDaysInSpan: publishedDays.rows[0]?.days ?? '0',
+    instruments: instruments.rows,
+    plans,
+  };
 }
 
 export interface HandlerEvent {
