@@ -1684,3 +1684,66 @@ it should count a date as done when a row exists **and parsed**, not merely when
 a row exists. Left as-is for now — changing it while a backfill is mid-flight
 would re-fetch everything — but recorded so the next backfill does not inherit
 the same blind spot.
+
+## D44 — The alerting was silently dead, and every indicator said it was fine (2026-08-11)
+
+Found while verifying the renamed stack. Three notifications were published to
+the new topic — a real `SilenceAlarm` firing, a hand-written test, and a forced
+`SetAlarmState` — and **none arrived**. The owner then found the explanation in
+their inbox: *"Your subscription to the topic below has been deactivated."*
+
+**SNS had deleted the subscription.** `ListSubscriptionsByTopic` returns the
+literal string `Deleted` as the `SubscriptionArn`, and the topic reports
+`SubscriptionsConfirmed: 0`. The likely chain: the confirmation email landed in
+spam, a spam complaint went back to AWS through the feedback loop, and SNS
+deactivates on complaint. It is the same spam folder that swallowed the previous
+topic's confirmation email in the earlier deployment.
+
+**Everything that should have caught this read as healthy:**
+
+- `NumberOfNotificationsFailed: 0` — which does not mean "delivered", it means
+  **nothing was even attempted**. There is no endpoint to fail against.
+- `NumberOfNotificationsFilteredOut: 0`.
+- The alarm's own history: `Successfully executed action … AlertTopic`.
+  CloudWatch did its job perfectly and handed off to a topic with no listeners.
+- All five alarms sitting in `OK`.
+
+**And the check I wrote to verify it was itself wrong.** It classified a
+subscription as confirmed whenever the ARN was not the literal
+`PendingConfirmation` — so `Deleted` was reported as *confirmed*. That produced
+a false all-clear in the exact place the failure lived. A verification that can
+only detect the failure mode it anticipated is not a verification.
+
+**Why this matters more than one lost subscription.** The entire archive design
+rests on `SilenceAlarm` with `TreatMissingData: breaching` — the alarm that
+answers *"did the capture stop running?"*. A silence alarm that cannot deliver
+is worse than no alarm at all: it converts an unmonitored system into one
+everybody believes is monitored. The capture could have stopped for weeks with
+every dashboard green.
+
+**The fix, and it follows the principle already used for `unchangedDays` (D28).**
+That metric is emitted on every run, healthy or not, because *"a metric that
+exists only on failure cannot distinguish healthy from the check stopped
+running."* The same reasoning applies one level up: the delivery channel needs
+its own liveness signal, and it cannot be delivered through the channel it is
+checking.
+
+- The 01:00 capture reads `GetTopicAttributes.SubscriptionsConfirmed` and logs
+  it, as it already logs `unchangedDays`. A metric filter turns it into a
+  metric; an alarm on `< 1` catches a dead channel.
+- That alarm still notifies through the same dead topic, which is the
+  chicken-and-egg. It is not solved by cleverness — it is solved by the value
+  being **visible without email**: on the dashboard, and in the run journal the
+  super-admin surface (W8) will read.
+- Cost: one more `cognito`-style read in the existing run, no new schedule
+  (the "exactly one automation" ruling holds).
+
+**Operational, not technical, and it caused this twice now:** the confirmation
+email must be moved out of spam *before* being clicked, and
+`no-reply@sns.amazonaws.com` needs a never-send-to-spam filter. Marking any SNS
+mail as spam deactivates the subscription, silently, forever.
+
+**Open question deliberately not answered here:** whether email is the right
+channel at all. It has now failed twice for the same reason, and its failure
+mode is invisible. Recorded rather than decided — the fix above makes the
+failure *detectable*, which is the part that cannot wait.

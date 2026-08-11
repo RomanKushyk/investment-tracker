@@ -22,6 +22,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
 | A12 | NBU parser reads the historical layouts | `infra/nbu-legacy-layouts` | M | **todo — found 2026-08-11** |
+| A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **todo — found 2026-08-11** |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
@@ -224,6 +225,22 @@ Nothing is lost: `payload_gzip` is written regardless of parse outcome, exactly 
 
 **Verify:** a date from each generation (2016, 2018, 2021, 2024) parses to a non-zero row count with `calc_date` matching its filename; re-running the reprocess is a no-op; the two tracked ISINs resolve wherever they existed.
 **Risk:** none to stored data — reprocessing reads payloads and updates derived columns; the bytes are never rewritten.
+
+## A13 — The alert channel gets its own liveness signal — `infra/alert-liveness`
+
+**Goal:** a dead notification channel is visible, instead of looking exactly like a healthy one.
+
+**Rationale (D44).** SNS deleted the email subscription after a spam complaint, and three notifications — including a real `SilenceAlarm` firing — went nowhere. Every indicator read healthy: `NumberOfNotificationsFailed: 0` (which means nothing was *attempted*, not that anything succeeded), the alarm history saying `Successfully executed action`, all five alarms in `OK`. **A silence alarm that cannot deliver is worse than no alarm**, because it turns an unmonitored system into one everyone believes is monitored.
+
+This is the `unchangedDays` principle (D28) one level up: a signal that exists only on failure cannot tell "healthy" from "the check stopped running".
+
+- [ ] The 01:00 capture reads `GetTopicAttributes.SubscriptionsConfirmed` and logs it as JSON, exactly as it already logs `unchangedDays`. No new schedule — the "exactly one automation" ruling holds.
+- [ ] Metric filter → metric → alarm on `< 1`.
+- [ ] **Accept that this alarm notifies through the channel it is checking.** That is not solved by cleverness; it is solved by the value being readable *without* email — on the dashboard, and in the run journal the super-admin surface (W8) reads. The alarm is the backup, the visible number is the primary.
+- [ ] Exec role gains `sns:GetTopicAttributes` on its own topic and nothing else.
+
+**Verify:** delete the subscription in a test, confirm the logged value drops to 0 and the alarm fires; re-subscribe and confirm it returns to 1.
+**Risk:** none — a read of topic metadata.
 
 ---
 
