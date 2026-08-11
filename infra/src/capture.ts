@@ -371,12 +371,24 @@ const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
  * This is the stopgap. The real home for it is `listed_from` / `retired_at` on
  * `instrument`, which the data model specifies for exactly this distinction:
  * telling "missing" apart from "did not exist yet".
+ *
+ * `trackStreak` — whether to compute the unchanged-price streak and emit the
+ * `unchangedDays` metric. True for the daily capture, which is what the metric
+ * is about. False for a backfill, for two reasons and the second is the real
+ * one:
+ *
+ *  1. Cost. It is a query per date, and it made a forced re-capture roughly
+ *     2.5x slower (540ms/date against 200ms).
+ *  2. **It pollutes a production metric with history.** A 2,600-date backfill
+ *     would emit 2,600 `unchangedDays` points dated across ten years, and
+ *     `StalePricesAlarm` watches that metric with a five-day threshold. A
+ *     backfill has no business firing an alarm about 2018.
  */
 async function captureOne(
   client: Client,
   source: string,
   asOf: string,
-  { expectTracked = true }: { expectTracked?: boolean } = {},
+  { expectTracked = true, trackStreak = true }: { expectTracked?: boolean; trackStreak?: boolean } = {},
 ): Promise<CaptureResult> {
   const requestedAt = new Date();
   const outcome =
@@ -426,7 +438,7 @@ async function captureOne(
   // Only meaningful for a capture that actually parsed, and only when the date
   // is a business day — a weekend capture repeating Friday is not a symptom.
   let unchangedDays: number | undefined;
-  if (digest !== null && error === null && !isWeekend(asOf)) {
+  if (trackStreak && digest !== null && error === null && !isWeekend(asOf)) {
     unchangedDays = await unchangedStreak(client, source, digest, asOf);
 
     // Emitted on EVERY business-day capture, not only when stale. A metric that
@@ -552,7 +564,10 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   for (let d = from; d <= to && captured < limit; d = addDays(d, 1)) {
     cursor = d;
     if (isWeekend(d) || (!req.force && done.has(d))) continue;
-    const res = await captureOne(client, SOURCE.nbuFairValue, d, { expectTracked: false });
+    const res = await captureOne(client, SOURCE.nbuFairValue, d, {
+      expectTracked: false,
+      trackStreak: false,
+    });
     captured += 1;
     if (res.ok) published += 1;
   }
