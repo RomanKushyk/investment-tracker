@@ -21,7 +21,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **todo — unblocked** |
-| A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **fix committed 2026-08-11, needs deploy + one clean backfill** |
+| A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **todo — found 2026-08-11** |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
@@ -29,8 +29,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
-| E2 | New IAM roles (three) | console | S | todo |
-| E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | todo |
+| E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
+| E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | todo |
 
 ---
@@ -226,9 +226,9 @@ Both bonds were issued in 2025–2026, so no file from 2020 can contain them. Th
 **The stored data was never wrong.** `entry_count` and `quotes_sha256` are correct on all ~1,200 rows already written; only `ok` and `error` are, plus `unchangedDays` was skipped because it is gated on `error === null`.
 
 - [x] `captureOne` takes `expectTracked`, defaulting true; the backfill passes false. Committed 2026-08-11.
-- [ ] Deploy it.
-- [ ] **Then** run the backfill to completion, in one pass. Not before: the completeness check keys on a row *existing*, so dates filled by the broken run are skipped forever by a re-run.
-- [ ] Repair the ~1,200 rows already written — reprocess from stored payloads and recompute `ok`/`error`, or delete and re-fetch. Reprocessing is preferred: the bytes are already held and NBU is spared the requests.
+- [x] Deploy it.
+- [x] **Then** run the backfill to completion, in one pass. Not before: the completeness check keys on a row *existing*, so dates filled by the broken run are skipped forever by a re-run.
+- [x] Repair the ~1,200 rows already written — reprocess from stored payloads and recompute `ok`/`error`, or delete and re-fetch. Reprocessing is preferred: the bytes are already held and NBU is spared the requests.
 - [ ] Long term this belongs to `listed_from` / `retired_at` on `instrument`, which the data model specifies for exactly this distinction. The flag is the stopgap.
 
 **Verify:** a 2020 date returns `published: 1`; a date after both issuances still flags a genuinely missing tracked ISIN; the full backfill reports `complete: true` with `published` close to the business-day count rather than zero.
@@ -357,7 +357,14 @@ GitHub Actions, so "github" distinguished nothing. The scheme becomes
       immediately by re-running the frontend workflow. Do it now rather than
       waiting for the stack.
 
-## E3 — The stack move — the only destructive phase
+## E3 — The stack move — the only destructive phase — **DONE 2026-08-11 (D46)**
+
+> Verified after the fact: one stack, one cluster, one schedule, five alarms
+> in OK, no `kubushka-*` role, one bucket, and the NBU archive closed
+> 2016-01-04 → 2026-08-10. Cost was two days of Inzhur, exactly as ruled.
+> Three defects nobody was looking for surfaced on the way — two orphaned
+> clusters, a dead alert channel, and a backfill that failed every historical
+> date — all of them predating the move.
 
 > **FIRST: re-enable the backend workflow.** It was disabled on 2026-08-11
 > (`gh workflow disable deploy-backend.yml`) so that pushing the E1–E3 commits

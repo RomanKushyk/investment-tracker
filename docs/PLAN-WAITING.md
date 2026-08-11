@@ -10,10 +10,10 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 
 | # | Item | Gate | Earliest | Hard? | Cost of missing |
 |---|------|------|----------|-------|-----------------|
-| W1 | Frozen-feed detector on real data | 5 business days of captures (`STALE_AFTER_DAYS=5`) | **2026-08-17** | no | none — it accrues by itself |
+| W1 | Frozen-feed detector on real data | 5 business days of captures (`STALE_AFTER_DAYS=5`) | **2026-08-18** | no | none — streak history is per-cluster and restarted with the move (D46) |
 | W2 | DPU measured over a real week | 7 days of captures | **2026-08-17** | no | none, but A2's before/after needs it |
-| W3 | Inzhur observation window closes | ~3 weeks of captures from 2026-08-10 | **2026-09-01** | no | schema decided on thin evidence |
-| W4 | Inzhur observation schema | W3 + `PLAN-NOW.md` A4 | **2026-09-01** | no | blocks B3 migration |
+| W3 | Inzhur observation window closes | ~3 weeks of captures from **2026-08-11** (restarted by the stack move) | **2026-09-02** | no | schema decided on thin evidence |
+| W4 | Inzhur observation schema | W3 + `PLAN-NOW.md` A4 | **2026-09-02** | no | blocks B3 migration |
 | W5 | **cum/ex boundary on UA4000238976** | the coupon itself | **2026-09-24** | **yes** | **182 days** — next chance 2027-03-24 |
 | W6 | DPU measured over a real month | 30 days of captures | **2026-09-10** | no | none |
 | W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-01** | no | everything downstream |
