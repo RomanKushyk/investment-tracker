@@ -74,6 +74,7 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 - [ ] Backfill from the existing rows in batches under the 3,000-mutated-rows-per-transaction cap, retrying SQLSTATE 40001.
 - [ ] Drop the inline columns only after the copy is verified row-for-row by hash. **`DeletionPolicy: Retain` and deletion protection stay on throughout.**
 - [ ] Add the missing index the two queries actually want (`source`, `as_of`) — no `DESC` in index keys, DSQL rejects it outright.
+- [ ] **Record the payload's implied FX rate on `price_capture`** (D30). It is one number per run — every entry in a payload converts at the same rate, proven in D31 — and it is not stored today. `buyUAH / buyUSD` on any entry recovers it; NBU's own rate for the same date identifies its vintage. Currently unrecoverable once the payload ages out of anyone's attention.
 
 **Verify:** re-run `EXPLAIN ANALYZE` and record the before/after bytes in `infra/README.md` field notes. Row count and every `payload_sha256` identical before and after. A scheduled run and a `{backfill:…}` run both still succeed.
 **Risk:** this is the only phase here that rewrites live archived data. It is sequenced first *because* the archive is ~2 days of Inzhur plus a settled NBU backfill — the cheapest it will ever be. Every day of delay adds rows.
@@ -98,8 +99,9 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 **Rationale:** B2 of the staged plan wants the schema decided **with evidence in hand**, and for NBU the evidence is complete: the backfill to 2016-01-04 re-runs clean (`captured: 0, complete: true`), weekend behaviour is characterised (404, recorded as `not_published`, correctly not an alarm), `calc_date` matched the filename date on 14/14 sampled dates across 2016–2026, and the malformed header is understood (field 17 declares `g_spread,z_spread,cptype`, the data carries `cptype` alone). The Inzhur half is **not** ready and is in `PLAN-WAITING.md` W1 — do not let it drag this one.
 
-- [ ] `price_observation` for the NBU source only, with the five columns the spec marks unaddable-later: `basis` **in the natural key**, `observed_at` separate from `as_of`, `source` + `parser_version`, and — for the Inzhur rows that follow — `returnRates.{buy,sell}` and `status`.
-- [ ] `instrument` with `listed_from` / `retired_at`, and `instrument_ref` permanently allocated, never reused, never renamed.
+- [ ] `price_observation` for the NBU source only, with the columns the spec marks unaddable-later: `basis` **in the natural key**, `observed_at` separate from `as_of`, `source` + `parser_version`, and — for the Inzhur rows that follow — `returnRates.{buy,sell}` and `status`.
+- [ ] **`basis` vocabulary is pinned by D30: `buy | sell | nav | fair`.** Enumerate all four from row one even though NBU only writes `fair` — the key is immutable and a value added later leaves the archive split. **No currency dimension**: the USD figures are a serve-time conversion (D31), so they belong on the capture, not the observation.
+- [ ] `instrument` with `listed_from` / `retired_at`. **`instrument_ref` is pinned by D30: `isin` for bonds, `slug` for funds, the feed's own `id` rejected.** Note the measured trap — all 31 bonds share `slug: "ovdp"`, so a slug-only key would collapse the entire bond universe into one row.
 - [ ] Backfill from the stored raw payloads. This is why they are stored: the schema can be wrong once and still recover.
 - [ ] Do **not** store `observation_kind`. `published | carried | computed | frozen` are derived at read time — storing a judgment in an immutable column is the specific error the whole investigation exists to avoid.
 
@@ -133,10 +135,12 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 - [ ] `core/inzhur/dcf.ts` — `derivePrice(schedule, yield, onIso)` and `impliedYield(price, schedule, onIso)` by bisection. The inverse is what catches a revision when only the price moved.
 - [ ] Compare stored vs derived on fetch; a mismatch past a kopeck tolerance is a **surfaced anomaly**, never a silent correction (G5).
+- [ ] **Ship the inverse as a staleness diagnostic, not only a revision check (D31).** Searching the pricing date that best explains the quote dated seven live bonds to 1–6 days stale on 2026-08-11 — the one thing a price alone can never tell you. Surface it beside the quote.
+- [ ] **Skip `status: 'completed'` instruments (D31).** Their schedules lie entirely in the past, so the DCF correctly returns 0 and the model is undefined, not wrong. Seven of the 31 bonds are in this state. `status` is the discriminator — do not invent a residual threshold, and never filter the data on it (D19).
 - [ ] Later, in an `infra/` commit, hand the same function to the capture Lambda so the check runs nightly rather than only when the app is open.
 - [ ] Do not store the computed value. The spec is explicit: premises are captured forever, the conclusion never is — a stale provider value is stored as the observed fact.
 
-**Verify:** the out-of-sample pair as a fixture; round-trip `impliedYield(derivePrice(s, y)) ≈ y`; the 6 short-dated bonds that miss the model are handled by residual threshold plus alert, not by a special case (`PLAN-OPEN.md` O8 — neither of the user's holdings is among them).
+**Verify:** the out-of-sample pair as a fixture; round-trip `impliedYield(derivePrice(s, y)) ≈ y`; the seventeen bonds that fit on 2026-08-11 reproduce at a residual under 0.005 ₴; a `completed` instrument returns "not applicable" rather than an anomaly. Expect ~0.1 ₴ residuals on a few bonds even at their best date — the published yield is rounded to two decimals, which is a caveat on the residual, not on the date.
 
 ## A7 — Parse errors become visible — `feat/parse-diagnostics`
 

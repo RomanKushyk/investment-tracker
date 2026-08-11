@@ -105,9 +105,17 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Gate:** W4 complete **and** `PLAN-NOW.md` A3 (durability) passed. ~10–12 days of work per the staging estimate.
 
-Scope, per spec: user schema in DSQL, Cognito, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, PWA shell, test repair, cutover. Front-loaded accepted costs: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop with the schema kept inside the DSQL subset, real DSQL in CI).
+**Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 
-**Do not start this before `PLAN-OPEN.md` Round 1 is answered** — those items cannot be added after the first DDL.
+- **Auth (D32):** Cognito user pool on the **Essentials** tier, **managed login**, **email + password**, **open registration** (owner ruling), refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
+- **Value derivation (D33):** there is no past-date prefill, because there is nothing to prefill — `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`, computed at read time. **The migration must carry the existing 174 snapshots into a per-user `user_price` overlay**; discarding them deletes five months of history no source can regenerate.
+- **Seed (D34):** rewritten to reconcile under the ledger model — withdrawal rows and `tax` rows carrying `settles_payout_id` — so every D5-pinned figure and every `navigation-map.md` checkpoint stays valid. 97 `it()` blocks across 12 files ride on it.
+
+Remaining scope, unchanged: user schema in DSQL, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, PWA shell, test repair, cutover. Front-loaded accepted costs: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop with the schema kept inside the DSQL subset, real DSQL in CI).
+
+**`PLAN-OPEN.md` Round 1 is closed** (D30, D32), so the DDL is no longer blocked on a decision. The `basis` vocabulary, the `instrument_ref` scheme and the FX placement are pinned; what remains gated is only the observation row's non-key columns, which are an `ALTER TABLE` away and therefore not a blocker for the user schema.
+
+**One consequence of open registration to carry into the build:** threat protection lives in Cognito's **Plus** tier, which has no free tier, and WAF is $15/mo and on the standing "no" list below. A public sign-up path is defended by built-in request quotas and email verification alone — adequate here, and the honest fallbacks if abuse appears are to close registration or to start paying.
 
 Retires D2 (IndexedDB), D16/G4 (demo+live split) and the dataset guards. `navigation-map.md` needs a full re-baseline in the same phase; ~97 `it()` blocks across 12 files depend on the seed helpers.
 
@@ -116,6 +124,8 @@ Retires D2 (IndexedDB), D16/G4 (demo+live split) and the dataset guards. `naviga
 Deferred until the app can read the archive. The data is already being recorded, so nothing is lost by waiting.
 
 Controls, in the spec's rough priority: enable/disable a source without a deploy · re-run one date (`{asOf}`) to repair a bad capture · run a backfill range · view the last N runs with their errors · view which tracked refs were missing from a published file.
+
+**The settings/code boundary is decided (D35):** those toggles are runtime settings; parser version, field mappings and the tolerant-parse rules stay code. The line is whether a wrong value can break capture with no deploy to blame it on — an operator toggling a source is recoverable, an operator editing a field mapping is a silent data defect.
 
 The four states that must stay distinguishable, because conflating them is how a broken pipeline looks healthy: **captured** (`ok=true`) · **not published** (`404`, `not_published` — no alarm, it is a weekend) · **parse failure** (error set, payload still stored — alarm) · **never ran** (no row at all — the silence alarm).
 

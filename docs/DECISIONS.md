@@ -912,3 +912,221 @@ thousands grouping, UTF-8 with BOM, CRLF including after the last record, RFC
 never 0** (D5#1) — so a spreadsheet's own SUM and AVERAGE skip an unrecorded
 day instead of averaging in a zero. Snapshot columns are named
 `Asset name (id)`; the bracketed id disambiguates two funds sharing a name.
+
+## D30 — The observation key: basis vocabulary, FX placement, instrument ref (2026-08-11)
+
+Resolves PLAN-OPEN O2, O3 and the key half of O5. All three were Round 1 —
+irreversible, because DSQL primary keys are immutable and a wrong key is a
+DROP/CREATE, not a migration. Grounded in the live feed fetched 2026-08-11
+(35 entries) rather than in the trimmed fixture.
+
+**`basis` vocabulary is `buy | sell | nav | fair`.** Inzhur serves nine price
+fields, and they are three bases × three currencies: `buy`/`sell`/`nav` each in
+a bare, a `…UAH` and a `…USD` variant. The bare field equals the UAH field on
+**all 35 entries** — it is a duplicate, not a basis. NBU contributes `fair`.
+Nothing else in either source is price-shaped.
+
+**Currency is NOT part of the basis, and the USD value is not stored per
+observation.** The feed's USD figures are a serve-time conversion, proven in
+D31, so a per-observation USD column would stamp every row with a rate whose
+date has nothing to do with that row's `as_of`. **The provider's FX rate is one
+number per payload and belongs on `price_capture`, not on
+`price_observation`.** Stored there it stays fully recoverable and it is honest
+about its scope.
+
+**`instrument_ref` is `isin` for bonds and `slug` for funds — and the slug can
+never be the key on its own.** Measured: **all 31 bonds carry `slug: "ovdp"`.**
+The slug is a category, not an identifier. `isin` is unique across all 31 and is
+permanent by ISO 6166, which is exactly the "permanently allocated, never
+reused, never renamed" property the design needs and that no foreign key can
+enforce on DSQL.
+
+The feed's own `id` is **rejected** as the ref: it is a small integer (observed
+range 5–46, 35 distinct). Small sequential integers are the classic reuse
+hazard, it is provider-internal with no published stability guarantee, and
+nothing about it is more durable than the ISIN it accompanies.
+
+So: `instrument_ref = isin` where an ISIN exists, `slug` otherwise, and the
+instrument type decides which. A fund that later gains an ISIN keeps its slug
+ref — the rule is fixed at allocation time and never re-evaluated, because
+re-evaluating it is the rename the design forbids.
+
+## D31 — What one payload proves: fund basis, the FX channel, matured bonds (2026-08-11)
+
+Resolves PLAN-OPEN O6, O7 and O8 — from the live feed plus a DCF inversion over
+all 31 bonds, not from a judgment call.
+
+**Fund value uses `sell`. `nav` is not universally published:** it is exactly
+`0` for `ocean-plaza` and `zhytniy`, two of the four funds. A basis absent for
+half the instruments cannot be the basis. `sell` is present for all four and is
+the figure already verified against the owner's own dashboard
+(6 164 × 11.1389 = 68 660.18 ₴). O6 is settled without spending the hedge —
+`basis` stays in the key regardless, so a future change still costs nothing.
+
+**The fund T-1 dedup rule is rejected permanently, not deferred.** The spec
+deferred it because the FX-date channel rested on one observation and conflated
+the FX conversion date with the NAV strike date. That conflation is now
+**proven**, and proven inside a single payload:
+
+- All four funds convert at **44.7579** = NBU's rate for **2026-08-10**.
+- All 31 bonds convert at **44.8305** = NBU's rate for **2026-08-11**.
+- But inverting the DCF dates seven of those bonds' UAH prices to **2026-08-05
+  through 2026-08-10** — up to six days stale — and they *still* carry the
+  2026-08-11 rate.
+
+A price struck on 5 August cannot have been converted with 11 August's rate at
+strike time. Therefore **the conversion happens at serve time over the whole
+payload**, and the FX vintage says nothing about when any individual price was
+struck. The channel is not weak evidence; it is not evidence. Do not revisit it
+with more weeks of the same observation.
+
+**Matured bonds are identified by `status`, not by a residual threshold.** The
+spec anticipated "6 short-dated bonds that miss the DCF model". Measured, they
+are **7 bonds with `status: 'completed'`** whose payment schedules lie entirely
+in the past (maturities 2025-10-01 through 2026-06-24) while the feed still
+serves a frozen last price (1 072.85–1 088.60). The DCF returns 0 for them
+because no cash flows remain — the model is not wrong, it is undefined.
+`status` answers this exactly, and D19 requires capturing it verbatim and never
+filtering on it, so no threshold is needed and none is added.
+
+**The DCF's real product is a date, and it works.** Seventeen active bonds
+reproduce their quote to a residual of **0.0007–0.0046 ₴** at `as_of =
+2026-08-11`. The seven stale ones reproduce theirs at an earlier date, so
+inverting the model **measures how stale each price is** — the one diagnostic a
+price alone can never give. Four of those land at 0.10–0.18 ₴ rather than
+~0.003; the likeliest cause is the published yield being rounded to two
+decimals, and that is a caveat on the residual, not on the date.
+
+## D32 — Auth: Cognito Essentials, managed login, open registration (2026-08-11)
+
+Resolves PLAN-OPEN O1 and O4.
+
+**Registration is OPEN** — owner ruling, against the recommendation in the
+question, which had proposed a closed single-user system. Recorded as the
+owner's call, with its consequences stated here rather than discovered later.
+
+**Cost is not one of those consequences.** Cognito's free tier is **10,000 MAU
+per month, per account, indefinitely** for direct or social sign-in on the Lite
+or Essentials tiers — it does not expire with the 12-month AWS free tier. Open
+registration is $0 until this project has ten thousand monthly users.
+
+**Tier is Essentials** (the default for new pools, and inside the free tier).
+It includes Managed Login and passwordless options; Lite has only the classic
+hosted UI and no passkeys. **Plus has no free tier**, which matters below.
+
+**Sign-in is email + password through Cognito's managed login.** This one was
+left unanswered and is therefore decided here, and open registration is what
+makes it near-mandatory rather than merely convenient: a public sign-up path
+needs email verification, password reset and throttling on all of them. Managed
+login supplies each as configuration. Hand-writing them would mean writing the
+security-sensitive half of an auth system to avoid a login screen that does not
+match the app's design. Revisable — nothing in the token contract depends on it.
+
+**Session: refresh token measured in years.** Cognito permits 60 minutes to 10
+years (console: up to 3,560 days), default 30 days. "Same everywhere" is binding
+and **Clerk was rejected specifically for pinning 7 days**, so the refresh token
+is set long deliberately. Access and ID tokens stay at the 60-minute default.
+
+**Authorizer: API Gateway HTTP API with the native JWT authorizer.** It
+validates Cognito's tokens with no Lambda in the path — nothing to invoke, pay
+for or debug. A Lambda authorizer is rejected: it would add an invocation and a
+cold start to every request to replicate what the platform already does.
+
+**The one real cost of open registration, stated plainly:** threat protection
+(adaptive auth, compromised-credential detection) lives in the **Plus** tier,
+which has **no free tier**, and AWS WAF is **$15/mo** and already on the
+standing "no" list. So a public sign-up path is defended by Cognito's built-in
+request quotas and email verification alone. That is adequate for a personal
+project and would not be for a real product; if abuse appears, the honest
+options are to close registration or to start paying, and there is no third one.
+
+`GET /v1/prices/{YYYY}.ndjson` stays **public with no authorizer, ever** — the
+authorizer governs the user API alone.
+
+## D33 — There is no past-date prefill; value is derived (2026-08-11)
+
+Resolves PLAN-OPEN O12, the largest open question in the project.
+
+The tension was real: the archive can fill 174 past days, G5 makes the user's
+press the sole write path, and 174 presses will never happen. **The question
+dissolves rather than being traded off**, because the ledger model already
+removed `Snapshot` as a stored entity. Portfolio value at any date is
+`units(a, D) × price(a, D)`, computed at read time. Nothing is prefilled because
+nothing is written.
+
+The gap the archive cannot cover is the owner's own history: Inzhur capture
+begins 2026-08-10 and the existing 174 snapshots run February–July 2026, which
+the provider will never republish.
+
+**They migrate into a per-user `user_price` overlay, left-joined at read time —
+the same shape as `price_correction`.** Resolution:
+
+```
+value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))
+```
+
+This keeps both principles that would otherwise collide. Prices stay a **global
+single source of truth**, because the global archive stays provider-only; the
+owner's hand-entered observations are **their account's data**, which is what
+they always were. And G5 is untouched: the server never writes a price into
+anyone's portfolio, because portfolio value is not a stored thing to write.
+
+Consequence: the migration must carry the 174 snapshots into `user_price` rather
+than discarding them. Losing them would delete five months of history that no
+source can regenerate.
+
+## D34 — The seed is rewritten to reconcile, not replaced (2026-08-11)
+
+Resolves PLAN-OPEN O13. Owner ruling.
+
+`src/lib/seed.ts` cannot survive the ledger model unchanged: its 18 transactions
+carry no `withdrawal` rows and no separate `tax` rows, so the account sum will
+not produce ₴7,75 — and under the new model the sum reconciles **by
+construction**, with no exclusion rules and no pairing heuristics. That is
+precisely why the old seed fails it.
+
+Measured coupling: **97 `it()` blocks across 12 files**, out of 508 in the suite.
+
+**The seed gains the missing rows** — withdrawals, and `tax` rows carrying
+`settles_payout_id` — so it reconciles the same way real data does. Every
+D5-pinned figure and every `navigation-map.md` checkpoint stays valid; only the
+fixture beneath them changes. A purpose-built minimal fixture was rejected
+because it would rewrite the checkpoints, and checkpoints that change with the
+fixture stop being able to catch a regression.
+
+The seed survives as a **test fixture only** — demo mode goes with the dataset
+split (D16/G4) at the migration.
+
+## D35 — Round 3 stays derived, and the small Round 4 items (2026-08-11)
+
+Closes the remainder of PLAN-OPEN.
+
+**O9 `provenance`, O10 volatility/drawdown/best-worst-day, and O11 the UI
+treatment of carried and computed days stay open deliberately** and are not
+defects. Each is a **derivation**, so each is revisable at zero migration cost,
+and the governing rule is already pinned: `published | carried | computed |
+frozen` are derived at read time, never stored, because storing a judgment in an
+immutable column is the specific error the archive design exists to avoid. The
+consumer rule is likewise pinned and not open: **levels carry forward, changes
+never do** — a zero delta and an unknown delta must never render the same.
+
+**O14 — the parse-control boundary.** Runtime settings: enable/disable a source,
+re-run one date, run a backfill range. Code: parser version, field mappings, the
+tolerant-parse rules. The line is whether a wrong value can break capture with
+no deploy to blame it on — an operator toggling a source is recoverable, an
+operator editing a field mapping is a silent data defect. Unchanged and not
+configurable: a payload that fails to parse is **still stored**, and the row
+records why.
+
+**O15 — the cash-reconciliation warning retires with stored cash.** D13
+compromised on `Snapshot.cash` as an observed balance plus a drift warning,
+because the derived figure could not be trusted. The ledger model removes stored
+cash entirely and `free_cash(D)` is a plain signed sum — which the owner's real
+statement was shown to reconcile against, to ₴8.11. With one number instead of
+two there is nothing left to compare, so the warning goes. **This supersedes
+D13's cash half**; its day-count and metric-family rulings stand.
+
+**O16 — CSV export survives the migration** as a scope note, not a question. It
+reads through `repository.ts`, which becomes an HTTP client; exporting full
+history then means fetching the cached yearly NDJSON the read contract already
+defines. No decision required — listed so it is not rediscovered mid-migration.

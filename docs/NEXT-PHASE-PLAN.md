@@ -6,7 +6,7 @@
 > |---|---|---|
 > | **`PLAN-NOW.md`** | Everything startable today, in four sections ordered by deadline pressure then irreversibility. Full phase ceremony. | Pick the first non-done task in section order. |
 > | **`PLAN-WAITING.md`** | Everything gated on elapsed time or an external event, with earliest dates, which are hard, and the cost of missing each. | **Read its dated table at the start of any session touching `infra/` or the migration.** |
-> | **`PLAN-OPEN.md`** | Questions with no answer, in four rounds by cost of getting them wrong. Round 1 is irreversible on DSQL. | **Never implement from it.** Needing an answer is the signal to ask, not to choose quietly. |
+> | **`PLAN-OPEN.md`** | Questions with no answer. Mostly closed (D30–D35, 2026-08-11); what remains is deferred by design. | **Never implement from it.** Needing an answer is the signal to ask, not to choose quietly. |
 >
 > Branch as named, tick the checkbox in the plan that owns the task, update `navigation-map.md` + folder READMEs, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test`).
 
@@ -25,7 +25,7 @@
 | 4 | Data portability | **closed** — JSON export/import + CSV export shipped; CSV import + mirror retired (D29) | — |
 | B1 | Backend: price capture archive | **done, live** (2026-08-11) | payload split + durability gate → `PLAN-NOW.md` A2–A3 |
 | B2 | Backend: observation schema + read API | **split by evidence** | NBU half → `PLAN-NOW.md` A4 · Inzhur half → `PLAN-WAITING.md` W3–W4 |
-| B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper | `PLAN-WAITING.md` W7, gated on `PLAN-OPEN.md` Round 1 |
+| B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper, scope now specified (D32–D34) | `PLAN-WAITING.md` W7 |
 | 5 | Appearance & language: dark theme + UK | todo | `PLAN-NOW.md` A8–A10 |
 | 6 | Chart analytics: ranges + cap-by-day | todo | `PLAN-WAITING.md` W13 |
 | 7 | Full control: DB browser | todo | `PLAN-WAITING.md` W14 |
@@ -91,7 +91,7 @@ The four tracks that used to be listed here, plus everything queued behind the m
 ## Cross-phase rules
 
 - **Git/gates:** per-task branches as named; plain conventional commits; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
-- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — D28 is the current tail); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/design-briefs/`, `design/extensions/`, `infra/`).
+- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — D35 is the current tail); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/design-briefs/`, `design/extensions/`, `infra/`).
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
