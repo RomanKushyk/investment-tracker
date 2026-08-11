@@ -9,6 +9,7 @@ import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
 import { useSettings } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
+import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
 import { ImportRow } from './settings/ImportRow';
@@ -340,6 +341,10 @@ export function Settings() {
           {/* S2 — the label block spans the full row: the one "Choose file…"
               button lives inside the drop panel. */}
           <ImportRow />
+          <Divider />
+          {/* S5 — row 4 of the pinned order (Dataset → Backup → Import →
+              Spreadsheet export → [file mirror] → Danger zone). */}
+          <CsvExportRow />
           <Divider />
           <SettingRow
             title="Danger zone"

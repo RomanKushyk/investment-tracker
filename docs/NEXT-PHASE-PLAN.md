@@ -14,7 +14,7 @@
 | 1 | Core consolidation, write surface, formula audit | **done** (2026-07-29) — v1.1.0 |
 | 2 | Settings home & real-data era | **done** (2026-08-02) — v1.2.0 |
 | 3 | Living data: Inzhur fetch, fixed yield, reminders | **done** (2026-08-04) — v1.3.0 |
-| 4 | Data portability | **partial** — JSON import shipped; CSV + mirror retired (see below) |
+| 4 | Data portability | **closed** — JSON export/import + CSV export shipped; CSV import + mirror retired (D29) |
 | B1 | Backend: price capture archive | **done, live** (2026-08-11) |
 | B2 | Backend: observation schema + read API | **blocked on evidence** — NBU half ready now, Inzhur half ~2026-09-01 |
 | B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper |
@@ -30,7 +30,7 @@ Current version: **v1.3.0**. Per-phase tags continue per `docs/VERSIONING.md`.
 - **Phase 1** `refactor/core-folder`, `feat/repo-write-surface`, `chore/settings-persist-version`, `feat/backup-export-json`, `feat/formula-parity` — `src/core/` pure domain layer; full repository write surface; JSON backup envelope v1; the formula audit (`docs/FORMULA-AUDIT.md`).
 - **Phase 2** `feat/settings-shell`, `feat/asset-form`, `feat/targets-editor`, `feat/dataset-split`, `feat/clear-data`, `feat/metrics-exposure` — `/settings`, full asset editing, demo/live dataset split, safe erase, audited metrics on screen.
 - **Phase 3** `feat/inzhur-client`, `feat/fetch-quotes`, `feat/fixed-yield`, `feat/reminders` — the headline daily ritual: fetch quotes, accrual ghosts, coupon confirm cards, in-app reminders.
-- **Phase 4 (partial)** `feat/backup-import` — validate → diff → confirm → one rw transaction, safety backup first (D24).
+- **Phase 4** `feat/backup-import` — validate → diff → confirm → one rw transaction, safety backup first (D24). `feat/csv-export` — one CSV per table with the pinned dialect, plus `src/lib/download.ts` (save-picker parity, a cancelled picker is not an error) which the JSON backup button now shares (D29).
 - **Backend B1** — `infra/` SAM stack: Aurora DSQL cluster, capture Lambda on EventBridge Scheduler at 01:00 Europe/Kyiv, DLQ, five alarms, two metric filters. Captures **two** sources per run (Inzhur `_api/assets`, NBU fair value), writes a journal row on every outcome including failures, and detects a frozen upstream by hashing prices rather than payloads (D26–D28). NBU archive backfilled to 2016-01-04.
 - **2026-08-11, outside any phase** — `fix: count sale proceeds in netResult and accrue coupons over the real period` (commit `290b26f`). Both were latent sign/precision defects found during the backend work: `netResult` ignored sale proceeds (a redemption inverted the sign), `dailyAccrual` divided by 365 instead of the real 182-day coupon period. FORMULA-AUDIT ruling 4 now records the ACT/ACT exception.
 
@@ -39,13 +39,13 @@ Current version: **v1.3.0**. Per-phase tags continue per `docs/VERSIONING.md`.
 | Item | Reason |
 |---|---|
 | **Phase 4 `feat/file-mirror`** (Chromium file-sync mirror) | It was a durability answer to a local-only app: keep a copy outside the browser because the browser is the only home. The cloud store answers durability better and on every device, and the mirror was Chromium-only, best-effort and never authoritative. Nothing survives it. |
-| **Phase 4 `feat/csv-roundtrip` as specified** | The **import** half dies with the mirror — CSV was a restore path for a database that will no longer live in the browser. The **export** half is a separate question; see the open decision below. |
+| **CSV import** (half of `feat/csv-roundtrip`) | A restore path for a database that will no longer live in the browser — and a partial one at that, since it covered snapshots only. Cancelled 2026-08-11 by owner ruling; the written, green implementation was removed rather than merged (D29). The **export** half shipped: it hands the user their own numbers in a spreadsheet's language and has no dependency on where the data is stored. |
 | **D2 — IndexedDB as system of record** | Superseded by B3, not before. Until `src/lib/repository.ts` becomes an HTTP client, D2 still holds and code must respect it. |
 | **D16 / G4 — demo + live dual datasets** | The split existed so real data could hide from a pinned demo seed inside one browser. Server-side accounts make it a per-account concern. Retire **at B3**, not now — the sidebar DEMO badge and the seed checkpoints in `navigation-map.md` are load-bearing until then. |
 | **G2's `deleteAsset`** | Owner ruling: assets accumulate, nothing is deleted. The method stays in the codebase (it is tested and harmless) but no new surface may depend on cascade-delete semantics. |
 | **The v1 "spreadsheet as DB" framing** (draft item 8) | Answered by the archive + accounts. The user's actual need — durability and cross-device — is met without a file ever being the system of record. |
 
-**Open decision, needs the owner (one line):** a finished, green `feat/csv-roundtrip` is sitting **uncommitted** in the working tree (`src/core/backup/csv.ts`, `src/lib/csv-parse.ts`, `src/lib/download.ts`, `CsvExportRow.tsx` + tests, all passing). CSV *export* — a spreadsheet view of your own numbers — stays useful after the cloud move; CSV *import* does not. Merge it export-only, merge it whole, or drop it. Doing nothing loses it to a stale tree, which is the one option worth avoiding.
+**Resolved 2026-08-11:** merged export-only. `papaparse`, `src/lib/csv-parse.ts`, the parser and diff in `csv.ts`, `repo.replaceSnapshots` and the dialog's CSV variant are gone; the import row accepts `.json` alone and its copy no longer promises otherwise.
 
 ## Governing decisions — current standing
 

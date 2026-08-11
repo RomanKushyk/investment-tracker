@@ -117,7 +117,7 @@ describe('classifyImportFiles (S2 file gate)', () => {
     expect(classifyImportFiles([])).toEqual({ ok: false, code: 'type' });
   });
 
-  it('does not accept .csv yet — that arrives with feat/csv-roundtrip', () => {
+  it('does not accept .csv — export-only by decision (D29), not a gap', () => {
     expect(classifyImportFiles([{ name: 'snapshots.csv', size: 500 }])).toEqual({
       ok: false,
       code: 'type',

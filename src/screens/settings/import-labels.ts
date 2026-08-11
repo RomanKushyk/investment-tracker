@@ -12,7 +12,7 @@ import { fmtDate } from '../../core/money';
 
 // --- S2: file-level rejections (warn, never neg) ---------------------------
 export const FILE_REJECTION: Record<FileRejectionCode, string> = {
-  type: "That file type isn't supported — pick a .json backup or a .csv table.",
+  type: "That file type isn't supported — pick a .json backup.",
   size: "That file is larger than 25 MB — it doesn't look like a Kubushka export.",
   count: 'Drop one file at a time.',
   empty: 'That file is empty.',
@@ -22,8 +22,8 @@ export const FILE_REJECTION: Record<FileRejectionCode, string> = {
 export const IMPORT_ROW = {
   title: 'Import',
   helper:
-    'Restore a JSON backup, or load a CSV of snapshots. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.',
-  dropLine: 'Drop a .json or .csv file here',
+    'Restore a JSON backup. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.',
+  dropLine: 'Drop a .json file here',
   dropHint: 'or use Choose file…',
   dragLine: 'Release to read the file',
   choose: 'Choose file…',

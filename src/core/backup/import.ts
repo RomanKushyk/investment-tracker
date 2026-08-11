@@ -53,8 +53,9 @@ export interface PortfolioTables {
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
 /**
- * Extensions the import row accepts. `.csv` joins this list (and the input's
- * `accept`) with `feat/csv-roundtrip` — same gate, same pipeline (S6).
+ * Extensions the import row accepts — JSON alone, permanently. CSV import was
+ * cancelled with the cloud move (D29): reading a spreadsheet back was a restore
+ * path for a database living in the browser. CSV EXPORT still ships.
  */
 export const IMPORT_EXTENSIONS = ['.json'] as const;
 

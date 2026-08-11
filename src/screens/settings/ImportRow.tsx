@@ -157,7 +157,7 @@ export function ImportRow() {
           {IMPORT_ROW.choose}
         </Button>
         {/* Label-bound file field: keyboard users never meet the drag path.
-            `.csv` joins `accept` with feat/csv-roundtrip (S6). */}
+            `.json` only — CSV is export-only (D29). */}
         <input
           ref={inputRef}
           type="file"

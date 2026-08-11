@@ -78,7 +78,10 @@ export function ImportDialog({
     try {
       // ACCEPTANCE CRITERION: the safety backup downloads BEFORE anything is
       // replaced, and a failure to build it means nothing is imported at all.
-      const saved = await backup.download({ name: safetyName, quiet: true });
+      // `via: 'anchor'` is what keeps that true now that exports can open a
+      // Save-as dialog: a modal in front of a guarantee is a modal the user can
+      // cancel, and this one must not be cancellable (D24).
+      const saved = await backup.download({ name: safetyName, quiet: true, via: 'anchor' });
       if (!saved) {
         toast.error(IMPORT_TOASTS.safetyFailed);
         return;
