@@ -21,7 +21,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
-| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **submitted 2026-08-11, awaiting AWS** |
+| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied on first pass, reply sent 2026-08-11, awaiting re-review** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
@@ -216,7 +216,10 @@ Granted accounts default to 50,000 messages/day, which is four orders of magnitu
 - [x] Six records live in Cloudflare and confirmed against a public resolver: 3 DKIM CNAMEs (**DNS-only, not proxied** — a proxied CNAME resolves to Cloudflare and DKIM never verifies), MX + SPF on `mail.`, and `_dmarc` at `p=none` with `rua=mailto:dmarc@quirenote.com`, forwarded to the owner by Cloudflare Email Routing.
 - [x] Checked for the one conflict that matters: **exactly one SPF record per name**. Cloudflare's sits on the apex, ours on `mail.` — two on one name would be a permerror and neither would pass. Multiple DKIM keys cannot conflict at all, since DKIM is selector-addressed.
 - [x] Requested 2026-08-11 via `PutAccountDetails`, stating the case that carries the most weight: **sign-up creates a request, not an account**, so every recipient is an address the owner explicitly approved and a typo is caught at approval rather than by a bounce.
-- [ ] **Waiting on AWS.** Watch for `ProductionAccessEnabled: true` and the quota moving from 200/day to 50,000. Record the granted figure in `infra/README.md` field notes.
+- [x] **Denied on the first pass**, with a questionnaire rather than a refusal: identity, what is sent and how often, how recipient lists are maintained, bounce/complaint handling, unsubscribe, example content. `ReviewDetails: {Status: DENIED, CaseId: 178647479100146}` — this is SES's normal first move, not a verdict.
+- [x] Replied 2026-08-11 with the six answers. The load-bearing one is structural rather than promissory: **sign-up creates a request, not an account**, so no message can be addressed to anyone the owner has not approved by hand.
+- [ ] **Awaiting re-review.** Watch `ProductionAccessEnabled` flip to `true` and the quota move from 200/day to 50,000. Record the granted figure in `infra/README.md` field notes.
+- [ ] If denied a second time, the fallback is not another appeal — it is to stay in the sandbox and verify the handful of recipient addresses by hand. At one user and two messages per account lifetime, 200/day is not a constraint; production access is convenience, and treating it as a blocker would invert that.
 
 **Verify:** `GetSendQuota` reports a production quota rather than the 200/day sandbox one, and a test message reaches an address that was never verified.
 **Risk:** none to the running system — SES is not wired into anything until W7. The only failure mode is leaving it too late.
