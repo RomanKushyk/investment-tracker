@@ -234,10 +234,12 @@ Nothing is lost: `payload_gzip` is written regardless of parse outcome, exactly 
 
 This is the `unchangedDays` principle (D28) one level up: a signal that exists only on failure cannot tell "healthy" from "the check stopped running".
 
-- [ ] The 01:00 capture reads `GetTopicAttributes.SubscriptionsConfirmed` and logs it as JSON, exactly as it already logs `unchangedDays`. No new schedule — the "exactly one automation" ruling holds.
+- [ ] **Target changed by D45.** The channel is no longer SNS email, so the thing worth checking is not `SubscriptionsConfirmed` on a topic nobody listens to — it is that the **notification configuration is `ACTIVE` and holds at least one channel**. Same principle, different query.
+- [ ] The 01:00 capture reads it and logs it as JSON, exactly as it already logs `unchangedDays`. No new schedule — the "exactly one automation" ruling holds. Note the API only answers in `us-east-1`.
 - [ ] Metric filter → metric → alarm on `< 1`.
-- [ ] **Accept that this alarm notifies through the channel it is checking.** That is not solved by cleverness; it is solved by the value being readable *without* email — on the dashboard, and in the run journal the super-admin surface (W8) reads. The alarm is the backup, the visible number is the primary.
-- [ ] Exec role gains `sns:GetTopicAttributes` on its own topic and nothing else.
+- [ ] **Accept that this alarm notifies through the channel it is checking.** Not solvable by cleverness; solved by the value being readable *without* push — on the dashboard and in the run journal (W8). The alarm is the backup, the visible number is the primary.
+- [ ] **Remove the SNS `Subscription` block from `template.yaml`.** Left in, every deploy mints another subscription that dies on arrival — noise that looks like a configured channel. `CaptureAlertTopic` itself stays: free, already wired, and a second channel may want it.
+- [ ] Exec role gains `notifications:GetNotificationConfiguration` / `ListChannels` and nothing else.
 
 **Verify:** delete the subscription in a test, confirm the logged value drops to 0 and the alarm fires; re-subscribe and confirm it returns to 1.
 **Risk:** none — a read of topic metadata.
