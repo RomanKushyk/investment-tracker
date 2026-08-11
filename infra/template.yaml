@@ -90,12 +90,29 @@ Resources:
           # NAME rather than ARN on purpose: a configuration ARN carries
           # the account id, and this repository is public.
           ALERT_CONFIG_NAME: quirenote-backend-alarms
+          # The backup checks itself here, the same way the alert channel does
+          # (D49). The vault is NOT part of this stack on purpose — a backup
+          # inside the stack it protects dies with it — so it is named, not
+          # referenced. `infra/scripts/bootstrap-backups.sh` creates it.
+          BACKUP_VAULT_NAME: quirenote-backups
+          # Filtering recovery points by the cluster's own ARN is what keeps a
+          # recreated cluster from inheriting the old one's freshness for the
+          # full 35-day retention.
+          DSQL_CLUSTER_ARN: !GetAtt PriceCluster.ResourceArn
       Policies:
         - Statement:
             - Sid: ConnectToDsqlAsAdmin
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt PriceCluster.ResourceArn
+            # Read-only, and only about whether a recovery point exists — never
+            # about creating, deleting or restoring one. The vault lives outside
+            # this stack, so it is addressed by constructed ARN; the pseudo
+            # parameters keep the account id out of this public repository.
+            - Sid: ReadOwnBackupFreshness
+              Effect: Allow
+              Action: backup:ListRecoveryPointsByBackupVault
+              Resource: !Sub 'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups'
             # Read-only, and only about the notification configuration itself —
             # never about what it delivers. This is what lets a dead alert
             # channel be seen rather than assumed (D44). AWS supports no
@@ -309,6 +326,46 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 1
       ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+
+  # The backup measuring itself (D49), emitted on every scheduled run like the
+  # two above. The archive spent its whole existence with no backup at all while
+  # deletion protection made it look protected, and a backup PLAN fails the same
+  # silent way: it simply stops producing recovery points.
+  BackupAgeMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "backupAgeHours" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: BackupAgeHours
+          MetricValue: $.value
+
+  # 48 hours, not 24. The plan runs daily with a 60-minute start window, so a
+  # single late or skipped night is normal operation; the signal wanted is "the
+  # plan has stopped", not "last night ran late". At 24 the alarm would page for
+  # something that fixes itself, and an alarm that pages for nothing gets muted.
+  #
+  # notBreaching on missing data, for the same reason as AlertChannelAlarm: this
+  # value is published BY the capture, so its absence means the capture stopped —
+  # which SilenceAlarm already says. Two alarms for one fault is how alarms get
+  # muted.
+  BackupAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: >-
+        The price archive has no completed backup in the last 48h. Check the
+        quirenote-archive-daily plan and the quirenote-backups vault in AWS
+        Backup (eu-north-1) — the vault is outside this stack, see
+        infra/scripts/bootstrap-backups.sh.
+      Namespace: Quirenote
+      MetricName: BackupAgeHours
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 48
+      ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
   UnchangedDaysMetricFilter:

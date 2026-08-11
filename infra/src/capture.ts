@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 
+import { BackupClient, ListRecoveryPointsByBackupVaultCommand } from '@aws-sdk/client-backup';
 import {
   ListChannelsCommand,
   ListNotificationConfigurationsCommand,
@@ -658,6 +659,77 @@ async function reportAlertChannels(): Promise<void> {
   }
 }
 
+/** No usable recovery point. Deliberately large rather than 0 or -1: the metric
+ *  is an AGE, so "nothing" has to sit on the bad side of any threshold. A zero
+ *  would read as "backed up seconds ago", which is the exact inversion that
+ *  makes a broken check look healthy. */
+const NO_BACKUP_HOURS = 9999;
+
+/**
+ * Report how old the newest completed backup of the price cluster is, in hours.
+ *
+ * WHY THIS EXISTS. Three times on 2026-08-11 something was broken while every
+ * indicator read healthy: the alert channel delivered nowhere (D44), a backfill
+ * filled a range with `ok: false` nobody read (D43), and the archive turned out
+ * to have no backup at all while deletion protection made it look protected
+ * (D49). Each time the green came from nothing having been ATTEMPTED. A backup
+ * plan has exactly that shape — it fails silently, and the moment it is wanted
+ * is the worst possible moment to find out.
+ *
+ * An AGE rather than a healthy/unhealthy flag, for the same reason
+ * `unchangedDays` publishes the streak instead of only the breach: a number can
+ * be watched drifting toward the threshold, a boolean can only be watched
+ * flipping after it is too late.
+ *
+ * Filtered by the cluster's OWN arn, which matters more than it looks. Recovery
+ * points survive their source for the full 35-day retention, so a recreated
+ * cluster with a broken selection would keep this metric comfortably fresh for
+ * over a month while nothing at all was being backed up.
+ *
+ * Never throws: a capture must not fail because a monitoring read did.
+ */
+async function reportBackupFreshness(): Promise<void> {
+  const vault = process.env.BACKUP_VAULT_NAME;
+  const clusterArn = process.env.DSQL_CLUSTER_ARN;
+  if (vault === undefined || vault === '' || clusterArn === undefined || clusterArn === '') return;
+  try {
+    const client = new BackupClient({});
+    const page = await client.send(
+      new ListRecoveryPointsByBackupVaultCommand({
+        BackupVaultName: vault,
+        ByResourceArn: clusterArn,
+      }),
+    );
+    // Only COMPLETED counts. A job sitting in CREATING or PARTIAL is not
+    // something anything can be restored from, and treating it as one would
+    // reproduce the very failure this check exists to catch.
+    const newest = (page.RecoveryPoints ?? [])
+      .filter((p) => p.Status === 'COMPLETED' && p.CompletionDate !== undefined)
+      .reduce<Date | undefined>(
+        (best, p) => (best === undefined || p.CompletionDate! > best ? p.CompletionDate! : best),
+        undefined,
+      );
+    const value =
+      newest === undefined
+        ? NO_BACKUP_HOURS
+        : Math.round((Date.now() - newest.getTime()) / 3_600_000);
+    console.log(
+      JSON.stringify({
+        metric: 'backupAgeHours',
+        vault,
+        completedAt: newest?.toISOString() ?? null,
+        value,
+      }),
+    );
+  } catch (err) {
+    // Reported, not thrown, and not silent: a read that failed is not the same
+    // as "no backup exists", so it must not be emitted as one.
+    console.warn(
+      `backup-freshness check failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 /**
  * Read-only diagnostics: table size, and the plans of the two queries that scan
  * `price_capture` in normal operation.
@@ -739,6 +811,7 @@ export async function handler(event: HandlerEvent = {}) {
     // Only on the scheduled path. A backfill has nothing to say about whether
     // today's alerting works, and it would emit the value hundreds of times.
     await reportAlertChannels();
+    await reportBackupFreshness();
 
     // A weekend 404 from NBU is not a failure — it is the calendar. Only real
     // problems reach the alarm.
