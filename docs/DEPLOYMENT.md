@@ -126,7 +126,7 @@ Trust policy — replace `<account-id>`:
 }
 ```
 
-**The `sub` is the environment, not the branch.** Because `deploy.yml`'s job declares
+**The `sub` is the environment, not the branch.** Because `deploy-frontend.yml`'s job declares
 `environment: dev`, GitHub replaces the branch ref in the token's `sub` claim with
 `environment:dev` — a trust policy pinned to `ref:refs/heads/dev` never matches and fails
 with `Not authorized to perform sts:AssumeRoleWithWebIdentity`. The two forms are mutually
@@ -275,7 +275,7 @@ site.
 ## 2. GitHub repository configuration
 
 Settings → Environments → **`dev`**. All three live in that environment's scope, so
-`deploy.yml` declares `environment: name: dev` — without it the job reads them as empty.
+`deploy-frontend.yml` declares `environment: name: dev` — without it the job reads them as empty.
 
 | Kind | Name | Value |
 |------|------|-------|

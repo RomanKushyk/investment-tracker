@@ -34,8 +34,8 @@ There are now **two** deployables, and most tasks concern only one of them:
 |---|---|---|
 | Lives in | `src/` | `infra/` |
 | Deploys to | Amplify Hosting | Aurora DSQL + Lambda, `eu-north-1` |
-| Workflow | `.github/workflows/deploy.yml` | `.github/workflows/deploy-backend.yml` |
-| IAM role | `kubushka-github-deploy` | `kubushka-backend-deploy` (separate, by design) |
+| Workflow | `.github/workflows/deploy-frontend.yml` | `.github/workflows/deploy-backend.yml` |
+| IAM role | `quirenote-frontend-deploy` | `quirenote-backend-deploy` (separate, by design) |
 | Docs | `DEPLOYMENT.md` | `infra/README.md` |
 
 **The app does not read the backend yet.** Portfolio data is still IndexedDB

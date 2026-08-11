@@ -1,6 +1,6 @@
 # Handoff: Quirenote — Investment Portfolio Tracker
 
-[![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml/badge.svg?branch=dev)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml)
+[![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml/badge.svg?branch=dev)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml)
 
 **Live:** https://dev.d17m4jf400my6.amplifyapp.com · deploy runbook: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 
