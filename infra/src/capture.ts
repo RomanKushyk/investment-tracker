@@ -285,6 +285,20 @@ async function ensureSchema(client: Client): Promise<void> {
     `CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
        ON price_capture (as_of, requested_at)`,
   );
+
+  // Leads with `source`, which is what both operational queries actually filter
+  // on — and neither could use the index above, because an index is only usable
+  // from its leading column. Measured 2026-08-11 before adding it: both queries
+  // did a full scan of 6,628 rows to return 3, at ~730 ms each
+  // (`Rows Removed by Filter: 6625`).
+  //
+  // `requested_at` is the third key so the streak query's ORDER BY is served by
+  // the same index. No DESC anywhere: DSQL rejects a sort direction in index
+  // keys outright, and the planner can walk an ascending index backwards.
+  await client.query(
+    `CREATE INDEX ASYNC IF NOT EXISTS price_capture_source_as_of
+       ON price_capture (source, as_of, requested_at)`,
+  );
 }
 
 interface CaptureResult {
