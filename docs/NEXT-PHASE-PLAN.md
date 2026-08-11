@@ -160,7 +160,9 @@ The draft was replaced with a fresh wishlist (the old items are all shipped or r
 - asset form reworked around the provider: pick provider → pick from its fetched asset list → every derivable field fills itself. The stated goal is **minimum input, especially minimum sensitive input** — ideally the user types only an amount.
 - currency in Settings sets the default on app open; the sidebar toggle stays a throwaway preview and persists nowhere
 
-Two of these interact with decisions already made and should be groomed with that in mind: the provider-first asset form overlaps B3's catalog (the scheduler already registers newly listed provider assets), and the live rate is a second scheduled fetch — which the "exactly one automation" ruling forbids unless it rides the 01:00 capture.
+One interacts with a decision already made: the provider-first asset form overlaps B3's catalog (the scheduler already registers newly listed provider assets).
+
+**Correction (2026-08-11):** an earlier version of this note claimed the live ₴/$ rate collides with the "exactly one automation" ruling. It does not. NBU's rate endpoint is public with `Access-Control-Allow-Origin: *` (verified: `bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=usd&date=…&json` → `rate: 44.8305` on 2026-08-11), so the app can fetch it on demand exactly like "Fetch quotes" — a user-triggered read, not a scheduled job. The ruling constrains **timers**, not requests. This is startable now and retires the hard-coded 44.83.
 
 ## Flagged deviations from the original draft
 
