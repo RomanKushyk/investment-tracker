@@ -16,8 +16,8 @@
 // The mirror file (P4 `feat/file-mirror`) takes the same lock — the file must
 // never be rewritten from a half-applied dataset.
 
-export const DB_LOCK = 'kubushka-db';
-export const SYNC_CHANNEL = 'kubushka-sync';
+export const DB_LOCK = 'quirenote-db';
+export const SYNC_CHANNEL = 'quirenote-sync';
 
 /** What changed under the other tabs. Both mean "re-read everything". */
 export type DbSyncKind = 'replace' | 'clear';

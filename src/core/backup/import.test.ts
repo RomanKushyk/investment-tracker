@@ -154,12 +154,12 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.detail).toMatch(/^Not valid JSON: /);
   });
 
-  it('rejects a file with no kubushka-backup marker', () => {
+  it('rejects a file with no accepted format marker', () => {
     const result = validateImport(JSON.stringify({ format: 'other', formatVersion: 1 }));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('not-a-backup');
-    expect(result.rejection.detail).toBe("Not a kubushka-backup file (format: 'other').");
+    expect(result.rejection.detail).toBe("Not a quirenote-backup file (format: 'other').");
   });
 
   it('rejects a JSON array as not-a-backup rather than crashing', () => {

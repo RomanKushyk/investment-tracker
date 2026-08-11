@@ -312,32 +312,33 @@ describe('makeDb factory (G4)', () => {
     }
   });
 
-  it('binds the demo DB (kubushka) when no dataset flag is persisted', () => {
-    // The node test env persists no kubushka-settings → the boot-time read
-    // falls back to 'demo', whose DB name is the pre-split 'kubushka'
-    // (zero-migration rule, D16).
+  it('binds the demo DB (quirenote) when no dataset flag is persisted', () => {
+    // The node test env persists no quirenote-settings → the boot-time read
+    // falls back to 'demo' (D16).
     expect(activeDataset).toBe('demo');
-    expect(db.name).toBe('kubushka');
+    expect(db.name).toBe('quirenote');
   });
 });
 
 describe('dataset boot binding (G4)', () => {
-  it('binds kubushka-live and never auto-seeds it when the persisted dataset is live', async () => {
+  it('binds quirenote-live and never auto-seeds it when the persisted dataset is live', async () => {
     // Re-init the module graph with a stubbed localStorage carrying the live
     // flag — the same synchronous read the browser performs before React.
     vi.resetModules();
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
-        key === 'kubushka-settings'
+        key === 'quirenote-settings'
           ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
           : null,
+      setItem: () => {},
+      removeItem: () => {},
     });
     try {
       const freshDb = await import('./db');
       const freshRepo = await import('./repository');
 
       expect(freshDb.activeDataset).toBe('live');
-      expect(freshDb.db.name).toBe('kubushka-live');
+      expect(freshDb.db.name).toBe('quirenote-live');
 
       await freshRepo.ensureSeeded(); // must be a no-op against live
       expect(await freshDb.db.assets.count()).toBe(0);
@@ -358,15 +359,17 @@ describe('dataset boot binding (G4)', () => {
     vi.resetModules();
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
-        key === 'kubushka-settings'
+        key === 'quirenote-settings'
           ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
           : null,
+      setItem: () => {},
+      removeItem: () => {},
     });
     try {
       const freshDb = await import('./db');
       const freshRepo = await import('./repository');
 
-      // a real live portfolio: the user wrote an asset into kubushka-live
+      // a real live portfolio: the user wrote an asset into quirenote-live
       await freshDb.db.assets.add(SEED_ASSETS[0]);
       expect(await freshDb.db.assets.count()).toBe(1);
 

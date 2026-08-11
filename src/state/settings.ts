@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { Dataset } from '../core/backup/json';
 import { DEFAULT_LEAD_DAYS, isLeadDays } from '../core/reminders';
+import { SETTINGS_KEY } from '../lib/storage-keys';
 
 interface SettingsState {
   currency: 'UAH' | 'USD';
@@ -129,7 +130,7 @@ export function mergeSettings(persisted: unknown, current: SettingsState): Setti
  * 2. `theme` (landing P5) and `dataset` MUST stay TOP-LEVEL under `state`
  *    in the persisted JSON: the boot-time readers (P5's FOUC-free theme
  *    head script; lib/db.ts binding the active DB before React exists, G4)
- *    read localStorage['kubushka-settings'] and expect
+ *    read localStorage[SETTINGS_KEY] and expect
  *    JSON.parse(raw).state.theme / JSON.parse(raw).state.dataset.
  *    Never nest or rename them.
  * 3. Bump `version` ONLY for an incompatible reshape of the persisted
@@ -182,7 +183,7 @@ export const useSettings = create<SettingsState>()(
       restoreDismissed: () => set({ dismissedReminders: [] }),
     }),
     {
-      name: 'kubushka-settings',
+      name: SETTINGS_KEY,
       version: 1,
       migrate: migrateSettings,
       merge: mergeSettings, // sanitize EVERY hydrate, not only version bumps

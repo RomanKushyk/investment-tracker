@@ -2,6 +2,7 @@
 import { Dexie, type Table } from 'dexie';
 
 import type { Dataset } from '../core/backup/json';
+import { SETTINGS_KEY } from './storage-keys';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 
 // Key-value side table (G2): seeding flag now; later the mirror file handle
@@ -15,7 +16,7 @@ export interface MetaRow {
 // changes (new table, new/changed index, changed primary key). New OPTIONAL
 // object fields never bump — IndexedDB stores whole objects, so optional
 // fields need no schema change.
-class KubushkaDB extends Dexie {
+class QuirenoteDB extends Dexie {
   assets!: Table<Asset, string>;
   snapshots!: Table<Snapshot, string>; // primary key: date
   transactions!: Table<Transaction, string>;
@@ -42,25 +43,27 @@ class KubushkaDB extends Dexie {
   }
 }
 
-export function makeDb(name: string): KubushkaDB {
-  return new KubushkaDB(name);
+export function makeDb(name: string): QuirenoteDB {
+  return new QuirenoteDB(name);
 }
 
-// Dataset split (G4/D16): one Dexie DB per dataset — the pre-split 'kubushka'
-// IS the demo DB (zero migration, user-approved), 'kubushka-live' starts
-// empty.
-const DB_NAME: Record<Dataset, string> = { demo: 'kubushka', live: 'kubushka-live' };
+// Dataset split (G4/D16): one Dexie DB per dataset. Renamed with the product
+// (D42) and deliberately WITHOUT an IndexedDB migration: live was empty and
+// demo reseeds itself, so reseeding IS the migration. The pre-rename databases
+// are left on disk rather than deleted — a rename that also destroys data is
+// two operations pretending to be one.
+const DB_NAME: Record<Dataset, string> = { demo: 'quirenote', live: 'quirenote-live' };
 
 // The active dataset is resolved ONCE, synchronously, at module init — before
 // React, stores or queries exist — from the persisted settings JSON
-// (localStorage 'kubushka-settings'; `dataset` stays top-level under `state`
+// (localStorage SETTINGS_KEY; `dataset` stays top-level under `state`
 // per the D11 head-script contract). Switching datasets = persist + reload
 // (settings.setDataset), so a running app never rebinds. Absent or malformed
 // storage (first run, node tests) falls back to 'demo' — the same
 // anything-but-'live'-means-demo rule as state/settings.migrateSettings.
 function readDatasetFlag(): Dataset {
   try {
-    const raw = localStorage.getItem('kubushka-settings');
+    const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw !== null) {
       const state = (JSON.parse(raw) as { state?: { dataset?: unknown } }).state;
       if (state?.dataset === 'live') return 'live';

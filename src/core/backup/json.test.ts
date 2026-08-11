@@ -97,7 +97,7 @@ function mutated(mutate: (env: Record<string, unknown>) => void): string {
 describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
-    expect(env.format).toBe('kubushka-backup');
+    expect(env.format).toBe('quirenote-backup');
     expect(env.formatVersion).toBe(1);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
@@ -220,7 +220,7 @@ describe('parseBackup rejections', () => {
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues[0]).toMatch(/Not a kubushka-backup file/);
+    expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
   it('rejects formatVersion 2 with a clear single issue', () => {
@@ -386,5 +386,20 @@ describe('parseBackup rejections', () => {
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues.some((i) => i.startsWith('dataset'))).toBe(true);
+  });
+});
+
+describe('the pre-rename marker stays readable (D42)', () => {
+  it('accepts a kubushka-backup file so an already-downloaded backup still works', () => {
+    const legacy = { ...envelope(), format: 'kubushka-backup' };
+    const result = parseBackup(JSON.stringify(legacy));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.format).toBe('kubushka-backup');
+    expect(result.data.assets).toHaveLength(legacy.assets.length);
+  });
+
+  it('writes the new marker on export', () => {
+    expect(envelope().format).toBe('quirenote-backup');
   });
 });

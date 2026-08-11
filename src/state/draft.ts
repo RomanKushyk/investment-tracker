@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { DRAFT_KEY } from '../lib/storage-keys';
 import type { QuoteOrigin } from '../core/types';
 
 // Draft quote entry — raw input text per asset, survives reloads (README §3).
@@ -40,6 +41,6 @@ export const useDraft = create<DraftState>()(
         })),
       clear: () => set({ quotes: {}, origins: {} }),
     }),
-    { name: 'kubushka-draft' },
+    { name: DRAFT_KEY },
   ),
 );

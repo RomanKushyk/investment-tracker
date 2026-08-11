@@ -37,13 +37,11 @@ export function formatReasonSentence(code: FormatRejectionCode, version?: number
   switch (code) {
     case 'not-json':
       return "That file isn't valid JSON.";
-    // The product is Quirenote; the ENVELOPE MARKER stays `kubushka-backup`
-    // and is quoted verbatim on purpose (D41). It is a pinned contract, and
-    // renaming it would make every backup file ever exported unreadable — so
-    // the sentence names the product and the quoted detail names the bytes,
-    // which is what a user actually finds if they open the file.
+    // Names the CURRENT marker only. A file carrying the pre-rename
+    // `kubushka-backup` marker is still accepted (D42), so it never reaches
+    // this message — which is why the sentence does not have to mention it.
     case 'not-a-backup':
-      return 'This isn\'t a Quirenote backup — it has no "kubushka-backup" marker.';
+      return 'This isn\'t a Quirenote backup — it has no "quirenote-backup" marker.';
     case 'newer-format':
       return `This backup was written by a newer version of the app (format ${version ?? '?'}). Update the app, or export again from the version that wrote it.`;
     // A hand-edited or otherwise unreadable version: the sentence above would
