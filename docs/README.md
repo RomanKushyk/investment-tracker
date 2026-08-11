@@ -14,7 +14,7 @@ Working documentation for multi-session, agent-driven development. Root `README.
 | `DECISIONS.md` | Decision log D1…Dn (stack, persistence, git conventions, testing scope, reference-data reconciliation). | **Append-only** — add new entries at the bottom, supersede rather than rewrite. Read D5 before touching seed data or derivations. |
 | `FOLLOW-UPS.md` | Post-plan backlog: cosmetic/degenerate-data items consciously shipped as-is on 2026-07-28. | Tick or strike items as a sweep clears them; add new deferred-cosmetic findings here rather than reopening `BUILD-PLAN.md`. |
 | `VERSIONING.md` | App version & sidebar badge: single source of truth (`package.json`), SemVer bump rules, tag convention. | Bump `package.json` only — the badge derives from it at build time; keep tag `vX.Y.Z` and `package.json` in agreement. |
-| `DEPLOYMENT.md` | Deploy runbook: Amplify Hosting manual-deploy app + GitHub Actions pipeline, IAM/OIDC setup, rollback, failure playbook. | Hosting config (rewrite, cache headers) is console-managed by design — CI has no `UpdateApp`; keep §5 current when a failure mode is hit. |
+| `DEPLOYMENT.md` | Deploy runbook for the **frontend**: Amplify Hosting manual-deploy app + GitHub Actions pipeline, IAM/OIDC setup, rollback, failure playbook. | Hosting config (rewrite, cache headers) is console-managed by design — CI has no `UpdateApp`; keep §5 current when a failure mode is hit. The **backend** is a separate stack with its own workflow and its own IAM role — see `infra/README.md`, not this file. |
 
 ## Conventions for this folder
 
@@ -22,3 +22,26 @@ Working documentation for multi-session, agent-driven development. Root `README.
 - Per-folder rules live in that folder's own `README.md` (`design/`, `src/` once created…) — not here.
 - The agentic manual-testing map is the root `navigation-map.md` — update it (route status + checkpoints) whenever a task changes screens or flows.
 - `superpowers/specs/` and `superpowers/plans/` hold dated design specs and implementation plans from brainstorming/planning sessions. They are point-in-time records — once a plan is executed, the durable documentation is the concern file here (e.g. `DEPLOYMENT.md`) plus the `DECISIONS.md` entry.
+
+## The backend (since 2026-08-11)
+
+There are now **two** deployables, and most tasks concern only one of them:
+
+| | Frontend | Backend |
+|---|---|---|
+| Lives in | `src/` | `infra/` |
+| Deploys to | Amplify Hosting | Aurora DSQL + Lambda, `eu-north-1` |
+| Workflow | `.github/workflows/deploy.yml` | `.github/workflows/deploy-backend.yml` |
+| IAM role | `kubushka-github-deploy` | `kubushka-backend-deploy` (separate, by design) |
+| Docs | `DEPLOYMENT.md` | `infra/README.md` |
+
+**The app does not read the backend yet.** Portfolio data is still IndexedDB
+(D2); the backend only archives prices, because the provider publishes no
+history and a missed day is unrecoverable (D26).
+
+Two dated specs describe where this is going and why — read them before
+proposing anything about persistence, sources or the data model:
+`superpowers/specs/2026-08-04-cloud-stack-and-cost.md` (stack, costs, rejected
+options) and `-data-model.md` (schema, sources, super-admin surface). Field
+notes from the first live deploy — eight failures, none of them in the docs read
+beforehand — are in `infra/README.md`.

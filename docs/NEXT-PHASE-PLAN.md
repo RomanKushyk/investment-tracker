@@ -25,6 +25,30 @@
 | 6 | Chart analytics: ranges + cap-by-day | `feat/chart-toolbar` … `docs/design-brief-phase-7` | todo |
 | 7 | Full control: DB browser | `feat/db-browser` | todo |
 
+> **⚠ Superseded in direction, 2026-08-11.** A planning session redirected the
+> project from local-first to a cloud backend with auth, and Phase 1 of that
+> work — a daily price archive in Aurora DSQL — is **deployed and running**
+> (D26–D28, `infra/README.md`, `docs/superpowers/specs/2026-08-04-*`).
+>
+> What that changes here:
+>
+> - **Phase 4 `feat/csv-roundtrip` and `feat/file-mirror` are abandoned.** CSV
+>   and the Chromium file mirror were durability answers to a local-only app;
+>   the cloud store answers it better. The CSV work exists uncommitted in a
+>   working tree and is not being merged.
+> - **Phases 5–7 are not cancelled but are behind the migration.** Dark theme,
+>   i18n, chart ranges and the DB browser all still make sense — on an app whose
+>   persistence layer has settled.
+> - **D2 (IndexedDB) and D16 (dual datasets) are retired by the migration**, not
+>   by anything done so far. Until `src/lib/repository.ts` becomes an HTTP
+>   client, both still hold.
+>
+> Two defects found during that work are independent of it and should ship on
+> their own: `netResult` has no `sold` term (a sign inversion the first bond
+> redemption will trigger — on the seed, +₴4 452,61 becomes −₴11 393,69), and
+> `dailyAccrual` divides the coupon by 365 instead of the actual period length,
+> so it never lands on the coupon.
+
 ## Key facts from the investigation (grounding)
 
 1. **Inzhur public endpoint** (verified live 2026-07-28): `GET https://www.inzhur.reit/_api/assets` — unauthenticated, `Access-Control-Allow-Origin: *`, JSON array of all assets. Funds by `slug` (`inzhur-reit`, `inzhur-energy`) with `prices.{buyUAH,sellUAH,navUAH,…}`; bonds by `assetDetails.isin` with per-unit prices, **`paymentSchedule` [{date, amount}] in kopecks per bond** (7840 = ₴78.40 coupon, 100000 = ₴1,000 principal), `maturityDate`, `returnRates`. Position value = units × `sellUAH` (verified vs the user's dashboard: 6 164 × 11.1389 = 68 660.18 ₴; 15 × 1 057.67 = 15 865.05 ₴; 4 × 88.85 = 355.40 ₴ coupons paid). Constraint: **bare GET, zero custom headers** (preflight has no ACAO). Prices refresh daily ~13:00 Kyiv. `ACAO:*` is not contractual → graceful degradation + last-good cache + manual entry authoritative. Fallbacks: `/{offer/<slug>/}_payload.json` (devalue JSON), HTML scrape. The authenticated `core.inzhur.reit` API is unusable from a local SPA (15-min JWT, origin-locked CORS). Trimmed sample: `src/core/inzhur/__fixtures__/assets-sample.json`.

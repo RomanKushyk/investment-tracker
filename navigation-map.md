@@ -4,6 +4,8 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 > **Next phase in progress** — see `docs/NEXT-PHASE-PLAN.md`. Since Phase 2's dataset split (G4/D16), all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/data`) get their own sections as they land.
 
+> **Nothing here is affected by the backend (2026-08-11).** `infra/` archives asset prices into Aurora DSQL, but no screen reads it — the app is still entirely IndexedDB (D26). Every checkpoint below remains valid as written. When the planned migration lands, this file needs a rewrite: the seed will no longer load from a local reseed and the demo dataset is slated to disappear.
+
 ## Connecting & resetting
 
 - App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.

@@ -152,11 +152,17 @@ in CI.
    **`treatMissingData: BREACHING`** (the default parks a dead job in INSUFFICIENT_DATA and never
    alerts), or healthchecks.io in option B.
 
-3. **AWS account created June 2026 → hard deadline ~December 2026.** Post-2025-07-15 Free plan:
-   *"The account closes on its own 6 months after you open it or when your credits run out,
-   whichever comes first."* Fix: Billing console → **Upgrade plan** → Upgrade account. Free, keeps
-   credits until ~June 2027. Do not rely on the 90-day recovery window — the docs conflict on the
-   reopen path. Applies to all three options, because Amplify hosts the SPA either way.
+3. ~~**AWS account deadline.**~~ **RESOLVED 2026-08-10.** The account was created **2026-07-29**
+   (not June, as first assumed) under the post-2025-07-15 Free plan, which closes the account at
+   6 months — 2027-01-29. It was **upgraded to the Paid plan on 2026-08-10**, so no closure
+   deadline remains. Credits: **$119.99**, expiring 2027-07-29 (12 months from creation);
+   $100 initial + $20 earned for creating the cost budget. Burn to date: **$0.01 in ~2 weeks**,
+   so credits were never going to be the binding constraint — only the 6-month clock was.
+
+   Guardrail in place: a $5 monthly cost budget with **absolute** alert thresholds at $1 and $3
+   (actual) and $5 (forecasted), all to the owner's email. Absolute rather than percentage
+   because at a ~$0.02 baseline percentage thresholds fire on noise. No budget *actions* are
+   attached — notification only, never automated shutdown.
 
 4. **AWS standing "no" list.** At a $0.02 baseline only a fixed charge moves the bill: NAT Gateway
    **$33.58/mo** (`EUN1-NatGateway-Hours` $0.046/hr, confirmed), Aurora Serverless v2 at 0.5 ACU

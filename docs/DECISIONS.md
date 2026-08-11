@@ -768,3 +768,101 @@ extension references:
 - The `@theme` comment block in `src/index.css` carries the widened rule at the
   token definition; the S8 half lands with the task that restyles the danger zone
   into its sub-panel.
+
+## D26 — A price archive exists; the app is still local (2026-08-11)
+
+`infra/` deploys a daily job (01:00 Europe/Kyiv, EventBridge Scheduler → Lambda)
+that archives asset prices into **Aurora DSQL**. Rationale and cost analysis:
+`docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md`.
+
+**D2 is NOT superseded.** Portfolio data still lives in IndexedDB; nothing in
+`src/` reads the backend. The job buys exactly one thing: the Inzhur feed
+publishes no history, so a day the app is not opened was a price lost forever.
+It is deliberately shipped ahead of any app change because that loss is the only
+irreversible item on the roadmap — everything else can wait without cost.
+
+Stack: DSQL + Lambda + Cognito-less IAM auth + EventBridge, no VPC anywhere
+(a NAT Gateway is ~$33/mo against a ~$0.02 baseline, and the deploy role is
+denied EC2 outright so it cannot be added by accident). Two IAM roles: the
+GitHub OIDC role may only drive one named CloudFormation stack and pass the
+execution role, which holds the resource permissions and is assumable only by
+CloudFormation. This is also why not CDK — its bootstrap role is
+`AdministratorAccess` by default, which would surrender the D15 posture.
+
+Rejected with reasons in the spec: Next.js (delivers none of PWA/sync/cron, and
+Amplify does not support manual deploys for SSR), DynamoDB-only, Amplify Gen 2,
+RDS/Aurora Serverless v2 (a 12-month free tier this account never had), managed
+sync engines (moot once offline was dropped).
+
+## D27 — No single source of truth for prices; the axis is backfillability (2026-08-11)
+
+Researched 2026-08-11. **No Ukrainian law obliges any fund, КУА or broker to
+publish machine-readable prices.** For a closed-end пайовий fund like Inzhur's,
+the floor under ЗУ «Про інститути спільного інвестування» № 5080-VI and НКЦПФР
+rules is NAV **calculated monthly**, filed in XML quarterly/annually, disclosed
+publicly in **human-readable** form. НКЦПФР's open datasets contain no NAV;
+SMIDA's open-data API was retired 2021-06-30 (verified: 404).
+
+So Inzhur's daily JSON is **voluntary commercial disclosure** — contractually
+«Базова ціна», cl. 1.4 of their services agreement: *"the price INZHUR offers to
+buy and/or sell at"*. A dealer quote on their own secondary market, not a NAV.
+That is why it carries a ~0.1 % spread and moves daily while NAV is struck
+monthly.
+
+| | ОВДП | Inzhur fund units |
+|---|---|---|
+| Official source | **NBU fair value, daily, since 2016-01-04** | none |
+| Backfillable | **yes, by URL** | **no** |
+| Our archive is | convenience + cross-check | **the only copy that will ever exist** |
+
+**The axis that matters is not "has an API" but "is backfillable".** Only the
+two fund NAVs are perishable.
+
+The two sources are **not substitutes** — measured ~0.9 % apart on the same ISIN
+the same day, one a dealer quote and one a model valuation. Both are stored,
+distinguished by `source`. In the future observation table `source` joins the
+natural key `(as_of, ref, basis, source)`, because merging them would present one
+as the other.
+
+Also established: НДУ issues real ISINs for the funds (**UA5000014044** REIT,
+**UA5000012246** Energy) and publishes **no valuation** — its `price` field is
+the nominal issue value. Worth adopting over provider slugs, since НКЦПФР
+approved a merger of five Inzhur funds on 2025-08-29 and slugs demonstrably
+change status and get absorbed.
+
+## D28 — The capture journal, and how a frozen feed is caught (2026-08-11)
+
+**A row is written on every run**, including a 404 weekend and a hard failure.
+The invariant this buys: a missing row means *"we never looked"*, never *"we
+looked and there was nothing"* — which is what makes a gap diagnosable at all.
+Liveness is therefore answered by `price_capture`, not by the absence of a price.
+
+**Raw payloads are kept forever** (gzipped, ~4.4 MB/year measured — 156 117 bytes
+compress to 12 kB). The reason is correctability, not provenance: if the parser
+is ever wrong, the raw bytes are the only thing that can regenerate history the
+provider will never republish. A payload that fails to parse is still stored, and
+`parser_version` on every row makes "which rows did the broken parser produce"
+answerable rather than archaeological.
+
+**Frozen-upstream detection** is the fourth failure mode, and the only one that
+looks like success: 200, all entries parse, every value plausible, none moved.
+Neither the error alarm nor the silence alarm can see it.
+
+- Hashed over the **price fields only**, never the payload. Two captures seconds
+  apart differ by 6 bytes because `availableQuantity` ticks, so `payload_sha256`
+  is unique on every fetch by construction.
+- Counted in **business days**, and in **dates rather than rows** — a first
+  implementation counted rows, so two captures of one afternoon reported a
+  two-day streak and a manual re-invoke could have tripped the alarm on healthy
+  data.
+- Surfaced by a **log line plus metric filter**, not by throwing: a frozen
+  upstream is not transient, so a thrown error would only make EventBridge retry
+  and write more rows.
+- The streak value is published **on every business-day capture, not only when
+  bad**. A metric that appears only on failure cannot distinguish healthy from
+  "the check stopped running".
+
+Threshold is an env var (`STALE_AFTER_DAYS`, default 5) rather than the 2–3 the
+research suggested: how often ОВДП quotes genuinely sit flat is empirical and
+nobody has the data yet. A threshold that cries wolf gets muted, and a muted
+alarm is worse than none.

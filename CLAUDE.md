@@ -7,7 +7,8 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 - Stack: React 19 + Vite + TypeScript + Tailwind 4 (see package.json). pnpm.
 - Fonts: Space Grotesk (headings/buttons/KPI numbers) + Spline Sans Mono (body) — via @fontsource packages already in deps.
 - All portfolio figures must be DERIVED from stored data (snapshots, transactions, assets) — never hard-coded. Seed with the mock data from README §7 so first run matches the reference.
-- Local-only persistence: **Dexie.js on IndexedDB** (db `kubushka`) behind `src/lib/repository.ts` — decided 2026-07-27, see docs/DECISIONS.md D2. No server.
+- Persistence **today**: **Dexie.js on IndexedDB** (db `kubushka`) behind `src/lib/repository.ts` — D2. The app is still entirely local; nothing in `src/` talks to a server.
+- **There is now a backend, and the app does not use it yet** — `infra/` runs a daily job that archives asset prices into Aurora DSQL (see `infra/README.md`). It exists because the provider publishes no price history, so a day not captured is lost permanently; it buys that one thing and nothing else. The planned move of the app itself onto it is in `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md` and `-data-model.md`. Do not assume either state — check which layer a task is about.
 - Currency toggle (₴/$, rate 44.83) converts display of headline KPIs + sidebar only; tables stay in ₴.
 - Number format: tables use `68 702,10` (space thousands, comma decimals); prose/KPIs use `₴68,629.36`; dates `dd.MM.yyyy`.
 
