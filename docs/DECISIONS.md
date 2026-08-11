@@ -1622,7 +1622,15 @@ calculus would invert — and that is precisely the argument for doing this now.
 
 Steps, ordering and verification points are `PLAN-NOW.md` Section E.
 
-## D43 — The NBU parser only reads the current file layout (2026-08-11)
+## D43 — Backfill fails on every historical date, and it is not the layout (2026-08-11)
+
+> **Corrected the same day.** The original diagnosis below — that the parser
+> could not read older file layouts — was **wrong**, and the correction is at
+> the end of this entry. The layout observation is real but was a coincidence,
+> not the cause. Kept in full rather than rewritten, because the way a plausible
+> wrong answer survived four ruled-out alternatives is the useful part.
+
+## D43 (original, superseded) — The NBU parser only reads the current file layout
 
 Found during E3, by checking a number instead of trusting a word. The backfill
 on the new cluster reported `captured: 200, published: 0` for round after round.
@@ -1678,6 +1686,47 @@ not repair these rows**, because the dates now count as done.
 2. **Reprocess stored payloads** rather than re-fetching. The bytes are already
    held, NBU is spared 3,900 requests, and it makes the archive's core promise
    true in practice rather than only on paper.
+
+### The actual cause
+
+`parseNbu` reads fields 0–4 only — `calc_date`, `cpcode`, `ccy`, `fair_value`,
+`ytm` — and **those five are identical in every generation of the file**. The
+column count changed from 8 to 16 to 17 to 18, but never in a way that moves
+them. The 2020 file parses fine: 188 data rows, correct digest.
+
+What fails is this, in the handler:
+
+```js
+const TRACKED_ISINS = ['UA4000238976', 'UA4000236475'];
+if (parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
+```
+
+**Both bonds were issued in 2025–2026.** A fair-value file from 2020 cannot
+contain them, so every historical date sets an error, `ok` goes false, and
+`published` counts zero. The check is right for a daily capture — an instrument
+vanishing from today's file really does mean it matured, was renamed, or the
+file changed shape — and wrong for a backfill, where absence is simply the
+calendar.
+
+**So the damage is much smaller than the original entry claimed.** `entry_count`
+and `quotes_sha256` were computed and stored correctly on every one of those
+rows; the data is there. Only `ok` and `error` are wrong, plus `unchangedDays`
+was skipped because it is gated on `error === null` — which for historical
+dates is meaningless anyway.
+
+**How the wrong answer survived.** Five alternatives were ruled out with real
+evidence — URL, User-Agent, geo blocking, rate limiting, timeouts — and the
+layout difference was genuinely visible in the files. Elimination plus a visible
+anomaly felt like proof. It was not: nobody checked whether the parser actually
+touched the columns that differed. **Ruling out four things does not make the
+fifth true**, and a diagnosis is not finished until the mechanism is traced, not
+merely correlated.
+
+**The fix is small.** The tracked-ISIN check belongs to the daily capture, not
+to backfill — pass it as an option rather than applying it unconditionally.
+Long term it belongs to `listed_from` / `retired_at` on `instrument`, which the
+data model already specifies for exactly this reason: telling "missing" apart
+from "did not exist yet".
 
 **And a defect in the completeness check itself**, which is what let this hide:
 it should count a date as done when a row exists **and parsed**, not merely when

@@ -356,7 +356,28 @@ const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
  * missing row means "we never looked", never "we looked and there was nothing".
  * That is what makes a gap in the archive diagnosable at all.
  */
-async function captureOne(client: Client, source: string, asOf: string): Promise<CaptureResult> {
+/**
+ * `expectTracked` — whether a file that omits TRACKED_ISINS is a problem.
+ *
+ * True for the daily capture: an instrument vanishing from today's file really
+ * does mean it matured, was renamed, or the file changed shape, and that is the
+ * signal worth having.
+ *
+ * False for a backfill, where absence is the calendar rather than a fault —
+ * both bonds were issued in 2025-2026, so no file from 2020 can contain them.
+ * Applying the check unconditionally marked EVERY historical date as an error
+ * (D43), which is what made a working backfill look like a broken one.
+ *
+ * This is the stopgap. The real home for it is `listed_from` / `retired_at` on
+ * `instrument`, which the data model specifies for exactly this distinction:
+ * telling "missing" apart from "did not exist yet".
+ */
+async function captureOne(
+  client: Client,
+  source: string,
+  asOf: string,
+  { expectTracked = true }: { expectTracked?: boolean } = {},
+): Promise<CaptureResult> {
   const requestedAt = new Date();
   const outcome =
     source === SOURCE.nbuFairValue ? await fetchNbu(asOf) : await fetchFeed(process.env.FEED_URL!);
@@ -375,7 +396,7 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
         digest = parsed.quotesDigest;
         // A published file that omits a bond we hold is the signal worth having:
         // it matured, was renamed, or the file changed shape.
-        if (parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
+        if (expectTracked && parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
         else if (parsed.rows === 0) error = 'file parsed to zero rows';
       } else {
         // The SAME parser the app uses, imported from src/core rather than
@@ -515,7 +536,7 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   for (let d = from; d <= to && captured < limit; d = addDays(d, 1)) {
     cursor = d;
     if (isWeekend(d) || done.has(d)) continue;
-    const res = await captureOne(client, SOURCE.nbuFairValue, d);
+    const res = await captureOne(client, SOURCE.nbuFairValue, d, { expectTracked: false });
     captured += 1;
     if (res.ok) published += 1;
   }
