@@ -17,6 +17,7 @@ permanently unrecoverable.
 | `template.yaml` | SAM stack: DSQL cluster, capture Lambda, schedule, DLQ, alarms |
 | `src/capture.ts` | The handler. Imports the parser from `src/core` — never a second copy |
 | `migrations/` | Reference DDL. The handler applies it idempotently on cold start |
+| `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection — deliberately outside the stack |
 
 ## Local rules
 
@@ -32,6 +33,59 @@ permanently unrecoverable.
 - **`price_capture` rows are append-only.** A row is written on every run,
   including failures: this table, not the absence of a price row, is what
   answers "did the job run".
+- **Backups stay OUT of `template.yaml`.** A vault inside the stack it protects
+  is destroyed by the accident it exists for. See `scripts/bootstrap-backups.sh`.
+- **The backup selection matches on the `app=quirenote` TAG, never an ARN.**
+  DSQL cluster IDs are generated, so a recreated cluster gets a new ARN and an
+  ARN-pinned selection would back up nothing without saying so.
+
+## Durability — measured 2026-08-11, not assumed
+
+The Phase 2 gate in `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md`
+asked whether DSQL is durable enough to hold the archive, or whether price
+history belongs in S3 + CloudFront instead. It was answered by taking a real
+backup and restoring it, because a backup that has never been restored is a
+belief rather than a backup. **The gate passes** (D48).
+
+| | Measured |
+|---|---|
+| Backup | 3 min 48 s for 34.6 MiB / 6 630 rows |
+| Restore | 2 min 19 s, to a brand-new cluster |
+| RTO | under ~10 min end to end, plus repointing whatever reads it |
+| RPO | **one capture** — bounded by the backup schedule, not by DSQL |
+
+Four properties of DSQL backup that are not obvious and shape everything above:
+
+- **There is no PITR.** `GetCluster` returns no backup or PITR field of any
+  kind — only status, deletion protection, KMS key and endpoint. Continuous
+  backup is an AWS Backup feature for RDS/Aurora/S3; a DSQL recovery point is a
+  **full** backup, never incremental. So the recovery point interval *is* the
+  RPO, which is why the plan runs 45 minutes after the capture rather than at
+  some round hour: it shrinks the window in which a captured day exists but is
+  not yet backed up from ~23 hours to ~45 minutes.
+- **Backup and restore are AWS Backup only** — not the DSQL console, not the
+  DSQL API. Nothing in `aws dsql` will show you a backup.
+- **Granularity is the whole cluster.** No table-level or row-level restore.
+- **A restore creates a NEW cluster**; it never overwrites the source. Recovery
+  is therefore always "restore, verify, repoint", and the new cluster arrives
+  with deletion protection already on.
+
+**Until 2026-08-11 the archive had no backup at all** — zero vaults, zero
+plans, zero jobs — while looking entirely healthy, which is the same shape of
+failure as the dead alert channel found the same day.
+
+Two traps met while proving it, both worth an hour to whoever meets them next:
+
+- `StartRestoreJob` rejects the metadata `GetRecoveryPointRestoreMetadata`
+  hands you. It returns `cluster_id`, and the restore accepts only
+  `regionalconfig`, `witnessregion`, `aws:backup:request-id` and
+  `usemultiregionorchestration`. `{"usemultiregionorchestration": "false"}`
+  works.
+- **Verifying a restore needs a read path to a cluster nothing is configured
+  for.** The capture role holds `dsql:DbConnectAdmin` on exactly one ARN, so the
+  check was a temporary second inline policy plus an env swap, reverted in the
+  same call. Allow ~25 s for IAM propagation — a 3-second wait fails with an
+  unhandled error that looks like a code fault, not a permission one.
 
 ## Deploying
 

@@ -14,7 +14,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | **done** (2026-08-11) |
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
 | A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48) |
-| A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | todo |
+| A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
+| A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | todo |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | todo |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
@@ -110,13 +111,28 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 **Rationale:** `2026-08-04-cloud-stack-and-cost.md` names this an explicit gate on Phase 2 — *"Verify DSQL backup/PITR. Gate: if either disappoints, price history moves to S3 + CloudFront."* It needs no evidence and no elapsed time, and the whole archive exists because a missed day is unrecoverable. Verifying restore *after* user data arrives inverts the risk for no reason.
 
-- [ ] Confirm what the cluster actually has: PITR window, snapshot cadence, whether either is on by default on a free-tier single-region cluster.
-- [ ] Perform a real restore to a throwaway cluster and diff row counts + hashes against the source. A backup that has never been restored is a belief, not a backup.
-- [ ] Record the measured RPO/RTO in `infra/README.md`; delete the throwaway cluster and confirm the bill returns to baseline.
-- [ ] If either disappoints: write the S3 + CloudFront fallback as a DECISIONS entry rather than improvising it later. The read contract was designed so this is a routing change with no client change.
+- [x] Confirm what the cluster actually has: **nothing.** No PITR field on `GetCluster` at all, and zero vaults / plans / jobs — the archive was not backed up in any way. DSQL recovery points are **full** backups via AWS Backup only; no continuous backup, no table-level granularity.
+- [x] Perform a real restore to a throwaway cluster and diff row counts + hashes against the source. Restored 6 628 rows against production's 6 630; the −1 per source is the capture that ran after the snapshot point, confirmed by byte deltas matching one mean row each.
+- [x] Record the measured RPO/RTO in `infra/README.md` (backup 3 min 48 s, restore 2 min 19 s, RTO <10 min, RPO one capture); throwaway cluster deleted, `ListClusters` back to one.
+- [x] Neither disappointed → **gate passes, DSQL stays** (D49). Daily plan at `cron(45 22 * * ? *)`, tag-selected, 35-day retention, created by `infra/scripts/bootstrap-backups.sh` deliberately outside the stack.
 
-**Verify:** a restored cluster answers the same `SELECT count(*), min(as_of), max(as_of)` per source as production.
+**Verify:** a restored cluster answers the same `SELECT count(*), min(as_of), max(as_of)` per source as production. — done via the Lambda's `diagnose` mode against a temporarily repointed endpoint.
 **Risk:** a throwaway cluster is a billable resource. Delete it in the same session; the $5 budget with $1/$3 absolute alerts is the backstop.
+**Left open on purpose:** nothing checks that the nightly backup actually ran → **A14**.
+
+## A14 — The nightly backup gets a liveness signal — `infra/backup-liveness`
+
+**Goal:** find out that the backup stopped running from a signal, not from needing it.
+
+**Rationale — this is the third instance of one defect in one day.** The alert channel was dead and every indicator read healthy (D44). The backfill filled a range with `ok: false` under defective logic and nobody read the result (D43). The archive had no backup at all while deletion protection made it look protected (D49). Each time the green came from nothing having been *attempted*. A backup plan is exactly this shape: it fails silently, and the moment it is wanted is the worst moment to discover it.
+
+- [ ] The capture already reports its own alert-channel count on every run (D47). Extend the same idea: assert a `COMPLETED` recovery point exists for the cluster within the last 48 h, emit it as a metric, alarm on zero.
+- [ ] 48 h, not 24 h — a daily plan with a 60-minute start window plus one skipped night must not page. The signal wanted is "the plan has stopped", not "one night was late".
+- [ ] `backup:ListRecoveryPointsByBackupVault` on the vault is the one permission this adds to the capture role. Keep it read-only and scoped to `quirenote-backups`.
+- [ ] Alarm `TreatMissingData: breaching`, same as `SilenceAlarm` — a check that stops reporting is indistinguishable from a check that reports failure, and both are bad.
+
+**Verify:** delete nothing; set the alarm state by hand (`SetAlarmState`) and confirm it reaches the Console Mobile App, the way D45's channel was proven.
+**Risk:** low. Read-only, one metric, one alarm, no new resource.
 
 ## A4 — NBU observation schema — `infra/nbu-observation-schema`
 
