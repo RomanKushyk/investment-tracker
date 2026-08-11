@@ -173,7 +173,9 @@ at the end that AWS does not support resource-level permissions for.
       "Effect": "Allow",
       "Action": ["logs:CreateLogGroup", "logs:DeleteLogGroup",
                  "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy",
-                 "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource"],
+                 "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource",
+                 "logs:PutMetricFilter", "logs:DeleteMetricFilter",
+                 "logs:DescribeMetricFilters"],
       "Resource": "arn:aws:logs:eu-north-1:<account-id>:log-group:/aws/lambda/kubushka-backend-*"
     },
     {
@@ -292,6 +294,7 @@ were read beforehand, and each cost a cycle.
   a cluster normally creates it, but only if the caller holds
   `iam:CreateServiceLinkedRole`. Created once in `bootstrap-account.sh` instead
   of widening the execution role.
+- **Metric filters are their own permission family.** `logs:PutMetricFilter`, `DeleteMetricFilter` and `DescribeMetricFilters` are not covered by the log-group actions a Lambda needs; adding a metric filter failed on `DescribeMetricFilters` alone.
 - **The DSQL CloudFormation handler calls more than the template uses** —
   `GetClusterPolicy`, `GetVpcEndpointServiceName` — regardless of whether the
   template sets those properties. Grant a handler its whole surface, not the
