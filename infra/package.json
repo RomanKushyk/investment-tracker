@@ -1,9 +1,10 @@
 {
-  "name": "kubushka-infra",
+  "name": "quirenote-infra",
   "private": true,
   "type": "module",
   "description": "Phase 1 price capture — see infra/README.md",
   "dependencies": {
+    "@aws-sdk/client-notifications": "^3.1107.0",
     "@aws-sdk/dsql-signer": "^3.1106.0",
     "pg": "^8.23.0"
   },

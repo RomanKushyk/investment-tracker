@@ -7,6 +7,11 @@
 import { createHash } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
 
+import {
+  ListChannelsCommand,
+  ListNotificationConfigurationsCommand,
+  NotificationsClient,
+} from '@aws-sdk/client-notifications';
 import { DsqlSigner } from '@aws-sdk/dsql-signer';
 import { Client } from 'pg';
 
@@ -585,6 +590,60 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   };
 }
 
+/**
+ * Report how many delivery channels the alert configuration has.
+ *
+ * WHY THIS EXISTS. On 2026-08-11 the alerting was dead for hours and every
+ * indicator said healthy: zero failed notifications (because nothing was even
+ * attempted), "Successfully executed action" in the alarm history, and five
+ * alarms sitting in OK. A silence alarm that cannot deliver is worse than no
+ * alarm, because it turns an unmonitored system into one everyone believes is
+ * monitored (D44).
+ *
+ * So the channel is checked the same way `unchangedDays` is: the value is
+ * emitted on EVERY run, healthy or not. A signal that appears only on failure
+ * cannot tell "fine" from "the check stopped running".
+ *
+ * The alarm on this metric necessarily notifies through the very channel it is
+ * measuring, which no amount of cleverness fixes. It is not meant to. The point
+ * is that the NUMBER is visible without any delivery at all — in the log, on a
+ * dashboard, and in the run journal the admin surface will read. The alarm is
+ * the backup; the visible number is the primary.
+ *
+ * Never throws: a capture must not fail because a monitoring read did.
+ */
+async function reportAlertChannels(): Promise<void> {
+  const name = process.env.ALERT_CONFIG_NAME;
+  if (name === undefined || name === '') return;
+  try {
+    // us-east-1 is not a choice. The notifications API answers only there and
+    // refuses the call in eu-north-1 by name, which is a confusing failure to
+    // meet at 01:00.
+    const client = new NotificationsClient({ region: 'us-east-1' });
+    const list = await client.send(new ListNotificationConfigurationsCommand({}));
+    // Matched by NAME rather than ARN: an ARN carries the account id and this
+    // repository is public.
+    const cfg = list.notificationConfigurations?.find((c) => c.name === name);
+    if (cfg?.arn === undefined) {
+      console.log(JSON.stringify({ metric: 'alertChannels', configuration: name, status: 'MISSING', value: 0 }));
+      return;
+    }
+    const channels = await client.send(
+      new ListChannelsCommand({ notificationConfigurationArn: cfg.arn }),
+    );
+    const value = cfg.status === 'ACTIVE' ? (channels.channels?.length ?? 0) : 0;
+    console.log(
+      JSON.stringify({ metric: 'alertChannels', configuration: name, status: cfg.status, value }),
+    );
+  } catch (err) {
+    // Reported, not thrown, and not silent: a read that fails is not the same
+    // as zero channels, so it must not masquerade as one.
+    console.warn(
+      `alert-channel check failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 export interface HandlerEvent {
   /** Absent for the scheduled run: capture today from every source. */
   backfill?: BackfillRequest;
@@ -608,6 +667,10 @@ export async function handler(event: HandlerEvent = {}) {
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
       results.push(await captureOne(client, source, asOf));
     }
+
+    // Only on the scheduled path. A backfill has nothing to say about whether
+    // today's alerting works, and it would emit the value hundreds of times.
+    await reportAlertChannels();
 
     // A weekend 404 from NBU is not a failure — it is the calendar. Only real
     // problems reach the alarm.
