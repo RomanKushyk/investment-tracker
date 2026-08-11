@@ -5,7 +5,7 @@
 // Every run writes a row, including a failed one: `price_capture` — never the
 // absence of a price row — is what answers "did the job run on day D".
 import { createHash } from 'node:crypto';
-import { gzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 
 import { BackupClient, ListRecoveryPointsByBackupVaultCommand } from '@aws-sdk/client-backup';
 import {
@@ -18,6 +18,7 @@ import { Client } from 'pg';
 
 import { kyivDateIso } from '../../src/core/dates';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
+import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
 
 /** Bumped whenever the parse changes shape. Stored per row so that, if the
  *  parser was ever wrong, the affected rows are identifiable rather than
@@ -299,6 +300,32 @@ async function ensureSchema(client: Client): Promise<void> {
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_capture_source_as_of
        ON price_capture (source, as_of, requested_at)`,
+  );
+
+  // Phase 2. Contracts pinned in migrations/002_price_observation.sql — read
+  // that file before touching the key here. It is IMMUTABLE: changing it is a
+  // DROP/CREATE of a live archive, not a migration.
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS price_observation (
+      as_of DATE NOT NULL, instrument_ref TEXT NOT NULL,
+      basis TEXT NOT NULL, source TEXT NOT NULL,
+      price NUMERIC NOT NULL, observed_at TIMESTAMPTZ NOT NULL,
+      parser_version TEXT NOT NULL,
+      ytm NUMERIC, clean_rate NUMERIC,
+      return_rate_buy NUMERIC, return_rate_sell NUMERIC, status TEXT,
+      PRIMARY KEY (as_of, instrument_ref, basis, source))`);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS instrument (
+      ref TEXT NOT NULL, kind TEXT NOT NULL, currency TEXT, cp_type TEXT,
+      maturity DATE, listed_from DATE, last_seen_on DATE,
+      PRIMARY KEY (ref))`);
+
+  // The primary key leads with `as_of` because the read contract serves whole
+  // years; "this instrument over time" needs its own leading column (A2/D48).
+  await client.query(
+    `CREATE INDEX ASYNC IF NOT EXISTS price_observation_ref_as_of
+       ON price_observation (instrument_ref, as_of)`,
   );
 }
 
@@ -659,6 +686,143 @@ async function reportAlertChannels(): Promise<void> {
   }
 }
 
+/** The only `basis` NBU ever writes. The other three of the pinned vocabulary
+ *  (`buy`, `sell`, `nav`) are legal from row one so that adding one later does
+ *  not split the archive across two key shapes — see migrations/002. */
+const BASIS_FAIR = 'fair';
+
+export interface ObserveRequest {
+  from?: string;
+  to?: string;
+  /**
+   * Which instruments to write observations for. Defaults to the ISINs the
+   * portfolio actually holds.
+   *
+   * SCOPE IS A PARAMETER, AND NARROW IS THE SAFE DIRECTION. A published file
+   * carries ~185 instruments, so the full universe over the archive is roughly
+   * 400,000 rows against the 2-3 that anything reads. Widening later is free —
+   * more rows under the same immutable key, re-derived from payloads that are
+   * already stored locally, with NBU additionally re-fetchable by URL. Starting
+   * wide and narrowing means deleting rows 3,000 at a time. Cost is not the
+   * constraint either way: the whole of August, including two ten-year
+   * backfills, metered 5.86 DPU.
+   */
+  refs?: string[];
+  /** Dates per invocation. The caller loops on `nextFrom` rather than fighting
+   *  the Lambda timeout, exactly as the capture backfill does. */
+  limit?: number;
+}
+
+/**
+ * Turn stored raw captures into observations.
+ *
+ * Reads NOTHING from the network. This is the payoff of storing payloads: the
+ * schema can be wrong once and still recover, because the source material never
+ * left. A re-run is a no-op by construction — `ON CONFLICT DO NOTHING` on the
+ * natural key — which is what makes it safe to run again after fixing a parser.
+ *
+ * One transaction per date: ~185 rows sits far under the 3,000-row and 10 MiB
+ * per-transaction limits, and a date is the natural unit to retry.
+ */
+async function observeNbu(client: Client, req: ObserveRequest) {
+  const from = req.from ?? NBU_ARCHIVE_START;
+  const to = req.to ?? asOfFor(new Date());
+  const refs = req.refs ?? TRACKED_ISINS;
+  const limit = req.limit ?? 400;
+  const wanted = new Set(refs);
+
+  // The NEWEST successful capture per date. `price_capture` is append-only and
+  // a repaired day lands beside the wrong one, so taking the latest
+  // `requested_at` is what makes a correction win without deleting evidence.
+  const { rows: captures } = await client.query<{
+    as_of: string;
+    requested_at: Date;
+    payload_gzip: Buffer;
+    parser_version: string;
+  }>(
+    `SELECT DISTINCT ON (as_of)
+            to_char(as_of, 'YYYY-MM-DD') AS as_of, requested_at,
+            payload_gzip, parser_version
+       FROM price_capture
+      WHERE source = $1 AND ok = true AND as_of BETWEEN $2 AND $3
+      ORDER BY as_of, requested_at DESC`,
+    [SOURCE.nbuFairValue, from, to],
+  );
+
+  let dates = 0;
+  let written = 0;
+  let mismatched = 0;
+  let cursor = from;
+  for (const cap of captures) {
+    if (dates >= limit) break;
+    cursor = cap.as_of;
+    dates += 1;
+
+    const body = gunzipSync(cap.payload_gzip).toString('utf8');
+    const parsed = parseNbuFairValue(body);
+    const observedAt = cap.requested_at.toISOString();
+
+    for (const row of parsed) {
+      if (!wanted.has(row.isin)) continue;
+      // Contract 2: the file's own claim must agree with the day we filed it
+      // under. Counted and skipped, never coerced — a silent coercion here
+      // would be indistinguishable from correct data forever after.
+      if (row.calcDate !== cap.as_of) {
+        mismatched += 1;
+        continue;
+      }
+      await client.query(
+        `INSERT INTO price_observation
+           (as_of, instrument_ref, basis, source, price, observed_at,
+            parser_version, ytm, clean_rate)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (as_of, instrument_ref, basis, source) DO NOTHING`,
+        [
+          cap.as_of,
+          row.isin,
+          BASIS_FAIR,
+          SOURCE.nbuFairValue,
+          row.fairValue,
+          observedAt,
+          cap.parser_version,
+          row.ytm ?? null,
+          row.cleanRate ?? null,
+        ],
+      );
+      written += 1;
+
+      // `listed_from` / `last_seen_on` widen monotonically, so a backfill run
+      // in any order converges on the same bounds. LEAST/GREATEST over the
+      // existing value rather than a blind overwrite is what makes that true.
+      await client.query(
+        `INSERT INTO instrument
+           (ref, kind, currency, cp_type, maturity, listed_from, last_seen_on)
+         VALUES ($1, 'bond', $2, $3, $4, $5, $5)
+         ON CONFLICT (ref) DO UPDATE SET
+           currency     = coalesce(EXCLUDED.currency, instrument.currency),
+           cp_type      = coalesce(EXCLUDED.cp_type, instrument.cp_type),
+           maturity     = coalesce(EXCLUDED.maturity, instrument.maturity),
+           listed_from  = least(instrument.listed_from, EXCLUDED.listed_from),
+           last_seen_on = greatest(instrument.last_seen_on, EXCLUDED.last_seen_on)`,
+        [row.isin, row.currency, row.cpType ?? null, row.maturity ?? null, cap.as_of],
+      );
+    }
+  }
+
+  const remaining = captures.length > dates;
+  return {
+    mode: 'observe' as const,
+    from,
+    to,
+    refs,
+    dates,
+    written,
+    mismatched,
+    complete: !remaining,
+    nextFrom: remaining ? addDays(cursor, 1) : null,
+  };
+}
+
 /** No usable recovery point. Deliberately large rather than 0 or -1: the metric
  *  is an AGE, so "nothing" has to sit on the bad side of any threshold. A zero
  *  would read as "backed up seconds ago", which is the exact inversion that
@@ -787,6 +951,8 @@ export interface HandlerEvent {
   asOf?: string;
   /** Read-only: table size and the plans of the two operational queries. */
   diagnose?: boolean;
+  /** Derive observations from payloads already stored. Network-free. */
+  observe?: ObserveRequest;
 }
 
 export async function handler(event: HandlerEvent = {}) {
@@ -795,6 +961,8 @@ export async function handler(event: HandlerEvent = {}) {
     await ensureSchema(client);
 
     if (event.diagnose === true) return await diagnose(client);
+
+    if (event.observe !== undefined) return await observeNbu(client, event.observe);
 
     if (event.backfill !== undefined) return await backfillNbu(client, event.backfill);
 
