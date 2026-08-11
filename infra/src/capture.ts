@@ -511,12 +511,28 @@ interface BackfillRequest {
   from?: string;
   to?: string;
   limit?: number;
+  /**
+   * Re-capture dates that already have a row, instead of skipping them.
+   *
+   * The completeness check asks whether a row EXISTS, never whether it
+   * succeeded — so a range filled by a defective run is skipped forever by an
+   * ordinary re-run, and the defect becomes permanent (D43). This is the way
+   * out, and it is deliberately opt-in: the default must stay "skip what is
+   * done", or an accidental invocation re-fetches a decade of files.
+   *
+   * Append, never overwrite. The table's primary key is `id`, the archive is
+   * meant to be append-only, and every consumer already takes the newest row
+   * per date — so a corrected row simply lands beside the wrong one and wins,
+   * while the original stays visible as the record of what was believed.
+   */
+  force?: boolean;
 }
 
 /**
  * Walk the NBU archive forward, skipping dates already captured. Bounded per
  * invocation and returns a cursor, so the caller loops rather than fighting the
- * Lambda timeout. Idempotent: re-running re-reads `done` and continues.
+ * Lambda timeout. Idempotent: re-running re-reads `done` and continues — unless
+ * `force` is set, which re-captures regardless and appends a fresh row.
  */
 async function backfillNbu(client: Client, req: BackfillRequest) {
   const from = req.from ?? NBU_ARCHIVE_START;
@@ -535,7 +551,7 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   let cursor = from;
   for (let d = from; d <= to && captured < limit; d = addDays(d, 1)) {
     cursor = d;
-    if (isWeekend(d) || done.has(d)) continue;
+    if (isWeekend(d) || (!req.force && done.has(d))) continue;
     const res = await captureOne(client, SOURCE.nbuFairValue, d, { expectTracked: false });
     captured += 1;
     if (res.ok) published += 1;
@@ -546,6 +562,7 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
     mode: 'backfill' as const,
     from,
     to,
+    forced: req.force === true,
     captured,
     published,
     complete: nextFrom > to,
