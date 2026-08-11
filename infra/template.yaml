@@ -23,7 +23,11 @@ Globals:
     MemorySize: 256
     # SAM's default is 3 SECONDS. Fetching and parsing 165 KB of JSON blows
     # through that on a cold start.
-    Timeout: 60
+    #
+    # 300 rather than 60 because the same function runs the NBU backfill, which
+    # walks ~2,600 business days back to 2016 in bounded chunks. The daily run
+    # still finishes in seconds, and Lambda bills duration, not the ceiling.
+    Timeout: 300
     Tracing: Active
 
 Resources:

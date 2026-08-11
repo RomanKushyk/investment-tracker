@@ -55,6 +55,89 @@ interface FetchOutcome {
   error?: string;
 }
 
+/**
+ * The NBU's official daily fair value for Ukrainian government bonds, published
+ * under Постанова Правління НБУ № 732 (26.10.2015). One file per BUSINESS day on
+ * a fully predictable path, archived back to 2016-01-04 (2015-01-05 → 404).
+ *
+ * This is why the two ОВДП are not perishable the way the two Inzhur funds are:
+ * a missed day here is downloadable later, so only the fund NAVs are genuinely
+ * the-only-copy-that-will-ever-exist.
+ *
+ * Note it is a MODEL valuation, not a quote, and not a substitute for the
+ * provider's dealer price — they measured ~0.9% apart on the same ISIN the same
+ * day. Both are stored, distinguished by `source`.
+ */
+function nbuFairValueUrl(asOf: string): string {
+  const d = asOf.replaceAll('-', ''); // yyyy-MM-dd -> yyyyMMdd
+  return `https://bank.gov.ua/files/Fair_value/${d.slice(0, 6)}/${d}_fv.txt`;
+}
+
+/** A weekend or public holiday. The file simply does not exist, which is a fact
+ *  about the calendar rather than a failure — recorded, never alarmed on. */
+const NOT_PUBLISHED = 'not_published';
+
+async function fetchNbu(asOf: string): Promise<FetchOutcome> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(nbuFairValueUrl(asOf), {
+      signal: controller.signal,
+      headers: { 'User-Agent': USER_AGENT },
+    });
+    if (response.status === 404) {
+      return { ok: false, httpStatus: 404, error: NOT_PUBLISHED, body: '' };
+    }
+    if (!response.ok) {
+      return { ok: false, httpStatus: response.status, error: `HTTP ${response.status}` };
+    }
+    // cp1251, NOT utf-8: the file carries Cyrillic instrument types (ОВДП /
+    // ОВМП) and a utf-8 read turns them into mojibake without erroring.
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return {
+      ok: true,
+      httpStatus: response.status,
+      body: new TextDecoder('windows-1251').decode(bytes),
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** ISINs the portfolio actually holds. Their absence from a published file is
+ *  the signal worth alarming on — a bond matured, was renamed, or the file
+ *  changed shape. */
+const TRACKED_ISINS = ['UA4000238976', 'UA4000236475'];
+
+interface ParsedNbu {
+  rows: number;
+  missing: string[];
+}
+
+/**
+ * Parse by FIXED INDEX, never by zipping the header against the row.
+ *
+ * The header is malformed: its 18th semicolon-separated field is literally
+ * `g_spread,z_spread,cptype` — three comma-separated names — while the data
+ * rows carry only `cptype` there. Zipping header to row therefore mislabels the
+ * tail and silently invents two columns that do not exist in the data.
+ *
+ * Index map, verified against the live file: 0 calc_date · 1 cpcode (ISIN) ·
+ * 2 ccy · 3 fair_value · 4 ytm · 5 clean_rate · 7 maturity · 17 cptype.
+ */
+function parseNbu(body: string): ParsedNbu {
+  const lines = body.split(/\r?\n/).filter((l) => l.trim() !== '');
+  const data = lines.slice(1); // drop the header row
+  const seen = new Set<string>();
+  for (const line of data) {
+    const isin = line.split(';')[1]?.trim();
+    if (isin !== undefined && isin !== '') seen.add(isin);
+  }
+  return { rows: data.length, missing: TRACKED_ISINS.filter((i) => !seen.has(i)) };
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
@@ -169,66 +252,183 @@ async function ensureSchema(client: Client): Promise<void> {
   );
 }
 
-export async function handler(): Promise<{ ok: boolean; asOf: string; entries: number }> {
+interface CaptureResult {
+  source: string;
+  asOf: string;
+  ok: boolean;
+  entries: number;
+  error: string | null;
+}
+
+/**
+ * One source, one date, one row. ALWAYS writes — including a 404 weekend and a
+ * hard failure — because the invariant this table exists to hold is that a
+ * missing row means "we never looked", never "we looked and there was nothing".
+ * That is what makes a gap in the archive diagnosable at all.
+ */
+async function captureOne(client: Client, source: string, asOf: string): Promise<CaptureResult> {
   const requestedAt = new Date();
-  const asOf = asOfFor(requestedAt);
-  const outcome = await fetchFeed(process.env.FEED_URL!);
+  const outcome =
+    source === SOURCE.nbuFairValue ? await fetchNbu(asOf) : await fetchFeed(process.env.FEED_URL!);
 
   let entryCount: number | null = null;
   let skipped: string | null = null;
   let error = outcome.error ?? null;
 
-  if (outcome.ok && outcome.body !== undefined) {
+  if (outcome.ok && outcome.body !== undefined && outcome.body !== '') {
     try {
-      // The SAME parser the app uses, imported from src/core rather than
-      // reimplemented — otherwise client and server eventually disagree about
-      // a price. Its result is recorded as metadata only; nothing derived from
-      // it is stored in Phase 1.
-      const feed = parseAssetsFeed(JSON.parse(outcome.body));
-      entryCount = feed.entries.length;
-      skipped = feed.skipped.join(',');
-      // Zero readable entries means shape drift or an error page. Recorded as a
-      // failure so the alarm fires — but the payload is still stored below,
-      // because a payload we cannot parse today is exactly what a future parser
-      // fix needs to read.
-      if (entryCount === 0) error = 'feed parsed to zero entries';
+      if (source === SOURCE.nbuFairValue) {
+        const parsed = parseNbu(outcome.body);
+        entryCount = parsed.rows;
+        skipped = parsed.missing.join(',');
+        // A published file that omits a bond we hold is the signal worth having:
+        // it matured, was renamed, or the file changed shape.
+        if (parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
+        else if (parsed.rows === 0) error = 'file parsed to zero rows';
+      } else {
+        // The SAME parser the app uses, imported from src/core rather than
+        // reimplemented — otherwise client and server eventually disagree about
+        // a price. Its result is metadata only; nothing derived is stored.
+        const feed = parseAssetsFeed(JSON.parse(outcome.body));
+        entryCount = feed.entries.length;
+        skipped = feed.skipped.join(',');
+        // Zero readable entries means shape drift or an error page. Recorded as
+        // a failure so the alarm fires — but the payload is still stored,
+        // because a payload we cannot parse today is exactly what a future
+        // parser fix needs to read.
+        if (entryCount === 0) error = 'feed parsed to zero entries';
+      }
     } catch (err) {
       error = `parse failed: ${err instanceof Error ? err.message : String(err)}`;
     }
   }
 
   const body = outcome.body ?? '';
+  await client.query(
+    `INSERT INTO price_capture (id, requested_at, as_of, source, ok, http_status, error,
+       entry_count, skipped_refs, payload_gzip, payload_bytes, payload_sha256, parser_version)
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [
+      requestedAt.toISOString(),
+      asOf,
+      source,
+      outcome.ok && error === null,
+      outcome.httpStatus ?? null,
+      error,
+      entryCount,
+      skipped,
+      gzipSync(Buffer.from(body, 'utf8')),
+      Buffer.byteLength(body, 'utf8'),
+      // Hash the DECODED text, never the wire bytes: the server may negotiate a
+      // different Content-Encoding, which would make every hash unique and
+      // silently disable change detection without any error.
+      createHash('sha256').update(body, 'utf8').digest('hex'),
+      PARSER_VERSION,
+    ],
+  );
+
+  return { source, asOf, ok: error === null, entries: entryCount ?? 0, error };
+}
+
+/** Business day in the Gregorian sense only — Ukrainian public holidays are not
+ *  encoded here deliberately. NBU simply publishes no file on them, which the
+ *  404 path already records correctly, and a hardcoded holiday calendar would
+ *  be one more thing to maintain and get wrong. */
+function isWeekend(iso: string): boolean {
+  const day = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
+function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Earliest NBU fair-value file that exists. Verified: 2016-01-04 → 200,
+ *  2015-01-05 → 404. */
+export const NBU_ARCHIVE_START = '2016-01-04';
+
+interface BackfillRequest {
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
+/**
+ * Walk the NBU archive forward, skipping dates already captured. Bounded per
+ * invocation and returns a cursor, so the caller loops rather than fighting the
+ * Lambda timeout. Idempotent: re-running re-reads `done` and continues.
+ */
+async function backfillNbu(client: Client, req: BackfillRequest) {
+  const from = req.from ?? NBU_ARCHIVE_START;
+  const to = req.to ?? asOfFor(new Date());
+  const limit = req.limit ?? 200;
+
+  const { rows } = await client.query<{ as_of: string }>(
+    `SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
+       FROM price_capture WHERE source = $1 AND as_of BETWEEN $2 AND $3`,
+    [SOURCE.nbuFairValue, from, to],
+  );
+  const done = new Set(rows.map((r) => r.as_of));
+
+  let captured = 0;
+  let published = 0;
+  let cursor = from;
+  for (let d = from; d <= to && captured < limit; d = addDays(d, 1)) {
+    cursor = d;
+    if (isWeekend(d) || done.has(d)) continue;
+    const res = await captureOne(client, SOURCE.nbuFairValue, d);
+    captured += 1;
+    if (res.ok) published += 1;
+  }
+
+  const nextFrom = addDays(cursor, 1);
+  return {
+    mode: 'backfill' as const,
+    from,
+    to,
+    captured,
+    published,
+    complete: nextFrom > to,
+    nextFrom: nextFrom > to ? null : nextFrom,
+  };
+}
+
+export interface HandlerEvent {
+  /** Absent for the scheduled run: capture today from every source. */
+  backfill?: BackfillRequest;
+  /** Manual re-capture of one date, e.g. to repair a bad day. */
+  asOf?: string;
+}
+
+export async function handler(event: HandlerEvent = {}) {
   const client = await connect();
   try {
     await ensureSchema(client);
-    await client.query(
-      `INSERT INTO price_capture (id, requested_at, as_of, source, ok, http_status, error,
-         entry_count, skipped_refs, payload_gzip, payload_bytes, payload_sha256, parser_version)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [
-        requestedAt.toISOString(),
-        asOf,
-        SOURCE.inzhur,
-        outcome.ok && error === null,
-        outcome.httpStatus ?? null,
-        error,
-        entryCount,
-        skipped,
-        gzipSync(Buffer.from(body, 'utf8')),
-        Buffer.byteLength(body, 'utf8'),
-        // Hash the DECODED text, never the wire bytes: the server may negotiate
-        // a different Content-Encoding, which would make every hash unique and
-        // silently disable change detection without any error.
-        createHash('sha256').update(body, 'utf8').digest('hex'),
-        PARSER_VERSION,
-      ],
-    );
+
+    if (event.backfill !== undefined) return await backfillNbu(client, event.backfill);
+
+    // ONE automation, two sources: both are captured in a single scheduled run
+    // rather than as two schedules. Same as_of rule serves both — Inzhur's
+    // prices settle at ~13:00 the previous day, and NBU publishes day D's file
+    // at ~09:30 on day D, so a 01:00 run on D+1 finds both.
+    const asOf = event.asOf ?? asOfFor(new Date());
+    const results: CaptureResult[] = [];
+    for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
+      results.push(await captureOne(client, source, asOf));
+    }
+
+    // A weekend 404 from NBU is not a failure — it is the calendar. Only real
+    // problems reach the alarm.
+    const failed = results.filter((r) => !r.ok && r.error !== NOT_PUBLISHED);
+    if (failed.length > 0) {
+      throw new Error(
+        `capture ${asOf}: ` + failed.map((f) => `${f.source}: ${f.error}`).join('; '),
+      );
+    }
+    return { asOf, results };
   } finally {
     await client.end();
   }
-
-  // Throwing is what drives the Errors alarm and the DLQ. The row is already
-  // committed, so the failure is both recorded and surfaced.
-  if (error !== null) throw new Error(`capture ${asOf}: ${error}`);
-  return { ok: true, asOf, entries: entryCount ?? 0 };
 }

@@ -228,6 +228,110 @@ the price archive urgent does not apply. The daily job refreshes the rate, which
 hard-coded 44.83 (already stale: NBU gave 44.7876 on 2026-08-04). Pass an explicit `date=` — without
 it the endpoint returns *tomorrow's* rate once published in the afternoon.
 
+## Sources
+
+There is **no single source of truth**, and there cannot be — the two instrument
+classes differ in kind. Established by research on 2026-08-11.
+
+**No Ukrainian law requires machine-readable public prices.** For a closed-end
+пайовий fund like Inzhur's, the floor under ЗУ «Про інститути спільного
+інвестування» № 5080-VI and НКЦПФР rules is: NAV **calculated monthly**, filed to
+the regulator in XML quarterly/annually, disclosed publicly in **human-readable**
+form quarterly/annually. Daily publication is required only of **open-ended**
+funds. НКЦПФР's 19 open datasets contain no NAV; SMIDA's open-data API was
+retired 2021-06-30 (verified: all paths 404).
+
+So Inzhur's daily JSON is **voluntary commercial disclosure**, not compliance.
+Contractually it is «Базова ціна» — cl. 1.4 of their services agreement, *"the
+price INZHUR offers to buy and/or sell securities at"* — i.e. a dealer quote on
+their own secondary market, not a NAV. That is also why it carries a ~0.1%
+spread (`buy = nav × 1.010`, `sell = nav × 1.009`) and moves daily while NAV is
+struck monthly.
+
+| | ОВДП (bonds) | Inzhur fund units |
+|---|---|---|
+| Official source | **NBU fair value, daily** | none |
+| Archive | **back to 2016-01-04** | none |
+| Backfillable | **yes, by URL** | **no** |
+| What our archive is | convenience + cross-check | **the only copy that will ever exist** |
+
+**The axis that matters is not "has an API" — it is "is backfillable".** Only
+the two fund NAVs are genuinely perishable.
+
+### NBU fair value
+
+```
+https://bank.gov.ua/files/Fair_value/{YYYYMM}/{YYYYMMDD}_fv.txt
+```
+
+Published under Постанова Правління НБУ № 732 (26.10.2015) for the NBU's own
+collateral valuation — a stable government feed, not a market-transparency duty,
+but far more durable than a marketing API. Carries `ETag` and `Last-Modified`,
+which Inzhur does not.
+
+Parsing traps, all verified against the live file:
+
+- **cp1251, not UTF-8.** A UTF-8 read yields mojibake without erroring.
+- **The header is malformed.** Its 18th semicolon field reads
+  `g_spread,z_spread,cptype` — three comma-separated names — while data rows
+  carry only `cptype` there. Zipping header to row mislabels the tail and
+  invents two columns. **Parse by fixed index**: 0 `calc_date` · 1 `cpcode`
+  (ISIN) · 2 `ccy` · 3 `fair_value` · 4 `ytm` · 5 `clean_rate` · 7 `maturity` ·
+  17 `cptype`.
+- **404 on weekends and holidays is normal**, not an error. Recorded as
+  `not_published`; never alarmed on. No holiday calendar is encoded — the 404
+  already carries that fact, and a hardcoded calendar would be one more thing to
+  maintain and get wrong.
+
+The two sources are **not substitutes**: measured ~0.9% apart on the same ISIN
+the same day, because one is a dealer quote and the other a model valuation.
+Both are stored, distinguished by `source`. In the future observation table,
+`source` joins the natural key `(as_of, ref, basis, source)` for exactly this
+reason — merging them would present one as the other.
+
+### Stable identifiers
+
+НДУ (csd.ua) issues real ISINs for the funds: **Inzhur REIT `UA5000014044`**,
+**Inzhur Energy `UA5000012246`** (both CFI `CICJLU`). Worth adopting over the
+provider slugs, because НКЦПФР approved a merger of five Inzhur funds into one
+on 2025-08-29 and the feed still carries `ocean-plaza` as `completed` — slugs
+demonstrably appear, change status and get absorbed. НДУ publishes **no
+valuation**: its `price` field is the nominal issue value, not a market price.
+
+## Operating the capture — what the super-admin sees and controls
+
+Every capture writes a row whether it succeeded or not, so the run journal is
+the operational surface. Nothing here needs new storage; it is a read over
+`price_capture` plus a small number of settings.
+
+**Visible per run:** `as_of` · `source` · `ok` · `http_status` · `error` ·
+`entry_count` · `skipped_refs` · `payload_bytes` · `parser_version` ·
+`requested_at`.
+
+**The four states that must be distinguishable**, because conflating them is how
+a broken pipeline looks healthy:
+
+| State | How it reads | Alarm? |
+|---|---|---|
+| captured | `ok = true` | no |
+| not published | `http_status = 404`, `error = not_published` | **no** — weekend/holiday |
+| parse failure | `error` set, payload still stored | **yes** |
+| never ran | **no row for that (as_of, source)** | **yes** — the silence alarm |
+
+**Controls worth having**, in rough priority: enable/disable a source without a
+deploy · re-run one date (`{ asOf }`) to repair a bad capture · run a backfill
+range · view the last N runs with their errors · view which tracked refs were
+missing from a published file.
+
+**Parse errors are never silent and never destructive.** A payload that fails to
+parse is still stored — the raw bytes are what a later parser fix reads — and
+the row records why. `parser_version` on every row is what makes "which rows did
+the broken parser produce" answerable rather than archaeological.
+
+Deferred until the app can read this: the actual admin UI, per-source
+enable/disable as stored settings rather than code, and alert routing per
+source. The data to build all of it is being recorded now.
+
 ### Sequencing — raw payloads first
 
 **Run the cron for ~3 weeks writing only timestamped raw payloads before finalising the archive
