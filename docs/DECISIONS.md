@@ -1743,6 +1743,23 @@ email must be moved out of spam *before* being clicked, and
 `no-reply@sns.amazonaws.com` needs a never-send-to-spam filter. Marking any SNS
 mail as spam deactivates the subscription, silently, forever.
 
+**Update, same day — the endpoint is suppressed, not the pair.** The chosen fix
+was a fresh topic ARN (`AlertTopic` → `CaptureAlertTopic`, commit `35b24d6`),
+on the theory that SNS keyed the suppression to endpoint+topic. **It did not
+work**: the new topic's subscription showed `Deleted` within seconds of
+creation, exactly as the previous one had. So the suppression follows the
+**address**, and the surviving subscription on the old topic survives only
+because it was confirmed *before* the complaint — not because that topic is
+special.
+
+The test was cheap and it disproved the hypothesis, which is the point of
+running it. What it leaves is one untested variable: a different address.
+There is no public API to clear an SNS email suppression, so the address
+cannot simply be un-blocked.
+
+The topic rename stands on its own merits regardless — `CaptureAlertTopic`
+says what it alerts about, and the old ARN was going away with the old stack.
+
 **Open question deliberately not answered here:** whether email is the right
 channel at all. It has now failed twice for the same reason, and its failure
 mode is invisible. Recorded rather than decided — the fix above makes the
