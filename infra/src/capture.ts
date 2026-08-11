@@ -18,6 +18,24 @@ import { parseAssetsFeed } from '../../src/core/inzhur/parse';
  *  archaeological. */
 const PARSER_VERSION = '1';
 
+/**
+ * Which feed a row came from. Not a lookup table — six values will never
+ * justify one.
+ *
+ * `inzhur` is the provider's own dealer quote (contractually "Базова ціна",
+ * cl. 1.4 of their services agreement: the price INZHUR offers to buy/sell at).
+ * `nbu_fv` will be the National Bank's official daily fair value for ОВДП.
+ *
+ * They are NOT substitutes: measured on the same day for the same ISIN they
+ * differ by ~0.9%, because one is a dealer quote and the other a model
+ * valuation. Storing them without distinguishing the source would silently
+ * present one as the other.
+ */
+export const SOURCE = {
+  inzhur: 'inzhur',
+  nbuFairValue: 'nbu_fv',
+} as const;
+
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
 
@@ -127,11 +145,20 @@ async function ensureSchema(client: Client): Promise<void> {
   await client.query(`
     CREATE TABLE IF NOT EXISTS price_capture (
       id UUID NOT NULL, requested_at TIMESTAMPTZ NOT NULL, as_of DATE NOT NULL,
-      ok BOOLEAN NOT NULL, http_status INT, error TEXT,
+      source TEXT, ok BOOLEAN NOT NULL, http_status INT, error TEXT,
       entry_count INT, skipped_refs TEXT,
       payload_gzip BYTEA NOT NULL, payload_bytes INT NOT NULL,
       payload_sha256 TEXT NOT NULL, parser_version TEXT NOT NULL,
       PRIMARY KEY (id))`);
+
+  // Migration for the cluster that already holds rows. Its own statement: DSQL
+  // permits one DDL per transaction and forbids mixing DDL with DML.
+  await client.query('ALTER TABLE price_capture ADD COLUMN IF NOT EXISTS source TEXT');
+
+  // Backfill the pre-source rows. Every row written before this column existed
+  // came from the Inzhur feed, because it was the only source. Idempotent, and
+  // a no-op once done.
+  await client.query(`UPDATE price_capture SET source = $1 WHERE source IS NULL`, [SOURCE.inzhur]);
   // No DESC: DSQL rejects a sort direction in index keys outright ("specifying
   // sort order not supported for index keys"). Immaterial here — the planner
   // can walk an ascending index backwards, and at ~365 rows/year the direction
@@ -175,12 +202,13 @@ export async function handler(): Promise<{ ok: boolean; asOf: string; entries: n
   try {
     await ensureSchema(client);
     await client.query(
-      `INSERT INTO price_capture (id, requested_at, as_of, ok, http_status, error,
+      `INSERT INTO price_capture (id, requested_at, as_of, source, ok, http_status, error,
          entry_count, skipped_refs, payload_gzip, payload_bytes, payload_sha256, parser_version)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         requestedAt.toISOString(),
         asOf,
+        SOURCE.inzhur,
         outcome.ok && error === null,
         outcome.httpStatus ?? null,
         error,

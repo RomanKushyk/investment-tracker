@@ -28,6 +28,18 @@ CREATE TABLE IF NOT EXISTS price_capture (
   -- When we asked. An instant, not a date.
   requested_at    TIMESTAMPTZ NOT NULL,
 
+  -- Which feed this payload came from: 'inzhur' | 'nbu_fv'.
+  --
+  -- Not in the primary key: a capture is an EVENT, and two runs on the same day
+  -- are legitimately two rows. Source belongs in the natural key of the future
+  -- observation table — (as_of, ref, basis, source) — because there the two
+  -- sources are different VALUES for the same instrument-day and would
+  -- otherwise overwrite each other. Measured divergence: ~0.9% same-day on the
+  -- same ISIN, because Inzhur publishes a dealer quote ("Базова ціна", cl. 1.4
+  -- of its services agreement) while NBU publishes a model fair value. They are
+  -- not substitutes and must never be merged.
+  source          TEXT,
+
   -- The Kyiv calendar date these prices are FOR. The 01:00 Europe/Kyiv run reads
   -- prices published ~13:00 the previous day, so as_of = capture date - 1.
   -- Pinned in writing because a silent redefinition later poisons the archive
