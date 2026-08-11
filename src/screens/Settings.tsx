@@ -332,7 +332,7 @@ export function Settings() {
           <SettingRow
             title="Backup"
             helper={
-              'Full JSON backup of the active dataset — kubushka-backup-<date>.json. Restore it with Import below.'
+              'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.'
             }
           >
             <BackupButton />

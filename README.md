@@ -1,4 +1,4 @@
-# Handoff: Kubushka — Investment Portfolio Tracker
+# Handoff: Quirenote — Investment Portfolio Tracker
 
 [![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml/badge.svg?branch=dev)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml)
 
@@ -50,7 +50,7 @@ Shape: cards radius 20–24px; pills/buttons/inputs radius 999px on buttons, sta
 `flex; min-height:100vh`.
 
 **Sidebar** — 232px fixed, bg `#26262a`, padding 26px 16px, `border-radius: 0 32px 32px 0`, sticky full-height, **internally scrollable** (footer cards must never clip on short viewports). Decorative 200px circle `#333338` @ .7 opacity overflowing bottom-right. Contents top→bottom:
-1. Logo: 36px light circle containing the current currency symbol (₴/$), wordmark "Kubushka" over "INVEST TRACKER" microlabel.
+1. Logo: 36px light circle containing the current currency symbol (₴/$), wordmark "Quirenote" over "INVEST TRACKER" microlabel.
 2. Group label "DAILY ENTRY" → nav pill "Daily quotes".
 3. Group label "ANALYTICS" → 8 nav pills. Active pill: bg `#e9e8e6`, ink text, weight 700; inactive: transparent, `#cfcecb`; hover opacity .85.
 4. `margin-top:auto` → currency segmented toggle (container `#333338` pill, padding 4px; active segment `#e9e8e6`).

@@ -38,7 +38,7 @@ const CSV_ROW = {
   failed: 'Could not build the CSV — please try again.',
 } as const;
 
-/** Pinned order, pinned file names (`kubushka-<table>-<date>.csv`). */
+/** Pinned order, pinned file names (`quirenote-<table>-<date>.csv`). */
 const TABLES = [
   { key: 'assets', label: 'Assets', build: (t: AllTables) => serializeAssetsCsv(t.assets) },
   {
@@ -63,7 +63,7 @@ export function CsvExportRow() {
       // Read fresh at click time (a mutation, not a cached query) — an export
       // must reflect the DB now, exactly like the JSON backup.
       const tables = await exportAll.mutateAsync();
-      await saveTextFile(`kubushka-${table.key}-${todayIso()}.csv`, table.build(tables), {
+      await saveTextFile(`quirenote-${table.key}-${todayIso()}.csv`, table.build(tables), {
         mime: CSV_MIME,
       });
     } catch {

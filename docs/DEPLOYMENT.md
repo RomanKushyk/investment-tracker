@@ -1,6 +1,6 @@
 # Deployment — AWS Amplify Hosting via GitHub Actions
 
-Kubushka is a static SPA deployed to **AWS Amplify Hosting** as a **manual-deploy app**
+Quirenote is a static SPA deployed to **AWS Amplify Hosting** as a **manual-deploy app**
 (created with "Deploy without Git"). GitHub Actions is the entire pipeline: it runs the
 quality gate, builds `dist/`, and pushes the artifact to Amplify. Amplify never builds.
 

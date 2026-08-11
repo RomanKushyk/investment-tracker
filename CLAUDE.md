@@ -1,4 +1,4 @@
-# Kubushka — Investment Portfolio Tracker
+# Quirenote — Investment Portfolio Tracker
 
 Read README.md first — it is the full implementation spec (design tokens, screens, data model, behavior checklist).
 

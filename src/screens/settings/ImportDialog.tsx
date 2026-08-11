@@ -68,7 +68,7 @@ export function ImportDialog({
   // latch — a ref, so it is set before React can re-render).
   const running = useRef(false);
 
-  const safetyName = `kubushka-before-import-${todayIso()}`;
+  const safetyName = `quirenote-before-import-${todayIso()}`;
 
   async function confirm() {
     if (running.current || attempt.kind !== 'preview') return;

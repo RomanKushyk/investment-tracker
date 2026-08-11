@@ -1,4 +1,4 @@
-# Kubushka Next-Phase Plan (v1.0.0 → cloud)
+# Quirenote Next-Phase Plan (v1.0.0 → cloud)
 
 > **For agentic workers:** this file is the **plan of record and the index**. It holds the shipped record, the retired items and the governing decisions. **Execution lives in three sibling plans — go there for tasks:**
 >

@@ -16,7 +16,7 @@ import { useSettings } from '../../state/settings';
 export const BACKUP_MIME = 'application/json';
 
 export interface BackupDownloadOptions {
-  /** File name without the extension. Defaults to `kubushka-backup-<today>`. */
+  /** File name without the extension. Defaults to `quirenote-backup-<today>`. */
   name?: string;
   /** Skip the generic failure toast — the caller reports it in its own words. */
   quiet?: boolean;
@@ -44,7 +44,7 @@ export function useBackupDownload() {
         new Date().toISOString().slice(0, 19), // timezone-less, same stamp as saveSnapshot
         dbVersion,
       );
-      const name = `${opts.name ?? `kubushka-backup-${todayIso()}`}.json`;
+      const name = `${opts.name ?? `quirenote-backup-${todayIso()}`}.json`;
       // Save-picker parity where it exists, `<a download>` where it doesn't —
       // same bytes, same name, and a cancelled picker is silent (S5): it
       // resolves 'cancelled', so nothing was written and no CTA may claim it

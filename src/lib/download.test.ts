@@ -71,12 +71,12 @@ describe('saveTextFile', () => {
     const picker = fakePicker(written);
     vi.stubGlobal('window', { showSaveFilePicker: picker });
 
-    const outcome = await saveTextFile('kubushka-snapshots-2026-08-04.csv', 'date,cash\r\n', {
+    const outcome = await saveTextFile('quirenote-snapshots-2026-08-04.csv', 'date,cash\r\n', {
       mime: 'text/csv',
     });
 
     expect(outcome).toBe('saved');
-    expect(written.name).toBe('kubushka-snapshots-2026-08-04.csv');
+    expect(written.name).toBe('quirenote-snapshots-2026-08-04.csv');
     expect(written.bytes).toBe('date,cash\r\n');
     expect(written.closed).toBe(true); // a stream left open writes nothing
     expect(picker.mock.calls[0][0]?.types).toEqual([{ accept: { 'text/csv': ['.csv'] } }]);
@@ -108,10 +108,10 @@ describe('saveTextFile', () => {
     vi.stubGlobal('window', {});
     const anchor = stubAnchor();
 
-    await expect(saveTextFile('kubushka-backup-2026-08-04.json', '{}', {
+    await expect(saveTextFile('quirenote-backup-2026-08-04.json', '{}', {
       mime: 'application/json',
     })).resolves.toBe('saved');
-    expect(anchor.download).toBe('kubushka-backup-2026-08-04.json');
+    expect(anchor.download).toBe('quirenote-backup-2026-08-04.json');
     expect(anchor.href).toBe('blob:fake');
   });
 
@@ -122,7 +122,7 @@ describe('saveTextFile', () => {
     const anchor = stubAnchor();
 
     await expect(
-      saveTextFile('kubushka-before-import-2026-08-04.json', '{}', {
+      saveTextFile('quirenote-before-import-2026-08-04.json', '{}', {
         mime: 'application/json',
         via: 'anchor',
       }),

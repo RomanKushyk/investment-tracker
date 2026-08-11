@@ -49,7 +49,7 @@ export interface PortfolioTables {
 // The four file-level rejections happen BEFORE anything is read: a wrong file
 // is not an error worth alarming about, and none of them touches the data.
 
-/** A Kubushka export is ~300 KB at seed scale; 25 MB is not one. */
+/** A Quirenote export is ~300 KB at seed scale; 25 MB is not one. */
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
 /**

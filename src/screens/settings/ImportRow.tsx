@@ -196,7 +196,7 @@ export function ImportRow() {
   );
 }
 
-/** kubushka-backup-2026-08-04.json → kubushka-back…-08-04.json */
+/** quirenote-backup-2026-08-04.json → quirenote-bac…-08-04.json */
 function middleTruncate(name: string, max = 34): string {
   if (name.length <= max) return name;
   const head = Math.ceil((max - 1) / 2);

@@ -84,7 +84,7 @@ export function Sidebar() {
           {currency === 'UAH' ? '₴' : '$'}
         </div>
         <div className="font-display text-base max-sm:text-[13px] leading-[1.15] font-semibold">
-          Kubushka
+          Quirenote
           <br />
           {/* at the 136px rail the DEMO badge REPLACES this microline slot,
               so the nav is never pushed down (S5) */}

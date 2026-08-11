@@ -13,7 +13,7 @@ import { fmtDate } from '../../core/money';
 // --- S2: file-level rejections (warn, never neg) ---------------------------
 export const FILE_REJECTION: Record<FileRejectionCode, string> = {
   type: "That file type isn't supported — pick a .json backup.",
-  size: "That file is larger than 25 MB — it doesn't look like a Kubushka export.",
+  size: "That file is larger than 25 MB — it doesn't look like a Quirenote export.",
   count: 'Drop one file at a time.',
   empty: 'That file is empty.',
 };
@@ -37,8 +37,13 @@ export function formatReasonSentence(code: FormatRejectionCode, version?: number
   switch (code) {
     case 'not-json':
       return "That file isn't valid JSON.";
+    // The product is Quirenote; the ENVELOPE MARKER stays `kubushka-backup`
+    // and is quoted verbatim on purpose (D41). It is a pinned contract, and
+    // renaming it would make every backup file ever exported unreadable — so
+    // the sentence names the product and the quoted detail names the bytes,
+    // which is what a user actually finds if they open the file.
     case 'not-a-backup':
-      return 'This isn\'t a Kubushka backup — it has no "kubushka-backup" marker.';
+      return 'This isn\'t a Quirenote backup — it has no "kubushka-backup" marker.';
     case 'newer-format':
       return `This backup was written by a newer version of the app (format ${version ?? '?'}). Update the app, or export again from the version that wrote it.`;
     // A hand-edited or otherwise unreadable version: the sentence above would
@@ -114,7 +119,7 @@ export const PREVIEW = {
   waiting: 'Waiting for another tab…',
 } as const;
 
-/** "kubushka-backup-2026-08-03.json · exported 03.08.2026 21:14 · from live" */
+/** "quirenote-backup-2026-08-03.json · exported 03.08.2026 21:14 · from live" */
 export function fileSubline(name: string, exportedAt: string, dataset: Dataset): string {
   return `${name} · exported ${fmtDate(exportedAt.slice(0, 10))} ${exportedAt.slice(11, 16)} · from ${dataset}`;
 }
