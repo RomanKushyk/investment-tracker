@@ -27,7 +27,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
-| E2 | New IAM roles | console | S | todo |
+| E2 | New IAM roles (three) | console | S | todo |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | todo |
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | todo |
 
@@ -272,6 +272,28 @@ Gates green.
 Additive. The old roles stay until E3 is finished, so this step cannot break a
 deploy.
 
+**Three roles are manual, not two.** The account holds five `kubushka-*` roles
+and they are two different things:
+
+| Role | Owner | Action |
+|---|---|---|
+| `kubushka-backend-CaptureFunctionRole-*` | **the stack** | none — SAM recreates it as `quirenote-backend-CaptureFunctionRole-*` on the E3 deploy |
+| `kubushka-backend-SchedulerRole-*` | **the stack** | none — same |
+| `kubushka-backend-deploy` | manual | recreate |
+| `kubushka-backend-cfn-exec` | manual | recreate |
+| `kubushka-github-deploy` | manual | recreate — **the frontend role, missed when this section was written** |
+
+The two stack-owned roles carry a generated suffix because CloudFormation
+names them `<stack>-<LogicalId>-<hash>`. They vanish with the old stack and
+reappear under the new name by themselves; creating them by hand would
+collide with the stack.
+
+**Naming is fixed at the same time, because the old scheme was inconsistent.**
+`kubushka-github-deploy` was named for its mechanism while
+`kubushka-backend-deploy` was named for its target — and both are assumed by
+GitHub Actions, so "github" distinguished nothing. The scheme becomes
+`quirenote-<target>-<function>`.
+
 - [ ] Create `quirenote-backend-deploy` — same OIDC trust policy and repo/branch
       condition as its predecessor.
 - [ ] Create `quirenote-backend-cfn-exec` — trusted by CloudFormation only.
@@ -284,6 +306,12 @@ deploy.
       execution role named after the stack, so it becomes `quirenote-backend-*`.
 - [ ] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
       switching back is the rollback.
+- [ ] **`quirenote-frontend-deploy`** (was `kubushka-github-deploy`) — trust
+      policy byte-identical, permission policy in `docs/DEPLOYMENT.md` §1.5a.
+      Independent of E3 and carrying no data risk: it touches Amplify only, the
+      site keeps serving its last successful build, and it can be verified
+      immediately by re-running the frontend workflow. Do it now rather than
+      waiting for the stack.
 
 ## E3 — The stack move — the only destructive phase
 

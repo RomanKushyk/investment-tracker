@@ -196,6 +196,76 @@ compromised workflow cannot reconfigure hosting. If a future `AccessDeniedExcept
 resource outside this branch, add that exact ARN rather than broadening to `apps/<appId>/*` —
 the error message always states the resource it wanted.
 
+### 1.5a Renaming the role to `quirenote-frontend-deploy` (D42, Plan A E2)
+
+The role above was called `kubushka-github-deploy`. It is renamed for two
+reasons, and only the first is the product rename.
+
+**The old name described the mechanism, not the target.** Its sibling on the
+backend was `kubushka-backend-deploy` — named for what it deploys. Both roles
+are assumed by GitHub Actions, so "github" distinguishes nothing: it is noise in
+one name and absent from the other. The scheme is now
+`quirenote-<target>-<function>`, so what a role deploys is readable from its
+name:
+
+```
+quirenote-frontend-deploy     → Amplify hosting
+quirenote-backend-deploy      → the CloudFormation stack
+quirenote-backend-cfn-exec    → CloudFormation's own execution role
+```
+
+**This is independent of the backend rename** and carries no data risk. It
+touches Amplify only, the site keeps serving its last successful build
+throughout, and rollback is switching one secret back.
+
+Create it with **Custom trust policy**, name `quirenote-frontend-deploy`. The
+trust policy is **byte-identical to §1.5's** — it pins immutable numeric owner
+and repo IDs and keys on `environment:*`, none of which a role rename changes.
+
+Inline permission policy `quirenote-amplify-deploy` — replace `<account-id>`;
+`<appId>` is `d17m4jf400my6`, public because it is part of the URL:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AmplifyManualDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "amplify:CreateDeployment",
+        "amplify:StartDeployment",
+        "amplify:GetBranch",
+        "amplify:GetJob"
+      ],
+      "Resource": [
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/d17m4jf400my6/branches/dev",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/d17m4jf400my6/branches/dev/*"
+      ]
+    }
+  ]
+}
+```
+
+Both resource lines are still required, for the reason §1.5 gives: the four
+actions authorize against three different sub-resources. `amplify:UpdateApp`
+stays deliberately absent — hosting config remains console-managed (D15).
+
+**Cutover, in order:**
+
+1. Create the role and attach the policy.
+2. Point the `AWS_ROLE_ARN` repo secret at the new ARN. **Record the old value
+   first** — putting it back is the whole rollback.
+3. Re-run the frontend workflow and confirm the deploy succeeds and the site
+   still serves. A failure here costs nothing: the last build stays live.
+4. Delete `kubushka-github-deploy`.
+
+**The Amplify app's own name** (`kubushka` in the console) is cosmetic and
+changes in E4. The **App ID does not change**, so
+`https://dev.d17m4jf400my6.amplifyapp.com` stays exactly as it is until the
+custom domain from `PLAN-NOW.md` A11 lands. Renaming the app does not move the
+site.
+
 ## 2. GitHub repository configuration
 
 Settings → Environments → **`dev`**. All three live in that environment's scope, so
