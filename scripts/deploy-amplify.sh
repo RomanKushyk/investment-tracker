@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy a built artifact to an AWS Amplify Hosting manual-deploy branch.
-# Amplify never builds this app; see docs/DEPLOYMENT.md.
+# Amplify never builds this app; see docs/reference/DEPLOYMENT.md.
 #
 # Usage: AMPLIFY_APP_ID=d... AMPLIFY_BRANCH=dev ./scripts/deploy-amplify.sh [dist.zip]
 set -euo pipefail

@@ -129,7 +129,7 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
 });
 
 // The WEALTH-MANAGEMENT reconciliation fixtures pinned on the seed
-// (docs/FORMULA-AUDIT.md §1/§5). These live here rather than next to
+// (docs/reference/FORMULA-AUDIT.md §1/§5). These live here rather than next to
 // core/derive.ts because core tests must not import src/lib (G1 lint zone).
 describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
   it('freeCashFromLedger(seed) = ₴7,75 — the stored cash, exactly', () => {

@@ -50,7 +50,7 @@ export interface TotalReturnKpi {
 }
 
 // "Total return (net)" KPI (S9a) — the §5 total-return family (D13,
-// docs/FORMULA-AUDIT.md): performance against EXTERNAL deposits only, shipped
+// docs/reference/FORMULA-AUDIT.md): performance against EXTERNAL deposits only, shipped
 // ADDITIVELY beside the D5-pinned capital-gain KPI (relabeled, never changed).
 // Demo: +₴5,839.99 / +4.08% (149 016,36 − 143 176,37 over 143 176,37).
 export function totalReturnKpi(

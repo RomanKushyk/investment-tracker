@@ -6,13 +6,13 @@
 
 **Architecture:** A 9-route SPA (react-router) with a fixed dark sidebar shell. All portfolio data lives in IndexedDB behind `src/lib/repository.ts`, consumed via TanStack Query; pure derivation/formatting functions in `src/lib` turn raw records into every displayed number. Currency preference + draft quote entry live in persisted zustand stores.
 
-**Tech Stack:** React 19, Vite 7, TypeScript 5 (strict), Tailwind 4 `@theme` tokens, Dexie 4, TanStack Query 5, zustand 5, react-hook-form + zod, recharts 3, Radix, CVA, sonner, react-day-picker, lucide-react. See `docs/DECISIONS.md`.
+**Tech Stack:** React 19, Vite 7, TypeScript 5 (strict), Tailwind 4 `@theme` tokens, Dexie 4, TanStack Query 5, zustand 5, react-hook-form + zod, recharts 3, Radix, CVA, sonner, react-day-picker, lucide-react. See `docs/decisions/README.md`.
 
 ## Global constraints
 
 Copied from README / CLAUDE.md — every task implicitly includes these:
 
-- **Source of truth:** README.md is the spec; `design/Investment Tracker.dc.html` is the visual reference. Where the reference's mock copy is internally inconsistent, `docs/DECISIONS.md` D5 pins the resolution — check it before "fixing" a mismatch. Ignore `design/support.js` and `_ds/` references. `design/Tracker Options.dc.html` only disambiguates.
+- **Source of truth:** README.md is the spec; `design/Investment Tracker.dc.html` is the visual reference. Where the reference's mock copy is internally inconsistent, `docs/decisions/README.md` D5 pins the resolution — check it before "fixing" a mismatch. Ignore `design/support.js` and `_ds/` references. `design/Tracker Options.dc.html` only disambiguates.
 - **No hard-coded figures.** Every displayed number derives from stored assets/snapshots/transactions. Seed data makes first run match the reference.
 - **Palette only via Tailwind `@theme` tokens** (Task 1) — no ad-hoc hex in components. Charts use `src/lib/colors.ts` (mirrors the tokens; recharts can't resolve CSS vars in SVG attributes).
 - **Fonts:** Space Grotesk 600/700 for h1–h4, buttons, KPI numbers; Spline Sans Mono for body/labels/tables. h2 26px, KPI value 26px, micro-labels 10px uppercase `.12em`, body 13px, tables 12.5px.
@@ -52,7 +52,7 @@ Every UX/UI move or interaction animates; the app must feel lively, tactile and 
 | 6 | Charts: Balances, Payouts, Yield, Seasonality, Allocation | `feat/charts` | **done** (2026-07-28) |
 | 7 | Currency toggle, toasts, polish, empty states | `feat/polish` | **done** (2026-07-28) — plan complete |
 
-Plan complete. Deferred cosmetic items live in `docs/FOLLOW-UPS.md` (non-blocking; one `chore/cosmetic-sweep` branch clears them).
+Plan complete. Deferred cosmetic items live in `docs/plans/FOLLOW-UPS.md` (non-blocking; one `chore/cosmetic-sweep` branch clears them).
 
 ## Design reference
 
@@ -445,7 +445,7 @@ it('formats per README §8', () => {
 
 ## Session workflow (every future session)
 
-1. Read `CLAUDE.md`, this file's Status table, `docs/DECISIONS.md` (especially D5 before touching seed/derivations). README.md stays the spec of record.
+1. Read `CLAUDE.md`, this file's Status table, `docs/decisions/README.md` (especially D5 before touching seed/derivations). README.md stays the spec of record.
 2. `git checkout dev && git pull` (remote: `origin` → RomanKushyk/investment-tracker on the personal GitHub account; commits must be authored `RomanKushyk <romankushyk0@gmail.com>` — repo-local config, already set).
 3. Take the first non-done task, branch as listed, execute steps top-to-bottom, ticking checkboxes in this file as you go.
 4. Browser-verify against `design/Investment Tracker.dc.html` — open it directly (interactive via its bottom script), but remember the `.btn/.input/.field/.table/.tag` styling caveat in `design/README.md`. Use root `navigation-map.md` for per-route checkpoints and expected seed values. The app runs pinned to :3000; the user's dev server is usually already up — check before starting one.

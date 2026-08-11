@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { xirr } from './xirr';
 
-describe('xirr (WEALTH-MANAGEMENT-ARCHITECTRUE §6.1, ACT/365)', () => {
+describe('xirr (WEALTH-MANAGEMENT-ARCHITECTURE §6.1, ACT/365)', () => {
   it('single buy −1000 held one exact year to value 1080 → 8%', () => {
     const r = xirr([
       { date: '2026-01-01', amount: -1000 },
@@ -45,7 +45,7 @@ describe('xirr (WEALTH-MANAGEMENT-ARCHITECTRUE §6.1, ACT/365)', () => {
 
   it('deep-loss roots near the domain floor are still found (−99% in a year)', () => {
     // Root −0.99 is inside (−0.999, 10); a scan that starts above RATE_MIN
-    // would never bracket it (verification-round fix, docs/FORMULA-AUDIT.md).
+    // would never bracket it (verification-round fix, docs/reference/FORMULA-AUDIT.md).
     const r = xirr([
       { date: '2026-01-01', amount: -1000 },
       { date: '2027-01-01', amount: 10 },

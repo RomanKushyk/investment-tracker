@@ -7,6 +7,6 @@ import pkg from './package.json';
 export default defineConfig({
   plugins: [react({ babel: { plugins: ['babel-plugin-react-compiler'] } }), tailwindcss()],
   server: { port: 3000 },
-  // Single source of truth for the sidebar version badge — see docs/VERSIONING.md.
+  // Single source of truth for the sidebar version badge — see docs/reference/VERSIONING.md.
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
 });

@@ -401,7 +401,7 @@ GitHub Actions, so "github" distinguished nothing. The scheme becomes
 - [ ] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
       switching back is the rollback.
 - [x] **`quirenote-frontend-deploy`** (was `kubushka-github-deploy`) — **done 2026-08-11**, verified end to end: run `31512461483` green through `configure-aws-credentials` and the Amplify deploy, and the live site serves `<title>Quirenote — Invest Tracker</title>` with `/overview` still rewriting to 200. — trust
-      policy byte-identical, permission policy in `docs/DEPLOYMENT.md` §1.5a.
+      policy byte-identical, permission policy in `docs/reference/DEPLOYMENT.md` §1.5a.
       Independent of E3 and carrying no data risk: it touches Amplify only, the
       site keeps serving its last successful build, and it can be verified
       immediately by re-running the frontend workflow. Do it now rather than
@@ -467,7 +467,7 @@ workflow back. The old stack never stopped working.
       worse than one that points somewhere old.
 - [x] `infra/README.md` — both role policies verbatim, every prefix, and a field
       note recording what the move actually cost.
-- [x] `docs/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
+- [x] `docs/reference/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
 - [ ] Amplify app name in the console — cosmetic, unrelated to the custom domain
       in A11.
 - [x] Update `PLAN-WAITING.md` W1/W3/W4 dates by the days actually lost, measured

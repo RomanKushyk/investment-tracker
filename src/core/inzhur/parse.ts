@@ -1,6 +1,6 @@
 // The Inzhur public feed (GET https://www.inzhur.reit/_api/assets), PURE half:
 // a tolerant pick-parse plus portfolio matching. Policy, endpoint constraints
-// and the kopecks unit are recorded in docs/DECISIONS.md D19; the network half
+// and the kopecks unit are recorded in docs/decisions/README.md D19; the network half
 // is src/hooks/useInzhurAssets.ts (core never fetches, G1).
 //
 // TOLERANCE IS THE CONTRACT: the payload is third-party and WILL drift, so

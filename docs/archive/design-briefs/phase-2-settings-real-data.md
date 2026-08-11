@@ -3,8 +3,8 @@
 Consumed by a separate Claude design session (pipeline in `README.md` here).
 Produces `design/extensions/*.dc.html` in the master reference's idiom
 (`design/Investment Tracker.dc.html` — inline styles, exact values literal in
-markup). Plan source: `docs/NEXT-PHASE-PLAN.md` Phase 2; formulas:
-`docs/FORMULA-AUDIT.md` + D13.
+markup). Plan source: `docs/plans/NEXT-PHASE-PLAN.md` Phase 2; formulas:
+`docs/reference/FORMULA-AUDIT.md` + D13.
 
 **Suggested extension files:** `settings.dc.html` (S1–S8),
 `metrics-exposure.dc.html` (S9–S10). The design session may split differently;
@@ -13,7 +13,7 @@ one surface must never span two files.
 ## Global constraints (apply to every surface below)
 
 - **Demo-figure invariant (binding):** every change is ADDITIVE — no D5-pinned
-  demo figure may change (`docs/DECISIONS.md` D5, `navigation-map.md`
+  demo figure may change (`docs/decisions/README.md` D5, `navigation-map.md`
   checkpoints: ₴149,016.36 total · +₴4,452.61/+3.08% · deposited ₴143,176 ·
   reinvested ₴1,387.38 · income ₴5,040.94 · top-up ₴11,429.49 · …6475
   annualized +10.9%). Relabeling a metric is allowed; changing its value is not.

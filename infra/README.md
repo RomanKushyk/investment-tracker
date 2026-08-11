@@ -93,7 +93,7 @@ Region: **`eu-north-1`** — same as Amplify. Aurora DSQL is available there
 (`dsql.eu-north-1.api.aws`); DSQL is PostgreSQL 16 compatible.
 
 Deployed by GitHub Actions, not from a developer machine — there are no AWS
-credentials locally and there should not be. See `docs/DEPLOYMENT.md`.
+credentials locally and there should not be. See `docs/reference/DEPLOYMENT.md`.
 
 The backend uses its **own** OIDC role, separate from `quirenote-frontend-deploy`,
 so the existing frontend deploy role stays unable to touch hosting config
@@ -109,7 +109,7 @@ creating arbitrary resources, and it is the reason not to use CDK here: CDK's
 bootstrap execution role is `AdministratorAccess` by default.
 
 The OIDC provider already exists from the frontend setup
-(`docs/DEPLOYMENT.md` §1.4) — do not create a second one.
+(`docs/reference/DEPLOYMENT.md` §1.4) — do not create a second one.
 
 The two roles below are the ones in use. They replaced a `kubushka-backend-*`
 pair on 2026-08-11 (D42/D46); the old pair is deleted and only these exist.
@@ -132,7 +132,7 @@ Three things about their shape are worth knowing, and one is a trap:
 
 The trust policy keys on the **environment** rather than the branch, and the
 owner/repo carry immutable numeric IDs. Both traps are documented at length in
-`docs/DEPLOYMENT.md` §1.5.
+`docs/reference/DEPLOYMENT.md` §1.5.
 
 ### The artifacts bucket, if the account is ever rebuilt
 
@@ -350,7 +350,7 @@ name) and **anything EC2 or VPC**.
 **Expect the first deploy to fail once or twice on `AccessDeniedException`.**
 Read the resource ARN out of the error — AWS always states exactly what it
 wanted — and add that ARN, rather than broadening to `*`. This is the same
-discipline `docs/DEPLOYMENT.md` §5 already documents for the frontend role, and
+discipline `docs/reference/DEPLOYMENT.md` §5 already documents for the frontend role, and
 it is why the policy above is a starting point rather than a guarantee.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has

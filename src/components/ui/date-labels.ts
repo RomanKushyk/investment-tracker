@@ -1,6 +1,6 @@
 // English date-label assembly (month names, "10 Aug", ordinals) — component
 // layer on purpose: core/ returns ISO dates / numeric tokens and the UI owns
-// the words (structured-returns rule, docs/NEXT-PHASE-PLAN.md G1). Same
+// the words (structured-returns rule, docs/plans/NEXT-PHASE-PLAN.md G1). Same
 // rationale as yield-labels.ts.
 
 // Exported so Payouts/Seasonality can label months without re-deriving the list.

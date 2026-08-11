@@ -20,7 +20,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
-  // Import zones (docs/NEXT-PHASE-PLAN.md G1 / DECISIONS D2+D8).
+  // Import zones (docs/plans/NEXT-PHASE-PLAN.md G1 / DECISIONS D2+D8).
   // Everywhere: lib/db.ts is imported ONLY by lib/repository.ts — plus its
   // colocated test, which needs db.delete()/open() for per-test isolation.
   {

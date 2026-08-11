@@ -44,7 +44,7 @@ export function fmtUnits(n: number): string {
 // through it, so the sign glyph is pinned in exactly one place: U+2212 minus,
 // never ASCII '-'. The design reference's mock copy prints ASCII hyphens, but
 // v1 shipped the U+2212 signedPp convention and typography agrees — pinned in
-// docs/DECISIONS.md D8.
+// docs/decisions/README.md D8.
 export function signed(n: number, body: string): string {
   return (n < 0 ? '−' : '+') + body;
 }

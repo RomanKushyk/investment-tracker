@@ -4,7 +4,7 @@ Quirenote is a static SPA deployed to **AWS Amplify Hosting** as a **manual-depl
 (created with "Deploy without Git"). GitHub Actions is the entire pipeline: it runs the
 quality gate, builds `dist/`, and pushes the artifact to Amplify. Amplify never builds.
 
-Rationale and the rejected alternatives: `docs/DECISIONS.md` D15.
+Rationale and the rejected alternatives: `docs/decisions/README.md` D15.
 Design spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 
 Region: **`eu-north-1`** (Europe / Stockholm). App name: `kubushka` in the console

@@ -5,7 +5,7 @@
 // turns stored data into a NUMBER the UI may offer, or TOKENS describing an
 // occurrence — the user's Confirm/Save press stays the only write path.
 //
-// Day count is ACT/365 throughout (D13 / docs/FORMULA-AUDIT.md ruling 4) — with
+// Day count is ACT/365 throughout (D13 / docs/reference/FORMULA-AUDIT.md ruling 4) — with
 // ONE deliberate exception: spreading a KNOWN coupon over its own period is an
 // amortisation of a cash flow, not the annualisation of a rate, so it divides by
 // the real period length when that is known. See `dailyAccrual`.

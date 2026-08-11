@@ -70,7 +70,7 @@ describe('ensureSeeded meta guard', () => {
 
 // Seed row counts: 4 assets / 174 snapshots / 18 transactions (3 deposits +
 // 4 buys + 6 dividends + 2 coupons + 3 reinvests — D5; browser-verified in
-// docs/BUILD-PLAN.md Task 2). NEXT-PHASE-PLAN's "4/174/19" was a miscount.
+// docs/archive/BUILD-PLAN.md Task 2). NEXT-PHASE-PLAN's "4/174/19" was a miscount.
 describe('clearAll({ reseed: true })', () => {
   it('restores the exact seed counts 4/174/18 after divergence', async () => {
     await ensureSeeded();

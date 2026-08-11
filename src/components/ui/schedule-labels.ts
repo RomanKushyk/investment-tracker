@@ -2,7 +2,7 @@ import type { PayoutSchedule } from '../../core/types';
 
 // English payout-schedule labels — component layer on purpose: the pure
 // module (screens/attributes) returns {schedule, day} tokens and the UI
-// assembles the words (structured-returns rule, docs/NEXT-PHASE-PLAN.md G1).
+// assembles the words (structured-returns rule, docs/plans/NEXT-PHASE-PLAN.md G1).
 
 // Attributes card "Payout schedule" fact (design line 354; Energy's 'none'
 // renders "None (price only)" per line 369).

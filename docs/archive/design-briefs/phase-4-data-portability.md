@@ -3,7 +3,7 @@
 Consumed by a separate Claude design session (pipeline in `README.md` here).
 Produces `design/extensions/*.dc.html` in the master reference's idiom
 (`design/Investment Tracker.dc.html` — inline styles, exact values literal in
-markup). Plan source: `docs/NEXT-PHASE-PLAN.md` Phase 4 (+ G6 dependencies,
+markup). Plan source: `docs/plans/NEXT-PHASE-PLAN.md` Phase 4 (+ G6 dependencies,
 key fact #7 import/export); decisions: D12 (backup envelope v1 — the file
 format every surface below reads and writes), D9 (Dexie `meta`, where the
 mirror handle lives), D16 (demo guard `useDataset()`), D17 (the destructive
@@ -39,7 +39,7 @@ must never span two files.
   states its `demo-disabled` row.
 - **Demo-figure invariant (binding):** additive only — a demo
   export → erase → import round-trip must return every D5-pinned figure
-  byte-identical (`docs/DECISIONS.md` D5, `navigation-map.md` checkpoints:
+  byte-identical (`docs/decisions/README.md` D5, `navigation-map.md` checkpoints:
   4 assets / 174 snapshots / 18 transactions · ₴149,016.36 total ·
   +₴4,452.61/+3.08% · deposited ₴143,176.37 · income ₴5,040.94 · top-up
   ₴11,429.49 · …6475 annualized +10.9%). If a round-trip moves a pinned
@@ -65,7 +65,7 @@ must never span two files.
   reminders and irreversible-harm surfaces — never for validation messages
   (those stay `neg` text on `card`), never for numbers, deltas or counts,
   never for a routine control or a pressable's own fill.** The implementing
-  task records the widening in `docs/DECISIONS.md`.
+  task records the widening in `docs/decisions/README.md`.
 - **Dashed = proposed (P3's binding rule, extended not broken):**
   `design/extensions/daily-quotes-live.dc.html` pins 1 px dashed `faint` as
   the ONLY carrier of "proposed, not saved", crossed to solid only by a
@@ -756,7 +756,7 @@ full-width-capped at ~220 px.
       `neg-tint`/`neg-tint-text` to block-level irreversible-harm framing —
       exactly two sites, the S3 replace banner and the S8 danger-zone panel —
       with the widened rule restated verbatim in the new extension's header
-      comment (and recorded in `docs/DECISIONS.md` by the implementing task).
+      comment (and recorded in `docs/decisions/README.md` by the implementing task).
 - [ ] The P3 suggestion language is respected: the **import preview panel is
       dashed** `faint` (proposed data, crossed only by the confirm press) and
       **no control anywhere in this phase is dashed** — the drop target is

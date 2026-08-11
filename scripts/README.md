@@ -18,4 +18,4 @@ imported by `src/`.
   carry it and the Linux runner needs it. `.gitattributes` pins `*.sh` to LF so the shebang
   survives a CRLF working copy.
 - No AWS credentials or account IDs in this folder; CI supplies them via OIDC.
-- Operational context belongs in `docs/DEPLOYMENT.md`, not in comments here.
+- Operational context belongs in `docs/reference/DEPLOYMENT.md`, not in comments here.

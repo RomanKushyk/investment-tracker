@@ -3,9 +3,9 @@
 Consumed by a separate Claude design session (pipeline in `README.md` here).
 Produces `design/extensions/*.dc.html` in the master reference's idiom
 (`design/Investment Tracker.dc.html` — inline styles, exact values literal in
-markup). Plan source: `docs/NEXT-PHASE-PLAN.md` Phase 3 (+ G5 suggest-only
+markup). Plan source: `docs/plans/NEXT-PHASE-PLAN.md` Phase 3 (+ G5 suggest-only
 doctrine, key fact #1 Inzhur endpoint); metric semantics:
-`docs/FORMULA-AUDIT.md`; decisions D13, D16 (demo guard `useDataset()`).
+`docs/reference/FORMULA-AUDIT.md`; decisions D13, D16 (demo guard `useDataset()`).
 
 **Suggested extension files:** `daily-quotes-live.dc.html` (S1–S5),
 `reminders.dc.html` (S6), `automation.dc.html` (S7–S8). The design session
@@ -20,7 +20,7 @@ may split differently; one surface must never span two files.
   history. Every surface below is a *suggestion* surface — its visual
   language must always read as "proposed, not saved".
 - **Demo-figure invariant (binding):** additive only — no D5-pinned demo
-  figure changes (`docs/DECISIONS.md` D5, `navigation-map.md` checkpoints:
+  figure changes (`docs/decisions/README.md` D5, `navigation-map.md` checkpoints:
   ₴149,016.36 total · +₴4,452.61/+3.08% · deposited ₴143,176 · income
   ₴5,040.94 · top-up ₴11,429.49 · …6475 annualized +10.9%).
 - **Demo-mode doctrine (G4/D16):** network surfaces disable in the demo

@@ -1,50 +1,85 @@
-# docs/ — Project documentation
+# docs/ — the index
 
-Working documentation for multi-session, agent-driven development. Root `README.md` stays the spec of record; these docs carry everything the spec doesn't.
+Root `README.md` is the product spec. Everything the spec does not carry lives
+here, in four folders that answer four different questions.
 
-## Files & rules
-
-| File | What it is | Rules |
-|------|-----------|-------|
-| `BUILD-PLAN.md` | The **v1 record** (Tasks 1–7, done): pinned contracts, seed spec, test fixtures, session workflow. | Historical reference — v1 pinned contracts stay binding until a NEXT-PHASE-PLAN phase supersedes them (with a DECISIONS entry). Do not reopen tasks here. |
-| `NEXT-PHASE-PLAN.md` | **The plan of record and index** (rewritten 2026-08-11 for the cloud direction): shipped record, retired items with reasons, governing decisions G1–G8 with their current standing. Execution is split into the three plans below. | Keep the Status table current; contract changes require a DECISIONS entry. |
-| `PLAN-NOW.md` | **Plan A — startable today.** Nothing gates these: coupon-date fix, the backend's do-before-data phases, the pure app work, and the theme + Ukrainian sweep. Full phase ceremony (goal, rationale, tasks, contracts, verify, risks). | Pick the first non-done task in section order. Gates green per merge. |
-| `PLAN-WAITING.md` | **Plan B — dated.** Everything gated on elapsed time or an external event, with earliest dates, which are hard, and what missing one costs. | **Read the dated table at the start of any session touching `infra/` or the migration.** Move an item to PLAN-NOW the day its gate opens. |
-| `PLAN-OPEN.md` | **Plan C — open questions.** 13 of 16 resolved 2026-08-11 in D30–D35; what remains is three read-time derivations deferred at zero cost plus the archive row's non-key columns. Carries the trail from each decision to the task it created. | **Never implement from this file.** Answer → DECISIONS entry → update the Status table → file the work into PLAN-NOW or PLAN-WAITING. |
-| `NEXT-PHASE-DRAFT.md` | The user's raw wishlist that NEXT-PHASE-PLAN implements. | Input document — don't edit except when grooming leftovers into a fresh draft at P7 closeout. |
-| `WEALTH-MANAGEMENT-ARCHITECTRUE.md` | User's spreadsheet-era business-logic spec (formulas + resolved edge cases). | Source of truth for the P1 formula audit (`FORMULA-AUDIT.md` records the reconciliation). |
-| `FORMULA-AUDIT.md` | The P1 formula-audit record: per doc-challenge → app formula → validation figures → verdict, plus the pinned fintech rulings and the dual-metric-family map. | Every deviation from `WEALTH-MANAGEMENT-ARCHITECTRUE.md` is pinned here (with D13); consult before touching any `core/derive.ts` / `core/xirr.ts` formula. |
-| `DECISIONS.md` | Decision log D1…Dn (stack, persistence, git conventions, testing scope, reference-data reconciliation). | **Append-only** — add new entries at the bottom, supersede rather than rewrite. Read D5 before touching seed data or derivations. |
-| `FOLLOW-UPS.md` | Post-plan backlog: cosmetic/degenerate-data items consciously shipped as-is on 2026-07-28. | Tick or strike items as a sweep clears them; add new deferred-cosmetic findings here rather than reopening `BUILD-PLAN.md`. |
-| `VERSIONING.md` | App version & sidebar badge: single source of truth (`package.json`), SemVer bump rules, tag convention. | Bump `package.json` only — the badge derives from it at build time; keep tag `vX.Y.Z` and `package.json` in agreement. |
-| `DEPLOYMENT.md` | Deploy runbook for the **frontend**: Amplify Hosting manual-deploy app + GitHub Actions pipeline, IAM/OIDC setup, rollback, failure playbook. | Hosting config (rewrite, cache headers) is console-managed by design — CI has no `UpdateApp`; keep §5 current when a failure mode is hit. The **backend** is a separate stack with its own workflow and its own IAM role — see `infra/README.md`, not this file. |
-
-## Conventions for this folder
-
-- New long-lived documentation goes here; one file per concern, linked from `CLAUDE.md` if sessions must always see it.
-- Per-folder rules live in that folder's own `README.md` (`design/`, `src/` once created…) — not here.
-- The agentic manual-testing map is the root `navigation-map.md` — update it (route status + checkpoints) whenever a task changes screens or flows.
-- `superpowers/specs/` and `superpowers/plans/` hold dated design specs and implementation plans from brainstorming/planning sessions. They are point-in-time records — once a plan is executed, the durable documentation is the concern file here (e.g. `DEPLOYMENT.md`) plus the `DECISIONS.md` entry.
-
-## The backend (since 2026-08-11)
-
-There are now **two** deployables, and most tasks concern only one of them:
-
-| | Frontend | Backend |
+| Folder | Answers | Read it when |
 |---|---|---|
-| Lives in | `src/` | `infra/` |
-| Deploys to | Amplify Hosting | Aurora DSQL + Lambda, `eu-north-1` |
-| Workflow | `.github/workflows/deploy-frontend.yml` | `.github/workflows/deploy-backend.yml` |
-| IAM role | `quirenote-frontend-deploy` | `quirenote-backend-deploy` (separate, by design) |
-| Docs | `DEPLOYMENT.md` | `infra/README.md` |
+| [`plans/`](plans/) | **What to do next** | Starting a session |
+| [`decisions/`](decisions/README.md) | **Why it is like this** | Something looks wrong and you want to know if it is deliberate |
+| [`reference/`](reference/) | **How a specific thing works** | You are about to touch deploys, versions, or a formula |
+| [`superpowers/specs/`](superpowers/specs/) | **Where it is going** | Working on `infra/` or the migration |
+| [`archive/`](archive/README.md) | **How it got here** | Historical. Never a task list |
 
-**The app does not read the backend yet.** Portfolio data is still IndexedDB
-(D2); the backend only archives prices, because the provider publishes no
-history and a missed day is unrecoverable (D26).
+---
 
-Two dated specs describe where this is going and why — read them before
-proposing anything about persistence, sources or the data model:
-`superpowers/specs/2026-08-04-cloud-stack-and-cost.md` (stack, costs, rejected
-options) and `-data-model.md` (schema, sources, super-admin surface). Field
-notes from the first live deploy — eight failures, none of them in the docs read
-beforehand — are in `infra/README.md`.
+## Start here
+
+**Pick the first non-done task in section order from
+[`plans/PLAN-NOW.md`](plans/PLAN-NOW.md).** That is the whole workflow. The
+other plans exist to keep things *out* of that one.
+
+| File | What it is | The rule |
+|---|---|---|
+| [`plans/NEXT-PHASE-PLAN.md`](plans/NEXT-PHASE-PLAN.md) | The plan of record: shipped work, retired items with reasons, governing decisions G1–G8 | Keep the Status table current; a contract change needs a decision entry |
+| [`plans/PLAN-NOW.md`](plans/PLAN-NOW.md) | **Plan A — startable today.** Nothing gates these | Pick the first non-done task in section order. Gates green per merge |
+| [`plans/PLAN-WAITING.md`](plans/PLAN-WAITING.md) | **Plan B — dated.** Gated on elapsed time or an external event | **Read its table before any session touching `infra/` or the migration.** Move an item to Plan A the day its gate opens |
+| [`plans/PLAN-OPEN.md`](plans/PLAN-OPEN.md) | **Plan C — open questions**, with the trail from each answer to the task it created | **Never implement from this file.** Answer → decision entry → file the work into Plan A or B |
+| [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) | Cosmetic backlog consciously shipped as-is | Items 1–8 cleared 2026-07-28; **9–11 open**. Add deferred-cosmetic findings here rather than reopening a closed plan |
+
+## Why things are the way they are
+
+[`decisions/README.md`](decisions/README.md) indexes **D1–D50** one line each,
+across three range files. Append-only, and a wrong decision is superseded rather
+than rewritten — `D43` keeps its original diagnosis directly under its
+replacement, because being wrong about which explanation held is the reusable
+part.
+
+Cited from code by bare number (`D5`, `D30`), so numbers never change.
+
+## Reference
+
+| File | What it is | The rule |
+|---|---|---|
+| [`reference/DEPLOYMENT.md`](reference/DEPLOYMENT.md) | Frontend deploy runbook: Amplify Hosting + GitHub Actions, IAM/OIDC, rollback, failure playbook | Hosting config is console-managed by design — CI has no `UpdateApp`. **The backend is a separate stack**; see [`../infra/README.md`](../infra/README.md) |
+| [`reference/FORMULA-AUDIT.md`](reference/FORMULA-AUDIT.md) | Per challenge → app formula → validation figures → verdict, plus the pinned fintech rulings | Consult before touching any `core/derive.ts` / `core/xirr.ts` formula |
+| [`reference/WEALTH-MANAGEMENT-ARCHITECTURE.md`](reference/WEALTH-MANAGEMENT-ARCHITECTURE.md) | The spreadsheet-era business-logic spec this app was migrated from | Source of truth for the formula audit. Every deviation from it is pinned there, with D13 |
+| [`reference/VERSIONING.md`](reference/VERSIONING.md) | App version and the sidebar badge | `package.json` is the single source; the badge derives from it at build time. Tag `vX.Y.Z` must agree |
+
+## Where it is going
+
+[`superpowers/specs/`](superpowers/specs/) holds the design specs. Two are live
+and load-bearing:
+
+- [`2026-08-04-cloud-stack-and-cost.md`](superpowers/specs/2026-08-04-cloud-stack-and-cost.md)
+  — why this stack, what it costs, and the gates on each phase.
+- [`2026-08-04-data-model.md`](superpowers/specs/2026-08-04-data-model.md)
+  — what is stored and why, including the columns that cannot be added later.
+
+**This folder stays where it is on purpose**: it is written to by tooling, so
+moving it would split new specs from old ones. It is surfaced here instead.
+
+## Conventions
+
+- One file per concern. New long-lived documentation goes in the folder that
+  matches the question it answers — and gets a row in this index.
+- **A new design brief goes in `docs/design-briefs/`, not in the archive.**
+  Phases 2–4 are archived because they shipped; A8's phase-5 brief is future
+  work and belongs beside the plans until it does. Create the folder and its
+  `README.md` when writing the first one.
+- If a session must always see a document, link it from `CLAUDE.md` as well.
+  That file is the only one loaded unconditionally, so it stays a pointer list
+  rather than a copy.
+- **Every top-level folder has its own `README.md`** with its local rules —
+  `design/`, `docs/`, `src/`, `infra/`. Read it before working there; create one
+  for any new folder.
+- Dates in documentation are absolute (`2026-08-11`), never relative. A doc that
+  says "last week" is unreadable three sessions later.
+
+## Layout changed 2026-08-12
+
+`docs/` was flat: live plans, closed records and reference sat side by side, and
+the decision log had reached 2,219 lines in one file. Everything moved into the
+folders above, `DECISIONS.md` split into three ranges behind an index, and every
+`docs/…` path across the repository — roughly 180 of them, most in code comments
+— was rewritten to match. `git mv` throughout, so file history is intact.

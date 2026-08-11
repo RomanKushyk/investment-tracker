@@ -1,6 +1,6 @@
-# docs/design-briefs/ — Design-brief pipeline
+# docs/archive/design-briefs/ — Design-brief pipeline
 
-Design briefs per decision G7 (`docs/NEXT-PHASE-PLAN.md`) and `docs/DECISIONS.md`
+Design briefs per decision G7 (`docs/plans/NEXT-PHASE-PLAN.md`) and `docs/decisions/README.md`
 D14. Every new UI surface gets a brief BEFORE any implementation; the brief is
 the contract between the planning/engineering sessions and a **separate Claude
 design session** that extends the visual reference.
@@ -35,7 +35,7 @@ section MUST contain all seven parts:
    demo-disabled`, stating the visual treatment or explicitly `n/a — <why>`.
 4. **D7 motion spec** — a table `trigger → property → duration/easing →
    reduced-motion fallback` for every interaction, within the standards of
-   `docs/BUILD-PLAN.md` → "Motion & interaction standards" (soft curve
+   `docs/archive/BUILD-PLAN.md` → "Motion & interaction standards" (soft curve
    `cubic-bezier(0.22,1,0.36,1)`, 220 ms default, hover may drop to 150 ms,
    reveals 300–400 ms, `active:scale-[.97]` on pressables; the global
    `prefers-reduced-motion` kill-switch is always the ultimate fallback).
@@ -57,7 +57,7 @@ section MUST contain all seven parts:
   merged, the **reference** wins visual disputes; the brief wins copy and
   behavior disputes.
 - Figures shown in a brief are illustrations from the demo seed (D5) or the
-  formula audit (`docs/FORMULA-AUDIT.md`) — the app always derives them.
+  formula audit (`docs/reference/FORMULA-AUDIT.md`) — the app always derives them.
 - Keep one brief per phase; amend it in place (with a dated note) if scope
   shifts before the design session runs; never amend after the extension
   merged — supersede with a new brief section instead.

@@ -1,7 +1,7 @@
-// XIRR — money-weighted annualized return (WEALTH-MANAGEMENT-ARCHITECTRUE
+// XIRR — money-weighted annualized return (WEALTH-MANAGEMENT-ARCHITECTURE
 // §6.1), pure and dependency-free per NEXT-PHASE-PLAN P1. Surfaced ALONGSIDE
 // the v1 simple annualizedPct (D5#5 pins its PORTFOLIO_START basis), never
-// replacing it. Day count: ACT/365 (docs/FORMULA-AUDIT.md, fintech rulings).
+// replacing it. Day count: ACT/365 (docs/reference/FORMULA-AUDIT.md, fintech rulings).
 import { daysBetween } from './dates';
 
 export interface CashFlow {

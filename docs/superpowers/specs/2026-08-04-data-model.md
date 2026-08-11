@@ -67,7 +67,7 @@ No exclusion rules, no pairing heuristics, no computed tax. The sum reconciles b
 
 **`asset_id` on `tax` rows is required** when the tax relates to a payout. Without it,
 `payoutsNet` per asset is uncomputable and the total-return family stays broken — this is the
-gap `docs/FORMULA-AUDIT.md` ruling 6 left open.
+gap `docs/reference/FORMULA-AUDIT.md` ruling 6 left open.
 
 **`settles_payout_id`** makes double counting structurally impossible and turns "does every
 payout have its tax?" into a join rather than a date-fuzzy guess. It cannot be backfilled later,

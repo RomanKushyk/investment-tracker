@@ -1,6 +1,6 @@
 // Figures come from the trimmed live fixture (core/inzhur/__fixtures__) and
 // the user's real dashboard: 6 164 × 11.1389 = 68 660,18 · 9 × 6 675,8848 =
-// 60 082,96 · 15 × 1 057,67 = 15 865,05 (docs/NEXT-PHASE-PLAN.md P3 Verify).
+// 60 082,96 · 15 × 1 057,67 = 15 865,05 (docs/plans/NEXT-PHASE-PLAN.md P3 Verify).
 import { describe, expect, it } from 'vitest';
 
 import { matchAssets, parseAssetsFeed, type InzhurMatch } from '../../core/inzhur/parse';

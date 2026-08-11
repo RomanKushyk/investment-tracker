@@ -34,7 +34,7 @@ Read-only handoff artifacts. **Never edit the original handoff files** (the thre
 
 ## Extensions (`design/extensions/`)
 
-New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.html` per brief scope, produced by a **separate Claude design session** from a brief in `docs/design-briefs/` (pipeline + brief template: `docs/design-briefs/README.md`; decision `docs/DECISIONS.md` D14). Local rules: `extensions/README.md`.
+New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.html` per brief scope, produced by a **separate Claude design session** from a brief in `docs/archive/design-briefs/` (pipeline + brief template: `docs/archive/design-briefs/README.md`; decision `docs/decisions/README.md` D14). Local rules: `extensions/README.md`.
 
 | File | Purpose |
 |------|---------|
@@ -55,4 +55,4 @@ New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.
 ## Caveats
 
 - **Opening the file directly in a browser:** layout/colors/typography render correctly (inline styles) and the bottom script makes tabs/toggle interactive — but elements using the `.btn`, `.input`, `.field`, `.table`, `.tag` classes are styled by a missing `_ds/**/styles.css` and render as browser defaults. Approximate those controls from README §4 shape rules (pill radius 999px, white input bg, tables 12.5px…) — don't pixel-match unstyled controls.
-- **The mock data is internally inconsistent** (e.g. the payout log sums ₴176,00 higher than the "Income received ₴5,040.94" card). `docs/DECISIONS.md` D5 pins every resolution — check it before treating a mismatch as a bug or "fixing" seed data.
+- **The mock data is internally inconsistent** (e.g. the payout log sums ₴176,00 higher than the "Income received ₴5,040.94" card). `docs/decisions/README.md` D5 pins every resolution — check it before treating a mismatch as a bug or "fixing" seed data.

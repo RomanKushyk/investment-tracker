@@ -121,7 +121,7 @@ export function mergeSettings(persisted: unknown, current: SettingsState): Setti
 
 /*
  * ═════════════════════════════════════════════════════════════════════════
- * PERSIST DOCTRINE — G3 (docs/NEXT-PHASE-PLAN.md) / DECISIONS D11
+ * PERSIST DOCTRINE — G3 (docs/plans/NEXT-PHASE-PLAN.md) / DECISIONS D11
  *
  * 1. EVERY new persisted field MUST be added to `partialize` below IN THE
  *    SAME COMMIT that introduces it — a field missing from `partialize`

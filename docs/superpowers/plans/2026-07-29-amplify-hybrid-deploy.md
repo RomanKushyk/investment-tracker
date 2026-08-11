@@ -20,7 +20,7 @@ Spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md` (commi
 - Workflow concurrency: group `deploy-dev`, `cancel-in-progress: true`.
 - IAM role gets `amplify:CreateDeployment`, `amplify:StartDeployment`, `amplify:GetBranch`, `amplify:GetJob` only. **`amplify:UpdateApp` is deliberately excluded** so CI cannot reconfigure hosting.
 - Node in CI: **`26`** (matches local `v26.4.0`). pnpm comes from `corepack enable` honoring `"packageManager": "pnpm@11.10.0"`.
-- `docs/DECISIONS.md` is **append-only** — add `D15` at the bottom, never rewrite earlier entries.
+- `docs/decisions/README.md` is **append-only** — add `D15` at the bottom, never rewrite earlier entries.
 - Every new top-level folder needs its own `README.md` (this plan creates `scripts/`).
 - Git: conventional commits, **no Jira key**, **no AI-attribution trailers or footers**. Repo-local identity `RomanKushyk <romankushyk0@gmail.com>`.
 - `pnpm lint` and `pnpm typecheck` must pass before any task is considered done.
@@ -36,8 +36,8 @@ Spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md` (commi
 
 | Path | Responsibility |
 |------|----------------|
-| `docs/DEPLOYMENT.md` | **Create.** The operational runbook: one-time console/IAM procedure, the two IAM policy documents, GitHub config, rollback, failure playbook. The human executes this in Task 2. |
-| `docs/DECISIONS.md` | **Modify** (append `D15`). Why hybrid over git-connected; the one-way door. |
+| `docs/reference/DEPLOYMENT.md` | **Create.** The operational runbook: one-time console/IAM procedure, the two IAM policy documents, GitHub config, rollback, failure playbook. The human executes this in Task 2. |
+| `docs/decisions/README.md` | **Modify** (append `D15`). Why hybrid over git-connected; the one-way door. |
 | `docs/README.md` | **Modify.** Add the `DEPLOYMENT.md` table row; note what `superpowers/` holds. |
 | `CLAUDE.md` | **Modify.** One pointer line so future sessions see the deploy doc. |
 | `scripts/deploy-amplify.sh` | **Create.** create → upload → start → poll, as one readable unit runnable by hand for recovery. |
@@ -55,16 +55,16 @@ Task order is dependency-forced: the runbook (Task 1) is what the human follows 
 Docs only. No AWS account values exist yet — this task writes the *procedure*, Task 2 fills in the concrete IDs.
 
 **Files:**
-- Create: `docs/DEPLOYMENT.md`
-- Modify: `docs/DECISIONS.md` (append at end)
+- Create: `docs/reference/DEPLOYMENT.md`
+- Modify: `docs/decisions/README.md` (append at end)
 - Modify: `docs/README.md` (table + conventions list)
 - Modify: `CLAUDE.md` (Working agreements list)
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `docs/DEPLOYMENT.md` §1–§3, the checklist the human executes in Task 2. Task 2 appends a "Live app" section to it. Task 4 records the actual Node version and any IAM widening in its §5.
+- Produces: `docs/reference/DEPLOYMENT.md` §1–§3, the checklist the human executes in Task 2. Task 2 appends a "Live app" section to it. Task 4 records the actual Node version and any IAM widening in its §5.
 
-- [ ] **Step 1: Create `docs/DEPLOYMENT.md`**
+- [ ] **Step 1: Create `docs/reference/DEPLOYMENT.md`**
 
 Write exactly this content:
 
@@ -75,7 +75,7 @@ Kubushka is a static SPA deployed to **AWS Amplify Hosting** as a **manual-deplo
 (created with "Deploy without Git"). GitHub Actions is the entire pipeline: it runs the
 quality gate, builds `dist/`, and pushes the artifact to Amplify. Amplify never builds.
 
-Rationale and the rejected alternatives: `docs/DECISIONS.md` D15.
+Rationale and the rejected alternatives: `docs/decisions/README.md` D15.
 Design spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 
 Region: `eu-central-1`. App name: `kubushka`. Branch label: `dev`.
@@ -257,13 +257,13 @@ GitHub Actions (unlimited-free on public repos), Amplify bills only storage
 
 Run:
 ```bash
-ls -l docs/DEPLOYMENT.md
-grep -c '```' docs/DEPLOYMENT.md
-ls docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md docs/DECISIONS.md
+ls -l docs/reference/DEPLOYMENT.md
+grep -c '```' docs/reference/DEPLOYMENT.md
+ls docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md docs/decisions/README.md
 ```
 Expected: file exists; the fence count is **even** (unbalanced fences break rendering); both referenced paths exist.
 
-- [ ] **Step 3: Append D15 to `docs/DECISIONS.md`**
+- [ ] **Step 3: Append D15 to `docs/decisions/README.md`**
 
 Append at the very bottom (the file is append-only), matching the existing `## Dn — Title (date)` heading style:
 
@@ -271,7 +271,7 @@ Append at the very bottom (the file is append-only), matching the existing `## D
 
 ## D15 — Deploy: Amplify Hosting manual-deploy app driven by GitHub Actions (2026-07-29)
 
-`infra/amplify-hybrid-deploy` puts the app online. Runbook: `docs/DEPLOYMENT.md`; design
+`infra/amplify-hybrid-deploy` puts the app online. Runbook: `docs/reference/DEPLOYMENT.md`; design
 spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 
 - **Amplify Hosting only, no Amplify backend.** The app is a pure client-side SPA over
@@ -318,7 +318,7 @@ In the **Conventions for this folder** list, add:
 In the **Working agreements** bullet list, after the `navigation-map.md` bullet, add:
 
 ```markdown
-- **Deployment is `docs/DEPLOYMENT.md`** — Amplify Hosting manual-deploy app fed by `.github/workflows/deploy.yml`; hosting config (SPA 200 rewrite, cache headers) is console-managed and CI has no permission to change it (see DECISIONS D15).
+- **Deployment is `docs/reference/DEPLOYMENT.md`** — Amplify Hosting manual-deploy app fed by `.github/workflows/deploy.yml`; hosting config (SPA 200 rewrite, cache headers) is console-managed and CI has no permission to change it (see DECISIONS D15).
 ```
 
 - [ ] **Step 6: Verify nothing in the toolchain broke**
@@ -332,10 +332,10 @@ Expected: both pass. (Docs-only change — this is a regression check, not a tes
 - [ ] **Step 7: Commit**
 
 ```bash
-git add docs/DEPLOYMENT.md docs/DECISIONS.md docs/README.md CLAUDE.md
+git add docs/reference/DEPLOYMENT.md docs/decisions/README.md docs/README.md CLAUDE.md
 git commit -m "docs: add Amplify deploy runbook and D15
 
-- docs/DEPLOYMENT.md: one-time console/IAM procedure, both IAM policy documents,
+- docs/reference/DEPLOYMENT.md: one-time console/IAM procedure, both IAM policy documents,
   GitHub config, rollback, failure playbook, cost notes
 - DECISIONS D15: hybrid over git-connected, the one-way door, security posture
 - register DEPLOYMENT.md in docs/README.md and CLAUDE.md working agreements"
@@ -348,15 +348,15 @@ git commit -m "docs: add Amplify deploy runbook and D15
 **This task cannot be done by an agent.** It requires an authenticated AWS console session and admin on the GitHub repo. An agent reaching this task must stop and hand back to the user with the checklist below.
 
 **Files:**
-- Modify: `docs/DEPLOYMENT.md` (append the "Live app" section)
+- Modify: `docs/reference/DEPLOYMENT.md` (append the "Live app" section)
 
 **Interfaces:**
-- Consumes: `docs/DEPLOYMENT.md` §1–§2 from Task 1.
-- Produces: repo variables `AMPLIFY_APP_ID`, `AWS_REGION`; repo secret `AWS_ROLE_ARN`; the live URL `https://dev.<appId>.amplifyapp.com`, recorded in `docs/DEPLOYMENT.md` §0 and consumed by Task 4's verification and Task 5's README link.
+- Consumes: `docs/reference/DEPLOYMENT.md` §1–§2 from Task 1.
+- Produces: repo variables `AMPLIFY_APP_ID`, `AWS_REGION`; repo secret `AWS_ROLE_ARN`; the live URL `https://dev.<appId>.amplifyapp.com`, recorded in `docs/reference/DEPLOYMENT.md` §0 and consumed by Task 4's verification and Task 5's README link.
 
-- [ ] **Step 1: Execute `docs/DEPLOYMENT.md` §1** — create the app, add the 200 rewrite, add the cache headers, add the OIDC provider, create the role with both policies.
+- [ ] **Step 1: Execute `docs/reference/DEPLOYMENT.md` §1** — create the app, add the 200 rewrite, add the cache headers, add the OIDC provider, create the role with both policies.
 
-- [ ] **Step 2: Execute `docs/DEPLOYMENT.md` §2** — set the two variables and one secret in the GitHub web UI. Do **not** try `gh secret set`; the local `gh` is a read-only account on this repo.
+- [ ] **Step 2: Execute `docs/reference/DEPLOYMENT.md` §2** — set the two variables and one secret in the GitHub web UI. Do **not** try `gh secret set`; the local `gh` is a read-only account on this repo.
 
 - [ ] **Step 3: Verify the placeholder site is live**
 
@@ -370,7 +370,7 @@ Expected: `200`.
 
 In the GitHub UI, Settings → Secrets and variables → Actions shows `AMPLIFY_APP_ID` and `AWS_REGION` under **Variables** and `AWS_ROLE_ARN` under **Secrets**. A variable created in the wrong tab is the most common cause of an empty `--app-id` in Task 4.
 
-- [ ] **Step 5: Record the concrete values in `docs/DEPLOYMENT.md`**
+- [ ] **Step 5: Record the concrete values in `docs/reference/DEPLOYMENT.md`**
 
 Insert immediately after the intro paragraphs, before `## 1`:
 
@@ -389,7 +389,7 @@ Replace `<appId>` with the real ID in both lines. Leave the account ID out.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/DEPLOYMENT.md
+git add docs/reference/DEPLOYMENT.md
 git commit -m "docs: record the live Amplify app id and URL"
 ```
 
@@ -432,7 +432,7 @@ Expected: `exit=127` for both — the script does not exist yet.
 ```bash
 #!/usr/bin/env bash
 # Deploy a built artifact to an AWS Amplify Hosting manual-deploy branch.
-# Amplify never builds this app; see docs/DEPLOYMENT.md.
+# Amplify never builds this app; see docs/reference/DEPLOYMENT.md.
 #
 # Usage: AMPLIFY_APP_ID=d... AMPLIFY_BRANCH=dev ./scripts/deploy-amplify.sh [dist.zip]
 set -euo pipefail
@@ -543,7 +543,7 @@ imported by `src/`.
 - Keep the exec bit set in git (`git update-index --chmod=+x`) — Windows checkouts do not
   carry it and the Linux runner needs it.
 - No AWS credentials or account IDs in this folder; CI supplies them via OIDC.
-- Operational context belongs in `docs/DEPLOYMENT.md`, not in comments here.
+- Operational context belongs in `docs/reference/DEPLOYMENT.md`, not in comments here.
 ```
 
 - [ ] **Step 7: Verify the repo still lints and typechecks**
@@ -672,7 +672,7 @@ git commit -m "infra: deploy to AWS Amplify Hosting from GitHub Actions
 - manual-deploy Amplify app fed by .github/workflows/deploy.yml (gate -> build ->
   create-deployment -> upload -> start-deployment -> poll until SUCCEED)
 - scripts/deploy-amplify.sh, runnable by hand for rollback
-- docs/DEPLOYMENT.md runbook + DECISIONS D15"
+- docs/reference/DEPLOYMENT.md runbook + DECISIONS D15"
 git push origin dev
 ```
 
@@ -685,8 +685,8 @@ gh run watch --repo RomanKushyk/investment-tracker
 - [ ] **Step 6: If the run fails, fix by cause — do not weaken the gate**
 
 - **esbuild / `@esbuild/linux-x64` unresolved:** refresh the lockfile so the Linux optional dependency is recorded (`pnpm install --lockfile-only` locally, commit `pnpm-lock.yaml`). Never drop `--frozen-lockfile`.
-- **`node-version: 26` unavailable in `setup-node`:** change to the current LTS, and record the divergence from local Node `v26.4.0` in `docs/DEPLOYMENT.md` §5.
-- **`Not authorized to perform sts:AssumeRoleWithWebIdentity`:** trust-policy `sub` mismatch — see `docs/DEPLOYMENT.md` §5.
+- **`node-version: 26` unavailable in `setup-node`:** change to the current LTS, and record the divergence from local Node `v26.4.0` in `docs/reference/DEPLOYMENT.md` §5.
+- **`Not authorized to perform sts:AssumeRoleWithWebIdentity`:** trust-policy `sub` mismatch — see `docs/reference/DEPLOYMENT.md` §5.
 - **`UnauthorizedException` on an `amplify:` call:** widen the resource ARN to `apps/<appId>/*` per §1.5 and record it in §5.
 - **Empty `--app-id`:** `AMPLIFY_APP_ID` was created as a Secret instead of a Variable.
 
@@ -719,7 +719,7 @@ curl -sSI "$BASE$ASSET" | grep -i '^cache-control'
 ```
 Expected: `public, max-age=31536000, immutable`.
 
-If the asset header is missing, the `/assets/**` custom-header pattern did not save — re-check `docs/DEPLOYMENT.md` §1.3.
+If the asset header is missing, the `/assets/**` custom-header pattern did not save — re-check `docs/reference/DEPLOYMENT.md` §1.3.
 
 ---
 
@@ -730,7 +730,7 @@ If the asset header is missing, the `/assets/**` custom-header pattern did not s
 - Modify: `navigation-map.md`
 
 **Interfaces:**
-- Consumes: the `Deploy` workflow at `.github/workflows/deploy.yml` (Task 4); the live URL from `docs/DEPLOYMENT.md` §0 (Task 2).
+- Consumes: the `Deploy` workflow at `.github/workflows/deploy.yml` (Task 4); the live URL from `docs/reference/DEPLOYMENT.md` §0 (Task 2).
 - Produces: nothing consumed by later tasks — this is the last task.
 
 - [ ] **Step 1: Add the badge and live link to root `README.md`**
@@ -740,7 +740,7 @@ Insert directly after the H1 line `# Handoff: Kubushka — Investment Portfolio 
 ```markdown
 [![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml/badge.svg?branch=dev)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy.yml)
 
-**Live:** https://dev.<appId>.amplifyapp.com · deploy runbook: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+**Live:** https://dev.<appId>.amplifyapp.com · deploy runbook: [`docs/reference/DEPLOYMENT.md`](../../reference/DEPLOYMENT.md)
 ```
 
 Replace `<appId>` with the real ID. GitHub's native workflow badge is used rather than shields.io — no third party, and it works because the repo is public.
@@ -760,7 +760,7 @@ Add to the intro/preamble section, before the per-route table:
 
 ```markdown
 Checkpoints can be run against the deployed site as well as `localhost` — see
-`docs/DEPLOYMENT.md` §0 for the URL. Run them in a **fresh browser profile** when
+`docs/reference/DEPLOYMENT.md` §0 for the URL. Run them in a **fresh browser profile** when
 verifying a deploy: the seed only loads into an empty IndexedDB, so an existing profile
 will show your own data instead of the pinned values.
 ```

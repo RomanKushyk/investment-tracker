@@ -1,15 +1,15 @@
 # Navigation map — agentic manual testing
 
-Route-by-route map of the app for manual/agentic verification. Every expected value below is what the app must show **on fresh seed data** (they mirror `docs/BUILD-PLAN.md` fixtures and `docs/DECISIONS.md` D5). Update the Status column and checkpoints whenever a task changes a screen or flow.
+Route-by-route map of the app for manual/agentic verification. Every expected value below is what the app must show **on fresh seed data** (they mirror `docs/archive/BUILD-PLAN.md` fixtures and `docs/decisions/README.md` D5). Update the Status column and checkpoints whenever a task changes a screen or flow.
 
-> **Next phase in progress** — see `docs/NEXT-PHASE-PLAN.md`. Since Phase 2's dataset split (G4/D16), all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/data`) get their own sections as they land.
+> **Next phase in progress** — see `docs/plans/NEXT-PHASE-PLAN.md`. Since Phase 2's dataset split (G4/D16), all seed-pinned checkpoints below run against the **demo** dataset; new routes (`/data`) get their own sections as they land.
 
 > **Nothing here is affected by the backend (2026-08-11).** `infra/` archives asset prices into Aurora DSQL, but no screen reads it — the app is still entirely IndexedDB (D26). Every checkpoint below remains valid as written. When the planned migration lands, this file needs a rewrite: the seed will no longer load from a local reseed and the demo dataset is slated to disappear.
 
 ## Connecting & resetting
 
 - App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.
-- **Checkpoints also run against the deployed site** — `https://dev.d17m4jf400my6.amplifyapp.com` (see `docs/DEPLOYMENT.md`). Use a **fresh browser profile** when verifying a deploy: the seed only loads into an empty IndexedDB, so an existing profile shows your own data instead of the pinned values.
+- **Checkpoints also run against the deployed site** — `https://dev.d17m4jf400my6.amplifyapp.com` (see `docs/reference/DEPLOYMENT.md`). Use a **fresh browser profile** when verifying a deploy: the seed only loads into an empty IndexedDB, so an existing profile shows your own data instead of the pinned values.
 - **Two datasets, two Dexie DBs (G4/D16):** `quirenote` = **demo** (the reference seed; the app's default) and `quirenote-live` = **live** (starts and stays empty until the user writes into it — it never auto-seeds). The active DB binds at boot from `localStorage['quirenote-settings']` → `state.dataset`; flip it on `/settings` → Data (the app reloads). **All seed-pinned checkpoints in this file run in DEMO mode** — confirm the sidebar DEMO badge before testing.
 - **Reset to seed state (demo):** either `/settings` → Data → "Reset demo data…" (type `demo` in the dialog, then confirm), or DevTools → Application → delete IndexedDB database `quirenote` and localStorage keys `quirenote-settings`, `quirenote-draft` → reload. The demo DB reseeds automatically. Deleting the `quirenote-settings` key also resets the dataset flag to demo.
 - **Reset live to empty:** either `/settings` → Data → "Erase live data…" while in live mode (type `live` in the dialog, then confirm — checkpoint 17), or DevTools → Application → delete IndexedDB database `quirenote-live` → reload while in live mode (it comes back empty — no reseed).
@@ -42,9 +42,9 @@ Expect: dark 232px sidebar, rounded right edge, internally scrollable (test on a
 - Currency toggle (₴ / $ segmented pill) near the bottom.
 - **Total capital card:** value `₴149,016` (whole ₴), sub-line `+3.08% · $3,324.03`. After toggling to $: logo symbol becomes `$`, value/sub-line flip to the USD form (`$…` main, `… · ₴149,016.36` sub); choice **survives a page reload**.
 - **No sidebar Backup pill** (removed in next-phase P2 per S7) — the backup download lives on `/settings` → Data.
-- **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/VERSIONING.md`).
+- **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/reference/VERSIONING.md`).
 - **App-open reminder toast (P3 `feat/reminders`, S6):** on every app OPEN (a full page load), if at least one undismissed reminder exists, exactly ONE plain sonner toast appears carrying the highest-severity banner sentence (+ ` · +N more` when others exist) — on the untouched demo seed that is **"No quotes saved today yet."**. It never repeats on client-side navigation (verified across four route changes) and never fires twice under StrictMode; `Reminders` OFF at boot means no toast at all.
-- No horizontal scroll at 360px viewport width on any route — **except two known pre-existing v1 layout defects** measured in the P3 close sweep and filed as `docs/FOLLOW-UPS.md` items 10–11: `/attributes` overflows ~100px (the yield-type tag pills are `whitespace-nowrap` beside long asset names) and `/overview` overflows 4px when a classic 15px scrollbar shrinks the layout viewport to 345px (the Assets card rows need 349px; with overlay/mobile scrollbars it fits). Neither comes from Phase 3 (verified with the ReminderStrip off) — do not report them as regressions.
+- No horizontal scroll at 360px viewport width on any route — **except two known pre-existing v1 layout defects** measured in the P3 close sweep and filed as `docs/plans/FOLLOW-UPS.md` items 10–11: `/attributes` overflows ~100px (the yield-type tag pills are `whitespace-nowrap` beside long asset names) and `/overview` overflows 4px when a classic 15px scrollbar shrinks the layout viewport to 345px (the Assets card rows need 349px; with overlay/mobile scrollbars it fits). Neither comes from Phase 3 (verified with the ReminderStrip off) — do not report them as regressions.
 
 ## `/` — Daily quotes (landing)
 
@@ -199,7 +199,7 @@ Interactions to verify:
 
 ## Known intentional deviations from the design reference (D5)
 
-Testing agents must NOT report these as bugs (full rationale in `docs/DECISIONS.md` D5):
+Testing agents must NOT report these as bugs (full rationale in `docs/decisions/README.md` D5):
 
 | Where | Reference shows | App shows (derived) |
 |-------|-----------------|---------------------|

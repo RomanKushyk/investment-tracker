@@ -143,7 +143,7 @@ describe('income aggregation', () => {
   });
 });
 
-// --- WEALTH-MANAGEMENT-ARCHITECTRUE reconciliation (docs/FORMULA-AUDIT.md) ---
+// --- WEALTH-MANAGEMENT-ARCHITECTURE reconciliation (docs/reference/FORMULA-AUDIT.md) ---
 
 const tx = (
   id: string,

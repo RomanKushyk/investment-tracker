@@ -1,8 +1,8 @@
 # design/extensions/ — post-v1 design references
 
-Extension references per decision D14 (`docs/DECISIONS.md`) and pipeline G7
-(`docs/NEXT-PHASE-PLAN.md`): a **separate Claude design session** turns each
-phase's brief (`docs/design-briefs/phase-N-<name>.md`) into one or more
+Extension references per decision D14 (`docs/decisions/README.md`) and pipeline G7
+(`docs/plans/NEXT-PHASE-PLAN.md`): a **separate Claude design session** turns each
+phase's brief (`docs/archive/design-briefs/phase-N-<name>.md`) into one or more
 `<surface>.dc.html` files here. These are the ONLY files ever added under
 `design/`; the three original handoff files stay immutable.
 

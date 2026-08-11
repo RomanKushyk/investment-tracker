@@ -1,5 +1,5 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
-// Reference-reconciliation rules are pinned in docs/DECISIONS.md D5.
+// Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
 import type { Snapshot, Transaction } from './types';
 
 // Global daysHeld basis for annualization — a single date for ALL assets
@@ -12,14 +12,14 @@ const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCom
  * Latest available quote PER ASSET, partial snapshots included — the
  * HEADLINE basis (D5#1).
  *
- * WEALTH-MANAGEMENT-ARCHITECTRUE §4 ("latest price per asset, strict
+ * WEALTH-MANAGEMENT-ARCHITECTURE §4 ("latest price per asset, strict
  * querying not array manipulation"): resolved by merging sorted snapshots
  * per asset. Deliberately BETTER than the doc's §4.1 note "return 0 when a
  * quote is missing": an asset simply absent from recent snapshots keeps its
  * last known quote (merge semantics), and an asset never quoted stays
  * ABSENT from the result — "pending", rendered as "—" — rather than a fake
  * 0 that would corrupt headlineTotal and every share/net figure built on it
- * (documented improvement, see docs/FORMULA-AUDIT.md §4).
+ * (documented improvement, see docs/reference/FORMULA-AUDIT.md §4).
  */
 export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -127,11 +127,11 @@ export function trimAmount(share: number, targetPct: number, total: number): num
  * Buy with NEW money — the total grows with the purchase (D5#4):
  * x such that (value + x) / (total + x) = target → …8976 top-up ₴11,429.49.
  *
- * WEALTH-MANAGEMENT-ARCHITECTRUE §3.1 (moving-target rebalance): this IS the
+ * WEALTH-MANAGEMENT-ARCHITECTURE §3.1 (moving-target rebalance): this IS the
  * doc's RequiredTranche = (target×total − value) / (1 − target), which
  * accounts for the injection growing the denominator — the naive
  * `target×total − value` never mathematically reaches the target share.
- * Verified identical on the pinned fixture ₴11,429.49 (docs/FORMULA-AUDIT.md §3).
+ * Verified identical on the pinned fixture ₴11,429.49 (docs/reference/FORMULA-AUDIT.md §3).
  *
  * The doc's other branch — `if (TargetShare <= CurrentShare) RequiredTranche
  * = 0` — lives in the CALLERS, not here: this returns a negative tranche for
@@ -173,10 +173,10 @@ export function incomeReceived(txs: Transaction[]): {
 }
 
 // ---------------------------------------------------------------------------
-// WEALTH-MANAGEMENT-ARCHITECTRUE reconciliation (P1 feat/formula-parity).
+// WEALTH-MANAGEMENT-ARCHITECTURE reconciliation (P1 feat/formula-parity).
 // The doc's §1/§2/§5 formula families, implemented additively next to the v1
 // capital-gain metrics (which stay untouched — they ARE the doc's CapitalGain
-// family, relabeled in P2). Full audit record: docs/FORMULA-AUDIT.md.
+// family, relabeled in P2). Full audit record: docs/reference/FORMULA-AUDIT.md.
 // All *Pct functions return FRACTIONS (0.053 = +5.3%), matching
 // yieldSinceStart; zero denominators return null (rendered "—"), never
 // NaN/Infinity.
@@ -192,7 +192,7 @@ const sumWhere = (txs: Transaction[], types: readonly Transaction['type'][]) =>
  * reinvestment is its own TxType ('reinvest', counted by reinvestedByAsset),
  * so every 'buy' row IS own-funded capital today. If a future dataset ever
  * records a buy funded from accrual sources, this filter gains the source
- * check (revisit trigger, see docs/FORMULA-AUDIT.md).
+ * check (revisit trigger, see docs/reference/FORMULA-AUDIT.md).
  * Contrast investedByAsset (buys + reinvests) — the v1 capital-gain basis.
  */
 export function investedOwnByAsset(txs: Transaction[]): Record<string, number> {
@@ -361,7 +361,7 @@ export function incomeReceivedNet(txs: Transaction[]): {
 
 /**
  * Ledger-derived free cash — PINNED v1 formulation (deliberate deviation
- * from doc §1.1, see docs/FORMULA-AUDIT.md §1):
+ * from doc §1.1, see docs/reference/FORMULA-AUDIT.md §1):
  *
  *   deposits − withdrawals − buys + sells + redemptions
  *

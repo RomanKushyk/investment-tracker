@@ -107,7 +107,7 @@ Region **`eu-central-1`**.
    excluded** — rewrites and headers stay console-managed, so CI cannot reconfigure
    hosting. If the first run returns `UnauthorizedException`, widen the resource to
    `apps/<appId>/*` before widening the action list, and record which ARN shape was needed
-   in `docs/DEPLOYMENT.md`.
+   in `docs/reference/DEPLOYMENT.md`.
 
 Repo configuration: variables `AMPLIFY_APP_ID`, `AWS_REGION`; secret `AWS_ROLE_ARN`.
 No long-lived AWS keys are stored anywhere.
@@ -182,10 +182,10 @@ repo is public.
 |------|--------|
 | `.github/workflows/deploy.yml` | New — the pipeline. |
 | `scripts/deploy-amplify.sh` | New — create/upload/start/poll. Needs a `scripts/README.md` per the per-folder-README rule. |
-| `docs/DEPLOYMENT.md` | New runbook: console steps, trust policy + role policy JSON, rollback, failure playbook, cost notes. |
-| `docs/DECISIONS.md` | Append **D15** — this decision and its rationale. Append-only. |
+| `docs/reference/DEPLOYMENT.md` | New runbook: console steps, trust policy + role policy JSON, rollback, failure playbook, cost notes. |
+| `docs/decisions/README.md` | Append **D15** — this decision and its rationale. Append-only. |
 | `docs/README.md` | Add the `DEPLOYMENT.md` row; note `superpowers/specs/` holds dated design specs. |
-| `CLAUDE.md` | One pointer line to `docs/DEPLOYMENT.md`. |
+| `CLAUDE.md` | One pointer line to `docs/reference/DEPLOYMENT.md`. |
 | `README.md` (root) | Badge + live URL. |
 | `navigation-map.md` | Note that checkpoints may also be run against the deployed URL. |
 
@@ -212,7 +212,7 @@ The task is done when all of these hold:
   `vite build` fails. First-run watch item; fix by ensuring the platform optional
   dependency is in the lockfile, not by disabling `--frozen-lockfile`.
 - **Node 26 availability** in `setup-node`. If unavailable, pin the current LTS and record
-  the divergence from local Node in `docs/DEPLOYMENT.md`.
+  the divergence from local Node in `docs/reference/DEPLOYMENT.md`.
 - **Job ARN shape** for `amplify:GetJob` may not match the assumed pattern — handled by the
   documented widening step in §4.5.
 - **Deployment is not atomic per file**; a failed mid-deploy could leave mixed assets.

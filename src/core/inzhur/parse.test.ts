@@ -1,6 +1,6 @@
 // Fixture-driven: every figure below comes from the trimmed live capture
 // (__fixtures__/assets-sample.json, 2026-07-28) or the user's real dashboard —
-// see docs/NEXT-PHASE-PLAN.md Phase 3 Verify.
+// see docs/plans/NEXT-PHASE-PLAN.md Phase 3 Verify.
 import { describe, expect, it } from 'vitest';
 
 import {

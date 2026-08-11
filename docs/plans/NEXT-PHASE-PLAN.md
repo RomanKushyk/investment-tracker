@@ -12,7 +12,7 @@
 
 **Rewritten 2026-08-11.** The original plan (approved 2026-07-28) assumed a permanently local-first app. A planning session on 2026-08-04 redirected the project to a cloud backend with auth, and the first stage of that work is **deployed and running**. This file now carries only what is still live: the shipped record, the retired items with their reasons, and the work that can actually start today. Everything cut is listed under **Retired** rather than deleted silently — the reasoning is the useful part.
 
-**Companion documents:** stack + staging decision `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md` · target data model `docs/superpowers/specs/2026-08-04-data-model.md` · deployed backend `infra/README.md` · decisions `docs/DECISIONS.md` (D26–D28 cover the archive) · formula rulings `docs/FORMULA-AUDIT.md` · v1 record `docs/BUILD-PLAN.md`.
+**Companion documents:** stack + staging decision `docs/superpowers/specs/2026-08-04-cloud-stack-and-cost.md` · target data model `docs/superpowers/specs/2026-08-04-data-model.md` · deployed backend `infra/README.md` · decisions `docs/decisions/README.md` (D26–D28 cover the archive) · formula rulings `docs/reference/FORMULA-AUDIT.md` · v1 record `docs/archive/BUILD-PLAN.md`.
 
 ## Status
 
@@ -23,20 +23,20 @@
 | 2 | Settings home & real-data era | **done** (2026-08-02) — v1.2.0 | — |
 | 3 | Living data: Inzhur fetch, fixed yield, reminders | **done** (2026-08-04) — v1.3.0 | — |
 | 4 | Data portability | **closed** — JSON export/import + CSV export shipped; CSV import + mirror retired (D29) | — |
-| B1 | Backend: price capture archive | **done, live** (2026-08-11) | payload split + durability gate → `PLAN-NOW.md` A2–A3 |
-| B2 | Backend: observation schema + read API | **split by evidence** | NBU half → `PLAN-NOW.md` A4 · Inzhur half → `PLAN-WAITING.md` W3–W4 |
+| B1 | Backend: price capture archive | **done, live** (2026-08-11) | closed — A2 (index, D48), A3 (durability gate, D49), A14 (backup liveness) all done |
+| B2 | Backend: observation schema + read API | **NBU half done** (2026-08-11, D50) | Inzhur half → `PLAN-WAITING.md` W3–W4 · read API still to come |
 | B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper, scope now specified (D32–D34) | `PLAN-WAITING.md` W7 |
 | 5 | Appearance & language: dark theme + UK | todo | `PLAN-NOW.md` A8–A10 |
 | 6 | Chart analytics: ranges + cap-by-day | todo | `PLAN-WAITING.md` W13 |
 | 7 | Full control: DB browser | todo | `PLAN-WAITING.md` W14 |
-| — | Coupon dates walk the published schedule | **todo, dated** | `PLAN-NOW.md` A1 — must land before 2026-09-23 |
+| — | Coupon dates walk the published schedule | **done** (2026-08-11) | `PLAN-NOW.md` A1 — landed well before the 2026-09-23 deadline |
 
-Current version: **v1.3.0**. Per-phase tags continue per `docs/VERSIONING.md`.
+Current version: **v1.3.0**. Per-phase tags continue per `docs/reference/VERSIONING.md`.
 
 ## What shipped (compressed record — detail lives in git + DECISIONS)
 
 - **Phase 0** `chore/next-phase-prep` — trimmed Inzhur fixture, gitignore, doc pointers.
-- **Phase 1** `refactor/core-folder`, `feat/repo-write-surface`, `chore/settings-persist-version`, `feat/backup-export-json`, `feat/formula-parity` — `src/core/` pure domain layer; full repository write surface; JSON backup envelope v1; the formula audit (`docs/FORMULA-AUDIT.md`).
+- **Phase 1** `refactor/core-folder`, `feat/repo-write-surface`, `chore/settings-persist-version`, `feat/backup-export-json`, `feat/formula-parity` — `src/core/` pure domain layer; full repository write surface; JSON backup envelope v1; the formula audit (`docs/reference/FORMULA-AUDIT.md`).
 - **Phase 2** `feat/settings-shell`, `feat/asset-form`, `feat/targets-editor`, `feat/dataset-split`, `feat/clear-data`, `feat/metrics-exposure` — `/settings`, full asset editing, demo/live dataset split, safe erase, audited metrics on screen.
 - **Phase 3** `feat/inzhur-client`, `feat/fetch-quotes`, `feat/fixed-yield`, `feat/reminders` — the headline daily ritual: fetch quotes, accrual ghosts, coupon confirm cards, in-app reminders.
 - **Phase 4** `feat/backup-import` — validate → diff → confirm → one rw transaction, safety backup first (D24). `feat/csv-export` — one CSV per table with the pinned dialect, plus `src/lib/download.ts` (save-picker parity, a cancelled picker is not an error) which the JSON backup button now shares (D29).
@@ -91,11 +91,11 @@ The four tracks that used to be listed here, plus everything queued behind the m
 ## Cross-phase rules
 
 - **Git/gates:** per-task branches as named; plain conventional commits; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
-- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — D35 is the current tail); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/design-briefs/`, `design/extensions/`, `infra/`).
+- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — D35 is the current tail); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/archive/design-briefs/`, `design/extensions/`, `infra/`).
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
-## Ungroomed input — `docs/NEXT-PHASE-DRAFT.md`
+## Ungroomed input — `docs/archive/NEXT-PHASE-DRAFT.md`
 
 The draft was replaced with a fresh wishlist (the old items are all shipped or retired above). **Nothing below is planned yet** — it is raw input, listed here so it is not orphaned:
 

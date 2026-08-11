@@ -13,7 +13,7 @@ set -euo pipefail
 
 REGION="${REGION:-eu-north-1}"
 
-# Derived, never hardcoded. This repo is PUBLIC, and docs/DEPLOYMENT.md keeps the
+# Derived, never hardcoded. This repo is PUBLIC, and docs/reference/DEPLOYMENT.md keeps the
 # account ID out of tracked files on purpose — which is also why the deploy role
 # ARN lives in a GitHub secret rather than in the workflow.
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"

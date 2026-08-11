@@ -1,6 +1,6 @@
 # src/ — Application code
 
-Rules for working in this folder. The binding API contracts (types, repository/hook/store signatures, token names) live in **`docs/BUILD-PLAN.md` → "Pinned contracts"** — follow them exactly; changing one requires updating every consumer plus a `docs/DECISIONS.md` entry.
+Rules for working in this folder. The binding API contracts (types, repository/hook/store signatures, token names) live in **`docs/archive/BUILD-PLAN.md` → "Pinned contracts"** — follow them exactly; changing one requires updating every consumer plus a `docs/decisions/README.md` entry.
 
 ## Structure
 
@@ -26,4 +26,4 @@ Rules for working in this folder. The binding API contracts (types, repository/h
 - **No hard-coded portfolio figures anywhere** — every displayed number derives from stored data (`core/derive.ts`). Placeholders before the data layer exist show "—".
 - **Fonts:** `font-display` (Space Grotesk) for headings/`.btn`-style buttons/KPI numbers; `font-body` (Spline Sans Mono, the body default) for everything else — note the sidebar nav pills and currency toggle inherit the mono body font (matches the reference markup).
 - Formatting/derivation logic lives in `core/money.ts` / `core/derive.ts` (pure, unit-tested) — never inline in components. Per-screen pure glue lives in `screens/<route>/<route>.ts` and imports core only; both return structured tokens, never assembled English prose (D8) — label words live in the component layer (e.g. `components/ui/date-labels.ts`).
-- **Motion (D7):** every interaction animates softly — `transition active:scale-[.97]` on pressables, `animate-in` reveals, keyed route transitions. Standards: `docs/BUILD-PLAN.md` → "Motion & interaction standards". The `prefers-reduced-motion` kill-switch in `index.css` must stay.
+- **Motion (D7):** every interaction animates softly — `transition active:scale-[.97]` on pressables, `animate-in` reveals, keyed route transitions. Standards: `docs/archive/BUILD-PLAN.md` → "Motion & interaction standards". The `prefers-reduced-motion` kill-switch in `index.css` must stay.
