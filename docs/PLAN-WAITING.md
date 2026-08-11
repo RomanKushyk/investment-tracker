@@ -107,7 +107,8 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 
-- **Auth (D32, amended by D36):** Cognito user pool on the **Essentials** tier, **managed login**, **open registration** (owner ruling), refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
+- **Auth (D32, amended by D36 and D38):** Cognito user pool on the **Essentials** tier, **managed login**, refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
+- **Registration is an application, not an open door (D38):** sign-up always succeeds and produces a `pending` row; a super-admin approves, rejects or removes it; a toggle can open registration fully, with a warning. **The approval gate is access control, not cost control** — a pending user already counts as an MAU, so D37's monitor is what guards the free tier.
 - **Three sign-in methods, one account per email (D36):** password + Google + passkey. Passkeys add no duplication risk — a passkey is a credential on an existing user, not an account. The duplication pair is local-vs-federated, and it needs **both** mechanisms below.
 - **Free-tier watch (D37):** there is no CloudWatch MAU metric; three instruments stand in for one.
 
@@ -116,6 +117,18 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 - [ ] `usernameAttributes: ['email']`. **Not `aliasAttributes`** — aliases let several users hold one email and resolve it as "only the last user who verified it can sign in", which silently takes sign-in away from an existing account.
 - [ ] Essentials tier (passkeys are not in Lite).
 - [ ] Refresh token in years; access and ID tokens left at 60 minutes.
+
+**Approval gate (D38).** The intuitive design — a pre-authentication trigger that refuses unapproved users — is **insufficient and must not be the gate**: AWS documents that the trigger does not fire when the user has an existing session, and with a refresh token measured in years an existing session lasts approximately forever. Anything checked at token-issue time can grant but never revoke.
+
+- [ ] `app_user(user_id, email, status, role, applied_at, decided_at, decided_by)` in DSQL. `status ∈ pending | active | rejected`, `role ∈ user | super_admin`. **This is the authoritative record**, and the API Lambda checks it on every request — it already loads the row to scope data by `user_id`, so the check is free and there is one place where "may this person act" is answered.
+- [ ] **Post-confirmation trigger** creates the row `pending`, or `active` when the open-registration toggle is on.
+- [ ] A `pending` caller gets a distinct response, not 401 — they are genuinely signed in and simply may not act yet. The client renders "awaiting review".
+- [ ] **`cognito:groups` is not the authorization source; the `role` column is.** Group membership is stamped into a token at issue time, so removing someone from a super-admin group would not take effect until the token refreshes.
+- [ ] `AdminDisableUser` on **rejected** users as defence in depth — a consequence of the status, never the record of it.
+- [ ] **Bootstrap in the same migration that creates the table:** the owner is created with `AdminCreateUser` and seeded `active` + `super_admin`. Everyone starts `pending` and only a super-admin approves, so without this the system cannot be started at all.
+- [ ] Super-admin screen: users table with approve / reject / delete.
+- [ ] **Delete is scoped to `pending` and `rejected` users only** — they own no portfolio data, so no cascade exists and it is genuinely cleanup. **Deleting an `active` user with transactions is not implemented and not decided**: it is exactly the cascade the ledger model forbids. Rejecting or disabling achieves every operational purpose without destroying a ledger.
+- [ ] Open-registration toggle: one settings row, read by the post-confirmation trigger, default **off**. Its warning states the specific consequence — anyone who signs up gets in immediately and there is no threat protection behind it (Plus has no free tier, WAF is $15/mo and on the standing "no" list).
 
 **Account linking (D36).**
 
@@ -139,7 +152,7 @@ Remaining scope, unchanged: user schema in DSQL, API Gateway + API Lambda, `repo
 
 **`PLAN-OPEN.md` Round 1 is closed** (D30, D32), so the DDL is no longer blocked on a decision. The `basis` vocabulary, the `instrument_ref` scheme and the FX placement are pinned; what remains gated is only the observation row's non-key columns, which are an `ALTER TABLE` away and therefore not a blocker for the user schema.
 
-**One consequence of open registration to carry into the build:** threat protection lives in Cognito's **Plus** tier, which has no free tier, and WAF is $15/mo and on the standing "no" list below. A public sign-up path is defended by built-in request quotas and email verification alone — adequate here, and the honest fallbacks if abuse appears are to close registration or to start paying.
+**One consequence to carry into the build (D32, sharpened by D38):** threat protection lives in Cognito's **Plus** tier, which has no free tier, and WAF is $15/mo and on the standing "no" list below. The approval gate keeps unapproved sign-ups away from data, but it does **not** keep them off the MAU meter — sign-up itself marks a user active. So the sign-up endpoint is defended by Cognito's built-in request quotas and email verification alone, and D37's `SignUpSuccesses` chart is the thing that would show abuse. If it appears, the honest fallbacks are to gate sign-up in the pre-sign-up trigger (which makes applications impossible to submit) or to start paying — there is no third one.
 
 Retires D2 (IndexedDB), D16/G4 (demo+live split) and the dataset guards. `navigation-map.md` needs a full re-baseline in the same phase; ~97 `it()` blocks across 12 files depend on the seed helpers.
 
