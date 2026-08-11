@@ -644,17 +644,71 @@ async function reportAlertChannels(): Promise<void> {
   }
 }
 
+/**
+ * Read-only diagnostics: table size, and the plans of the two queries that scan
+ * `price_capture` in normal operation.
+ *
+ * It exists because A2 asks a question nothing else here can answer. DSQL bills
+ * bytes SCANNED, and the data model rules that raw payloads live in a separate
+ * table because primary keys are index-organized and carry every column — so a
+ * wide row inflates every range scan. Whether that is actually costing anything
+ * is a measurement, not an opinion, and the honest first step is to look before
+ * rewriting a live archive.
+ *
+ * `EXPLAIN ANALYZE` runs the query for real. Both are SELECTs, so this reads and
+ * writes nothing.
+ */
+async function diagnose(client: Client) {
+  const size = await client.query<{ rows: string; payload_bytes: string; total_bytes: string }>(
+    `SELECT count(*)::text AS rows,
+            coalesce(sum(payload_bytes), 0)::text AS payload_bytes,
+            coalesce(sum(octet_length(payload_gzip)), 0)::text AS total_bytes
+       FROM price_capture`,
+  );
+  const bySource = await client.query<{ source: string; n: string; bytes: string }>(
+    `SELECT source, count(*)::text AS n,
+            coalesce(sum(octet_length(payload_gzip)), 0)::text AS bytes
+       FROM price_capture GROUP BY source ORDER BY source`,
+  );
+
+  // The two queries that run in normal operation, planned as they actually run.
+  const plans: Record<string, string[]> = {};
+  const streak = await client.query<{ 'QUERY PLAN': string }>(
+    `EXPLAIN ANALYZE
+     SELECT quotes_sha256, to_char(as_of, 'YYYY-MM-DD') AS as_of
+       FROM price_capture
+      WHERE source = $1 AND ok = true AND quotes_sha256 IS NOT NULL
+      ORDER BY as_of DESC, requested_at DESC
+      LIMIT 60`,
+    [SOURCE.inzhur],
+  );
+  plans.unchangedStreak = streak.rows.map((r) => r['QUERY PLAN']);
+  const completeness = await client.query<{ 'QUERY PLAN': string }>(
+    `EXPLAIN ANALYZE
+     SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
+       FROM price_capture WHERE source = $1 AND as_of BETWEEN $2 AND $3`,
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, asOfFor(new Date())],
+  );
+  plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
+
+  return { mode: 'diagnose' as const, size: size.rows[0], bySource: bySource.rows, plans };
+}
+
 export interface HandlerEvent {
   /** Absent for the scheduled run: capture today from every source. */
   backfill?: BackfillRequest;
   /** Manual re-capture of one date, e.g. to repair a bad day. */
   asOf?: string;
+  /** Read-only: table size and the plans of the two operational queries. */
+  diagnose?: boolean;
 }
 
 export async function handler(event: HandlerEvent = {}) {
   const client = await connect();
   try {
     await ensureSchema(client);
+
+    if (event.diagnose === true) return await diagnose(client);
 
     if (event.backfill !== undefined) return await backfillNbu(client, event.backfill);
 
