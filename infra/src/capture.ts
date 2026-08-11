@@ -389,6 +389,19 @@ async function captureOne(client: Client, source: string, asOf: string): Promise
   let unchangedDays: number | undefined;
   if (digest !== null && error === null && !isWeekend(asOf)) {
     unchangedDays = await unchangedStreak(client, source, digest);
+
+    // Emitted on EVERY business-day capture, not only when stale. A metric that
+    // exists only on failure cannot distinguish "healthy" from "the check
+    // stopped running" — both look like no data. Publishing the value always
+    // makes the mechanism's own liveness observable, which is the difference
+    // between a check you trust and one you have to remember to verify.
+    //
+    // JSON so the metric filter can extract the numeric value and the source
+    // dimension by JSON path rather than by column position.
+    console.log(
+      JSON.stringify({ metric: 'unchangedDays', source, asOf, value: unchangedDays }),
+    );
+
     if (unchangedDays >= STALE_AFTER_DAYS) {
       // A distinct, greppable line rather than a thrown error. A frozen
       // upstream is not a transient fault: throwing would make EventBridge

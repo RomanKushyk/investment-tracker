@@ -242,6 +242,50 @@ Resources:
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlertTopic]
 
+  # The streak VALUE, published on every business-day capture rather than only
+  # when it is bad. This is what makes the staleness check itself observable:
+  # a metric that appears only on failure cannot tell "healthy" apart from
+  # "the check stopped running".
+  UnchangedDaysMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "unchangedDays" }'
+      MetricTransformations:
+        - MetricNamespace: Kubushka
+          MetricName: UnchangedDays
+          MetricValue: $.value
+          Dimensions:
+            - Key: source
+              Value: $.source
+
+  # Fires only if the streak stops being published for five consecutive days —
+  # i.e. the capture runs but the check silently does not.
+  #
+  # Five, not one: the value is emitted on business days only, so a normal
+  # weekend already produces two blank days and a public-holiday long weekend
+  # can produce four. One day would page every Saturday and be muted by
+  # Christmas.
+  #
+  # This deliberately does NOT cover "the streak is computed but always wrong" —
+  # no alarm can, because the correct value is exactly what is unknown. That one
+  # is answered by looking at the graph once, which is now possible.
+  StreakCheckLivenessAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: The staleness check has stopped reporting for 5 days.
+      Namespace: Kubushka
+      MetricName: UnchangedDays
+      Dimensions: [{ Name: source, Value: inzhur }]
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 5
+      DatapointsToAlarm: 5
+      Threshold: 0
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlertTopic]
+
   DlqAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
