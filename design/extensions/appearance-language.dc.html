@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- ▲ the master reference's font link, verbatim. ▼ THE SECOND LINK IS A
+     FINDING, NOT A STYLE CHOICE — see "FINDING 1" in the header block below:
+     neither brand face contains a single Cyrillic glyph, so a file that draws
+     Ukrainian must declare the substitute it assumes or it draws a lie. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"Spline Sans Mono","IBM Plex Mono",ui-monospace,monospace}
+body *{font-family:inherit}
+h1,h2,h3,h4{font-family:"Space Grotesk","Manrope",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/appearance-language.dc.html — Phase 5 design reference (G7/D14)
+
+  Surfaces: S1 theme control (Light / Dark / System) · S2 language control
+  (Українська / English) · S3 the complete dark palette · S4 charts in dark ·
+  S5 Ukrainian copy in situ — plus the finished Appearance card drawn in all
+  FOUR theme × language combinations, the dark palette proven on a full screen,
+  and the sidebar nav resolution the brief left open.
+
+  Brief (copy/behaviour authority): docs/design-briefs/phase-5-appearance-language.md
+  Visual authority once merged: THIS file (D14 precedence).
+
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  ★ THIS FILE PINS THE DARK PALETTE — it is the phase's token source.      ★
+  ★                                                                        ★
+  ★ All 57 tokens of the src/index.css @theme block get a dark value here  ★
+  ★ (Surface 3 sheet below). NO NEW TOKEN NAMES: the dark theme redefines  ★
+  ★ the existing 57 and adds none — that is what keeps every component     ★
+  ★ free of theme-aware branching. Mechanism assumed: a data-theme="dark"  ★
+  ★ attribute on the root re-declaring the same custom properties, with    ★
+  ★ prefers-color-scheme as the System path. Not a second set of classes.  ★
+  ★                                                                        ★
+  ★ Every ratio the brief tabled was recomputed from the hexes with WCAG   ★
+  ★ relative luminance before this file was drawn. ALL 23 REPRODUCE TO THE ★
+  ★ SECOND DECIMAL. The light-theme figures the brief quotes as a warning  ★
+  ★ (reit 2.77 · energy 2.40 · ovdp8976 2.57 · ovdp6475 6.49 on white)     ★
+  ★ reproduce too — and are NOT touched by this phase.                     ★
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  THE THREE OWNER DECISIONS (2026-08-12) THAT SET THE PHASE'S SHAPE
+  1. Theme has THREE states — Light / Dark / System, System being the default.
+     Not two.
+  2. UKRAINIAN IS THE DEFAULT LANGUAGE; English stays as the second.
+  3. FORMATTING SEPARATES COMPLETELY PER LANGUAGE, WITH NO EXCEPTIONS —
+     Contract 0. Each language owns one coherent set applied everywhere,
+     tables included. Language changes how a number is written, never which
+     number it is. No D5-pinned value moves.
+
+  ── FINDINGS THIS SESSION IS OBLIGED TO REPORT ────────────────────────────
+  FINDING 1 — NEITHER BRAND FACE CAN RENDER UKRAINIAN. Measured from the
+  installed @fontsource packages: Spline Sans Mono ships subsets
+  [latin, latin-ext] and Space Grotesk [latin, latin-ext, vietnamese]. Both
+  cmaps were read directly: U+0429 (Щ) and U+0456 (і) are ABSENT from both.
+  Making Ukrainian the default therefore drops the entire app into the
+  platform fallback face. The phase cannot ship on the current stack.
+  Proposal drawn in this file (A10 confirms): keep the brand faces and add a
+  Cyrillic-only companion scoped by `unicode-range: U+0400-04FF`, so digits,
+  Latin and every table figure STAY in Spline Sans Mono and only Cyrillic
+  letters come from the companion. Companion proposed = IBM Plex Mono,
+  chosen because its advance width is 600/1000 em — IDENTICAL to Spline Sans
+  Mono's 1200/2000 em — so every width measured in this file holds
+  letter-for-letter in both languages. Display companion = Manrope.
+
+  FINDING 2 — `panel` CHANGES ITS ELEVATION ROLE BETWEEN THEMES. Light:
+  page #f6f5f3 → card #ffffff (raised) → panel #eceae7 (recessed). Dark:
+  page #141416 → card #1c1c1f → panel #232327, i.e. panel is the HIGHEST
+  plane. The brief relies on this for the chart tooltip ("panel, not card,
+  so it lifts off the card it covers") and it is correct there — but it
+  inverts the segmented control, whose track is `panel` and thumb `card`.
+  Resolution drawn in Surface 1, with the alternative recorded and rejected.
+
+  FINDING 3 — TWO TOKENS INVERT UNDER THE PLANES THAT MUST NOT INVERT.
+  `bg-ink` + `text-white` is used for two different jobs in the app and only
+  one of them survives a theme flip. See the "ink inversion" panel in
+  Surface 3.
+
+  ── IDIOM ─────────────────────────────────────────────────────────────────
+  Master-reference inline styles — every colour/size/spacing literal in the
+  markup, no classes of our own, no runtime script, renders via file://.
+  Every colour literal is a Surface 3 sheet value or an existing
+  src/index.css @theme value. Nothing ad hoc.
+  DASHED-BORDER CHIPS ARE SPEC ANNOTATIONS, never UI. Motion (D7) lives in
+  HTML comments beside the surface it governs.
+  BOTH themes are drawn here — the extensions README's "light theme only
+  until Phase 5 defines the dark palette" is superseded by this file.
+  U+2212 (−) for minus and U+2026 (…) for ellipsis, in both languages.
+═══════════════════════════════════════════════════════════════════════ -->
+
+<div data-screen-label="Appearance & language" style="padding:32px 36px 64px;box-sizing:border-box">
+
+  <h2 style="margin:0 0 4px;font-size:26px">Appearance &amp; language — Phase 5</h2>
+  <p style="font-size:13px;color:#8b8a86;margin:0 0 6px">Theme (Light / Dark / System) · language (Українська / English) · the complete dark palette · charts in dark</p>
+  <p style="font-size:12px;color:#6f6e6a;margin:0 0 8px;max-width:900px;line-height:1.6">Light values are the master reference's and are <strong>not</strong> changed by this phase. Dark values are pinned by the Surface 3 sheet in this file. Demo figures are the D5 values — only their <em>form</em> changes between languages.</p>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       CONTRACT 0 — the formatting split. Drawn first because it reaches
+       further than any surface: from Phase 5 each language owns ONE
+       coherent set, applied everywhere, TABLES INCLUDED. That is new —
+       switching to English now changes table figures, which it never did.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:32px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Contract 0 · the formatting split</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 420px;max-width:560px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Specimen — every form, both languages</div>
+      <div style="display:grid;grid-template-columns:1fr 1.1fr 1.1fr;gap:10px 14px;font-size:12.5px;align-items:baseline">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Form</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Українська (default)</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">English</div>
+
+        <div style="color:#6f6e6a">Number</div><div style="font-weight:600">68 702,10</div><div style="font-weight:600">68,702.10</div>
+        <div style="color:#6f6e6a">Money, ₴</div><div style="font-weight:600">68 629,36 ₴</div><div style="font-weight:600">₴68,629.36</div>
+        <div style="color:#6f6e6a">Money, $</div><div style="font-weight:600">3 324,03 $</div><div style="font-weight:600">$3,324.03</div>
+        <div style="color:#6f6e6a">Percent</div><div style="font-weight:600;color:#5c7355">+3,08 %</div><div style="font-weight:600;color:#5c7355">+3.08%</div>
+        <div style="color:#6f6e6a">Percent, negative</div><div style="font-weight:600;color:#a8695a">−6,40 %</div><div style="font-weight:600;color:#a8695a">−6.40%</div>
+        <div style="color:#6f6e6a">Date</div><div style="font-weight:600">12.08.2026</div><div style="font-weight:600">12 Aug 2026</div>
+        <div style="color:#6f6e6a">Date, short</div><div style="font-weight:600">12.08</div><div style="font-weight:600">12 Aug</div>
+      </div>
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">
+        The Ukrainian thousands separator is <strong>U+00A0</strong>, never a plain space — a plain space lets a figure wrap mid-number. Every Ukrainian figure in this file carries a real U+00A0 in the markup, so it can be copied rather than retyped.<br>
+        <span style="color:#8f6b33">Open, and worth deciding with A10: the gap before <code>%</code> and before <code>₴</code>/<code>$</code> is a plain space here, because the brief pins U+00A0 for thousands only. It is exposed to the same defect — a lone <code>₴</code> or <code>%</code> can wrap to the next line — so it probably wants U+00A0 too.</span><br>
+        Ukrainian keeps a space before <strong>%</strong> (ДСТУ); English does not.<br>
+        English dates are <strong>12 Aug 2026</strong>, deliberately not 12/08/2026 — a slashed form is ambiguous between British and American reading.<br>
+        The minus sign is <strong>U+2212 (−)</strong> and the ellipsis <strong>U+2026 (…)</strong> in both languages — an existing rule a translation pass is very likely to break.
+      </div>
+    </div>
+
+    <div style="flex:1 1 320px;max-width:440px;background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">What does NOT change</div>
+      <div style="font-size:12.5px;line-height:1.65;color:#26262a">
+        The stored data. Every D5-pinned <em>value</em>. And the ₴/$ toggle's scope: headline KPIs and the sidebar only — <strong>tables stay in ₴ regardless of language</strong>, because that is a currency rule, not a locale rule.
+      </div>
+      <div style="height:1px;background:#dedcd8;margin:14px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">
+        Consequence, stated plainly: table figures now re-format in English too. That touches <code>core/money.ts</code>, its tests, and every checkpoint in <code>navigation-map.md</code> that quotes a formatted string. A10 carries that cost — keeping tables Ukrainian in English mode is exactly the exception the ruling forbids.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SURFACE 1 — THEME CONTROL (Light / Dark / System)
+       /settings → Appearance, FIRST row, above Currency.
+       Anatomy = the existing segmented control, extended to three segments:
+       track `panel` + 1px `panel-border`, radius 999, padding 4, gap 4;
+       thumb `card`; segments 12px bold, padding 6px 18px.
+       THE THREE-SEGMENT VARIANT DOES NOT EXIST IN THE APP YET — the
+       two-segment currency toggle (Settings.tsx → CurrencyControl,
+       master reference lines 41–44) is the anatomy being extended.
+
+       THUMB GEOMETRY (pinned by the brief):
+         width      : calc(33.333% - 6px)
+         position 1 : translateX(0)
+         position 2 : translateX(calc(100% + 4px))
+         position 3 : translateX(calc(200% + 8px))
+       Measured note: with equal flex:1 segments the third position lands
+       ~1.3px short of the segment pitch at the Ukrainian width (thumb 93px,
+       pitch 93.67px). Acceptable at radius 999; if it ever shows, the
+       implementation should switch to calc((100% - 8px)/3) pitch maths.
+       This is geometry, not a token, so it is safe to correct later.
+
+       SIZING (mono at 0.6em advance — 12px type = 7.2px/char):
+         segment width = 36px padding + widest label
+         EN  `System`   6 ch → 79.2px → track  ≈ 256px
+         UK  `Системна` 8 ch → 93.6px → track  ≈ 299px
+       The control sizes to the widest label IN THE ACTIVE LANGUAGE and must
+       not jump when the language changes.
+
+       D7 MOTION — copied from the brief:
+       | Trigger        | Property                | Duration / easing            | Reduced motion        |
+       | Segment press  | thumb `transform`       | 300ms cubic-bezier(.22,1,.36,1)| no transition; jumps |
+       | Segment press  | `scale` to .97          | 120ms                        | none                  |
+       | Theme applied  | background-color, color | 200ms LINEAR, ONCE           | none — instant swap   |
+       | Hover          | `opacity` to .85        | 150ms                        | none                  |
+
+       THE THEME CROSS-FADE IS THE ONE NEW MOTION DECISION. A 200ms tint on
+       COLOURS ONLY, scoped to a named set — never `all`, never box-shadow or
+       border-color en masse, which bands visibly across a page this dense:
+         :root[data-theme-swapping] * {
+           transition-property: background-color, color, fill, stroke;
+           transition-duration: 200ms;
+           transition-timing-function: linear;
+         }
+       The attribute is set on the flip and removed after 200ms, so the class
+       never slows an ordinary interaction and no chart re-runs its enter
+       animation (Surface 4).
+
+       STATE MATRIX — disabled / loading / error / empty / stale /
+       demo-disabled are ALL n/a here and that is a decision, not an omission:
+       theme is not data, so G4/D16 (demo lockout) does not apply, there is
+       nothing to fetch and no failure mode. The control is never disabled in
+       either dataset.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Surface 1 · theme control</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+
+    <!-- ── LIGHT THEME, all states ────────────────────────────────────── -->
+    <div style="flex:1 1 340px;max-width:420px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Light · Ukrainian · states</div>
+
+      <!-- default: System selected — the state of a profile that has never
+           chosen. Thumb at position 3. -->
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:6px">default — System selected</span>
+      <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(200% + 8px))"></div>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Світла</button>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+        <button aria-pressed="true" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Системна</button>
+      </div>
+
+      <!-- hover: unselected segment to opacity .85, 150ms. Drawn on
+           "Світла" as a pre-multiplied muted (#8b8a86 at .85 over #eceae7). -->
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin:16px 0 6px">hover — unselected, opacity .85</span>
+      <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(200% + 8px))"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86;opacity:.85">Світла</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Системна</button>
+      </div>
+
+      <!-- focus: 2px `pos` ring at 2px offset ON THE PRESSED SEGMENT,
+           keyboard only (:focus-visible). pos #5c7355 measures 5.20:1 on
+           card and 4.77:1 on page — well past the 3:1 that WCAG 1.4.11 asks
+           of a non-text indicator. -->
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin:16px 0 6px">focus-visible — 2px pos ring, 2px offset</span>
+      <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(100% + 4px))"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Світла</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a;outline:2px solid #5c7355;outline-offset:2px">Темна</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Системна</button>
+      </div>
+
+      <!-- pressed: scale .97 for 120ms, thumb still travelling (300ms soft) -->
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin:16px 0 6px">pressed — scale .97, thumb mid-travel</span>
+      <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(50% + 2px))"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a;transform:scale(.97)">Світла</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Системна</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:18px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">No toast on change — the whole screen repainting <em>is</em> the feedback. Choosing System and then changing the OS appearance repaints without a reload; an explicit Light choice does not follow the OS. The choice persists in <code>quirenote-settings</code>.</div>
+    </div>
+
+    <!-- ── DARK THEME, same control ───────────────────────────────────── -->
+    <div style="flex:1 1 340px;max-width:420px;background:#1c1c1f;border-radius:24px;padding:22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Dark · English · states</div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f;margin-bottom:6px">default — Dark selected</span>
+      <!-- FINDING 2 RESOLVED HERE. In light, track `panel` #eceae7 is DARKER
+           than thumb `card` #ffffff, so the thumb reads as raised. In dark
+           the sheet makes `panel` #232327 LIGHTER than `card` #1c1c1f, so the
+           same two tokens invert: the selected chip becomes the LOWER plane,
+           and the card/panel step is only 1.09:1 (it is 1.20:1 in light).
+           Drawn resolution: keep the tokens (swapping them per theme is the
+           component branching the phase exists to avoid), let selectedness be
+           carried by TEXT — ink #eceae7 on the thumb is 14.16:1, muted
+           #9b9a96 on the track is 5.56:1 — and give the thumb a 1px
+           `panel-border` #33333a edge (1.36:1 against the thumb) in place of
+           the light theme's shadow. That is the brief's own sanctioned
+           exception: "elevation in dark comes from the surface step, not from
+           shadow" — the shadow is REMOVED, not deepened. It is also the ONLY
+           theme-conditional style in the phase and it lives in exactly one
+           component.
+           CONSIDERED AND REJECTED: track `page` + thumb `card`, which keeps
+           the thumb raised in BOTH themes with no branch at all — rejected
+           because it changes the light control, and the light theme is
+           immutable this phase. Worth revisiting if the light reference is
+           ever reopened. -->
+      <div role="group" aria-label="Colour theme" style="position:relative;display:flex;width:256px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Light</button>
+        <button aria-pressed="true" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">Dark</button>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">System</button>
+      </div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f;margin:16px 0 6px">focus-visible — 2px pos ring</span>
+      <!-- pos #8fb184 measures 7.12:1 on card and 7.70:1 on page in dark —
+           the focus ring clears 3:1 against BOTH planes, as Surface 3 §3
+           requires. -->
+      <div role="group" aria-label="Colour theme" style="position:relative;display:flex;width:256px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(0)"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7;outline:2px solid #8fb184;outline-offset:2px">Light</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Dark</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">System</button>
+      </div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f;margin:16px 0 6px">hover — unselected, opacity .85</span>
+      <div role="group" aria-label="Colour theme" style="position:relative;display:flex;width:256px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(200% + 8px))"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Light</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96;opacity:.85">Dark</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">System</button>
+      </div>
+
+      <div style="height:1px;background:#2a2a2e;margin:18px 0"></div>
+      <div style="font-size:11.5px;color:#a8a7a3;line-height:1.6">Same anatomy, same geometry, same motion. The only difference between the two drawings above is which values the tokens hold — and the thumb's shadow, which is removed rather than deepened.</div>
+    </div>
+
+    <!-- ── THUMB GEOMETRY DIAGRAM ─────────────────────────────────────── -->
+    <div style="flex:1 1 340px;max-width:420px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Thumb geometry — the three positions</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+          <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#26262a;box-sizing:border-box">Світла</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Темна</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Системна</div>
+        </div>
+        <div style="font-size:11px;color:#6f6e6a">1 · <code>translateX(0)</code></div>
+        <div style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+          <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(100% + 4px))"></div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Світла</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#26262a;box-sizing:border-box">Темна</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Системна</div>
+        </div>
+        <div style="font-size:11px;color:#6f6e6a">2 · <code>translateX(calc(100% + 4px))</code></div>
+        <div style="position:relative;display:flex;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+          <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(200% + 8px))"></div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Світла</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#8b8a86;box-sizing:border-box">Темна</div>
+          <div style="position:relative;z-index:1;flex:1;padding:6px 18px;text-align:center;font-size:12px;font-weight:700;color:#26262a;box-sizing:border-box">Системна</div>
+        </div>
+        <div style="font-size:11px;color:#6f6e6a">3 · <code>translateX(calc(200% + 8px))</code> — width stays <code>calc(33.333% − 6px)</code></div>
+      </div>
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+      <!-- The brief left this open: "Whether the theme control shows icons
+           alongside the three labels." DECISION: NO ICONS. The app uses no
+           icon+label pattern in any control today, and the width pressure
+           icons would relieve does not exist at desktop — the Ukrainian
+           control measures 299px against 932px of card interior at 1280px.
+           Where width IS the problem (≤sm, below) icons would not save it
+           either: the stacked variant has 148px per row, which fits every
+           label with room to spare. Adding a pattern to solve a problem that
+           two measurements say is not there is the wrong trade. -->
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6"><strong>Open question closed: no icons.</strong> The app uses no icon+label control anywhere, and the width pressure icons would relieve does not exist — 299px of control against 932px of card interior at 1280px, and the ≤sm stacked variant has 148px per row.</div>
+    </div>
+  </div>
+
+  <!-- ── ≤sm STACKED VARIANT — and why it has to exist ─────────────────── -->
+  <div style="display:flex;align-items:center;gap:12px;margin:32px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Surface 1 · the 360px problem the brief did not see</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 380px;max-width:520px;background:#f0e6cb;border-radius:24px;padding:20px 22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6b5527;margin-bottom:8px">Measured — the horizontal control cannot fit at 360px</div>
+      <div style="font-size:12.5px;color:#26262a;line-height:1.65">
+        At a 360px viewport the shell is: 136px rail + main <code>px-3</code> (12px each) + card <code>p-[22px]</code> → <strong>156px of card interior</strong>.<br><br>
+        Horizontal control widths, measured at 0.6em advance:<br>
+        · Currency <code>₴ UAH / $ USD</code> — <strong>158px</strong> (already 2px over, today)<br>
+        · Language EN <code>Ukrainian / English</code> — <strong>216px</strong><br>
+        · Language UK <code>Українська / English</code> — <strong>230px</strong><br>
+        · Theme EN <code>Light / Dark / System</code> — <strong>256px</strong><br>
+        · Theme UK <code>Світла / Темна / Системна</code> — <strong>299px</strong><br><br>
+        The brief's §6 says the control "drops to its own line, right-aligned" at 360px — but its own line is still only 156px wide, so dropping does not save it. <strong>Below <code>sm</code> the segmented controls stack vertically</strong>: same track, same thumb, same motion, axis flipped. Track radius 20 (a 999 track three rows tall reads as a lozenge), segments stay radius 999, thumb <code>height:calc(33.333% − 6px)</code> and <code>translateY</code> in place of <code>translateX</code>.
+      </div>
+    </div>
+
+    <!-- the stacked control, drawn at its real ≤sm width (148px segments) -->
+    <div style="flex:0 0 auto;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:12px">≤ sm · stacked · Ukrainian</div>
+      <div style="width:156px">
+        <div style="font-size:13px;font-weight:600">Тема</div>
+        <div style="font-size:12px;color:#8b8a86;margin:3px 0 8px;line-height:1.5">Системна стежить за налаштуванням пристрою.</div>
+        <!-- D7: thumb `transform: translateY(...)`, same 300ms soft curve.
+             Reduced motion: no transition, the thumb jumps. -->
+        <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;flex-direction:column;width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:20px;padding:4px;gap:4px;box-sizing:border-box">
+          <div aria-hidden style="position:absolute;left:4px;right:4px;top:4px;height:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateY(calc(200% + 8px))"></div>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Світла</button>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Системна</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 auto;background:#1c1c1f;border-radius:24px;padding:22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:12px">≤ sm · stacked · English · dark</div>
+      <div style="width:156px">
+        <div style="font-size:13px;font-weight:600;color:#eceae7">Theme</div>
+        <div style="font-size:12px;color:#9b9a96;margin:3px 0 8px;line-height:1.5">System follows your device setting.</div>
+        <div role="group" aria-label="Colour theme" style="position:relative;display:flex;flex-direction:column;width:100%;background:#232327;border:1px solid #33333a;border-radius:20px;padding:4px;gap:4px;box-sizing:border-box">
+          <div aria-hidden style="position:absolute;left:4px;right:4px;top:4px;height:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateY(calc(200% + 8px))"></div>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Light</button>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Dark</button>
+          <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">System</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SURFACE 2 — LANGUAGE CONTROL (Українська / English)
+       /settings → Appearance, directly under Theme. Two segments — i.e.
+       anatomically IDENTICAL to the existing CurrencyControl, thumb
+       `calc(50% - 6px)` and `translateX(calc(100% + 4px))`.
+
+       `English` is written in English in both languages, and `Українська` in
+       Ukrainian in both. A language switch that names languages in a
+       language you cannot read is the one place where translating the label
+       defeats its purpose. (Segment 1 is `Українська` in UK and `Ukrainian`
+       in EN; segment 2 is `English` in both.)
+
+       D7 MOTION
+       | Trigger           | Property          | Duration / easing | Reduced motion |
+       | Segment press     | thumb `transform` | 300ms soft        | jump           |
+       | Language applied  | text swap         | NONE — instant    | none           |
+       NO CROSS-FADE ON TEXT. Fading a screen of copy draws attention to the
+       mechanism rather than the result, and re-flowed text mid-fade reads as
+       a rendering fault. The theme fades; the language does not.
+
+       STATES: default / hover / focus exactly as Surface 1. disabled n/a.
+       loading n/a — the dictionary ships in the bundle: no fetch, no
+       suspense. error / empty / stale / demo-disabled n/a.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Surface 2 · language control</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+    <div style="flex:1 1 320px;max-width:420px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Light · in Ukrainian · 230px</div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:6px">default — Ukrainian selected</span>
+      <div role="group" aria-label="Мова інтерфейсу" style="position:relative;display:flex;width:230px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+        <button aria-pressed="true" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Українська</button>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">English</button>
+      </div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin:16px 0 6px">focus-visible + hover</span>
+      <div role="group" aria-label="Мова інтерфейсу" style="position:relative;display:flex;width:230px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a;outline:2px solid #5c7355;outline-offset:2px">Українська</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86;opacity:.85">English</button>
+      </div>
+
+      <div style="height:1px;background:#e8e7e4;margin:18px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">The helper says the formats change — Contract 0 makes that a bigger claim than it looks, and the user is entitled to know <em>before</em> pressing.</div>
+    </div>
+
+    <div style="flex:1 1 320px;max-width:420px;background:#1c1c1f;border-radius:24px;padding:22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Dark · in English · 216px</div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f;margin-bottom:6px">default — English selected</span>
+      <div role="group" aria-label="Interface language" style="position:relative;display:flex;width:216px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+        <button aria-pressed="false" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Ukrainian</button>
+        <button aria-pressed="true" style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">English</button>
+      </div>
+
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f;margin:16px 0 6px">focus-visible — 2px pos ring</span>
+      <div role="group" aria-label="Interface language" style="position:relative;display:flex;width:216px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Ukrainian</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7;outline:2px solid #8fb184;outline-offset:2px">English</button>
+      </div>
+
+      <div style="height:1px;background:#2a2a2e;margin:18px 0"></div>
+      <div style="font-size:11.5px;color:#a8a7a3;line-height:1.6">Segment 1 is the only label that translates. Segment 2 stays <code>English</code> in both.</div>
+    </div>
+
+    <!-- ── the eight measured growth rows, drawn in both languages ────────
+         Surface 2 §6 acceptance: "Every one of the eight rows rendered in
+         both languages at 1280px AND 360px, with no clipping, no ellipsis in
+         navigation, and no horizontal scroll." The nav row's resolution is
+         Surface 6 at the bottom of this file. -->
+    <div style="flex:1 1 560px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">The eight measured rows — drawn, not described</div>
+      <div style="display:grid;grid-template-columns:auto 1fr 1fr auto;gap:12px 16px;align-items:center;font-size:12.5px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Surface</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">English</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Українська</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;text-align:right">Growth</div>
+
+        <div style="color:#6f6e6a">Sidebar nav</div>
+        <div><span style="display:inline-block;padding:8px 14px;border-radius:999px;background:#26262a;color:#cfcecb;font-size:13.5px">Daily quotes</span></div>
+        <div><span style="display:inline-block;padding:8px 14px;border-radius:999px;background:#26262a;color:#cfcecb;font-size:13.5px">Щоденні котирування</span></div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+58 %</div>
+
+        <div style="color:#6f6e6a">Sidebar nav</div>
+        <div><span style="display:inline-block;padding:8px 14px;border-radius:999px;background:#26262a;color:#cfcecb;font-size:13.5px">Seasonality</span></div>
+        <div><span style="display:inline-block;padding:8px 14px;border-radius:999px;background:#26262a;color:#cfcecb;font-size:13.5px">Сезонність</span></div>
+        <div style="text-align:right;color:#5c7355;font-weight:700">−9 %</div>
+
+        <div style="color:#6f6e6a">KPI title</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Total return (net)</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальна дохідність (чиста)</div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+58 %</div>
+
+        <div style="color:#6f6e6a">Button</div>
+        <div><button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Save snapshot</button></div>
+        <div><button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Зберегти зріз</button></div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+7 %</div>
+
+        <div style="color:#6f6e6a">Button</div>
+        <div><button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Record transaction</button></div>
+        <div><button style="background:#26262a;color:#fff;border:none;border-radius:999px;padding:10px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Записати транзакцію</button></div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+5 %</div>
+
+        <div style="color:#6f6e6a">Progress pill</div>
+        <div><span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">4 of 4 filled</span></div>
+        <div><span style="font-size:12px;padding:4px 12px;border-radius:999px;background:#e3eadf;color:#4c5a48;font-weight:600">Заповнено 4 з 4</span></div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+14 %</div>
+
+        <div style="color:#6f6e6a">Danger button</div>
+        <div><button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Reset demo data…</button></div>
+        <div><button style="border:1.5px solid #a8695a;color:#a8695a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Скинути демодані…</button></div>
+        <div style="text-align:right;color:#5c7355;font-weight:700">−6 %</div>
+
+        <div style="color:#6f6e6a">Empty state</div>
+        <div style="color:#8b8a86">No transactions yet.</div>
+        <div style="color:#8b8a86">Транзакцій ще немає.</div>
+        <div style="text-align:right;color:#8f6b33;font-weight:700">+5 %</div>
+      </div>
+      <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">
+        Both danger buttons keep the <strong>U+2026</strong> ellipsis and its meaning — a button that opens a dialog rather than acting. Buttons are imperative infinitives (<code>Зберегти зріз</code>, <code>Записати транзакцію</code>); the app addresses nobody and describes state instead (<code>Не вдалося зберегти зріз.</code>, never <code>Ви не змогли…</code>); no exclamation marks anywhere.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       THE APPEARANCE CARD, COMPLETE — × 4 (light+UK · light+EN · dark+UK ·
+       dark+EN). This is the heart of the file: the two new rows plus the two
+       that already exist, in the pinned order
+         Theme → Language → Currency → ₴/$ rate.
+       The rate row carries the A5 "Fetch rate" button and the NBU result line
+       beneath it (src/screens/settings/NbuRateFetch.tsx) — it PROPOSES:
+       pressing Fetch never changes the stored rate, it shows what NBU
+       published and offers to apply it.
+
+       Each of the four cards draws a DIFFERENT state of that rate row, so all
+       four states appear once: fetched+offer (UK), fetched+offer with the EN
+       date form, failed fetch (UK), demo-disabled + in-flight (EN).
+
+       COPY PROVENANCE — the brief pins the theme and language rows verbatim
+       (titles, helpers, segments, aria-labels) and pins two of the rate-row
+       strings (`Демодані — запити не залишають застосунок.` and
+       `Не вдалося отримати курс — збережений 44,83 лишається чинним.`,
+       `Отримання…`). Everything else Ukrainian here is DRAFTED FROM THE
+       SURFACE 5 GLOSSARY AND VOICE and marked ✎ — A10 owns the final table.
+
+       CONTRACT 0 IS VISIBLE IN EVERY CARD: the stored rate reads `44,83` in
+       Ukrainian and `44.83` in English, the fetched rate `44,866` / `44.866`,
+       and the NBU date `12.08.2026` / `12 Aug 2026`. The VALUE never moves —
+       44.83 is 44.83 in both. The input parser already accepts comma or dot
+       (core/schemas.quoteInputSchema), so no new parsing contract is needed.
+
+       D7 — row-level motion is unchanged from P2/A5: input border-color
+       150ms; the NBU result line fade+slide-from-top-1 200ms; the headline
+       KPIs re-tween (~300ms useTweenedNumber) when a valid rate commits.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">The Appearance card · 4 combinations</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
+
+    <!-- ╔═ 1 · LIGHT + UKRAINIAN (the default state after this phase) ═╗ -->
+    <div style="flex:1 1 520px;max-width:620px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">light + Українська — the default after Phase 5</span>
+      <div style="background:#f6f5f3;border-radius:28px;padding:16px">
+        <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Оформлення<span style="color:#b3b2ae"> ✎</span></div>
+
+          <!-- ROW 1 · THEME — first row of the card, above Currency -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Тема</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Системна стежить за налаштуванням пристрою.</div>
+            </div>
+            <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;margin-left:auto;width:299px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(200% + 8px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Світла</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Системна</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <!-- ROW 2 · LANGUAGE -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Мова</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Змінює текст, формат чисел і дат.</div>
+            </div>
+            <div role="group" aria-label="Мова інтерфейсу" style="position:relative;display:flex;margin-left:auto;width:230px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Українська</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">English</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <!-- ROW 3 · CURRENCY — unchanged from P2, copy drafted ✎ -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Валюта<span style="color:#b3b2ae"> ✎</span></div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Дублює перемикач у бічній панелі — лише заголовні показники.</div>
+            </div>
+            <div style="position:relative;display:flex;margin-left:auto;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">₴ UAH</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">$ USD</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <!-- ROW 4 · ₴/$ RATE + FETCH — state: fetched, differs from stored,
+               so the "apply" affordance shows. `44,866` and `12.08.2026` are
+               Contract 0's Ukrainian forms of the SAME values English writes
+               as `44.866` and `12 Aug 2026`. -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Курс ₴/$<span style="color:#b3b2ae"> ✎</span></div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Використовується для показу заголовних сум у $. Таблиці завжди лишаються в ₴.</div>
+            </div>
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <input value="44,83" inputmode="decimal" aria-label="Курс ₴/$" style="width:110px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <button title="Отримати офіційний курс Національного банку України" style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Отримати курс<span style="color:#b3b2ae"> ✎</span></button>
+                <div style="display:flex;align-items:center;gap:8px;font-size:11px">
+                  <span style="color:#4c5a48">НБУ 44,866 на 12.08.2026</span>
+                  <button style="background:none;border:none;padding:0;cursor:pointer;color:#5c7355;text-decoration:underline;text-underline-offset:2px;font-size:11px">Застосувати<span style="color:#b3b2ae"> ✎</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#6f6e6a;margin-top:8px;line-height:1.6">✎ = drafted here from the Surface 5 glossary; A10 owns the final string table. Everything unmarked is brief-verbatim.</div>
+    </div>
+
+    <!-- ╔═ 2 · LIGHT + ENGLISH ═╗ -->
+    <div style="flex:1 1 520px;max-width:620px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">light + English — note the date form on the NBU line</span>
+      <div style="background:#f6f5f3;border-radius:28px;padding:16px">
+        <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Appearance</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Theme</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">System follows your device setting.</div>
+            </div>
+            <div role="group" aria-label="Colour theme" style="position:relative;display:flex;margin-left:auto;width:256px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Light</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Dark</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">System</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Language</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Changes text, number and date formats.</div>
+            </div>
+            <div role="group" aria-label="Interface language" style="position:relative;display:flex;margin-left:auto;width:216px;max-width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(calc(100% + 4px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Ukrainian</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">English</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">Currency</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Mirrors the sidebar toggle — headline figures only.</div>
+            </div>
+            <div style="position:relative;display:flex;margin-left:auto;background:#eceae7;border:1px solid #dedcd8;border-radius:999px;padding:4px;gap:4px">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">₴ UAH</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">$ USD</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <!-- stale variant of the NBU line: TanStack keeps the previous
+               success on an errored query, so the old number is still here —
+               rendering it without the label would present the result of a
+               failed fetch as the current rate. -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600">₴/$ rate</div>
+              <div style="font-size:12px;color:#8b8a86;margin-top:3px;line-height:1.5">Used for the $ view of headline figures. Tables always stay in ₴.</div>
+            </div>
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <input value="44.83" inputmode="decimal" aria-label="₴/$ rate" style="width:110px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <button title="Fetch the official National Bank of Ukraine rate" style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Fetch rate</button>
+                <div style="display:flex;align-items:center;gap:8px;font-size:11px">
+                  <span style="color:#8b8a86">NBU 44.866 for 12 Aug 2026 · last known, not refreshed</span>
+                  <button style="background:none;border:none;padding:0;cursor:pointer;color:#5c7355;text-decoration:underline;text-underline-offset:2px;font-size:11px">Use it</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#6f6e6a;margin-top:8px;line-height:1.6">Contract 0 reaches this line: <code>12.08.2026</code> in Ukrainian, <code>12 Aug 2026</code> in English — same day, two forms. The stale suffix keeps <code>muted</code>, never <code>pos-tint-text</code>.</div>
+    </div>
+
+    <!-- ╔═ 3 · DARK + UKRAINIAN ═╗ -->
+    <div style="flex:1 1 520px;max-width:620px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">dark + Українська — failed fetch</span>
+      <div style="background:#141416;border-radius:28px;padding:16px">
+        <!-- NO SHADOW. The card reads as raised on `page` by the surface step
+             alone (1.08:1) — the light theme's 0 1px 3px rgba(38,38,42,.06)
+             is invisible here, and deepening it produces a dark halo. -->
+        <div style="background:#1c1c1f;border-radius:24px;padding:22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Оформлення<span style="color:#6e6d6a"> ✎</span></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Тема</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Системна стежить за налаштуванням пристрою.</div>
+            </div>
+            <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;margin-left:auto;width:299px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Світла</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">Темна</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Системна</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Мова</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Змінює текст, формат чисел і дат.</div>
+            </div>
+            <div role="group" aria-label="Мова інтерфейсу" style="position:relative;display:flex;margin-left:auto;width:230px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">Українська</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">English</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Валюта<span style="color:#6e6d6a"> ✎</span></div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Дублює перемикач у бічній панелі — лише заголовні показники.</div>
+            </div>
+            <div style="position:relative;display:flex;margin-left:auto;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(0)"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">₴ UAH</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">$ USD</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <!-- ERROR state: no rate available at all. `neg` #d9907e measures
+               6.67:1 on card. The copy states what happened AND what is still
+               true — it never blames, and it never leaves the user guessing
+               which rate is in force. Brief-verbatim. -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Курс ₴/$<span style="color:#6e6d6a"> ✎</span></div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Використовується для показу заголовних сум у $. Таблиці завжди лишаються в ₴.</div>
+            </div>
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <input value="44,83" inputmode="decimal" aria-label="Курс ₴/$" style="width:110px;height:36px;border-radius:10px;border:1px solid #2a2a2e;background:#141416;padding:0 12px;font-size:13px;color:#eceae7;text-align:right;box-sizing:border-box">
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <button title="Отримати офіційний курс Національного банку України" style="border:1.5px solid #eceae7;color:#eceae7;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Отримати курс<span style="color:#6e6d6a"> ✎</span></button>
+                <span style="color:#d9907e;font-size:11px;text-align:right">Не вдалося отримати курс — збережений 44,83 лишається чинним.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#6f6e6a;margin-top:8px;line-height:1.6">The outline button inverts by token, not by branch: <code>ink</code> border and text, which is #26262a in light and #eceae7 in dark. Input surface is <code>page</code> inside a <code>card</code> — the same one-step-down relationship the light theme uses (#f6f5f3 in a #fff card).</div>
+    </div>
+
+    <!-- ╔═ 4 · DARK + ENGLISH ═╗ -->
+    <div style="flex:1 1 520px;max-width:620px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">dark + English — demo-disabled fetch, and the in-flight label</span>
+      <div style="background:#141416;border-radius:28px;padding:16px">
+        <div style="background:#1c1c1f;border-radius:24px;padding:22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Appearance</div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Theme</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">System follows your device setting.</div>
+            </div>
+            <div role="group" aria-label="Colour theme" style="position:relative;display:flex;margin-left:auto;width:256px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(33.333% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(200% + 8px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Light</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Dark</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">System</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Language</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Changes text, number and date formats.</div>
+            </div>
+            <div role="group" aria-label="Interface language" style="position:relative;display:flex;margin-left:auto;width:216px;max-width:100%;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px;box-sizing:border-box">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">Ukrainian</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">English</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">Currency</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Mirrors the sidebar toggle — headline figures only.</div>
+            </div>
+            <div style="position:relative;display:flex;margin-left:auto;background:#232327;border:1px solid #33333a;border-radius:999px;padding:4px;gap:4px">
+              <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#1c1c1f;border:1px solid #33333a;box-sizing:border-box;transform:translateX(calc(100% + 4px))"></div>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#9b9a96">₴ UAH</button>
+              <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 18px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#eceae7">$ USD</button>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <!-- DEMO-DISABLED (G4/D16): the fetch is disabled in the demo
+               dataset and the line names the reason. Disabled = `faint` text
+               on an UNCHANGED surface — never a lowered opacity over the
+               whole control (Surface 3 §3). -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="flex:1 1 260px;min-width:200px">
+              <div style="font-size:13px;font-weight:600;color:#eceae7">₴/$ rate</div>
+              <div style="font-size:12px;color:#9b9a96;margin-top:3px;line-height:1.5">Used for the $ view of headline figures. Tables always stay in ₴.</div>
+            </div>
+            <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <input value="44.83" inputmode="decimal" aria-label="₴/$ rate" style="width:110px;height:36px;border-radius:10px;border:1px solid #2a2a2e;background:#141416;padding:0 12px;font-size:13px;color:#eceae7;text-align:right;box-sizing:border-box">
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <button disabled style="border:1.5px solid #33333a;color:#6e6d6a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px">Fetch rate</button>
+                <span style="color:#9b9a96;font-size:11px">Demo data — no requests leave the app.</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+
+          <!-- loading: present continuous, and the button keeps its own words
+               as its accessible name (no aria-label — it would REPLACE the
+               visible text and hide "Fetching…" from screen readers). -->
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#1c1c1f">loading — in flight</span>
+            <button disabled style="border:1.5px solid #33333a;color:#6e6d6a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px">Fetching…</button>
+            <button disabled style="border:1.5px solid #33333a;color:#6e6d6a;background:transparent;border-radius:999px;padding:9px 20px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px">Отримання…</button>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:#6f6e6a;margin-top:8px;line-height:1.6">Loading copy is present continuous in both languages — <code>Fetching…</code> / <code>Отримання…</code>, U+2026 in both.</div>
+    </div>
+  </div>
+
+  <!-- ── the same card at 360px, Ukrainian, with the stacked controls ──── -->
+  <div style="display:flex;align-items:center;gap:12px;margin:32px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">The Appearance card at 360px · Ukrainian · the worst case</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">
+    <!-- Drawn at the real shell proportions: 136px rail + 224px main, main
+         px-3, card p-[22px] → 156px of interior. No horizontal scroll. -->
+    <div style="flex:0 0 auto;width:360px;display:flex;background:#f6f5f3;border-radius:24px;overflow:hidden;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="width:136px;flex:none;background:#26262a;padding:20px 10px;box-sizing:border-box">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px">Аналітика</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Огляд</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Сезонність</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Налаштування</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700;line-height:1.2">Налаштування</div>
+      </div>
+      <div style="flex:1;min-width:0;padding:20px 12px;box-sizing:border-box">
+        <div style="background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06);box-sizing:border-box">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:14px">Оформлення</div>
+
+          <div style="font-size:13px;font-weight:600">Тема</div>
+          <div style="font-size:12px;color:#8b8a86;margin:3px 0 8px;line-height:1.5">Системна стежить за налаштуванням пристрою.</div>
+          <div role="group" aria-label="Тема оформлення" style="position:relative;display:flex;flex-direction:column;width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:20px;padding:4px;gap:4px;box-sizing:border-box">
+            <div aria-hidden style="position:absolute;left:4px;right:4px;top:4px;height:calc(33.333% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateY(calc(200% + 8px))"></div>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Світла</button>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">Темна</button>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Системна</button>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <div style="font-size:13px;font-weight:600">Мова</div>
+          <div style="font-size:12px;color:#8b8a86;margin:3px 0 8px;line-height:1.5">Змінює текст, формат чисел і дат.</div>
+          <div role="group" aria-label="Мова інтерфейсу" style="position:relative;display:flex;flex-direction:column;width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:20px;padding:4px;gap:4px;box-sizing:border-box">
+            <div aria-hidden style="position:absolute;left:4px;right:4px;top:4px;height:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateY(0)"></div>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">Українська</button>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">English</button>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <div style="font-size:13px;font-weight:600">Валюта</div>
+          <div style="font-size:12px;color:#8b8a86;margin:3px 0 8px;line-height:1.5">Дублює перемикач у бічній панелі — лише заголовні показники.</div>
+          <div style="position:relative;display:flex;flex-direction:column;width:100%;background:#eceae7;border:1px solid #dedcd8;border-radius:20px;padding:4px;gap:4px;box-sizing:border-box">
+            <div aria-hidden style="position:absolute;left:4px;right:4px;top:4px;height:calc(50% - 6px);border-radius:999px;background:#fff;box-shadow:0 1px 3px rgba(38,38,42,.06);transform:translateY(0)"></div>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#26262a">₴ UAH</button>
+            <button style="position:relative;z-index:1;border:none;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#8b8a86">$ USD</button>
+          </div>
+
+          <div style="height:1px;background:#e8e7e4;margin:16px 0"></div>
+
+          <div style="font-size:13px;font-weight:600">Курс ₴/$</div>
+          <div style="font-size:12px;color:#8b8a86;margin:3px 0 8px;line-height:1.5">Використовується для показу заголовних сум у $. Таблиці завжди лишаються в ₴.</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+            <input value="44,83" inputmode="decimal" aria-label="Курс ₴/$" style="width:110px;height:36px;border-radius:10px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 12px;font-size:13px;color:#26262a;text-align:right;box-sizing:border-box">
+            <button style="border:1.5px solid #26262a;color:#26262a;background:transparent;border-radius:999px;padding:9px 16px;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Отримати курс</button>
+            <span style="color:#4c5a48;font-size:11px;text-align:right">НБУ 44,866 на 12.08.2026</span>
+            <button style="background:none;border:none;padding:0;cursor:pointer;color:#5c7355;text-decoration:underline;text-underline-offset:2px;font-size:11px">Застосувати</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 320px;max-width:520px;background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Why every control stacks here</div>
+      <div style="font-size:12.5px;line-height:1.65;color:#26262a">
+        156px of card interior against a 299px control. The label block's <code>min-width</code> floor is already capped with <code>min(200px,100%)</code> so the card never overflows; the control follows the same principle by changing axis rather than by shrinking type or truncating a label.<br><br>
+        The <code>ml-auto</code> rule survives: on a wrapped row the control still hugs the right edge — a left-aligned control on a wrapped row reads as a mistake (a real review finding on the ₴/$ rate row). When the control is full-width, right-hugging is satisfied by definition.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SURFACE 3 — THE DARK PALETTE, AS SWATCHES
+       All 57 tokens of the src/index.css @theme block: 9 surfaces/text +
+       6 sidebar + 11 semantic + 12 asset hues + 19 chart aliases = 57.
+       NO NEW NAMES. Every ratio printed on a chip was recomputed from the
+       hexes with WCAG relative luminance and matches the brief to 0.01.
+
+       THREE STRUCTURAL RULES, MEASURED:
+       · `card` #1c1c1f is LIGHTER than `page` #141416 (1.08:1). Inverting
+         that relationship is the commonest dark-theme mistake and it
+         silently breaks every elevation cue in the app.
+       · `sidebar` #0f0f11 is DARKER than `page` (1.04:1) — in light the
+         sidebar is already the dark plane against a light page; in dark it
+         must go darker still or it stops reading as a distinct plane.
+       · Elevation comes from the surface step, never from shadow. The light
+         theme's `0 1px 3px rgba(38,38,42,.06)` is REMOVED in dark, not
+         deepened — a deepened shadow on a dark plane is just a dark halo.
+
+       STATE MATRIX (per token set, not per control):
+       | hover   | surfaces lighten by one step (card → panel), never by an
+       |         | opacity over an unknown backdrop
+       | focus   | 2px `pos` ring, 2px offset — 7.12:1 on card, 7.70:1 on page
+       | disabled| `faint` text on an unchanged surface; never a lowered
+       |         | opacity on the whole control
+       | loading | the existing skeleton/spinner idiom, recoloured to `panel`
+       | error   | `neg` / `neg-tint` as tabled
+       | empty   | `muted` text on `card`
+       | stale   | `faint` text plus the existing "as of" chip; no new colour
+       | demo-dis| unchanged behaviour, `faint` text
+
+       D7: only the theme cross-fade of Surface 1 applies. No token animates
+       on its own.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Surface 3 · the dark palette — all 57 tokens</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="background:#141416;border-radius:28px;padding:24px">
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:4px">Surfaces and text · 9</div>
+    <div style="font-size:11.5px;color:#a8a7a3;margin-bottom:14px;line-height:1.6">Each chip: swatch · token · dark hex · the light hex it replaces · measured ratio.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#141416;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">page</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#141416 · light #f6f5f3</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">base plane</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#1c1c1f;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">card</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#1c1c1f · light #ffffff</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">1.08 lighter than page ✓</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#eceae7;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ink</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#eceae7 · light #26262a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">15.32 page · 14.16 card</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#9b9a96;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">muted</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#9b9a96 · light #8b8a86</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">6.04 card · 6.53 page</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#6e6d6a;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">faint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#6e6d6a · light #b3b2ae</div><div style="font-size:10px;color:#d1a55f;margin-top:2px">3.29 card — decorative only</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#2a2a2e;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">hairline</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#2a2a2e · light #e8e7e4</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">1.19 on card · dividers, grid</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#232327;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">panel</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#232327 · light #eceae7</div><div style="font-size:10px;color:#d1a55f;margin-top:2px">RAISED in dark — see FINDING 2</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#33333a;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">panel-border</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#33333a · light #dedcd8</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">1.25 on panel · 1.36 on card</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#a8a7a3;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">label</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#a8a7a3 · light #6f6e6a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.06 on card</div></div>
+    </div>
+
+    <div style="height:1px;background:#2a2a2e;margin:20px 0"></div>
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:4px">Sidebar · 6</div>
+    <div style="font-size:11.5px;color:#a8a7a3;margin-bottom:14px;line-height:1.6">In light the sidebar is already dark against a light page. In dark it goes <strong>darker than the page</strong>, not lighter.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#0f0f11;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#0f0f11 · light #26262a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">1.04 darker than page ✓</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#eceae7;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#eceae7 · light #e9e8e6</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">15.95</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#8b8a90;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar-muted</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#8b8a90 · light #96959b</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">5.59 · 4.96 on -inset</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#1c1c20;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar-inset</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#1c1c20 · light #333338</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">the toggle track + capital card</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#26262b;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar-hover</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#26262b · light #3d3d42</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">nav 8.54 on it</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#c4c3c0;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">sidebar-nav</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#c4c3c0 · light #cfcecb</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">10.86</div></div>
+    </div>
+
+    <div style="height:1px;background:#2a2a2e;margin:20px 0"></div>
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Semantic · 11</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#8fb184;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">pos</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#8fb184 · light #5c7355</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.12 card · 7.70 page</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#22301f;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">pos-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#22301f · light #e3eadf</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">block framing</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#22301f;border:1px solid #33333a;display:grid;place-items:center;color:#a9c79f;font-size:11px;font-weight:700">Aa</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">pos-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#a9c79f · light #4c5a48</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.52 on its tint</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#0f0f11;border:1px solid #33333a;display:grid;place-items:center;color:#b9cdb4;font-size:11px;font-weight:700">Aa</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">pos-on-dark</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#b9cdb4 · UNCHANGED</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">11.36 on sidebar</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#3a5233;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">pos-border</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#3a5233 · light #c9d4c4</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">valid/saved input edge</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#d9907e;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">neg</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#d9907e · light #a8695a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">6.67 on card</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#3a211b;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">neg-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#3a211b · light #f0cec7</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">irreversible-harm framing only</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#3a211b;border:1px solid #33333a;display:grid;place-items:center;color:#e5a996;font-size:11px;font-weight:700">Aa</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">neg-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#e5a996 · light #693f35</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.39 on its tint</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#d1a55f;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">warn</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#d1a55f · light #8f6b33</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.50 on card</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#332714;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">warn-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#332714 · light #f0e6cb</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">DEMO badge, Σ≠100, stale chips</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#332714;border:1px solid #33333a;display:grid;place-items:center;color:#dcbb80;font-size:11px;font-weight:700">Aa</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">warn-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#dcbb80 · light #6b5527</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.95 on its tint</div></div>
+    </div>
+
+    <div style="height:1px;background:#2a2a2e;margin:20px 0"></div>
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:4px">Asset hues · 12</div>
+    <div style="font-size:11.5px;color:#a8a7a3;margin-bottom:14px;line-height:1.6">These four are <strong>never text</strong> — verified across the codebase, they appear only as <code>bg-*</code> (avatars, chart fills, legend swatches); text always uses the <code>-tint-text</code> variants. The correct bar for them is WCAG 1.4.11 (3:1 for non-text UI), not 4.5:1 — and the dark values clear 4.5 anyway, so the sheet meets both readings.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#9dbb93;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">reit</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#9dbb93 · light #8ba283</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">8.07 card · light was 2.77</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#22301f;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">reit-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#22301f · light #e3eadf</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">avatar ground</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#22301f;border:1px solid #33333a;display:grid;place-items:center;color:#a9c79f;font-size:11px;font-weight:700">RE</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">reit-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#a9c79f · light #4c5a48</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">7.52 on its tint</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#d8b394;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">energy</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#d8b394 · light #c2a189</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">8.74 card · light was 2.40</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#33261d;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">energy-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#33261d · light #efe4e0</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">avatar ground</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#33261d;border:1px solid #33333a;display:grid;place-items:center;color:#e0bfa4;font-size:11px;font-weight:700">EN</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">energy-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#e0bfa4 · light #6d5a53</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">8.47 on its tint</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#a8b6c2;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp8976</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#a8b6c2 · light #98a3ad</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">8.20 card · light was 2.57</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#20272d;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp8976-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#20272d · light #e4e8eb</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">avatar ground</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#20272d;border:1px solid #33333a;display:grid;place-items:center;color:#b3c1cd;font-size:11px;font-weight:700">GB</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp8976-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#b3c1cd · light #525c64</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">8.22 on its tint</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#a3a19b;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp6475</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#a3a19b · light #5f5e5a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">6.58 card · light was 6.49</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#26262a;border:1px solid #33333a"></div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp6475-tint</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#26262a · light #e8e7e4</div><div style="font-size:10px;color:#6e6d6a;margin-top:2px">avatar ground</div></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:14px;padding:10px;width:172px;box-sizing:border-box"><div style="height:32px;border-radius:8px;background:#26262a;border:1px solid #33333a;display:grid;place-items:center;color:#adaba5;font-size:11px;font-weight:700">GB</div><div style="font-size:11px;font-weight:700;color:#eceae7;margin-top:8px">ovdp6475-tint-text</div><div style="font-size:10.5px;color:#9b9a96;margin-top:2px">#adaba5 · light #5f5e5a</div><div style="font-size:10px;color:#a9c79f;margin-top:2px">6.56 on its tint</div></div>
+    </div>
+
+    <!-- COLOUR ALONE NEVER DISTINGUISHES THE FOUR ASSETS, IN EITHER THEME.
+         Measured relative luminance in dark: reit .4482 · energy .4898 ·
+         ovdp8976 .4568 · ovdp6475 .3564 → pairwise separation 1.02–1.33.
+         They differ in hue, barely in lightness. Every chart, legend and
+         donut therefore carries a non-colour distinguisher — label, value or
+         ordering — and this file introduces no surface where colour is the
+         only key. The greyscale strip below is the proof. -->
+    <div style="margin-top:18px;background:#1c1c1f;border:1px solid #33333a;border-radius:20px;padding:16px 18px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:10px">Greyscale check — why colour can never be the only key</div>
+      <!-- THE ONLY FOUR NON-TOKEN HEXES IN THIS FILE, and they are not UI:
+           #b3b3b3 / #bababa / #b4b4b4 / #a1a1a1 are the COMPUTED sRGB greyscale
+           equivalents of the four asset hues (their measured relative
+           luminance rendered as a neutral). They exist to display a
+           measurement, exactly as the ratio numbers on the chips do, and
+           they never appear in the app. -->
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:6px;background:#9dbb93"></span><span style="width:26px;height:26px;border-radius:6px;background:#b3b3b3"></span><span style="font-size:11px;color:#a8a7a3">reit · L .4482</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:6px;background:#d8b394"></span><span style="width:26px;height:26px;border-radius:6px;background:#bababa"></span><span style="font-size:11px;color:#a8a7a3">energy · L .4898</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:6px;background:#a8b6c2"></span><span style="width:26px;height:26px;border-radius:6px;background:#b4b4b4"></span><span style="font-size:11px;color:#a8a7a3">…8976 · L .4568</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:26px;height:26px;border-radius:6px;background:#a3a19b"></span><span style="width:26px;height:26px;border-radius:6px;background:#a1a1a1"></span><span style="font-size:11px;color:#a8a7a3">…6475 · L .3564</span></div>
+      </div>
+      <div style="font-size:11.5px;color:#a8a7a3;margin-top:10px;line-height:1.6">Pairwise luminance separation 1.02–1.33 in dark (1.07–2.71 in light). The right-hand square of each pair is that hue's greyscale equivalent — three of the four are indistinguishable. Labels and values carry the meaning; the hue only groups it.</div>
+    </div>
+
+    <div style="height:1px;background:#2a2a2e;margin:20px 0"></div>
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:4px">Chart paint aliases · 19</div>
+    <div style="font-size:11.5px;color:#a8a7a3;margin-bottom:14px;line-height:1.6"><code>core/colors.ts</code> emits <code>var(--color-chart-*)</code> for SVG fill/stroke. Each alias points at a palette token above and needs no dark value of its own — redefining the target redefines the alias. They exist so the dark theme has a chart-specific seam <em>if</em> it ever needs one; this phase does not use it.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#9dbb93;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-reit <span style="color:#6e6d6a">→ reit</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#22301f;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-reit-tint <span style="color:#6e6d6a">→ reit-tint</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#a9c79f;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-reit-tint-text</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#d8b394;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-energy <span style="color:#6e6d6a">→ energy</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#33261d;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-energy-tint</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#e0bfa4;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-energy-tint-text</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#a8b6c2;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp8976</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#20272d;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp8976-tint</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#b3c1cd;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp8976-tint-text</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#a3a19b;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp6475</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#26262a;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp6475-tint</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#adaba5;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ovdp6475-tint-text</span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#8fb184;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-pos <span style="color:#6e6d6a">→ pos</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#22301f;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-pos-tint <span style="color:#6e6d6a">area fill</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#d9907e;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-neg <span style="color:#6e6d6a">→ neg</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#2a2a2e;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-hairline <span style="color:#6e6d6a">grid line</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#6e6d6a;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-faint <span style="color:#6e6d6a">zero line</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#9b9a96;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-muted <span style="color:#6e6d6a">axis label</span></span></div>
+      <div style="background:#1c1c1f;border:1px solid #33333a;border-radius:12px;padding:8px 10px;width:200px;box-sizing:border-box;display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:5px;background:#eceae7;flex:none"></span><span style="font-size:10.5px;color:#eceae7">chart-ink</span></div>
+    </div>
+
+    <!-- FINDING 3, drawn. Two jobs share one declaration today and only one
+         of them survives a theme flip. -->
+    <div style="margin-top:20px;background:#3a211b;border-radius:20px;padding:18px 20px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#e5a996;margin-bottom:10px">FINDING 3 · the two sites where `bg-ink` + `text-white` breaks in dark</div>
+      <div style="font-size:12.5px;color:#e5a996;line-height:1.7">
+        <strong>1 · Filled emphasis</strong> — primary Button, <code>Switch</code> checked track, <code>DatePicker</code> selected day. <code>bg-ink</code> is CORRECT in both themes (dark fill in light, light fill in dark); the bug is the paired <strong><code>text-white</code></strong>, a literal that does not invert. Fix: <code>text-page</code>. In light that is #f6f5f3 against today's #ffffff — a change of 0.4% luminance, invisible; in dark it is #141416 on #eceae7, 15.32:1.<br><br>
+        <strong>2 · Inverted planes</strong> — <code>KpiCard variant="dark"</code> (Overview "Total capital", Payouts) and the <code>Dialog</code> overlay <code>bg-ink/40</code>. These must STAY dark in both themes: their sub-line uses <code>pos-on-dark</code>, which the sheet leaves unchanged at #b9cdb4 precisely because "it was always for a dark plane". Fix: <code>bg-ink</code> → <strong><code>bg-sidebar</code></strong>. In light <code>sidebar</code> is #26262a — <em>identical</em> to <code>ink</code>, so it is a pixel-for-pixel no-op there — and in dark it becomes #0f0f11, keeping white at 19.15:1 and <code>pos-on-dark</code> at 11.36:1. Same for the overlay: <code>bg-sidebar/40</code>.<br><br>
+        Neither fix adds a token, branches a component, or touches the light theme. Both are pre-requisites for A9 — without them the Overview KPI card renders white-on-white the moment dark is switched on.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       THE SHEET PROVEN IN SITU — /overview in dark, in Ukrainian
+       (the default combination after this phase). Master reference lines
+       147–208 recoloured token-for-token; nothing else changes — no spacing,
+       no radius, no size. Every figure is a D5 demo value written in
+       Contract 0's Ukrainian form:
+         ₴149,016.36 → 149 016,36 ₴   ·   +3.08% → +3,08 %
+         ₴4,452.61  → 4 452,61 ₴      ·   −6.4%  → −6,40 %
+       Same numbers. Different writing.
+
+       SURFACE 4 — CHARTS IN DARK is drawn in the Balances card below the
+       Overview grid:
+       | Grid line          | chart-hairline #2a2a2e |
+       | Axis label         | chart-muted #9b9a96    |
+       | Tooltip surface    | panel #232327 — NOT card, so it lifts off the
+       |                    | card it covers (13.04:1 for ink on it)        |
+       | Tooltip border     | panel-border #33333a   |
+       | Tooltip text       | ink #eceae7            |
+       | Reference/zero line| chart-faint #6e6d6a (3.29:1)                  |
+       D7: chart motion is UNCHANGED (Recharts enter, 300ms soft). THE THEME
+       CROSS-FADE MUST NOT RE-TRIGGER IT — a bar chart replaying its grow on
+       every theme flip is the failure mode to avoid. The cross-fade animates
+       background-color/color/fill/stroke only, so a re-mount is the only way
+       this could happen: the theme attribute must not be part of any chart's
+       React key.
+       NOTE on the tooltip: it is HTML, not SVG, so it uses the `panel` /
+       `panel-border` / `ink` tokens directly. Only SVG props need the
+       `chart-*` aliases — there is deliberately no `chart-panel`, and none
+       is needed.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">A full screen in dark · /overview · Українська</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;background:#141416;border-radius:28px;overflow:hidden">
+
+    <!-- ── the sidebar, dark ──────────────────────────────────────────────
+         sidebar #0f0f11 is DARKER than page #141416. The decorative circle
+         keeps its role at sidebar-inset #1c1c20, opacity .7. -->
+    <aside style="width:232px;flex:none;background:#0f0f11;color:#eceae7;padding:26px 16px;display:flex;flex-direction:column;gap:3px;border-radius:0 32px 32px 0;box-sizing:border-box;position:relative;overflow:hidden">
+      <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#1c1c20;opacity:.7"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin:0 6px 22px;position:relative">
+        <div style="width:36px;height:36px;border-radius:50%;background:#eceae7;display:grid;place-items:center;color:#141416;font-family:'Space Grotesk','Manrope',sans-serif;font-size:17px;font-weight:700">₴</div>
+        <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Quirenote<br><span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90;font-weight:400">Invest tracker</span></div>
+        <!-- DEMO badge: warn-tint #332714 / warn-tint-text #dcbb80, 7.95:1 -->
+        <span title="Демодані — довідковий набір. Перемкнути в Налаштування → Дані." style="margin-left:auto;align-self:flex-start;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;background:#332714;color:#dcbb80;border-radius:999px;padding:3px 8px">DEMO</span>
+      </div>
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90;margin:0 14px 6px;position:relative">Щоденний запис</div>
+      <!-- one line at 232px: 19 chars × 8.1px = 153.9px in a 172px text box -->
+      <div style="position:relative;padding:9px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Щоденні котирування</div>
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90;margin:16px 14px 6px;position:relative">Аналітика</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;background:#eceae7;color:#141416;font-weight:700">Огляд</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Баланси</div>
+      <!-- hover state, drawn: sidebar-hover #26262b, nav text 8.54:1 on it -->
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;background:#26262b;color:#c4c3c0">Виплати</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Дохідність</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Атрибути</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Сезонність</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Портфель</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Розподіл</div>
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90;margin:16px 14px 6px;position:relative">Налаштування</div>
+      <div style="position:relative;padding:8px 14px;border-radius:999px;font-size:13.5px;color:#c4c3c0">Налаштування</div>
+      <div style="margin-top:22px;position:relative;display:flex;background:#1c1c20;border-radius:999px;padding:4px;gap:4px;margin-bottom:10px">
+        <div aria-hidden style="position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 6px);border-radius:999px;background:#eceae7"></div>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#141416">₴ UAH</button>
+        <button style="position:relative;z-index:1;flex:1;border:none;cursor:pointer;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:transparent;color:#c4c3c0">$ USD</button>
+      </div>
+      <div style="position:relative;background:#1c1c20;border-radius:20px;padding:14px 16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90;line-height:1.3">Загальний капітал</div>
+        <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:21px;color:#fff;font-weight:600">149 016 ₴</div>
+        <div style="font-size:11px;color:#b9cdb4;font-weight:600">+3,08 % · 3 324,03 $</div>
+      </div>
+      <div style="position:relative;margin-top:10px;text-align:center;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">v1.1.0</div>
+    </aside>
+
+    <main style="flex:1;min-width:0;padding:32px 36px 40px;box-sizing:border-box">
+      <h2 style="margin:0 0 4px;font-size:26px;color:#eceae7">Огляд</h2>
+      <p style="font-size:13px;color:#9b9a96;margin:0 0 22px">Портфель одним поглядом · 27.07.2026 · курс 44,83 ₴/$</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:26px">
+        <!-- the inverted KPI plane — FINDING 3 case 2: `sidebar`, not `ink`.
+             White 19.15:1, pos-on-dark 11.36:1, label 5.59:1. -->
+        <div style="background:#0f0f11;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Загальний капітал</div>
+          <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:26px;font-weight:600;color:#fff">149 016,36 ₴</div>
+          <div style="font-size:12px;color:#b9cdb4">3 324,03 $ · курс 44,83</div>
+        </div>
+        <div style="background:#1c1c1f;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96">Чистий результат</div>
+          <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:26px;font-weight:600;color:#8fb184;white-space:nowrap">+4 452,61 ₴</div>
+          <div style="font-size:12px;color:#8fb184;font-weight:600">+3,08 % з 03.02</div>
+        </div>
+        <div style="background:#1c1c1f;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96">Внесено / реінвестовано</div>
+          <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:26px;font-weight:600;color:#eceae7">143 176 ₴</div>
+          <div style="font-size:12px;color:#9b9a96">+ 1 387,38 ₴ реінвестовано</div>
+        </div>
+        <div style="background:#1c1c1f;border-radius:24px;padding:20px 22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96">Вільні кошти</div>
+          <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:26px;font-weight:600;color:#eceae7">7,75 ₴</div>
+          <div style="font-size:12px;color:#9b9a96">0,01 % рахунку</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:start">
+        <div style="background:#1c1c1f;border-radius:24px;padding:22px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Активи</div>
+          <!-- every row carries name + share + value + delta: the hue groups,
+               it never keys. -->
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#9dbb93;flex:none"></span><span style="flex:1;font-size:13.5px;font-weight:600;color:#eceae7">Inzhur REIT</span><span style="font-size:12px;color:#9b9a96">див + кап · 46,1 %</span><strong style="font-size:13.5px;width:118px;text-align:right;color:#eceae7">68 702,10 ₴</strong><span style="font-size:12px;font-weight:700;color:#8fb184;width:64px;text-align:right">+4,41 %</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#d8b394;flex:none"></span><span style="flex:1;font-size:13.5px;font-weight:600;color:#eceae7">Inzhur Energy</span><span style="font-size:12px;color:#9b9a96">кап · 40,3 %</span><strong style="font-size:13.5px;width:118px;text-align:right;color:#eceae7">60 086,09 ₴</strong><span style="font-size:12px;font-weight:700;color:#8fb184;width:64px;text-align:right">+1,48 %</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#a8b6c2;flex:none"></span><span style="flex:1;font-size:13.5px;font-weight:600;color:#eceae7">OVDP UA4000238976</span><span style="font-size:12px;color:#9b9a96">купон · 10,6 %</span><strong style="font-size:13.5px;width:118px;text-align:right;color:#eceae7">15 846,30 ₴</strong><span style="font-size:12px;font-weight:700;color:#8fb184;width:64px;text-align:right">+2,96 %</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:10px;height:10px;border-radius:50%;background:#a3a19b;flex:none"></span><span style="flex:1;font-size:13.5px;font-weight:600;color:#eceae7">OVDP UA4000236475</span><span style="font-size:12px;color:#9b9a96">купон · 2,9 %</span><strong style="font-size:13.5px;width:118px;text-align:right;color:#eceae7">4 374,12 ₴</strong><span style="font-size:12px;font-weight:700;color:#8fb184;width:64px;text-align:right">+5,20 %</span></div>
+          </div>
+          <div style="height:1px;background:#2a2a2e;margin:16px 0"></div>
+          <div style="display:flex;height:12px;border-radius:999px;overflow:hidden">
+            <div style="width:46.1%;background:#9dbb93"></div><div style="width:40.3%;background:#d8b394"></div><div style="width:10.6%;background:#a8b6c2"></div><div style="width:3%;background:#a3a19b"></div>
+          </div>
+          <!-- the share bar repeats the four figures immediately above it, so
+               the bar is a proportion picture, never the only carrier -->
+          <div style="display:flex;gap:14px;margin-top:8px;font-size:10.5px;color:#9b9a96;flex-wrap:wrap"><span>REIT 46,1 %</span><span>Energy 40,3 %</span><span>…8976 10,6 %</span><span>…6475 2,9 %</span></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <!-- pos-tint block: ink on it is 11.58:1, the label 7.52:1 -->
+          <div style="background:#22301f;border-radius:24px;padding:20px 22px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#a9c79f;margin-bottom:6px">Наступні виплати</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#eceae7">
+              <div style="display:flex;justify-content:space-between;gap:10px"><span>Дивіденд REIT</span><strong>~715 ₴ · 10.08</strong></div>
+              <div style="display:flex;justify-content:space-between;gap:10px"><span>Купон …8976</span><strong>1 240 ₴ · 25.08</strong></div>
+            </div>
+          </div>
+          <div style="background:#1c1c1f;border-radius:24px;padding:20px 22px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:6px">Підказка ребалансу</div>
+            <div style="font-size:13px;line-height:1.5;color:#eceae7">OVDP …8976 на <strong style="color:#d9907e">−6,40 %</strong> нижче цілі 17 % — поповнити на <strong>11 413 ₴</strong>.</div>
+            <button style="margin-top:8px;background:none;border:none;padding:0;color:#eceae7;font-family:'Space Grotesk','Manrope',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Відкрити Розподіл →</button>
+          </div>
+          <div style="background:#1c1c1f;border-radius:24px;padding:20px 22px">
+            <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:6px">Отримано доходу</div>
+            <div style="font-family:'Space Grotesk','Manrope',sans-serif;font-size:22px;font-weight:600;color:#eceae7">5 040,94 ₴</div>
+            <div style="font-size:12px;color:#9b9a96">дивіденди 3 641,44 ₴ · купони 1 399,50 ₴</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SURFACE 4 · the chart card, drawn here so the sheet is proven on
+           real chart furniture rather than only as swatches. Geometry and
+           data are the master reference's Balances area chart (lines
+           215–223); only the paint changes. -->
+      <div style="display:flex;align-items:center;gap:12px;margin:26px 0 12px">
+        <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#9b9a96;border:1px dashed #6e6d6a;border-radius:999px;padding:3px 10px;background:#141416">Surface 4 · /balances chart card, drawn in place</span>
+        <div style="flex:1;height:1px;background:#2a2a2e"></div>
+      </div>
+      <div style="background:#1c1c1f;border-radius:24px;padding:22px;position:relative">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:12px">Загальний капітал за зрізами · лют — лип 2026</div>
+        <svg viewBox="0 0 760 260" style="width:100%;height:auto;display:block">
+          <!-- grid: chart-hairline #2a2a2e — readable, never competing -->
+          <g stroke="#2a2a2e"><line x1="50" y1="57" x2="740" y2="57"></line><line x1="50" y1="115" x2="740" y2="115"></line><line x1="50" y1="172" x2="740" y2="172"></line></g>
+          <!-- reference/zero line: chart-faint #6e6d6a, 3.29:1 -->
+          <line x1="50" y1="230" x2="740" y2="230" stroke="#6e6d6a"></line>
+          <!-- axis labels: chart-muted #9b9a96, 6.04:1 on card -->
+          <g font-size="10" fill="#9b9a96"><text x="4" y="61">149 тис ₴</text><text x="4" y="119">143 тис ₴</text><text x="4" y="176">137 тис ₴</text><text x="4" y="234">130 тис ₴</text><text x="50" y="252">20.04</text><text x="262" y="252">18.05</text><text x="474" y="252">22.06</text><text x="700" y="252">26.07</text></g>
+          <!-- area: chart-pos-tint #22301f at full opacity. The light theme
+               drew it at .7 to soften a pale tint on white; in dark the tint
+               is already only 1.09 above the card, so it is not softened. -->
+          <path d="M50,163.6 L103,156.4 L156,148.2 L209,128.2 L262,133.6 L315,120.9 L368,110.9 L421,103.6 L474,97.3 L527,86.4 L580,80 L633,71.8 L686,64.5 L739,57.3 L739,230 L50,230 Z" fill="#22301f"></path>
+          <path d="M50,163.6 L103,156.4 L156,148.2 L209,128.2 L262,133.6 L315,120.9 L368,110.9 L421,103.6 L474,97.3 L527,86.4 L580,80 L633,71.8 L686,64.5 L739,57.3" fill="none" stroke="#8fb184" stroke-width="2.5" stroke-linecap="round"></path>
+          <circle cx="527" cy="86.4" r="4" fill="#8fb184"></circle>
+        </svg>
+        <!-- tooltip: `panel` #232327, NOT `card` — it lifts off the card it
+             covers (1.09 step) and carries ink at 13.04:1. Border
+             `panel-border` #33333a. Positioned over the highlighted point. -->
+        <div style="position:absolute;left:47%;top:96px;background:#232327;border:1px solid #33333a;border-radius:12px;padding:10px 12px;font-size:11.5px;color:#eceae7;min-width:150px">
+          <div style="color:#9b9a96;margin-bottom:4px">10.06.2026</div>
+          <div style="display:flex;justify-content:space-between;gap:12px"><span>Загалом</span><strong>145 220,84 ₴</strong></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;color:#8fb184"><span>За день</span><strong>+112,40 ₴</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:14px">
+        <div style="flex:1 1 260px;background:#1c1c1f;border-radius:20px;padding:14px 18px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:8px">loading — `panel` skeleton at the chart's exact height</div>
+          <div style="height:56px;border-radius:12px;background:#232327"></div>
+        </div>
+        <div style="flex:1 1 260px;background:#1c1c1f;border-radius:20px;padding:14px 18px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:8px">empty — `muted` on `card`</div>
+          <div style="height:56px;display:grid;place-items:center;font-size:12.5px;color:#9b9a96">Транзакцій ще немає.</div>
+        </div>
+        <div style="flex:1 1 260px;background:#1c1c1f;border-radius:20px;padding:14px 18px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:8px">stale — `faint` text + the existing chip</div>
+          <div style="height:56px;display:flex;align-items:center;gap:10px"><span style="font-size:11px;color:#6e6d6a">дані станом на 12.08</span><span style="font-size:11px;background:#332714;color:#dcbb80;border-radius:999px;padding:3px 10px;font-weight:600">не оновлено</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SURFACE 6 — THE SIDEBAR IN BOTH LANGUAGES, AND THE NAV DECISION
+       The brief left this open: `Щоденні котирування` is +58% over
+       `Daily quotes`, and the resolution had to be either a two-line nav pill
+       with tightened leading or a shorter accepted Ukrainian label. Never an
+       ellipsis — a navigation item the user cannot read is worse than a
+       taller pill.
+
+       ★ DECISION: THE TWO-LINE NAV PILL WITH TIGHTENED LEADING. ★
+
+       WHY — and the measurement that decided it. The nav is set in the body
+       face, which is monospace at an advance of exactly 0.6em (Spline Sans
+       Mono ships 1200/2000 upem; the proposed Cyrillic companion IBM Plex
+       Mono is 600/1000 — identical, so this arithmetic holds in BOTH
+       languages). At the nav's 13.5px that is 8.1px per character.
+
+         232px sidebar → px-4 → 200px pill → px-3.5 → 172px of text box
+           `Daily quotes`         12 ch =  97.2px  ✓
+           `Щоденні котирування`  19 ch = 153.9px  ✓  — 18px to spare
+
+       So the label FITS ON ONE LINE at 232px, and the brief's premise that it
+       will not is measurably off (it holds for a proportional face, not for
+       this one). A shorter label would therefore be paying in vocabulary for
+       a problem that does not exist at desktop width — and the app's only
+       shortening candidate, dropping `Щоденні`, is exactly the word the group
+       label above it already carries.
+
+         136px rail  → px-2.5 → 116px pill → px-3.5 → 88px of text box
+           `Seasonality`          11 ch =  89.1px  ✗ by 1.1px — TODAY, in EN
+           `котирування`          11 ch =  89.1px  ✗ by 1.1px
+           `Налаштування`         12 ch =  97.2px  ✗ by 9.2px
+
+       The real constraint is the rail, where wrapping ALREADY happens in
+       English (`Daily quotes` at 97.2px has wrapped since the rail existed)
+       and where no label choice can help, because the longest single word
+       cannot be broken. So the pill must be specified to wrap WELL rather
+       than to be avoided:
+
+         ≤ sm nav pill:  padding: 7px 12px   (was 8px 14px)
+                         line-height: 1.2    (was the body default ~1.4)
+                         overflow-wrap: normal; hyphens: none
+                         no truncation, no ellipsis, ever
+
+       Tightening the padding to 12px widens the text box to 92px, which is
+       what makes `котирування` and today's `Seasonality` fit at all; the 1.2
+       leading takes a wrapped pill from ~54px to ~46px, so a two-line item
+       sits among one-line items without breaking the rhythm. One label still
+       exceeds it — `Налаштування` at 97.2px, 5.2px over — and it is drawn
+       below: it stays inside the rail's own padding, is never clipped, and
+       there is no shorter Ukrainian word for Settings.
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Surface 6 · the sidebar, both languages · the nav decision</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+
+    <!-- 232px · Ukrainian -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">232px · Українська · one line</span>
+      <aside style="width:232px;background:#26262a;color:#e9e8e6;padding:22px 16px;display:flex;flex-direction:column;gap:3px;border-radius:24px;box-sizing:border-box">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px">Щоденний запис</div>
+        <div style="padding:9px 14px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700">Щоденні котирування</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Аналітика</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Огляд</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Баланси</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Виплати</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Дохідність</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Атрибути</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Сезонність</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Портфель</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Розподіл</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Налаштування</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Налаштування</div>
+      </aside>
+    </div>
+
+    <!-- 232px · English -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">232px · English · unchanged</span>
+      <aside style="width:232px;background:#26262a;color:#e9e8e6;padding:22px 16px;display:flex;flex-direction:column;gap:3px;border-radius:24px;box-sizing:border-box">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px">Daily entry</div>
+        <div style="padding:9px 14px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700">Daily quotes</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Analytics</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Overview</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Balances</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Payouts</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Yield</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Attributes</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Seasonality</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Portfolio</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Allocation</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Settings</div>
+        <div style="padding:8px 14px;border-radius:999px;font-size:13.5px;color:#cfcecb">Settings</div>
+      </aside>
+    </div>
+
+    <!-- 136px rail · both languages, the DECISION drawn -->
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">136px rail · the two-line pill · UK</span>
+      <aside style="width:136px;background:#26262a;color:#e9e8e6;padding:20px 10px;display:flex;flex-direction:column;gap:3px;border-radius:24px;box-sizing:border-box">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 12px 6px;line-height:1.2">Щоденний запис</div>
+        <!-- THE DECISION: 7px/12px padding, line-height 1.2, wraps between
+             words, never inside one, never truncated. -->
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700;line-height:1.2">Щоденні котирування</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:14px 12px 6px;line-height:1.2">Аналітика</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Огляд</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Дохідність</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Сезонність</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Розподіл</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:14px 12px 6px;line-height:1.2">Налаштування</div>
+        <!-- the one label still over the box: 97.2px vs 92px. It sits inside
+             the rail's own padding and is never clipped. -->
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Налаштування</div>
+      </aside>
+    </div>
+
+    <div>
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">136px rail · EN wraps here too, today</span>
+      <aside style="width:136px;background:#26262a;color:#e9e8e6;padding:20px 10px;display:flex;flex-direction:column;gap:3px;border-radius:24px;box-sizing:border-box">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 12px 6px;line-height:1.2">Daily entry</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700;line-height:1.2">Daily quotes</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:14px 12px 6px;line-height:1.2">Analytics</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Overview</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Yield</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Seasonality</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Allocation</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:14px 12px 6px;line-height:1.2">Settings</div>
+        <div style="padding:7px 12px;border-radius:999px;font-size:13.5px;color:#cfcecb;line-height:1.2">Settings</div>
+      </aside>
+    </div>
+
+    <!-- the alternative, drawn once and rejected on the record -->
+    <div style="flex:1 1 300px;max-width:420px">
+      <span style="display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff;margin-bottom:8px">considered · REJECTED — the shorter label</span>
+      <div style="background:#fff;border-radius:24px;padding:20px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+        <div style="background:#26262a;border-radius:16px;padding:14px 12px;margin-bottom:12px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px">Щоденний запис</div>
+          <div style="padding:9px 14px;border-radius:999px;font-size:13.5px;background:#e9e8e6;color:#26262a;font-weight:700">Котирування</div>
+        </div>
+        <div style="font-size:12px;color:#6f6e6a;line-height:1.65">
+          Dropping <code>Щоденні</code> is defensible — the group label above already carries "daily", and <code>котирування</code> is the glossary term. It measures 89.1px, exactly the width of today's longest English label.<br><br>
+          <strong>Rejected</strong> because it buys nothing the two-line pill does not already give: the full label fits at 232px, and at the rail the shortened form is <em>also</em> 1.1px over the untuned text box, so it needs the same padding fix anyway. Paying in vocabulary for a fix that does not remove the underlying constraint is the wrong trade — and EN/UK would then no longer say the same thing.
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 320px;max-width:440px;background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Ukrainian nav labels used above</div>
+      <div style="font-size:12px;color:#26262a;line-height:1.9">
+        Daily entry → <strong>Щоденний запис</strong> · Daily quotes → <strong>Щоденні котирування</strong> · Analytics → <strong>Аналітика</strong> · Overview → <strong>Огляд</strong> · Balances → <strong>Баланси</strong> · Payouts → <strong>Виплати</strong> · Yield → <strong>Дохідність</strong> · Attributes → <strong>Атрибути</strong> · Seasonality → <strong>Сезонність</strong> · Portfolio → <strong>Портфель</strong> · Allocation → <strong>Розподіл</strong> · Settings → <strong>Налаштування</strong>
+      </div>
+      <div style="height:1px;background:#dedcd8;margin:14px 0"></div>
+      <div style="font-size:11.5px;color:#6f6e6a;line-height:1.6">Glossary-consistent (<code>котирування</code> for quote, <code>дохідність</code> for yield) and drafted here so the sidebar could be drawn honestly — <strong>A10 owns the final string table</strong>. The ₴/$ segment labels stay <code>₴ UAH</code> / <code>$ USD</code> in both languages: they are currency codes, not copy.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       WHAT THIS FILE HANDS TO A9 / A10
+       ══════════════════════════════════════════════════════════════════ -->
+  <div style="display:flex;align-items:center;gap:12px;margin:36px 0 18px">
+    <span style="flex:none;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;border:1px dashed #b3b2ae;border-radius:999px;padding:3px 10px;background:#fff">Handover</span>
+    <div style="flex:1;height:1px;background:#dedcd8"></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start">
+    <div style="flex:1 1 420px;max-width:560px;background:#fff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:12px">Decided here — binding for its surfaces (D14)</div>
+      <div style="font-size:12.5px;line-height:1.8;color:#26262a">
+        · All 57 dark token values, none new, every ratio reproduced.<br>
+        · The three-segment control: geometry, sizing rule, four states, and the stacked ≤sm variant that 360px forces.<br>
+        · The theme cross-fade: 200ms linear, once, on <code>background-color, color, fill, stroke</code> only.<br>
+        · Elevation in dark = the surface step; the light shadow is removed, never deepened.<br>
+        · The segmented thumb keeps its tokens and gains a <code>panel-border</code> edge in dark (FINDING 2).<br>
+        · The sidebar nav resolution: two-line pill, <code>7px 12px</code> / <code>line-height 1.2</code>, no ellipsis ever.<br>
+        · No icons on the theme control.
+      </div>
+    </div>
+    <div style="flex:1 1 420px;max-width:560px;background:#f0e6cb;border-radius:24px;padding:22px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#6b5527;margin-bottom:12px">Blocking A9 / A10 — must be answered, not drawn around</div>
+      <div style="font-size:12.5px;line-height:1.8;color:#26262a">
+        · <strong>Cyrillic-capable faces.</strong> Ukrainian cannot be set in either brand font. A10 cannot start on the current stack (FINDING 1).<br>
+        · <strong><code>text-white</code> → <code>text-page</code></strong> and <strong><code>bg-ink</code> → <code>bg-sidebar</code></strong> on the two inverted planes (FINDING 3), before dark is switched on.<br>
+        · <strong>Contract 0 reaches the tables.</strong> <code>core/money.ts</code>, its tests, and every <code>navigation-map.md</code> checkpoint that quotes a formatted string change with A10 — the value never does.<br>
+        · Ukrainian strings marked ✎ in this file are drafts for A10's table, not pins.
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
