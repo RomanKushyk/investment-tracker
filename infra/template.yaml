@@ -368,6 +368,25 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
+  # Rows the scheduled run turned into observations. Published every night,
+  # including the nights it writes nothing.
+  #
+  # NO ALARM, on purpose. Zero is the healthy reading most of the time — NBU
+  # publishes nothing at weekends, and a window already derived yields no new
+  # rows — so an alarm on zero would page every Saturday, and an alarm that
+  # pages for nothing gets muted (D44). The graph is the signal: a small spike
+  # each business day, flat across weekends. Flat through a working week means
+  # the derivation stopped, without anyone having to query the table.
+  ObservationsWrittenMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "observationsWritten" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: ObservationsWritten
+          MetricValue: $.value
+
   UnchangedDaysMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:

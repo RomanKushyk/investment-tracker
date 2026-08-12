@@ -832,6 +832,49 @@ async function observeNbu(client: Client, req: ObserveRequest) {
   };
 }
 
+/** How far back the scheduled run re-derives observations. A week, so a missed
+ *  night repairs itself rather than leaving a permanent hole. */
+const OBSERVE_WINDOW_DAYS = 7;
+
+/**
+ * Derive observations for the trailing window and publish what happened.
+ *
+ * NO ALARM ON THIS METRIC, deliberately. `written: 0` is the normal, healthy
+ * reading — on a weekend NBU publishes nothing, and on any ordinary day the
+ * window has already been derived, so zero new rows is what success looks like.
+ * An alarm on zero would page every Saturday, and an alarm that pages for
+ * nothing is how alarms get muted (the D44 lesson, applied before making the
+ * mistake rather than after).
+ *
+ * What the number is for is the graph: `written` should show a small spike on
+ * each business day and a flat zero across weekends. A flat zero for a working
+ * week means the derivation has stopped, and that is visible without querying
+ * the table at all.
+ *
+ * Never throws: a capture must not fail because a derivation did. The payload
+ * is already stored by this point, so anything missed here is recoverable on
+ * the next run — which is exactly the property the trailing window buys.
+ */
+async function observeAndReport(client: Client, from: string): Promise<void> {
+  try {
+    const r = await observeNbu(client, { from });
+    console.log(
+      JSON.stringify({
+        metric: 'observationsWritten',
+        from,
+        dates: r.dates,
+        seen: r.seen,
+        value: r.written,
+        mismatched: r.mismatched,
+      }),
+    );
+  } catch (err) {
+    console.warn(
+      `observation derivation failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 /** No usable recovery point. Deliberately large rather than 0 or -1: the metric
  *  is an AGE, so "nothing" has to sit on the bad side of any threshold. A zero
  *  would read as "backed up seconds ago", which is the exact inversion that
@@ -1037,6 +1080,18 @@ export async function handler(event: HandlerEvent = {}) {
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
       results.push(await captureOne(client, source, asOf));
     }
+
+    // Today's payload becomes today's observation, on the same run that
+    // captured it.
+    //
+    // WHY A TRAILING WINDOW AND NOT JUST `asOf`. Deriving only the current date
+    // means a night the job missed is a hole nobody fills — and holes in this
+    // table are invisible, because the payload is still safely archived and
+    // every indicator stays green. Re-deriving the last week costs almost
+    // nothing (`ON CONFLICT DO NOTHING`, ~2 rows a day, no network at all) and
+    // makes the run self-repairing: whatever was missed comes back on the next
+    // successful night without anyone noticing it had gone.
+    await observeAndReport(client, addDays(asOf, -OBSERVE_WINDOW_DAYS));
 
     // Only on the scheduled path. A backfill has nothing to say about whether
     // today's alerting works, and it would emit the value hundreds of times.
