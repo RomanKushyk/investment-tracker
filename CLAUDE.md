@@ -5,7 +5,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 ## Key facts
 - Design reference: `design/Investment Tracker.dc.html`. All styles are INLINE in its markup — read it for any exact color/size/spacing. Ignore `design/support.js` and `_ds/` references (prototype runtime only).
 - Stack: React 19 + Vite + TypeScript + Tailwind 4 (see package.json). pnpm.
-- Fonts: Space Grotesk (headings/buttons/KPI numbers) + Spline Sans Mono (body) — via @fontsource packages already in deps.
+- Fonts: **IBM Plex Sans** (headings/buttons/KPI numbers) + **JetBrains Mono** (body) — via @fontsource. They replaced Space Grotesk + Spline Sans Mono on 2026-08-12 because **neither of those carries a single Cyrillic letter** and Ukrainian is now the default language (D54). The design reference still shows the old pair; that divergence is deliberate. JetBrains Mono keeps the same 0.6em advance, so no width in the reference moves.
 - All portfolio figures must be DERIVED from stored data (snapshots, transactions, assets) — never hard-coded. Seed with the mock data from README §7 so first run matches the reference.
 - Persistence **today**: **Dexie.js on IndexedDB** (db `quirenote`) behind `src/lib/repository.ts` — D2. The app is still entirely local; nothing in `src/` talks to a server.
 - **Backend alerting has NO SNS topic, and that is deliberate** — the alarms in `infra/template.yaml` carry no `AlarmActions`. CloudWatch publishes alarm state changes to EventBridge for every alarm regardless, and delivery is EventBridge → AWS User Notifications → the Console Mobile App. Email was abandoned after three subscriptions died within seconds of confirmation (D44, D45, D47). Do not "fix" this by adding a topic back.

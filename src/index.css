@@ -7,8 +7,14 @@
   --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Spline Sans Mono', monospace;
+  /* Cyrillic-capable replacements, chosen by measurement (D54). JetBrains Mono
+     keeps the 0.6em advance of Spline Sans Mono exactly, so no column, table or
+     sidebar width moves. IBM Plex Sans is the display face because its figures
+     are TABULAR BY DEFAULT — a KPI column stays aligned with no CSS to
+     remember, which a `tnum` font only manages while every call site sets
+     `font-variant-numeric`. */
+  --font-display: 'IBM Plex Sans', sans-serif;
+  --font-body: 'JetBrains Mono', monospace;
   --color-page: #f6f5f3;
   --color-ink: #26262a;
   --color-card: #ffffff;

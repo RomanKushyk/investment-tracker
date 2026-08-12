@@ -48,7 +48,15 @@ export function AllocationDonut({
               value={centerTop}
               position="center"
               dy={-6}
-              style={{ fontFamily: 'Space Grotesk, sans-serif', fontSize: 20, fontWeight: 700, fill: CHART.ink }}
+              // The token, not a literal family name. Recharts takes a string,
+              // which is how a hard-coded font survived here — and it silently
+              // became a system fallback the moment the display face changed.
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 700,
+                fill: CHART.ink,
+              }}
             />
             <Label value={centerSub} position="center" dy={14} style={{ fontSize: 11, fill: CHART.muted }} />
           </Pie>

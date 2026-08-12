@@ -21,7 +21,7 @@ A single-user personal investment tracker for a small Ukrainian portfolio (2 Inz
 
 Use the provided `package.json` as-is, with these notes:
 
-- **Fonts**: the design uses **Space Grotesk** (headings, buttons, big numbers) and **Spline Sans Mono** (everything else) — NOT Roboto Mono. Swap `@fontsource-variable/roboto-mono` for `@fontsource/space-grotesk` + `@fontsource/spline-sans-mono` (or Google Fonts link).
+- **Fonts**: the app ships **IBM Plex Sans** (headings, buttons, big numbers) and **JetBrains Mono** (everything else), via `@fontsource`. The *design reference* still shows Space Grotesk + Spline Sans Mono, and that divergence is deliberate: neither of those carries a single Cyrillic letter, so they could not render the app's default language (D54). The replacements were picked by measurement — JetBrains Mono keeps the identical `0.6em` advance, so every width in the reference still holds, and IBM Plex Sans is the only candidate whose **figures are tabular by default**, which keeps KPI columns aligned without any call site having to remember `font-variant-numeric`.
 - **Routing**: `react-router` — one route per tab (`/`, `/overview`, `/balances`, `/payouts`, `/yield`, `/attributes`, `/seasonality`, `/portfolio`, `/allocation`). `/` = Daily quotes. Sidebar nav = `NavLink`s.
 - **State**: `zustand` (persisted) for currency preference + draft quote entry; **all portfolio data** in a local store — recommend IndexedDB (or localStorage JSON to start) behind a small repository module, queried via `@tanstack/react-query`. `socket.io-client` is in deps but unused — omit it.
   > **Since 2026-08-11 this is no longer the whole picture.** A backend exists in `infra/` — a daily job archiving asset prices into Aurora DSQL — but the app does not read it: portfolio data is still local. See `infra/README.md`, and `docs/superpowers/specs/2026-08-04-*` for where it is going.
@@ -41,7 +41,7 @@ Palette (pastel monochrome + muted tints):
 - Negative: `#a8695a`
 - Asset series colors: REIT `#8ba283` (tint `#e3eadf`/`#4c5a48`), Energy `#c2a189` (tint `#efe4e0`/`#6d5a53`), OVDP …8976 `#98a3ad` (tint `#e4e8eb`/`#525c64`), OVDP …6475 `#5f5e5a` (tint `#e8e7e4`/`#5f5e5a`)
 
-Type: Space Grotesk 600 for h1–h4, buttons, KPI numbers; Spline Sans Mono for body/labels/tables. Section h2 26px; KPI value 26px; card micro-labels 10px uppercase letter-spacing .12em; body 13px; tables 12.5px.
+Type: **IBM Plex Sans** 600 for h1–h4, buttons, KPI numbers; **JetBrains Mono** for body/labels/tables (was Space Grotesk + Spline Sans Mono until D54 — same sizes, same 0.6em mono advance). Section h2 26px; KPI value 26px; card micro-labels 10px uppercase letter-spacing .12em; body 13px; tables 12.5px.
 
 Shape: cards radius 20–24px; pills/buttons/inputs radius 999px on buttons, standard inputs white bg; focus ring `2px solid #26262a offset 2px`; selection bg `#e3eadf`. Lucide icons, stroke-width 2.75.
 

@@ -13,6 +13,64 @@ Owner decisions taken 2026-08-12, and they set the whole shape:
    default. Not two.
 2. **Ukrainian is the default language; English stays** as the second.
 3. **Formatting separates completely per language, with no exceptions.**
+4. **The brand faces change** — `JetBrains Mono` for body, `IBM Plex Sans` for
+   display. See the amendment below; this one was forced by a defect in the
+   brief's own first draft.
+
+---
+
+## Amendment, 2026-08-12 — the fonts had to change first
+
+**Written after the design session, before its extension is treated as binding.**
+
+The first draft of this brief made Ukrainian the default without checking that
+the app could draw it. It cannot: measured from the installed packages,
+`Spline Sans Mono` and `Space Grotesk` cover **1 of the 67 characters Ukrainian
+needs**, and that one is the apostrophe. Every Cyrillic glyph would have come
+from a system fallback — different face, different metrics, on the *default*
+language. That is a phase blocker the brief created and the design session
+caught.
+
+Ten OFL-1.1 replacements were measured (advance width, x-height, cap-height,
+coverage) rather than compared by description. The owner chose:
+
+| Role | Was | Now | Why, measured |
+|---|---|---|---|
+| Body / tables | Spline Sans Mono (x 0.5455, cap 0.727, **0.6em** advance) | **JetBrains Mono** (x 0.550, cap 0.730, **0.6em**) | Nearest of the five on both vertical proportions — differs in the third decimal — and the advance is *identical*, so no table, column or sidebar width moves by a pixel |
+| Display / headings | Space Grotesk (x 0.486, cap 0.700) | **IBM Plex Sans** (x 0.516, cap 0.698) | **Its figures are tabular by default.** Cap-height is near-exact; the deciding property is that a column of KPI figures aligns with no CSS to remember |
+
+**The display choice changed once, and the reason is worth keeping.** Rubik was
+picked first, on cap-height matching Space Grotesk exactly (0.700). Then the
+figures were measured: Rubik's digits are **proportional** (spread 0.208 em) and
+align only when a call site sets `font-variant-numeric: tabular-nums`. IBM Plex
+Sans needs nothing — `111111` and `000000` render at the identical width
+straight away, verified in a browser.
+
+For an app whose every screen is a column of money, "aligned unless someone
+forgets a CSS line" is a worse contract than "aligned". That is the whole
+difference, and it outweighed the 0.002 em of cap-height Rubik won on.
+
+**Consequences for the surfaces below.**
+
+- **Every measurement in Surface 2's growth table still holds.** It was computed
+  at the 0.6em monospace advance, which JetBrains Mono preserves exactly.
+- **The x-height rises** — 0.5455 → 0.550 in body, 0.486 → 0.516 in headings.
+  Text will read slightly larger at the same `font-size`. No size token changes;
+  the design session should check that the tightest rows (KPI sub-lines, the
+  11px chips) still breathe.
+- **Space Grotesk's low x-height was part of its character** and no
+  Cyrillic-capable candidate reproduces it — every one measured between 0.516
+  and 0.569. The app's voice changes slightly. Accepted knowingly: the
+  alternative was keeping a font that cannot write the default language.
+  (Source Sans 3 matches the 0.486 exactly and is also tabular, but its
+  cap-height is 0.660 — headings would visibly shrink, which is a larger change
+  than the one being avoided.)
+- Both are `@fontsource` packages, installed the same way as their predecessors,
+  with every subset behind its own `unicode-range`.
+
+Recorded as **D54**.
+
+---
 
 ---
 
