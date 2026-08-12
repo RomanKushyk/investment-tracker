@@ -13,6 +13,7 @@ import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
 import { ImportRow } from './settings/ImportRow';
+import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
@@ -135,8 +136,19 @@ function UsdRateField() {
     }
   }
 
+  // A5: the fetched rate is applied HERE rather than by the fetch control, so
+  // the stored number and the draft string this input shows can never disagree.
+  function applyFetched(rate: number) {
+    setRaw(String(rate));
+    setError(false);
+    setUsdRate(rate);
+  }
+
   return (
-    <div>
+    // ml-auto so the block still hugs the right edge on the narrow widths where
+    // SettingRow wraps it onto its own line — every other control in this card
+    // sits right, and a left-aligned one reads as a mistake.
+    <div className="ml-auto flex flex-col items-end gap-2">
       <input
         id="usd-rate"
         name="usdRate"
@@ -149,10 +161,11 @@ function UsdRateField() {
         className={`bg-page h-9 w-[110px] rounded-[10px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
-        <div className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200">
+        <div className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200">
           Enter a rate above 0.
         </div>
       )}
+      <NbuRateFetch onApply={applyFetched} />
     </div>
   );
 }

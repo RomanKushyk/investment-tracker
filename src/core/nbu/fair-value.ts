@@ -11,6 +11,8 @@
 // apart from the provider's dealer price on the same ISIN the same day, which is
 // why `source` is in the observation key and the two are never merged.
 
+import { nbuDateToIso } from './date';
+
 /** One instrument's row. Fields absent in older layouts are `undefined`, never
  *  guessed — an invented value is worse than a missing one. */
 export interface NbuFairValueRow {
@@ -33,22 +35,6 @@ export interface NbuFairValueRow {
   maturity: string | undefined;
   /** `ОВДП` / `ОВМП`. Absent before 2022 — see `cptypeOf`. */
   cpType: string | undefined;
-}
-
-/**
- * `dd.MM.yyyy` -> `yyyy-MM-dd`. The file uses the Ukrainian civil format
- * throughout, and reading it as ISO silently transposes day and month for every
- * date in the first twelve days of a month — a corruption that looks like valid
- * data.
- */
-function isoDate(value: string | undefined): string | undefined {
-  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value?.trim() ?? '');
-  if (m === null) return undefined;
-  const [, dd, mm, yyyy] = m;
-  const iso = `${yyyy}-${mm}-${dd}`;
-  // Rejects 31.02: the regex only proves the shape, not that the day exists.
-  const d = new Date(`${iso}T00:00:00Z`);
-  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso ? undefined : iso;
 }
 
 function num(value: string | undefined): number | undefined {
@@ -119,7 +105,7 @@ export function parseNbuFairValue(body: string): NbuFairValueRow[] {
   const data = lines[0]?.startsWith('calc_date') === true ? lines.slice(1) : lines;
   for (const line of data) {
     const f = line.split(';');
-    const calcDate = isoDate(f[0]);
+    const calcDate = nbuDateToIso(f[0]);
     const isin = f[1]?.trim();
     const fairValue = num(f[3]);
     // The three that make a row meaningful. Without any one of them the row
@@ -134,7 +120,7 @@ export function parseNbuFairValue(body: string): NbuFairValueRow[] {
       fairValue,
       ytm: num(f[4]),
       cleanRate: num(f[5]),
-      maturity: isoDate(f[7]),
+      maturity: nbuDateToIso(f[7]),
       cpType: cptypeOf(f),
     });
   }

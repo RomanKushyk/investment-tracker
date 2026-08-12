@@ -19,7 +19,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
 | **Section C** | **App — pure, independent** | | | |
-| A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
+| A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied on first pass, reply sent 2026-08-11, awaiting re-review** |
@@ -190,13 +190,18 @@ Nothing is broken **today**, because the read API of B2 does not exist yet and n
 
 **Rationale — verified 2026-08-11, and it is not an automation.** `https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=usd&date=YYYYMMDD&json` is public with `Access-Control-Allow-Origin: *` and returned `44.8305` today. A user-triggered fetch is the same shape as "Fetch quotes" — the "exactly one automation" ruling constrains **timers**, not requests. The stored 44.83 is already stale (NBU gave 44.7876 on 2026-08-04) and it silently mis-states every $ headline.
 
-- [ ] `core/nbu/rate.ts` — tolerant pick-parse of `[{r030, txt, rate, cc, exchangedate, special}]`, same idiom as `core/inzhur/parse.ts`: per-entry skip, never all-or-nothing.
-- [ ] **Always pass an explicit `date=`.** Without it the endpoint returns *tomorrow's* rate once published in the afternoon — a silent off-by-one on every value the user sees.
-- [ ] Determine weekend/holiday behaviour with one request before writing the fallback — do not guess whether it 404s, returns empty, or carries the last published rate.
-- [ ] Settings → Appearance: fetched rate with its date, `usdRate` stays a manual override, last-good cached in `meta`. Failure degrades to the stored value and says so.
+- [x] `core/nbu/rate.ts` — tolerant pick-parse, per-entry skip, same idiom as `core/inzhur/parse.ts`. It takes the response **TEXT**, not parsed JSON: every failure this endpoint has arrives as an HTTP 200, and one of them (`[{ Wrong date format }]`) is not JSON at all — `response.json()` would throw before any tolerance ran. `core/nbu/date.ts` now holds the one `dd.MM.yyyy` reader both NBU parsers share.
+- [x] **Always passes an explicit `date=`.** Without it the endpoint returns *tomorrow's* rate once published in the afternoon — a silent off-by-one on every value the user sees.
+- [x] Weekend/holiday behaviour **measured, and the guess would have been wrong**: no 404, not empty — NBU carries the previous banking day forward (2026-08-07/08/09 all `44.7626`) and `exchangedate` echoes the *requested* date, so the response never admits the value was carried. Reported as the date it applies to, with no freshness claim.
+- [x] Settings → Appearance: fetched rate with its date, `usdRate` stays a manual override, last-good cached in `meta` (`nbu:lastRate`). Failure degrades to the stored value and labels it "last known, not refreshed". Disabled in demo (G4/D16).
 
-**Contracts:** `usdRate` keeps its persisted shape; the fetched value is additive. **DECISIONS:** NBU rate policy — today's rate only, no archive (NBU history is backfillable at any time, so the asymmetry that makes the price archive urgent does not apply here).
-**Verify:** fixture parse; explicit-date behaviour asserted; offline → stored value + stale note; the ₴ tables are untouched in every case (currency is a display unit for headline KPIs only).
+**Contracts:** `usdRate` keeps its persisted shape; the fetched value is additive. **Recorded as D51.**
+
+**Verify — done 2026-08-12:** 11 parser tests over verbatim live bodies including the two 200-that-is-an-error shapes; 537 green. Browser (`:3000` was another project, so the dev server ran on `:3007`): demo disables the request and says why; live fetches `44.866 for 12.08.2026` and **offers** it; the stored `44.83` is untouched until "Use it".
+
+**Two defects the browser caught that the gates could not:**
+- applying the rate updated the store and left the input showing the old number — `UsdRateField` seeds its draft once, so an outside write never reached it. Fixed by giving the field ownership (`onApply`) rather than synchronising two owners;
+- the control wrapped onto its own line flush **left**, while every neighbouring control sits right. `ml-auto` + a shorter label; verified by bounding box (control now ends at the row's right edge, same as `Restore dismissed`) and 360px still has **zero** horizontal overflow.
 
 ## A6 — Bond price re-derivation — `feat/bond-dcf`
 
