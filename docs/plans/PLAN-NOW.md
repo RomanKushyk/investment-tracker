@@ -17,7 +17,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
-| A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | todo |
+| A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
@@ -170,13 +170,19 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 
 Nothing is broken **today**, because the read API of B2 does not exist yet and nothing reads observations. That is exactly what makes it worth fixing now rather than later: the failure is invisible until the moment something depends on it, and then it looks like data loss rather than a missing call.
 
-- [ ] Call `observeNbu` on the scheduled path, over a short trailing window rather than one date — a few days, so a night the job missed repairs itself on the next run without anyone noticing it had.
-- [ ] Reuse the existing idempotency. `ON CONFLICT DO NOTHING` already makes a re-derivation free, and `written` already reports rows actually inserted (D50), so a healthy day logs `written: 2` and a repaired one logs more.
-- [ ] Emit `written` as a metric on the same pattern as `backupAgeHours` and `alertChannels`, so "observations stopped being derived" is visible without anyone querying the table.
-- [ ] Do **not** widen the scope here. The refs stay the held ISINs (D50); this task is about *when* the derivation runs, not *what* it covers.
+- [x] `observeAndReport()` runs on the scheduled path over a **7-day trailing window**, not the single date. A hole left by a missed night is invisible — the payload is still safely archived and every indicator stays green — so the window makes the run self-repairing rather than relying on someone noticing.
+- [x] Reuses the existing idempotency: `ON CONFLICT DO NOTHING`, and `written` is `rowCount` (D50).
+- [x] Publishes `observationsWritten` every night, including the nights it writes zero.
+- [x] **No alarm on it, deliberately.** Zero is the healthy reading at weekends (NBU publishes nothing) and on any already-derived window, so alarming on zero would page every Saturday — and an alarm that pages for nothing gets muted. That is the D44 lesson applied *before* making the mistake. The graph is the signal: a spike each business day, flat across weekends; flat through a working week means the derivation stopped.
+- [x] Scope unchanged — the held ISINs (D50). This task was about *when* the derivation runs, not what it covers.
 
-**Verify:** the morning after deploy, `price_observation` has a row for the previous `as_of` with no manual invocation, and a second scheduled run inserts nothing.
-**Risk:** low. Network-free, idempotent, and bounded by the same limit parameter the backfill uses.
+**Verify — passed 2026-08-12:**
+- first run filled exactly the missing day: `from 2026-08-04, dates 6, seen 12, written 2, mismatched 0` — the other ten offered rows were already present;
+- second run: `written 0`. A no-op shown, not assumed;
+- the table advanced to `as_of 2026-08-11` with gaps still zero — 275/275/275 and 135/135/135;
+- the derived row matches the provider's file for 2026-08-11 exactly: `1110.47 / 15.751833 / 104.603`.
+
+**Risk:** low. Network-free, idempotent, bounded by the same limit the backfill uses.
 
 ## A5 — Live NBU ₴/$ rate — `feat/nbu-rate`
 
