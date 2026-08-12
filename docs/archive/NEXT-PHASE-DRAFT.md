@@ -3,3 +3,4 @@
 - live ₴/$ rate from Google finances
 - upgrade new asset form: first show dropdown with asset provider e.g. Inzhur, custom; after selecting provider show list of fetched assets, for custom show name input; if provider specified fill all possible inputs automatically. Main idea is that user should input minimum data, especially minimum sensitive data, so with that approach user will input only asset name and amount
 - currency in settings should set default currency on app open, while currency toggle value in the sidebar shouldn't be saved anywhere its just quick preview
+- user profile page
