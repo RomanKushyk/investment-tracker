@@ -26,7 +26,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
-| A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | todo |
+| A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — awaiting the design session |
 | A9 | Dark theme | `feat/dark-theme` | L | design-gated |
 | A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
 | **Section E** | **Finish the rename (D42)** | | | |
@@ -263,7 +263,17 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 
 **The G7 gate.** Nothing in A9/A10 starts before the design session merges `design/extensions/*.dc.html`.
 
-- [ ] `docs/design-briefs/phase-5-appearance-language.md`: dark palette sheet (every token including the 4 asset hues at ≥4.5:1, shadows, chart grid and tooltip, sidebar-vs-page, focus and selection), theme + language segmented controls, UK reference copy (~20–30 % longer than EN).
+- [x] **Written 2026-08-12** — five surfaces, each with the pinned seven parts: theme control, language control, the dark palette sheet, charts in dark, Ukrainian copy.
+- [x] All 57 tokens given dark values with **measured** WCAG ratios (23 checks, 0 failures) — not estimated.
+- [x] Owner decisions taken and pinned: theme is **Light/Dark/System** with System default and OS-reactive; **Ukrainian is default**, English stays; and formatting **separates completely per language, no exceptions** — which is a bigger contract than it looks, because table figures now change in EN too.
+
+**Two findings from the measurement, both recorded in the brief:**
+- the ≥4.5:1 bar is the bar for TEXT, and the four asset hues are **never** text — verified across the codebase, they appear only as `bg-*` fills. The correct requirement is WCAG 1.4.11 (3:1, non-text); the dark values clear 4.5 anyway, so the sheet meets both readings;
+- **the light theme does not meet even 3:1 today** — `reit` 2.77, `energy` 2.40, `ovdp8976` 2.57 on white. Inherited from the immutable master reference, out of scope here, and written down so the dark sheet is never misread as a regression against a light theme that was the weaker of the two.
+
+**Left to the design session on purpose:** the sidebar nav resolution for `Щоденні котирування` (+58 % over `Daily quotes`, and 232 px will not hold it on one line) — two-line pill or a shorter label, drawn rather than described.
+
+**Brief:** `docs/design-briefs/phase-5-appearance-language.md`. **Next step is not code** — it is the design session that turns it into `design/extensions/appearance-language.dc.html`.
 
 ## A9 — Dark theme — `feat/dark-theme`
 

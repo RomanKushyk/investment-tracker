@@ -9,6 +9,7 @@ here, in four folders that answer four different questions.
 | [`decisions/`](decisions/README.md) | **Why it is like this** | Something looks wrong and you want to know if it is deliberate |
 | [`reference/`](reference/) | **How a specific thing works** | You are about to touch deploys, versions, or a formula |
 | [`superpowers/specs/`](superpowers/specs/) | **Where it is going** | Working on `infra/` or the migration |
+| [`design-briefs/`](design-briefs/README.md) | **What is specified but not drawn** | Before starting UI work (G7) |
 | [`archive/`](archive/README.md) | **How it got here** | Historical. Never a task list |
 
 ---
@@ -64,9 +65,8 @@ moving it would split new specs from old ones. It is surfaced here instead.
 - One file per concern. New long-lived documentation goes in the folder that
   matches the question it answers — and gets a row in this index.
 - **A new design brief goes in `docs/design-briefs/`, not in the archive.**
-  Phases 2–4 are archived because they shipped; A8's phase-5 brief is future
-  work and belongs beside the plans until it does. Create the folder and its
-  `README.md` when writing the first one.
+  Phases 2–4 are archived because they shipped; the phase-5 brief lives there
+  until its extension merges and the phase ships, then it moves to the archive.
 - If a session must always see a document, link it from `CLAUDE.md` as well.
   That file is the only one loaded unconditionally, so it stays a pointer list
   rather than a copy.
