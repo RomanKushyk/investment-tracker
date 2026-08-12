@@ -103,7 +103,7 @@ function CurrencyControl() {
     </button>
   );
   return (
-    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[11px] border p-1">
+    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[12px] border p-1">
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div

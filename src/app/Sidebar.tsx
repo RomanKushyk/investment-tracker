@@ -17,17 +17,20 @@ const ANALYTICS = [
   { to: '/allocation', label: 'Allocation' },
 ];
 
-// Mark 04: four days, height is value and opacity is age. Whole units and an
-// even stroke so the bars land inside pixels rather than across two at small
-// sizes — the same geometry as public/favicon.svg.
+// Mark 04: four days, height is value and opacity is age. EVEN bar centres and
+// an even stroke, because a bar spans [x-2, x+2] and only an even x halves to
+// whole device pixels at 16px — the same geometry as public/favicon.svg, which
+// carries the full reasoning. `aria-hidden` because the wordmark beside it says
+// "Quirenote" already; labelling the mark too makes a screen reader say the
+// brand twice on every route.
 function Mark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} role="img" aria-label="Quirenote">
+    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
       <g fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round">
-        <path d="M7 24v-5" opacity=".45" />
-        <path d="M13 24v-10" opacity=".65" />
-        <path d="M19 24v-6" opacity=".8" />
-        <path d="M25 24V8" />
+        <path d="M6 24v-4" opacity=".45" />
+        <path d="M12 24v-10" opacity=".65" />
+        <path d="M18 24v-6" opacity=".8" />
+        <path d="M24 24v-16" />
       </g>
     </svg>
   );
@@ -92,7 +95,7 @@ export function Sidebar() {
     // the gap between them, so 14 + 16 = 30 (and 14 + 10 = 24 on the rail).
     // The proportional rule gave 63px here and cut across the header plate's
     // own corner — a full-height panel has no designed short side to scale.
-    <aside className="sticky top-0 flex h-screen w-[244px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[30px] max-sm:rounded-r-[24px] bg-sidebar p-4 max-sm:px-2.5 text-sidebar-text">
+    <aside data-dark-surface className="sticky top-0 flex h-screen w-[244px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[30px] max-sm:rounded-r-[24px] bg-sidebar p-4 max-sm:px-2.5 text-sidebar-text">
       {/* clipping layer keeps the overflowing circle out of the scrollable area,
           so the sidebar only scrolls when its actual content overflows */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[30px] max-sm:rounded-r-[24px]">

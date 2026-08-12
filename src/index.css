@@ -120,8 +120,13 @@
      nav pill and both toggles. `sidebar-text` gives 12.31:1 and 10.26:1, past
      the 3:1 that WCAG 1.4.11 asks of a non-text indicator.
      It is right for the ACTIVE pill too, light background and all: the 2px
-     offset draws the ring OUTSIDE the control, on the dark rail behind it. */
-  aside :focus-visible {
+     offset draws the ring OUTSIDE the control, on the dark rail behind it.
+
+     Keyed to `[data-dark-surface]`, NOT to `aside`: the app has a second
+     <aside> — the Daily-quotes transaction column — which sits on white, so a
+     tag-name selector moved the invisible ring there instead of removing it.
+     Any future dark panel opts in by carrying the attribute. */
+  [data-dark-surface] :focus-visible {
     outline-color: var(--color-sidebar-text);
   }
 

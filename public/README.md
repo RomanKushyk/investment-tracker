@@ -25,11 +25,23 @@ There is deliberately **no** `favicon.ico` or PNG fallback. Every browser that
 can run this app supports SVG favicons; an old one shows no icon, which is
 cosmetic. Adding a fallback means a second file to keep in sync with the mark.
 
-## The mark
+## The mark, and its three copies
 
-Both icons draw **mark 04** — four bars, height is value, opacity is age. The
-geometry is whole units on a 32 grid with an even stroke (4), so at 16px each
-bar lands inside a pixel instead of straddling two. The same geometry is
-duplicated as a `Mark` component in `src/app/Sidebar.tsx`; that duplication is
-intentional (one is a static file, one is JSX), but **the two must be changed
-together** — see README §4 and D56.
+Both icons draw **mark 04** — four bars, height is value, opacity is age. Bar
+centres are EVEN (6/12/18/24) with an even stroke (4): a bar spans `[x-2, x+2]`,
+which halves to whole device pixels at 16px only when `x` is even. Odd centres
+put every edge on a half-pixel and blur the icon.
+
+The mark exists in **three** places, and they must change together:
+
+| Copy | Guarded by |
+| --- | --- |
+| `Mark` in `src/app/Sidebar.tsx` | `src/app/mark.test.ts` — pins paths, opacities, parity, grid |
+| `public/favicon.svg` | the same test, compared path-for-path against the component |
+| `public/apple-touch-icon.png` | **nothing automatic** — regenerate with `node scripts/build-touch-icon.mjs` |
+
+The PNG is the weak link and it is worth knowing why: comparing a raster to an
+SVG needs a renderer the test environment does not have, and a PNG shows up in
+review as `Bin 0 -> 2419 bytes`, so drift there is invisible to both the suite
+and the reader. Hence the checked-in regeneration step — run it whenever the
+geometry moves, and the icon follows instead of quietly keeping the old drawing.

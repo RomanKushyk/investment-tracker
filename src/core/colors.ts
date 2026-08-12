@@ -41,10 +41,13 @@ export const CHART = {
   ink: 'var(--color-chart-ink)',
 };
 
-// One tooltip surface for every chart. A tooltip is a floating panel, so it
-// takes 16 — the same surface radius as the Select and DatePicker popovers —
-// rather than a fifth hand-typed number (D56). It lived as four byte-identical
-// inline objects, which is four places to forget when the value moves.
+// One tooltip surface for every chart. It lived as four byte-identical inline
+// objects, which is four places to forget when the value moves.
+// NOT a pure extraction: the radius goes 12 -> 16, because a tooltip is a
+// floating surface and 16 is the surface value (D56), the same as the
+// DatePicker popover. The Select popover is deliberately NOT the comparison —
+// it ships 14, since its items hug its corners and make it the concentric
+// case; a tooltip holds text, so nothing pulls it off the surface value.
 export const CHART_TOOLTIP = {
   borderRadius: 16,
   border: `1px solid ${CHART.hairline}`,

@@ -1,6 +1,7 @@
 import { cva } from 'class-variance-authority';
 
-// Pill buttons per README §4 (radius 999px) + D7 tactile press on every button.
+// Buttons per README §4 — the D56 radius rule, not the old 999px pill + D7
+// tactile press on every button.
 // Split into its own module (not Button.tsx) so link-styled-as-button spots
 // (e.g. "Yield chart →") can reuse the classes on an <a>/<Link> while keeping
 // Button.tsx a component-only export for react-refresh.
@@ -43,14 +44,16 @@ export const buttonVariants = cva(
       // S1): padding 8/18, 13px — one notch below `md` so it reads as a header
       // control beside the 36px Date field instead of a primary action.
       size: {
-        // py-[9px], not py-2.5: the base ring now costs 1px top and bottom, so
-        // the padding gives that back and `md` keeps the 40px it had before the
-        // ring existed. The reference has the same defect — its two buttons
-        // share a padding while only one carries a border — so there is no
-        // drawing to defer to here.
-        md: 'rounded-[10px] pr-5 py-[9px] text-[13.5px]',
-        header: 'rounded-[10px] pr-[18px] py-2 text-[13px]',
-        sm: 'rounded-[8px] pr-3.5 py-1.5 text-xs',
+        // Height is EXPLICIT, not a padding sum. With `box-sizing: border-box`
+        // the base ring is then absorbed rather than added, so a filled and an
+        // outline button of the same size are identical at every device-pixel
+        // ratio. Compensating with padding cannot do that: Chrome lays a
+        // 1.5px border out as 1px at DPR 1 and 1.5px at DPR 2, so no single
+        // padding restores the height on both. `header` is 36 on purpose — it
+        // sits beside the 36px Date field (README §4).
+        md: 'rounded-[10px] h-10 pr-5 text-[13.5px]',
+        header: 'rounded-[10px] h-9 pr-[18px] text-[13px]',
+        sm: 'rounded-[8px] h-[30px] pr-3.5 text-xs',
       },
       // Two disabled tiers, per the S1 drawings
       // (design/extensions/daily-quotes-live.dc.html: loading at opacity .7,
@@ -69,7 +72,7 @@ export const buttonVariants = cva(
       // comes from the compound variants below.
       inset: {
         normal: '',
-        flushLeft: 'pl-0',
+        flushLeft: 'border-l-0 pl-0',
       },
     },
     compoundVariants: [

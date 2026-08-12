@@ -47,7 +47,7 @@ Shape: cards radius 20–24px; standard inputs white bg; focus ring `2px solid #
 
 **Radius rules (D56).** Two rules, and which applies depends on whether the box is nested against a parent's corner:
 - **Concentric** — when a box sits inside another at a uniform gap, `outer = inner + gap`, so the two curves stay parallel. The sidebar is the worked example: header plate 14 + its 16px inset = shell 30.
-- **A segmented control is both.** Its segment is an object (proportional, 28px → 7); its track is a container (concentric, `7 + padding`) — sidebar toggle 13, Settings/dataset 11, asset form 10. Never give the track its own proportional value: the segment sits in the track's corner.
+- **A segmented control is both.** Its segment is an object (proportional, 28px → 7); its track is a container (concentric). The gap is padding **plus any border**, because the segment's corner sits inside both — sidebar toggle `7+6` = 13 (borderless), Settings and dataset `7+4+1` = 12, asset form `7+3+1` = 11. Never give the track its own proportional value.
 - **Proportional** — for a standalone control not adjacent to a parent's corner, `r = round(min(w, h) × 0.26)`, keyed to the SHORT side. Measure the RENDERED height: `text-[11px]` sets a font size, not a line height, so the classes alone cannot tell you how tall a control is. Gives 3 (bars, chart-legend swatches), 5 (micro badges), 6 (tags, status badges), 7 (segments, chips), 8 (`Button` sm), 9 (inputs, nav pills, day cells, menu rows), 10 (`Button` md/header). Surfaces are NOT proportional — cards, dialogs and popovers keep the reference's own 16 / 20 / 24.
 - **Circles stay circles** — `AssetAvatar`, `ColorDot`, the logo circle, the decorative blob. One round thing among rounded rectangles reads as deliberate. Nothing else is a capsule: the `Switch` track (6) and its knob (4) follow the rule too.
 
@@ -59,7 +59,7 @@ Do **not** apply the proportional rule to a full-height panel: its short side is
 
 **Toasts.** `sonner` ships its own radius, font stack and shadow and ignores classes we add (it styles by attribute). The three are overridden as inline styles through `toastOptions` in `src/main.tsx`: radius 13, `var(--font-body)`, `0 4px 16px rgba(38,38,42,.12)`.
 
-**Buttons are isometric.** Every `Button` variant carries the same `border-[1.5px]`; filled ones paint it `border-transparent`. Button height is automatic, so a border only some variants have is height only some variants have — that is why "Copy yesterday" (outline) stood 2px taller than "Save snapshot" (primary) beside it. The `md` padding is `py-[9px]` rather than `py-2.5` to give that ring back, so the size keeps its 40px. The reference has the same defect (both buttons share a padding, only one has a border), so it is not authoritative here.
+**Buttons are isometric.** Every `Button` variant carries the same `border-[1.5px]`; filled ones paint it `border-transparent`. Height is set **explicitly** per size — `md` 40, `header` 36 (to sit beside the 36px Date field), `sm` 30 — never as a padding sum, so `box-sizing: border-box` absorbs the ring instead of adding it. Padding compensation cannot work here: Chrome lays a 1.5px border out as 1px at DPR 1 and 1.5px at DPR 2, so no single padding restores the height on both. `inset: flushLeft` also drops the left border, or the transparent ring re-creates the very offset that variant exists to remove. The reference shares a padding between a bordered and an unbordered button, so it is not authoritative here.
 
 ## 5. Layout shell
 
@@ -69,8 +69,8 @@ Do **not** apply the proportional rule to a full-height panel: its short side is
 1. Logo lockup card (`#333338`, radius 14, padding 10px 15px, `justify-content:flex-start`): 36px light circle containing **mark 04** — four bars, height is value and opacity is age — beside the wordmark "Quirenote" over "INVEST TRACKER" microlabel. The circle no longer carries the currency symbol; the toggle below is the only currency indicator. The DEMO badge is absolutely pinned to the card's top-right corner at the card's own 15/10 padding and scaled to .75 — out of flow, so it cannot stretch the row.
 2. Group label "DAILY ENTRY" → nav pill "Daily quotes".
 3. Group label "ANALYTICS" → 8 nav pills. Active pill: bg `#e9e8e6`, ink text, weight 700; inactive: transparent, `#cfcecb`; hover opacity .85.
-4. `margin-top:auto` → currency segmented toggle (container `#333338`, radius 10, padding 6px; active segment `#e9e8e6`, radius 7). The sliding thumb's width encodes the container geometry as `50% − (padding + gap/2)` — re-derive it whenever that padding moves.
-5. "Total capital" card (`#333338`, radius 10 — matched to the toggle above it, so the two read as one bottom cluster): label, value (21px, white), delta line (`#b9cdb4`).
+4. `margin-top:auto` → currency segmented toggle (container `#333338`, radius **13** = segment 7 + 6 padding, padding 6px; active segment `#e9e8e6`, radius 7). The sliding thumb's width encodes the container geometry as `50% − (padding + gap/2)` — re-derive it whenever that padding moves.
+5. "Total capital" card (`#333338`, radius **13** — matched to the toggle above it, so the two read as one bottom cluster): label, value (21px, white), delta line (`#b9cdb4`).
 
 **Main** — `flex:1; min-width:0`, padding 32px 36px 48px. Every tab: h2 (26px) + one-line muted subtitle, then content. Grids use `repeat(auto-fit,minmax(200px,1fr))` style wrapping — no horizontal scroll at any width.
 
@@ -133,7 +133,7 @@ Transaction { id, date, type: 'buy'|'sell'|'deposit'|'dividend_accrual'|'interes
 Settings { currency: 'UAH'|'USD', usdRate: 44.83 }
 ```
 
-Derived (never stored): total capital = latest complete snapshot Σ + cash; invested per asset = Σ buys + reinvests; P&L = value − invested; share % = value / total; yield since start = value/invested − 1; annualized = Δ × 365/daysHeld; allocation delta = share − targetPct; rebalance amounts = (target−share) × total. Currency toggle converts **display only** (headline KPIs + sidebar + logo symbol) at the stored rate; detail tables stay in ₴ (matches reference).
+Derived (never stored): total capital = latest complete snapshot Σ + cash; invested per asset = Σ buys + reinvests; P&L = value − invested; share % = value / total; yield since start = value/invested − 1; annualized = Δ × 365/daysHeld; allocation delta = share − targetPct; rebalance amounts = (target−share) × total. Currency toggle converts **display only** (headline KPIs + sidebar capital — the logo symbol went with D56) at the stored rate; detail tables stay in ₴ (matches reference).
 
 Seed data (real user figures, 27.07.2026): REIT invested 65 800,00 → 68 702,10; Energy 59 208,00 → 60 086,09; OVDP …8976 15 390,00 → 15 846,30; OVDP …6475 4 158,00 → 4 374,12; cash ₴7,75; targets 40/40/17/3; income received ₴5,040.94 (div ₴3,641.44 / coupons ₴1,399.50), reinvested ₴1,387.38. Payout log rows are in the reference — seed them verbatim.
 
@@ -148,7 +148,7 @@ Seed data (real user figures, 27.07.2026): REIT invested 65 800,00 → 68 702,10
 - [ ] Quote entry: typing updates delta chip + "N of 4 filled" pill live; Save snapshot persists + toasts + updates "Last saved"; Copy yesterday prefills all.
 - [ ] Snapshot for today upserts (re-saving replaces).
 - [ ] Transaction form: New-asset sub-form appears only for "+ New asset…"; recording creates asset (with attributes) + transaction; recent-transactions list updates.
-- [ ] Currency toggle persists across reloads; converts logo symbol, sidebar capital, Overview KPIs only.
+- [ ] Currency toggle persists across reloads; converts sidebar capital and Overview KPIs only. **It no longer converts a logo symbol** — D56 replaced the ₴/$ in the sidebar circle with the static mark, so the toggle at the bottom is the only currency indicator. A circle that does not change on toggle is correct, not a regression.
 - [ ] All charts recompute from stored data.
 - [ ] No horizontal scroll ≥360px wide; sidebar scrolls internally.
 - [ ] Focus-visible rings, hover states, `aria-current` on active nav.
