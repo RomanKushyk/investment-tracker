@@ -11,6 +11,7 @@ import {
   suggestedQuote,
   type DueCoupon,
 } from '../../core/accrual';
+import { checkQuote, type QuoteVerdict } from '../../core/inzhur/dcf';
 import { couponForecast, matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
 import type { Asset, Snapshot } from '../../core/types';
 import { lastQuoteBefore } from './quotes';
@@ -30,6 +31,35 @@ export function feedSchedule(asset: Asset, feed: ParsedFeed | undefined): string
   if (match === undefined) return undefined;
   const dates = match.quote.paymentSchedule.map((p) => p.date);
   return dates.length > 0 ? dates : undefined;
+}
+
+/**
+ * A6: what the pricing model says about this row's quote — is it fresh, stale,
+ * or re-priced?
+ *
+ * `undefined` = no check is possible, which is different from a clean result:
+ * the row is not a linked bond, or the feed does not publish a yield for it.
+ * The verdict's own `not_applicable` covers the case where the model applies in
+ * principle but the schedule is spent (a `completed` bond, D31).
+ *
+ * Nothing here is stored or applied. It PROPOSES a reading of the provider's
+ * own number, and the number itself stays exactly as published (G5) — the whole
+ * point is that a stale value is recorded as the observed fact, never silently
+ * corrected to a computed one.
+ */
+export function bondQuoteCheck(
+  asset: Asset,
+  feed: ParsedFeed | undefined,
+  onIso: string,
+): QuoteVerdict | undefined {
+  if (feed === undefined) return undefined;
+  const [match] = matchAssets([asset], feed).linked;
+  if (match === undefined) return undefined;
+  const { quote } = match;
+  if (quote.kind !== 'bond') return undefined;
+  const published = quote.returnRates?.sell;
+  if (published === undefined) return undefined;
+  return checkQuote(quote.sellUAH, quote.paymentSchedule, published, onIso);
 }
 
 function feedPeriodDays(

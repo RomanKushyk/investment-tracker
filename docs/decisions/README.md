@@ -22,7 +22,7 @@ only for the decision you actually need.
 |---|---|---|
 | [`D01-D20.md`](D01-D20.md) | D1–D20 | v1: stack, persistence, formulas, deploy |
 | [`D21-D40.md`](D21-D40.md) | D21–D40 | The cloud direction: prices, auth, the domain |
-| [`D41-D50.md`](D41-D50.md) | D41–D51 | The rename, alerting, durability, observations, the FX rate |
+| [`D41-D50.md`](D41-D50.md) | D41–D52 | The rename, alerting, durability, observations, the FX rate |
 
 ## The ones worth reading before touching anything
 
@@ -87,7 +87,7 @@ only for the decision you actually need.
 | D39 | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
 | D40 | The domain is `quirenote.com` | 2026-08-11 |
 
-## D41–D51 — rename, alerting, durability, observations, FX
+## D41–D52 — rename, alerting, durability, observations, FX
 
 | # | Decision | Date |
 |---|---|---|
@@ -103,6 +103,7 @@ only for the decision you actually need.
 | D49 | The DSQL durability gate passes, and the archive had no backup at all | 2026-08-11 |
 | D50 | The NBU archive becomes observations, scoped narrow on purpose | 2026-08-11 |
 | D51 | The NBU rate is fetched on request, and every failure is an HTTP 200 | 2026-08-12 |
+| D52 | A price cannot tell you both when it was struck and at what yield | 2026-08-12 |
 
 ## A pattern these entries kept finding
 

@@ -20,7 +20,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
-| A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
+| A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied on first pass, reply sent 2026-08-11, awaiting re-review** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |

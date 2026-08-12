@@ -4,6 +4,7 @@ import { AssetAvatar } from '../../components/ui/AssetAvatar';
 import { Card } from '../../components/ui/Card';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
 import { yieldSinceStart } from '../../core/derive';
+import type { QuoteVerdict } from '../../core/inzhur/dcf';
 import { fmtDateShort, fmtPct, fmtProse, fmtTable } from '../../core/money';
 import type { Asset } from '../../core/types';
 import { quoteInputSchema } from '../../core/schemas';
@@ -125,12 +126,52 @@ function UseFetchedOffer({
   );
 }
 
+/**
+ * A6 — what the pricing model makes of the provider's own quote.
+ *
+ * Read-only, and it never touches the number: the provider's value stands as
+ * the observed fact even when it is days old (G5/D31). This only says so out
+ * loud, which a price alone can never do.
+ *
+ * `consistent` renders NOTHING. A line that appears on every healthy row is
+ * noise, and noise is what stops anyone reading the one row that matters.
+ */
+function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
+  if (verdict.state === 'consistent' || verdict.state === 'not_applicable') return null;
+
+  if (verdict.state === 'stale') {
+    const { daysStale, date } = verdict.fit;
+    return (
+      <div className="text-muted animate-in fade-in text-[11px] duration-300">
+        Provider price is {daysStale === 1 ? 'a day' : `${daysStale} days`} old — it still
+        prices to {fmtDateShort(date)}.
+      </div>
+    );
+  }
+
+  if (verdict.state === 'revised') {
+    return (
+      <div className="text-warn animate-in fade-in text-[11px] duration-300">
+        Yield looks revised: the price implies {verdict.impliedPct.toFixed(2)}%, the feed
+        publishes {verdict.publishedPct}%.
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-faint animate-in fade-in text-[11px] duration-300">
+      Too close to maturity to check the yield from the price.
+    </div>
+  );
+}
+
 export function QuoteRow({
   asset,
   raw,
   yesterday,
   chip,
   offer,
+  verdict,
   suggestion,
   onChange,
   onAcceptOffer,
@@ -143,6 +184,8 @@ export function QuoteRow({
   yesterday: number | undefined;
   chip: ProvenanceChip | undefined;
   offer: QuoteOffer | undefined;
+  /** A6 model reading of the provider's quote; undefined = no check possible. */
+  verdict: QuoteVerdict | undefined;
   /** S4 accrual ghost — already gated by the toggle/dismissal upstream. */
   suggestion: number | undefined;
   onChange: (v: string) => void;
@@ -222,6 +265,7 @@ export function QuoteRow({
           {delta === undefined ? '—' : fmtPct(delta)}
         </span>
       </div>
+      {verdict !== undefined && <ModelNote verdict={verdict} />}
       {offer !== undefined && (
         <UseFetchedOffer offer={offer} onAccept={onAcceptOffer} onDismiss={onDismissOffer} />
       )}

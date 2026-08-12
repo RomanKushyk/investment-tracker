@@ -21,7 +21,12 @@ import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
 import { FetchQuotesButton } from './daily-quotes/FetchQuotesButton';
 import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
-import { accrualSuggestion, couponPrefill, feedSchedule } from './daily-quotes/suggestions';
+import {
+  accrualSuggestion,
+  bondQuoteCheck,
+  couponPrefill,
+  feedSchedule,
+} from './daily-quotes/suggestions';
 import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
@@ -166,6 +171,7 @@ export function DailyQuotes() {
                 yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
                 chip={fetch.chipFor(a)}
                 offer={fetch.offerFor(a)}
+                verdict={bondQuoteCheck(a, fetch.feed, selectedDate)}
                 suggestion={suggestionFor(a.id)}
                 onChange={(v) => setQuote(a.id, v)}
                 onAcceptOffer={() => fetch.acceptOffer(a.id)}
