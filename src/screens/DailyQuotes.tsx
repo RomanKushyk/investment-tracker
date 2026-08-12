@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
+import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import {
   useAssets,
@@ -177,9 +178,11 @@ export function DailyQuotes() {
               <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
             </div>
           </div>
-          <p className="text-muted mb-[18px] text-[13px]">
+          <p className="text-muted text-[13px]">
             The everyday ritual — nothing else competes with it.
           </p>
+          {/* A7 — non-blocking, and silent until something has been fetched. */}
+          <ParseSkips className="mt-1 mb-[18px]" />
 
           <div className="flex flex-col gap-2.5">
             {assets.map((a) => (

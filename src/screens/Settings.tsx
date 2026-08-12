@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
@@ -302,6 +303,16 @@ function AutomationRows() {
           helper="Dismissed banners stay hidden until their date passes."
         >
           <RestoreDismissedButton />
+        </SettingRow>
+        <Divider />
+        {/* A7 — read-only. The controls that let the owner tune parsing need
+            the B3 user model (PLAN-OPEN O14); seeing what the parse did needs
+            nothing, and that is the half that was missing. */}
+        <SettingRow
+          title="Last feed parse"
+          helper="What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads."
+        >
+          <ParseSkips className="ml-auto text-right" />
         </SettingRow>
       </Reveal>
     </>

@@ -463,7 +463,10 @@ async function captureOne(
         // a price. Its result is metadata only; nothing derived is stored.
         const feed = parseAssetsFeed(JSON.parse(outcome.body));
         entryCount = feed.entries.length;
-        skipped = feed.skipped.join(',');
+        // `ref:reason` per entry, so the archive records WHY an asset dropped
+        // out and not merely that it did — a renamed field is the likeliest
+        // cause and the only one a bare ref list cannot distinguish.
+        skipped = feed.skipped.map((s) => `${s.ref}:${s.reason}`).join(',');
         // Prices only. availableQuantity and the marketing fields are excluded
         // on purpose — they change constantly and would mask a frozen price.
         digest = digestOf(

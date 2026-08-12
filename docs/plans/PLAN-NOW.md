@@ -21,7 +21,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
-| A7 | Parse errors become visible | `feat/parse-diagnostics` | S | todo |
+| A7 | Parse errors become visible | `feat/parse-diagnostics` | S | **done** (2026-08-12) |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied on first pass, reply sent 2026-08-11, awaiting re-review** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
@@ -224,11 +224,12 @@ Nothing is broken **today**, because the read API of B2 does not exist yet and n
 
 **Rationale:** the owner asked for parsing to be controllable via super-admin settings **and** for parse errors to be visible. The control half needs the B3 user model (`PLAN-OPEN.md` O14); the visibility half needs nothing. `parse.ts` already returns `{entries, skipped}` and **every caller discards `skipped`** — today a renamed field silently drops an asset from the fetch and the UI shows only an unlinked row.
 
-- [ ] Surface `skipped` in the Daily-quotes fetch result: count plus per-entry reason, expandable, non-blocking.
-- [ ] Persist the last parse outcome in `meta` beside `inzhur:lastFetch` so the diagnosis survives a reload.
-- [ ] Settings → Automation: a read-only "last parse" panel. Editable controls land with B3.
+- [x] `skipped` became `SkippedEntry[]` — **ref + reason + the rejected field paths**. A bare ref list says an asset vanished; it cannot say `assetDetails.prices.sellUAH` was renamed, which is the likeliest way this feed breaks and the whole difference between a five-minute fix and an afternoon. Surfaced under the Daily-quotes intro line, expandable, non-blocking.
+- [x] Persisted as `inzhur:lastParse` beside the payload, written on **every** successful fetch including the clean ones — a record that appears only on failure cannot tell "the feed is fine" from "nobody has looked since it broke" (D53).
+- [x] Settings → Automation carries the same panel, read-only. Editable controls still need the B3 user model (`PLAN-OPEN.md` O14).
+- [x] `infra/` records `ref:reason` per skip in `price_capture.skipped_refs`, so the archive keeps the diagnosis too.
 
-**Verify:** a fixture with one malformed entry yields exactly one skip with its reason **and** parses the rest — the tolerant-parse contract must not regress into all-or-nothing.
+**Verify — passed 2026-08-12.** Unit: a renamed `sellUAH` yields exactly one skip naming `assetDetails.prices.sellUAH` while the other entry still parses — the tolerant-parse contract holds. Browser, against the live feed with one entry mangled in flight: **"1 feed entry could not be read · 35 read fine"**, expanding to `ocean-plaza — unreadable fields assetDetails.prices.sellUAH`; it survived a reload and appeared identically in Settings. A clean fetch reports `All 36 feed entries read cleanly`, and before any fetch the panel renders **nothing** rather than inventing a verdict.
 
 ## A11 — SES production access, requested early — `infra/ses-identity`
 

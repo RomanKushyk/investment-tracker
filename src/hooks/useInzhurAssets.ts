@@ -8,7 +8,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { msUntilNextKyivHour } from '../core/dates';
-import { parseAssetsFeed, type ParsedFeed } from '../core/inzhur/parse';
+import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '../core/inzhur/parse';
 import { repo } from '../lib/repository';
 import { useDataset } from '../state/settings';
 
@@ -31,10 +31,30 @@ export const inzhurKeys = {
   assets: ['inzhur', 'assets'] as const,
   /** Local companion: the meta-table read, no network. */
   lastFetch: ['inzhur', 'lastFetch'] as const,
+  /** A7: the last parse outcome, also a local meta read. */
+  lastParse: ['inzhur', 'lastParse'] as const,
 };
 
 /** Meta row key pinned by the Phase 3 contracts. */
 export const INZHUR_LAST_FETCH_KEY = 'inzhur:lastFetch';
+
+/** A7. Beside the payload, not inside it: the diagnosis has to survive a
+ *  reload, and it must be readable without re-parsing 300 KB. */
+export const INZHUR_LAST_PARSE_KEY = 'inzhur:lastParse';
+
+/**
+ * What the last parse made of the payload.
+ *
+ * Written on EVERY successful fetch, including the ones with nothing skipped —
+ * a record that appears only on failure cannot tell "the feed is fine" from
+ * "nobody has looked since it broke", which is the recurring defect this
+ * project keeps re-learning (D53).
+ */
+export interface InzhurLastParse {
+  at: string;
+  entries: number;
+  skipped: SkippedEntry[];
+}
 
 /** What we persist: the RAW payload (so a later parse improvement re-reads the
  *  untouched feed) plus when it arrived. */
@@ -78,7 +98,28 @@ async function fetchFeed(querySignal: AbortSignal): Promise<InzhurFeed> {
   }
   const fetchedAt = new Date().toISOString();
   await repo.setMeta(INZHUR_LAST_FETCH_KEY, { payload, fetchedAt } satisfies InzhurLastFetch);
+  // A7. Written whether or not anything was skipped: "nothing wrong as of
+  // 12.08 13:05" is a different statement from "no record", and only the first
+  // one is evidence.
+  await repo.setMeta(INZHUR_LAST_PARSE_KEY, {
+    at: fetchedAt,
+    entries: feed.entries.length,
+    skipped: feed.skipped,
+  } satisfies InzhurLastParse);
   return { feed, fetchedAt };
+}
+
+/** The last parse outcome, read from the meta table. A local read, so it works
+ *  offline and survives a reload — which is the point of persisting it. */
+export function useLastParse(): InzhurLastParse | undefined {
+  const { data } = useQuery({
+    queryKey: inzhurKeys.lastParse,
+    queryFn: async () => (await repo.getMeta<InzhurLastParse>(INZHUR_LAST_PARSE_KEY)) ?? null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    networkMode: 'always',
+  });
+  return data ?? undefined;
 }
 
 function readCache(row: unknown): InzhurFeed | undefined {
@@ -159,8 +200,10 @@ export function useInzhurAssets(): UseInzhurAssets {
     // so a caller can never mistake it for a fresh fetch (the failure itself is
     // on isError/error, and lastGood is what the UI offers instead).
     if (result.error !== null) return undefined;
-    // The success rewrote the meta row — re-read it so lastGood keeps up.
+    // The success rewrote both meta rows — re-read them so lastGood and the
+    // parse panel keep up.
     await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastFetch });
+    await queryClient.invalidateQueries({ queryKey: inzhurKeys.lastParse });
     return result.data;
   }, [disabled, refetch, queryClient]);
 

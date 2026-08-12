@@ -68,10 +68,35 @@ export interface InzhurQuote {
   status?: string;
 }
 
+/**
+ * One entry the parse could not read, and WHY.
+ *
+ * The reason is the point. A bare list of refs says an asset vanished; it does
+ * not say that `prices.sellUAH` was renamed, which is the single most likely
+ * way this feed breaks and the one thing that turns a silent disappearance into
+ * a five-minute fix. Tokens, never English — the words live in the components
+ * (D8).
+ */
+export interface SkippedEntry {
+  /** ISIN, slug, `#index` when the entry carries neither, or `(root)`. */
+  ref: string;
+  /**
+   * `not_an_array` — the payload itself was not a list (an error page, an
+   *   envelope change). `entries` is empty and nothing else can be said.
+   * `shape` — the entry failed validation; `fields` names what.
+   * `no_ref` — it validated but carries neither ISIN nor slug, so nothing
+   *   could key it.
+   */
+  reason: 'not_an_array' | 'shape' | 'no_ref';
+  /** Dotted paths zod rejected, e.g. `assetDetails.prices.sellUAH`. Only on
+   *  `shape`, and deduped — one rename usually raises several issues. */
+  fields?: string[];
+}
+
 export interface ParsedFeed {
   entries: InzhurQuote[];
-  /** Refs (or '#index' / '(root)') of everything the parse could not read. */
-  skipped: string[];
+  /** Everything the parse could not read, with the reason for each. */
+  skipped: SkippedEntry[];
 }
 
 // Money created here (a quote value, a coupon forecast) is rounded once, at
@@ -197,15 +222,27 @@ function labelOf(raw: unknown, index: number): string {
  * not carry a usable ref + sell price is skipped by ref (never thrown).
  */
 export function parseAssetsFeed(payload: unknown): ParsedFeed {
-  if (!Array.isArray(payload)) return { entries: [], skipped: ['(root)'] };
+  if (!Array.isArray(payload)) {
+    return { entries: [], skipped: [{ ref: '(root)', reason: 'not_an_array' }] };
+  }
 
   const entries: InzhurQuote[] = [];
-  const skipped: string[] = [];
+  const skipped: SkippedEntry[] = [];
 
   payload.forEach((raw, index) => {
     const parsed = entrySchema.safeParse(raw);
     if (!parsed.success) {
-      skipped.push(labelOf(raw, index));
+      // The rejected PATHS, deduped: one renamed field typically raises several
+      // issues, and a list repeating `assetDetails.prices.sellUAH` four times
+      // reads as four problems.
+      const fields = [...new Set(parsed.error.issues.map((i) => i.path.join('.')))].filter(
+        (p) => p !== '',
+      );
+      skipped.push({
+        ref: labelOf(raw, index),
+        reason: 'shape',
+        ...(fields.length === 0 ? {} : { fields }),
+      });
       return;
     }
     const { slug, title, status, assetDetails: details } = parsed.data;
@@ -214,7 +251,7 @@ export function parseAssetsFeed(payload: unknown): ParsedFeed {
     // live fund carries one, and every live bond does).
     const ref = isin !== '' ? isin : (slug?.trim() ?? '');
     if (ref === '') {
-      skipped.push(labelOf(raw, index));
+      skipped.push({ ref: labelOf(raw, index), reason: 'no_ref' });
       return;
     }
     const maturity =

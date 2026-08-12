@@ -252,7 +252,11 @@ describe('tolerance — a bad entry never kills the parse', () => {
     ];
     const parsed = parseAssetsFeed(payload);
     expect(parsed.entries.map((e) => e.ref)).toEqual(feed.entries.map((e) => e.ref));
-    expect(parsed.skipped).toEqual(['UA0000000000', '#5', '#6', '#7', '#8']);
+    expect(parsed.skipped.map((s) => s.ref)).toEqual(['UA0000000000', '#5', '#6', '#7', '#8']);
+    // The last one validated but carries neither ISIN nor slug, so nothing
+    // could key it — a different fault from a shape failure, and named as one.
+    expect(parsed.skipped.at(-1)?.reason).toBe('no_ref');
+    expect(parsed.skipped[0].reason).toBe('shape');
   });
 
   it('drops only the malformed payments of a bond, keeping the rest', () => {
@@ -279,8 +283,39 @@ describe('tolerance — a bad entry never kills the parse', () => {
   });
 
   it('reports a payload that is not an array', () => {
-    expect(parseAssetsFeed({ assets: [] })).toEqual({ entries: [], skipped: ['(root)'] });
-    expect(parseAssetsFeed(undefined)).toEqual({ entries: [], skipped: ['(root)'] });
+    const notAnArray = { entries: [], skipped: [{ ref: '(root)', reason: 'not_an_array' }] };
+    expect(parseAssetsFeed({ assets: [] })).toEqual(notAnArray);
+    expect(parseAssetsFeed(undefined)).toEqual(notAnArray);
+  });
+
+  // A7: the whole point of carrying a reason. A renamed price field used to
+  // make an asset vanish from the fetch with nothing to say why; the skip now
+  // names the exact path, which is the difference between a five-minute fix and
+  // an afternoon.
+  it('names the field that a rename broke, and keeps every other entry', () => {
+    const good = {
+      slug: 'inzhur-reit',
+      assetDetails: { prices: { sellUAH: 68660.18 } },
+    };
+    const renamed = {
+      slug: 'inzhur-energy',
+      // `sellUAH` became `sell_uah` upstream.
+      assetDetails: { prices: { sell_uah: 15852.6 } },
+    };
+    const parsed = parseAssetsFeed([good, renamed]);
+
+    // Tolerance is the contract: one bad entry must never cost the good one.
+    expect(parsed.entries.map((e) => e.ref)).toEqual(['inzhur-reit']);
+    expect(parsed.skipped).toHaveLength(1);
+    expect(parsed.skipped[0].ref).toBe('inzhur-energy');
+    expect(parsed.skipped[0].reason).toBe('shape');
+    expect(parsed.skipped[0].fields).toContain('assetDetails.prices.sellUAH');
+  });
+
+  it('deduplicates repeated paths so one rename reads as one problem', () => {
+    const parsed = parseAssetsFeed([{ slug: 'x', assetDetails: { prices: {} } }]);
+    const fields = parsed.skipped[0].fields ?? [];
+    expect(new Set(fields).size).toBe(fields.length);
   });
 });
 
