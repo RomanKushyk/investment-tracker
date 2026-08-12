@@ -74,6 +74,28 @@ Four properties of DSQL backup that are not obvious and shape everything above:
 plans, zero jobs — while looking entirely healthy, which is the same shape of
 failure as the dead alert channel found the same day.
 
+### First scheduled night, measured 2026-08-12
+
+The plan fired at 01:45 Europe/Kyiv exactly as scheduled and completed in 21
+minutes — against 3 min 48 s for the hand-run backup. The difference is start
+latency inside the 60-minute start window, not work: the recovery point is the
+same size class (36.5 MB, up 200 KB on the day's captures and the 408
+observations).
+
+**`BackupAgeHours` reads ~23 in steady state, not ~0**, and the reason is
+ordering: the capture runs at 01:00 and reports the age of the backup taken at
+01:45 the *previous* night. The first night read `2`, because the newest
+recovery point was still the hand-run one from a few hours earlier.
+
+That is what the 48-hour threshold actually buys: **one missed night of slack,
+not two.** A skipped backup takes the value to ~47 and stays quiet; two
+consecutive misses reach ~71 and alarm. This is the intended behaviour — a
+daily plan with a start window must not page for a single late night — but
+"48" should not be read as "two days".
+
+Backing the archive up *before* the day's capture would make the number look
+fresher and the RPO worse, so the order stays as it is.
+
 Two traps met while proving it, both worth an hour to whoever meets them next:
 
 - `StartRestoreJob` rejects the metadata `GetRecoveryPointRestoreMetadata`
