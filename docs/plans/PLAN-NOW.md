@@ -17,6 +17,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
+| A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | todo |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | todo |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | todo |
@@ -160,6 +161,22 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 ---
 
 # Section C — App, pure and independent
+
+## A15 — The daily run derives its own observation — `infra/observe-on-schedule`
+
+**Goal:** the observation table stops falling one day further behind every day.
+
+**Rationale — found 2026-08-12 while checking the first night after A4.** `observeNbu` runs only when something invokes it with `{observe: …}`. The scheduled path captures both sources, reports the alert channel and reports backup age — and then stops. So the payload for `as_of 2026-08-11` is archived, and no observation row exists for it. The table is frozen at the backfill's last date and will stay frozen until a human remembers.
+
+Nothing is broken **today**, because the read API of B2 does not exist yet and nothing reads observations. That is exactly what makes it worth fixing now rather than later: the failure is invisible until the moment something depends on it, and then it looks like data loss rather than a missing call.
+
+- [ ] Call `observeNbu` on the scheduled path, over a short trailing window rather than one date — a few days, so a night the job missed repairs itself on the next run without anyone noticing it had.
+- [ ] Reuse the existing idempotency. `ON CONFLICT DO NOTHING` already makes a re-derivation free, and `written` already reports rows actually inserted (D50), so a healthy day logs `written: 2` and a repaired one logs more.
+- [ ] Emit `written` as a metric on the same pattern as `backupAgeHours` and `alertChannels`, so "observations stopped being derived" is visible without anyone querying the table.
+- [ ] Do **not** widen the scope here. The refs stay the held ISINs (D50); this task is about *when* the derivation runs, not *what* it covers.
+
+**Verify:** the morning after deploy, `price_observation` has a row for the previous `as_of` with no manual invocation, and a second scheduled run inserts nothing.
+**Risk:** low. Network-free, idempotent, and bounded by the same limit parameter the backfill uses.
 
 ## A5 — Live NBU ₴/$ rate — `feat/nbu-rate`
 
