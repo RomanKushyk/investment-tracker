@@ -125,6 +125,13 @@ export interface ValuationDateFit {
   residual: number;
   /** Whole days between `date` and the date the quote was read on. 0 = fresh. */
   daysStale: number;
+  /**
+   * The fit landed on the OLDEST date searched, so the true date may be older
+   * still and the residual is a lower bound rather than an answer. A caller
+   * that reports a date without checking this will state a stale-by-N figure
+   * that is really "at least N".
+   */
+  atWindowEdge: boolean;
 }
 
 /**
@@ -145,6 +152,16 @@ export function bestValuationDate(
   onIso: string,
   lookbackDays = 14,
 ): ValuationDateFit | undefined {
+  // A bond with nothing left to pay is MATURED, and that is the answer. Walking
+  // backwards from here would find the days before its final flow, price those
+  // almost exactly, and report a completed bond as "4 days stale" for a
+  // fortnight after maturity — a fact about the calendar dressed as a fault.
+  if (derivePrice(schedule, yieldPct, onIso).kind !== 'priced') return undefined;
+
+  // The noise floor at the read date. Any date inside it is equally consistent
+  // with the quote, so "which one" is not something the residual can answer.
+  const floor = Math.max(PRICE_TOLERANCE_UAH, yieldSensitivityUah(schedule, yieldPct, onIso) ?? 0);
+
   let best: ValuationDateFit | undefined;
   for (let back = 0; back <= lookbackDays; back += 1) {
     const d = new Date(`${onIso}T00:00:00Z`);
@@ -153,9 +170,18 @@ export function bestValuationDate(
     const derived = derivePrice(schedule, yieldPct, date);
     if (derived.kind !== 'priced') continue;
     const residual = derived.price - quoted;
-    if (best === undefined || Math.abs(residual) < Math.abs(best.residual)) {
-      best = { date, residual, daysStale: back };
-    }
+    const fit = { date, residual, daysStale: back, atWindowEdge: back === lookbackDays };
+
+    // PREFER THE MOST RECENT EXPLANATION, not the smallest residual.
+    //
+    // The published yield is rounded to ~0.05pp, which on a long bond is worth
+    // more than two days of carry — so the plain argmin is dragged backwards by
+    // rounding alone, and only backwards, because the search never looks
+    // forward. That manufactured staleness out of fresh quotes. Once a date
+    // explains the quote within the floor, an older date explaining it slightly
+    // "better" is noise, and "not stale" is the claim that needs no evidence.
+    if (Math.abs(residual) <= floor) return fit;
+    if (best === undefined || Math.abs(residual) < Math.abs(best.residual)) best = fit;
   }
   return best;
 }
@@ -207,12 +233,32 @@ export type QuoteVerdict =
   | { state: 'consistent'; fit: ValuationDateFit }
   /** It fits, but on an EARLIER date — the quote has not been refreshed. */
   | { state: 'stale'; fit: ValuationDateFit }
-  /** No date explains it at the published yield, and the price is sensitive
-   *  enough for that to mean something. This is the silent revision. */
+  /**
+   * NO DATE in the search window explains the quote at the published yield.
+   *
+   * `impliedPct` is what the yield would have to be for the quote to be right
+   * TODAY — an alternative reading, not a claim. The other reading is a quote
+   * staler than the window, and one price cannot choose between them (see the
+   * note on `checkQuote`). The rendering must therefore offer the number
+   * without asserting that the provider re-priced.
+   */
   | { state: 'revised'; fit: ValuationDateFit; impliedPct: number; publishedPct: number }
-  /** The price barely moves with the yield, so the residual cannot decide
-   *  anything. Saying "confirmed" here would be a claim the data cannot carry. */
-  | { state: 'inconclusive'; fit: ValuationDateFit; sensitivityUah: number }
+  /**
+   * No verdict is available, and the reason decides how loud it should be:
+   *
+   *   * `insensitive` — near maturity the price barely moves with the yield, so
+   *     the residual cannot decide anything. Benign.
+   *   * `unexplained` — the quote lies outside EVERY yield the model can
+   *     produce. That is the loudest thing this model can say: a schedule the
+   *     parser mangled, or a corrupt provider price. It must never share a
+   *     rendering with the benign case.
+   */
+  | {
+      state: 'inconclusive';
+      fit: ValuationDateFit;
+      reason: 'insensitive' | 'unexplained';
+      sensitivityUah: number;
+    }
   /** Matured or completed: the schedule is spent and the model is undefined. */
   | { state: 'not_applicable' };
 
@@ -258,7 +304,7 @@ export function checkQuote(
   // The residual is larger than rounding — but on a nearly-matured bond a
   // kopeck of price cannot pin the yield down, so no verdict is available.
   if (sensitivity < PRICE_TOLERANCE_UAH) {
-    return { state: 'inconclusive', fit, sensitivityUah: sensitivity };
+    return { state: 'inconclusive', fit, reason: 'insensitive', sensitivityUah: sensitivity };
   }
 
   // Solved at `onIso`, NOT at `fit.date`. The best-fit date was chosen on the
@@ -267,5 +313,8 @@ export function checkQuote(
   const implied = impliedYield(quoted, schedule, onIso);
   return implied.kind === 'solved'
     ? { state: 'revised', fit, impliedPct: implied.yieldPct, publishedPct }
-    : { state: 'inconclusive', fit, sensitivityUah: sensitivity };
+    : // `unbracketed`, and the price IS sensitive enough for that to mean
+      // something — so the near-maturity excuse is provably false. This is a
+      // mangled schedule or a corrupt price, and it gets its own rendering.
+      { state: 'inconclusive', fit, reason: 'unexplained', sensitivityUah: sensitivity };
 }

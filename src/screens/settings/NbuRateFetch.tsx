@@ -32,7 +32,12 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
   // one thing this must not do.
   const [tried, setTried] = useState(false);
   const shown = data ?? lastGood;
-  const isStale = data === undefined && lastGood !== undefined;
+  // `isError` counts, not just a missing `data`. TanStack keeps the PREVIOUS
+  // success on an errored query, so after a failed press the old number is
+  // still here — and rendering it without the label would present the result of
+  // a failed fetch as the current rate. The toast alone is not enough: it is
+  // gone in four seconds and the line stays on screen.
+  const isStale = isError || (data === undefined && lastGood !== undefined);
 
   async function handleFetch() {
     setTried(true);
@@ -42,11 +47,16 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
 
   return (
     <div className="flex flex-col items-end gap-1.5">
+      {/* No aria-label: it would REPLACE the visible text, so "Fetch rate" —
+          the words on screen — stops being part of the accessible name and a
+          voice-control user saying them hits nothing (WCAG 2.5.3). It also hid
+          the "Fetching…" state from screen readers. `title` adds the longer
+          wording without taking the name away. */}
       <Button
         variant="outline"
         onClick={handleFetch}
         disabled={disabled || isFetching}
-        aria-label="Fetch the official NBU rate"
+        title="Fetch the official National Bank of Ukraine rate"
       >
         {isFetching ? 'Fetching…' : 'Fetch rate'}
       </Button>

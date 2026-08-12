@@ -140,20 +140,37 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   if (verdict.state === 'consistent' || verdict.state === 'not_applicable') return null;
 
   if (verdict.state === 'stale') {
-    const { daysStale, date } = verdict.fit;
+    const { daysStale, date, atWindowEdge } = verdict.fit;
     return (
       <div className="text-muted animate-in fade-in text-[11px] duration-300">
-        Provider price is {daysStale === 1 ? 'a day' : `${daysStale} days`} old — it still
-        prices to {fmtDateShort(date)}.
+        Provider price is {atWindowEdge ? 'at least ' : ''}
+        {daysStale === 1 ? 'a day' : `${daysStale} days`} old — it still prices to{' '}
+        {fmtDateShort(date)}.
       </div>
     );
   }
 
+  // Deliberately NOT phrased as "the yield was revised". No date in the window
+  // explains this price, and the two readings — a re-priced bond or a quote
+  // staler than a fortnight — cannot be told apart from a single price. The
+  // number is offered; the conclusion is left to the reader.
   if (verdict.state === 'revised') {
     return (
       <div className="text-warn animate-in fade-in text-[11px] duration-300">
-        Yield looks revised: the price implies {verdict.impliedPct.toFixed(2)}%, the feed
-        publishes {verdict.publishedPct}%.
+        Price does not fit {verdict.publishedPct}% on any day of the last two weeks — it
+        would imply {verdict.impliedPct.toFixed(2)}% if struck today.
+      </div>
+    );
+  }
+
+  // `unexplained` is the loudest thing the model can say — no yield at all
+  // reproduces this price — so it must not share a muted line with the two
+  // benign reasons.
+  if (verdict.reason === 'unexplained') {
+    return (
+      <div className="text-neg animate-in fade-in text-[11px] duration-300">
+        This price matches no yield the schedule can produce — the feed's payment
+        schedule or its price may be wrong.
       </div>
     );
   }

@@ -22,7 +22,7 @@ only for the decision you actually need.
 |---|---|---|
 | [`D01-D20.md`](D01-D20.md) | D1–D20 | v1: stack, persistence, formulas, deploy |
 | [`D21-D40.md`](D21-D40.md) | D21–D40 | The cloud direction: prices, auth, the domain |
-| [`D41-D50.md`](D41-D50.md) | D41–D52 | The rename, alerting, durability, observations, the FX rate |
+| [`D41-D50.md`](D41-D50.md) | D41–D53 | The rename, alerting, durability, observations, the FX rate |
 
 ## The ones worth reading before touching anything
 
@@ -87,7 +87,7 @@ only for the decision you actually need.
 | D39 | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
 | D40 | The domain is `quirenote.com` | 2026-08-11 |
 
-## D41–D52 — rename, alerting, durability, observations, FX
+## D41–D53 — rename, alerting, durability, observations, FX
 
 | # | Decision | Date |
 |---|---|---|
@@ -104,13 +104,14 @@ only for the decision you actually need.
 | D50 | The NBU archive becomes observations, scoped narrow on purpose | 2026-08-11 |
 | D51 | The NBU rate is fetched on request, and every failure is an HTTP 200 | 2026-08-12 |
 | D52 | A price cannot tell you both when it was struck and at what yield | 2026-08-12 |
+| D53 | What the xhigh review found, and the two fixes that were wrong first | 2026-08-12 |
 
 ## A pattern these entries kept finding
 
-D43, D44, D48, D49 and D50 are five independent instances of one defect:
+D43, D44, D48, D49, D50 and D53 are six independent instances of one defect:
 **a green indicator that was green because nothing had been attempted.** A dead
 alert channel with zero failed notifications, a backfill whose result nobody
 read, an archive with deletion protection and no backup, an insert counter that
-could not tell a re-run from a re-write. When adding a check, ask what it reads
+could not tell a re-run from a re-write, and — in D53 — a failure handler that published no datapoint at all, inside the very check written to catch this. When adding a check, ask what it reads
 when the thing it watches has stopped entirely — if the answer is "the same as
 healthy", the check is not one.

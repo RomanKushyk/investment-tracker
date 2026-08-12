@@ -56,6 +56,14 @@ export interface QuoteFetch {
    * Undefined until something has been fetched; always undefined in demo.
    */
   feed: ParsedFeed | undefined;
+  /**
+   * The instant `feed` was actually fetched — which is NOT "now" when the
+   * payload came from the last-good cache, and is never the date the user has
+   * selected in the picker. Anything reasoning about how old the provider's
+   * prices are has to date them from here, or it ends up blaming the provider
+   * for the app's own cache age.
+   */
+  feedFetchedAt: string | undefined;
   fetchQuotes: () => void;
   chipFor: (asset: Asset) => ProvenanceChip | undefined;
   offerFor: (asset: Asset) => QuoteOffer | undefined;
@@ -189,6 +197,7 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
     ),
     flashAt,
     feed: data?.feed ?? lastGood?.feed,
+    feedFetchedAt: data?.fetchedAt ?? lastGood?.fetchedAt,
     fetchQuotes,
     chipFor,
     offerFor,

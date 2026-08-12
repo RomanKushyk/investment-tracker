@@ -50,16 +50,26 @@ export function feedSchedule(asset: Asset, feed: ParsedFeed | undefined): string
 export function bondQuoteCheck(
   asset: Asset,
   feed: ParsedFeed | undefined,
-  onIso: string,
+  /**
+   * The date the PAYLOAD was fetched on — never the date selected in the
+   * picker, and never "today" when the payload came from the cache.
+   *
+   * Two bugs lived here. Dating a live quote against a back-dated snapshot made
+   * the model see a price ~0.4 ₴ off and cry "yield revised" on every linked
+   * bond, on the ordinary act of recording a missed day. And dating a cached
+   * payload against today reported the provider as stale when only the local
+   * cache was — the app blaming the feed for its own age.
+   */
+  fetchedOnIso: string | undefined,
 ): QuoteVerdict | undefined {
-  if (feed === undefined) return undefined;
+  if (feed === undefined || fetchedOnIso === undefined) return undefined;
   const [match] = matchAssets([asset], feed).linked;
   if (match === undefined) return undefined;
   const { quote } = match;
   if (quote.kind !== 'bond') return undefined;
   const published = quote.returnRates?.sell;
   if (published === undefined) return undefined;
-  return checkQuote(quote.sellUAH, quote.paymentSchedule, published, onIso);
+  return checkQuote(quote.sellUAH, quote.paymentSchedule, published, fetchedOnIso);
 }
 
 function feedPeriodDays(

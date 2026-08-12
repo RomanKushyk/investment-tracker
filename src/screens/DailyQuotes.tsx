@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
@@ -11,11 +11,12 @@ import {
   useTransactions,
 } from '../hooks/queries';
 import { couponReminderId, dueCoupons } from '../core/accrual';
-import { todayIso } from '../core/dates';
+import { kyivDateIso, todayIso } from '../core/dates';
 import { investedByAsset, latestCash, latestQuotes } from '../core/derive';
+import type { QuoteVerdict } from '../core/inzhur/dcf';
 import { fmtSavedAt, fmtTable } from '../core/money';
 import { quoteInputSchema } from '../core/schemas';
-import type { Snapshot } from '../core/types';
+import type { Asset, Snapshot } from '../core/types';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
@@ -32,8 +33,13 @@ import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
 
+/** One frozen instance, so "no assets yet" keeps a STABLE identity. A fresh
+ *  `[]` per render would change the verdict memo's dependency every time and
+ *  make the memo do nothing at all. */
+const NO_ASSETS: Asset[] = [];
+
 export function DailyQuotes() {
-  const assets = useAssets().data ?? [];
+  const assets = useAssets().data ?? NO_ASSETS;
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
   const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
@@ -100,6 +106,19 @@ export function DailyQuotes() {
       if (y !== undefined) setQuote(a.id, fmtTable(y));
     }
   }
+
+  // A6 verdicts, computed once per feed rather than per render. Each check runs
+  // ~17 discounted-cash-flow passes (and 200 more when it bisects), and this
+  // component re-renders on every keystroke in every quote input — so leaving
+  // it inline put thousands of Math.pow calls on the typing path for a value
+  // that only changes when the payload or its fetch date does.
+  const feedDate =
+    fetch.feedFetchedAt === undefined ? undefined : kyivDateIso(new Date(fetch.feedFetchedAt));
+  const verdicts = useMemo(() => {
+    const out: Record<string, QuoteVerdict | undefined> = {};
+    for (const a of assets) out[a.id] = bondQuoteCheck(a, fetch.feed, feedDate);
+    return out;
+  }, [assets, fetch.feed, feedDate]);
 
   const lastSavedAt = maxSavedAt(snapshots);
   const values = latestQuotes(snapshots);
@@ -171,7 +190,7 @@ export function DailyQuotes() {
                 yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
                 chip={fetch.chipFor(a)}
                 offer={fetch.offerFor(a)}
-                verdict={bondQuoteCheck(a, fetch.feed, selectedDate)}
+                verdict={verdicts[a.id]}
                 suggestion={suggestionFor(a.id)}
                 onChange={(v) => setQuote(a.id, v)}
                 onAcceptOffer={() => fetch.acceptOffer(a.id)}

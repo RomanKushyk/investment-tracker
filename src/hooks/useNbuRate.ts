@@ -7,7 +7,7 @@
 // a draft (G5).
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { todayIso } from '../core/dates';
+import { kyivDateIso } from '../core/dates';
 import { nbuRateUrl, parseNbuRate, type NbuRate } from '../core/nbu/rate';
 import { repo } from '../lib/repository';
 import { useDataset } from '../state/settings';
@@ -37,7 +37,14 @@ async function fetchRate(querySignal: AbortSignal): Promise<NbuRateResult> {
     // A bare GET: no custom headers, no credentials. `ACAO: *` rules out
     // credentialed requests, and any non-safelisted header would make this
     // preflighted — the same constraint as the Inzhur feed (D19).
-    const response = await fetch(nbuRateUrl(todayIso()), { signal: controller.signal });
+    // KYIV's date, not the device's. The endpoint is anchored to the Kyiv
+    // banking calendar, so a device west of Kyiv would ask for yesterday and be
+    // handed yesterday's rate stamped with the date it asked for — the silent
+    // off-by-one this module's header warns about, arriving through the clock
+    // instead of through a missing `date=`.
+    const response = await fetch(nbuRateUrl(kyivDateIso(new Date())), {
+      signal: controller.signal,
+    });
     if (!response.ok) throw new Error(`NBU responded ${response.status}`);
     // TEXT, not json(): every failure this endpoint has arrives as an HTTP 200,
     // and one of them (`[{ Wrong date format }]`) is not JSON at all. The
@@ -89,22 +96,37 @@ export function useNbuRate(): UseNbuRate {
     // FAIL so the UI can say so, rather than pausing silently and then firing
     // by itself when the connection returns.
     networkMode: 'always',
+    // Without this the entry is dropped 5 minutes after Settings unmounts, and
+    // a rate fetched minutes ago comes back labelled "not refreshed".
+    gcTime: Infinity,
   });
 
-  const { data: lastGood } = useQuery({
+  const { data: cached } = useQuery({
     queryKey: [...nbuKeys.rate, 'lastGood'] as const,
+    // `?? null`: TanStack rejects `undefined` as query data, and "no cache row
+    // yet" is the normal state on a fresh profile.
     queryFn: async () => readCache(await repo.getMeta(NBU_LAST_RATE_KEY)) ?? null,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    // A local IndexedDB read — never let it be paused for being "offline":
+    // offline is exactly when the last-good rate has to be readable.
+    networkMode: 'always',
   });
 
   return {
     data,
-    lastGood: lastGood ?? undefined,
+    lastGood: cached ?? undefined,
     isFetching,
     isError,
     disabled,
     fetchRate: async () => {
       if (disabled) return undefined;
       const r = await refetch();
+      // A failed refetch keeps the PREVIOUS success in `data`, so returning it
+      // unconditionally would let the caller mistake a dead network for a fresh
+      // rate — and skip the error toast entirely.
+      if (r.error !== null) return undefined;
+      // The success rewrote the meta row — re-read it so lastGood keeps up.
       await queryClient.invalidateQueries({ queryKey: [...nbuKeys.rate, 'lastGood'] });
       return r.data;
     },

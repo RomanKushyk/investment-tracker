@@ -836,6 +836,11 @@ async function observeNbu(client: Client, req: ObserveRequest) {
  *  night repairs itself rather than leaving a permanent hole. */
 const OBSERVE_WINDOW_DAYS = 7;
 
+/** Published as `observationsWritten` when the derivation threw. Negative
+ *  because no successful run can report it, so "broken" and "nothing new
+ *  today" can never be read as the same point on the graph. */
+const OBSERVE_FAILED = -1;
+
 /**
  * Derive observations for the trailing window and publish what happened.
  *
@@ -855,9 +860,9 @@ const OBSERVE_WINDOW_DAYS = 7;
  * is already stored by this point, so anything missed here is recoverable on
  * the next run — which is exactly the property the trailing window buys.
  */
-async function observeAndReport(client: Client, from: string): Promise<void> {
+async function observeAndReport(client: Client, from: string, to: string): Promise<void> {
   try {
-    const r = await observeNbu(client, { from });
+    const r = await observeNbu(client, { from, to });
     console.log(
       JSON.stringify({
         metric: 'observationsWritten',
@@ -869,8 +874,20 @@ async function observeAndReport(client: Client, from: string): Promise<void> {
       }),
     );
   } catch (err) {
-    console.warn(
-      `observation derivation failed: ${err instanceof Error ? err.message : String(err)}`,
+    // EMIT THE METRIC ANYWAY, with a value no healthy run can produce.
+    //
+    // Logging only a warning would drop the datapoint entirely, so a
+    // permanently failing derivation publishes an EMPTY series — not the flat
+    // zero the alarm rationale tells the operator to watch for. Empty and
+    // healthy-at-zero look identical on a graph, which is the exact defect of
+    // D43/D44/D49 reappearing in the check written to prevent it.
+    console.log(
+      JSON.stringify({
+        metric: 'observationsWritten',
+        from,
+        value: OBSERVE_FAILED,
+        error: err instanceof Error ? err.message : String(err),
+      }),
     );
   }
 }
@@ -1091,7 +1108,12 @@ export async function handler(event: HandlerEvent = {}) {
     // nothing (`ON CONFLICT DO NOTHING`, ~2 rows a day, no network at all) and
     // makes the run self-repairing: whatever was missed comes back on the next
     // successful night without anyone noticing it had gone.
-    await observeAndReport(client, addDays(asOf, -OBSERVE_WINDOW_DAYS));
+    // Bounded at BOTH ends. `to` defaults to today inside `observeNbu`, so
+    // omitting it made a manual `{ asOf: '2020-03-02' }` repair derive six
+    // years forward — hundreds of dates the operator never asked for, reported
+    // as one enormous spike in the metric that is supposed to read "a couple of
+    // rows a night".
+    await observeAndReport(client, addDays(asOf, -OBSERVE_WINDOW_DAYS), asOf);
 
     // Only on the scheduled path. A backfill has nothing to say about whether
     // today's alerting works, and it would emit the value hundreds of times.

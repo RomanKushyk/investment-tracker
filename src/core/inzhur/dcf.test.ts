@@ -229,3 +229,78 @@ describe('checkQuote', () => {
     expect(checkQuote(1000, SCHEDULE, YIELD_PCT, '2027-04-30', 5).state).toBe('not_applicable');
   });
 });
+
+// --- regressions from the 2026-08-12 review -------------------------------
+
+describe('bestValuationDate — review regressions', () => {
+  // Print rounding is worth ~2 days of carry on a long bond, and the search
+  // only ever looked backwards, so a FRESH quote at a rate rounded down was
+  // reported stale. "Not stale" is the claim that needs no evidence: once a
+  // date explains the quote within the noise floor, stop there.
+  it('does not invent staleness out of the published rate being rounded', () => {
+    const long: InzhurPayment[] = [
+      { date: '2026-12-02', amount: 83.25 },
+      { date: '2027-06-02', amount: 83.25 },
+      { date: '2027-12-01', amount: 83.25 },
+      { date: '2028-05-31', amount: 83.25 },
+      { date: '2028-11-29', amount: 83.25 },
+      { date: '2028-11-29', amount: 1000 },
+    ];
+    // Struck today at a true 15.57%, printed by the feed as 15.55.
+    const truth = derivePrice(long, 15.57, '2026-08-12');
+    if (truth.kind !== 'priced') throw new Error('expected a price');
+    const fit = bestValuationDate(truth.price, long, 15.55, '2026-08-12');
+    expect(fit?.daysStale).toBe(0);
+    expect(checkQuote(truth.price, long, 15.55, '2026-08-12').state).toBe('consistent');
+  });
+
+  // A matured bond still quotes its last value and still publishes a yield.
+  // Walking back past its final flow priced those days almost exactly and
+  // reported "4 days stale" about an instrument that is simply finished.
+  it('reports a matured bond as not applicable instead of walking back past maturity', () => {
+    const matured: InzhurPayment[] = [
+      { date: '2026-08-09', amount: 78.4 },
+      { date: '2026-08-09', amount: 1000 },
+    ];
+    expect(bestValuationDate(1070, matured, 15, '2026-08-12')).toBeUndefined();
+    expect(checkQuote(1070, matured, 15, '2026-08-12').state).toBe('not_applicable');
+  });
+
+  it('marks a fit that landed on the oldest date searched', () => {
+    const fit = bestValuationDate(QUOTED, SCHEDULE, YIELD_PCT, '2026-08-20', 3);
+    expect(fit?.atWindowEdge).toBe(true);
+  });
+});
+
+describe('checkQuote — review regressions', () => {
+  // `unbracketed` means no yield at all reproduces the price — a mangled
+  // schedule or a corrupt quote. It used to render as the benign
+  // "too close to maturity" line, hiding the loudest signal the model has.
+  it('separates an unexplainable price from a near-maturity one', () => {
+    const v = checkQuote(140, SCHEDULE, YIELD_PCT, '2026-08-12');
+    expect(v.state).toBe('inconclusive');
+    if (v.state !== 'inconclusive') return;
+    expect(v.reason).toBe('unexplained');
+  });
+
+  it('still calls a genuinely near-matured bond insensitive', () => {
+    const short: InzhurPayment[] = [
+      { date: '2026-08-19', amount: 78.4 },
+      { date: '2026-08-19', amount: 1000 },
+    ];
+    const p = derivePrice(short, 14.6, '2026-08-12');
+    if (p.kind !== 'priced') throw new Error('expected a price');
+    const v = checkQuote(p.price + 0.5, short, 14.6, '2026-08-12', 0);
+    expect(v.state).toBe('inconclusive');
+    if (v.state !== 'inconclusive') return;
+    expect(v.reason).toBe('insensitive');
+  });
+
+  // A revision far too large for the window to absorb must stay loud rather
+  // than being downgraded because the search hit its own edge.
+  it('keeps a large mismatch loud instead of blaming the search window', () => {
+    const repriced = derivePrice(SCHEDULE, 17.25, '2026-08-12');
+    if (repriced.kind !== 'priced') throw new Error('expected a price');
+    expect(checkQuote(repriced.price, SCHEDULE, YIELD_PCT, '2026-08-12').state).toBe('revised');
+  });
+});
