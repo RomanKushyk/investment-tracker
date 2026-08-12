@@ -115,6 +115,16 @@
     outline-offset: 2px;
   }
 
+  /* The ink ring IS the sidebar's own colour — 1.00:1 against `sidebar` and
+     1.20:1 against `sidebar-inset`, i.e. keyboard focus was invisible on every
+     nav pill and both toggles. `sidebar-text` gives 12.31:1 and 10.26:1, past
+     the 3:1 that WCAG 1.4.11 asks of a non-text indicator.
+     It is right for the ACTIVE pill too, light background and all: the 2px
+     offset draws the ring OUTSIDE the control, on the dark rail behind it. */
+  aside :focus-visible {
+    outline-color: var(--color-sidebar-text);
+  }
+
   ::selection {
     background: var(--color-pos-tint);
   }
