@@ -199,6 +199,26 @@ describe('export → erase → import round-trip', () => {
     expect(await db.assets.count()).toBe(4);
   });
 
+  /**
+   * Wait until `heard` holds `count` messages, or give up after a deadline.
+   *
+   * `BroadcastChannel` delivery is asynchronous with NO guaranteed turnaround.
+   * This test used to assume one macrotask tick was enough — which held on a
+   * developer machine and did not on a loaded CI runner, failing three times
+   * across two commits while every retry passed. That is the definition of a
+   * flake, and retrying it would have been treating the symptom.
+   *
+   * Polling is strictly better than a longer fixed sleep: it returns the
+   * instant the message lands (so the fast path stays fast) and still fails —
+   * loudly, at the assertion below — if it never does.
+   */
+  async function waitForMessages(heard: unknown[], count: number): Promise<void> {
+    const deadline = Date.now() + 2_000;
+    while (heard.length < count && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+
   it('tells other tabs after a committed replace, never before', async () => {
     await ensureSeeded();
     // A second channel object stands in for a second tab: the repository's own
@@ -214,15 +234,19 @@ describe('export → erase → import round-trip', () => {
       await expect(
         repo.replaceAll({ ...bad, assets: [...SEED_ASSETS, SEED_ASSETS[0]] }),
       ).rejects.toThrow();
-      await Promise.resolve();
+      // Asserting ABSENCE, so this one must NOT wait for an arrival — it gives
+      // a wrong implementation a real window to speak up and then insists on
+      // silence. `await Promise.resolve()` alone would have let a broken build
+      // pass simply by being slower than the assertion.
+      await new Promise((resolve) => setTimeout(resolve, 50));
       expect(heard).toEqual([]);
 
       await repo.replaceAll(bad);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await waitForMessages(heard, 1);
       expect(heard).toEqual([{ kind: 'replace' }]);
 
       await repo.clearAll({ reseed: false });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await waitForMessages(heard, 2);
       expect(heard).toEqual([{ kind: 'replace' }, { kind: 'clear' }]);
     } finally {
       otherTab.close();
