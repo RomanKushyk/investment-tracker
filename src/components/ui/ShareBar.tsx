@@ -13,7 +13,7 @@ const BG: Record<ColorKey, string> = {
 // inside the v1 300-400ms reveal band).
 export function ShareBar({ segments }: { segments: { colorKey: ColorKey; pct: number }[] }) {
   return (
-    <div className="flex h-3 overflow-hidden rounded-full">
+    <div className="flex h-3 overflow-hidden rounded-[3px]">
       {segments.map((s, i) => (
         <div
           // colorKey alone is NOT unique once a 5th asset wraps the 4-hue

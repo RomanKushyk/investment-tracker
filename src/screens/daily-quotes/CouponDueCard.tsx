@@ -108,7 +108,7 @@ export function CouponDueCard({
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-muted text-[10px] tracking-[.12em] uppercase">Coupon due</span>
         {due.overdueDays > 0 && (
-          <span className="bg-warn-tint text-warn-tint-text rounded-full px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase">
+          <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase">
             {fmtDateShort(due.date)}
           </span>
         )}
@@ -137,7 +137,7 @@ export function CouponDueCard({
         // The message sits outside the label, so it needs the explicit link —
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? errorId : undefined}
-        className={`bg-page h-9 w-full rounded-[10px] border px-3 font-body text-[13px] transition ${
+        className={`bg-page h-9 w-full rounded-[9px] border px-3 font-body text-[13px] transition ${
           error ? 'border-neg' : 'border-hairline hover:border-faint'
         }`}
       />

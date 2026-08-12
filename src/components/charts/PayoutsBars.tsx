@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 
-import { CHART, SERIES } from '../../core/colors';
+import { CHART, CHART_TOOLTIP, SERIES } from '../../core/colors';
 
 export interface PayoutsChartPoint {
   monthLabel: string;
@@ -62,7 +62,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
         />
-        <Tooltip contentStyle={{ borderRadius: 12, border: `1px solid ${CHART.hairline}`, fontSize: 12 }} />
+        <Tooltip contentStyle={CHART_TOOLTIP} />
         <Bar
           dataKey="dividends"
           stackId="pay"

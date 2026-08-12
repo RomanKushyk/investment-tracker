@@ -74,7 +74,7 @@ function Field({
 // Inputs sit on `page` bg inside both hosts (white dialog card and the white
 // dashed quick-create panel — master inversion rule); hover border → faint.
 function inputClass(invalid: boolean): string {
-  return `h-9 rounded-[10px] border bg-page px-3 font-body text-[13px] text-ink transition ${
+  return `h-9 rounded-[9px] border bg-page px-3 font-body text-[13px] text-ink transition ${
     invalid ? 'border-neg' : 'border-hairline hover:border-faint'
   }`;
 }
@@ -93,7 +93,7 @@ function KindSegment({
       type="button"
       aria-pressed={value === kind}
       onClick={() => onChange(kind)}
-      className={`relative z-10 cursor-pointer rounded-full px-4 py-[5px] text-xs font-bold transition active:scale-[.97] ${
+      className={`relative z-10 cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition active:scale-[.97] ${
         value === kind ? 'text-ink' : 'text-muted hover:opacity-85'
       }`}
     >
@@ -101,10 +101,10 @@ function KindSegment({
     </button>
   );
   return (
-    <div className="border-panel-border bg-panel relative flex gap-1 rounded-full border p-[3px]">
+    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[10px] border p-[3px]">
       <div
         aria-hidden
-        className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-full shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300"
+        className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300"
         style={{ transform: value === 'fund' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('fund', 'Fund')}
@@ -167,7 +167,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           font 15/600). */}
       <Field label="Units" error={!!errors.inzhur?.units && MSG.units}>
         <input
-          className={`h-11 rounded-[10px] border px-3 font-display text-[15px] font-semibold ${
+          className={`h-11 rounded-[11px] border px-3 font-display text-[15px] font-semibold ${
             errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
           } bg-page text-ink transition`}
           placeholder="6 164"

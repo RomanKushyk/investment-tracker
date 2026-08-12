@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Quirenote">
+  <!-- Mark 04 "Серія днів": four days, height is value and opacity is age.
+       Drawn on whole units with an even stroke so that at 16px every bar lands
+       inside a pixel instead of across two. Transparent and theme-aware: the
+       browser paints the tab in its own theme, so a fixed colour would go
+       invisible in one of them. -->
+  <style>
+    path { stroke: #26262a }
+    @media (prefers-color-scheme: dark) { path { stroke: #e9e8e6 } }
+  </style>
+  <g fill="none" stroke-width="4" stroke-linecap="round">
+    <path d="M7 24v-5" opacity=".45" />
+    <path d="M13 24v-10" opacity=".65" />
+    <path d="M19 24v-6" opacity=".8" />
+    <path d="M25 24V8" />
+  </g>
+</svg>

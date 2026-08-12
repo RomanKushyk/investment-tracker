@@ -29,7 +29,23 @@ void ensureSeeded().then(() => {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-        <Toaster />
+        {/* sonner ships its own look and we had never overridden it, so every
+            toast in the app was drawn outside the design system: radius 8, a
+            `ui-sans-serif` system stack, and a pure-black shadow. All three are
+            set here rather than in CSS because sonner styles by attribute
+            (`[data-sonner-toast][data-styled=true]`), which outranks a class —
+            an inline style is the one thing that reliably wins.
+            Radius 13 is the rule on the toast's measured 51.5px height, the
+            same value the sidebar's currency toggle lands on. */}
+        <Toaster
+          toastOptions={{
+            style: {
+              borderRadius: '13px',
+              fontFamily: 'var(--font-body)',
+              boxShadow: '0 4px 16px rgba(38, 38, 42, .12)',
+            },
+          }}
+        />
       </QueryClientProvider>
     </StrictMode>,
   );

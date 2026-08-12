@@ -27,7 +27,7 @@ export function DatasetSwitch() {
       aria-pressed={dataset === d}
       disabled={switching}
       onClick={() => flip(d)}
-      className={`relative z-10 cursor-pointer rounded-full px-[22px] py-1.5 text-xs font-bold transition active:scale-[.97] ${dataset === d ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[22px] py-1.5 text-xs font-bold transition active:scale-[.97] ${dataset === d ? 'text-ink' : 'text-muted hover:opacity-85'}`}
     >
       {label}
     </button>
@@ -35,13 +35,13 @@ export function DatasetSwitch() {
 
   return (
     <div
-      className={`border-panel-border bg-panel relative flex gap-1 rounded-full border p-1 transition ${switching ? 'opacity-50' : ''}`}
+      className={`border-panel-border bg-panel relative flex gap-1 rounded-[11px] border p-1 transition ${switching ? 'opacity-50' : ''}`}
     >
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-full shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300 ease-soft"
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300 ease-soft"
         style={{ transform: dataset === 'demo' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('demo', 'Demo')}

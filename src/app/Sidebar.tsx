@@ -17,9 +17,28 @@ const ANALYTICS = [
   { to: '/allocation', label: 'Allocation' },
 ];
 
-function pillClass(padY: string) {
+// Mark 04: four days, height is value and opacity is age. Whole units and an
+// even stroke so the bars land inside pixels rather than across two at small
+// sizes — the same geometry as public/favicon.svg.
+function Mark({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} role="img" aria-label="Quirenote">
+      <g fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round">
+        <path d="M7 24v-5" opacity=".45" />
+        <path d="M13 24v-10" opacity=".65" />
+        <path d="M19 24v-6" opacity=".8" />
+        <path d="M25 24V8" />
+      </g>
+    </svg>
+  );
+}
+
+// Radius is proportional, so it is a parameter alongside the padding that sets
+// the height: 0.26 of 38px is 10, of 36px is 9. Both are passed by the caller
+// rather than derived, because only the caller knows the padding it chose.
+function pillClass(padY: string, radius: string) {
   return ({ isActive }: { isActive: boolean }) =>
-    `relative block w-full rounded-full px-3.5 ${padY} text-left text-[13.5px] transition select-none hover:opacity-85 active:scale-[.97] ` +
+    `relative block w-full ${radius} px-3.5 ${padY} text-left text-[13.5px] transition select-none hover:opacity-85 active:scale-[.97] ` +
     (isActive
       ? 'bg-sidebar-text font-bold text-ink'
       : 'bg-transparent font-normal text-sidebar-nav');
@@ -65,23 +84,32 @@ export function Sidebar() {
   const demo = useDataset() === 'demo';
   const capital = useCapitalCard();
   return (
-    // w-[232px] is the design's fixed desktop sidebar; below `sm` (640px) it
+    // w-[244px] is the design's 232px rail plus 5%; below `sm` (640px) it
     // narrows to a compact rail (item 1, 360px shell fix) — every label below
     // already wraps instead of forcing horizontal scroll, so shrinking width
     // + padding + font-size is enough, no icon-only mode needed.
-    <aside className="sticky top-0 flex h-screen w-[232px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[32px] bg-sidebar px-4 max-sm:px-2.5 py-[26px] text-sidebar-text">
+    // The shell is CONCENTRIC, not proportional: outer radius = inner radius +
+    // the gap between them, so 14 + 16 = 30 (and 14 + 10 = 24 on the rail).
+    // The proportional rule gave 63px here and cut across the header plate's
+    // own corner — a full-height panel has no designed short side to scale.
+    <aside className="sticky top-0 flex h-screen w-[244px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[30px] max-sm:rounded-r-[24px] bg-sidebar p-4 max-sm:px-2.5 text-sidebar-text">
       {/* clipping layer keeps the overflowing circle out of the scrollable area,
           so the sidebar only scrolls when its actual content overflows */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[32px]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[30px] max-sm:rounded-r-[24px]">
         <div className="absolute -right-[70px] -bottom-[60px] size-[200px] rounded-full bg-sidebar-inset opacity-70" />
       </div>
 
-      <div className="relative mx-1.5 mb-[22px] flex items-center gap-2.5 max-sm:gap-1.5">
-        <div
-          key={currency}
-          className="animate-in zoom-in-50 fade-in grid size-9 max-sm:size-7 flex-none place-items-center rounded-full bg-sidebar-text font-display text-[17px] max-sm:text-[13px] font-bold text-ink duration-200"
-        >
-          {currency === 'UAH' ? '₴' : '$'}
+      {/* The header is a lockup plate, not a bare row: bg-sidebar-inset because
+          a plate the same colour as the sidebar is no plate at all. Radius 14
+          is measured off the reference lockup, not re-derived here (the plate
+          renders 57px, which the proportional rule would round to 15). It is
+          the fixed inner value the shell's concentric 30 (14 + 16) is built on,
+          so it must not drift with this block. The circle that used to
+          carry ₴/$ now carries the mark; the currency is still shown, and only
+          shown, by the toggle at the bottom. */}
+      <div className="relative mb-[22px] flex items-center justify-start gap-2.5 max-sm:gap-1.5 rounded-[14px] bg-sidebar-inset px-[15px] max-sm:px-2.5 py-2.5">
+        <div className="grid size-9 max-sm:size-7 flex-none place-items-center rounded-full bg-sidebar-text text-ink">
+          <Mark className="size-[18px] max-sm:size-[14px]" />
         </div>
         <div className="font-display text-base max-sm:text-[13px] leading-[1.15] font-semibold">
           Quirenote
@@ -96,16 +124,23 @@ export function Sidebar() {
           {demo && (
             <span
               title={DEMO_BADGE_TITLE}
-              className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text hidden rounded-full px-1.5 py-px text-[8px] font-bold tracking-[.08em] uppercase duration-200 max-sm:inline-block"
+              className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text hidden rounded-[4px] px-1.5 py-px text-[8px] font-bold tracking-[.08em] uppercase duration-200 max-sm:inline-block"
             >
               DEMO
             </span>
           )}
         </div>
         {demo && (
+          // Pinned to the plate's top-right corner, inset by the plate's own
+          // padding (15 / 10) so it sits on the same margin as everything else.
+          // Shrunk to 0.75 by transform rather than by dividing every metric:
+          // scaling keeps the badge's proportions exact, including the
+          // radius-to-height ratio D56 fixed. `origin-top-right` so it shrinks
+          // INTO the corner it is pinned to instead of away from it. Absolute,
+          // so it no longer takes a slot in the flow the wordmark is laid out in.
           <span
             title={DEMO_BADGE_TITLE}
-            className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text ml-auto self-start rounded-full px-2 py-[3px] text-[10px] font-bold tracking-[.08em] uppercase duration-200 max-sm:hidden"
+            className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text absolute top-2.5 right-[15px] origin-top-right scale-75 rounded-[5px] px-2 py-[3px] text-[10px] font-bold tracking-[.08em] uppercase duration-200 max-sm:hidden"
           >
             DEMO
           </span>
@@ -113,13 +148,13 @@ export function Sidebar() {
       </div>
 
       <GroupLabel>Daily entry</GroupLabel>
-      <NavLink to="/" className={pillClass('py-[9px]')}>
+      <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
         Daily quotes
       </NavLink>
 
       <GroupLabel className="mt-4">Analytics</GroupLabel>
       {ANALYTICS.map(({ to, label }) => (
-        <NavLink key={to} to={to} className={pillClass('py-2')}>
+        <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
           {label}
         </NavLink>
       ))}
@@ -127,23 +162,26 @@ export function Sidebar() {
       {/* Third nav group (P2 S1): exact clone of the existing group-label +
           pill anatomy — same motion, same active treatment. */}
       <GroupLabel className="mt-4">Settings</GroupLabel>
-      <NavLink to="/settings" className={pillClass('py-2')}>
+      <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
         Settings
       </NavLink>
 
-      <div className="relative mt-auto mb-2.5 flex gap-1 rounded-full bg-sidebar-inset p-1">
-        {/* sliding thumb (D7): shares the two buttons' geometry (p-1 + gap-1) so
-            translateX(100% + gap) lands it exactly under the other segment */}
+      <div className="relative mt-auto mb-2.5 flex gap-1 rounded-[13px] bg-sidebar-inset p-1.5">
+        {/* sliding thumb (D7): shares the two buttons' geometry (p-1.5 + gap-1)
+            so translateX(100% + gap) lands it exactly under the other segment.
+            The width encodes that geometry as 50% − (padding + half the gap),
+            so it MUST be re-derived whenever the container padding moves:
+            p-1.5 (6px) + gap-1 (4px) → 50% − 8px. */}
         <div
           aria-hidden
-          className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-full bg-sidebar-text transition-transform duration-300 ease-soft"
+          className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-8px)] rounded-[7px] bg-sidebar-text transition-transform duration-300 ease-soft"
           style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
         />
         <button
           type="button"
           aria-pressed={currency === 'UAH'}
           onClick={() => setCurrency('UAH')}
-          className={`relative z-10 flex-1 cursor-pointer rounded-full py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'UAH' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
+          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'UAH' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
         >
           ₴ UAH
         </button>
@@ -151,13 +189,17 @@ export function Sidebar() {
           type="button"
           aria-pressed={currency === 'USD'}
           onClick={() => setCurrency('USD')}
-          className={`relative z-10 flex-1 cursor-pointer rounded-full py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'USD' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
+          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'USD' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
         >
           $ USD
         </button>
       </div>
 
-      <div className="relative rounded-[20px] bg-sidebar-inset px-4 max-sm:px-3 py-3.5">
+      {/* Matches the currency toggle above it rather than the concentric 14:
+          the two sit together as one bottom cluster, and a shared radius reads
+          as a pair. The cost is that this corner alone is not concentric with
+          the shell's. */}
+      <div className="relative rounded-[13px] bg-sidebar-inset px-4 max-sm:px-3 py-3.5">
         <div className="text-[10px] tracking-[.12em] text-sidebar-muted uppercase">
           Total capital
         </div>

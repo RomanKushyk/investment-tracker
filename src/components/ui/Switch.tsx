@@ -21,12 +21,12 @@ export function Switch({
       checked={checked}
       onCheckedChange={onCheckedChange}
       aria-label={label}
-      className={`h-[22px] w-10 flex-none cursor-pointer rounded-full border p-[2px] transition active:scale-[.97] ${
+      className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${
         checked ? 'border-ink bg-ink' : 'border-panel-border bg-hairline'
       }`}
     >
       <RadixSwitch.Thumb
-        className={`bg-card block size-4 rounded-full shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform ${
+        className={`bg-card block size-4 rounded-[4px] shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform ${
           checked ? 'translate-x-[18px]' : 'translate-x-0'
         }`}
       />

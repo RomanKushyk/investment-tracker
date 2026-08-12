@@ -43,18 +43,34 @@ Palette (pastel monochrome + muted tints):
 
 Type: **IBM Plex Sans** 600 for h1–h4, buttons, KPI numbers; **JetBrains Mono** for body/labels/tables (was Space Grotesk + Spline Sans Mono until D54 — same sizes, same 0.6em mono advance). Section h2 26px; KPI value 26px; card micro-labels 10px uppercase letter-spacing .12em; body 13px; tables 12.5px.
 
-Shape: cards radius 20–24px; pills/buttons/inputs radius 999px on buttons, standard inputs white bg; focus ring `2px solid #26262a offset 2px`; selection bg `#e3eadf`. Lucide icons, stroke-width 2.75.
+Shape: cards radius 20–24px; standard inputs white bg; focus ring `2px solid #26262a offset 2px`; selection bg `#e3eadf`. Lucide icons, stroke-width 2.75. Buttons, pills and chips were radius 999px until D56 — the reference still draws them as capsules, and that divergence is deliberate.
+
+**Radius rules (D56).** Two rules, and which applies depends on whether the box is nested against a parent's corner:
+- **Concentric** — when a box sits inside another at a uniform gap, `outer = inner + gap`, so the two curves stay parallel. The sidebar is the worked example: header plate 14 + its 16px inset = shell 30.
+- **A segmented control is both.** Its segment is an object (proportional, 28px → 7); its track is a container (concentric, `7 + padding`) — sidebar toggle 13, Settings/dataset 11, asset form 10. Never give the track its own proportional value: the segment sits in the track's corner.
+- **Proportional** — for a standalone control not adjacent to a parent's corner, `r = round(min(w, h) × 0.26)`, keyed to the SHORT side. Measure the RENDERED height: `text-[11px]` sets a font size, not a line height, so the classes alone cannot tell you how tall a control is. Gives 3 (bars, chart-legend swatches), 5 (micro badges), 6 (tags, status badges), 7 (segments, chips), 8 (`Button` sm), 9 (inputs, nav pills, day cells, menu rows), 10 (`Button` md/header). Surfaces are NOT proportional — cards, dialogs and popovers keep the reference's own 16 / 20 / 24.
+- **Circles stay circles** — `AssetAvatar`, `ColorDot`, the logo circle, the decorative blob. One round thing among rounded rectangles reads as deliberate. Nothing else is a capsule: the `Switch` track (6) and its knob (4) follow the rule too.
+
+Do **not** apply the proportional rule to a full-height panel: its short side is a layout width, not a designed size, and 0.26 of it produces a radius that cuts across the corners of what it contains.
+
+**Circle in a block** — an avatar inside a row occupies **60–70%** of the row's height (quote row: 48px circle in a 76px row = 63%).
+
+**Overlays.** Popovers and dialogs are surfaces (16 / 20 / 24) *unless* a rounded child hugs their corners at a uniform gap, which makes them concentric instead — the `Select` popover is 14 (items 9 + 5 inset), while the `DatePicker` (16) and `Dialog` (24) are not, because their corner-adjacent children do not hug all four sides.
+
+**Toasts.** `sonner` ships its own radius, font stack and shadow and ignores classes we add (it styles by attribute). The three are overridden as inline styles through `toastOptions` in `src/main.tsx`: radius 13, `var(--font-body)`, `0 4px 16px rgba(38,38,42,.12)`.
+
+**Buttons are isometric.** Every `Button` variant carries the same `border-[1.5px]`; filled ones paint it `border-transparent`. Button height is automatic, so a border only some variants have is height only some variants have — that is why "Copy yesterday" (outline) stood 2px taller than "Save snapshot" (primary) beside it. The `md` padding is `py-[9px]` rather than `py-2.5` to give that ring back, so the size keeps its 40px. The reference has the same defect (both buttons share a padding, only one has a border), so it is not authoritative here.
 
 ## 5. Layout shell
 
 `flex; min-height:100vh`.
 
-**Sidebar** — 232px fixed, bg `#26262a`, padding 26px 16px, `border-radius: 0 32px 32px 0`, sticky full-height, **internally scrollable** (footer cards must never clip on short viewports). Decorative 200px circle `#333338` @ .7 opacity overflowing bottom-right. Contents top→bottom:
-1. Logo: 36px light circle containing the current currency symbol (₴/$), wordmark "Quirenote" over "INVEST TRACKER" microlabel.
+**Sidebar** — 244px fixed, bg `#26262a`, padding 16px, `border-radius: 0 30px 30px 0` (concentric: 14 + 16), sticky full-height, **internally scrollable** (footer cards must never clip on short viewports). Decorative 200px circle `#333338` @ .7 opacity overflowing bottom-right. Contents top→bottom:
+1. Logo lockup card (`#333338`, radius 14, padding 10px 15px, `justify-content:flex-start`): 36px light circle containing **mark 04** — four bars, height is value and opacity is age — beside the wordmark "Quirenote" over "INVEST TRACKER" microlabel. The circle no longer carries the currency symbol; the toggle below is the only currency indicator. The DEMO badge is absolutely pinned to the card's top-right corner at the card's own 15/10 padding and scaled to .75 — out of flow, so it cannot stretch the row.
 2. Group label "DAILY ENTRY" → nav pill "Daily quotes".
 3. Group label "ANALYTICS" → 8 nav pills. Active pill: bg `#e9e8e6`, ink text, weight 700; inactive: transparent, `#cfcecb`; hover opacity .85.
-4. `margin-top:auto` → currency segmented toggle (container `#333338` pill, padding 4px; active segment `#e9e8e6`).
-5. "Total capital" card (`#333338`, radius 20px): label, value (21px, white), delta line (`#b9cdb4`).
+4. `margin-top:auto` → currency segmented toggle (container `#333338`, radius 10, padding 6px; active segment `#e9e8e6`, radius 7). The sliding thumb's width encodes the container geometry as `50% − (padding + gap/2)` — re-derive it whenever that padding moves.
+5. "Total capital" card (`#333338`, radius 10 — matched to the toggle above it, so the two read as one bottom cluster): label, value (21px, white), delta line (`#b9cdb4`).
 
 **Main** — `flex:1; min-width:0`, padding 32px 36px 48px. Every tab: h2 (26px) + one-line muted subtitle, then content. Grids use `repeat(auto-fit,minmax(200px,1fr))` style wrapping — no horizontal scroll at any width.
 

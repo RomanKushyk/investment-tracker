@@ -24,16 +24,16 @@ const calendarClassNames = {
     'flex items-center justify-center py-1 font-display text-[13px] font-semibold',
   nav: 'flex items-center justify-between',
   button_previous:
-    'absolute left-1 top-1 grid size-7 place-items-center rounded-full transition hover:bg-page active:scale-[.97]',
+    'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97]',
   button_next:
-    'absolute right-1 top-1 grid size-7 place-items-center rounded-full transition hover:bg-page active:scale-[.97]',
+    'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97]',
   month_grid: 'w-full border-collapse',
   weekdays: 'flex',
   weekday: 'w-8 text-center text-[10px] tracking-[.08em] text-muted uppercase',
   week: 'flex',
   day: 'p-0.5 text-center',
   day_button:
-    'grid size-8 place-items-center rounded-full text-[13px] transition hover:bg-page active:scale-[.97]',
+    'grid size-8 place-items-center rounded-[8px] text-[13px] transition hover:bg-page active:scale-[.97]',
   selected: '[&>button]:bg-ink [&>button]:text-white',
   today: '[&>button]:font-bold',
   outside: 'text-faint',
@@ -66,7 +66,7 @@ export function DatePicker({
           id={id}
           aria-label={value ? `Date: ${fmtDate(value)}` : (placeholder ?? 'Pick a date')}
           aria-invalid={invalid || undefined}
-          className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[10px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
+          className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[9px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
           {value ? (
             fmtDate(value)

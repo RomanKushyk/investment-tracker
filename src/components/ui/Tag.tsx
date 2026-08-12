@@ -13,7 +13,7 @@ const TINT: Record<ColorKey, string> = {
 export function Tag({ colorKey, children }: { colorKey: ColorKey; children: string }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-[3px] text-[11px] font-semibold whitespace-nowrap ${TINT[colorKey]}`}
+      className={`inline-block rounded-[6px] px-2.5 py-[3px] text-[11px] font-semibold whitespace-nowrap ${TINT[colorKey]}`}
     >
       {children}
     </span>

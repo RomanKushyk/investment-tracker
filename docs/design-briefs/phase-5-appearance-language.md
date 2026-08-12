@@ -74,6 +74,28 @@ Recorded as **D54**.
 
 ---
 
+## Amendment, 2026-08-12 — shapes changed under this brief
+
+Every control drawn for this phase was drawn as a capsule, because that is what
+the app was when the brief was written. It no longer is: **D56** replaced every
+`rounded-full` in `src/` with a radius system, and `design/extensions/appearance-language.dc.html`
+has been amended to match (231 capsules rewritten, 23 segmented tracks made
+concentric).
+
+Nothing this brief *decides* changes — theme, language, the dark palette and the
+formatting split are untouched. What changes is the shape vocabulary A9/A10 will
+implement in:
+
+- **Segmented controls** (the theme and language controls, Surfaces 1-2) are the
+  case worth reading twice: the segment is proportional (28px → 7), the track is
+  concentric (`7 + its padding` → 11). Do not give the track its own proportional
+  value; the segment sits in the track's corner.
+- Everything else: `round(min(w, h) × 0.26)` for standalone controls, the
+  reference's own 16 / 20 / 24 for surfaces, and only four things stay round
+  (logo circle, asset avatars, colour dots, the decorative blob).
+
+Full statement in README §4 and D56.
+
 ## Contract 0 — the formatting split (read this before anything else)
 
 This is the sharpest new contract in the phase and the one with the longest
@@ -132,7 +154,7 @@ A three-state segmented control choosing Light / Dark / System. Lives in
 Match the existing segmented control exactly: `design/Investment Tracker.dc.html`
 sidebar currency toggle, and its light-surface twin already implemented in
 `src/screens/Settings.tsx` → `CurrencyControl` (track `panel`, 1 px
-`panel-border`, radius 999, thumb `card` with `0 1px 3px rgba(38,38,42,.06)`,
+`panel-border`, radius **11** (concentric: segment 7 + 4 padding — amended, was 999), thumb `card` with `0 1px 3px rgba(38,38,42,.06)`,
 segments 12 px bold, `px-[18px] py-1.5`). The extension must show the
 **three**-segment variant of that control, which does not exist yet: the thumb
 is `calc(33.333% - 6px)` wide and translates to `calc(100% + 4px)` /
@@ -186,7 +208,7 @@ Uses only `panel`, `panel-border`, `card`, `ink`, `muted`, `pos` (focus ring).
 
 ### 6. Layout
 
-Radius 999 track, 3 equal segments. The Ukrainian labels are the longest
+Radius **11** track with 3 equal segments at radius 7 (amended from 999: the track is concentric with its segments, D56). The Ukrainian labels are the longest
 (`Системна` = 8 chars vs `System` = 6), so the control must size to the widest
 label **in the active language** and not jump when the language changes.
 At 360 px it shares the wrapping behaviour of every other `SettingRow`: the
@@ -272,6 +294,16 @@ real cases and prove they hold:
 | Progress pill | `4 of 4 filled` | `Заповнено 4 з 4` | +14 % |
 | Danger button | `Reset demo data…` | `Скинути демодані…` | −6 % |
 | Empty state | `No transactions yet.` | `Транзакцій ще немає.` | +5 % |
+
+> **Corrected 2026-08-12.** Two things below are stale. The rail is **244 px**
+> since D56 (136 px below `sm` is unchanged). And the premise that the longest
+> Ukrainian nav label will not hold on one line is **measurably wrong** — the nav
+> runs in a monospace face at 0.6em, so `Щоденні котирування` is 19 × 8.1 =
+> 153.9 px against a 184 px text box today, and 172 px before the widening. The
+> design session caught this first and rejected the shortened label; a re-measure
+> in the running app agrees to the pixel. The one real constraint is the 136 px
+> rail, where `котирування` alone is 89.1 px in an 88 px box — over by **1.1 px**,
+> which forces a three-line mid-word break. See PLAN-NOW A8.
 
 The sidebar is the tightest: **232 px** (136 px below `sm`) with 8 analytics
 items. `Щоденні котирування` at the nav's 13 px will not fit one line — the

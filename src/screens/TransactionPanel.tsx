@@ -69,7 +69,7 @@ const SOURCE_OPTIONS = [
 ];
 
 const inputClass =
-  'h-9 rounded-[10px] border border-hairline bg-white px-3 font-body text-[13px] text-ink transition';
+  'h-9 rounded-[9px] border border-hairline bg-white px-3 font-body text-[13px] text-ink transition';
 
 export function TransactionPanel() {
   const assetsData = useAssets().data;

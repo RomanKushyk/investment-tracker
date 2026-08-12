@@ -175,7 +175,7 @@ export function Overview() {
                   <span
                     key={drift}
                     title="Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash."
-                    className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-full px-3 py-1 text-xs font-semibold duration-200"
+                    className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-200"
                   >
                     Ledger drift {signedProse(drift)}
                   </span>

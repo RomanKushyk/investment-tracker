@@ -77,9 +77,9 @@ export function Allocation() {
                       </strong>
                     </span>
                   </div>
-                  <div className="bg-hairline relative h-2.5 rounded-full">
+                  <div className="bg-hairline relative h-2.5 rounded-[3px]">
                     <div
-                      className={`h-full rounded-full transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
+                      className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
                       style={{ width: `${r.share}%` }}
                     />
                     <div

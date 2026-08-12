@@ -74,7 +74,7 @@ export function TargetsEditor() {
                   inputMode="decimal"
                   aria-label={`${a.name} target, %`}
                   aria-invalid={error}
-                  className={`bg-page h-9 w-[72px] rounded-[10px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+                  className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
                 />
                 <span className="text-muted text-xs">%</span>
               </div>
@@ -103,7 +103,7 @@ export function TargetsEditor() {
             status can only flip when the sum itself changes */}
         <span
           key={sum}
-          className={`animate-in fade-in zoom-in-95 rounded-full px-3 py-1 text-xs font-semibold duration-150 ${
+          className={`animate-in fade-in zoom-in-95 rounded-[6px] px-3 py-1 text-xs font-semibold duration-150 ${
             status === 'ok' ? 'bg-pos-tint text-pos-tint-text' : 'bg-warn-tint text-warn-tint-text'
           }`}
         >

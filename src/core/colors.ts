@@ -40,3 +40,13 @@ export const CHART = {
   muted: 'var(--color-chart-muted)',
   ink: 'var(--color-chart-ink)',
 };
+
+// One tooltip surface for every chart. A tooltip is a floating panel, so it
+// takes 16 — the same surface radius as the Select and DatePicker popovers —
+// rather than a fifth hand-typed number (D56). It lived as four byte-identical
+// inline objects, which is four places to forget when the value moves.
+export const CHART_TOOLTIP = {
+  borderRadius: 16,
+  border: `1px solid ${CHART.hairline}`,
+  fontSize: 12,
+};

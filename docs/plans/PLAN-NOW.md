@@ -263,6 +263,8 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 
 **The G7 gate.** Nothing in A9/A10 starts before the design session merges `design/extensions/*.dc.html`.
 
+> **The gate artifact was amended 2026-08-12 (D56).** `design/extensions/appearance-language.dc.html` drew every control as a capsule; the app no longer has a single one. All 231 capsules in it were rewritten to the radius rule and its 23 segmented tracks made concentric with their segments — measured off the file's own rendered boxes, nothing else touched. **A9/A10 must read shape from README §4, not from the drawing's original capsules.** The brief carries the same amendment at its head.
+
 - [x] **Written 2026-08-12** — five surfaces, each with the pinned seven parts: theme control, language control, the dark palette sheet, charts in dark, Ukrainian copy.
 - [x] All 57 tokens given dark values with **measured** WCAG ratios (23 checks, 0 failures) — not estimated.
 - [x] Owner decisions taken and pinned: theme is **Light/Dark/System** with System default and OS-reactive; **Ukrainian is default**, English stays; and formatting **separates completely per language, no exceptions** — which is a bigger contract than it looks, because table figures now change in EN too.
@@ -271,7 +273,9 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 - the ≥4.5:1 bar is the bar for TEXT, and the four asset hues are **never** text — verified across the codebase, they appear only as `bg-*` fills. The correct requirement is WCAG 1.4.11 (3:1, non-text); the dark values clear 4.5 anyway, so the sheet meets both readings;
 - **the light theme does not meet even 3:1 today** — `reit` 2.77, `energy` 2.40, `ovdp8976` 2.57 on white. Inherited from the immutable master reference, out of scope here, and written down so the dark sheet is never misread as a regression against a light theme that was the weaker of the two.
 
-**Left to the design session on purpose:** the sidebar nav resolution for `Щоденні котирування` (+58 % over `Daily quotes`, and 232 px will not hold it on one line) — two-line pill or a shorter label, drawn rather than described.
+**No longer open — the design session answered it, and re-measuring on 2026-08-12 confirms the answer.** The brief's premise (232 px will not hold `Щоденні котирування` on one line) is simply wrong: the nav runs in a monospace face at 0.6em, so 19 characters are 153.9 px in a 172 px text box — it fitted **before** the rail widened. At today's 244 px the text box is 184 px and the spare is **30.1 px**. The extension had already worked this out and **rejected** the shortened `Котирування` for buying nothing.
+
+**What is actually tight is the rail, and by 1.1 px.** At 136 px the pill's text box is 88 px and the longest single word, `котирування`, measures **89.1 px** — so it cannot break cleanly and wraps to *three* lines, not the two the session drew. **2 px** closes it (1 px off each side of the rail pill's `px-3.5`, or 2 px more rail width). Left for A10 rather than pre-empted here: Ukrainian is not shipped yet and A10 is G7-gated. Start it with this number.
 
 **Brief:** `docs/design-briefs/phase-5-appearance-language.md`. **Next step is not code** — it is the design session that turns it into `design/extensions/appearance-language.dc.html`.
 

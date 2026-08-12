@@ -1,7 +1,7 @@
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART } from '../../core/colors';
+import { CHART, CHART_TOOLTIP } from '../../core/colors';
 import { fmtDateShort, fmtProse } from '../../core/money';
 import type { BalanceChartPoint } from '../../screens/balances/balances';
 
@@ -32,7 +32,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
         <Tooltip
           formatter={(v) => [fmtProse(Number(v)), 'Total capital']}
           labelFormatter={(label) => fmtDateShort(String(label))}
-          contentStyle={{ borderRadius: 12, border: `1px solid ${CHART.hairline}`, fontSize: 12 }}
+          contentStyle={CHART_TOOLTIP}
         />
         <Area
           type="monotone"

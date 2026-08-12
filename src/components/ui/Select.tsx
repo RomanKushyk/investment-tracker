@@ -50,7 +50,7 @@ export function Select({
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
       <RadixSelect.Trigger
-        className={`${borderClass} font-body text-ink hover:border-ink flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border ${bgClass} px-3 text-[13px] transition active:scale-[.97] ${className}`}
+        className={`${borderClass} font-body text-ink hover:border-ink flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border ${bgClass} px-3 text-[13px] transition active:scale-[.97] ${className}`}
       >
         <RadixSelect.Value placeholder={placeholder} />
         <RadixSelect.Icon>
@@ -61,7 +61,12 @@ export function Select({
         <RadixSelect.Content
           position="popper"
           sideOffset={6}
-          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 overflow-hidden rounded-2xl border shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200"
+          // 14, not the 16 a surface would take: the items sit in this
+          // popover's corners at a uniform 5px inset (4px viewport padding +
+          // the 1px border), so this is the concentric case — 9 + 5. The
+          // DatePicker next door keeps 16 because its only corner-adjacent
+          // child is an absolutely-placed arrow, not a box that hugs all four.
+          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 overflow-hidden rounded-[14px] border shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
           <RadixSelect.Viewport className={scrollList ? 'max-h-60 overflow-y-auto p-1' : 'p-1'}>
@@ -69,7 +74,7 @@ export function Select({
               <RadixSelect.Item
                 key={o.value}
                 value={o.value}
-                className="data-[highlighted]:bg-page cursor-pointer rounded-lg px-3 py-2 text-[13px] transition outline-none"
+                className="data-[highlighted]:bg-page cursor-pointer rounded-[9px] px-3 py-2 text-[13px] transition outline-none"
               >
                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
                 {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}

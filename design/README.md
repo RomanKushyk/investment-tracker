@@ -2,11 +2,13 @@
 
 Read-only handoff artifacts. **Never edit the original handoff files** (the three listed below) — they are immutable. New design references are ADDED under `extensions/` (see below; decision D14).
 
+> **The extensions are not immutable in the same way.** `extensions/appearance-language.dc.html` was amended on 2026-08-12: all 231 capsules rewritten to the D56 radius rule, measured off its own rendered boxes, and its 23 segmented tracks made concentric with their segments. Colours, spacing, copy and states were not touched. A drawing that contradicts the shipped app is worse than no drawing, and A9/A10 implement from this file.
+
 ## Files
 
 | File | Role |
 |------|------|
-| `Investment Tracker.dc.html` | **The master visual reference.** Colors, typography, spacing, copy, layout are final — recreate faithfully. |
+| `Investment Tracker.dc.html` | **The master visual reference.** Colors, spacing, copy, layout are final — recreate faithfully. **Two deliberate divergences:** its typefaces cannot write Ukrainian (D54), and its capsules (`border-radius:999px`, 20 of them) were replaced by the radius system in D56. Read shape and type from README §4, everything else from here. |
 | `Tracker Options.dc.html` | Earlier explorations — consult ONLY when a detail is ambiguous in the master file. |
 | `support.js` | Prototype runtime scaffolding — **ignore** (as are any `_ds/` references inside the HTML). |
 
@@ -54,5 +56,5 @@ New UI surfaces (post-v1) get their visual reference here — one `<surface>.dc.
 
 ## Caveats
 
-- **Opening the file directly in a browser:** layout/colors/typography render correctly (inline styles) and the bottom script makes tabs/toggle interactive — but elements using the `.btn`, `.input`, `.field`, `.table`, `.tag` classes are styled by a missing `_ds/**/styles.css` and render as browser defaults. Approximate those controls from README §4 shape rules (pill radius 999px, white input bg, tables 12.5px…) — don't pixel-match unstyled controls.
+- **Opening the file directly in a browser:** layout/colors/typography render correctly (inline styles) and the bottom script makes tabs/toggle interactive — but elements using the `.btn`, `.input`, `.field`, `.table`, `.tag` classes are styled by a missing `_ds/**/styles.css` and render as browser defaults. Approximate those controls from README §4 shape rules (**the radius rule, not capsules** — D56 retired `999px`; white input bg; tables 12.5px…) — don't pixel-match unstyled controls.
 - **The mock data is internally inconsistent** (e.g. the payout log sums ₴176,00 higher than the "Income received ₴5,040.94" card). `docs/decisions/README.md` D5 pins every resolution — check it before treating a mismatch as a bug or "fixing" seed data.

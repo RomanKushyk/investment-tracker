@@ -22,7 +22,7 @@ only for the decision you actually need.
 |---|---|---|
 | [`D01-D20.md`](D01-D20.md) | D1–D20 | v1: stack, persistence, formulas, deploy |
 | [`D21-D40.md`](D21-D40.md) | D21–D40 | The cloud direction: prices, auth, the domain |
-| [`D41-D50.md`](D41-D50.md) | D41–D55 | The rename, alerting, durability, observations, the FX rate |
+| [`D41-D50.md`](D41-D50.md) | D41–D56 | The rename, alerting, durability, observations, the FX rate, radii |
 
 ## The ones worth reading before touching anything
 
@@ -87,7 +87,7 @@ only for the decision you actually need.
 | D39 | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
 | D40 | The domain is `quirenote.com` | 2026-08-11 |
 
-## D41–D55 — rename, alerting, durability, observations, FX
+## D41–D56 — rename, alerting, durability, observations, FX, radii
 
 | # | Decision | Date |
 |---|---|---|
@@ -107,6 +107,7 @@ only for the decision you actually need.
 | D53 | What the xhigh review found, and the two fixes that were wrong first | 2026-08-12 |
 | D54 | The brand fonts cannot write the app default language | 2026-08-12 |
 | D55 | The display face is chosen on figures, not on cap-height | 2026-08-12 |
+| D56 | Nested radii are concentric, standalone radii are proportional | 2026-08-12 |
 
 ## A pattern these entries kept finding
 

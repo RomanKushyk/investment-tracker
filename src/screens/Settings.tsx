@@ -97,18 +97,18 @@ function CurrencyControl() {
       type="button"
       aria-pressed={currency === c}
       onClick={() => setCurrency(c)}
-      className={`relative z-10 cursor-pointer rounded-full px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === c ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === c ? 'text-ink' : 'text-muted hover:opacity-85'}`}
     >
       {label}
     </button>
   );
   return (
-    <div className="border-panel-border bg-panel relative flex gap-1 rounded-full border p-1">
+    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[11px] border p-1">
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-full shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300 ease-soft"
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300 ease-soft"
         style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('UAH', '₴ UAH')}
@@ -159,7 +159,7 @@ function UsdRateField() {
         inputMode="decimal"
         aria-label="₴/$ rate"
         aria-invalid={error}
-        className={`bg-page h-9 w-[110px] rounded-[10px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+        className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
         <div className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200">
@@ -207,7 +207,7 @@ function LeadDaysField() {
         // The message lives outside the label, so the link has to be explicit —
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
-        className={`bg-page h-9 w-[72px] rounded-[10px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+        className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
         <div

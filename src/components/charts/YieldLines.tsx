@@ -1,7 +1,7 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, SERIES } from '../../core/colors';
+import { CHART, CHART_TOOLTIP, SERIES } from '../../core/colors';
 import { fmtDateShort, signed } from '../../core/money';
 import type { Asset } from '../../core/types';
 import type { YieldSeriesPoint } from '../../screens/yield/yield';
@@ -48,7 +48,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
               assets.find((a) => a.id === name)?.name ?? String(name),
             ];
           }}
-          contentStyle={{ borderRadius: 12, border: `1px solid ${CHART.hairline}`, fontSize: 12 }}
+          contentStyle={CHART_TOOLTIP}
         />
         {assets.map((asset) => {
           const color = SERIES[asset.colorKey].main;

@@ -161,7 +161,7 @@ export function DailyQuotes() {
             <h2 className="text-[26px]">Daily quotes</h2>
             <span
               key={filledCount}
-              className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-full px-3 py-1 text-xs font-semibold duration-150"
+              className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-[6px] px-3 py-1 text-xs font-semibold duration-150"
             >
               {filledCount} of {assets.length} filled
             </span>
