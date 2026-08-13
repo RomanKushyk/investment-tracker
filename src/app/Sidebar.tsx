@@ -206,6 +206,11 @@ export function Sidebar() {
         <div className="text-[10px] tracking-[.12em] text-sidebar-muted uppercase">
           Total capital
         </div>
+        {/* Literal white SURVIVES the Phase 5 purge, on purpose: the sidebar is
+            an inverted plane in both themes (#26262a light, #0f0f11 dark), so
+            white is correct on it — 19.15:1 in dark. Swapping it for
+            `sidebar-text` would change the LIGHT theme, #ffffff to #e9e8e6,
+            which A9 must not do. Same reasoning as `KpiCard` dark. */}
         <div className="font-display text-[21px] max-sm:text-base font-semibold text-white">
           {capital.value}
         </div>

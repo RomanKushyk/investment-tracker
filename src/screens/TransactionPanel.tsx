@@ -69,7 +69,7 @@ const SOURCE_OPTIONS = [
 ];
 
 const inputClass =
-  'h-9 rounded-[9px] border border-hairline bg-white px-3 font-body text-[13px] text-ink transition';
+  'h-9 rounded-[9px] border border-hairline bg-card px-3 font-body text-[13px] text-ink transition';
 
 export function TransactionPanel() {
   const assetsData = useAssets().data;
@@ -234,7 +234,7 @@ export function TransactionPanel() {
               {/* Same dashed reveal panel as v1 (design lines 116-124), now
                   hosting the shared AssetFormFields inline: create-mode core
                   fields only — no First purchase (derived from the tx date). */}
-              <div className="border-faint flex flex-col gap-2.5 rounded-2xl border border-dashed bg-white p-3.5">
+              <div className="border-faint flex flex-col gap-2.5 rounded-2xl border border-dashed bg-card p-3.5">
                 <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
                   <Plus size={13} strokeWidth={2.75} />
                   New asset details

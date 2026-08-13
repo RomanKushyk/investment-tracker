@@ -46,7 +46,9 @@ export function Select({
   scrollList?: boolean;
 }) {
   const borderClass = borderColor === 'faint' ? 'border-faint' : 'border-hairline';
-  const bgClass = bg === 'page' ? 'bg-page' : 'bg-white';
+  // `card`, not the literal white it replaces: a control surface has to invert
+  // with the theme, and #ffffff cannot. The two are the same colour in light.
+  const bgClass = bg === 'page' ? 'bg-page' : 'bg-card';
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
       <RadixSelect.Trigger
@@ -66,7 +68,7 @@ export function Select({
           // the 1px border), so this is the concentric case — 9 + 5. The
           // DatePicker next door keeps 16 because its only corner-adjacent
           // child is an absolutely-placed arrow, not a box that hugs all four.
-          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 overflow-hidden rounded-[14px] border shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200"
+          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 overflow-hidden rounded-[14px] border shadow-(--shadow-popover) duration-200"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
           <RadixSelect.Viewport className={scrollList ? 'max-h-60 overflow-y-auto p-1' : 'p-1'}>

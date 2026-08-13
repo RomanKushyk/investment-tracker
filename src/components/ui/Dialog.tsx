@@ -2,8 +2,8 @@ import { AlertDialog as RadixAlertDialog, Dialog as RadixDialog } from 'radix-ui
 import type { ReactNode } from 'react';
 
 // The app's dialog idiom (design/extensions/settings.dc.html S6, first minted
-// for Phase 2): overlay = ink at 40% alpha, card radius 24, max-w per usage,
-// fits 360px with margins. Radix provides focus trap + Esc + scroll lock.
+// for Phase 2): overlay = 40% alpha over the inverted plane (see below), card
+// radius 24, max-w per usage, fits 360px with margins. Radix provides focus trap + Esc + scroll lock.
 // D7 (S6 motion table): open = overlay fade + panel fade/zoom-in-95 300ms;
 // close = SYMMETRIC exit 220ms (fade/zoom-out-95) — Radix keeps the node
 // mounted until the data-[state=closed] animation ends, so hosts must keep
@@ -19,7 +19,7 @@ export const DialogTitle = RadixDialog.Title;
 const OVERLAY_CLASS =
   'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
 const PANEL_CLASS =
-  'bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-6 shadow-[0_12px_40px_rgba(38,38,42,.18)] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-6 shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 
 export function Dialog({
   open,

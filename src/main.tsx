@@ -42,7 +42,9 @@ void ensureSeeded().then(() => {
             style: {
               borderRadius: '13px',
               fontFamily: 'var(--font-body)',
-              boxShadow: '0 4px 16px rgba(38, 38, 42, .12)',
+              // Same token as the popovers, so the toast loses its shadow in
+              // dark with everything else rather than keeping a lone halo.
+              boxShadow: 'var(--shadow-popover)',
             },
           }}
         />

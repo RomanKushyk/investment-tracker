@@ -11,7 +11,7 @@ export function Card({
   const radiusClass = radius === 24 ? 'rounded-3xl' : 'rounded-[20px]';
   return (
     <div
-      className={`${radiusClass} bg-card shadow-[0_1px_3px_rgba(38,38,42,.06)] ${className}`}
+      className={`${radiusClass} bg-card shadow-(--shadow-card) ${className}`}
       {...props}
     />
   );

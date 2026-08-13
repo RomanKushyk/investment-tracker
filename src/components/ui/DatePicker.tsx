@@ -81,7 +81,7 @@ export function DatePicker({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 rounded-2xl border p-2 shadow-[0_4px_16px_rgba(38,38,42,.12)] duration-200"
+          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 rounded-2xl border p-2 shadow-(--shadow-popover) duration-200"
         >
           <DayPicker
             mode="single"

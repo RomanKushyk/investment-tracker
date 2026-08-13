@@ -108,7 +108,7 @@ function CurrencyControl() {
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-[0_1px_3px_rgba(38,38,42,.06)] transition-transform duration-300 ease-soft"
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-card) transition-transform duration-300 ease-soft"
         style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('UAH', '₴ UAH')}

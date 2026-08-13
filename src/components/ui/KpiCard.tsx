@@ -17,7 +17,7 @@ type Tone = 'dark' | 'tint' | 'default';
 const TONE_BG: Record<Tone, string> = {
   dark: 'bg-sidebar text-white',
   tint: 'bg-pos-tint text-ink',
-  default: 'bg-card text-ink shadow-[0_1px_3px_rgba(38,38,42,.06)]',
+  default: 'bg-card text-ink shadow-(--shadow-card)',
 };
 
 const TONE_LABEL: Record<Tone, string> = {

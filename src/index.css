@@ -15,6 +15,32 @@
      `font-variant-numeric`. */
   --font-display: 'IBM Plex Sans', sans-serif;
   --font-body: 'JetBrains Mono', monospace;
+  /* Elevation, as three tokens rather than nine copied literals. The values are
+     the reference's own (README §4 card shadow, and the two overlay depths the
+     popovers and the dialog already used); this is a pure extraction in light.
+     They exist as tokens because Phase 5 rules that DARK ELEVATION COMES FROM
+     THE SURFACE STEP (page -> card -> panel), never from shadow: a light shadow
+     is invisible on a dark surface and deepening it only produces a dark halo.
+     So all three go transparent under [data-theme=dark], in one place, instead
+     of nine components each having to know about the theme.
+
+     CALL THEM AS `shadow-(--shadow-card)`, NEVER `shadow-card`. Colours and
+     shadows are not symmetric in Tailwind 4, and the difference is the whole
+     mechanism: `.bg-page` emits `background-color:var(--color-page)`, a runtime
+     reference, but `.shadow-card` emits the value INLINED —
+     `--tw-shadow:0 1px 3px var(--tw-shadow-color,#26262a0f)` — so redefining
+     the token in the dark block would change nothing at all. Verified by
+     building and reading the emitted CSS, not assumed. The arbitrary-property
+     form emits `--tw-shadow:var(--shadow-card)`, which is the seam this needs.
+
+     The dark values are `0 0 #0000`, not `none`: these compose into Tailwind's
+     five-part box-shadow list, and `none` is not legal as a list item, so it
+     would invalidate the whole declaration. That happens to hide the shadow
+     too, but by breaking the property rather than by setting it. */
+  --shadow-card: 0 1px 3px rgba(38, 38, 42, 0.06);
+  --shadow-popover: 0 4px 16px rgba(38, 38, 42, 0.12);
+  --shadow-dialog: 0 12px 40px rgba(38, 38, 42, 0.18);
+
   --color-page: #f6f5f3;
   --color-ink: #26262a;
   --color-card: #ffffff;
