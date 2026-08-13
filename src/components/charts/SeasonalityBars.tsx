@@ -2,7 +2,7 @@ import type { ComponentProps } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
-import { CHART, CHART_TOOLTIP, SERIES } from '../../core/colors';
+import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
 import type { ColorKey } from '../../core/types';
 
 export interface SeasonalityChartPoint {
@@ -113,6 +113,7 @@ export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
           formatter={(v) => `₴${Number(v).toFixed(2)}`}
           labelFormatter={(label) => `Day ${label}`}
           contentStyle={CHART_TOOLTIP}
+          cursor={CHART_CURSOR_FILL}
         />
         <Bar dataKey="actual" shape={ActualBarShape} isAnimationActive animationDuration={900} animationEasing="ease-out">
           <LabelList content={incomeLabel as unknown as ComponentProps<typeof LabelList>['content']} />

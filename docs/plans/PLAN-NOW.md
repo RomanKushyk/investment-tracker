@@ -27,7 +27,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — extension merged `f486121` |
-| A9 | Dark theme | `feat/dark-theme` | L | **unblocked** — G7 satisfied 2026-08-12 |
+| A9 | Dark theme | `feat/dark-theme` | L | **done** (2026-08-13) |
 | A10 | Ukrainian | `feat/i18n-uk` | L | **unblocked** — G7 satisfied 2026-08-12 |
 | **Section F** | **Phase 6 — the mobile shell** | | | |
 | A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — awaiting the design session |
@@ -282,12 +282,22 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 
 **Brief:** `docs/design-briefs/phase-5-appearance-language.md`. **Next step is not code** — it is the design session that turns it into `design/extensions/appearance-language.dc.html`.
 
-## A9 — Dark theme — `feat/dark-theme`
+## A9 — Dark theme — **DONE 2026-08-13** — `feat/dark-theme`
 
-- [ ] Split double-duty tokens into surface/on-surface pairs (`ink`, `sidebar-text`).
-- [ ] Purge literal `bg-white` / `text-white` (TransactionPanel, AssetForm, Select, Sidebar, KpiCard, DatePicker, button-variants) and rgba shadows (Card, KpiCard, Select, DatePicker) into tokens.
-- [ ] `[data-theme=dark]` block for all tokens including `--color-chart-*`; theme the recharts Tooltip and cursor.
-- [ ] FOUC-free head script in `index.html` + `<meta name="color-scheme">`; store `theme` with `matchMedia` for `system`; chart `key`s stable across flips; toggle in Settings → Appearance.
+- [x] ~~Split double-duty tokens into surface/on-surface pairs.~~ **Superseded by the merged extension**, which wins visual disputes (D14). Its FINDING 3 solves the same problem with no new token and no component branching on theme: filled emphasis keeps `bg-ink` and swaps `text-white`→`text-page`; inverted planes keep white and swap `bg-ink`→`bg-sidebar`. Both are no-ops in light — `sidebar` and `ink` are both #26262a. A split would have added names the design deliberately avoided.
+- [x] Purge literal colours and the nine rgba shadows into tokens. `text-white` survives at exactly two sites (sidebar capital, `KpiCard` dark) because both are inverted planes in *both* themes, and the reasoning is written in beside them.
+- [x] `[data-theme=dark]` for the 38 palette tokens; the 19 `--color-chart-*` aliases are `var()` references and follow, verified at runtime. recharts Tooltip and cursor themed — the tooltip is `panel` (not `card`, so it lifts off what it covers) and the cursor replaces recharts' hard-coded `rgba(204,204,204,.5)`.
+- [x] FOUC-free head script + `color-scheme`; `theme` through the full persist contract; `matchMedia` only while the preference is `system`; Light/Dark/System control in Settings → Appearance.
+
+**Three things the plan did not know, all recorded in the commits:**
+
+1. **Tailwind 4 inlines shadows but not colours.** `.bg-page` emits `var(--color-page)`; `.shadow-card` emits the literal, so redefining a shadow token in the dark block does nothing. Components call `shadow-(--shadow-card)` instead. Found by reading the emitted CSS.
+2. **A third double-duty family the reference missed** — `bg-sidebar-text` + `text-ink`, a light chip on a dark rail. The active nav pill, the active currency segment and the logo circle rendered as empty white lozenges in dark. Fixed as FINDING 3 fixes its own cases: `text-sidebar`.
+3. **FINDING 2 is wider than its own description.** The prescribed `panel-border` edge is needed by the `Switch` knob too, measured at 1.19:1 on its off track in dark — against 1.24:1 in *light*, i.e. the light theme was already leaning on the shadow. One `--shadow-thumb` token, four call sites.
+
+**One light-theme change, deliberate and flagged:** the chart tooltip goes from recharts' default `#ffffff` to `panel`. The app never specified a tooltip background, so the white was a library default rather than a designed value.
+
+**Verification note worth keeping.** `getComputedStyle` / `getBoundingClientRect` in the Playwright evaluation context returned **stale** values after React updates — at one point reporting a white background on a segment whose `className` did not carry `bg-card`. Several hours went into chasing defects that did not exist. For anything the DOM has just re-rendered, screenshot it.
 
 ## A10 — Ukrainian — `feat/i18n-uk`
 

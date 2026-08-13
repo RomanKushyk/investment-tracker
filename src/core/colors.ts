@@ -48,8 +48,34 @@ export const CHART = {
 // DatePicker popover. The Select popover is deliberately NOT the comparison —
 // it ships 14, since its items hug its corners and make it the concentric
 // case; a tooltip holds text, so nothing pulls it off the surface value.
+// The surface, border and text are declared rather than left to recharts,
+// which paints its own #ffffff and would leave a white slab over a dark chart.
+// `panel`, NOT `card`, and that is the reference's own choice (Phase 5 S4): in
+// dark `panel` is the highest plane, so the tooltip lifts off the card it
+// covers instead of merging with it — 13.04:1 for `ink` on it. The same tokens
+// in light give the white-on-white-card look the master reference already has.
+// These are the plain palette tokens, not the `chart-*` aliases: the tooltip is
+// HTML, and only SVG props need the aliases. There is deliberately no
+// `chart-panel`.
+// This DOES move the light theme, from recharts' #ffffff to `panel` #eceae7,
+// and that is deliberate rather than overlooked: the app never specified a
+// tooltip background at all, so the white was a library default and not a
+// designed value. Adopting the token in both themes puts the tooltip inside the
+// app's surface vocabulary instead of adding a theme-conditional colour.
 export const CHART_TOOLTIP = {
   borderRadius: 16,
-  border: `1px solid ${CHART.hairline}`,
+  background: 'var(--color-panel)',
+  border: `1px solid var(--color-panel-border)`,
+  color: 'var(--color-ink)',
   fontSize: 12,
 };
+
+// The hover indicator recharts draws BEHIND the tooltip. Left alone it is a
+// hard-coded rgba(204,204,204,.5), which is a pale wash over a dark chart —
+// the one piece of chart paint the token sweep could not reach, because it
+// lives in the library's defaults rather than in any prop we set.
+// `hairline` is the same one-step separation it has in light, in both themes.
+// Two shapes, because recharts fills the cursor on a categorical chart and
+// strokes it on a continuous one.
+export const CHART_CURSOR_FILL = { fill: CHART.hairline };
+export const CHART_CURSOR_LINE = { stroke: CHART.hairline, strokeWidth: 1 };
