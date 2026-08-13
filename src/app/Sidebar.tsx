@@ -3,8 +3,9 @@ import { NavLink } from 'react-router';
 import { useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { headlineKpis } from '../core/derive';
-import { fmtPct, fmtProse, fmtProseWhole, toUsd } from '../core/money';
+import { toUsd } from '../core/money';
 import { useDataset, useSettings } from '../state/settings';
+import { useFormat } from '../hooks/useFormat';
 
 const ANALYTICS = [
   { to: '/overview', label: 'Overview' },
@@ -69,6 +70,7 @@ function GroupLabel({ className = '', children }: { className?: string; children
 // The headline number tweens (~300ms, D7) whenever it changes — on the
 // currency toggle above all, but also as new data comes in.
 function useCapitalCard() {
+  const f = useFormat();
   const { currency, usdRate } = useSettings();
   const snapshots = useSnapshots().data;
   const transactions = useTransactions().data;
@@ -81,8 +83,8 @@ function useCapitalCard() {
 
   if (!kpis) return { value: '—', sub: '—' };
   return currency === 'UAH'
-    ? { value: fmtProseWhole(tweened), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(usdTotal, 'USD')}` }
-    : { value: fmtProse(tweened, 'USD'), sub: `${fmtPct(kpis.net.pct)} · ${fmtProse(total)}` };
+    ? { value: f.moneyWhole(tweened), sub: `${f.pct(kpis.net.pct)} · ${f.money(usdTotal, 'USD')}` }
+    : { value: f.money(tweened, 'USD'), sub: `${f.pct(kpis.net.pct)} · ${f.money(total)}` };
 }
 
 // S5: persistent while dataset==='demo' (absent in live) — warn-tint family

@@ -11,7 +11,6 @@ import { toast } from 'sonner';
 
 import { kyivDateIso } from '../../core/dates';
 import { matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
-import { fmtDateShort, fmtTable } from '../../core/money';
 import type { Asset, QuoteSource } from '../../core/types';
 import {
   INZHUR_REFRESH_HOUR,
@@ -32,6 +31,7 @@ import {
   type FetchButtonState,
   type ProvenanceChip,
 } from './fetch-quotes';
+import { useFormat } from '../../hooks/useFormat';
 
 /** The success flash reverts to the idle label after this long (S1). */
 const FLASH_MS = 2500;
@@ -72,6 +72,7 @@ export interface QuoteFetch {
 }
 
 export function useQuoteFetch(assets: Asset[]): QuoteFetch {
+  const f = useFormat();
   const { data, lastGood, isFetching, disabled, fetchAssets } = useInzhurAssets();
   const quotes = useDraft((s) => s.quotes);
   const origins = useDraft((s) => s.origins);
@@ -92,7 +93,7 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       const draft = useDraft.getState();
       const { fills, offers: pending } = reconcileFetched(linked, draft.quotes, draft.origins);
       for (const fill of fills) {
-        draft.fillQuote(fill.assetId, fmtTable(fill.value), { source, at: feed.fetchedAt });
+        draft.fillQuote(fill.assetId, f.num(fill.value), { source, at: feed.fetchedAt });
       }
       // Wholesale replace: every resolve re-decides all rows, which is also
       // what un-hides an offer the user dismissed after the previous fetch.
@@ -109,7 +110,7 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       // it — that press ends in state 5, with the button back to idle.
       if (source === 'fetch') setFlashAt(feed.fetchedAt);
     },
-    [assets],
+    [assets, f],
   );
 
   const fetchQuotes = useCallback(() => {
@@ -132,13 +133,13 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
           ? {}
           : {
               action: {
-                label: `Use values from ${fmtDateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}`,
+                label: `Use values from ${f.dateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}`,
                 onClick: () => apply(lastGood, 'cache'),
               },
             }),
       });
     })();
-  }, [apply, data, disabled, fetchAssets, lastGood]);
+  }, [apply, data, disabled, fetchAssets, lastGood, f]);
 
   const chipFor = useCallback(
     (asset: Asset) =>
@@ -175,13 +176,13 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
     (assetId: string) => {
       const offer = offers[assetId];
       if (offer === undefined) return;
-      useDraft.getState().fillQuote(assetId, fmtTable(offer.value), {
+      useDraft.getState().fillQuote(assetId, f.num(offer.value), {
         source: offer.stale ? 'cache' : 'fetch',
         at: offer.at,
       });
       dismissOffer(assetId);
     },
-    [dismissOffer, offers],
+    [dismissOffer, offers, f],
   );
 
   return {

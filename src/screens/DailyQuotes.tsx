@@ -15,7 +15,6 @@ import { couponReminderId, dueCoupons } from '../core/accrual';
 import { kyivDateIso, todayIso } from '../core/dates';
 import { investedByAsset, latestCash, latestQuotes } from '../core/derive';
 import type { QuoteVerdict } from '../core/inzhur/dcf';
-import { fmtSavedAt, fmtTable } from '../core/money';
 import { quoteInputSchema } from '../core/schemas';
 import type { Asset, Snapshot } from '../core/types';
 import { useDraft } from '../state/draft';
@@ -33,6 +32,7 @@ import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
+import { useFormat } from '../hooks/useFormat';
 
 /** One frozen instance, so "no assets yet" keeps a STABLE identity. A fresh
  *  `[]` per render would change the verdict memo's dependency every time and
@@ -40,6 +40,7 @@ import { TransactionPanel } from './TransactionPanel';
 const NO_ASSETS: Asset[] = [];
 
 export function DailyQuotes() {
+  const f = useFormat();
   const assets = useAssets().data ?? NO_ASSETS;
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -76,9 +77,9 @@ export function DailyQuotes() {
     if (!todaySnapshot) return;
     for (const assetId of Object.keys(todaySnapshot.quotes)) {
       if (!(assetId in quotes))
-        setQuote(assetId, fmtTable(todaySnapshot.quotes[assetId]));
+        setQuote(assetId, f.num(todaySnapshot.quotes[assetId]));
     }
-  }, [todaySnapshot, quotes, setQuote]);
+  }, [todaySnapshot, quotes, setQuote, f]);
 
   const filledCount = assets.filter(
     (a) => quoteInputSchema.safeParse(quotes[a.id] ?? '').success,
@@ -104,7 +105,7 @@ export function DailyQuotes() {
   function handleCopyYesterday() {
     for (const a of assets) {
       const y = yesterdayQuote(snapshots, a.id, selectedDate);
-      if (y !== undefined) setQuote(a.id, fmtTable(y));
+      if (y !== undefined) setQuote(a.id, f.num(y));
     }
   }
 
@@ -201,7 +202,7 @@ export function DailyQuotes() {
                 onAcceptSuggestion={() => {
                   const value = suggestionFor(a.id);
                   if (value === undefined) return;
-                  fillQuote(a.id, fmtTable(value), {
+                  fillQuote(a.id, f.num(value), {
                     source: 'accrual',
                     at: new Date().toISOString(),
                   });
@@ -225,7 +226,7 @@ export function DailyQuotes() {
             </Button>
             <span className="text-muted ml-auto text-xs">
               {lastSavedAt
-                ? `Last saved ${fmtSavedAt(lastSavedAt)}`
+                ? `Last saved ${f.savedAt(lastSavedAt)}`
                 : 'Not saved yet'}
             </span>
           </div>

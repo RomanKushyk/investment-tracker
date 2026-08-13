@@ -18,7 +18,6 @@ import {
 import { assetFromForm } from '../core/asset-builder';
 import { COLOR_KEYS } from '../core/colors';
 import { todayIso } from '../core/dates';
-import { fmtDateShort, fmtProse } from '../core/money';
 import {
   assetFormSchema,
   transactionSchema,
@@ -29,6 +28,7 @@ import {
 } from '../core/schemas';
 import type { Asset, Transaction, TxType } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
+import { useFormat } from '../hooks/useFormat';
 
 // Pinned option order (S10, metrics-exposure reference): Withdrawal after
 // Deposit (portfolio-level, like Deposit), Redemption after Reinvest
@@ -72,6 +72,7 @@ const inputClass =
   'h-9 rounded-[9px] border border-hairline bg-card px-3 font-body text-[13px] text-ink transition';
 
 export function TransactionPanel() {
+  const f = useFormat();
   const assetsData = useAssets().data;
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
   const transactions = useTransactions().data ?? [];
@@ -312,10 +313,10 @@ export function TransactionPanel() {
                   {asset ? shortLabel(asset) : 'Portfolio'}
                 </span>
                 <strong className="whitespace-nowrap">
-                  {fmtProse(tx.amount)}
+                  {f.money(tx.amount)}
                 </strong>
                 <span className="text-muted whitespace-nowrap">
-                  {fmtDateShort(tx.date)}
+                  {f.dateShort(tx.date)}
                 </span>
               </div>
             );

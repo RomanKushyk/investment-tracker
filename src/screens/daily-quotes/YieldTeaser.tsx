@@ -4,9 +4,9 @@ import { Link } from 'react-router';
 import { buttonVariants } from '../../components/ui/button-variants';
 import { Card } from '../../components/ui/Card';
 import { yieldSinceStart } from '../../core/derive';
-import { fmtPct } from '../../core/money';
 import type { Asset } from '../../core/types';
 import { shortLabel } from './quotes';
+import { useFormat } from '../../hooks/useFormat';
 
 export function YieldTeaser({
   assets,
@@ -17,6 +17,7 @@ export function YieldTeaser({
   values: Record<string, number>;
   invested: Record<string, number>;
 }) {
+  const f = useFormat();
   return (
     <Card className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 px-[22px] py-4">
       <LineChart size={20} strokeWidth={2.75} className="text-ink flex-none" />
@@ -25,7 +26,7 @@ export function YieldTeaser({
         {assets
           .map(
             (a) =>
-              `${shortLabel(a)} ${fmtPct(yieldSinceStart(values[a.id] ?? 0, invested[a.id] ?? 0))}`,
+              `${shortLabel(a)} ${f.pct(yieldSinceStart(values[a.id] ?? 0, invested[a.id] ?? 0))}`,
           )
           .join(' · ')}
       </div>

@@ -5,11 +5,11 @@ import { Card } from '../../components/ui/Card';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
 import { yieldSinceStart } from '../../core/derive';
 import type { QuoteVerdict } from '../../core/inzhur/dcf';
-import { fmtDateShort, fmtPct, fmtProse, fmtTable } from '../../core/money';
 import type { Asset } from '../../core/types';
 import { quoteInputSchema } from '../../core/schemas';
 import type { ProvenanceChip } from './fetch-quotes';
 import type { QuoteOffer } from './useQuoteFetch';
+import { useFormat } from '../../hooks/useFormat';
 
 // S2 — provenance of the row's CURRENT draft value: `auto` (a fetch filled
 // it), `manual` (the user's own — a fetch never overwrites it) or the amber
@@ -29,6 +29,7 @@ const ACCRUAL_CHIP_TITLE = 'Filled from coupon accrual — a suggestion you acce
 const GHOST_TITLE = 'Suggested from coupon accrual — accept or type your own.';
 
 function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
+  const f = useFormat();
   const paint =
     chip.chip === 'auto'
       ? 'bg-pos-tint text-pos-tint-text'
@@ -43,7 +44,7 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
         title={accrual ? ACCRUAL_CHIP_TITLE : CHIP_TITLE[chip.chip]}
         className={`animate-in fade-in zoom-in-95 rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 ${paint}`}
       >
-        {chip.chip === 'stale' ? `as of ${fmtDateShort(kyivDateIso(new Date(chip.at)))}` : chip.chip}
+        {chip.chip === 'stale' ? `as of ${f.dateShort(kyivDateIso(new Date(chip.at)))}` : chip.chip}
       </span>
       {chip.chip === 'auto' && (
         <span className="text-muted text-[10px]">
@@ -110,12 +111,13 @@ function UseFetchedOffer({
   onAccept: () => void;
   onDismiss: () => void;
 }) {
-  const value = fmtTable(offer.value);
+  const f = useFormat();
+  const value = f.num(offer.value);
   return (
     <OfferLine
       label={
         offer.stale
-          ? `Use ${value} (as of ${fmtDateShort(kyivDateIso(new Date(offer.at)))})?`
+          ? `Use ${value} (as of ${f.dateShort(kyivDateIso(new Date(offer.at)))})?`
           : `Use fetched ${value}?`
       }
       dismissLabel="Keep my value"
@@ -137,6 +139,7 @@ function UseFetchedOffer({
  * noise, and noise is what stops anyone reading the one row that matters.
  */
 function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
+  const f = useFormat();
   if (verdict.state === 'consistent' || verdict.state === 'not_applicable') return null;
 
   if (verdict.state === 'stale') {
@@ -145,7 +148,7 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
       <div className="text-muted animate-in fade-in text-[11px] duration-300">
         Provider price is {atWindowEdge ? 'at least ' : ''}
         {daysStale === 1 ? 'a day' : `${daysStale} days`} old — it still prices to{' '}
-        {fmtDateShort(date)}.
+        {f.dateShort(date)}.
       </div>
     );
   }
@@ -211,6 +214,7 @@ export function QuoteRow({
   onAcceptSuggestion: () => void;
   onDismissSuggestion: () => void;
 }) {
+  const f = useFormat();
   const parsed = raw !== undefined ? quoteInputSchema.safeParse(raw) : undefined;
   const filled = parsed?.success === true;
   const delta =
@@ -229,7 +233,7 @@ export function QuoteRow({
         <div className="min-w-[110px] flex-1 break-words">
           <div className="text-sm font-semibold">{asset.name}</div>
           <div className="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span>{yesterday !== undefined ? `${fmtProse(yesterday)} yesterday` : '—'}</span>
+            <span>{yesterday !== undefined ? `${f.money(yesterday)} yesterday` : '—'}</span>
             {chip !== undefined && <ProvenanceChipPill chip={chip} />}
           </div>
         </div>
@@ -256,7 +260,7 @@ export function QuoteRow({
             }
             value={raw ?? ''}
             placeholder={
-              ghost === undefined && yesterday !== undefined ? fmtTable(yesterday) : undefined
+              ghost === undefined && yesterday !== undefined ? f.num(yesterday) : undefined
             }
             onChange={(e) => onChange(e.target.value)}
             inputMode="decimal"
@@ -268,7 +272,7 @@ export function QuoteRow({
               id={ghostId}
               className="text-muted animate-in fade-in pointer-events-none absolute right-3 text-[13px] duration-300"
             >
-              {fmtTable(ghost)}
+              {f.num(ghost)}
             </span>
           )}
         </div>
@@ -279,7 +283,7 @@ export function QuoteRow({
             (delta === undefined ? 'text-faint' : delta < 0 ? 'text-neg' : 'text-pos')
           }
         >
-          {delta === undefined ? '—' : fmtPct(delta)}
+          {delta === undefined ? '—' : f.pct(delta)}
         </span>
       </div>
       {verdict !== undefined && <ModelNote verdict={verdict} />}
@@ -288,7 +292,7 @@ export function QuoteRow({
       )}
       {offer === undefined && ghost !== undefined && (
         <OfferLine
-          label={`Use suggested ${fmtTable(ghost)}?`}
+          label={`Use suggested ${f.num(ghost)}?`}
           dismissLabel="Dismiss suggestion"
           onAccept={onAcceptSuggestion}
           onDismiss={onDismissSuggestion}

@@ -14,10 +14,10 @@ import { toast } from 'sonner';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { rollNextCoupon, type DueCoupon } from '../../core/accrual';
-import { fmtDate, fmtDateShort, fmtProse, fmtTable } from '../../core/money';
 import { quoteInputSchema } from '../../core/schemas';
 import type { Asset, Transaction } from '../../core/types';
 import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
+import { useFormat } from '../../hooks/useFormat';
 
 export function CouponDueCard({
   asset,
@@ -39,13 +39,14 @@ export function CouponDueCard({
   schedule: readonly string[] | undefined;
   onSkip: () => void;
 }) {
+  const f = useFormat();
   // The field mirrors the prefill until the user touches it — `edited` is the
   // discriminator, so a prefill that only becomes available LATER (a linked
   // bond's `paymentSchedule` forecast arrives with the first fetch, and the card
   // never remounts) still lands in an untouched field, while a typed value is
   // never overwritten by it (G5).
   const [edited, setEdited] = useState<string | undefined>(undefined);
-  const amount = edited ?? (prefill === undefined ? '' : fmtTable(prefill));
+  const amount = edited ?? (prefill === undefined ? '' : f.num(prefill));
   const [reinvest, setReinvest] = useState(false);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
@@ -109,15 +110,15 @@ export function CouponDueCard({
         <span className="text-muted text-[10px] tracking-[.12em] uppercase">Coupon due</span>
         {due.overdueDays > 0 && (
           <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase">
-            {fmtDateShort(due.date)}
+            {f.dateShort(due.date)}
           </span>
         )}
       </div>
       <div className="text-[13px] leading-[1.4] font-semibold">
-        {asset.name} — coupon{prefill === undefined ? '' : ` ${fmtProse(prefill)}`}
+        {asset.name} — coupon{prefill === undefined ? '' : ` ${f.money(prefill)}`}
       </div>
       <p className="text-muted mt-1.5 mb-3 text-xs leading-[1.5]">
-        Scheduled for {fmtDate(due.date)}. Confirm to record it — the amount is editable, history is
+        Scheduled for {f.date(due.date)}. Confirm to record it — the amount is editable, history is
         never rewritten.
       </p>
 

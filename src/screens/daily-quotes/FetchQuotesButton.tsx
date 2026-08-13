@@ -2,8 +2,8 @@ import { Check, RefreshCw } from 'lucide-react';
 
 import { Button } from '../../components/ui/Button';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
-import { fmtDateShort } from '../../core/money';
 import type { FeedFreshness, FetchButtonState } from './fetch-quotes';
+import { useFormat } from '../../hooks/useFormat';
 
 // S1 — the phase's headline control (design/extensions/daily-quotes-live.dc.html
 // S1): an outline pill in the Daily-quotes header, one notch shorter than the
@@ -32,6 +32,7 @@ export function FetchQuotesButton({
   flashAt: string | undefined;
   onFetch: () => void;
 }) {
+  const f = useFormat();
   const gated = state === 'demo' || state === 'unlinked';
   const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
@@ -99,7 +100,7 @@ export function FetchQuotesButton({
           }`}
         >
           {freshness.state === 'stale'
-            ? `Inzhur as of ${fmtDateShort(kyivDateIso(new Date(freshness.at)))}`
+            ? `Inzhur as of ${f.dateShort(kyivDateIso(new Date(freshness.at)))}`
             : `Inzhur ${kyivTimeHm(new Date(freshness.at))}`}
         </span>
       )}
