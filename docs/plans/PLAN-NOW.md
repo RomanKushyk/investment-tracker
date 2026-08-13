@@ -26,9 +26,12 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
-| A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — awaiting the design session |
-| A9 | Dark theme | `feat/dark-theme` | L | design-gated |
-| A10 | Ukrainian | `feat/i18n-uk` | L | design-gated |
+| A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — extension merged `f486121` |
+| A9 | Dark theme | `feat/dark-theme` | L | **unblocked** — G7 satisfied 2026-08-12 |
+| A10 | Ukrainian | `feat/i18n-uk` | L | **unblocked** — G7 satisfied 2026-08-12 |
+| **Section F** | **Phase 6 — the mobile shell** | | | |
+| A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — awaiting the design session |
+| A17 | Mobile shell + record cards | `feat/mobile-shell` | L | design-gated |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
@@ -261,7 +264,7 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 
 ## A8 — Design brief — `docs/design-brief-phase-5`
 
-**The G7 gate.** Nothing in A9/A10 starts before the design session merges `design/extensions/*.dc.html`.
+**The G7 gate — and it is now OPEN.** `design/extensions/appearance-language.dc.html` merged 2026-08-12 in `f486121`, so **A9 and A10 are no longer design-gated**. This section header said "awaiting the design session" until 2026-08-13, three commits after the session had in fact run and its own amendment (D56) had been applied to the file.
 
 > **The gate artifact was amended 2026-08-12 (D56).** `design/extensions/appearance-language.dc.html` drew every control as a capsule; the app no longer has a single one. All 231 capsules in it were rewritten to the radius rule and its 23 segmented tracks made concentric with their segments — measured off the file's own rendered boxes, nothing else touched. **A9/A10 must read shape from README §4, not from the drawing's original capsules.** The brief carries the same amendment at its head.
 
@@ -518,6 +521,39 @@ workflow back. The old stack never stopped working.
 
 ---
 
+# Section F — Phase 6, the mobile shell
+
+## A16 — Design brief: mobile — **DONE 2026-08-13**
+
+**Brief:** `docs/design-briefs/phase-6-mobile.md`. Six surfaces, each with the pinned seven parts. **Next step is not code** — it is the design session that turns it into `design/extensions/mobile.dc.html`.
+
+**Owner decisions taken 2026-08-13:** full parity (the four tables become cards, nothing is desktop-only); the sidebar hides and shows by a button and **the drawer IS the sidebar**, not a second navigation; the header bar carries `Total capital` whenever the sidebar is off screen; and touch targets grow by **hit area, not geometry**.
+
+**The measurement is what set the shape.** At 360 × 740 the content column is **209 px** of 360 — 42 % of the viewport is permanent chrome — and a card inside it has **129 px**. Taking the sidebar out of flow gives **336 px**, a 61 % gain. The four tables measure 464–824 px inside a 185 px window; Balances is `3 + N assets` columns wide, so its overflow grows with the portfolio and horizontal scroll could never settle it.
+
+**One suspected defect was measured and cleared, and no surface compensates for it:** recharts thins the 31-day Seasonality axis to seven ticks (1 · 5 · 10 · 15 · 20 · 25 · 31) with **zero collisions** at a 277 px chart.
+
+**Thirty vulnerabilities are enumerated in six classes** (space, touch/input, platform, drawer state, legibility/language, design-system integrity), each marked measured / computed / closed-by-specification and pointed at the surface that answers it. The sharpest is **F1**: 44 px targets would move five radii and one concentric track, because D56 keys `r` to the short side — an accessibility fix that silently rewrites the design system. Hence the hit-area decision, with two named exceptions (quote input and `Button` md at 44, radius recomputed to 11).
+
+**Also fixed here**, since each contradicted something already shipped: the brief template's part 6 (still demanding `radius 999` and a 232 px sidebar), the missing `appearance-language.dc.html` rows in `design/README.md` and `design/extensions/README.md`, and the stale "awaiting the design session" in this file and in `docs/design-briefs/README.md`. One stale reference is **left as flagged, not edited** — `src/components/ui/Tag.tsx`'s comment cites "radius 999px" while the code ships `rounded-[6px]`; this task changes no code.
+
+## A17 — Mobile shell + record cards — `feat/mobile-shell`
+
+**Design-gated (G7).** Nothing starts before `design/extensions/mobile.dc.html` merges.
+
+- [ ] S1 — one `<aside>`, two shells, breakpoint `md`; the 136 px rail is retired along with every `max-sm:` override that serves it.
+- [ ] S2 — header bar, reading `headlineKpis` (never a second derivation); the mark, if drawn, reuses the `Mark` component rather than becoming a fourth copy.
+- [ ] S3 — the record card, which is the `/attributes` asset card verbatim, applied to Yield, Portfolio, Payouts and Balances. Column header text byte-identical between table and card; table markup retained at `≥ md`.
+- [ ] S4 — `/` with the keyboard open: 44 px quote input at radius 11, ≥16 px fields, actions reachable.
+- [ ] S5 — the four overlays re-checked at 360 px; radii unchanged (24 / 16 / 14 / 13).
+- [ ] S6 — every hover-only chart value made reachable without a pointer.
+- [ ] `viewport-fit=cover` + `env(safe-area-inset-*)`; `100dvh` replaces `100vh`; `overscroll-behavior-y: contain`.
+- [ ] `--color-scrim` added to `@theme` with its dark value in the same commit.
+- [ ] `navigation-map.md` gains the mobile checkpoints.
+
+**Verify:** zero horizontal overflow at 360 px on all ten routes, measured, not eyeballed — including `/attributes`, which overflows by 27 px today. No focusable field under 16 px. Every pressable ≥ 44 × 44. Drawer: route change, hardware Back, `Escape`, focus trap, scroll lock and restore, reduced motion. Ukrainian widths, not English. Gates green; no D5-pinned demo figure changes.
+**Risk:** the sweep is wide and touches every screen — freeze other UI branches while it runs, the same rule A9/A10 carry, and do not run it concurrently with the i18n sweep.
+
 ## Cross-phase rules
 
 - Branches as named; plain conventional commits; squash-merge to `dev`; no AI attribution in any git artifact.
@@ -528,4 +564,4 @@ workflow back. The old stack never stopped working.
 
 ## Acceptance for Plan A
 
-A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`).
+A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. A16–A17 leave every route usable on a phone, with the sidebar collapsible at every width. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`).

@@ -43,10 +43,17 @@ section MUST contain all seven parts:
    may use; no ad-hoc hex ever. If a genuinely new hue is required, the brief
    names the new token(s) and the extension + implementation add them to
    `@theme` (both themes from Phase 5).
-6. **Layout constraints** — cards radius 20–24 px, pills/badges radius 999,
-   inputs radius 10, sub-panels radius 16; the shell must hold at 360 px
-   viewport width with no horizontal scroll; sidebar is 232 px (136 px below
-   `sm`); wide content scrolls inside its own container.
+6. **Layout constraints** — shape follows **D56** (`README.md` §4), not a fixed
+   list of values: a box nested against a parent's corner is **concentric**
+   (`outer = inner + gap`); a standalone control is **proportional**
+   (`r = round(min(w, h) × 0.26)`); surfaces keep the reference's 16 / 20 / 24;
+   circles stay circles. **Nothing is a capsule** — the `999px` this template
+   used to require was retired by D56, and a brief that asks for one contradicts
+   the shipped app. State a control's RENDERED height, since a font-size class
+   sets no line height and the classes alone cannot give the radius.
+   The shell must hold at 360 px viewport width with no horizontal scroll;
+   sidebar is 244 px, and from Phase 6 it is collapsible below `md` rather than
+   narrowed to a rail; wide content scrolls inside its own container.
 7. **Acceptance checklist** — checkboxes the implementing task must satisfy,
    including the phase's data invariants (e.g. "no D5-pinned demo figure
    changes").
