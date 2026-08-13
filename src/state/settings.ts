@@ -5,9 +5,19 @@ import type { Dataset } from '../core/backup/json';
 import { DEFAULT_LEAD_DAYS, isLeadDays } from '../core/reminders';
 import { SETTINGS_KEY } from '../lib/storage-keys';
 
+/**
+ * Three states, not two (Phase 5 owner decision): `system` is the default and
+ * follows the OS live. It is a PREFERENCE, never a resolved value — what the
+ * page actually wears is `resolveTheme()`'s answer, stamped on the root as
+ * data-theme="light"|"dark". Keeping the two apart is what lets the OS flip
+ * reach a user sitting on `system` without their stored choice being rewritten.
+ */
+export type Theme = 'light' | 'dark' | 'system';
+
 interface SettingsState {
   currency: 'UAH' | 'USD';
   usdRate: number;
+  theme: Theme;
   dataset: Dataset;
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
@@ -16,6 +26,7 @@ interface SettingsState {
   dismissedReminders: string[];
   setCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
+  setTheme: (t: Theme) => void;
   setDataset: (d: Dataset) => void;
   setAutoQuoteSuggest: (on: boolean) => void;
   setCouponSuggest: (on: boolean) => void;
@@ -29,6 +40,10 @@ interface SettingsState {
 export interface PersistedSettings {
   currency: 'UAH' | 'USD';
   usdRate: number;
+  // Appearance (P5 S1). MUST stay top-level under `state` — see doctrine #2:
+  // the FOUC-free head script in index.html reads it straight out of
+  // localStorage before any module exists.
+  theme: Theme;
   dataset: Dataset;
   // Automation (S8): the two suggestion switches, both ON by default — the
   // suggestions are the phase's headline and they never write anything (G5).
@@ -47,6 +62,7 @@ export interface PersistedSettings {
 const PERSISTED_DEFAULTS: PersistedSettings = {
   currency: 'UAH',
   usdRate: 44.83,
+  theme: 'system',
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
@@ -79,6 +95,14 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
       typeof p.usdRate === 'number' && Number.isFinite(p.usdRate) && p.usdRate > 0
         ? p.usdRate
         : PERSISTED_DEFAULTS.usdRate,
+    // Same shape of rule as `dataset` below, and it must agree with the head
+    // script's: an unrecognised value is 'system', never a guess at what the
+    // user meant. The script cannot import this, so the two are duplicated by
+    // necessity — index.html carries a pointer back here.
+    theme:
+      p.theme === 'light' || p.theme === 'dark' || p.theme === 'system'
+        ? p.theme
+        : PERSISTED_DEFAULTS.theme,
     // G4: anything but the exact 'live' literal means demo — the same rule
     // lib/db.ts applies when it binds the active DB at boot (must agree).
     dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
@@ -143,6 +167,7 @@ export const useSettings = create<SettingsState>()(
     (set, get) => ({
       currency: 'UAH',
       usdRate: 44.83,
+      theme: 'system',
       dataset: 'demo',
       autoQuoteSuggest: true,
       couponSuggest: true,
@@ -153,6 +178,9 @@ export const useSettings = create<SettingsState>()(
       // Callers validate BEFORE calling (S8: invalid input never writes) —
       // the Settings screen parses via core/schemas.quoteInputSchema.
       setUsdRate: (usdRate) => set({ usdRate }),
+      // No reload and no DOM write here: useTheme() owns the attribute, so the
+      // store stays a plain preference and there is exactly one writer.
+      setTheme: (theme) => set({ theme }),
       // G4 reload-on-toggle: persist the flag (zustand writes localStorage
       // synchronously) and reload — lib/db.ts rebinds the whole app to the
       // other dataset's DB at the next boot. Never a live cache migration.
@@ -190,6 +218,7 @@ export const useSettings = create<SettingsState>()(
       partialize: (s) => ({
         currency: s.currency,
         usdRate: s.usdRate,
+        theme: s.theme,
         dataset: s.dataset,
         autoQuoteSuggest: s.autoQuoteSuggest,
         couponSuggest: s.couponSuggest,

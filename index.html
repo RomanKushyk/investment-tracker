@@ -5,14 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <!-- One colour, because the app has ONE theme. A dark `theme-color` keyed
-         to `prefers-color-scheme` would tint the browser chrome dark above a
-         page that is still light — a seam, not a match. The dark value returns
-         with the Phase 5 dark theme (PLAN-NOW A9), together with the
-         `[data-theme=dark]` attribute that A9's own checklist specifies and
-         that a media query could not follow anyway. -->
+    <!-- Both themes exist now (A9), so the UA is told so before any CSS
+         parses: it then paints its initial canvas in the user's preference
+         instead of flashing white on a dark-preferring OS. -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- Seeded light and REWRITTEN BY useTheme on every resolve. It cannot be
+         a `prefers-color-scheme` media query: the theme is a stored preference
+         with a `system` option, so the OS query is only one of the three
+         inputs, and a query would tint the chrome dark above a page a user
+         has explicitly set to light. -->
     <meta name="theme-color" content="#f6f5f3" />
     <title>Quirenote — Invest Tracker</title>
+    <script>
+      // FOUC-free theme boot. Runs BEFORE the module bundle, so the first paint
+      // is already the right theme — the alternative is a white flash on every
+      // load for a dark user, which no amount of React-side speed removes.
+      //
+      // Deliberately duplicated, not imported: importing anything here would
+      // make this a module, and a module is deferred, which is precisely the
+      // property that would reintroduce the flash. The two duplications are
+      //   - the storage key, from src/lib/storage-keys.ts
+      //   - the light/dark/system validity rule, from migrateSettings()
+      // and both are pinned by src/app/theme.test.ts so they cannot drift.
+      //
+      // Reads `state.theme` top-level, which persist doctrine #2 in
+      // src/state/settings.ts guarantees and pins for exactly this reader.
+      try {
+        var raw = localStorage.getItem('quirenote-settings');
+        var stored = raw ? JSON.parse(raw).state.theme : null;
+        var pref = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+        var resolved =
+          pref === 'system'
+            ? matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : pref;
+        document.documentElement.dataset.theme = resolved;
+      } catch (e) {
+        // No localStorage, private mode, corrupt JSON: light is the reference
+        // theme and the correct fallback. Never leave the attribute unset —
+        // an unset root is light anyway, but stamping it keeps every reader
+        // (useTheme, the tests, a debugger) looking at one source.
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

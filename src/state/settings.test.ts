@@ -7,6 +7,7 @@ import { mergeSettings, migrateSettings, useSettings, type PersistedSettings } f
 const DEFAULTS: PersistedSettings = {
   currency: 'UAH',
   usdRate: 44.83,
+  theme: 'system',
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
@@ -25,7 +26,10 @@ describe('migrateSettings', () => {
   });
 
   it('drops unknown fields', () => {
-    expect(migrateSettings({ currency: 'USD', theme: 'dark', legacy: true })).toEqual({
+    // This case used `theme: 'dark'` as its example of a field that does not
+    // exist — until P5 made it one that does. Swapped for fields that are
+    // still genuinely unknown, so the test keeps testing what it claims to.
+    expect(migrateSettings({ currency: 'USD', accent: 'teal', legacy: true })).toEqual({
       ...DEFAULTS,
       currency: 'USD',
     });
@@ -57,6 +61,24 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ currency: 'UAH', usdRate: -5 })).toEqual(DEFAULTS);
     expect(migrateSettings({ currency: 'UAH', usdRate: NaN })).toEqual(DEFAULTS);
     expect(migrateSettings({ currency: 'UAH', usdRate: Infinity })).toEqual(DEFAULTS);
+  });
+
+  it('keeps each of the three themes, and defaults to system', () => {
+    for (const theme of ['light', 'dark', 'system'] as const) {
+      expect(migrateSettings({ theme })).toEqual({ ...DEFAULTS, theme });
+    }
+    // Absent is the case that matters most: every profile written before P5
+    // has no `theme` at all, and those users must land on `system` rather than
+    // on whichever literal happened to be first in the check.
+    expect(migrateSettings({ currency: 'UAH' })).toEqual(DEFAULTS);
+  });
+
+  it('falls back to system for any theme it does not recognise', () => {
+    // The head script in index.html applies the identical rule; that the two
+    // agree on every one of these is pinned by src/app/theme.test.ts.
+    for (const theme of ['solarized', '', 'Light', 'DARK', 3, null, {}, []]) {
+      expect(migrateSettings({ theme })).toEqual(DEFAULTS);
+    }
   });
 
   it('keeps a persisted live dataset (G4)', () => {

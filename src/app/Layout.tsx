@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router';
 import { useDbSync } from '../hooks/useDbSync';
 import { useReminderToast } from '../hooks/useReminders';
 import { Sidebar } from './Sidebar';
+import { useTheme } from './theme';
 
 export function Layout() {
   const { pathname } = useLocation();
@@ -10,6 +11,11 @@ export function Layout() {
   // point that spans every route, so the toast fires once on app open and never
   // again on navigation.
   useReminderToast();
+  // Same reason this lives here rather than in a component: the layout is the
+  // one mount point that spans every route, so `data-theme` has exactly one
+  // owner for the whole life of the page (index.html's head script owns the
+  // first paint and nothing else).
+  useTheme();
   // Same reason: another tab replacing or clearing the dataset must reach this
   // tab whatever route it is sitting on (P4/D24).
   useDbSync();

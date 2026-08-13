@@ -29,7 +29,13 @@ export const buttonVariants = cva(
         // Not to be confused with the inverted planes (`KpiCard` dark, the
         // `Dialog` overlay), which keep white and change their FILL instead.
         primary: 'border-transparent bg-ink text-page hover:bg-sidebar-hover',
-        outline: 'border-ink bg-transparent text-ink hover:bg-sidebar-text',
+        // The hover fill was `sidebar-text`, a RAIL token borrowed onto a light
+        // surface. Here `text-ink` is right and must invert — so in dark the
+        // label went to #eceae7 and the hover fill went to #eceae7 with it, and
+        // the button emptied on hover. `panel` is the surface-step token this
+        // always wanted: #eceae7 light (vs the #e9e8e6 it replaces — three
+        // units of grey, below the threshold of sight) and #232327 in dark.
+        outline: 'border-ink bg-transparent text-ink hover:bg-panel',
         ghost: 'border-transparent bg-transparent text-ink hover:opacity-85',
         // Destructive pair (design/extensions/settings.dc.html S6): the
         // outline trigger opens a confirm; the full neg fill is reserved for

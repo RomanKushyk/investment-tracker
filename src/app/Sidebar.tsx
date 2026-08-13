@@ -43,7 +43,14 @@ function pillClass(padY: string, radius: string) {
   return ({ isActive }: { isActive: boolean }) =>
     `relative block w-full ${radius} px-3.5 ${padY} text-left text-[13.5px] transition select-none hover:opacity-85 active:scale-[.97] ` +
     (isActive
-      ? 'bg-sidebar-text font-bold text-ink'
+      ? // `text-sidebar`, NOT `text-ink` — this is a LIGHT CHIP ON A DARK RAIL,
+        // a third double-duty family beside the two the Phase 5 reference
+        // enumerated (FINDING 3). The fill `sidebar-text` stays light in both
+        // themes, so the label has to stay DARK in both; `ink` inverts to
+        // #eceae7 and paints #eceae7 on #eceae7 — an empty white lozenge with
+        // the route name gone. `sidebar` is #26262a in light, identical to
+        // `ink`, so this is a no-op there, and #0f0f11 in dark = 19.15:1.
+        'bg-sidebar-text font-bold text-sidebar'
       : 'bg-transparent font-normal text-sidebar-nav');
 }
 
@@ -111,7 +118,7 @@ export function Sidebar() {
           carry ₴/$ now carries the mark; the currency is still shown, and only
           shown, by the toggle at the bottom. */}
       <div className="relative mb-[22px] flex items-center justify-start gap-2.5 max-sm:gap-1.5 rounded-[14px] bg-sidebar-inset px-[15px] max-sm:px-2.5 py-2.5">
-        <div className="grid size-9 max-sm:size-7 flex-none place-items-center rounded-full bg-sidebar-text text-ink">
+        <div className="grid size-9 max-sm:size-7 flex-none place-items-center rounded-full bg-sidebar-text text-sidebar">
           <Mark className="size-[18px] max-sm:size-[14px]" />
         </div>
         <div className="font-display text-base max-sm:text-[13px] leading-[1.15] font-semibold">
@@ -184,7 +191,7 @@ export function Sidebar() {
           type="button"
           aria-pressed={currency === 'UAH'}
           onClick={() => setCurrency('UAH')}
-          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'UAH' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
+          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'UAH' ? 'text-sidebar' : 'text-sidebar-nav hover:opacity-85'}`}
         >
           ₴ UAH
         </button>
@@ -192,7 +199,7 @@ export function Sidebar() {
           type="button"
           aria-pressed={currency === 'USD'}
           onClick={() => setCurrency('USD')}
-          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'USD' ? 'text-ink' : 'text-sidebar-nav hover:opacity-85'}`}
+          className={`relative z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === 'USD' ? 'text-sidebar' : 'text-sidebar-nav hover:opacity-85'}`}
         >
           $ USD
         </button>
