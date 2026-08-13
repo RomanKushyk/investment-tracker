@@ -10,8 +10,8 @@
 import { useState } from 'react';
 
 import type { SkippedEntry } from '../../core/inzhur/parse';
-import { fmtSavedAt } from '../../core/money';
 import { useLastParse } from '../../hooks/useInzhurAssets';
+import { useFormat } from '../../hooks/useFormat';
 
 /** Tokens live in core; the English lives here (D8). */
 const REASON: Record<SkippedEntry['reason'], string> = {
@@ -35,6 +35,7 @@ function SkipLine({ skip }: { skip: SkippedEntry }) {
 }
 
 export function ParseSkips({ className = '' }: { className?: string }) {
+  const f = useFormat();
   const parse = useLastParse();
   const [open, setOpen] = useState(false);
 
@@ -49,7 +50,7 @@ export function ParseSkips({ className = '' }: { className?: string }) {
   if (count === 0) {
     return (
       <p className={`text-faint text-[11px] ${className}`}>
-        All {parse.entries} feed entries read cleanly · {fmtSavedAt(parse.at)}
+        All {parse.entries} feed entries read cleanly · {f.savedAt(parse.at)}
       </p>
     );
   }

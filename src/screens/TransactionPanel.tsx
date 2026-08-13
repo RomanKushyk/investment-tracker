@@ -95,7 +95,7 @@ export function TransactionPanel() {
   // itself stays the atomic recordTransaction(tx, newAsset).
   const assetForm = useForm<AssetFormInput, unknown, AssetFormValues>({
     resolver: zodResolver(assetFormSchema('create')),
-    defaultValues: assetFormDefaults(),
+    defaultValues: assetFormDefaults(f),
   });
 
   const assetId = form.watch('assetId');
@@ -112,8 +112,8 @@ export function TransactionPanel() {
   // Reset the sub-form whenever it leaves play so stale values/errors never
   // linger into a later "+ New asset…" round.
   useEffect(() => {
-    if (!isNewAsset) assetForm.reset(assetFormDefaults());
-  }, [isNewAsset, assetForm]);
+    if (!isNewAsset) assetForm.reset(assetFormDefaults(f));
+  }, [isNewAsset, assetForm, f]);
 
   function record(values: TransactionFormValues, newAsset: Asset | undefined) {
     const tx: Transaction = {
@@ -136,7 +136,7 @@ export function TransactionPanel() {
             amount: '',
             source: 'own',
           });
-          assetForm.reset(assetFormDefaults());
+          assetForm.reset(assetFormDefaults(f));
         },
         onError: () => toast.error('Could not record transaction — please try again.'),
       },

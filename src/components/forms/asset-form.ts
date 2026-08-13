@@ -4,7 +4,7 @@
 // core/schemas emits paths, this map owns the pinned S3 message vocabulary.
 import { todayIso } from '../../core/dates';
 import type { InzhurQuote } from '../../core/inzhur/parse';
-import { fmtDate, fmtTable, fmtUnits } from '../../core/money';
+import type { Format } from '../../core/money';
 import type { AssetFormInput } from '../../core/schemas';
 import type { Asset, PayoutSchedule } from '../../core/types';
 import type { SelectOption } from '../ui/Select';
@@ -73,6 +73,7 @@ export function inzhurRefOptions(
   entries: InzhurQuote[],
   kind: 'fund' | 'bond',
   currentRef: string,
+  f: Format,
 ): SelectOption[] {
   const options = entries
     .filter((entry) => entry.kind === kind)
@@ -86,7 +87,7 @@ export function inzhurRefOptions(
         : {
             value: entry.ref,
             label: entry.ref,
-            ...(entry.maturity === undefined ? {} : { hint: `matures ${fmtDate(entry.maturity)}` }),
+            ...(entry.maturity === undefined ? {} : { hint: `matures ${f.date(entry.maturity)}` }),
           },
     );
   const ref = currentRef.trim();
@@ -103,10 +104,11 @@ export function deriveCode(name: string): string {
 // Fresh defaultValues per mode. Numbers/dates are the raw string inputs of
 // AssetFormInput; edit prefills from the stored asset. Amount-family prefills
 // use the pinned input format (navigation-map "Number formats"; the design
-// edit fragment shows Coupon amount `1 240,00` and Units `15`) — fmtTable /
-// fmtUnits, which quoteInputSchema parses straight back. Percent fields stay
+// edit fragment shows Coupon amount `1 240,00` and Units `15`) — the bound
+// formatter's `num` / `units`, which quoteInputSchema parses straight back.
+// Percent fields stay
 // plain dot-decimal strings (the edit fragment pins `16.4`).
-export function assetFormDefaults(asset?: Asset): AssetFormInput {
+export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
   if (!asset) {
     return {
       name: '',
@@ -132,11 +134,11 @@ export function assetFormDefaults(asset?: Asset): AssetFormInput {
     payoutSchedule: asset.payoutSchedule,
     firstPurchase: asset.firstPurchase,
     maturity: asset.maturity ?? '',
-    couponAmount: asset.couponAmount !== undefined ? fmtTable(asset.couponAmount) : '',
+    couponAmount: asset.couponAmount !== undefined ? f.num(asset.couponAmount) : '',
     nextCoupon: asset.nextCoupon ?? '',
     reinvestPolicy: asset.reinvestPolicy ?? '',
     inzhur: asset.inzhur
-      ? { kind: asset.inzhur.kind, ref: asset.inzhur.ref, units: fmtUnits(asset.inzhur.units) }
+      ? { kind: asset.inzhur.kind, ref: asset.inzhur.ref, units: f.units(asset.inzhur.units) }
       : undefined,
   };
 }

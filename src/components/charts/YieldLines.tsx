@@ -2,9 +2,10 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { DotItemDotProps } from 'recharts';
 
 import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP, SERIES } from '../../core/colors';
-import { fmtDateShort, signed } from '../../core/money';
+import { signed } from '../../core/money';
 import type { Asset } from '../../core/types';
 import type { YieldSeriesPoint } from '../../screens/yield/yield';
+import { useFormat } from '../../hooks/useFormat';
 
 // The index of an asset's last defined (non-undefined) point — each line gets
 // its OWN end dot, since assets purchased later (…6475) have shorter series.
@@ -20,31 +21,38 @@ function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
 // line's own last point. Motion (D7): sweeps in on mount, redraws animated on
 // data updates (recharts default — never a cold redraw).
 export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets: Asset[] }) {
+  const f = useFormat();
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="date"
-          tickFormatter={fmtDateShort}
+          tickFormatter={f.dateShort}
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
           minTickGap={48}
         />
         <YAxis
-          tickFormatter={(v: number) => (v === 0 ? '0%' : signed(v, `${Math.abs(v)}%`))}
+          // Already IN percent and signed by hand, so it is pctPlain (which
+          // never signs) wrapped in signed() — not pct(), which takes a
+          // fraction. 0 dp: this axis is 40px wide and recharts picks whole
+          // numbers for it.
+          tickFormatter={(v: number) =>
+            v === 0 ? f.pctPlain(0, 0) : signed(v, f.pctPlain(Math.abs(v), 0))
+          }
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={false}
           tickLine={false}
           width={40}
         />
         <Tooltip
-          labelFormatter={(label) => fmtDateShort(String(label))}
+          labelFormatter={(label) => f.dateShort(String(label))}
           formatter={(v, name) => {
             const n = Number(v);
             return [
-              n === 0 ? '0.00%' : signed(n, `${Math.abs(n).toFixed(2)}%`),
+              n === 0 ? f.pctPlain(0, 2) : signed(n, f.pctPlain(Math.abs(n), 2)),
               assets.find((a) => a.id === name)?.name ?? String(name),
             ];
           }}

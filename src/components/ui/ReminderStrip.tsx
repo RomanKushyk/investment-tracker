@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 
 import type { Reminder, ReminderSeverity } from '../../core/reminders';
+import { useFormat } from '../../hooks/useFormat';
 import { useReminders } from '../../hooks/useReminders';
 import { useSettings } from '../../state/settings';
 import {
@@ -50,6 +51,7 @@ function ReminderBanner({
   exiting: boolean;
   onDismiss: () => void;
 }) {
+  const f = useFormat();
   const Icon = SEVERITY_ICON[reminder.severity];
   const action = withAction ? REMINDER_ACTION[reminder.kind] : undefined;
   return (
@@ -62,7 +64,7 @@ function ReminderBanner({
     >
       <Icon size={16} strokeWidth={2.25} className="mt-[2px] flex-none" />
       <div className="min-w-0 flex-1 text-[13px] leading-[1.5]">
-        {reminderText(reminder, assetName)}{' '}
+        {reminderText(reminder, assetName, f)}{' '}
         {action !== undefined && (
           // Both actions lead to the daily ritual (the quotes screen). The
           // design's `white-space:nowrap` holds from `sm` up; at the 360px rail

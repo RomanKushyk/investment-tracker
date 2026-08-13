@@ -2,20 +2,21 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import type { DotItemDotProps } from 'recharts';
 
 import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP } from '../../core/colors';
-import { fmtDateShort, fmtProse } from '../../core/money';
 import type { BalanceChartPoint } from '../../screens/balances/balances';
+import { useFormat } from '../../hooks/useFormat';
 
 // Design lines 216-222: green area over total capital per complete snapshot,
 // with a dot marking the most recent point. Motion (D7): sweeps in on mount,
 // animates from the previous shape on data updates (recharts default).
 export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
+  const f = useFormat();
   return (
     <ResponsiveContainer width="100%" height={260}>
       <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
         <XAxis
           dataKey="date"
-          tickFormatter={fmtDateShort}
+          tickFormatter={f.dateShort}
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
@@ -30,8 +31,8 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           width={44}
         />
         <Tooltip
-          formatter={(v) => [fmtProse(Number(v)), 'Total capital']}
-          labelFormatter={(label) => fmtDateShort(String(label))}
+          formatter={(v) => [f.money(Number(v)), 'Total capital']}
+          labelFormatter={(label) => f.dateShort(String(label))}
           contentStyle={CHART_TOOLTIP}
           cursor={CHART_CURSOR_LINE}
         />

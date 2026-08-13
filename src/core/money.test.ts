@@ -1,80 +1,43 @@
 import { describe, expect, it } from 'vitest';
 
-import { fmtDate, fmtDateShort, fmtPct, fmtProse, fmtProseWhole, fmtSavedAt, fmtTable, fmtUnits, makeFormat, signed, signedPp, signedProse, signedTable, toUsd } from './money';
+import { makeFormat, signed, toUsd } from './money';
 
-it('prose/KPI format per README §8', () => {
-  expect(fmtProse(68629.36)).toBe('₴68,629.36');
-  expect(fmtProse(toUsd(149016.36, 44.83), 'USD')).toBe('$3,324.03');
-  expect(fmtProse(toUsd(4452.61, 44.83), 'USD')).toBe('$99.32'); // renderVals ovNet USD
-});
+// The legacy exports these covered are gone: each language now owns one
+// coherent set, so "prose vs table" is not a distinction the code can make.
+// What did NOT survive automatically is the behaviour of `signedPp`, which the
+// old block tested and the Contract 0 block did not — ported here onto `pp`
+// rather than deleted with its function.
+describe('pp — a signed percentage-point gap', () => {
+  const uk = makeFormat('uk');
+  const en = makeFormat('en');
 
-it('whole-hryvnia prose (sidebar capital, Deposited KPI)', () => {
-  expect(fmtProseWhole(149016.36)).toBe('₴149,016');
-  expect(fmtProseWhole(143176.37)).toBe('₴143,176');
-  expect(fmtProseWhole(toUsd(143176.37, 44.83), 'USD')).toBe('$3,194'); // ovDep is ₴-whole only; USD uses fmtProse
-});
-
-it('table format: NBSP thousands, comma decimals', () => {
-  expect(fmtTable(68702.1)).toBe('68 702,10');
-  expect(fmtTable(7.75)).toBe('7,75');
-  expect(fmtTable(1183.5)).toBe('1 183,50');
-});
-
-it('units format: table locale without forced decimals (S3 Units prefill)', () => {
-  expect(fmtUnits(6164)).toBe('6 164'); // NBSP grouping, no ",00"
-  expect(fmtUnits(15)).toBe('15'); // integers stay bare (edit reference shows "15")
-  expect(fmtUnits(15.5)).toBe('15,5'); // fractions keep exact digits
-});
-
-it('percent format: explicit sign, default 2 dp, optional dp override', () => {
-  expect(fmtPct(0.0441)).toBe('+4.41%');
-  expect(fmtPct(-0.064)).toBe('−6.40%'); // U+2212 — unified sign convention (D8)
-  expect(fmtPct(0.0308)).toBe('+3.08%');
-  expect(fmtPct(0.093, 1)).toBe('+9.3%'); // Yield table annualized column
-  expect(fmtPct(0.109, 1)).toBe('+10.9%');
-});
-
-it('every signed helper routes through signed() and pins U+2212', () => {
-  expect(signed(-1, 'x')).toBe('−x');
-  expect(signed(1, 'x')).toBe('+x');
-  expect(fmtPct(-0.064)).not.toContain('-'); // ASCII hyphen-minus must not appear
-  expect(signedProse(-120)).toBe('−₴120.00');
-  expect(signedProse(4452.61)).toBe('+₴4,452.61'); // Overview Net result
-  expect(signedTable(-120)).toBe('−120,00');
-  expect(signedTable(2902.1)).toBe('+2 902,10'); // NBSP thousands, Portfolio P&L
-});
-
-it('dates: dd.MM.yyyy / dd.MM / saved-at', () => {
-  expect(fmtDate('2026-07-27')).toBe('27.07.2026');
-  expect(fmtDateShort('2026-07-25')).toBe('25.07');
-  expect(fmtSavedAt('2026-07-25T21:14:00')).toBe('25.07, 21:14');
-});
-
-describe('signedPp', () => {
-  it('formats a positive gap with an explicit "+" and 1 decimal', () => {
-    expect(signedPp(6.1)).toBe('+6.1');
+  it('signs explicitly and keeps one decimal', () => {
+    expect(en.pp(6.1)).toBe('+6.1');
+    expect(uk.pp(6.1)).toBe('+6,1');
   });
 
-  it('formats a negative gap with U+2212 (not ASCII hyphen)', () => {
-    const result = signedPp(-6.4);
-    expect(result).toBe('−6.4');
-    expect(result).not.toContain('-'); // ASCII hyphen-minus must not appear
+  it('uses U+2212, never an ASCII hyphen', () => {
+    const r = en.pp(-6.4);
+    expect(r).toBe('−6.4');
+    expect(r).not.toContain('-');
   });
 
-  it('appends an optional suffix (Overview "%", Yield " pp")', () => {
-    expect(signedPp(-6.4, '%')).toBe('−6.4%');
-    expect(signedPp(-4.7, ' pp')).toBe('−4.7 pp');
+  it('appends the suffix each screen’s copy needs', () => {
+    expect(en.pp(-6.4, '%')).toBe('−6.4%');
+    expect(en.pp(-4.7, ' pp')).toBe('−4.7 pp');
+    expect(uk.pp(-4.7, ' pp')).toBe('−4,7 pp');
   });
 
   it('defaults to no suffix (Allocation pills)', () => {
-    expect(signedPp(-0.1)).toBe('−0.1');
+    expect(en.pp(-0.1)).toBe('−0.1');
   });
 
-  it('rounds to 1 decimal place', () => {
-    expect(signedPp(6.14)).toBe('+6.1');
-    expect(signedPp(6.16)).toBe('+6.2');
+  it('rounds to one decimal place', () => {
+    expect(en.pp(6.14)).toBe('+6.1');
+    expect(en.pp(6.16)).toBe('+6.2');
   });
 });
+
 
 // ── Contract 0 ─────────────────────────────────────────────────────────────
 // The phase-5 brief's table, asserted rather than described. Every expectation
@@ -183,5 +146,17 @@ describe('makeFormat — Contract 0', () => {
       expect(bare(uk.num(n))).toBe(bare(en.num(n)));
       expect(bare(uk.money(n))).toBe(bare(en.money(n)));
     }
+  });
+});
+
+describe('the two exports Contract 0 left bare', () => {
+  it('signed pins U+2212 and is language-independent (D8)', () => {
+    expect(signed(-1, 'x')).toBe('−x');
+    expect(signed(1, 'x')).toBe('+x');
+    expect(signed(-1, 'x')).not.toContain('-');
+  });
+
+  it('toUsd is arithmetic, not formatting — it stays a bare number', () => {
+    expect(toUsd(149016.36, 44.83)).toBeCloseTo(3324.03, 2);
   });
 });

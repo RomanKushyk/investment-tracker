@@ -8,9 +8,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
-import { fmtDate } from '../../core/money';
 import { useNbuRate } from '../../hooks/useNbuRate';
 import { useSettings } from '../../state/settings';
+import { useFormat } from '../../hooks/useFormat';
 
 export interface NbuRateFetchProps {
   /**
@@ -25,6 +25,7 @@ export interface NbuRateFetchProps {
 }
 
 export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
+  const f = useFormat();
   const { data, lastGood, isFetching, isError, disabled, fetchRate } = useNbuRate();
   const usdRate = useSettings((s) => s.usdRate);
   // A failed fetch falls back to the last rate that parsed, and says which it
@@ -68,7 +69,7 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
       {!disabled && shown !== undefined && (
         <div className="animate-in fade-in slide-in-from-top-1 flex items-center gap-2 text-[11px] duration-200">
           <span className={isStale ? 'text-muted' : 'text-pos-tint-text'}>
-            NBU {shown.rate} for {fmtDate(shown.date)}
+            NBU {shown.rate} for {f.date(shown.date)}
             {isStale && ' · last known, not refreshed'}
           </span>
           {shown.rate !== usdRate && (

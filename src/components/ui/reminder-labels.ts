@@ -3,7 +3,7 @@
 // Every sentence is verbatim from design/extensions/reminders.dc.html's copy
 // inventory; i18n lands in Phase 5.
 import type { Reminder, ReminderKind } from '../../core/reminders';
-import { fmtDate } from '../../core/money';
+import type { Format } from '../../core/money';
 
 /** "in 5 days" / "in 1 day" — the reference copy is plural; 1 must not read "1 days". */
 function inDays(days: number): string {
@@ -18,18 +18,18 @@ function inDays(days: number): string {
  * copy not literal in the reference: the brief pins the "in N days" pattern and
  * these are its unavoidable edges (a same-day maturity, a single day).
  */
-export function reminderText(reminder: Reminder, assetName: string): string {
+export function reminderText(reminder: Reminder, assetName: string, f: Format): string {
   switch (reminder.kind) {
     case 'quote-missing':
       return 'No quotes saved today yet.';
     case 'coupon':
-      return `${assetName} pays a coupon ${inDays(reminder.days)} (${fmtDate(reminder.date)}).`;
+      return `${assetName} pays a coupon ${inDays(reminder.days)} (${f.date(reminder.date)}).`;
     case 'coupon-overdue':
-      return `${assetName} coupon was due ${fmtDate(reminder.date)} — record it on Daily quotes.`;
+      return `${assetName} coupon was due ${f.date(reminder.date)} — record it on Daily quotes.`;
     case 'maturity':
       return reminder.days === 0
-        ? `${assetName} matures today (${fmtDate(reminder.date)}).`
-        : `${assetName} matures ${inDays(reminder.days)} (${fmtDate(reminder.date)}).`;
+        ? `${assetName} matures today (${f.date(reminder.date)}).`
+        : `${assetName} matures ${inDays(reminder.days)} (${f.date(reminder.date)}).`;
   }
 }
 
@@ -57,10 +57,14 @@ export function moreRemindersLabel(hidden: number): string {
  * The app-open toast: the highest-severity reminder's sentence (the list
  * arrives already ordered), plus " · +N more" when others exist.
  */
-export function reminderToastText(reminders: Reminder[], names: Record<string, string>): string {
+export function reminderToastText(
+  reminders: Reminder[],
+  names: Record<string, string>,
+  f: Format,
+): string {
   const [top] = reminders;
   if (top === undefined) return '';
-  const text = reminderText(top, top.assetId === undefined ? '' : (names[top.assetId] ?? ''));
+  const text = reminderText(top, top.assetId === undefined ? '' : (names[top.assetId] ?? ''), f);
   const rest = reminders.length - 1;
   return rest > 0 ? `${text} · +${rest} more` : text;
 }

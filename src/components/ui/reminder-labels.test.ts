@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { makeFormat } from '../../core/money';
+
 import type { Reminder } from '../../core/reminders';
 import {
   moreRemindersLabel,
@@ -7,6 +9,11 @@ import {
   reminderText,
   reminderToastText,
 } from './reminder-labels';
+
+// The formatter is a parameter now (Contract 0), so these fixtures bind it
+// to Ukrainian — the language whose forms these expectations were written in
+// and still are: dd.MM.yyyy dates, comma decimals.
+const f = makeFormat('uk');
 
 const NAMES = { ovdp8976: 'OVDP UA4000238976', ovdp6475: 'OVDP UA4000236475' };
 
@@ -48,22 +55,22 @@ const maturity: Reminder = {
 describe('reminderText', () => {
   // Verbatim from the reference's copy inventory.
   it('renders the four kinds exactly as the design pins them', () => {
-    expect(reminderText(quoteMissing, '')).toBe('No quotes saved today yet.');
-    expect(reminderText(upcoming, NAMES.ovdp8976)).toBe(
+    expect(reminderText(quoteMissing, '', f)).toBe('No quotes saved today yet.');
+    expect(reminderText(upcoming, NAMES.ovdp8976, f)).toBe(
       'OVDP UA4000238976 pays a coupon in 5 days (25.08.2026).',
     );
-    expect(reminderText(overdue, NAMES.ovdp8976)).toBe(
+    expect(reminderText(overdue, NAMES.ovdp8976, f)).toBe(
       'OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.',
     );
-    expect(reminderText(maturity, NAMES.ovdp6475)).toBe(
+    expect(reminderText(maturity, NAMES.ovdp6475, f)).toBe(
       'OVDP UA4000236475 matures in 23 days (27.09.2028).',
     );
   });
 
   it('keeps the day count grammatical at its edges', () => {
-    expect(reminderText({ ...upcoming, days: 1 }, NAMES.ovdp8976)).toContain('in 1 day (');
-    expect(reminderText({ ...maturity, days: 1 }, NAMES.ovdp6475)).toContain('matures in 1 day (');
-    expect(reminderText({ ...maturity, days: 0 }, NAMES.ovdp6475)).toBe(
+    expect(reminderText({ ...upcoming, days: 1 }, NAMES.ovdp8976, f)).toContain('in 1 day (');
+    expect(reminderText({ ...maturity, days: 1 }, NAMES.ovdp6475, f)).toContain('matures in 1 day (');
+    expect(reminderText({ ...maturity, days: 0 }, NAMES.ovdp6475, f)).toBe(
       'OVDP UA4000236475 matures today (27.09.2028).',
     );
   });
@@ -80,16 +87,16 @@ describe('REMINDER_ACTION', () => {
 
 describe('reminderToastText', () => {
   it('uses the first (highest-severity) reminder and appends the rest count', () => {
-    expect(reminderToastText([overdue], NAMES)).toBe(
+    expect(reminderToastText([overdue], NAMES, f)).toBe(
       'OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes.',
     );
-    expect(reminderToastText([overdue, quoteMissing, upcoming], NAMES)).toBe(
+    expect(reminderToastText([overdue, quoteMissing, upcoming], NAMES, f)).toBe(
       'OVDP UA4000238976 coupon was due 25.07.2026 — record it on Daily quotes. · +2 more',
     );
   });
 
   it('is empty with nothing to announce (the toast then never fires)', () => {
-    expect(reminderToastText([], NAMES)).toBe('');
+    expect(reminderToastText([], NAMES, f)).toBe('');
   });
 });
 

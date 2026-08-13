@@ -39,6 +39,7 @@ import {
 import { useBackupDownload } from './useBackupDownload';
 import type { BackupDiff, ImportRejection, TableDiff } from '../../core/backup/import';
 import type { BackupEnvelope, Dataset } from '../../core/backup/json';
+import { useFormat } from '../../hooks/useFormat';
 
 /** What the S2 row produced: either a validated file, or the reason it failed. */
 export type ImportAttempt =
@@ -169,6 +170,7 @@ function Preview({
   onApplySettings: (on: boolean) => void;
   onConfirm: () => void;
 }) {
+  const f = useFormat();
   const { name, envelope, diff } = attempt;
   return (
     <>
@@ -176,7 +178,7 @@ function Preview({
         <h3 className="mt-0 mb-1.5 text-lg">{PREVIEW.title(dataset)}</h3>
       </AlertDialogTitle>
       <div className="text-muted mb-3.5 text-[11px] leading-relaxed [overflow-wrap:anywhere]">
-        {fileSubline(name, envelope.exportedAt, envelope.dataset)}
+        {fileSubline(name, envelope.exportedAt, envelope.dataset, f)}
       </div>
 
       {/* Replace banner — never dismissible, and it names the dataset it
@@ -205,7 +207,7 @@ function Preview({
             {diff.warnings.map((w) => (
               <div key={w.code} className="flex items-start gap-2 text-xs leading-normal">
                 <span className="flex-none font-bold">!</span>
-                <span>{warningSentence(w, dataset)}</span>
+                <span>{warningSentence(w, dataset, f)}</span>
               </div>
             ))}
           </div>

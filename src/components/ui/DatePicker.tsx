@@ -1,8 +1,8 @@
 import { Popover } from 'radix-ui';
 import { useState } from 'react';
 import { DayPicker } from 'react-day-picker';
+import { useFormat } from '../../hooks/useFormat';
 
-import { fmtDate } from '../../core/money';
 
 // ISO 'yyyy-MM-dd' <-> local Date, avoiding UTC-shift surprises.
 function isoToDate(iso: string): Date {
@@ -58,6 +58,7 @@ export function DatePicker({
   invalid?: boolean; // error styling per the form-error idiom (border neg)
   bg?: 'card' | 'page'; // explicit variant, same rationale as Select's `bg`
 }) {
+  const f = useFormat();
   const [open, setOpen] = useState(false);
 
   return (
@@ -66,12 +67,12 @@ export function DatePicker({
         <button
           type="button"
           id={id}
-          aria-label={value ? `Date: ${fmtDate(value)}` : (placeholder ?? 'Pick a date')}
+          aria-label={value ? `Date: ${f.date(value)}` : (placeholder ?? 'Pick a date')}
           aria-invalid={invalid || undefined}
           className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[9px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
           {value ? (
-            fmtDate(value)
+            f.date(value)
           ) : (
             <span className="text-muted">{placeholder ?? 'Pick a date'}</span>
           )}

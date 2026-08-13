@@ -12,7 +12,6 @@ import {
 
 import { COLOR_KEYS } from '../../core/colors';
 import { kyivDateIso } from '../../core/dates';
-import { fmtDateShort } from '../../core/money';
 import {
   assetFormSchema,
   type AssetFormInput,
@@ -36,6 +35,7 @@ import {
   scheduleOptions,
   YIELD_TYPE_OPTIONS,
 } from './asset-form';
+import { useFormat } from '../../hooks/useFormat';
 
 // The single standalone asset form (NEXT-PHASE-PLAN P2 feat/asset-form,
 // brief S3, design/extensions/asset-form.dc.html) — replaces the
@@ -128,6 +128,7 @@ function KindSegment({
 //   · demo forces manual mode with the specced note (G4/D16: no request can
 //     leave the app there).
 function InzhurGroup({ form }: { form: AssetFormHandle }) {
+  const f = useFormat();
   const { errors } = useFormState({ control: form.control });
   const inzhur = useWatch({ control: form.control, name: 'inzhur' });
   const kind = inzhur?.kind ?? 'fund';
@@ -139,7 +140,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const feed = data ?? lastGood;
   const stale = data === undefined && lastGood !== undefined;
   const options =
-    feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '');
+    feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '', f);
   const failed = isError && !isFetching && options.length === 0;
   const showManual = disabled || manual || failed;
 
@@ -153,7 +154,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
     <div className="text-muted px-3 py-2 text-[13px]">{PICK.empty}</div>
   ) : stale ? (
     <div className="text-warn px-3 py-1.5 text-[11px]">
-      as of {fmtDateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}
+      as of {f.dateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}
     </div>
   ) : undefined;
 
@@ -518,9 +519,10 @@ export function AssetForm({
   onCancel: () => void;
   onSubmit: (values: AssetFormValues) => void;
 }) {
+  const f = useFormat();
   const form = useForm<AssetFormInput, unknown, AssetFormValues>({
     resolver: zodResolver(assetFormSchema(mode)),
-    defaultValues: assetFormDefaults(asset),
+    defaultValues: assetFormDefaults(f, asset),
   });
   const avatarColorKey =
     mode === 'edit' && asset ? asset.colorKey : COLOR_KEYS[existingAssetCount % COLOR_KEYS.length];

@@ -9,6 +9,7 @@ import { reminderToastText } from '../components/ui/reminder-labels';
 import { todayIso } from '../core/dates';
 import { computeReminders, type Reminder } from '../core/reminders';
 import { useSettings } from '../state/settings';
+import { useFormat } from './useFormat';
 import { useAssets, useSnapshots, useTransactions } from './queries';
 
 export interface RemindersView {
@@ -55,12 +56,13 @@ export function useReminders(): RemindersView {
 let toastShown = false;
 
 export function useReminderToast(): void {
+  const f = useFormat();
   const { reminders, names, ready } = useReminders();
 
   useEffect(() => {
     if (toastShown || !ready) return;
     toastShown = true; // first resolved read decides — nothing announces twice
-    const text = reminderToastText(reminders, names);
+    const text = reminderToastText(reminders, names, f);
     if (text !== '') toast(text); // informational: default sonner look, no action
-  }, [ready, reminders, names]);
+  }, [ready, reminders, names, f]);
 }

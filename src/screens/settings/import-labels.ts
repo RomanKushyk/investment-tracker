@@ -8,7 +8,7 @@ import type {
   FormatRejectionCode,
 } from '../../core/backup/import';
 import type { Dataset, RowIssue } from '../../core/backup/json';
-import { fmtDate } from '../../core/money';
+import type { Format } from '../../core/money';
 
 // --- S2: file-level rejections (warn, never neg) ---------------------------
 export const FILE_REJECTION: Record<FileRejectionCode, string> = {
@@ -115,8 +115,13 @@ export const PREVIEW = {
 } as const;
 
 /** "quirenote-backup-2026-08-03.json · exported 03.08.2026 21:14 · from live" */
-export function fileSubline(name: string, exportedAt: string, dataset: Dataset): string {
-  return `${name} · exported ${fmtDate(exportedAt.slice(0, 10))} ${exportedAt.slice(11, 16)} · from ${dataset}`;
+export function fileSubline(
+  name: string,
+  exportedAt: string,
+  dataset: Dataset,
+  f: Format,
+): string {
+  return `${name} · exported ${f.date(exportedAt.slice(0, 10))} ${exportedAt.slice(11, 16)} · from ${dataset}`;
 }
 
 /** "After import: 4 assets · 173 snapshots · 18 transactions." */
@@ -142,7 +147,7 @@ export function safetyBackupLine(dataset: Dataset, name: string, done: boolean):
     : `A backup of your current ${dataset} data downloads automatically before anything is replaced — ${name}.json.`;
 }
 
-export function warningSentence(warning: DiffWarning, dataset: Dataset): string {
+export function warningSentence(warning: DiffWarning, dataset: Dataset, f: Format): string {
   switch (warning.code) {
     // The brief's sentence names snapshots and transactions; assets join it
     // when a file drops some but not all of them — the same fact, stated for
@@ -167,7 +172,7 @@ export function warningSentence(warning: DiffWarning, dataset: Dataset): string 
     case 'other-dataset':
       return `This file was exported from the ${warning.dataset} dataset.`;
     case 'exported-long-ago':
-      return `Exported ${warning.days} days ago (${fmtDate(warning.date)}).`;
+      return `Exported ${warning.days} days ago (${f.date(warning.date)}).`;
     case 'newer-db-version':
       return `The file comes from a newer database version (${warning.file} vs ${warning.app}) — fields this app doesn't know are ignored.`;
   }
