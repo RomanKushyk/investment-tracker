@@ -104,7 +104,8 @@ function KindSegment({
     <div className="border-panel-border bg-panel relative flex gap-1 rounded-[11px] border p-[3px]">
       <div
         aria-hidden
-        className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] shadow-(--shadow-card) transition-transform duration-300"
+        data-owns-motion
+        className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300"
         style={{ transform: value === 'fund' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('fund', 'Fund')}

@@ -184,6 +184,7 @@ export function Sidebar() {
             p-1.5 (6px) + gap-1 (4px) → 50% − 8px. */}
         <div
           aria-hidden
+          data-owns-motion
           className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-8px)] rounded-[7px] bg-sidebar-text transition-transform duration-300 ease-soft"
           style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
         />

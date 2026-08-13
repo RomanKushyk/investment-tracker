@@ -40,6 +40,26 @@
   --shadow-card: 0 1px 3px rgba(38, 38, 42, 0.06);
   --shadow-popover: 0 4px 16px rgba(38, 38, 42, 0.12);
   --shadow-dialog: 0 12px 40px rgba(38, 38, 42, 0.18);
+  /* FINDING 2, from the Phase 5 reference. `panel` swaps elevation role between
+     themes: light is page -> card(raised) -> panel(recessed), dark is
+     page -> card -> panel(HIGHEST). The chart tooltip relies on that and is
+     right to, but it inverts the segmented control, whose track is `panel` and
+     thumb `card` — in dark the selected chip becomes the LOWER plane and the
+     step falls to 1.09:1 (1.20:1 in light). The prescribed fix is a 1px
+     `panel-border` edge "in place of the light theme's shadow".
+     Expressed as a token rather than the theme-conditional className the
+     reference describes, because it assumes ONE segmented component and the app
+     has three copies of it — a conditional would be repeated three times and
+     forgotten on a fourth. Identical to --shadow-card in light, so nothing
+     there moves; box-shadow also costs no layout, which a real border would.
+
+     Named for the THUMB rather than the segment, because the Switch knob has
+     the same defect and the reference does not mention it: measured, the knob
+     sits at 1.19:1 on its off track in dark. That is barely worse than the
+     1.24:1 it has in LIGHT — which is the point. The light theme was already
+     leaning on the shadow to separate them, so removing the shadow is what
+     breaks it, and the same edge is the same fix. Four call sites, one token. */
+  --shadow-thumb: 0 1px 3px rgba(38, 38, 42, 0.06);
 
   --color-page: #f6f5f3;
   --color-ink: #26262a;
@@ -210,6 +230,48 @@
   --shadow-card: 0 0 #0000;
   --shadow-popover: 0 0 #0000;
   --shadow-dialog: 0 0 #0000;
+  /* The one exception, and the reference's own sanctioned one (FINDING 2): a
+     thumb keeps its elevation cue, because its surface step is the one that
+     inverts here. A spread-only shadow IS the 1px edge — no border, so no box
+     to re-measure — and it reads panel-border at runtime rather than repeating
+     #33333a, so it cannot drift from the token above it. 1.36:1 on the thumb. */
+  --shadow-thumb: 0 0 0 1px var(--color-panel-border);
+}
+
+/* The theme cross-fade (Phase 5): 200ms linear, ONCE, on exactly the four
+   properties that carry colour. `fill` and `stroke` are in the list because the
+   charts are SVG and would otherwise snap while the page around them faded.
+
+   TRANSIENT BY DESIGN — src/app/theme.ts adds this attribute for the duration
+   of a flip and removes it. A permanent `transition` on everything would
+   overwrite the app's own motion (D7: 220ms soft default, 150ms hover) on every
+   interaction for the rest of the session, which is a far bigger change than
+   the one it was added for.
+
+   `!important` because it has to beat those per-component transitions for the
+   200ms it exists. It still cannot beat the reduced-motion kill-switch, and
+   that is not luck: important declarations invert layer order, so the
+   kill-switch's `@layer base` rule outranks this unlayered one. A user who asks
+   for no motion gets no cross-fade, without this rule having to know about it.
+
+   `[data-owns-motion]` is the escape hatch, and it exists because this rule
+   caused a defect. Replacing `transition` wholesale also replaces any
+   `transition-transform`/`-left` for those 200ms, so anything that MOVES during
+   a flip stops easing and jumps — measured on the theme control's own thumb,
+   which was already at its final position 250ms after the click, something a
+   300ms ease cannot be. Rather than widen the property list (which would force
+   every moving thing in the app to 200ms linear during a flip), an element that
+   animates its own position opts out and keeps its motion. Four thumbs carry it.
+   Mark anything that both moves and lives through a theme change. */
+[data-theme-transition],
+[data-theme-transition] *:not([data-owns-motion]),
+[data-theme-transition] *:not([data-owns-motion])::before,
+[data-theme-transition] *:not([data-owns-motion])::after {
+  transition:
+    background-color 200ms linear,
+    color 200ms linear,
+    fill 200ms linear,
+    stroke 200ms linear !important;
 }
 
 @layer base {

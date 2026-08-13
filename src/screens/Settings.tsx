@@ -8,7 +8,7 @@ import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
-import { useSettings } from '../state/settings';
+import { useSettings, type Theme } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
@@ -108,11 +108,72 @@ function CurrencyControl() {
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-card) transition-transform duration-300 ease-soft"
+        data-owns-motion
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('UAH', '₴ UAH')}
       {segment('USD', '$ USD')}
+    </div>
+  );
+}
+
+// The Light / Dark / System control (P5 S1). Three segments on the same track
+// as the CurrencyControl above — same tokens, same D56 radii (segment 7; track
+// concentric at 7 + 4 padding + 1 border = 12). No icons: the reference rules
+// them out, and the words are the whole label.
+//
+// GRID, not flex, and that is load-bearing. `flex-1` is `flex:1 1 0%`, which
+// only equalises segments that can shrink to their basis — and text cannot go
+// below its min-content, so "Light"/"Dark"/"System" measured 60/52.8/67.2px.
+// `grid-cols-3` is `repeat(3, minmax(0,1fr))`, whose columns are equal by
+// construction whatever the words are, which also means A10 can translate the
+// labels without re-measuring anything. The two-segment control keeps flex only
+// because ₴ UAH and $ USD are the same length in a mono face.
+//
+// The thumb's width is DERIVED, not fitted: its containing block is the track's
+// padding box, so with p-1 (4) and gap-1 (4) between three columns each is
+// (100% - 16px) / 3. The same derivation gives the two-segment control above
+// its (100% - 12px)/2, i.e. the 50% - 6px it already carries.
+const THEMES: [value: Theme, label: string][] = [
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+  ['system', 'System'],
+];
+
+function ThemeControl() {
+  const { theme, setTheme } = useSettings();
+  const index = THEMES.findIndex(([v]) => v === theme);
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      // Wraps to its own line under `sm` rather than squeezing three segments
+      // into the row: at 360px the label and a three-up control cannot share it.
+      className="border-panel-border bg-panel relative grid grid-cols-3 gap-1 rounded-[12px] border p-1 max-sm:w-full"
+    >
+      {/* sliding thumb (D7), same as the two-segment control: `100%` in the
+          transform is the THUMB's own width, so one step is that width plus the
+          4px gap. `data-owns-motion` keeps the theme cross-fade from replacing
+          this transition during the very flip that moves it. */}
+      <div
+        aria-hidden
+        data-owns-motion
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
+      />
+      {THEMES.map(([value, label]) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={theme === value}
+          onClick={() => setTheme(value)}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -402,7 +463,14 @@ export function Settings() {
             <UsdRateField />
           </SettingRow>
           <Divider />
-          <Placeholder>Theme and language settings are coming later.</Placeholder>
+          <SettingRow
+            title="Theme"
+            helper="System follows your device and keeps following it — the other two do not."
+          >
+            <ThemeControl />
+          </SettingRow>
+          <Divider />
+          <Placeholder>Language settings are coming later.</Placeholder>
         </Card>
       </div>
     </div>

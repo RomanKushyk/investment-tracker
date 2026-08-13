@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -149,6 +149,27 @@ describe('resolveTheme', () => {
       for (const pref of ['light', 'dark', 'system'] as const) {
         expect(withOs(prefersDark, () => resolveTheme(pref))).toMatch(/^(light|dark)$/);
       }
+    }
+  });
+});
+
+describe('the charts are kept out of the theme flip', () => {
+  // The Phase 5 reference is explicit: the cross-fade animates colour only, so
+  // the ONLY way a theme change could replay a chart's grow-in animation is a
+  // remount — and the only way to cause one is to put the theme in a React key
+  // or make a chart read it. True today by construction, which is exactly when
+  // it is cheap to pin: nothing here reads the theme, so nothing announces it
+  // when something starts to.
+  const CHART_DIR = join(here, '..', 'components', 'charts');
+
+  it('no chart component reads the theme or the data-theme attribute', () => {
+    const files = readdirSync(CHART_DIR).filter((f) => f.endsWith('.tsx'));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const source = readFileSync(join(CHART_DIR, file), 'utf8');
+      expect(source, `${file} must not depend on the theme`).not.toMatch(
+        /useTheme|resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
+      );
     }
   });
 });
