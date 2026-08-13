@@ -2,8 +2,13 @@ import { Switch as RadixSwitch } from 'radix-ui';
 
 // The app's one switch anatomy (P2 asset-form.dc.html "Link to Inzhur" toggle,
 // reused verbatim by the P3 Settings→Automation rows, automation.dc.html S8):
-// track 40 × 22 radius 999 — off `hairline` fill + `panel-border` edge, on
-// `ink`; 16px `card` thumb with the card shadow.
+// track 40 × 22 radius 6 — off `hairline` fill + `panel-border` edge, on
+// `ink`; 16px `card` thumb, radius 4, with the card shadow.
+// Both radii are D56 PROPORTIONAL and derived independently — round(22 × .26)
+// = 6 and round(16 × .26) = 4 — not concentric. The thumb sits 3px in (2px
+// padding + the 1px border), so a concentric reading would give 4 + 3 = 7 for
+// the track and be wrong: only a SEGMENTED control's track is concentric with
+// its segment, and a switch is not one.
 // D7: thumb transform + track colour 220ms soft (the `transition` default),
 // press scale .97; the global prefers-reduced-motion kill-switch collapses both.
 export function Switch({
