@@ -34,7 +34,9 @@ const calendarClassNames = {
   day: 'p-0.5 text-center',
   day_button:
     'grid size-8 place-items-center rounded-[8px] text-[13px] transition hover:bg-page active:scale-[.97]',
-  selected: '[&>button]:bg-ink [&>button]:text-white',
+  // Filled emphasis, so the fill stays `ink` and the text becomes `page` —
+  // see the note in button-variants.ts (FINDING 3).
+  selected: '[&>button]:bg-ink [&>button]:text-page',
   today: '[&>button]:font-bold',
   outside: 'text-faint',
 };

@@ -16,7 +16,19 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'border-transparent bg-ink text-white hover:bg-sidebar-hover',
+        // FILLED EMPHASIS (appearance-language.dc.html FINDING 3): `bg-ink` is
+        // correct in both themes — a dark fill in light, a light fill in dark.
+        // The bug was the paired `text-white`, a literal that cannot invert
+        // with it. `text-page` does, and in dark it gives #141416 on #eceae7 =
+        // 15.32:1, the reference's own figure, reproduced.
+        // In LIGHT the swap costs #ffffff -> #f6f5f3, which is 15.07:1 -> 13.84:1
+        // on `ink`. The reference calls that "0.4% of luminance"; measured, the
+        // relative luminance drop is 8.63%. The decision stands either way —
+        // 13.84:1 has an enormous margin — but the figure does not, so the
+        // measured pair is recorded here rather than the quoted one.
+        // Not to be confused with the inverted planes (`KpiCard` dark, the
+        // `Dialog` overlay), which keep white and change their FILL instead.
+        primary: 'border-transparent bg-ink text-page hover:bg-sidebar-hover',
         outline: 'border-ink bg-transparent text-ink hover:bg-sidebar-text',
         ghost: 'border-transparent bg-transparent text-ink hover:opacity-85',
         // Destructive pair (design/extensions/settings.dc.html S6): the

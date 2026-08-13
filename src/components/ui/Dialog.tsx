@@ -12,8 +12,12 @@ import type { ReactNode } from 'react';
 // Every dialog renders a <DialogTitle> for a11y.
 export const DialogTitle = RadixDialog.Title;
 
+// An INVERTED PLANE, like `KpiCard` dark (FINDING 3): a scrim has to darken
+// what is behind it in BOTH themes. `ink` inverts to #eceae7 in dark and would
+// turn the scrim into a white wash; `sidebar` is #26262a in light — identical
+// to `ink`, so this is a no-op there — and #0f0f11 in dark.
 const OVERLAY_CLASS =
-  'bg-ink/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
+  'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
 const PANEL_CLASS =
   'bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-6 shadow-[0_12px_40px_rgba(38,38,42,.18)] data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 

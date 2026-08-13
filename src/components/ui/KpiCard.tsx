@@ -2,8 +2,20 @@ import type { CSSProperties, ReactNode } from 'react';
 
 type Tone = 'dark' | 'tint' | 'default';
 
+// `dark` is an INVERTED PLANE, not a filled control, and the distinction is
+// what makes it survive a theme flip (appearance-language.dc.html FINDING 3).
+// It must stay dark in BOTH themes — its label is `sidebar-muted` and callers
+// put `pos-on-dark` on the sub-line, a token the Phase 5 sheet deliberately
+// leaves unchanged "because it was always for a dark plane". So the fill is
+// `sidebar`, not `ink`: in light the two are both #26262a, making this a
+// pixel-for-pixel no-op, and in dark `sidebar` goes to #0f0f11 while `ink`
+// would invert to #eceae7 and render white-on-white.
+// `text-white` STAYS white here for the same reason — 19.15:1 on #0f0f11.
+// Contrast the filled-emphasis case (primary Button, Switch, DatePicker
+// selected day), where `bg-ink` is right in both themes and it is the paired
+// `text-white` that has to become `text-page`.
 const TONE_BG: Record<Tone, string> = {
-  dark: 'bg-ink text-white',
+  dark: 'bg-sidebar text-white',
   tint: 'bg-pos-tint text-ink',
   default: 'bg-card text-ink shadow-[0_1px_3px_rgba(38,38,42,.06)]',
 };
