@@ -33,9 +33,9 @@ jobs:
       name: dev
       url: https://dev.d17m4jf400my6.amplifyapp.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 26 # must match local Node
 
@@ -53,7 +53,7 @@ jobs:
       - name: Zip the contents of dist
         run: cd dist && zip -qr ../dist.zip .
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_FRONTEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
