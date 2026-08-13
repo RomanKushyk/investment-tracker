@@ -8,6 +8,7 @@ const DEFAULTS: PersistedSettings = {
   currency: 'UAH',
   usdRate: 44.83,
   theme: 'system',
+  language: 'uk',
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
@@ -78,6 +79,24 @@ describe('migrateSettings', () => {
     // agree on every one of these is pinned by src/app/theme.test.ts.
     for (const theme of ['solarized', '', 'Light', 'DARK', 3, null, {}, []]) {
       expect(migrateSettings({ theme })).toEqual(DEFAULTS);
+    }
+  });
+
+  it('keeps either language, and defaults to Ukrainian', () => {
+    for (const language of ['uk', 'en'] as const) {
+      expect(migrateSettings({ language })).toEqual({ ...DEFAULTS, language });
+    }
+    // Every profile written before P5 has no `language`, and those users must
+    // land on the owner-chosen default rather than on whichever literal came
+    // first in the check.
+    expect(migrateSettings({ currency: 'UAH' })).toEqual(DEFAULTS);
+  });
+
+  it('falls back to Ukrainian for any language it does not recognise', () => {
+    // No OS sniffing and no partial matching: `uk-UA` is not `uk` here, because
+    // accepting near-misses is how a locale string ends up in a union type.
+    for (const language of ['uk-UA', 'en-GB', 'ua', 'UK', '', 3, null, {}, []]) {
+      expect(migrateSettings({ language })).toEqual(DEFAULTS);
     }
   });
 

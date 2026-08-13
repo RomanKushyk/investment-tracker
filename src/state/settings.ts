@@ -14,10 +14,19 @@ import { SETTINGS_KEY } from '../lib/storage-keys';
  */
 export type Theme = 'light' | 'dark' | 'system';
 
+/**
+ * Ukrainian is the DEFAULT (Phase 5 owner decision), English stays as the
+ * second. Unlike `theme` there is no `system` here: a language is a deliberate
+ * choice, and guessing it from the OS would silently re-write every figure on
+ * screen (Contract 0) for someone who never asked.
+ */
+export type Language = 'uk' | 'en';
+
 interface SettingsState {
   currency: 'UAH' | 'USD';
   usdRate: number;
   theme: Theme;
+  language: Language;
   dataset: Dataset;
   autoQuoteSuggest: boolean;
   couponSuggest: boolean;
@@ -27,6 +36,7 @@ interface SettingsState {
   setCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
   setTheme: (t: Theme) => void;
+  setLanguage: (l: Language) => void;
   setDataset: (d: Dataset) => void;
   setAutoQuoteSuggest: (on: boolean) => void;
   setCouponSuggest: (on: boolean) => void;
@@ -44,6 +54,9 @@ export interface PersistedSettings {
   // the FOUC-free head script in index.html reads it straight out of
   // localStorage before any module exists.
   theme: Theme;
+  // Appearance (P5 S2). Drives BOTH the strings and, per Contract 0, every
+  // number and date format — so it is never a display-only preference.
+  language: Language;
   dataset: Dataset;
   // Automation (S8): the two suggestion switches, both ON by default — the
   // suggestions are the phase's headline and they never write anything (G5).
@@ -63,6 +76,7 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   currency: 'UAH',
   usdRate: 44.83,
   theme: 'system',
+  language: 'uk',
   dataset: 'demo',
   autoQuoteSuggest: true,
   couponSuggest: true,
@@ -103,6 +117,9 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
       p.theme === 'light' || p.theme === 'dark' || p.theme === 'system'
         ? p.theme
         : PERSISTED_DEFAULTS.theme,
+    // Only the two literals; anything else is the default. No OS sniffing —
+    // see the Language type for why.
+    language: p.language === 'uk' || p.language === 'en' ? p.language : PERSISTED_DEFAULTS.language,
     // G4: anything but the exact 'live' literal means demo — the same rule
     // lib/db.ts applies when it binds the active DB at boot (must agree).
     dataset: p.dataset === 'live' ? 'live' : PERSISTED_DEFAULTS.dataset,
@@ -168,6 +185,7 @@ export const useSettings = create<SettingsState>()(
       currency: 'UAH',
       usdRate: 44.83,
       theme: 'system',
+      language: 'uk',
       dataset: 'demo',
       autoQuoteSuggest: true,
       couponSuggest: true,
@@ -181,6 +199,10 @@ export const useSettings = create<SettingsState>()(
       // No reload and no DOM write here: useTheme() owns the attribute, so the
       // store stays a plain preference and there is exactly one writer.
       setTheme: (theme) => set({ theme }),
+      // No reload: the brief pins the text swap as INSTANT (Surface 2), which
+      // is also why core/money.ts takes the language as a parameter rather than
+      // reading a module global — every formatted figure must re-render.
+      setLanguage: (language) => set({ language }),
       // G4 reload-on-toggle: persist the flag (zustand writes localStorage
       // synchronously) and reload — lib/db.ts rebinds the whole app to the
       // other dataset's DB at the next boot. Never a live cache migration.
@@ -219,6 +241,7 @@ export const useSettings = create<SettingsState>()(
         currency: s.currency,
         usdRate: s.usdRate,
         theme: s.theme,
+        language: s.language,
         dataset: s.dataset,
         autoQuoteSuggest: s.autoQuoteSuggest,
         couponSuggest: s.couponSuggest,
