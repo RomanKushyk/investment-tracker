@@ -119,7 +119,108 @@
   --color-chart-ink: var(--color-ink);
 }
 
+/* ── Dark theme (A9) ──────────────────────────────────────────────────────
+   Values are the Phase 5 sheet's, `docs/design-briefs/phase-5-appearance-
+   language.md` Surface 3, drawn in `design/extensions/appearance-language.dc.html`.
+   Every ratio there was measured; none is re-derived here.
+
+   THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
+   it. The head script in index.html resolves the preference — light / dark /
+   system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
+   CSS never has to express "system". One list of 38 values instead of two that
+   can drift apart, and the media query stays where it belongs: in the one place
+   that reads it, next to the matchMedia listener that keeps it live.
+
+   Only the 38 PALETTE tokens are here. The 19 --color-chart-* aliases are
+   declared as `var(--color-reit)` and resolve against whatever wins on the same
+   element, so they follow these automatically — verified at runtime by
+   overriding a base token and watching the alias move. Redeclaring them would
+   be 19 more values able to disagree with the ones above.
+
+   Unlayered on purpose: Tailwind puts @theme in `@layer theme`, and an
+   unlayered rule beats a layered one regardless of source order, so this cannot
+   be defeated by how the layers happen to be emitted. */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces and text. `card` stays LIGHTER than `page` exactly as in the light
+     theme — inverting that relationship is the commonest dark-theme mistake and
+     it silently breaks every elevation cue in the app. */
+  --color-page: #141416;
+  --color-card: #1c1c1f;
+  --color-ink: #eceae7; /* 15.32 on page · 14.16 on card */
+  --color-muted: #9b9a96; /* 6.04 on card */
+  --color-faint: #6e6d6a; /* 3.29 on card — decorative only, never body text */
+  --color-hairline: #2a2a2e;
+  --color-panel: #232327;
+  --color-panel-border: #33333a;
+  --color-label: #a8a7a3; /* 7.06 on card */
+
+  /* Sidebar. In light it is already dark against a light page; in dark it goes
+     DARKER than the page, not lighter, or it stops reading as its own plane. */
+  --color-sidebar: #0f0f11;
+  --color-sidebar-text: #eceae7; /* 15.95 */
+  --color-sidebar-muted: #8b8a90; /* 5.59 */
+  --color-sidebar-inset: #1c1c20;
+  --color-sidebar-hover: #26262b;
+  --color-sidebar-nav: #c4c3c0; /* 10.86 */
+
+  /* Semantic. `pos-on-dark` is deliberately UNCHANGED: it was always meant for
+     a dark plane, and the inverted planes (KpiCard dark, sidebar) still are
+     one in this theme — 11.36 on #0f0f11. */
+  --color-pos: #8fb184; /* 7.12 on card */
+  --color-pos-tint: #22301f;
+  --color-pos-tint-text: #a9c79f; /* 7.52 on its tint */
+  --color-pos-on-dark: #b9cdb4;
+  --color-pos-border: #3a5233;
+  --color-neg: #d9907e; /* 6.67 on card */
+  --color-neg-tint: #3a211b;
+  --color-neg-tint-text: #e5a996; /* 7.39 on its tint */
+  --color-warn: #d1a55f; /* 7.50 on card */
+  --color-warn-tint: #332714;
+  --color-warn-tint-text: #dcbb80; /* 7.95 on its tint */
+
+  /* Asset hues. These are never text — verified across the codebase, they
+     appear only as bg-* fills, and text always uses the -tint-text variants —
+     so the requirement on them is WCAG 1.4.11 (3:1, non-text), not 4.5. The
+     values clear 4.5 anyway. Note the light theme does NOT meet even 3:1 here
+     (reit 2.77, energy 2.40, ovdp8976 2.57 on white); that is inherited from
+     the immutable master reference and is out of scope, so do not read this
+     sheet as a regression against a light theme that was the weaker of the two.
+     Colour alone never distinguishes the four in EITHER theme — pairwise
+     luminance separation is 1.02-1.33 here — so every chart, legend and donut
+     must keep its non-colour distinguisher. */
+  --color-reit: #9dbb93; /* 8.07 on card */
+  --color-reit-tint: #22301f;
+  --color-reit-tint-text: #a9c79f; /* 7.52 */
+  --color-energy: #d8b394; /* 8.74 */
+  --color-energy-tint: #33261d;
+  --color-energy-tint-text: #e0bfa4; /* 8.47 */
+  --color-ovdp8976: #a8b6c2; /* 8.20 */
+  --color-ovdp8976-tint: #20272d;
+  --color-ovdp8976-tint-text: #b3c1cd; /* 8.22 */
+  --color-ovdp6475: #a3a19b; /* 6.58 */
+  --color-ovdp6475-tint: #26262a;
+  --color-ovdp6475-tint-text: #adaba5; /* 6.56 */
+
+  /* Elevation comes from the surface step (page -> card -> panel), never from
+     shadow: a light shadow is invisible on a dark surface and deepening it only
+     makes a dark halo. `0 0 #0000` rather than `none` — see the token block
+     above for why `none` would invalidate the composed declaration. */
+  --shadow-card: 0 0 #0000;
+  --shadow-popover: 0 0 #0000;
+  --shadow-dialog: 0 0 #0000;
+}
+
 @layer base {
+  /* Tells the engine which way round this page is, so the form controls,
+     scrollbars and caret it paints itself follow the theme. Without it a dark
+     page keeps light scrollbars. The dark counterpart is in the block above,
+     unlayered, so it wins. */
+  :root {
+    color-scheme: light;
+  }
+
   body {
     background: var(--color-page);
     color: var(--color-ink);
