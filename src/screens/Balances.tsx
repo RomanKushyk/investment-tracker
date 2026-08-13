@@ -6,10 +6,11 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
-import { fmtDate, fmtTable } from '../core/money';
 import { balanceChartData, buildBalanceRow, paginateSnapshots } from './balances/balances';
+import { useFormat } from '../hooks/useFormat';
 
 export function Balances() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const [page, setPage] = useState(0);
@@ -56,17 +57,17 @@ export function Balances() {
               const row = buildBalanceRow(s, assets);
               return (
                 <tr key={s.date} className="border-hairline hover:bg-page/60 border-t transition-colors">
-                  <td className="py-2 font-semibold whitespace-nowrap">{fmtDate(s.date)}</td>
+                  <td className="py-2 font-semibold whitespace-nowrap">{f.date(s.date)}</td>
                   {row.cells.map((cell, i) => (
                     <td key={assets[i].id} className="py-2 text-right">
-                      {cell.status === 'value' && fmtTable(cell.amount)}
+                      {cell.status === 'value' && f.num(cell.amount)}
                       {cell.status === 'pending' && <span className="text-faint">pending</span>}
                       {cell.status === 'none' && '—'}
                     </td>
                   ))}
-                  <td className="py-2 text-right">{fmtTable(row.cash)}</td>
+                  <td className="py-2 text-right">{f.num(row.cash)}</td>
                   <td className="py-2 text-right font-bold">
-                    {row.total === null ? <span className="text-faint">—</span> : fmtTable(row.total)}
+                    {row.total === null ? <span className="text-faint">—</span> : f.num(row.total)}
                   </td>
                 </tr>
               );
@@ -77,7 +78,7 @@ export function Balances() {
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
           <span>
             Showing last {rows.length} snapshots · {total} total since{' '}
-            {earliest ? fmtDate(earliest) : '—'}
+            {earliest ? f.date(earliest) : '—'}
           </span>
           <div className="flex gap-2">
             <Button

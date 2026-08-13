@@ -28,16 +28,7 @@ import {
 } from '../core/derive';
 import { fmtPayoutDate } from '../components/ui/date-labels';
 import { todayIso } from '../core/dates';
-import {
-  fmtDate,
-  fmtDateShort,
-  fmtPct,
-  fmtProse,
-  fmtProseWhole,
-  signedPp,
-  signedProse,
-  toUsd,
-} from '../core/money';
+import { toUsd } from '../core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import {
@@ -46,10 +37,12 @@ import {
   nextPayoutRows,
   totalReturnKpi,
 } from './overview/overview';
+import { useFormat } from '../hooks/useFormat';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
 export function Overview() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -75,11 +68,11 @@ export function Overview() {
   const capitalUsd = toUsd(total, usdRate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
   const capital = usd
-    ? { value: fmtProse(tweenedCapital, 'USD'), sub: `${fmtProse(total)} · rate ${usdRate}` }
-    : { value: fmtProse(tweenedCapital), sub: `${fmtProse(capitalUsd, 'USD')} · rate ${usdRate}` };
+    ? { value: f.money(tweenedCapital, 'USD'), sub: `${f.money(total)} · rate ${usdRate}` }
+    : { value: f.money(tweenedCapital), sub: `${f.money(capitalUsd, 'USD')} · rate ${usdRate}` };
 
   const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, usdRate) : net.uah);
-  const netValue = usd ? signedProse(tweenedNet, 'USD') : signedProse(tweenedNet);
+  const netValue = usd ? f.signedMoney(tweenedNet, 'USD') : f.signedMoney(tweenedNet);
 
   // Total return (net) — S9a's new total-return-family KPI, currency-aware
   // like its siblings; the globalRoi sub stays a % (no conversion), "—" when null.
@@ -87,18 +80,18 @@ export function Overview() {
     usd ? toUsd(totalReturn.uah, usdRate) : totalReturn.uah,
   );
   const totalReturnValue = usd
-    ? signedProse(tweenedTotalReturn, 'USD')
-    : signedProse(tweenedTotalReturn);
+    ? f.signedMoney(tweenedTotalReturn, 'USD')
+    : f.signedMoney(tweenedTotalReturn);
 
   const depositedUsd = toUsd(deposited, usdRate);
   const reinvestedUsd = toUsd(reinvested, usdRate);
   const tweenedDeposited = useTweenedNumber(usd ? depositedUsd : deposited);
   const deposit = usd
-    ? { value: fmtProse(tweenedDeposited, 'USD'), sub: `+ ${fmtProse(reinvestedUsd, 'USD')} reinvested` }
-    : { value: fmtProseWhole(tweenedDeposited), sub: `+ ${fmtProse(reinvested)} reinvested` };
+    ? { value: f.money(tweenedDeposited, 'USD'), sub: `+ ${f.money(reinvestedUsd, 'USD')} reinvested` }
+    : { value: f.moneyWhole(tweenedDeposited), sub: `+ ${f.money(reinvested)} reinvested` };
 
   const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
-  const cashValue = usd ? fmtProse(tweenedCash, 'USD') : fmtProse(tweenedCash);
+  const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
   const cashSharePct = total === 0 ? 0 : (cash / total) * 100;
 
   const shareSegments = assets.map((a) => ({
@@ -116,7 +109,7 @@ export function Overview() {
       <ReminderStrip place="overview" />
       <ScreenHeader
         title="Overview"
-        subtitle={`Portfolio at a glance · ${fmtDate(todayIso())} · rate ${usdRate} ₴/$`}
+        subtitle={`Portfolio at a glance · ${f.date(todayIso())} · rate ${usdRate} ₴/$`}
       />
 
       {/* min(200px,100%) caps auto-fit's track floor to the container width —
@@ -137,7 +130,7 @@ export function Overview() {
           label="Capital gain"
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={`${fmtPct(net.pct)} since ${fmtDateShort(PORTFOLIO_START)}`}
+          sub={`${f.pct(net.pct)} since ${f.dateShort(PORTFOLIO_START)}`}
           subClassName={`font-semibold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}
         />
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
@@ -146,7 +139,7 @@ export function Overview() {
           label="Total return (net)"
           value={totalReturnValue}
           valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={totalReturn.roi === null ? '—' : `${fmtPct(totalReturn.roi)} on net deposits`}
+          sub={totalReturn.roi === null ? '—' : `${f.pct(totalReturn.roi)} on net deposits`}
           subClassName={
             totalReturn.roi === null
               ? 'text-muted'
@@ -165,7 +158,7 @@ export function Overview() {
           value={cashValue}
           sub={
             <>
-              {cashSharePct.toFixed(2)}% of account
+              {f.pctPlain(cashSharePct, 2)} of account
               {/* S9d ledger-drift chip: warn tokens only (a reconciliation
                   nudge, not an error); hidden while |drift| ≤ ₴0.01 — demo
                   drift is 0 by construction. Re-keyed by value so a change
@@ -177,7 +170,7 @@ export function Overview() {
                     title="Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash."
                     className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-200"
                   >
-                    Ledger drift {signedProse(drift)}
+                    Ledger drift {f.signedMoney(drift)}
                   </span>
                 </div>
               )}
@@ -203,11 +196,11 @@ export function Overview() {
                   <span className="text-muted text-xs whitespace-nowrap">
                     {YIELD_LABEL_SHORT[a.yieldType]} · {sharePct(value, total).toFixed(1)}%
                   </span>
-                  <strong className="w-[110px] text-right text-[13.5px]">{fmtProse(value)}</strong>
+                  <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
                   <span
                     className={`w-[60px] text-right text-xs font-bold ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
                   >
-                    {fmtPct(yield_)}
+                    {f.pct(yield_)}
                   </span>
                 </div>
               );
@@ -229,7 +222,7 @@ export function Overview() {
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
-                    {fmtProseWhole(r.amount)} · {fmtPayoutDate(r.date)}
+                    {f.moneyWhole(r.amount)} · {fmtPayoutDate(r.date)}
                   </strong>
                 </div>
               ))}
@@ -247,9 +240,9 @@ export function Overview() {
                 {underweight.asset.yieldType === 'fixed_coupon'
                   ? bondAbbrev(underweight.asset)
                   : shortLabel(underweight.asset)}{' '}
-                is <strong className="text-neg">{signedPp(underweight.deltaPp, '%')}</strong>{' '}
+                is <strong className="text-neg">{f.pp(underweight.deltaPp, '%')}</strong>{' '}
                 under its {underweight.asset.targetPct}% target — top up{' '}
-                <strong>{fmtProse(underweight.topUp)}</strong>.
+                <strong>{f.money(underweight.topUp)}</strong>.
               </p>
             ) : (
               <p className="text-[13px]">Allocation is on target.</p>
@@ -262,14 +255,14 @@ export function Overview() {
           <KpiCard
             className="animate-in fade-in duration-300"
             label="Income received"
-            value={fmtProse(income.total)}
+            value={f.money(income.total)}
             valueSize="md"
             sub={
               <>
-                dividends {fmtProse(income.dividends)} · coupons {fmtProse(income.coupons)}
+                dividends {f.money(income.dividends)} · coupons {f.money(income.coupons)}
                 {/* S9a net-of-tax line (incomeReceivedNet.total) — equals the
                     gross value while no tax rows exist (demo: taxes 0). */}
-                <div>net of tax {fmtProse(incomeNet.total)}</div>
+                <div>net of tax {f.money(incomeNet.total)}</div>
               </>
             }
           />

@@ -4,10 +4,11 @@ import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { fmtPct, fmtTable, signedPp } from '../core/money';
 import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield/yield';
+import { useFormat } from '../hooks/useFormat';
 
 export function Yield() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -55,26 +56,26 @@ export function Yield() {
             {rows.map((r) => (
               <tr key={r.asset.id} className="border-hairline hover:bg-page/60 border-t transition-colors">
                 <td className="py-2 font-semibold">{r.asset.name}</td>
-                <td className="py-2 text-right">{fmtTable(r.invested)}</td>
-                <td className="py-2 text-right">{r.value === undefined ? '—' : fmtTable(r.value)}</td>
+                <td className="py-2 text-right">{f.num(r.invested)}</td>
+                <td className="py-2 text-right">{r.value === undefined ? '—' : f.num(r.value)}</td>
                 <td
                   className={`py-2 text-right font-bold ${r.deltaTotal === undefined ? 'text-muted' : r.deltaTotal < 0 ? 'text-neg' : 'text-pos'}`}
                 >
-                  {r.deltaTotal === undefined ? '—' : fmtPct(r.deltaTotal)}
+                  {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
                 </td>
-                <td className="py-2 text-right">{r.annualized === undefined ? '—' : fmtPct(r.annualized, 1)}</td>
+                <td className="py-2 text-right">{r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}</td>
                 <td
                   className={`py-2 text-right font-bold ${r.totalReturn == null ? 'text-muted' : r.totalReturn < 0 ? 'text-neg' : 'text-pos'}`}
                 >
-                  {r.totalReturn == null ? '—' : fmtPct(r.totalReturn)}
+                  {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
                 </td>
                 <td className={`py-2 text-right ${r.xirr == null ? 'text-muted' : ''}`}>
-                  {r.xirr == null ? '—' : fmtPct(r.xirr, 1)}
+                  {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
                 </td>
                 <td
                   className={`py-2 text-right ${r.vsExpectedPp === undefined ? 'text-muted' : r.vsExpectedPp < 0 ? 'text-neg' : 'text-pos'}`}
                 >
-                  {r.vsExpectedPp === undefined ? '—' : signedPp(r.vsExpectedPp, ' pp')}
+                  {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, ' pp')}
                 </td>
               </tr>
             ))}

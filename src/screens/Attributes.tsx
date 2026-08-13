@@ -10,9 +10,9 @@ import { ordinal } from '../components/ui/date-labels';
 import { COUPON_FREQUENCY, SCHEDULE_LABEL } from '../components/ui/schedule-labels';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
 import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
-import { fmtDate, fmtPct, fmtProseWhole } from '../core/money';
 import type { Asset, Transaction } from '../core/types';
 import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
+import { useFormat } from '../hooks/useFormat';
 
 // "Monthly · ~10th" — words assembled here from the pure module's
 // {schedule, day} tokens (structured-returns rule, G1).
@@ -37,6 +37,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function Attributes() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -49,7 +50,7 @@ export function Attributes() {
   function actualAnnualized(a: Asset) {
     const pct = actualAnnualizedPct(values[a.id], invested[a.id] ?? 0, daysHeld);
     if (pct === undefined) return <span className="text-muted">—</span>;
-    return <span className={pct < 0 ? 'text-neg' : 'text-pos'}>{fmtPct(pct, 1)}</span>;
+    return <span className={pct < 0 ? 'text-neg' : 'text-pos'}>{f.pct(pct, 1)}</span>;
   }
 
   return (
@@ -78,24 +79,24 @@ export function Attributes() {
               <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">
                 {isBond ? (
                   <>
-                    <Fact label="YTM at purchase">{a.expectedPct.toFixed(1)}% / yr</Fact>
+                    <Fact label="YTM at purchase">{f.pctPlain(a.expectedPct)} / yr</Fact>
                     <Fact label="Coupon">
                       {a.couponAmount !== undefined
-                        ? `${fmtProseWhole(a.couponAmount)} ${COUPON_FREQUENCY[a.payoutSchedule]}`
+                        ? `${f.moneyWhole(a.couponAmount)} ${COUPON_FREQUENCY[a.payoutSchedule]}`
                         : '—'}
                     </Fact>
-                    <Fact label="Maturity">{a.maturity ? fmtDate(a.maturity) : '—'}</Fact>
+                    <Fact label="Maturity">{a.maturity ? f.date(a.maturity) : '—'}</Fact>
                     <Fact label="Target share">{a.targetPct}%</Fact>
-                    <Fact label="First purchase">{fmtDate(a.firstPurchase)}</Fact>
-                    <Fact label="Next coupon">{a.nextCoupon ? fmtDate(a.nextCoupon) : '—'}</Fact>
+                    <Fact label="First purchase">{f.date(a.firstPurchase)}</Fact>
+                    <Fact label="Next coupon">{a.nextCoupon ? f.date(a.nextCoupon) : '—'}</Fact>
                   </>
                 ) : (
                   <>
-                    <Fact label="Expected return">{a.expectedPct.toFixed(1)}% / yr</Fact>
+                    <Fact label="Expected return">{f.pctPlain(a.expectedPct)} / yr</Fact>
                     <Fact label="Actual (ann.)">{actualAnnualized(a)}</Fact>
                     <Fact label="Payout schedule">{payoutScheduleLabel(a, transactions)}</Fact>
                     <Fact label="Target share">{a.targetPct}%</Fact>
-                    <Fact label="First purchase">{fmtDate(a.firstPurchase)}</Fact>
+                    <Fact label="First purchase">{f.date(a.firstPurchase)}</Fact>
                     <Fact label="Reinvest policy">{a.reinvestPolicy ?? '—'}</Fact>
                   </>
                 )}

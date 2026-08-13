@@ -3,7 +3,6 @@ import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useTransactions } from '../hooks/queries';
-import { fmtProseWhole } from '../core/money';
 import type { Asset } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import {
@@ -15,6 +14,7 @@ import {
   quietStretch,
   seasonalityDays,
 } from './seasonality/seasonality';
+import { useFormat } from '../hooks/useFormat';
 // Full month names for the "Coupon season" card prose only (design line 448
 // spells "June", not the shared MONTH_SHORT's "Jun" used on chart axes).
 const MONTH_FULL = [
@@ -37,6 +37,7 @@ function dayDescriptor(day: number): string {
 }
 
 export function Seasonality() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
@@ -58,10 +59,10 @@ export function Seasonality() {
       actualLabel:
         d.actual > 0
           ? anchor?.day === d.day
-            ? `${fmtProseWhole(d.actual)} · day ${d.day}`
-            : fmtProseWhole(d.actual)
+            ? `${f.moneyWhole(d.actual)} · day ${d.day}`
+            : f.moneyWhole(d.actual)
           : undefined,
-      expectedLabel: d.expected !== undefined ? `${fmtProseWhole(d.expected)}*` : undefined,
+      expectedLabel: d.expected !== undefined ? `${f.moneyWhole(d.expected)}*` : undefined,
     };
   });
 
@@ -105,8 +106,8 @@ export function Seasonality() {
             {anchor && anchorAsset && growth ? (
               <>
                 <strong>Day {anchor.day}</strong> is the paycheck: {shortLabel(anchorAsset)} dividends
-                land {SCHEDULE_FREQUENCY[anchorAsset.payoutSchedule]}, {fmtProseWhole(growth.first)} →{' '}
-                {fmtProseWhole(growth.last)} and growing.
+                land {SCHEDULE_FREQUENCY[anchorAsset.payoutSchedule]}, {f.moneyWhole(growth.first)} →{' '}
+                {f.moneyWhole(growth.last)} and growing.
               </>
             ) : (
               'No recurring income yet.'

@@ -152,6 +152,18 @@ describe('makeFormat — Contract 0', () => {
     expect(en.savedAt('2026-07-25T21:14:00')).toBe(`25${NBSP}Jul, 21:14`);
   });
 
+  it('writes an unsigned percentage without inventing a direction', () => {
+    // pctPlain takes a value ALREADY in percent and never signs it — a 46.1%
+    // share is not "+46.1%". The Ukrainian space before % applies to both.
+    expect(uk.pctPlain(46.1)).toBe(`46,1${NBSP}%`);
+    expect(en.pctPlain(46.1)).toBe('46.1%');
+    expect(uk.pctPlain(17, 0)).toBe(`17${NBSP}%`);
+    expect(uk.pctPlain(0.01, 2)).toBe(`0,01${NBSP}%`);
+    // and it must NOT gain a sign, which is the whole reason it exists
+    expect(uk.pctPlain(46.1).startsWith('+')).toBe(false);
+    expect(en.pctPlain(0)).toBe('0.0%');
+  });
+
   it('honours the requested decimal places on percentages', () => {
     expect(uk.pct(0.0702, 1)).toBe(`+7,0${NBSP}%`);
     expect(en.pct(0.0702, 1)).toBe('+7.0%');

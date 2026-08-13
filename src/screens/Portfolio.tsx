@@ -18,10 +18,10 @@ import {
   yieldSinceStart,
 } from '../core/derive';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
-import { fmtPct, fmtProse, fmtProseWhole, fmtTable, signedTable } from '../core/money';
 import type { Asset } from '../core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
+import { useFormat } from '../hooks/useFormat';
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").
@@ -30,6 +30,7 @@ function highlightLabel(asset: Asset): string {
 }
 
 export function Portfolio() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -85,34 +86,34 @@ export function Portfolio() {
                   <td className="py-2">
                     <Tag colorKey={a.colorKey}>{YIELD_LABEL_SHORT[a.yieldType]}</Tag>
                   </td>
-                  <td className="py-2 text-right">{fmtTable(inv)}</td>
-                  <td className="py-2 text-right">{reinv > 0 ? fmtTable(reinv) : '—'}</td>
-                  <td className="py-2 text-right">{fmtTable(value)}</td>
+                  <td className="py-2 text-right">{f.num(inv)}</td>
+                  <td className="py-2 text-right">{reinv > 0 ? f.num(reinv) : '—'}</td>
+                  <td className="py-2 text-right">{f.num(value)}</td>
                   <td
                     className={`py-2 text-right font-bold ${pnl < 0 ? 'text-neg' : 'text-pos'}`}
                   >
-                    {signedTable(pnl)}
+                    {f.signedNum(pnl)}
                   </td>
                   <td
                     className={`py-2 text-right font-bold ${pnlPct < 0 ? 'text-neg' : 'text-pos'}`}
                   >
-                    {fmtPct(pnlPct)}
+                    {f.pct(pnlPct)}
                   </td>
                   <td className="py-2 text-right">{sharePct(value, total).toFixed(1)}%</td>
                 </tr>
               );
             })}
             <tr className="border-panel-border border-t-2">
-              <td className="py-2 font-bold">Total + cash {fmtProse(cash)}</td>
+              <td className="py-2 font-bold">Total + cash {f.money(cash)}</td>
               <td className="py-2"></td>
-              <td className="py-2 text-right font-bold">{fmtTable(investedTotal)}</td>
-              <td className="py-2 text-right font-bold">{fmtTable(reinvestedTotal(transactions))}</td>
-              <td className="py-2 text-right font-bold">{fmtTable(total)}</td>
+              <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
+              <td className="py-2 text-right font-bold">{f.num(reinvestedTotal(transactions))}</td>
+              <td className="py-2 text-right font-bold">{f.num(total)}</td>
               <td className={`py-2 text-right font-bold ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}>
-                {signedTable(net.uah)}
+                {f.signedNum(net.uah)}
               </td>
               <td className={`py-2 text-right font-bold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}>
-                {fmtPct(net.pct)}
+                {f.pct(net.pct)}
               </td>
               <td className="py-2 text-right font-bold">100%</td>
             </tr>
@@ -134,7 +135,7 @@ export function Portfolio() {
             sub={
               bestWeeks !== undefined ? (
                 <span className="text-pos font-bold">
-                  {fmtPct(best.yield)} in {bestWeeks} weeks
+                  {f.pct(best.yield)} in {bestWeeks} weeks
                 </span>
               ) : undefined
             }
@@ -151,7 +152,7 @@ export function Portfolio() {
             valueSize="sm"
             label="Laggard"
             value={highlightLabel(worst.asset)}
-            sub={`${fmtPct(worst.yield)} · watch vs ${worst.asset.expectedPct}% expected`}
+            sub={`${f.pct(worst.yield)} · watch vs ${worst.asset.expectedPct}% expected`}
           />
         ) : (
           <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
@@ -173,7 +174,7 @@ export function Portfolio() {
                   const kind = isDividends ? 'dividends' : 'coupons';
                   const reinvestedNote =
                     (reinvested[engine.asset.id] ?? 0) > 0 ? ' · auto-reinvested' : '';
-                  return `${fmtProseWhole(amount)} ${kind}${reinvestedNote}`;
+                  return `${f.moneyWhole(amount)} ${kind}${reinvestedNote}`;
                 })()
               : undefined
           }

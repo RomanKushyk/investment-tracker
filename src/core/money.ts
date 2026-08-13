@@ -79,6 +79,14 @@ export interface Format {
   moneyWhole(n: number, currency?: Currency): string;
   /** +3,08 % / +3.08% — takes a FRACTION, always signed. */
   pct(n: number, fractionDigits?: number): string;
+  /**
+   * 46,1 % / 46.1% — takes a value ALREADY IN PERCENT, never signed.
+   * Separate from `pct` because these two differ in both respects, and the
+   * sites that need this one (a share of a portfolio, a YTM, an implied yield)
+   * were written by hand precisely because `pct` would have forced a `+` onto
+   * a quantity that has no direction.
+   */
+  pctPlain(n: number, fractionDigits?: number): string;
   /** +6,1 / −6.4 — a signed percentage-point gap, unit suffix per call site. */
   pp(n: number, suffix?: string): string;
   /** 12.08.2026 / 12 Aug 2026. */
@@ -124,6 +132,7 @@ export function makeFormat(lang: Lang): Format {
     // the decimal mark, and toFixed is exact about digit count where a
     // formatter's rounding options are one more thing to keep in step.
     pct: (n, fractionDigits = 2) => signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
+    pctPlain: (n, fractionDigits = 1) => pctBody(n, fractionDigits, uk),
     pp: (n, suffix = '') => signed(n, decimal(Math.abs(n).toFixed(1), uk) + suffix),
     date,
     dateShort,

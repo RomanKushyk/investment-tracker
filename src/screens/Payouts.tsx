@@ -5,12 +5,13 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
 import { incomeReceived, reinvestedTotal } from '../core/derive';
-import { fmtDate, fmtProse, fmtProseWhole, fmtTable } from '../core/money';
 import { fmtPayoutDate, MONTH_SHORT } from '../components/ui/date-labels';
 import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
+import { useFormat } from '../hooks/useFormat';
 
 export function Payouts() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
@@ -23,7 +24,7 @@ export function Payouts() {
     monthLabel: MONTH_SHORT[Number(m.month.slice(5, 7)) - 1],
     dividends: m.dividends,
     coupons: m.coupons,
-    totalLabel: fmtTable(m.total),
+    totalLabel: f.num(m.total),
   }));
 
   const logRows = payoutLogRows(transactions);
@@ -53,9 +54,9 @@ export function Payouts() {
             tone="dark"
             className="animate-in fade-in duration-300"
             label="Received total"
-            value={fmtProse(income.total)}
+            value={f.money(income.total)}
             subClassName="text-pos-on-dark"
-            sub={`${fmtProse(income.dividends)} dividends · ${fmtProse(income.coupons)} coupons`}
+            sub={`${f.money(income.dividends)} dividends · ${f.money(income.coupons)} coupons`}
           />
 
           <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
@@ -67,7 +68,7 @@ export function Payouts() {
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
-                    {fmtProseWhole(r.amount)} · {fmtPayoutDate(r.date)}
+                    {f.moneyWhole(r.amount)} · {fmtPayoutDate(r.date)}
                   </strong>
                 </div>
               ))}
@@ -78,7 +79,7 @@ export function Payouts() {
             className="animate-in fade-in duration-300"
             valueSize="md"
             label="Reinvested"
-            value={fmtProse(reinvested)}
+            value={f.money(reinvested)}
             sub={`${reinvestedPct.toFixed(1)}% of received income`}
           />
         </div>
@@ -101,17 +102,17 @@ export function Payouts() {
                 key={`${row.date}-${row.assetId}-${row.amount}`}
                 className="border-hairline hover:bg-page/60 border-t transition-colors"
               >
-                <td className="py-2 whitespace-nowrap">{fmtDate(row.date)}</td>
+                <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
                 <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
                 <td className="py-2">
                   <Tag colorKey={row.type === 'dividend_accrual' ? 'reit' : 'ovdp8976'}>
                     {row.type === 'dividend_accrual' ? 'dividend' : 'coupon'}
                   </Tag>
                 </td>
-                <td className="py-2 text-right font-bold">{fmtTable(row.amount)}</td>
+                <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
                 <td className="py-2">
                   {row.destination.kind === 'reinvested'
-                    ? `reinvested (₴${fmtTable(row.destination.amount)})`
+                    ? `reinvested (₴${f.num(row.destination.amount)})`
                     : 'account'}
                 </td>
               </tr>

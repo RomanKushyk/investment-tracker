@@ -5,10 +5,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
 import { headlineTotal, latestQuotes, sharePct } from '../core/derive';
-import { fmtProseWhole, signedPp } from '../core/money';
 import type { Asset, ColorKey } from '../core/types';
 import { allocationRows, rebalancePlan } from './allocation/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
+import { useFormat } from '../hooks/useFormat';
 
 const BAR_BG: Record<ColorKey, string> = {
   reit: 'bg-reit',
@@ -24,6 +24,7 @@ function planLabel(asset: Asset): string {
 }
 
 export function Allocation() {
+  const f = useFormat();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
 
@@ -54,7 +55,7 @@ export function Allocation() {
               <div key={a.id} className="flex items-center gap-2">
                 <ColorDot colorKey={a.colorKey} />
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                <span className="font-bold">{sharePct(values[a.id] ?? 0, total).toFixed(1)}%</span>
+                <span className="font-bold">{f.pctPlain(sharePct(values[a.id] ?? 0, total))}</span>
               </div>
             ))}
           </div>
@@ -71,9 +72,9 @@ export function Allocation() {
                   <div className="mb-1.5 flex justify-between text-[12.5px]">
                     <span className="font-semibold">{r.asset.name}</span>
                     <span>
-                      {r.share.toFixed(1)}% / {r.target}%{' '}
+                      {f.pctPlain(r.share)} / {f.pctPlain(r.target, 0)}{' '}
                       <strong className={r.severity === 'off' ? 'text-neg' : 'text-pos'}>
-                        {signedPp(r.deltaPp)}
+                        {f.pp(r.deltaPp)}
                       </strong>
                     </span>
                   </div>
@@ -103,7 +104,7 @@ export function Allocation() {
                   </span>
                   <strong className="whitespace-nowrap">
                     {a.kind === 'buy' ? '+' : '−'}
-                    {fmtProseWhole(a.amount)}
+                    {f.moneyWhole(a.amount)}
                   </strong>
                 </div>
               ))}
