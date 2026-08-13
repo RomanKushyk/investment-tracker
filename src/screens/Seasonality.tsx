@@ -85,7 +85,7 @@ export function Seasonality() {
     <div>
       <ScreenHeader
         title="Seasonality"
-        subtitle="When money actually arrives — income by day of month, Feb – Jul 2026"
+        subtitle="When money actually arrives — income by day of month"
       />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">

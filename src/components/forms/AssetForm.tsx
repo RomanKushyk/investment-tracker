@@ -279,7 +279,7 @@ export function AssetFormFields({
       <Field label="Expected, %" error={!!errors.expectedPct && MSG.expectedPct}>
         <input
           className={inputClass(!!errors.expectedPct)}
-          placeholder="16.5"
+          placeholder="16,5"
           inputMode="decimal"
           {...form.register('expectedPct')}
         />

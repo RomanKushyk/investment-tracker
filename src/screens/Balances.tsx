@@ -20,7 +20,7 @@ export function Balances() {
 
   return (
     <div>
-      <ScreenHeader title="Balances" subtitle="Total capital by daily snapshot, Feb — Jul 2026" />
+      <ScreenHeader title="Balances" subtitle="Total capital by daily snapshot" />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         {chartData.length === 0 ? (
@@ -48,7 +48,7 @@ export function Balances() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={assets.length + 3} className="text-muted py-4 text-center">
-                  No snapshots saved yet — head to Daily quotes to save your first one.
+                  No snapshots yet — save your first daily quote to fill this table.
                 </td>
               </tr>
             )}

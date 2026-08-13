@@ -42,7 +42,7 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
   async function handleFetch() {
     setTried(true);
     const r = await fetchRate();
-    if (r === undefined && !disabled) toast.error('Could not reach the NBU rate directory');
+    if (r === undefined && !disabled) toast.error('Could not reach the NBU rate directory — please try again.');
   }
 
   return (

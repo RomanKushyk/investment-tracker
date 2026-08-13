@@ -56,7 +56,7 @@ export function Attributes() {
     <div>
       <ScreenHeader
         title="Attributes"
-        subtitle="Reference data per asset — edited rarely, via the New-asset step of a transaction"
+        subtitle="Reference data per asset — created with a transaction, edited in Settings → Portfolio"
       />
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
         {assets.map((a, i) => {

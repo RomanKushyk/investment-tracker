@@ -36,7 +36,7 @@ export function Allocation() {
 
   return (
     <div>
-      <ScreenHeader title="Allocation" subtitle="Current mix vs targets set in asset attributes" />
+      <ScreenHeader title="Allocation" subtitle="Current mix vs targets set in Settings → Portfolio" />
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">
