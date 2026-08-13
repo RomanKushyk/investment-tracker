@@ -304,9 +304,24 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 - [ ] `src/i18n/messages.ts` (`en` canonical, `Dict` derived from it, `uk satisfies Dict`), `useT()` on `settings.language`.
 - [ ] Sweep ~200 strings across ~26 files, one mechanical commit per screen; label maps return keys and their tests re-assert keys.
 - [ ] `pnpm add date-fns` → DayPicker `locale={uk}` + `weekStartsOn`; `document.documentElement.lang`; MONTH_SHORT and ordinals into i18n; runtime key-parity test.
-- [ ] **Pinned: `fmtTable` / `fmtProse` / `fmtDate` are byte-identical in both languages.** Formats never follow language.
+- [ ] ~~**Pinned: `fmtTable` / `fmtProse` / `fmtDate` are byte-identical in both languages.** Formats never follow language.~~ **REVERSED, 2026-08-13.** This line predates the phase-5 design session and its owner ruling, and the brief's **Contract 0** says the opposite: *"formatting separates completely per language, with no exceptions"*. D14 gives the brief copy and behaviour disputes, so the brief wins and this plan was stale, not the brief. Contract 0 is also the phase's widest-reaching item, so it is stated in full below rather than left as a cross-reference.
 
-**Contracts:** settings `theme` / `language`; the final token vocabulary; i18n namespace `screen.section.item`. **DECISIONS:** theme architecture (token redefinition, FOUC contract, persist key); i18n architecture (typed dict, keys-in-tests, formats-never-localize, `date-fns` dep — G6 entry).
+**Contract 0 — what A10 must actually implement.** Today the app mixes conventions: tables are already Ukrainian (`68 702,10`), prose and KPIs are English (`₴68,629.36`). From Phase 5 each language owns ONE coherent set, applied everywhere:
+
+| | Ukrainian (default) | English |
+|---|---|---|
+| Number | `68 702,10` | `68,702.10` |
+| Money, ₴ | `68 629,36 ₴` | `₴68,629.36` |
+| Money, $ | `3 324,03 $` | `$3,324.03` |
+| Percent | `+3,08 %` | `+3.08%` |
+| Date | `12.08.2026` | `12 Aug 2026` |
+| Date, short | `12.08` | `12 Aug` |
+
+Three details that are decisions, not lookups: the Ukrainian thousands separator is **U+00A0**, never a plain space, or a figure wraps mid-number; Ukrainian puts a **space before `%`** per ДСТУ and English does not; English dates are `12 Aug 2026` rather than a slashed form, which is ambiguous between British and American reading.
+
+**The cost, stated rather than discovered:** switching to English now changes **table** figures too, which it never did. That reaches `core/money.ts`, its tests, and every `navigation-map.md` checkpoint quoting a formatted string. What does NOT change: stored data, every D5-pinned *value*, and the ₴/$ toggle's scope — tables stay in ₴ in both languages, because that is a currency rule, not a locale one. Language changes how a number is written, never which number it is.
+
+**Contracts:** settings `theme` / `language`; the final token vocabulary; i18n namespace `screen.section.item`. **DECISIONS:** theme architecture (token redefinition, FOUC contract, persist key); i18n architecture (typed dict, keys-in-tests, **formats-DO-localize per Contract 0**, `date-fns` dep — G6 entry).
 **Verify:** unit — key parity compile-time and runtime, formatter invariance under `uk`. Browser — every route in dark, system and reduced-motion; hard-reload in dark with no white flash; UK with localised calendar, `<html lang>`, unchanged numbers and dates, 360 px overflow sweep; contrast spot-checks. Gates + build; tag.
 **Risk:** the i18n sweep is wide though mechanical — freeze other UI branches while it runs.
 

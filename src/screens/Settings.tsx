@@ -147,7 +147,7 @@ function ThemeControl() {
   return (
     <div
       role="radiogroup"
-      aria-label="Theme"
+      aria-label="Colour theme"
       // Wraps to its own line under `sm` rather than squeezing three segments
       // into the row: at 360px the label and a three-up control cannot share it.
       className="border-panel-border bg-panel relative grid grid-cols-3 gap-1 rounded-[12px] border p-1 max-sm:w-full"
@@ -452,6 +452,13 @@ export function Settings() {
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-200 duration-300"
         >
           <SectionLabel>Appearance</SectionLabel>
+          {/* Theme is the FIRST row, above Currency — the brief places it there
+              (phase-5 Surface 1), and its copy is the brief's verbatim: a brief
+              wins copy disputes even after its extension has merged (D14). */}
+          <SettingRow title="Theme" helper="System follows your device setting.">
+            <ThemeControl />
+          </SettingRow>
+          <Divider />
           <SettingRow title="Currency" helper="Mirrors the sidebar toggle — headline figures only.">
             <CurrencyControl />
           </SettingRow>
@@ -461,13 +468,6 @@ export function Settings() {
             helper="Used for the $ view of headline figures. Tables always stay in ₴."
           >
             <UsdRateField />
-          </SettingRow>
-          <Divider />
-          <SettingRow
-            title="Theme"
-            helper="System follows your device and keeps following it — the other two do not."
-          >
-            <ThemeControl />
           </SettingRow>
           <Divider />
           <Placeholder>Language settings are coming later.</Placeholder>
