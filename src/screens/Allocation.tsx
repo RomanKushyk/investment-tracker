@@ -9,6 +9,7 @@ import type { Asset, ColorKey } from '../core/types';
 import { allocationRows, rebalancePlan } from './allocation/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 const BAR_BG: Record<ColorKey, string> = {
   reit: 'bg-reit',
@@ -25,6 +26,7 @@ function planLabel(asset: Asset): string {
 
 export function Allocation() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
 
@@ -37,7 +39,7 @@ export function Allocation() {
 
   return (
     <div>
-      <ScreenHeader title="Allocation" subtitle="Current mix vs targets set in Settings → Portfolio" />
+      <ScreenHeader title={t.screen.allocation.title} subtitle={t.screen.allocation.subtitle} />
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">

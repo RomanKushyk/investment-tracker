@@ -8,9 +8,11 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
 import { balanceChartData, buildBalanceRow, paginateSnapshots } from './balances/balances';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 export function Balances() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const [page, setPage] = useState(0);
@@ -21,7 +23,7 @@ export function Balances() {
 
   return (
     <div>
-      <ScreenHeader title="Balances" subtitle="Total capital by daily snapshot" />
+      <ScreenHeader title={t.screen.balances.title} subtitle={t.screen.balances.subtitle} />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         {chartData.length === 0 ? (

@@ -38,11 +38,13 @@ import {
   totalReturnKpi,
 } from './overview/overview';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
 export function Overview() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -108,8 +110,8 @@ export function Overview() {
           reminder fires, so the screen keeps its exact pre-P3 layout. */}
       <ReminderStrip place="overview" />
       <ScreenHeader
-        title="Overview"
-        subtitle={`Portfolio at a glance · ${f.date(todayIso())} · rate ${usdRate} ₴/$`}
+        title={t.screen.overview.title}
+        subtitle={t.screen.overview.subtitle(f.date(todayIso()), f.units(usdRate))}
       />
 
       {/* min(200px,100%) caps auto-fit's track floor to the container width —

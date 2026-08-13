@@ -33,6 +33,7 @@ import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 /** One frozen instance, so "no assets yet" keeps a STABLE identity. A fresh
  *  `[]` per render would change the verdict memo's dependency every time and
@@ -41,6 +42,7 @@ const NO_ASSETS: Asset[] = [];
 
 export function DailyQuotes() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? NO_ASSETS;
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -159,7 +161,7 @@ export function DailyQuotes() {
       <div className="flex flex-wrap items-start gap-6">
         <div className="min-w-0 flex-[1_1_560px]">
           <div className="mb-1 flex flex-wrap items-center gap-3">
-            <h2 className="text-[26px]">Daily quotes</h2>
+            <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
             <span
               key={filledCount}
               className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-[6px] px-3 py-1 text-xs font-semibold duration-150"
@@ -180,7 +182,7 @@ export function DailyQuotes() {
             </div>
           </div>
           <p className="text-muted text-[13px]">
-            The everyday ritual — nothing else competes with it.
+            {t.screen.dailyQuotes.subtitle}
           </p>
           {/* A7 — non-blocking, and silent until something has been fetched. */}
           <ParseSkips className="mt-1 mb-[18px]" />

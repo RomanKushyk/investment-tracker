@@ -13,6 +13,7 @@ import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
 import type { Asset, Transaction } from '../core/types';
 import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 // "Monthly · ~10th" — words assembled here from the pure module's
 // {schedule, day} tokens (structured-returns rule, G1).
@@ -38,6 +39,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 
 export function Attributes() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -55,10 +57,7 @@ export function Attributes() {
 
   return (
     <div>
-      <ScreenHeader
-        title="Attributes"
-        subtitle="Reference data per asset — created with a transaction, edited in Settings → Portfolio"
-      />
+      <ScreenHeader title={t.screen.attributes.title} subtitle={t.screen.attributes.subtitle} />
       <div className="grid grid-cols-2 gap-3.5 max-md:grid-cols-1">
         {assets.map((a, i) => {
           const isBond = a.yieldType === 'fixed_coupon';

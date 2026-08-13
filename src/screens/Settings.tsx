@@ -18,6 +18,7 @@ import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
+import { useT } from '../i18n/useT';
 
 // Section microlabel — the card-label idiom shared with Overview's cards
 // (design/extensions/settings.dc.html S2, 10px uppercase tracking .12em).
@@ -386,9 +387,10 @@ function AutomationRows() {
 // Appearance controls, the Portfolio asset manager + targets editor, the
 // S5 dataset switch and the S6 typed-name erase/reset danger zone.
 export function Settings() {
+  const t = useT();
   return (
     <div>
-      <ScreenHeader title="Settings" subtitle="Preferences, data and portfolio configuration" />
+      <ScreenHeader title={t.screen.settings.title} subtitle={t.screen.settings.subtitle} />
 
       <div className="flex flex-col gap-3.5">
         <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">

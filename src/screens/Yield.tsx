@@ -6,9 +6,11 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield/yield';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 export function Yield() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -20,7 +22,7 @@ export function Yield() {
 
   return (
     <div>
-      <ScreenHeader title="Yield" subtitle="Cumulative return per asset since first purchase, %" />
+      <ScreenHeader title={t.screen.yield.title} subtitle={t.screen.yield.subtitle} />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         <div className="text-muted mb-2 flex flex-wrap gap-4 text-[11.5px]">

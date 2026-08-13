@@ -22,6 +22,7 @@ import type { Asset } from '../core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").
@@ -31,6 +32,7 @@ function highlightLabel(asset: Asset): string {
 
 export function Portfolio() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -52,7 +54,7 @@ export function Portfolio() {
 
   return (
     <div>
-      <ScreenHeader title="Portfolio" subtitle="Positions, cost basis and result per asset" />
+      <ScreenHeader title={t.screen.portfolio.title} subtitle={t.screen.portfolio.subtitle} />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 overflow-x-auto px-[22px] py-2.5 duration-300">
         <table className="w-full border-collapse text-[12.5px]">

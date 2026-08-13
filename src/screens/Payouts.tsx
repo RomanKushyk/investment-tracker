@@ -9,9 +9,11 @@ import { fmtPayoutDate, MONTH_SHORT } from '../components/ui/date-labels';
 import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 export function Payouts() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
@@ -32,7 +34,7 @@ export function Payouts() {
 
   return (
     <div>
-      <ScreenHeader title="Payouts" subtitle="Dividends and coupons received, by month" />
+      <ScreenHeader title={t.screen.payouts.title} subtitle={t.screen.payouts.subtitle} />
 
       <div className="mb-3.5 grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in p-[22px] duration-300">

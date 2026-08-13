@@ -4,19 +4,23 @@ import { useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import { headlineKpis } from '../core/derive';
 import { toUsd } from '../core/money';
+import { useT } from '../i18n/useT';
 import { useDataset, useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
 
+// Route -> dictionary KEY, not route -> label: the label is language-dependent
+// and the key is not, so the list stays a constant and the text is looked up at
+// render. The keys are checked against the dictionary by the compiler.
 const ANALYTICS = [
-  { to: '/overview', label: 'Overview' },
-  { to: '/balances', label: 'Balances' },
-  { to: '/payouts', label: 'Payouts' },
-  { to: '/yield', label: 'Yield' },
-  { to: '/attributes', label: 'Attributes' },
-  { to: '/seasonality', label: 'Seasonality' },
-  { to: '/portfolio', label: 'Portfolio' },
-  { to: '/allocation', label: 'Allocation' },
-];
+  { to: '/overview', key: 'overview' },
+  { to: '/balances', key: 'balances' },
+  { to: '/payouts', key: 'payouts' },
+  { to: '/yield', key: 'yield' },
+  { to: '/attributes', key: 'attributes' },
+  { to: '/seasonality', key: 'seasonality' },
+  { to: '/portfolio', key: 'portfolio' },
+  { to: '/allocation', key: 'allocation' },
+] as const;
 
 // Mark 04: four days, height is value and opacity is age. EVEN bar centres and
 // an even stroke, because a bar spans [x-2, x+2] and only an even x halves to
@@ -92,6 +96,7 @@ function useCapitalCard() {
 const DEMO_BADGE_TITLE = 'Demo dataset — reference data. Switch in Settings → Data.';
 
 export function Sidebar() {
+  const t = useT();
   const { currency, setCurrency } = useSettings();
   const demo = useDataset() === 'demo';
   const capital = useCapitalCard();
@@ -131,7 +136,7 @@ export function Sidebar() {
           <span
             className={`text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase ${demo ? 'max-sm:hidden' : ''}`}
           >
-            Invest tracker
+            {t.sidebar.brandTagline}
           </span>
           {demo && (
             <span
@@ -159,23 +164,23 @@ export function Sidebar() {
         )}
       </div>
 
-      <GroupLabel>Daily entry</GroupLabel>
+      <GroupLabel>{t.nav.groupDailyEntry}</GroupLabel>
       <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-        Daily quotes
+        {t.nav.dailyQuotes}
       </NavLink>
 
-      <GroupLabel className="mt-4">Analytics</GroupLabel>
-      {ANALYTICS.map(({ to, label }) => (
+      <GroupLabel className="mt-4">{t.nav.groupAnalytics}</GroupLabel>
+      {ANALYTICS.map(({ to, key }) => (
         <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
-          {label}
+          {t.nav[key]}
         </NavLink>
       ))}
 
       {/* Third nav group (P2 S1): exact clone of the existing group-label +
           pill anatomy — same motion, same active treatment. */}
-      <GroupLabel className="mt-4">Settings</GroupLabel>
+      <GroupLabel className="mt-4">{t.nav.groupSettings}</GroupLabel>
       <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
-        Settings
+        {t.nav.settings}
       </NavLink>
 
       <div className="relative mt-auto mb-2.5 flex gap-1 rounded-[13px] bg-sidebar-inset p-1.5">
@@ -214,7 +219,7 @@ export function Sidebar() {
           the shell's. */}
       <div className="relative rounded-[13px] bg-sidebar-inset px-4 max-sm:px-3 py-3.5">
         <div className="text-[10px] tracking-[.12em] text-sidebar-muted uppercase">
-          Total capital
+          {t.sidebar.totalCapital}
         </div>
         {/* Literal white SURVIVES the Phase 5 purge, on purpose: the sidebar is
             an inverted plane in both themes (#26262a light, #0f0f11 dark), so

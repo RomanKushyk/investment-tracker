@@ -15,6 +15,7 @@ import {
   seasonalityDays,
 } from './seasonality/seasonality';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 // Full month names for the "Coupon season" card prose only (design line 448
 // spells "June", not the shared MONTH_SHORT's "Jun" used on chart axes).
 const MONTH_FULL = [
@@ -38,6 +39,7 @@ function dayDescriptor(day: number): string {
 
 export function Seasonality() {
   const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
@@ -84,10 +86,7 @@ export function Seasonality() {
 
   return (
     <div>
-      <ScreenHeader
-        title="Seasonality"
-        subtitle="When money actually arrives — income by day of month"
-      />
+      <ScreenHeader title={t.screen.seasonality.title} subtitle={t.screen.seasonality.subtitle} />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         <SeasonalityBars data={chartData} />
