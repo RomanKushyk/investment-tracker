@@ -108,6 +108,8 @@ only for the decision you actually need.
 | D54 | The brand fonts cannot write the app default language | 2026-08-12 |
 | D55 | The display face is chosen on figures, not on cap-height | 2026-08-12 |
 | D56 | Nested radii are concentric, standalone radii are proportional | 2026-08-12 |
+| D57 | The theme is one list of values, stamped as an answer | 2026-08-13 |
+| D58 | Formatting follows the language, and the type system cannot see most of it | 2026-08-14 |
 
 ## A pattern these entries kept finding
 

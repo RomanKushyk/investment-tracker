@@ -28,7 +28,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — extension merged `f486121` |
 | A9 | Dark theme | `feat/dark-theme` | L | **done** (2026-08-13) |
-| A10 | Ukrainian | `feat/i18n-uk` | L | **unblocked** — G7 satisfied 2026-08-12 |
+| A10 | Ukrainian | `feat/i18n-uk` | L | **done** (2026-08-14, D58) |
 | **Section F** | **Phase 6 — the mobile shell** | | | |
 | A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — awaiting the design session |
 | A17 | Mobile shell + record cards | `feat/mobile-shell` | L | design-gated |
@@ -301,9 +301,33 @@ Independent of persistence: it touches design tokens and strings, so the B3 migr
 
 ## A10 — Ukrainian — `feat/i18n-uk`
 
-- [ ] `src/i18n/messages.ts` (`en` canonical, `Dict` derived from it, `uk satisfies Dict`), `useT()` on `settings.language`.
-- [ ] Sweep ~200 strings across ~26 files, one mechanical commit per screen; label maps return keys and their tests re-assert keys.
-- [ ] `pnpm add date-fns` → DayPicker `locale={uk}` + `weekStartsOn`; `document.documentElement.lang`; MONTH_SHORT and ordinals into i18n; runtime key-parity test.
+- [x] `src/i18n/messages.ts` (`en` canonical, `Dict` derived from it, `uk satisfies Dict`), `useT()` on `settings.language`.
+- [x] Sweep the strings — **~260 across ~40 files, not the ~200 estimated here**, and it took three passes: JSX text nodes, then string literals, then TEMPLATE literals, where most of the remainder lived. The three context-split formatters (`date-labels`, `yield-labels`, `schedule-labels`) were retired rather than translated.
+- [x] `pnpm add date-fns` → DayPicker `locale={uk}` + `weekStartsOn`; `document.documentElement.lang`; MONTH_SHORT and ordinals into i18n; runtime key-parity test.
+- [x] Contract 0 end to end: `makeFormat(lang)` behind `useFormat()`, every figure re-rendering on the switch. Verified in production builds in both directions.
+
+> **Done 2026-08-14.** Verified in the browser, both languages, all ten routes:
+> no Latin prose left in Ukrainian and no Cyrillic in English; `<html lang>`
+> flips; the calendar reads `пн…нд` / `серпень 2026` and starts Monday against
+> English's Sunday. Decision recorded as **D58**; `navigation-map.md` figures
+> restated in the default (Ukrainian) rendering.
+>
+> **Two things this phase found rather than translated.** The English
+> placeholder `10,000.00` was REJECTED by the form that offered it — the parser
+> read every comma as a decimal mark — so `normalizeNumberInput` now takes the
+> last of the two marks as the decimal. And the dark theme's filled-button
+> hover, the rail, the dialog and the toast had no edge or an inverted one; that
+> is D57's tail, fixed with `--color-ink-hover` and `--color-surface-edge`.
+>
+> **The 360px sweep is Phase 6's, and here are the numbers.** At 360 the app
+> overflows in ENGLISH already, on four of ten routes — attributes 107px,
+> settings 48px, overview and payouts 4px each. Ukrainian widens the same four
+> (133 / 82 / 5 / 5) and adds ONE of its own: daily quotes, 57px, where English
+> is 0. That one is the 136px rail eating a third of a 360px viewport, leaving
+> 200px for a control whose Ukrainian label needs 254px. It cannot be fixed by
+> letting the label wrap — `size` pins an EXPLICIT button height, so a second
+> line spills out of the box. The narrow-width rule for that row belongs to the
+> mobile brief (A16/A17), not to a guess made here.
 - [ ] ~~**Pinned: `fmtTable` / `fmtProse` / `fmtDate` are byte-identical in both languages.** Formats never follow language.~~ **REVERSED, 2026-08-13.** This line predates the phase-5 design session and its owner ruling, and the brief's **Contract 0** says the opposite: *"formatting separates completely per language, with no exceptions"*. D14 gives the brief copy and behaviour disputes, so the brief wins and this plan was stale, not the brief. Contract 0 is also the phase's widest-reaching item, so it is stated in full below rather than left as a cross-reference.
 
 **Contract 0 — what A10 must actually implement.** Today the app mixes conventions: tables are already Ukrainian (`68 702,10`), prose and KPIs are English (`₴68,629.36`). From Phase 5 each language owns ONE coherent set, applied everywhere:
