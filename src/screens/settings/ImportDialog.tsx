@@ -25,25 +25,34 @@ import { useDraft } from '../../state/draft';
 import { migrateSettings, useDataset, useSettings } from '../../state/settings';
 import {
   fileSubline,
+  importToasts,
   formatReasonSentence,
-  IMPORT_TOASTS,
   issueLine,
-  PREVIEW,
   problemCount,
-  REPORT,
   resultLine,
   safetyBackupLine,
   settingsOptInHelper,
   warningSentence,
 } from './import-labels';
 import { useBackupDownload } from './useBackupDownload';
-import type { BackupDiff, ImportRejection, TableDiff } from '../../core/backup/import';
+import type {
+  BackupDiff,
+  ImportRejection,
+  TableDiff,
+} from '../../core/backup/import';
 import type { BackupEnvelope, Dataset } from '../../core/backup/json';
 import { useFormat } from '../../hooks/useFormat';
+import type { Dict } from '../../i18n/messages';
+import { useT } from '../../i18n/useT';
 
 /** What the S2 row produced: either a validated file, or the reason it failed. */
 export type ImportAttempt =
-  | { kind: 'preview'; name: string; envelope: BackupEnvelope; diff: BackupDiff }
+  | {
+      kind: 'preview';
+      name: string;
+      envelope: BackupEnvelope;
+      diff: BackupDiff;
+    }
   | { kind: 'report'; name: string; rejection: ImportRejection };
 
 export function ImportDialog({
@@ -57,6 +66,7 @@ export function ImportDialog({
   onClose: () => void;
   onChooseAnother: () => void;
 }) {
+  const t = useT();
   const dataset = useDataset();
   const replaceAll = useReplaceAll();
   const backup = useBackupDownload();
@@ -82,9 +92,13 @@ export function ImportDialog({
       // `via: 'anchor'` is what keeps that true now that exports can open a
       // Save-as dialog: a modal in front of a guarantee is a modal the user can
       // cancel, and this one must not be cancellable (D24).
-      const saved = await backup.download({ name: safetyName, quiet: true, via: 'anchor' });
+      const saved = await backup.download({
+        name: safetyName,
+        quiet: true,
+        via: 'anchor',
+      });
       if (!saved) {
-        toast.error(IMPORT_TOASTS.safetyFailed);
+        toast.error(importToasts(t).safetyFailed);
         return;
       }
       setBackedUp(true);
@@ -107,12 +121,12 @@ export function ImportDialog({
         useSettings.getState().setCurrency(sane.currency);
         useSettings.getState().setUsdRate(sane.usdRate);
       }
-      toast.success(IMPORT_TOASTS.success(diff.after));
+      toast.success(importToasts(t).success(diff.after));
       onClose();
     } catch {
       // replaceAll is all-or-nothing: nothing was written, so the dialog stays
       // open on the same diff.
-      toast.error(IMPORT_TOASTS.failed);
+      toast.error(importToasts(t).failed);
     } finally {
       setWaiting(false);
       setPending(false);
@@ -170,44 +184,56 @@ function Preview({
   onApplySettings: (on: boolean) => void;
   onConfirm: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   const { name, envelope, diff } = attempt;
   return (
     <>
       <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-1.5 text-lg">{PREVIEW.title(dataset)}</h3>
+        <h3 className="mt-0 mb-1.5 text-lg">
+          {t.importing.preview.title(dataset)}
+        </h3>
       </AlertDialogTitle>
       <div className="text-muted mb-3.5 text-[11px] leading-relaxed [overflow-wrap:anywhere]">
-        {fileSubline(name, envelope.exportedAt, envelope.dataset, f)}
+        {fileSubline(name, envelope.exportedAt, envelope.dataset, f, t)}
       </div>
 
       {/* Replace banner — never dismissible, and it names the dataset it
           destroys. `neg-tint` at block scale (the widened rule, site 1 of 2). */}
       <AlertDialogDescription asChild>
         <div className="bg-neg-tint text-neg-tint-text mb-4 flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[12.5px] leading-[1.55]">
-          <AlertTriangle size={16} strokeWidth={2.25} className="mt-0.5 flex-none" />
+          <AlertTriangle
+            size={16}
+            strokeWidth={2.25}
+            className="mt-0.5 flex-none"
+          />
           <span>
-            {PREVIEW.banner(dataset)}
-            {dataset === 'demo' ? PREVIEW.bannerDemoSuffix : ''}
+            {t.importing.preview.banner(dataset)}
+            {dataset === 'demo' ? t.importing.preview.bannerDemoSuffix : ''}
           </span>
         </div>
       </AlertDialogDescription>
 
       <DiffPanel diff={diff} dimmed={pending} />
-      <div className="mt-3.5 text-[13px] leading-normal">{resultLine(diff.after)}</div>
+      <div className="mt-3.5 text-[13px] leading-normal">
+        {resultLine(diff.after, t)}
+      </div>
 
       {diff.warnings.length > 0 && (
         <>
           <div className="text-muted mt-4 mb-2 text-[10px] tracking-[.12em] uppercase">
-            {PREVIEW.warningsLabel}
+            {t.importing.preview.warningsLabel}
           </div>
           {/* One warn-tint block: a list of cautions reads as one object. Every
               warning is non-blocking — the confirm stays enabled. */}
           <div className="bg-warn-tint text-warn-tint-text animate-in fade-in slide-in-from-top-1 flex flex-col gap-2 rounded-2xl px-3.5 py-3 duration-300">
             {diff.warnings.map((w) => (
-              <div key={w.code} className="flex items-start gap-2 text-xs leading-normal">
+              <div
+                key={w.code}
+                className="flex items-start gap-2 text-xs leading-normal"
+              >
                 <span className="flex-none font-bold">!</span>
-                <span>{warningSentence(w, dataset, f)}</span>
+                <span>{warningSentence(w, dataset, f, t)}</span>
               </div>
             ))}
           </div>
@@ -228,29 +254,37 @@ function Preview({
             className="accent-ink border-panel-border bg-page mt-px size-4 flex-none rounded-[5px] transition active:scale-[.97]"
           />
           <span className="flex-1">
-            <span className="block text-[13px]">{PREVIEW.settingsOptIn}</span>
+            <span className="block text-[13px]">
+              {t.importing.preview.settingsOptIn}
+            </span>
             <span className="text-muted mt-[3px] block text-[11px] leading-relaxed">
-              {settingsOptInHelper(envelope.settings)}
+              {settingsOptInHelper(envelope.settings, f, t)}
             </span>
           </span>
         </label>
       ) : (
         // Never a disabled checkbox: there is nothing to opt into.
-        <div className="text-muted mt-4 text-[11px]">{PREVIEW.noSettings}</div>
+        <div className="text-muted mt-4 text-[11px]">
+          {t.importing.preview.noSettings}
+        </div>
       )}
 
       <div className="text-muted mt-3.5 flex items-start gap-2 text-[11px] leading-relaxed">
         <Download size={13} strokeWidth={2.5} className="mt-[3px] flex-none" />
         <span className="[overflow-wrap:anywhere]">
-          {safetyBackupLine(dataset, safetyName, backedUp)}
+          {safetyBackupLine(dataset, safetyName, backedUp, t)}
         </span>
       </div>
 
       {/* At 360px the buttons stack full width with the destructive one LAST. */}
       <div className="mt-4 flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
         <AlertDialogCancel asChild>
-          <Button variant="ghost" disabled={pending} className="@max-[419px]:w-full">
-            {PREVIEW.cancel}
+          <Button
+            variant="ghost"
+            disabled={pending}
+            className="@max-[419px]:w-full"
+          >
+            {t.importing.preview.cancel}
           </Button>
         </AlertDialogCancel>
         <Button
@@ -271,7 +305,11 @@ function Preview({
                 : 'animate-in fade-in duration-200'
             }
           >
-            {pending ? (waiting ? PREVIEW.waiting : PREVIEW.pending) : PREVIEW.confirm}
+            {pending
+              ? waiting
+                ? t.importing.preview.waiting
+                : t.importing.preview.pending
+              : t.importing.preview.confirm}
           </span>
         </Button>
       </div>
@@ -279,11 +317,15 @@ function Preview({
   );
 }
 
-const DIFF_ROWS = [
-  ['assets', PREVIEW.rows.assets],
-  ['snapshots', PREVIEW.rows.snapshots],
-  ['transactions', PREVIEW.rows.transactions],
-] as const;
+// The row ORDER is a design decision and stays here; the labels come from the
+// dictionary.
+function diffRows(t: Dict) {
+  return [
+    ['assets', t.importing.preview.rowAssets],
+    ['snapshots', t.importing.preview.rowSnapshots],
+    ['transactions', t.importing.preview.rowTransactions],
+  ] as const;
+}
 
 // The one DASHED element of the phase (P3's rule: dashed = proposed, and this
 // is data that is not written yet — "Replace all data" is the press that
@@ -291,6 +333,7 @@ const DIFF_ROWS = [
 // table's cells join the parent grid through `display:contents`; below that
 // each table is its own block with the column words as micro-labels.
 function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
+  const t = useT();
   return (
     <div
       className={`border-faint rounded-2xl border border-dashed px-4 py-3.5 transition-opacity ${
@@ -298,13 +341,17 @@ function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
       }`}
     >
       <div className="text-muted mb-2.5 text-[10px] tracking-[.12em] uppercase">
-        {PREVIEW.diffLabel}
+        {t.importing.preview.diffLabel}
       </div>
       <div className="flex flex-col gap-2.5 text-[12.5px] @min-[420px]:grid @min-[420px]:grid-cols-[1fr_auto_auto_auto] @min-[420px]:items-center @min-[420px]:gap-x-3.5 @min-[420px]:gap-y-1">
         <div className="text-muted hidden text-[10px] tracking-[.08em] uppercase @min-[420px]:block">
-          {PREVIEW.columns.table}
+          {t.importing.preview.colTable}
         </div>
-        {[PREVIEW.columns.added, PREVIEW.columns.replaced, PREVIEW.columns.removed].map((c) => (
+        {[
+          t.importing.preview.colAdded,
+          t.importing.preview.colReplaced,
+          t.importing.preview.colRemoved,
+        ].map((c) => (
           <div
             key={c}
             className="text-muted hidden text-right text-[10px] tracking-[.08em] uppercase @min-[420px]:block"
@@ -312,7 +359,7 @@ function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
             {c}
           </div>
         ))}
-        {DIFF_ROWS.map(([key, label], index) => (
+        {diffRows(t).map(([key, label], index) => (
           <DiffRow key={key} label={label} counts={diff[key]} index={index} />
         ))}
       </div>
@@ -323,7 +370,16 @@ function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
 // A `display:contents` box paints neither border nor padding, so the narrow
 // layout's separator rule is inert at wide widths without an override — the
 // cells carry their own top rule there instead.
-function DiffRow({ label, counts, index }: { label: string; counts: TableDiff; index: number }) {
+function DiffRow({
+  label,
+  counts,
+  index,
+}: {
+  label: string;
+  counts: TableDiff;
+  index: number;
+}) {
+  const t = useT();
   const cell = 'border-hairline @min-[420px]:border-t @min-[420px]:pt-2';
   return (
     <div
@@ -333,15 +389,28 @@ function DiffRow({ label, counts, index }: { label: string; counts: TableDiff; i
         index === 0 ? '' : 'border-hairline border-t pt-2'
       }`}
     >
-      <div className={`font-semibold @min-[420px]:font-normal ${cell}`}>{label}</div>
+      <div className={`font-semibold @min-[420px]:font-normal ${cell}`}>
+        {label}
+      </div>
       <div className="mt-0.5 flex gap-3.5 @min-[420px]:contents">
-        <Count value={counts.added} tone="pos" sign label={PREVIEW.columns.added} cell={cell} />
-        <Count value={counts.replaced} tone="warn" label={PREVIEW.columns.replaced} cell={cell} />
+        <Count
+          value={counts.added}
+          tone="pos"
+          sign
+          label={t.importing.preview.colAdded}
+          cell={cell}
+        />
+        <Count
+          value={counts.replaced}
+          tone="warn"
+          label={t.importing.preview.colReplaced}
+          cell={cell}
+        />
         <Count
           value={counts.removed}
           tone="neg"
           negative
-          label={PREVIEW.columns.removed}
+          label={t.importing.preview.colRemoved}
           cell={cell}
         />
       </div>
@@ -351,7 +420,11 @@ function DiffRow({ label, counts, index }: { label: string; counts: TableDiff; i
 
 // Raw accents, never tinted pills — the tint families keep meaning "block",
 // not "number". A zero is muted with no accent at all.
-const TONE = { pos: 'text-pos font-bold', warn: 'text-warn font-bold', neg: 'text-neg font-bold' };
+const TONE = {
+  pos: 'text-pos font-bold',
+  warn: 'text-warn font-bold',
+  neg: 'text-neg font-bold',
+};
 
 function Count({
   value,
@@ -370,7 +443,13 @@ function Count({
 }) {
   const body = String(value);
   const text =
-    value === 0 ? '0' : sign ? signed(value, body) : negative ? signed(-value, body) : body;
+    value === 0
+      ? '0'
+      : sign
+        ? signed(value, body)
+        : negative
+          ? signed(-value, body)
+          : body;
   return (
     <span className={`@min-[420px]:block @min-[420px]:text-right ${cell}`}>
       <span className="text-muted text-[10px] tracking-[.08em] uppercase @min-[420px]:hidden">
@@ -390,22 +469,27 @@ function Report({
   attempt: Extract<ImportAttempt, { kind: 'report' }>;
   onChooseAnother: () => void;
 }) {
+  const t = useT();
   const { name, rejection } = attempt;
   return (
     <>
       <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-1.5 text-lg">{REPORT.title}</h3>
+        <h3 className="mt-0 mb-1.5 text-lg">{t.importing.report.title}</h3>
       </AlertDialogTitle>
-      <div className="text-muted font-body mb-3 text-[11px] [overflow-wrap:anywhere]">{name}</div>
+      <div className="text-muted font-body mb-3 text-[11px] [overflow-wrap:anywhere]">
+        {name}
+      </div>
       <AlertDialogDescription asChild>
-        <p className="text-neg m-0 mb-3.5 text-[13px] leading-normal">{REPORT.lead}</p>
+        <p className="text-neg m-0 mb-3.5 text-[13px] leading-normal">
+          {t.importing.report.lead}
+        </p>
       </AlertDialogDescription>
 
       {rejection.kind === 'format' ? (
         // A format-level rejection is ONE sentence, never a list.
         <div className="animate-in fade-in duration-200">
           <div className="text-[13px] leading-normal">
-            {formatReasonSentence(rejection.code, rejection.version)}
+            {formatReasonSentence(rejection.code, rejection.version, t)}
           </div>
           {/* The ONE place the D12 parser's own sentence appears on screen. */}
           <div className="text-muted font-body mt-1.5 text-[11.5px] [overflow-wrap:anywhere]">
@@ -415,7 +499,7 @@ function Report({
       ) : (
         <>
           <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
-            {problemCount(rejection.total, rejection.issues.length)}
+            {problemCount(rejection.total, rejection.issues.length, t)}
           </div>
           {/* The list scrolls inside its own sub-panel — the page never does.
               Fade only, no stagger: a wall of staggered errors reads as an
@@ -423,25 +507,33 @@ function Report({
           <div className="bg-panel animate-in fade-in max-h-[200px] overflow-y-auto rounded-2xl px-3.5 py-3 duration-200">
             <div className="font-body text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
               {rejection.issues.map((issue, i) => (
-                <div key={`${issue.table}-${issue.at ?? i}-${issue.field ?? ''}-${i}`}>
-                  {issueLine(issue)}
+                <div
+                  key={`${issue.table}-${issue.at ?? i}-${issue.field ?? ''}-${i}`}
+                >
+                  {issueLine(issue, t)}
                 </div>
               ))}
             </div>
           </div>
-          <div className="text-muted mt-2.5 text-xs leading-relaxed">{REPORT.hint}</div>
+          <div className="text-muted mt-2.5 text-xs leading-relaxed">
+            {t.importing.report.hint}
+          </div>
         </>
       )}
 
       <div className="mt-4 flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
         <AlertDialogCancel asChild>
           <Button variant="ghost" className="@max-[419px]:w-full">
-            {REPORT.close}
+            {t.importing.report.close}
           </Button>
         </AlertDialogCancel>
         {/* Re-opens the file dialog directly — never a dead end. */}
-        <Button variant="outline" className="@max-[419px]:w-full" onClick={onChooseAnother}>
-          {REPORT.another}
+        <Button
+          variant="outline"
+          className="@max-[419px]:w-full"
+          onClick={onChooseAnother}
+        >
+          {t.importing.report.another}
         </Button>
       </div>
     </>

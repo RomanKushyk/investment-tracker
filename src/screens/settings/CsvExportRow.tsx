@@ -24,36 +24,33 @@ import { todayIso } from '../../core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { saveTextFile } from '../../lib/download';
 import type { AllTables } from '../../lib/repository';
+import { useT } from '../../i18n/useT';
 
 const CSV_MIME = 'text/csv';
 
-const CSV_ROW = {
-  title: 'Spreadsheet export (CSV)',
-  helper:
-    'One file per table, ready for a spreadsheet. Snapshots export wide — one row per date, one column per asset; an empty cell means no quote was saved that day, never zero.',
-  formatNote:
-    "Machine format: dot decimals, comma separators, UTF-8, CRLF. The app's own 68 702,10 display formatting never goes into a file.",
-  columnNote:
-    'Snapshot columns are named "Asset name (id)" — the id in brackets names the asset unambiguously when two funds share a name.',
-  failed: 'Could not build the CSV — please try again.',
-} as const;
+// Copy lives in the dictionary (t.csv).
 
 /** Pinned order, pinned file names (`quirenote-<table>-<date>.csv`). */
 const TABLES = [
-  { key: 'assets', label: 'Assets', build: (t: AllTables) => serializeAssetsCsv(t.assets) },
+  {
+    key: 'assets',
+    labelKey: 'assets' as const,
+    build: (t: AllTables) => serializeAssetsCsv(t.assets),
+  },
   {
     key: 'snapshots',
-    label: 'Snapshots',
+    labelKey: 'snapshots' as const,
     build: (t: AllTables) => serializeSnapshotsCsv(t.snapshots, t.assets),
   },
   {
     key: 'transactions',
-    label: 'Transactions',
+    labelKey: 'transactions' as const,
     build: (t: AllTables) => serializeTransactionsCsv(t.transactions),
   },
 ] as const;
 
 export function CsvExportRow() {
+  const t = useT();
   const exportAll = useExportAll();
   const [building, setBuilding] = useState<string | null>(null);
 
@@ -63,11 +60,15 @@ export function CsvExportRow() {
       // Read fresh at click time (a mutation, not a cached query) — an export
       // must reflect the DB now, exactly like the JSON backup.
       const tables = await exportAll.mutateAsync();
-      await saveTextFile(`quirenote-${table.key}-${todayIso()}.csv`, table.build(tables), {
-        mime: CSV_MIME,
-      });
+      await saveTextFile(
+        `quirenote-${table.key}-${todayIso()}.csv`,
+        table.build(tables),
+        {
+          mime: CSV_MIME,
+        },
+      );
     } catch {
-      toast.error(CSV_ROW.failed);
+      toast.error(t.csv.failed);
     } finally {
       setBuilding(null);
     }
@@ -77,8 +78,10 @@ export function CsvExportRow() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-[min(200px,100%)] flex-[1_1_260px]">
-          <div className="text-[13px] font-semibold">{CSV_ROW.title}</div>
-          <div className="text-muted mt-[3px] text-xs leading-normal">{CSV_ROW.helper}</div>
+          <div className="text-[13px] font-semibold">{t.csv.title}</div>
+          <div className="text-muted mt-[3px] text-xs leading-normal">
+            {t.csv.helper}
+          </div>
         </div>
         {/* Wraps to its own line under the label block when the row narrows,
             and stacks full width at 360px. */}
@@ -92,13 +95,17 @@ export function CsvExportRow() {
               onClick={() => void run(table)}
             >
               <Download size={13} strokeWidth={2.75} />
-              {table.label}
+              {t.csv[table.labelKey]}
             </Button>
           ))}
         </div>
       </div>
-      <div className="text-muted mt-2.5 text-[11px] leading-relaxed">{CSV_ROW.formatNote}</div>
-      <div className="text-muted mt-0.5 text-[11px] leading-relaxed">{CSV_ROW.columnNote}</div>
+      <div className="text-muted mt-2.5 text-[11px] leading-relaxed">
+        {t.csv.formatNote}
+      </div>
+      <div className="text-muted mt-0.5 text-[11px] leading-relaxed">
+        {t.csv.columnNote}
+      </div>
     </div>
   );
 }

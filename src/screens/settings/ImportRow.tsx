@@ -12,19 +12,25 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
-import { classifyImportFiles, diffBackup, validateImport } from '../../core/backup/import';
+import {
+  classifyImportFiles,
+  diffBackup,
+  validateImport,
+} from '../../core/backup/import';
 import { todayIso } from '../../core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { dbVersion } from '../../lib/repository';
 import { useDataset } from '../../state/settings';
-import { FILE_REJECTION, IMPORT_ROW, IMPORT_TOASTS } from './import-labels';
+import { fileRejection, importToasts } from './import-labels';
 import { ImportDialog, type ImportAttempt } from './ImportDialog';
 import type { FileRejectionCode } from '../../core/backup/import';
+import { useT } from '../../i18n/useT';
 
 /** A file-level rejection is transient — it clears on the next attempt too. */
 const REJECTION_MS = 5000;
 
 export function ImportRow() {
+  const t = useT();
   const dataset = useDataset();
   const exportAll = useExportAll();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +51,9 @@ export function ImportRow() {
 
   async function handleFiles(files: File[]) {
     setRejection(null);
-    const classified = classifyImportFiles(files.map((f) => ({ name: f.name, size: f.size })));
+    const classified = classifyImportFiles(
+      files.map((f) => ({ name: f.name, size: f.size })),
+    );
     if (!classified.ok) {
       setRejection(classified.code);
       return;
@@ -72,12 +80,16 @@ export function ImportRow() {
                 dbVersion,
               }),
             }
-          : { kind: 'report', name: file.name, rejection: validation.rejection },
+          : {
+              kind: 'report',
+              name: file.name,
+              rejection: validation.rejection,
+            },
       );
       setSession((s) => s + 1);
       setOpen(true);
     } catch {
-      toast.error(IMPORT_TOASTS.failed);
+      toast.error(importToasts(t).failed);
     } finally {
       setReading(null);
     }
@@ -93,13 +105,13 @@ export function ImportRow() {
 
   return (
     <div>
-      <div className="text-[13px] font-semibold">{IMPORT_ROW.title}</div>
+      <div className="text-[13px] font-semibold">{t.importing.row.title}</div>
       <div className="text-muted mt-[3px] max-w-[520px] text-xs leading-normal">
-        {IMPORT_ROW.helper}
+        {t.importing.row.helper}
       </div>
       {dataset === 'demo' && (
         <div className="text-muted mt-1.5 max-w-[520px] text-[11px] leading-relaxed">
-          {IMPORT_ROW.demoNote}
+          {t.importing.row.demoNote}
         </div>
       )}
 
@@ -113,7 +125,8 @@ export function ImportRow() {
           if (!busy) setDragOver(true);
         }}
         onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+            setDragOver(false);
         }}
         onDrop={(e) => {
           // Without this the browser navigates the tab to the dropped file.
@@ -122,15 +135,21 @@ export function ImportRow() {
           if (!busy) void handleFiles(Array.from(e.dataTransfer.files));
         }}
         className={`mt-3 flex flex-col items-center gap-1.5 rounded-2xl border p-5 text-center transition duration-150 max-sm:p-4 ${
-          dragOver ? 'border-ink bg-hairline' : 'bg-panel border-panel-border hover:border-faint'
+          dragOver
+            ? 'border-ink bg-hairline'
+            : 'bg-panel border-panel-border hover:border-faint'
         }`}
       >
         {busy ? (
           <>
-            <FileText size={16} strokeWidth={2.25} className="text-muted opacity-75" />
+            <FileText
+              size={16}
+              strokeWidth={2.25}
+              className="text-muted opacity-75"
+            />
             {/* Long names truncate in the MIDDLE and the line never wraps. */}
-            <div className="animate-pulse [animation-duration:1.2s] max-w-full truncate text-[13px] opacity-70">
-              {IMPORT_ROW.reading(middleTruncate(reading))}
+            <div className="max-w-full animate-pulse truncate text-[13px] opacity-70 [animation-duration:1.2s]">
+              {t.importing.row.reading(middleTruncate(reading))}
             </div>
           </>
         ) : (
@@ -140,10 +159,14 @@ export function ImportRow() {
               strokeWidth={2.25}
               className={dragOver ? 'text-ink' : 'text-muted'}
             />
-            <div className={`text-[13px] leading-snug ${dragOver ? 'font-semibold' : ''}`}>
-              {dragOver ? IMPORT_ROW.dragLine : IMPORT_ROW.dropLine}
+            <div
+              className={`text-[13px] leading-snug ${dragOver ? 'font-semibold' : ''}`}
+            >
+              {dragOver ? t.importing.row.dragLine : t.importing.row.dropLine}
             </div>
-            <div className="text-muted text-[11px]">{IMPORT_ROW.dropHint}</div>
+            <div className="text-muted text-[11px]">
+              {t.importing.row.dropHint}
+            </div>
           </>
         )}
         {/* Auto width per the reference; only the 360px drawing caps it at a
@@ -154,7 +177,7 @@ export function ImportRow() {
           disabled={busy}
           onClick={pick}
         >
-          {IMPORT_ROW.choose}
+          {t.importing.row.choose}
         </Button>
         {/* Label-bound file field: keyboard users never meet the drag path.
             `.json` only — CSV is export-only (D29). */}
@@ -176,7 +199,7 @@ export function ImportRow() {
           role="status"
           className="text-warn animate-in fade-in slide-in-from-top-1 mt-2 text-xs leading-normal duration-200"
         >
-          {FILE_REJECTION[rejection]}
+          {fileRejection(rejection, t)}
         </div>
       )}
 

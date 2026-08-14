@@ -19,7 +19,8 @@ function leaves(node: Node, prefix = ''): Map<string, Node> {
     return out;
   }
   for (const [k, v] of Object.entries(node)) {
-    for (const [key, val] of leaves(v as Node, prefix ? `${prefix}.${k}` : k)) out.set(key, val);
+    for (const [key, val] of leaves(v as Node, prefix ? `${prefix}.${k}` : k))
+      out.set(key, val);
   }
   return out;
 }
@@ -73,12 +74,36 @@ describe('the dictionaries', () => {
       if (typeof value !== 'function') continue;
       const ukFn = UK.get(key);
       expect(typeof ukFn, key).toBe('function');
-      const args = Array.from({ length: value.length }, (_, i) => `«${i}»`) as never[];
-      const enOut = (value as (...a: never[]) => string)(...args);
-      const ukOut = (ukFn as (...a: never[]) => string)(...args);
-      for (let i = 0; i < args.length; i++) {
-        expect(enOut, `${key} — English drops «${i}»`).toContain(`«${i}»`);
-        expect(ukOut, `${key} — Ukrainian drops «${i}»`).toContain(`«${i}»`);
+      // Marker arguments, tried as plain strings first and then wrapped in
+      // arrays: `warning.rowsRemoved` takes a string[] and joins it, so a bare
+      // string argument throws rather than producing a probeable sentence.
+      const call = (fn: unknown, wrap: boolean) => {
+        const args = Array.from({ length: value.length }, (_, i) =>
+          wrap ? [`«${i}»`] : `«${i}»`,
+        ) as never[];
+        return (fn as (...a: never[]) => string)(...args);
+      };
+      let wrap = false;
+      let enOut: string;
+      try {
+        enOut = call(value, false);
+      } catch {
+        wrap = true;
+        enOut = call(value, true);
+      }
+      const ukOut = call(ukFn, wrap);
+      for (let i = 0; i < value.length; i++) {
+        // The rule is "the translation must not drop what the original keeps",
+        // NOT "every argument must appear". Some of these strings branch —
+        // `problemCount` only mentions its second argument when fewer rows are
+        // shown than found — and with marker arguments the comparison that
+        // picks the branch is false. Demanding both markers unconditionally
+        // would fail a correct pair.
+        if (!enOut.includes(`«${i}»`)) continue;
+        expect(
+          ukOut,
+          `${key} — Ukrainian drops «${i}» that English keeps`,
+        ).toContain(`«${i}»`);
       }
     }
   });
@@ -90,7 +115,8 @@ describe('the dictionaries', () => {
     // without needing a hand-maintained list. Short tokens are not evidence
     // either way, and SHARED covers the ones that are deliberately identical.
     for (const [key, value] of UK) {
-      if (typeof value !== 'string' || SHARED.has(key) || value.length < 8) continue;
+      if (typeof value !== 'string' || SHARED.has(key) || value.length < 8)
+        continue;
       if (!/[A-Za-z]/.test(value)) continue;
       expect(/[а-яіїєґА-ЯІЇЄҐ]/.test(value), `${key}: ${value}`).toBe(true);
     }

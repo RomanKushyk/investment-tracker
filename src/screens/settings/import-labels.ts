@@ -1,7 +1,12 @@
-// English copy for the import surfaces (S2 file rejections, S3 preview + diff
-// warnings, S4 problem list). The pure modules return codes + params (D8);
-// every sentence below is the brief's verbatim copy, and this file is what
-// Phase 5's i18n sweep translates.
+// Sentence ASSEMBLY for the import surfaces. The words themselves live in the
+// dictionary (t.importing) — the pure modules return codes + params (D8), this
+// file turns a code into the right dictionary call, and the dictionary turns
+// that into a sentence in the chosen language.
+//
+// Why the assembly did not move into the dictionary wholesale: mapping a
+// `RowIssue` discriminant onto a message is app logic, not copy, and it is the
+// same mapping in both languages. What DOES differ per language — plural forms,
+// list joiners, verb agreement — is on the dictionary side.
 import type {
   DiffWarning,
   FileRejectionCode,
@@ -9,110 +14,75 @@ import type {
 } from '../../core/backup/import';
 import type { Dataset, RowIssue } from '../../core/backup/json';
 import type { Format } from '../../core/money';
+import type { Dict } from '../../i18n/messages';
 
-// --- S2: file-level rejections (warn, never neg) ---------------------------
-export const FILE_REJECTION: Record<FileRejectionCode, string> = {
-  type: "That file type isn't supported — pick a .json backup.",
-  size: "That file is larger than 25 MB — it doesn't look like a Quirenote export.",
-  count: 'Drop one file at a time.',
-  empty: 'That file is empty.',
-};
+export function fileRejection(code: FileRejectionCode, t: Dict): string {
+  return t.importing.fileRejection[code];
+}
 
-// --- S2: the row itself ----------------------------------------------------
-export const IMPORT_ROW = {
-  title: 'Import',
-  helper:
-    'Restore a JSON backup. Import replaces everything in the active dataset — you review a summary first, and a safety backup downloads automatically.',
-  dropLine: 'Drop a .json file here',
-  dropHint: 'or use Choose file…',
-  dragLine: 'Release to read the file',
-  choose: 'Choose file…',
-  demoNote:
-    'You\'re in the demo dataset — importing here replaces the reference portfolio. "Reset demo data…" brings it back.',
-  reading: (name: string) => `Reading ${name}…`,
-} as const;
-
-// --- S4: format-level rejections (one sentence + one mono detail) ----------
-export function formatReasonSentence(code: FormatRejectionCode, version?: number): string {
+export function formatReasonSentence(
+  code: FormatRejectionCode,
+  version: number | undefined,
+  t: Dict,
+): string {
+  const m = t.importing.formatRejection;
   switch (code) {
     case 'not-json':
-      return "That file isn't valid JSON.";
+      return m.notJson;
     case 'not-a-backup':
-      return 'This isn\'t a Quirenote backup — it has no "quirenote-backup" marker.';
+      return m.notABackup;
     case 'newer-format':
-      return `This backup was written by a newer version of the app (format ${version ?? '?'}). Update the app, or export again from the version that wrote it.`;
+      return m.newerFormat(String(version ?? '?'));
     // A hand-edited or otherwise unreadable version: the sentence above would
     // claim something about a newer app that isn't true.
     case 'unsupported-format':
-      return "This backup's format version isn't one this app can read.";
+      return m.unsupportedFormat;
   }
 }
 
-// --- S4: the row-addressed problem list -----------------------------------
 // Location first, then the reason — the S4 items verbatim
 // (`transactions.tx-0007 — unknown asset id "a-9"`).
-export function issueLine(issue: RowIssue): string {
-  const location = [issue.table, issue.at, issue.code === 'duplicate-key' ? undefined : issue.field]
+export function issueLine(issue: RowIssue, t: Dict): string {
+  const location = [
+    issue.table,
+    issue.at,
+    issue.code === 'duplicate-key' ? undefined : issue.field,
+  ]
     .filter(Boolean)
     .join('.');
-  return `${location} — ${issueReason(issue)}`;
+  return `${location} — ${issueReason(issue, t)}`;
 }
 
-function issueReason(issue: RowIssue): string {
+function issueReason(issue: RowIssue, t: Dict): string {
+  const m = t.importing.issue;
+  const value = issue.value ?? '';
   switch (issue.code) {
     case 'unknown-asset-id':
-      return `unknown asset id "${issue.value ?? ''}"`;
+      return m.unknownAssetId(String(value));
     case 'unknown-quote-asset':
-      return `quote for an unknown asset "${issue.value ?? ''}"`;
+      return m.unknownQuoteAsset(String(value));
     case 'duplicate-key':
       return issue.field === 'date'
-        ? `duplicate date ${issue.value ?? ''} (date is the primary key)`
-        : `duplicate id "${issue.value ?? ''}" (id is the primary key)`;
+        ? m.duplicateDate(String(value))
+        : m.duplicateId(String(value));
     case 'unknown-key':
-      return `unexpected field "${issue.value ?? ''}"`;
+      return m.unknownKey(String(value));
     case 'expected-datetime':
-      return 'expected timezone-less yyyy-MM-ddTHH:mm:ss';
+      return m.expectedDatetime;
     case 'expected-date':
-      return 'expected a yyyy-MM-dd date';
+      return m.expectedDate;
     case 'expected-positive-amount':
-      return 'expected a positive number';
+      return m.expectedPositiveAmount;
     // Last resort: state the validator's own words rather than swallow a
     // reason the user needs in order to fix the file.
     case 'invalid':
-      return issue.detail ?? 'invalid value';
+      return issue.detail ?? m.invalid;
   }
 }
 
-export function problemCount(total: number, shown: number): string {
-  const found = total === 1 ? '1 problem found' : `${total} problems found`;
-  return shown < total ? `${found} — showing the first ${shown}` : found;
+export function problemCount(total: number, shown: number, t: Dict): string {
+  return t.importing.problemCount(total, shown);
 }
-
-export const REPORT = {
-  title: "This file can't be imported",
-  lead: 'Nothing was changed. Fix the file and try again.',
-  hint: 'Rows are checked before anything is written — one bad row stops the whole import.',
-  close: 'Close',
-  another: 'Choose another file…',
-} as const;
-
-// --- S3: the preview dialog ------------------------------------------------
-export const PREVIEW = {
-  title: (dataset: Dataset) => `Import into ${dataset}`,
-  banner: (dataset: Dataset) =>
-    `Replaces everything in the ${dataset} dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.`,
-  bannerDemoSuffix: ' "Reset demo data…" restores the reference portfolio afterwards.',
-  diffLabel: 'What changes',
-  columns: { table: 'Table', added: 'Added', replaced: 'Replaced', removed: 'Removed' },
-  rows: { assets: 'Assets', snapshots: 'Snapshots', transactions: 'Transactions' },
-  warningsLabel: 'Check before you continue',
-  settingsOptIn: 'Also apply the settings saved in this file',
-  noSettings: 'This file carries no settings.',
-  cancel: 'Cancel',
-  confirm: 'Replace all data',
-  pending: 'Replacing…',
-  waiting: 'Waiting for another tab…',
-} as const;
 
 /** "quirenote-backup-2026-08-03.json · exported 03.08.2026 21:14 · from live" */
 export function fileSubline(
@@ -120,71 +90,96 @@ export function fileSubline(
   exportedAt: string,
   dataset: Dataset,
   f: Format,
+  t: Dict,
 ): string {
-  return `${name} · exported ${f.date(exportedAt.slice(0, 10))} ${exportedAt.slice(11, 16)} · from ${dataset}`;
+  return t.importing.fileSubline(
+    name,
+    f.date(exportedAt.slice(0, 10)),
+    exportedAt.slice(11, 16),
+    dataset,
+  );
 }
 
 /** "After import: 4 assets · 173 snapshots · 18 transactions." */
-export function resultLine(after: {
-  assets: number;
-  snapshots: number;
-  transactions: number;
-}): string {
-  return `After import: ${plural(after.assets, 'asset')} · ${plural(after.snapshots, 'snapshot')} · ${plural(after.transactions, 'transaction')}.`;
+export function resultLine(
+  after: { assets: number; snapshots: number; transactions: number },
+  t: Dict,
+): string {
+  const c = t.importing.count;
+  return t.importing.resultLine(
+    c.assets(after.assets),
+    c.snapshots(after.snapshots),
+    c.transactions(after.transactions),
+  );
 }
 
-export function settingsOptInHelper(settings: {
-  currency: 'UAH' | 'USD';
-  usdRate: number;
-}): string {
+export function settingsOptInHelper(
+  settings: { currency: 'UAH' | 'USD'; usdRate: number },
+  f: Format,
+  t: Dict,
+): string {
   const symbol = settings.currency === 'UAH' ? '₴ UAH' : '$ USD';
-  return `Replaces your currency and ₴/$ rate (${symbol} · ${settings.usdRate}). Dataset, automation and reminder preferences are never touched.`;
+  return t.importing.settingsOptInHelper(symbol, f.units(settings.usdRate));
 }
 
-export function safetyBackupLine(dataset: Dataset, name: string, done: boolean): string {
+export function safetyBackupLine(
+  dataset: Dataset,
+  name: string,
+  done: boolean,
+  t: Dict,
+): string {
   return done
-    ? `Safety backup downloaded — ${name}.json.`
-    : `A backup of your current ${dataset} data downloads automatically before anything is replaced — ${name}.json.`;
+    ? t.importing.safetyBackupDone(name)
+    : t.importing.safetyBackupPending(dataset, name);
 }
 
-export function warningSentence(warning: DiffWarning, dataset: Dataset, f: Format): string {
+export function warningSentence(
+  warning: DiffWarning,
+  dataset: Dataset,
+  f: Format,
+  t: Dict,
+): string {
+  const w = t.importing.warning;
   switch (warning.code) {
     // The brief's sentence names snapshots and transactions; assets join it
     // when a file drops some but not all of them — the same fact, stated for
     // whichever tables actually lose rows.
     case 'rows-removed': {
+      const c = t.importing.count;
       const parts = [
-        warning.assets > 0 ? plural(warning.assets, 'asset') : null,
-        warning.snapshots > 0 ? plural(warning.snapshots, 'snapshot') : null,
-        warning.transactions > 0 ? plural(warning.transactions, 'transaction') : null,
-      ].filter((p): p is string => p !== null);
-      const single = parts.length === 1 && parts[0].startsWith('1 ');
-      const subject =
-        parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
-      return single
-        ? `${subject} in ${dataset} is missing from this file — it will be removed.`
-        : `${subject} in ${dataset} are missing from this file — they will be removed.`;
+        warning.assets > 0 ? c.assets(warning.assets) : null,
+        warning.snapshots > 0 ? c.snapshots(warning.snapshots) : null,
+        warning.transactions > 0 ? c.transactions(warning.transactions) : null,
+      ].filter((part): part is string => part !== null);
+      return w.rowsRemoved(parts, dataset);
     }
     case 'no-assets':
-      return 'This file has no assets — the dataset will be empty after import.';
+      return w.noAssets;
     case 'no-snapshots':
-      return `This file has no snapshots — all ${warning.current} saved days in ${dataset} would be removed.`;
+      return w.noSnapshots(warning.current, dataset);
     case 'other-dataset':
-      return `This file was exported from the ${warning.dataset} dataset.`;
+      return w.otherDataset(warning.dataset);
     case 'exported-long-ago':
-      return `Exported ${warning.days} days ago (${f.date(warning.date)}).`;
+      return w.exportedLongAgo(warning.days, f.date(warning.date));
     case 'newer-db-version':
-      return `The file comes from a newer database version (${warning.file} vs ${warning.app}) — fields this app doesn't know are ignored.`;
+      return w.newerDbVersion(String(warning.file), String(warning.app));
   }
 }
 
-export const IMPORT_TOASTS = {
-  success: (after: { assets: number; snapshots: number; transactions: number }) =>
-    `Data imported — ${plural(after.assets, 'asset')}, ${plural(after.snapshots, 'snapshot')}, ${plural(after.transactions, 'transaction')}.`,
-  failed: 'Could not import — nothing was changed.',
-  safetyFailed: 'Could not create the safety backup — nothing was imported.',
-} as const;
-
-function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+export function importToasts(t: Dict) {
+  const c = t.importing.count;
+  return {
+    success: (after: {
+      assets: number;
+      snapshots: number;
+      transactions: number;
+    }) =>
+      t.importing.toast.success(
+        c.assets(after.assets),
+        c.snapshots(after.snapshots),
+        c.transactions(after.transactions),
+      ),
+    failed: t.importing.toast.failed,
+    safetyFailed: t.importing.toast.safetyFailed,
+  };
 }
