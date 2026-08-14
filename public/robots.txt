@@ -1,0 +1,27 @@
+# Quirenote — closed to crawlers on purpose, and temporarily.
+#
+# WHY: the app has no registration flow yet. Until it does (W7 in
+# docs/plans/PLAN-WAITING.md), anything a search engine indexes is a page a
+# visitor cannot act on — and a half-built product is a worse first impression
+# than none. Remove this file when sign-up ships; that is the whole condition.
+#
+# READ THIS BEFORE ADDING `noindex` ANYWHERE:
+# `Disallow` and `noindex` cancel each other out. A crawler forbidden to fetch a
+# page never sees the meta tag or the X-Robots-Tag header on it, so pairing them
+# makes the noindex a no-op. The two instruments do different jobs:
+#
+#   * Disallow  — "do not fetch". Correct here: nothing is indexed yet and the
+#                 domain has no inbound links, so there is nothing to remove.
+#   * noindex   — "you may fetch, but do not list". The ONLY thing that removes
+#                 a URL already in an index — and it requires crawling to be
+#                 ALLOWED, i.e. this file relaxed first.
+#
+# So if a URL ever does turn up in a search result, the fix is not a stricter
+# rule here; it is to allow crawling and serve `X-Robots-Tag: noindex` instead.
+#
+# Cloudflare prepends its content-signals preamble to whatever this file says
+# (D61) — that preamble carries no User-agent and no Disallow of its own, so the
+# rules below are the operative ones.
+
+User-agent: *
+Disallow: /

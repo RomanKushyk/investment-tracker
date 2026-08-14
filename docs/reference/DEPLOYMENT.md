@@ -59,12 +59,23 @@ The distinction is not a preference — it is what each record is for:
 The apex is legal as a CNAME only because Cloudflare flattens it, and the zone's MX
 records for Email Routing keep working beside it.
 
-**Cloudflare now serves a `robots.txt` the build does not contain.** `public/` has
-no such file; proxying the zone made Cloudflare synthesise its content-signals
-preamble at `/robots.txt`. It declares reservations about AI training and search
-input and contains **no `User-agent` or `Disallow` line at all**, so it restricts
-no crawling — production indexing is unaffected. To state real crawl rules, ship
-`public/robots.txt` and it will be served instead.
+**Production is closed to crawlers until sign-up ships.** `public/robots.txt`
+carries `User-agent: * / Disallow: /` — deliberately temporary, and the file says
+so: until W7 gives the app a registration flow, anything indexed is a page a
+visitor cannot act on. Delete the file when sign-up ships.
+
+Proxying the zone also made Cloudflare prepend its **content-signals** preamble to
+whatever that file says: reservations about AI training and search input, with no
+`User-agent` and no `Disallow` of its own, so the shipped rules are the operative
+ones. The SPA rewrite (§1.2) excludes `txt`, so `/robots.txt` is served as a file
+rather than swallowed into `index.html` — worth knowing, because the naive rewrite
+this project rejected would have returned the app's HTML for it.
+
+**Do not pair `Disallow` with `noindex`.** They cancel: a crawler forbidden to
+fetch never sees the header or the meta tag telling it not to list. `Disallow` is
+right here because nothing is indexed yet; if a URL ever does appear in a search
+result, the fix is the opposite of a stricter rule — allow crawling and serve
+`X-Robots-Tag: noindex`, which is the only instrument that removes an entry.
 
 **Two TLS legs, both verified.** The visitor gets Cloudflare's Universal SSL
 certificate (`CN=quirenote.com`, Google Trust Services, auto-renewed); Cloudflare
