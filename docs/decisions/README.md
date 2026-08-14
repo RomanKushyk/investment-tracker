@@ -5,11 +5,10 @@ only for the decision you actually need.
 
 ## Rules
 
-- **Append-only.** New entries go at the bottom of the **highest-numbered file**.
-  That file is `D41-D50.md`, and its NAME is now a fossil: it holds D41–D60,
-  because the rule below said to keep appending until D60 and appending is
-  cheaper than renaming a file that code comments do not cite. **D61 starts
-  `D61-D80.md`** — create it, add it to the table, and leave this one alone.
+- **Append-only.** New entries go at the bottom of the **highest-numbered file**,
+  which is now `D61-D80.md`. Note that `D41-D50.md`'s name is a fossil: it holds
+  D41–D60, because the earlier rule said to append until D60 and renaming a file
+  is not worth it. Start the next file when this one passes D80.
 - **Never rewrite a decision — supersede it.** A wrong entry stays, and a newer
   one says what replaced it and why. `D43` is the worked example: the original
   diagnosis is kept directly under its replacement, labelled, because being
@@ -25,6 +24,7 @@ only for the decision you actually need.
 | [`D01-D20.md`](D01-D20.md) | D1–D20 | v1: stack, persistence, formulas, deploy |
 | [`D21-D40.md`](D21-D40.md) | D21–D40 | The cloud direction: prices, auth, the domain |
 | [`D41-D50.md`](D41-D50.md) | D41–**D60** | The rename, alerting, durability, observations, the FX rate, radii, the theme and language contracts, the prod/dev split |
+| [`D61-D80.md`](D61-D80.md) | D61– | Production hardening and the edge |
 
 ## The ones worth reading before touching anything
 
@@ -114,6 +114,7 @@ only for the decision you actually need.
 | D58 | Formatting follows the language, and the type system cannot see most of it | 2026-08-14 |
 | D59 | Production is a branch, and the domain is what makes that real | 2026-08-14 |
 | D60 | The repository is public, writable by one account, and rewritable by none | 2026-08-14 |
+| D61 | Production sits behind Cloudflare's edge; the records that must not be proxied are named | 2026-08-14 |
 
 ## A pattern these entries kept finding
 

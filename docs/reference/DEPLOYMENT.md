@@ -47,12 +47,26 @@ the standing "no" list. Amplify supports third-party DNS and issues its own ACM
 certificate for free, so the domain adds **no standing AWS charge** — attaching it
 cost nothing and changes no line on the bill.
 
-**Every record is DNS-only — grey cloud, never proxied.** This is the same trap
-the SES DKIM records hit: a proxied CNAME resolves to Cloudflare's own addresses,
-so ACM sees an answer that is not the one it asked for and validation never
-completes. The apex is legal as a CNAME only because Cloudflare flattens it —
-verified against a public resolver, `quirenote.com` answers with CloudFront
-addresses while the zone's MX records for Email Routing keep working beside it.
+**The apex and `www` are PROXIED; everything else is DNS-only** (2026-08-14, D61).
+The distinction is not a preference — it is what each record is for:
+
+| Record | Mode | Why |
+|---|---|---|
+| `@`, `www` | **proxied** | Cloudflare caches the immutable assets and absorbs floods before they become Amplify egress |
+| `_f2385149…` (ACM validation) | dns-only | a proxied CNAME answers with Cloudflare's own addresses, so ACM never sees what it asked for and the certificate stops renewing — the trap the SES DKIM records already hit once |
+| `dev` | dns-only | already closed by basic auth; a second hop buys nothing |
+| DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP; Cloudflare cannot proxy it at all |
+
+The apex is legal as a CNAME only because Cloudflare flattens it, and the zone's MX
+records for Email Routing keep working beside it.
+
+**Two TLS legs, both verified.** The visitor gets Cloudflare's Universal SSL
+certificate (`CN=quirenote.com`, Google Trust Services, auto-renewed); Cloudflare
+reaches CloudFront over the ACM `*.quirenote.com` certificate. The zone's SSL mode is
+**Full (strict)** — it was plain `full` when the proxy went on, which is TLS to the
+origin *without checking its certificate*. On `flexible` the proxy would have spoken
+HTTP to a CloudFront that answers 301-to-HTTPS, and the apex would have served an
+infinite redirect: **check the mode before proxying anything.**
 
 **Two branches, two hosts.** The apex and `www` map to the Amplify branch `main`; `dev`
 maps to the branch `dev`. All three DNS records point at the SAME CloudFront
