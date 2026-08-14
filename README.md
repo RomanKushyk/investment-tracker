@@ -1,8 +1,8 @@
 # Handoff: Quirenote — Investment Portfolio Tracker
 
-[![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml/badge.svg?branch=dev)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml)
+[![Deploy](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml/badge.svg?branch=main)](https://github.com/RomanKushyk/investment-tracker/actions/workflows/deploy-frontend.yml)
 
-**Live:** https://dev.d17m4jf400my6.amplifyapp.com · deploy runbook: [`docs/reference/DEPLOYMENT.md`](docs/reference/DEPLOYMENT.md)
+**Live:** https://quirenote.com — served from `main`. The `dev` branch deploys to `dev.quirenote.com`, which is password-protected on purpose. Deploy runbook: [`docs/reference/DEPLOYMENT.md`](docs/reference/DEPLOYMENT.md)
 
 Implementation package for Claude Code. Recreate the design reference (`Investment Tracker.dc.html`) as a production React SPA using the stack in `package.json` (React 19 + Vite + TypeScript + Tailwind 4).
 

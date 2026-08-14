@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { AssetFormFields } from '../components/forms/AssetForm';
@@ -85,7 +85,11 @@ export function TransactionPanel() {
     defaultValues: assetFormDefaults(f),
   });
 
-  const assetId = form.watch('assetId');
+  // `useWatch`, not `form.watch`: the latter returns a function React Compiler
+  // cannot memoize safely, so it skipped memoizing this whole component and said
+  // so as a lint warning. It also subscribes just this read instead of
+  // re-rendering the form on every field change. Same idiom as AssetForm.
+  const assetId = useWatch({ control: form.control, name: 'assetId' });
   const isNewAsset = assetId === 'new';
 
   // Default the Asset select to the first existing asset once assets load

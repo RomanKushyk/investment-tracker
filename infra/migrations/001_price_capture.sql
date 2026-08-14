@@ -85,3 +85,22 @@ CREATE TABLE IF NOT EXISTS price_capture (
 -- plan.
 CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
   ON price_capture (as_of, requested_at);
+
+-- Added 2026-08-11 by D48, and MISSING FROM THIS FILE until 2026-08-14 — the
+-- handler created it while this reference still described the schema without
+-- it, which is the drift this file exists to prevent.
+--
+-- It leads with `source` because that is what both operational queries filter
+-- on, and neither could use the index above: an index is only usable from its
+-- leading column. Measured before adding it, both queries scanned all 6,628
+-- rows to return 3, at ~730 ms each (`Rows Removed by Filter: 6625`).
+-- `requested_at` is the third key so the streak query's ORDER BY is served by
+-- the same index.
+CREATE INDEX ASYNC IF NOT EXISTS price_capture_source_as_of
+  ON price_capture (source, as_of, requested_at);
+
+-- D48 also found `price_capture_as_of` above to be dead weight: no query leads
+-- with `as_of`. It is left in place deliberately — dropping an index on the
+-- live archive is a schema change on production data, not a doc fix, and the
+-- two indexes together cost nothing at ~365 rows a year. Whoever next changes
+-- this DDL for a real reason should take it with them.
