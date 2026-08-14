@@ -30,8 +30,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A9 | Dark theme | `feat/dark-theme` | L | **done** (2026-08-13) |
 | A10 | Ukrainian | `feat/i18n-uk` | L | **done** (2026-08-14, D58) — shipped as **v1.5.0** |
 | **Section F** | **Phase 6 — the mobile shell** | | | |
-| A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — awaiting the design session |
-| A17 | Mobile shell + record cards | `feat/mobile-shell` | L | design-gated |
+| A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — extension merged 2026-08-14 |
+| A17 | Mobile shell + record cards | `feat/mobile-shell` | L | **unblocked** — `design/extensions/mobile.dc.html` merged 2026-08-14 |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
@@ -624,7 +624,17 @@ workflow back. The old stack never stopped working.
 
 ## A16 — Design brief: mobile — **DONE 2026-08-13**
 
-**Brief:** `docs/design-briefs/phase-6-mobile.md`. Six surfaces, each with the pinned seven parts. **Next step is not code** — it is the design session that turns it into `design/extensions/mobile.dc.html`.
+**Brief:** `docs/design-briefs/phase-6-mobile.md`. Six surfaces, each with the pinned seven parts. **The design session ran 2026-08-14** and `design/extensions/mobile.dc.html` is merged, so **G7 is open and A17 may start.**
+
+**The four questions the brief delegated, answered in the extension's header:**
+- **S4** — a **sticky action bar** below the breakpoint, not scroll-into-view. `Save snapshot` sits below all four rows, so scrolling the focused row clear never lifts it out from under the keyboard; the user would have to dismiss the keyboard to reach the control that ends the ritual.
+- **S6** — **tap to pin**. On four of the five charts the per-point value lives only in a hover tooltip, and hover does not exist on touch. Seasonality is exempt: it already draws its values on the bars.
+- **S5** — the **date picker stops anchoring** below the breakpoint and becomes a centred sheet. Seven columns at 312 px give 44.6 px cells without touching the drawn day box.
+- **S5** — the **Dialog keeps its own overlay**. In light it and `--color-scrim` agree to within 5% of alpha; in dark they must not be unified, because the Dialog's overlay is `sidebar`-based precisely because it is an inverted plane in both themes (D57).
+
+**And one finding the session could not have had before D57/D61 shipped.** `--color-scrim` works in light exactly as the brief computed (5.23:1, reproducing its ~5.2). In **dark** it cannot work at all: the drawer is *darker* than the page, so a darkening scrim moves the background toward it and the boundary falls to **1.02:1**. `--color-surface-edge` (D61) is not enough either at 1.50:1. The drawer takes a **`sidebar-muted` edge at 5.51:1** in dark, and none in light. Measured, not asserted.
+
+**A scroll artifact was caught and specified out.** The Dialog scrolls with `overflow-y-auto` on the panel, so the platform draws a full-height square-cornered track inside a `rounded-3xl` panel. Every scrolling overlay moves to the Radix `ScrollArea` primitive (present in `radix-ui` 1.6.7, unused anywhere today) with shadcn's proportions — 10 px bar, 1 px padding, 8 px thumb — and **not** its `rounded-full`: D56 recomputes that to `round(8 × 0.26)` = 2. Thumb colour is `muted`, the only candidate that clears 3:1 on `card` in both themes (3.46 light, 6.04 dark).
 
 **Owner decisions taken 2026-08-13:** full parity (the four tables become cards, nothing is desktop-only); the sidebar hides and shows by a button and **the drawer IS the sidebar**, not a second navigation; the header bar carries `Total capital` whenever the sidebar is off screen; and touch targets grow by **hit area, not geometry**.
 

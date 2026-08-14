@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces, not the master reference's. D54/D55 replaced Space Grotesk
+     + Spline Sans Mono on 2026-08-12 because neither carries a single Cyrillic
+     glyph, and this file measures Ukrainian (G-5). Drawing phase 6 in the old
+     pair would measure widths the app no longer renders. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/mobile.dc.html — Phase 6 design reference (G7 / D14)
+
+  Surfaces: S1 the sidebar, collapsible · S2 the header bar · S3 the record
+  card · S4 daily quotes on a phone · S5 overlays on a phone · S6 charts
+  without a pointer.
+
+  Brief (copy/behaviour authority): docs/design-briefs/phase-6-mobile.md
+  Visual authority once merged: THIS file (D14 precedence).
+
+  Every surface is drawn at 360 px AND at 768 px; the drawer is drawn open and
+  closed; the keyboard-open state of `/` is drawn. Nothing here is estimated —
+  every width claim is either measured in the brief or computed from the
+  0.6 em advance of JetBrains Mono (G-5), and every contrast figure below was
+  recomputed from the hexes with WCAG relative luminance before drawing.
+
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  ★ THIS FILE MINTS --color-scrim, AND FINDS THAT ITS DARK VALUE CANNOT    ★
+  ★ CARRY THE DRAWER'S BOUNDARY.                                          ★
+  ★                                                                        ★
+  ★   --color-scrim  light  rgba(38, 38, 42, .45)   ink at 45%            ★
+  ★                  dark   rgba(15, 15, 17, .55)   sidebar at 55%        ★
+  ★                                                                        ★
+  ★ LIGHT reproduces the brief exactly. ink 45% over page #f6f5f3         ★
+  ★ composites to #989899; the drawer's own #26262a against it is         ★
+  ★ 5.23 : 1 — the brief said ~5.2, and 3 : 1 is what WCAG 1.4.11 asks of ★
+  ★ a non-text boundary. No edge is needed in light: the scrim IS the      ★
+  ★ separation.                                                           ★
+  ★                                                                        ★
+  ★ DARK IS THE FAILURE MODE THE BRIEF WARNED ABOUT, AND IT ARRIVES       ★
+  ★ WITHOUT ANYONE MOVING THE ALPHA. In dark the drawer (`sidebar`        ★
+  ★ #0f0f11) is DARKER than the page (#141416) — D57 made it so on        ★
+  ★ purpose. Any darkening scrim therefore moves the background TOWARDS   ★
+  ★ the drawer instead of away from it:                                   ★
+  ★                                                                        ★
+  ★   scrim  = sidebar 55% over page   -> #111113                         ★
+  ★   drawer #0f0f11 vs that scrim     -> 1.02 : 1     invisible          ★
+  ★                                                                        ★
+  ★ An ink-based scrim is worse, not better: `ink` inverts to #eceae7, so ★
+  ★ ink 45% over the dark page is #757474 — a grey WASH over the app,     ★
+  ★ which is the same mistake D57 records for the Dialog overlay.         ★
+  ★                                                                        ★
+  ★ SO THE DRAWER TAKES AN EDGE IN DARK, AND surface-edge IS NOT ENOUGH.  ★
+  ★ Measured against the #111113 scrim:                                   ★
+  ★                                                                        ★
+  ★   hairline      #2a2a2e   1.32 : 1   fail                             ★
+  ★   panel-border  #33333a   1.50 : 1   fail  <- this is --color-surface- ★
+  ★   surface-edge  #33333a   1.50 : 1   fail     edge (D61); not enough  ★
+  ★   faint         #6e6d6a   3.65 : 1   pass  (the floor)                ★
+  ★   sidebar-muted #8b8a90   5.51 : 1   PASS  <- CHOSEN                  ★
+  ★                                                                        ★
+  ★ `sidebar-muted` is chosen over `faint` because it belongs to the       ★
+  ★ drawer's own family and clears the bar with room, and over the         ★
+  ★ brighter options because a 10 : 1 rule line would read as a stroke     ★
+  ★ rather than an edge. IN LIGHT THE DRAWER DRAWS NO EDGE AT ALL — the    ★
+  ★ scrim already separates it, and an outline there is decoration.        ★
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  THE FOUR OWNER DECISIONS (2026-08-13) THAT SET THE SHAPE
+  1. FULL PARITY — all ten routes are first-class on a phone; the four tables
+     become cards. Nothing is deferred to "open this on a desktop".
+  2. THE DRAWER *IS* THE SIDEBAR — one <aside>, one set of radii, one
+     composition, laid out two ways. Not a second navigation.
+  3. THE HEADER CARRIES THE CAPITAL, because hiding the sidebar would
+     otherwise hide the number the app is opened for.
+  4. TOUCH TARGETS GROW BY HIT AREA, NOT GEOMETRY — the decision that
+     protects D56 (see the radius block below).
+
+  THE FOUR DECISIONS THIS SESSION TAKES, which the brief delegated
+  D-a (S4) A STICKY ACTION BAR below the breakpoint, not scroll-into-view.
+          Scrolling the focused row clear does not help: `Save snapshot` and
+          `Copy yesterday` sit BELOW all four rows, so they stay under the
+          keyboard however the row is scrolled. The bar is what makes the
+          ritual completable without dismissing the keyboard first. Drawn.
+  D-b (S6) TAP TO PIN. The tooltip is the only place a per-point value lives
+          on four of the five charts, and hover does not exist. A tap pins it;
+          a second tap, or a tap outside, releases. Resting and pinned drawn.
+  D-c (S5) THE DATE PICKER STOPS ANCHORING below the breakpoint and becomes a
+          centred sheet. A seven-column grid anchored to a right-aligned field
+          cannot stay inside 360 px — collision handling that only flips or
+          shifts is answering a question the width has already lost.
+  D-d (S5) THE DIALOG KEEPS ITS OWN OVERLAY. In light the two agree to within
+          5% of alpha and could be unified; in DARK they must not be, and that
+          is decisive. The Dialog's overlay is `sidebar`-based BECAUSE it is an
+          inverted plane in both themes (D57), which is exactly the property
+          --color-scrim's light value does not have. One veil token would have
+          to pick one theme to be wrong in.
+
+  RADII — D56 IS UNCHANGED, AND EXACTLY TWO VALUES ARE RECOMPUTED
+  r = round(min(w, h) x 0.26), keyed to the short side. Below the breakpoint:
+    quote input   36 -> 44   r = round(44 x 0.26) = round(11.44) = 11
+    Button `md`   40 -> 44   r = round(44 x 0.26) = round(11.44) = 11
+  Nothing else changes size, so nothing else moves. Sizes `header` (36) and
+  `sm` (30) keep their 9 and 8 — `header` is 36 precisely so it pairs with the
+  36 px Date field, and moving one without the other breaks the pairing. Both
+  reach 44 px by hit area.
+  The concentric chain in the drawer is untouched and all three terms are
+  pinned: lockup plate 14, sidebar padding 16, shell rounded-r 30 (14 + 16).
+  TWO FULL-BLEED BARS TAKE SQUARE CORNERS — the header (S2) and the sticky
+  action bar (S4). The proportional rule is for a standalone control keyed to
+  a designed short side; a bar whose long side runs edge to edge has no such
+  side, and 0.26 x 56 = 15 would be a radius derived from a layout dimension.
+  Their boundary is a `hairline`, not a curve.
+
+  WHAT IS DRAWN, AND WHAT IS NOT
+  Drawn: every state the brief's matrices mark as changed by the phone, plus
+  every state it names as an acceptance item. NOT redrawn: states the brief
+  marks "unchanged" — the fetch button's five states, provenance chips, the
+  suggestion language (daily-quotes-live.dc.html), the import dialog's
+  contents (import-dialog.dc.html), the settings cards (settings.dc.html).
+  Those references stay binding and this file does not restate them.
+
+  NO D5-PINNED FIGURE MOVES. Every number drawn below is the demo seed as the
+  shipped app renders it in Ukrainian: 149 016,36 ₴ · +4 452,61 ₴ · +3,08 % ·
+  68 702,10 · 60 086,09 · 15 846,30 · 4 374,12 — verified against production
+  on 2026-08-14, not retyped from the brief.
+═══════════════════════════════════════════════════════════════════════════ -->
+
+<div style="max-width:1200px;margin:0 auto;padding:28px 20px 80px">
+
+<h1 style="margin:0 0 6px;font-size:26px">Phase 6 — the mobile shell</h1>
+<p style="margin:0 0 4px;font-size:13px;color:#8b8a86">design/extensions/mobile.dc.html · reference for S1–S6 · drawn at 360 and 768</p>
+<p style="margin:0 0 26px;font-size:12.5px;color:#8b8a86">Brief: docs/design-briefs/phase-6-mobile.md · shape: D56 · tokens: src/index.css · dark: D57 · surface edge: D61</p>
+
+<!-- ────────────────────────────────────────────────────────────────────
+     LEGEND — the annotation vocabulary, identical to the phase 2–5 files
+     ──────────────────────────────────────────────────────────────────── -->
+<div style="border:1px solid #dedcd8;background:#eceae7;border-radius:16px;padding:18px 20px;margin-bottom:34px">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">How to read this file</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px">
+    <span style="display:inline-block;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 8px;color:#8b8a86">dashed chip = spec annotation, never UI</span>
+    <span style="display:inline-block;border:1px solid #dedcd8;background:#ffffff;border-radius:5px;padding:2px 8px">solid box = the drawn surface</span>
+    <span style="display:inline-block;background:#f4e3cd;color:#7a5b2a;border-radius:5px;padding:2px 8px;font-weight:700">measured</span>
+    <span style="display:inline-block;background:#e3eadf;color:#3f5c37;border-radius:5px;padding:2px 8px;font-weight:700">computed</span>
+  </div>
+  <p style="margin:12px 0 0;font-size:12.5px;line-height:1.6;color:#26262a">
+    Phone frames are <strong>360 × 740</strong>, the brief's measured viewport. Tablet frames are <strong>768</strong> wide,
+    the breakpoint itself, drawn to show the desktop shell at its narrowest legal width. Motion is specified in
+    HTML comments beside each surface, per the file idiom — nothing here runs.
+  </p>
+</div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S1 — THE SIDEBAR, COLLAPSIBLE
+
+  One <aside>, two layouts. Below the breakpoint it is off-canvas at
+  translateX(-100%), aria-hidden and not focusable; open it is 280 px, fixed,
+  over --color-scrim, focus trapped. At >= 768 it is in flow at 244 px exactly
+  as today, plus a collapse trigger.
+
+  MOTION (D7) — soft curve cubic-bezier(0.22, 1, 0.36, 1) throughout
+    open              transform -100% -> 0        260 ms   reduced: instant
+    close             transform 0 -> -100%        220 ms   reduced: instant
+    scrim in/out      opacity 0 <-> 1             220 ms   reduced: instant
+    trigger press     scale(.97)                  150 ms   reduced: none
+    desktop collapse  width 244 -> 0              260 ms   reduced: instant
+
+  LAYOUT PINS
+    drawer 280 · content behind it untouched at 336 · height 100dvh, never
+    100vh (C1: the currency toggle is what hides under the iOS toolbar) ·
+    bottom cluster PINNED inside the drawer, not pushed by mt-auto — measured,
+    sidebar content is 851 px in a 740 px viewport · Total capital card ABSENT
+    below the breakpoint, because it is the header (S2) and drawing it twice
+    would be two truths about one number.
+
+  THE 136 px RAIL IS RETIRED (G-1). With a drawer it has no job, and keeping
+  it would mean maintaining three geometries. Its own rounded-r-[24px] goes
+  with it. E1 — "котирування" wrapping to three lines in the rail — dissolves
+  rather than being solved.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S1 · The sidebar, collapsible</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">360 closed · 360 open · 768 in flow · 768 collapsed · and the dark drawer, where the scrim finding lives</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">360 × 740 — closed (default)</div>
+    <div style="width:360px;height:740px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="height:56px;background:#f6f5f3;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none">
+          <div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="height:2px;background:#26262a;border-radius:1px"></div>
+            <div style="height:2px;background:#26262a;border-radius:1px"></div>
+            <div style="height:2px;background:#26262a;border-radius:1px"></div>
+          </div>
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">149&nbsp;016&nbsp;₴</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;font-size:11px;color:#5c7355;font-weight:600;padding-right:4px">+3,08&nbsp;%<br><span style="color:#8b8a86;font-weight:400">3&nbsp;324,03&nbsp;$</span></div>
+      </div>
+      <div style="padding:16px 12px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:600;margin-bottom:2px">Огляд</div>
+        <div style="font-size:11.5px;color:#8b8a86;margin-bottom:14px">Портфель одним поглядом · 14.08.2026</div>
+        <div style="background:#26262a;color:#ffffff;border-radius:20px;padding:16px 18px;margin-bottom:10px">
+          <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Загальний капітал</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:24px;font-weight:700;margin-top:4px">149&nbsp;016,36&nbsp;₴</div>
+          <div style="font-size:11px;color:#b9cdb4;margin-top:3px">3&nbsp;324,03&nbsp;$ · курс 44,83</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:#ffffff;border-radius:20px;padding:14px 16px">
+            <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Приріст капіталу</div>
+            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;color:#5c7355;margin-top:4px">+4&nbsp;452,61&nbsp;₴</div>
+            <div style="font-size:10.5px;color:#5c7355;font-weight:600;margin-top:2px">+3,08&nbsp;% від 03.02</div>
+          </div>
+          <div style="background:#ffffff;border-radius:20px;padding:14px 16px">
+            <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Вільні кошти</div>
+            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin-top:4px">7,75&nbsp;₴</div>
+            <div style="font-size:10.5px;color:#8b8a86;margin-top:2px">0,01&nbsp;% від рахунку</div>
+          </div>
+        </div>
+      </div>
+      <span style="position:absolute;left:10px;bottom:10px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86;background:#f6f5f3">aside: translateX(-100%) · aria-hidden · not focusable</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#f4e3cd;color:#7a5b2a;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      main reaches <strong>336 px</strong> against 209 today — the 42 % of viewport that was permanent chrome returns to content.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">360 × 740 — open, over the scrim</div>
+    <div style="width:360px;height:740px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="position:absolute;inset:0;background:rgba(38,38,42,.45)"></div>
+      <aside style="position:absolute;left:0;top:0;bottom:0;width:280px;background:#26262a;color:#e9e8e6;border-radius:0 30px 30px 0;padding:16px;display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#333338;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#e9e8e6;display:flex;align-items:flex-end;justify-content:center;gap:2px;padding:8px 6px;flex:none">
+            <div style="width:4px;height:7px;background:#26262a;opacity:.45"></div>
+            <div style="width:4px;height:11px;background:#26262a;opacity:.65"></div>
+            <div style="width:4px;height:15px;background:#26262a;opacity:.85"></div>
+            <div style="width:4px;height:5px;background:#26262a"></div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;color:#ffffff">Quirenote</div>
+            <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Інвест-трекер</div>
+          </div>
+          <span style="margin-left:auto;background:#f0e6cb;color:#6b5527;border-radius:5px;padding:2px 6px;font-size:9px;font-weight:700;letter-spacing:.08em">DEMO</span>
+        </div>
+        <div style="margin-top:14px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Щоденний ввід</div>
+        <div style="margin-top:6px">
+          <div style="background:#e9e8e6;color:#26262a;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+        </div>
+        <div style="margin-top:12px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Аналітика</div>
+        <div style="margin-top:4px;font-size:13.5px;color:#cfcecb">
+          <div style="padding:8px 14px">Огляд</div>
+          <div style="padding:8px 14px">Баланси</div>
+          <div style="padding:8px 14px">Виплати</div>
+          <div style="padding:8px 14px">Дохідність</div>
+          <div style="padding:8px 14px">Атрибути</div>
+          <div style="padding:8px 14px">Сезонність</div>
+          <div style="padding:8px 14px">Портфель</div>
+          <div style="padding:8px 14px">Розподіл</div>
+        </div>
+        <div style="margin-top:10px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Налаштування</div>
+        <div style="margin-top:4px;font-size:13.5px;color:#cfcecb;padding:8px 14px">Налаштування</div>
+        <div style="margin-top:12px">
+          <div style="background:#333338;border-radius:13px;padding:6px;display:flex;gap:4px">
+            <div style="flex:1;background:#e9e8e6;color:#26262a;border-radius:9px;padding:6px 0;text-align:center;font-size:12px;font-weight:700">₴ UAH</div>
+            <div style="flex:1;color:#cfcecb;border-radius:9px;padding:6px 0;text-align:center;font-size:12px">$ USD</div>
+          </div>
+          <div style="text-align:center;font-size:9.5px;color:#96959b;margin-top:8px">v1.5.0</div>
+        </div>
+      </aside>
+      <span style="position:absolute;right:10px;top:12px;border:1px dashed #ffffff;border-radius:5px;padding:2px 7px;font-size:10px;color:#ffffff">Esc closes · focus trapped · background inert</span>
+      <span style="position:absolute;right:10px;bottom:64px;border:1px dashed #ffffff;border-radius:5px;padding:2px 7px;font-size:10px;color:#ffffff;max-width:64px;text-align:right">route change closes · Back closes</span>
+      <span style="position:absolute;left:16px;bottom:12px;border:1px dashed #96959b;border-radius:5px;padding:2px 7px;font-size:10px;color:#96959b">cluster pinned, not mt-auto</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#e3eadf;color:#3f5c37;border-radius:4px;padding:1px 5px;font-weight:700">computed</span>
+      280 − 2×16 padding − 2×14 pill padding = <strong>220 px</strong> text box.
+      <code style="font-size:11px">Щоденні котирування</code> at 13.5 px is 19 × 0.6 × 13.5 = <strong>153.9 px</strong> — 66 px spare, one line, in Ukrainian.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">360 × 740 — open, DARK (the scrim finding)</div>
+    <div style="width:360px;height:740px;border:1px solid #33333a;border-radius:12px;overflow:hidden;background:#141416;position:relative">
+      <div style="position:absolute;inset:0;background:rgba(15,15,17,.55)"></div>
+      <aside style="position:absolute;left:0;top:0;bottom:0;width:280px;background:#0f0f11;color:#eceae7;border-radius:0 30px 30px 0;padding:16px;border-right:1px solid #8b8a90;display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:#1c1c20;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#eceae7;display:flex;align-items:flex-end;justify-content:center;gap:2px;padding:8px 6px;flex:none">
+            <div style="width:4px;height:7px;background:#0f0f11;opacity:.45"></div>
+            <div style="width:4px;height:11px;background:#0f0f11;opacity:.65"></div>
+            <div style="width:4px;height:15px;background:#0f0f11;opacity:.85"></div>
+            <div style="width:4px;height:5px;background:#0f0f11"></div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;color:#ffffff">Quirenote</div>
+            <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Інвест-трекер</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Щоденний ввід</div>
+        <div style="margin-top:6px">
+          <div style="background:#eceae7;color:#0f0f11;border-radius:9px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+        </div>
+        <div style="margin-top:12px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Аналітика</div>
+        <div style="margin-top:4px;font-size:13.5px;color:#c4c3c0">
+          <div style="padding:8px 14px">Огляд</div>
+          <div style="padding:8px 14px">Баланси</div>
+          <div style="padding:8px 14px">Виплати</div>
+          <div style="padding:8px 14px">Дохідність</div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="background:#1c1c20;border-radius:13px;padding:6px;display:flex;gap:4px">
+            <div style="flex:1;background:#eceae7;color:#0f0f11;border-radius:9px;padding:6px 0;text-align:center;font-size:12px;font-weight:700">₴ UAH</div>
+            <div style="flex:1;color:#c4c3c0;border-radius:9px;padding:6px 0;text-align:center;font-size:12px">$ USD</div>
+          </div>
+        </div>
+      </aside>
+      <span style="position:absolute;right:8px;top:12px;border:1px dashed #8b8a90;border-radius:5px;padding:2px 7px;font-size:10px;color:#c4c3c0;max-width:62px;text-align:right">edge is sidebar-muted, 5.51:1</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#f4e3cd;color:#7a5b2a;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      In dark the drawer is <em>darker</em> than the page (D57), so the scrim moves the background <em>towards</em> it:
+      fill-vs-scrim is <strong>1.02 : 1</strong>. <code style="font-size:11px">surface-edge</code> (D61) gives only 1.50 : 1 —
+      the edge here is <strong>sidebar-muted #8b8a90 at 5.51 : 1</strong>. In light no edge is drawn: the scrim already gives 5.23 : 1.
+    </p>
+  </div>
+
+</div>
+
+<!-- ── the desktop shell at the breakpoint itself ───────────────────────── -->
+<div style="margin-top:30px;display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">768 — desktop shell, sidebar in flow (244)</div>
+    <div style="width:768px;height:300px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;display:flex">
+      <aside style="width:244px;flex:none;background:#26262a;color:#e9e8e6;border-radius:0 30px 30px 0;padding:16px;position:relative">
+        <div style="background:#333338;border-radius:14px;padding:10px 12px;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:600;color:#ffffff">Quirenote</div>
+        <div style="margin-top:12px;font-size:13.5px;color:#cfcecb">
+          <div style="background:#e9e8e6;color:#26262a;border-radius:9px;padding:8px 14px;font-weight:700">Щоденні котирування</div>
+          <div style="padding:8px 14px">Огляд</div>
+          <div style="padding:8px 14px">Баланси</div>
+        </div>
+        <div style="position:absolute;right:16px;top:16px;width:26px;height:26px;border:1px solid #96959b;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfcecb;font-size:12px">‹</div>
+      </aside>
+      <div style="flex:1;padding:16px 20px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:20px;font-weight:600">Огляд</div>
+        <div style="font-size:11.5px;color:#8b8a86;margin-bottom:12px">Портфель одним поглядом · 14.08.2026</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div style="background:#26262a;color:#fff;border-radius:20px;padding:12px 14px"><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Загальний капітал</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin-top:3px">149&nbsp;016,36&nbsp;₴</div></div>
+          <div style="background:#fff;border-radius:20px;padding:12px 14px"><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Приріст</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;color:#5c7355;margin-top:3px">+4&nbsp;452,61&nbsp;₴</div></div>
+          <div style="background:#fff;border-radius:20px;padding:12px 14px"><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Вільні кошти</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;margin-top:3px">7,75&nbsp;₴</div></div>
+        </div>
+      </div>
+    </div>
+    <p style="width:768px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Unchanged from today, plus the collapse trigger at the sidebar's <strong>top-right</strong> — inside the 16 px padding and
+      <strong>outside the lockup plate</strong>, whose 14 px radius is the fixed inner term of the concentric chain (F2).
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">768 — collapsed: the header appears</div>
+    <div style="width:768px;height:300px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3">
+      <div style="height:56px;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:12px;padding:0 12px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none">
+          <div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div>
+          </div>
+        </div>
+        <div><div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">149&nbsp;016&nbsp;₴</div></div>
+        <div style="margin-left:auto;font-size:11px;color:#5c7355;font-weight:600;text-align:right">+3,08&nbsp;%<br><span style="color:#8b8a86;font-weight:400">3&nbsp;324,03&nbsp;$</span></div>
+      </div>
+      <div style="padding:16px 20px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:20px;font-weight:600">Огляд</div>
+        <div style="font-size:11.5px;color:#8b8a86">Full width — the same content, 244 px wider.</div>
+      </div>
+      <span style="display:inline-block;margin:10px 0 0 20px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86">width 244 → 0, 260 ms · header fades in +4 px rise, 220 ms</span>
+    </div>
+    <p style="width:768px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      At ≥ 768 the header exists <em>only</em> while the sidebar is collapsed — it is the sidebar's stand-in, not a second permanent bar.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S1) — one aside serves both shells · rounded-r-[30px] and the
+     14 px plate byte-identical to today · currency toggle reachable without
+     scrolling at 740 and 640 of viewport height · Escape closes and focus
+     returns to the trigger · focus trapped, background inert · route change
+     closes · hardware Back closes instead of leaving the route · body scroll
+     locked and position restored · aria-expanded + aria-controls on the
+     trigger, aria-current on the active pill unchanged · no D5 figure moves. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S2 — THE HEADER BAR
+
+  The sidebar's stand-in. Present whenever the sidebar is not on screen, and
+  carrying the number the sidebar would have shown. Below the breakpoint it is
+  always there; at >= 768 it appears only while the sidebar is collapsed.
+
+  MOTION (D7)
+    value change (incl. currency toggle)  tweened   ~300 ms  reduced: jump
+    trigger press                         scale(.97) 150 ms  reduced: none
+    appears on desktop collapse           opacity + 4 px rise 220 ms · instant
+
+  TOKENS  page · ink · muted · pos · neg · hairline. A LIGHT surface — it must
+  not reuse the sidebar-* family, which would make it read as a detached piece
+  of the drawer. That is also why D6 in the register matters: the trigger sits
+  on a light bar, so the [data-dark-surface] ring override deliberately does
+  NOT reach it. Correct, and easy to "fix" wrongly later.
+
+  SQUARE CORNERS. See the radius block in the file header: a full-bleed bar has
+  no designed short side, so 0.26 x 56 = 15 would be a radius derived from a
+  layout dimension. Its bottom edge is a hairline, not a curve.
+
+  NO SCREEN TITLE HERE. Every route already renders an h2 + subtitle
+  (ScreenHeader); putting the title in the bar too would say it twice.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S2 · The header bar</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Anatomy at 360 · the ₴/$ pair · the empty fallback · the hit area that does not move the drawn box</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">default — ₴</div>
+    <div style="width:360px;border:1px solid #dedcd8;border-radius:0;overflow:hidden">
+      <div style="height:56px;background:#f6f5f3;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none;position:relative">
+          <div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div>
+          </div>
+          <div style="position:absolute;inset:0;border:1px dashed #b3b2ae;border-radius:6px"></div>
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">149&nbsp;016&nbsp;₴</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;font-size:11px;color:#5c7355;font-weight:600;padding-right:4px">+3,08&nbsp;%<br><span style="color:#8b8a86;font-weight:400">3&nbsp;324,03&nbsp;$</span></div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      The dashed square is the <strong>44 × 44 pressable region</strong>; the drawn glyph inside it is 18 × 12 and does not grow (G-2).
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">after the currency toggle — $</div>
+    <div style="width:360px;border:1px solid #dedcd8">
+      <div style="height:56px;background:#f6f5f3;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none">
+          <div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div>
+          </div>
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">3&nbsp;324&nbsp;$</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;font-size:11px;color:#5c7355;font-weight:600;padding-right:4px">+3,08&nbsp;%<br><span style="color:#8b8a86;font-weight:400">149&nbsp;016,36&nbsp;₴</span></div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      The toggle itself stays <strong>in the drawer</strong> — a rarely-touched display preference — while this number is glanced at constantly.
+      Both read <code style="font-size:11px">core/derive.headlineKpis</code>; there is never a second derivation.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">empty / loading — the existing fallback</div>
+    <div style="width:360px;border:1px solid #dedcd8">
+      <div style="height:56px;background:#f6f5f3;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none">
+          <div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between">
+            <div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div><div style="height:2px;background:#26262a;border-radius:1px"></div>
+          </div>
+        </div>
+        <div style="min-width:0">
+          <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15;color:#b3b2ae">—</div>
+        </div>
+        <div style="margin-left:auto;text-align:right;font-size:11px;color:#b3b2ae;padding-right:4px">—</div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Same <code style="font-size:11px">—</code> the sidebar card already uses when KPIs are absent, per the <code style="font-size:11px">useCapitalCard</code> contract. There is no error state: the figure is derived locally and cannot fail on its own.
+    </p>
+  </div>
+</div>
+
+<div style="margin-top:14px;border:1px dashed #b3b2ae;border-radius:12px;padding:12px 16px;font-size:11.5px;line-height:1.6;color:#26262a;max-width:768px">
+  <strong>Safe area.</strong> Height is <strong>≥ 56 px plus <code style="font-size:11px">env(safe-area-inset-top)</code></strong>, sticky at <code style="font-size:11px">top: 0</code> — and the inset only resolves because
+  <code style="font-size:11px">viewport-fit=cover</code> is on the meta tag (G-3). Without both, C2 stands and the insets silently do nothing.
+  <br><strong>The mark.</strong> If a mark is drawn here at all it <strong>reuses the <code style="font-size:11px">Mark</code> component</strong> — F3: it already lives in three copies (<code style="font-size:11px">Sidebar.tsx</code>, <code style="font-size:11px">favicon.svg</code>, <code style="font-size:11px">apple-touch-icon.png</code>) and <code style="font-size:11px">mark.test.ts</code> pins only the first two. A fourth would be unpinned.
+  <br><strong>DEMO stays in the drawer.</strong> It is a sidebar ornament and must not migrate to the header.
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S3 — THE RECORD CARD
+
+  The single answer to all four tables — and it invents nothing. The record
+  card IS the Attributes asset card: Card radius 24, p-[22px], a header row of
+  AssetAvatar + h3 (17 px) + Tag pushed right, then a <dl> of Fact pairs
+  (dt 10.5 px uppercase muted, dd 12.5 px bold) in two columns.
+
+  A table row becomes a card whose HEADER is the row's identity and whose BODY
+  is a dl of the remaining columns. Every column header becomes a dt VERBATIM
+  — no re-wording, no abbreviation, units where the table puts them.
+
+  MOTION (D7)  list reveal fade-in, staggered 60 ms x (i mod 4), 300 ms;
+  reduced: no stagger, no fade. The stagger is the one Attributes already uses
+  — reusing it rather than minting a second cadence. A resize must NOT animate.
+
+  WHY THIS AND NOT A SCROLLING TABLE. Balances' width is 3 + N assets columns,
+  so it GROWS with the portfolio: a horizontal scroll fixed at 684 px today is
+  a different number next year. The card form is width-independent. C3
+  (scroll-within-scroll) dissolves with A2 rather than being handled.
+
+  The <table> markup is retained at >= md. Both forms render the same derived
+  values from the same selector; neither re-computes.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S3 · The record card</h2>
+<p style="margin:0 0 6px;font-size:12.5px;color:#8b8a86">All four tables, at 360 · every figure read from production on 2026-08-14, not retyped</p>
+<p style="margin:0 0 18px;font-size:11.5px;color:#8b8a86">Number format is the table's, unchanged: <code style="font-size:11px">68 702,10</code> — space thousands, comma decimals (README §8). A card is not prose and must not switch to <code style="font-size:11px">68 702,10 ₴</code>.</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+
+  <!-- YIELD -->
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">/yield — 360</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px">
+      <div style="background:#ffffff;border-radius:24px;padding:22px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">RE</div>
+          <h3 style="margin:0;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</h3>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">65 800,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">68 702,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Δ загалом</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+4,41 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Річна</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">+9,3 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Загальна дохідність</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+10,12 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">XIRR (річн.)</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">+23,0 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">проти очікуваної</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#a8695a">−4,7 в.п.</dd></div>
+        </dl>
+      </div>
+      <div style="background:#ffffff;border-radius:24px;padding:22px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#f0e0d2;color:#7a5b46;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">GB</div>
+          <h3 style="margin:0;font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">OVDP UA4000238976</h3>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">15 390,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">15 846,30</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Δ загалом</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+2,96 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Річна</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">+6,2 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Загальна дохідність</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+10,65 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">XIRR (річн.)</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">+25,8 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">проти очікуваної</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#a8695a">−10,2 в.п.</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#f4e3cd;color:#7a5b2a;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      The table is <strong>824 px</strong> wide inside a 185 px window today — the worst of the four. Seven <code style="font-size:11px">dt</code>s in two columns need no width at all.
+    </p>
+  </div>
+
+  <!-- PORTFOLIO incl. the Total card -->
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">/portfolio — 360, with the Total row as a final card</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px">
+      <div style="background:#ffffff;border-radius:24px;padding:22px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">RE</div>
+          <h3 style="margin:0;font-size:17px;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</h3>
+          <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;flex:none">див + кап</span>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">65 800,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">з них реінвестовано</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">1 171,38</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">68 702,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Частка</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">46,1 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Приріст капіталу, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+2 902,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Приріст капіталу, %</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+4,41 %</dd></div>
+        </dl>
+      </div>
+      <div style="background:#ffffff;border-radius:24px;padding:22px;border-top:2px solid #dedcd8">
+        <div style="margin-bottom:14px">
+          <h3 style="margin:0;font-size:17px">Разом + готівка 7,75&nbsp;₴</h3>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">144 556,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">з них реінвестовано</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">1 387,38</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">149 016,36</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Частка</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">100 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Приріст капіталу, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+4 452,61</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Приріст капіталу, %</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+3,08 %</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      The bolded Total row survives as a final card — no avatar, existing copy, and the <code style="font-size:11px">border-t-2</code> that separated it in the table.
+      <br><strong>A3/E3 dissolve here.</strong> <code style="font-size:11px">OVDP UA4000238976</code> is 17 characters; the tag no longer shares its row via <code style="font-size:11px">ml-auto</code> — the name truncates and the tag keeps its width.
+    </p>
+  </div>
+
+  <!-- PAYOUTS + BALANCES -->
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">/payouts and /balances — 360</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px">
+      <div style="background:#ffffff;border-radius:24px;padding:22px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div style="min-width:0;flex:1">
+            <div style="font-size:10.5px;color:#8b8a86">10.07.2026</div>
+            <h3 style="margin:2px 0 0;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</h3>
+          </div>
+          <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;flex:none">дивіденд</span>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Сума, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">700,36</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Призначення</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">реінвестовано (687,02&nbsp;₴)</dd></div>
+        </dl>
+      </div>
+      <div style="background:#ffffff;border-radius:24px;padding:22px">
+        <div style="margin-bottom:14px"><h3 style="margin:0;font-size:17px">27.07.2026</h3></div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Inzhur REIT</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">68 702,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Inzhur Energy</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:400;color:#b3b2ae">очікується</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">OVDP UA4000238976</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:400;color:#b3b2ae">очікується</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">OVDP UA4000236475</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:400;color:#b3b2ae">очікується</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Готівка</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">7,75</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86">Разом, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#b3b2ae">—</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Balances keeps its partial-row treatment exactly: <code style="font-size:11px">очікується</code> in <code style="font-size:11px">faint</code> and <code style="font-size:11px">—</code> for the total.
+      One <code style="font-size:11px">dt</code> per asset, then Cash and Total — so the card grows in <em>height</em> with the portfolio, never in width. That is the whole argument against a scrolling table.
+    </p>
+  </div>
+</div>
+
+<div style="margin-top:14px;border:1px dashed #b3b2ae;border-radius:12px;padding:12px 16px;font-size:11.5px;line-height:1.6;color:#26262a;max-width:1100px">
+  <strong>At ≥ 768 the table returns, unchanged.</strong> One column below the breakpoint, the existing grid above it — the same rule
+  <code style="font-size:11px">/attributes</code> already ships as <code style="font-size:11px">max-md:grid-cols-1</code>.
+  Radius <strong>24</strong>, matching the Attributes card: it is a surface, so the proportional rule does not apply.
+  <br><strong>A4.</strong> Overview's asset rows carry fixed <code style="font-size:11px">w-[110px]</code> + <code style="font-size:11px">w-[60px]</code> columns; below the breakpoint those fixed widths go and the row uses the same
+  <code style="font-size:11px">min-w-0</code> + truncate discipline the cards use here.
+</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S4 — DAILY QUOTES ON A PHONE
+
+  The ritual, and the reason the app exists. The two columns stack and the
+  ORDER IS LOAD-BEARING: quotes first, Transaction panel second. The flex
+  order already does this and must be preserved — the ritual outranks the
+  occasional entry.
+
+  DECISION D-a — A STICKY ACTION BAR, not scroll-into-view.
+  The brief left the choice open and required the keyboard-open state to be
+  drawn. Scroll-into-view answers the wrong question: `Save snapshot` and
+  `Copy yesterday` sit BELOW all four rows, so no amount of scrolling the
+  focused row brings them out from under the keyboard — the user would have to
+  dismiss it, losing the caret, to reach the button that ends the ritual. The
+  bar pins them above the keyboard instead. It is present below the breakpoint
+  whenever the route has an unsaved draft, and it is the same two controls,
+  not new ones.
+
+  SIZES CHANGED HERE, AND ONLY HERE (G-2 exceptions, arithmetic in the header)
+    quote input   36 -> 44,  r 9 -> 11,  font >= 16 px (G-4)
+    Button `md`   40 -> 44,  r 10 -> 11
+  The avatar stays 48, which keeps the row inside the 60–70 % block rule
+  (README §4) as long as the row's height does not shrink.
+
+  MOTION (D7)
+    delta chip on input   fade-in + zoom-in-95   150 ms   reduced: instant
+    row reveal            fade-in slide-in-top-1 300 ms   reduced: instant
+    save press            scale(.97)             150 ms   reduced: none
+    action bar appears    slide-in-from-bottom-2 220 ms   reduced: instant
+
+  B5 STATED IN THE DRAWING: inputMode="decimal" stays, and the separator the
+  keyboard offers follows the DEVICE locale — it cannot be forced. The field
+  accepts both `,` and `.`; core/schemas.normalizeNumberInput already reads
+  either, and reads a comma-grouped integer as grouping.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S4 · Daily quotes on a phone</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Resting · and the keyboard-open state, which is the state this screen is in whenever it is being used</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">360 × 740 — resting</div>
+    <div style="width:360px;height:740px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="height:56px;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none"><div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between"><div style="height:2px;background:#26262a"></div><div style="height:2px;background:#26262a"></div><div style="height:2px;background:#26262a"></div></div></div>
+        <div><div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">149&nbsp;016&nbsp;₴</div></div>
+      </div>
+      <div style="padding:14px 12px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:600">Щоденні котирування</div>
+        <div style="font-size:11.5px;color:#8b8a86;margin-bottom:12px">Щоденний ритуал</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <div style="height:36px;border:1.5px solid #26262a;border-radius:10px;display:flex;align-items:center;padding:0 16px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600">Отримати котирування</div>
+          <span style="background:#eceae7;border-radius:6px;padding:4px 9px;font-size:11px;color:#6f6e6a">1 з 4</span>
+        </div>
+        <div style="background:#ffffff;border-radius:20px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none">RE</div>
+            <div style="min-width:0;flex:1">
+              <div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</div>
+              <div style="font-size:11px;color:#8b8a86">68 629,36 ₴ учора</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+            <input value="68 702,10" readonly style="flex:1;height:44px;border:1px solid #c9d4c4;border-radius:11px;background:#ffffff;padding:0 12px;font-size:16px;text-align:right;color:#26262a">
+            <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;flex:none">+0,11 %</span>
+          </div>
+        </div>
+        <div style="background:#ffffff;border-radius:20px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:999px;background:#f0e0d2;color:#7a5b46;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none">EN</div>
+            <div style="min-width:0;flex:1">
+              <div style="font-size:13.5px;font-weight:600">Inzhur Energy</div>
+              <div style="font-size:11px;color:#8b8a86">60 086,09 ₴ учора</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+            <input placeholder="60 086,09" readonly style="flex:1;height:44px;border:1px solid #e8e7e4;border-radius:11px;background:#ffffff;padding:0 12px;font-size:16px;text-align:right;color:#b3b2ae">
+            <span style="color:#b3b2ae;font-size:12px;flex:none">—</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <div style="flex:1;height:44px;background:#26262a;color:#f6f5f3;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600">Зберегти зріз</div>
+          <div style="flex:1;height:44px;border:1.5px solid #26262a;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600">Скопіювати вчорашні</div>
+        </div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:10px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86;background:#f6f5f3">quotes first, Transaction panel below — flex order preserved</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Input <strong>44 tall, r 11, 16 px type</strong> — the two G-2 exceptions and G-4, together. B2 closes here: 16 px is the threshold below which iOS Safari zooms on focus and does not zoom back.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">360 × 740 — keyboard open (B4)</div>
+    <div style="width:360px;height:740px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="height:56px;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;gap:10px;padding:0 10px">
+        <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none"><div style="width:18px;height:12px;display:flex;flex-direction:column;justify-content:space-between"><div style="height:2px;background:#26262a"></div><div style="height:2px;background:#26262a"></div><div style="height:2px;background:#26262a"></div></div></div>
+        <div><div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86">Загальний капітал</div><div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;line-height:1.15">149&nbsp;016&nbsp;₴</div></div>
+      </div>
+      <div style="padding:12px">
+        <div style="background:#ffffff;border-radius:20px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:999px;background:#f0e0d2;color:#7a5b46;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none">EN</div>
+            <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">Inzhur Energy</div><div style="font-size:11px;color:#8b8a86">60 086,09 ₴ учора</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+            <div style="flex:1;height:44px;border:1px solid #26262a;outline:2px solid #26262a;outline-offset:2px;border-radius:11px;background:#ffffff;padding:0 12px;font-size:16px;display:flex;align-items:center;justify-content:flex-end">60 120,4<span style="width:1px;height:20px;background:#26262a;margin-left:1px"></span></div>
+            <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;flex:none">+0,06 %</span>
+          </div>
+        </div>
+        <div style="background:#ffffff;border-radius:20px;padding:14px;opacity:.5">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:48px;height:48px;border-radius:999px;background:#dfe3ea;color:#46536b;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none">GB</div>
+            <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">OVDP …8976</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- STICKY ACTION BAR — square corners, hairline top edge -->
+      <div style="position:absolute;left:0;right:0;bottom:300px;background:#f6f5f3;border-top:1px solid #e8e7e4;padding:8px 12px;display:flex;gap:8px">
+        <div style="flex:1;height:44px;background:#26262a;color:#f6f5f3;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600">Зберегти зріз</div>
+        <div style="flex:1;height:44px;border:1.5px solid #26262a;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600">Скопіювати вчорашні</div>
+      </div>
+      <!-- the keyboard -->
+      <div style="position:absolute;left:0;right:0;bottom:0;height:300px;background:#dedcd8;border-top:1px solid #b3b2ae;display:flex;align-items:center;justify-content:center;color:#6f6e6a;font-size:12px">
+        <span style="border:1px dashed #8b8a86;border-radius:5px;padding:3px 9px">virtual keyboard · ~300 px · decimal pad</span>
+      </div>
+      <span style="position:absolute;left:12px;bottom:374px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86;background:#f6f5f3">sticky bar sits ON the keyboard's top edge · square corners, hairline</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      The bar is anchored to the <strong>visual viewport</strong>, not the layout viewport, and adds <code style="font-size:11px">env(safe-area-inset-bottom)</code> when no keyboard is up.
+      Typing still drives the delta chip and the <code style="font-size:11px">N з 4</code> pill live — §9's behaviour checklist is unchanged by the new layout.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S4) — keyboard-open state drawn · Save snapshot and Copy
+     yesterday reachable with a field focused · delta chip and the N-of-4 pill
+     still live · no iOS zoom on focus · the + New asset… sub-form fits 336 px
+     with no horizontal scroll · no D5 figure moves. -->
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S5 — OVERLAYS ON A PHONE
+
+  Every floating surface re-checked at 360. Radii are UNCHANGED — dialog 24,
+  date picker 16, select 14, toast 13 — and no overlay's anatomy is redrawn
+  here; import-dialog.dc.html and settings.dc.html stay binding for contents.
+
+  DECISION D-c — THE DATE PICKER STOPS ANCHORING below the breakpoint.
+  A seven-column month grid anchored to a right-aligned field cannot stay
+  inside 360 px; flip-and-shift collision handling answers a question the
+  width has already lost. Below the breakpoint the popover is a CENTRED sheet:
+  same radius 16, same day cells, anchored to the viewport rather than to the
+  field. Above the breakpoint the anchored popover is unchanged.
+
+  DECISION D-d — THE DIALOG KEEPS ITS OWN OVERLAY, and --color-scrim is the
+  drawer's alone. In light the two agree to within 5 % of alpha; in DARK they
+  must not be unified, because the Dialog's overlay is `sidebar`-based
+  precisely BECAUSE it is an inverted plane in both themes (D57) — the property
+  the drawer's ink-based light value does not have. One veil token would have
+  to pick a theme to be wrong in.
+
+  THE SCROLLBAR IS PART OF THE SHAPE, AND TODAY IT IS NOT.
+  The Dialog scrolls with `overflow-y-auto` on the panel itself, so the
+  platform draws a full-height square-cornered track inside a rounded-3xl
+  panel — a straight edge cutting the corner it is supposed to sit inside.
+  Every scrolling overlay uses the Radix `ScrollArea` primitive instead
+  (available in radix-ui 1.6.7, currently unused anywhere in src/):
+
+    · type=hover/scroll, so the bar OVERLAYS and takes no layout width —
+      content does not reflow when it appears;
+    · GEOMETRY IS SHADCN'S, MEASURED OFF ITS OWN RENDERING: the scrollbar is
+      10 px wide (w-2.5) with 1 px of padding, so the thumb is 8 px. The bar
+      is inset 4 px from the panel edge so the thumb never crosses the corner
+      arc; the track is transparent — no chrome, which is the whole point;
+    · THE ONE THING NOT TAKEN FROM SHADCN IS ITS RADIUS. Its thumb is
+      `rounded-full`, and nothing in this app is a capsule (D56). Recomputed
+      on the short side: round(8 x 0.26) = round(2.08) = 2 — the same
+      derivation the Switch thumb uses (16 -> 4);
+    · thumb colour `muted`, hover/press `ink`. MEASURED, not chosen by eye:
+      on `card` the candidates are hairline 1.24 : 1, panel-border 1.37 : 1,
+      faint 2.12 : 1 — all under the 3 : 1 WCAG 1.4.11 asks of a non-text
+      indicator — and `muted` at 3.46 : 1 passes. In dark on #1c1c1f, faint
+      reaches 3.29 and `muted` 6.04, so ONE token serves both themes and no
+      component branches on theme;
+    · the panel's own padding moves inside the viewport, so the bar rides in
+      the padding gutter rather than over the text.
+
+  This changes the scroller, not the anatomy: the dialog's radius, padding and
+  contents are exactly as settings.dc.html and import-dialog.dc.html draw them.
+
+  C5 — `max-h-[85vh]` is 85 % of the VIEWPORT, not of what remains visible
+  with a keyboard up. Below the breakpoint it becomes a dvh-based bound.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S5 · Overlays on a phone</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Dialog with the ScrollArea thumb · the date picker as a centred sheet · select · toast placement</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Dialog at 360 — scrolling, with the overlay thumb</div>
+    <div style="width:360px;height:560px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="position:absolute;inset:0;background:rgba(38,38,42,.40)"></div>
+      <div style="position:absolute;left:16px;right:16px;top:40px;bottom:40px;background:#ffffff;border-radius:24px;overflow:hidden">
+        <div style="height:100%;padding:24px;position:relative;overflow:hidden">
+          <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#4c5a48;font-weight:700;margin-bottom:12px">Редагувати актив</div>
+          <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Назва</div>
+          <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px;margin-bottom:12px">Inzhur REIT</div>
+          <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Код</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:34px;height:34px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">RE</div>
+            <div style="width:80px;height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">RE</div>
+          </div>
+          <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Тип дохідності</div>
+          <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:16px;margin-bottom:12px">Дивіденди + кап <span style="color:#8b8a86">⌄</span></div>
+          <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Перша купівля</div>
+          <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">03.02.2026</div>
+          <!-- the ScrollArea thumb: 6 wide, inset 4, radius 2, muted -->
+          <div style="position:absolute;right:4px;top:24px;bottom:24px;width:10px;padding:1px">
+            <div style="width:8px;height:120px;background:#8b8a86;border-radius:2px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      The thumb <strong>overlays</strong> — no layout width, so nothing reflows when it appears — and it is inset from the panel edge, so it never crosses the 24 px corner arc.
+      That crossing is the artifact this replaces: a square platform track running the full height of a rounded panel.
+      <br>Proportions are shadcn's (10 px bar, 1 px padding, 8 px thumb); the radius is <strong>not</strong> — its <code style="font-size:11px">rounded-full</code> would be the app's only capsule, so D56 recomputes it to <strong>2</strong>.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Date picker at 360 — centred sheet, not anchored</div>
+    <div style="width:360px;height:560px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="padding:14px 12px">
+        <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Дата</div>
+        <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-size:16px;width:150px;margin-left:auto">14.08.2026</div>
+      </div>
+      <div style="position:absolute;inset:0;background:rgba(38,38,42,.45)"></div>
+      <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:312px;background:#ffffff;border:1px solid #e8e7e4;border-radius:16px;padding:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 6px 8px">
+          <div style="width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#8b8a86">‹</div>
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600">серпень 2026</div>
+          <div style="width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#8b8a86">›</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#8b8a86;text-align:center;margin-bottom:2px">
+          <div>пн</div><div>вт</div><div>ср</div><div>чт</div><div>пт</div><div>сб</div><div>нд</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:12.5px">
+          <div style="padding:8px 0;color:#b3b2ae">28</div><div style="padding:8px 0;color:#b3b2ae">29</div><div style="padding:8px 0;color:#b3b2ae">30</div><div style="padding:8px 0;color:#b3b2ae">31</div><div style="padding:8px 0">1</div><div style="padding:8px 0">2</div><div style="padding:8px 0">3</div>
+          <div style="padding:8px 0">4</div><div style="padding:8px 0">5</div><div style="padding:8px 0">6</div><div style="padding:8px 0">7</div><div style="padding:8px 0">8</div><div style="padding:8px 0">9</div><div style="padding:8px 0">10</div>
+          <div style="padding:8px 0">11</div><div style="padding:8px 0">12</div><div style="padding:8px 0">13</div><div style="padding:8px 0;background:#26262a;color:#f6f5f3;border-radius:8px;font-weight:700">14</div><div style="padding:8px 0">15</div><div style="padding:8px 0">16</div><div style="padding:8px 0">17</div>
+          <div style="padding:8px 0">18</div><div style="padding:8px 0">19</div><div style="padding:8px 0">20</div><div style="padding:8px 0">21</div><div style="padding:8px 0">22</div><div style="padding:8px 0">23</div><div style="padding:8px 0">24</div>
+        </div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:12px;border:1px dashed #ffffff;border-radius:5px;padding:2px 7px;font-size:10px;color:#ffffff">312 = 360 − 2×24 · day cell r 8 · sheet r 16 · anchored to the viewport</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#e3eadf;color:#3f5c37;border-radius:4px;padding:1px 5px;font-weight:700">computed</span>
+      Seven columns at 312 px give <strong>44.6 px</strong> per cell — above the 44 px target without touching the drawn day box, which stays as it is (B6 closed).
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Select and toast at 360</div>
+    <div style="width:360px;height:560px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="height:56px;border-bottom:1px solid #e8e7e4;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#8b8a86">header, 56 + safe-area</div>
+      <div style="padding:14px 12px">
+        <div style="height:36px;border:1px solid #26262a;border-radius:9px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:16px">Оберіть актив… <span style="color:#8b8a86">⌄</span></div>
+        <div style="margin-top:6px;background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:4px;overflow:hidden">
+          <div style="padding:10px 12px;border-radius:9px;background:#f6f5f3;font-size:14px">Inzhur REIT</div>
+          <div style="padding:10px 12px;border-radius:9px;font-size:14px">Inzhur Energy</div>
+          <div style="padding:10px 12px;border-radius:9px;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">OVDP UA4000238976</div>
+          <div style="padding:10px 12px;border-radius:9px;font-size:14px">+ Новий актив…</div>
+        </div>
+        <p style="font-size:11px;color:#8b8a86;line-height:1.5;margin:10px 0 0">Radius <strong>14</strong> — concentric: items 9 + 5 of inset (4 viewport padding + 1 border). Unchanged from D56; only the width is re-checked, and 336 px holds the longest option.</p>
+      </div>
+      <div style="position:absolute;left:12px;right:12px;bottom:14px;background:#ffffff;border:1px solid #dedcd8;border-radius:13px;padding:12px 14px;font-size:13px">Зріз збережено</div>
+      <span style="position:absolute;left:12px;bottom:64px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86;background:#f6f5f3">toast r 13 · bottom + safe-area · never under the header</span>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Toasts keep radius 13 and their <code style="font-size:11px">toastOptions</code> inline overrides — sonner styles by attribute and ignores classes, so that is the only lever. Below the breakpoint they sit at the bottom, clear of the sticky header and inside the safe area.
+    </p>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S6 — CHARTS WITHOUT A POINTER
+
+  The width was measured and CLEARED: recharts thins the 31-day Seasonality
+  axis to seven ticks (1 · 5 · 10 · 15 · 20 · 25 · 31) with zero collisions at
+  277 px. No chart is narrowed, re-binned or re-labelled — the measurement says
+  none needs to be, and compensating for a defect that does not exist is how a
+  mobile pass damages a design.
+
+  DECISION D-b — TAP TO PIN. The real defect is the pointer: on four of the
+  five charts a per-point value exists only inside a hover tooltip, and hover
+  does not exist on touch. A tap pins the tooltip to the nearest point; a
+  second tap on the same point, a tap outside, or Escape releases it. The
+  pinned tooltip is the same CHART_TOOLTIP surface, radius 16, and the chart
+  gains a focusable region so the value is reachable by keyboard too.
+
+  Seasonality is the exception that proves the rule: it already draws its
+  values on the bars (3 641 ₴ · день 10), so a tap adds nothing there and the
+  pin is simply not wired to it.
+
+  MOTION (D7)  tooltip appear fade-in 150 ms, reduced: instant · series reveal
+  unchanged, disabled under reduced motion.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S6 · Charts without a pointer</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Resting and pinned · the width was cleared by measurement, so only the pointer is answered</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">resting — /balances at 336 of content</div>
+    <div style="width:360px;border:1px solid #dedcd8;border-radius:12px;background:#f6f5f3;padding:12px">
+      <div style="background:#ffffff;border-radius:20px;padding:16px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Загальний капітал</div>
+        <svg width="304" height="150" viewBox="0 0 304 150">
+          <polyline points="0,120 50,112 100,104 150,92 200,78 250,60 300,40" fill="none" stroke="#8ba283" stroke-width="2"></polyline>
+          <line x1="0" y1="138" x2="304" y2="138" stroke="#e8e7e4"></line>
+          <text x="0" y="150" font-size="10" fill="#8b8a86">21.07</text>
+          <text x="130" y="150" font-size="10" fill="#8b8a86">24.07</text>
+          <text x="262" y="150" font-size="10" fill="#8b8a86">27.07</text>
+        </svg>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">No hover exists here, so without a pin every point on this line is unreadable on a phone.</p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">pinned — one tap</div>
+    <div style="width:360px;border:1px solid #dedcd8;border-radius:12px;background:#f6f5f3;padding:12px">
+      <div style="background:#ffffff;border-radius:20px;padding:16px;position:relative">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Загальний капітал</div>
+        <svg width="304" height="150" viewBox="0 0 304 150">
+          <polyline points="0,120 50,112 100,104 150,92 200,78 250,60 300,40" fill="none" stroke="#8ba283" stroke-width="2"></polyline>
+          <line x1="200" y1="10" x2="200" y2="138" stroke="#dedcd8" stroke-dasharray="3 3"></line>
+          <circle cx="200" cy="78" r="4" fill="#8ba283" stroke="#ffffff" stroke-width="2"></circle>
+          <line x1="0" y1="138" x2="304" y2="138" stroke="#e8e7e4"></line>
+          <text x="0" y="150" font-size="10" fill="#8b8a86">21.07</text>
+          <text x="130" y="150" font-size="10" fill="#8b8a86">24.07</text>
+          <text x="262" y="150" font-size="10" fill="#8b8a86">27.07</text>
+        </svg>
+        <div style="position:absolute;left:112px;top:34px;background:#eceae7;border:1px solid #dedcd8;border-radius:16px;padding:8px 12px">
+          <div style="font-size:10.5px;color:#8b8a86">25.07</div>
+          <div style="font-size:13px;font-weight:700">148 943,62 ₴</div>
+        </div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Tooltip surface is <code style="font-size:11px">CHART_TOOLTIP</code>, radius <strong>16</strong> — a floating surface takes the surface value, and it is <code style="font-size:11px">panel</code> rather than <code style="font-size:11px">card</code> so it lifts off what it covers (D57).
+      Release: second tap, tap outside, or Escape.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S6) — every value a desktop user gets by hovering is
+     obtainable on a phone · the mechanism is drawn resting and active · no
+     chart is narrowed, re-binned or re-labelled. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  THE REGISTER, ANSWERED
+
+  Every item of the brief's vulnerability register, and where in this file it
+  is answered. Three of them are answered by DISSOLUTION rather than by a
+  treatment — the shape of the shell removes the condition — and those are
+  marked, because a dissolved vulnerability that is later "fixed" again is how
+  a design grows a second geometry.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 12px">The register, answered</h2>
+
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <thead>
+    <tr style="text-align:left;color:#8b8a86">
+      <th style="padding:6px 8px;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase">#</th>
+      <th style="padding:6px 8px;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase">Vulnerability</th>
+      <th style="padding:6px 8px;font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase">Answered</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">A1</td><td style="padding:7px 8px">Chrome takes 42 % of the width</td><td style="padding:7px 8px">S1 — off-canvas; main goes 209 → <strong>336</strong></td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">A2</td><td style="padding:7px 8px">Four tables 464–824 px in a 185 px window</td><td style="padding:7px 8px">S3 — the record card; width-independent by construction</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">A3 · E3</td><td style="padding:7px 8px"><code>/attributes</code> overflows 27 px on a long asset name</td><td style="padding:7px 8px">S3 — the tag no longer shares a row via <code>ml-auto</code>; name truncates</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">A4</td><td style="padding:7px 8px">Overview rows carry fixed 110 / 60 px columns</td><td style="padding:7px 8px">S3 note — fixed widths drop below the breakpoint</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">A5</td><td style="padding:7px 8px">Landscape leaves ~360 px of height</td><td style="padding:7px 8px">S2 (56 px bar, sticky) + S4 (action bar on the visual viewport)</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B1</td><td style="padding:7px 8px">27 targets under 44 px on <code>/</code>, 33 on <code>/settings</code></td><td style="padding:7px 8px">G-2 — hit area, not geometry; drawn on the S2 trigger</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B2</td><td style="padding:7px 8px">All five fields under 16 px → iOS zooms and does not restore</td><td style="padding:7px 8px">G-4 / S4 — 16 px type inside an unchanged 44 px box</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B3</td><td style="padding:7px 8px">Chart values reachable only by hovering</td><td style="padding:7px 8px">S6 — tap to pin, drawn resting and pinned</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B4</td><td style="padding:7px 8px">The keyboard covers the input and <em>Save snapshot</em> together</td><td style="padding:7px 8px">S4 — sticky action bar, drawn with the keyboard up</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B5</td><td style="padding:7px 8px">Decimal separator follows the device locale</td><td style="padding:7px 8px">S4 annotation — the field accepts both, and the parser already does</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B6</td><td style="padding:7px 8px">Seven-column grid anchored to a right-aligned field</td><td style="padding:7px 8px">S5 / D-c — stops anchoring; centred sheet, 44.6 px cells</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B7</td><td style="padding:7px 8px">Edge-swipe Back competes with a left-edge drawer</td><td style="padding:7px 8px">S1 — no swipe-to-open is specified; the trigger is the only opener</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C1</td><td style="padding:7px 8px"><code>h-screen</code> buries the currency toggle under the iOS toolbar</td><td style="padding:7px 8px">G-3 / S1 — <code>100dvh</code>, and the cluster is pinned, not <code>mt-auto</code></td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C2</td><td style="padding:7px 8px">Insets unused and <code>viewport-fit=cover</code> absent</td><td style="padding:7px 8px">G-3 — both, together; stated on S2 and S5</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C3</td><td style="padding:7px 8px">Scroll-within-scroll</td><td style="padding:7px 8px"><em>dissolved</em> with A2 — there is no horizontal scroller left</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C4</td><td style="padding:7px 8px">Pull-to-refresh can discard an unsaved draft</td><td style="padding:7px 8px">G-3 — <code>overscroll-behavior-y: contain</code> on the scroll container</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C5</td><td style="padding:7px 8px"><code>max-h-[85vh]</code> is not 85 % of what remains visible</td><td style="padding:7px 8px">S5 — a <code>dvh</code>-based bound below the breakpoint</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">D1–D6</td><td style="padding:7px 8px">Drawer behaviour: route change, Back, focus trap, scroll lock, reduced motion, the light-surface ring</td><td style="padding:7px 8px">S1 acceptance, annotated in the open drawing</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">E1</td><td style="padding:7px 8px"><code>котирування</code> wraps to three lines in the 136 px rail</td><td style="padding:7px 8px"><em>dissolved</em> — G-1 retires the rail; 153.9 px in a 220 px box</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">E2</td><td style="padding:7px 8px">Smallest type is 10 px</td><td style="padding:7px 8px">G-4 binds <em>fields</em> only; 10 px microlabels are a reference constant and stay</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">F1</td><td style="padding:7px 8px">44 px would move five radii and one concentric track</td><td style="padding:7px 8px">G-2 + the header's radius block — two exceptions, arithmetic shown</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">F2</td><td style="padding:7px 8px">The concentric chain holds only while padding stays 16</td><td style="padding:7px 8px">S1 — all three terms pinned: 14 + 16 = 30</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">F3</td><td style="padding:7px 8px">A mark in the header would be a fourth copy</td><td style="padding:7px 8px">S2 — reuse the <code>Mark</code> component, or draw none</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">F4</td><td style="padding:7px 8px">Four stale references in the rules</td><td style="padding:7px 8px">Items 2–4 already corrected; this file adds its own row to both READMEs</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">F5</td><td style="padding:7px 8px"><code>navigation-map.md</code> covers only a shell that cannot close</td><td style="padding:7px 8px">Implementation task — listed in Phase 6 acceptance, not drawable here</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  WHAT THIS FILE DOES NOT DECIDE
+
+  Left to implementation on purpose, because drawing them would be inventing
+  rather than specifying:
+    · which library, if any, provides the focus trap — the behaviour is pinned
+      in S1's acceptance, the mechanism is not;
+    · the exact hit-area technique per control (padding vs an ::after overlay).
+      G-2 pins the RESULT — 44 x 44 pressable, drawn box unchanged — and the
+      technique differs per control;
+    · how the sticky action bar tracks the visual viewport. The state is drawn
+      and the anchor is named; the API is the implementer's choice;
+    · navigation-map.md's mobile checkpoints, which need a running build.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 60px">
+  <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:16px 20px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:10px">Phase 6 acceptance — what this file delivers</div>
+    <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.85">
+      <li>S1–S6 drawn in the master reference's idiom: <code>&lt;x-dc&gt;</code>, all styles inline, every colour and size literal, no runtime script.</li>
+      <li>Every surface at <strong>360</strong> and at <strong>768</strong>; the drawer <strong>open and closed</strong>; the keyboard-open state of <code>/</code> drawn.</li>
+      <li><code>--color-scrim</code> minted with <strong>both</strong> values and its separation re-derived — 5.23 : 1 in light, and the finding that dark needs an edge instead (1.02 : 1 without one).</li>
+      <li>No radius contradicts D56. The two recomputed values are shown with their arithmetic; two full-bleed bars take square corners with the reason stated; the ScrollArea thumb is recomputed from shadcn's 8 px rather than inheriting its capsule.</li>
+      <li>Every width claim checked against <strong>Ukrainian</strong>: 153.9 px in a 220 px drawer box, 44.6 px day cells at 312 px.</li>
+      <li>No D5-pinned figure moves — every number was read from production on 2026-08-14.</li>
+    </ul>
+    <p style="margin:12px 0 0;font-size:12px;color:#8b8a86">
+      Open after merge: <code>navigation-map.md</code> gains the mobile checkpoints when the phase implements (F5), and both design READMEs gain a row for this file.
+    </p>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>
