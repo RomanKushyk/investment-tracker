@@ -282,7 +282,16 @@ export const en = {
       ariaLabel: '₴/$ rate',
       invalid: 'Enter a rate above 0.',
     },
-    languagePlaceholder: 'Language settings are coming later.',
+    language: {
+      title: 'Language',
+      helper: 'Changes text, number and date formats.',
+      ariaLabel: 'Interface language',
+      // Each language NAMES ITSELF in its own script, in both dictionaries. A
+      // switch that labels a language in a language you cannot read is the one
+      // place where translating the label defeats its purpose (brief S2).
+      uk: 'Українська',
+      en: 'English',
+    },
     dataset: {
       title: 'Dataset',
       helper: 'Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.',
@@ -671,7 +680,13 @@ export const uk: Dict = {
       ariaLabel: 'Курс ₴/$',
       invalid: 'Введіть курс, більший за 0.',
     },
-    languagePlaceholder: 'Налаштування мови з’являться пізніше.',
+    language: {
+      title: 'Мова', // ✎
+      helper: 'Змінює текст, формат чисел і дат.', // ✎
+      ariaLabel: 'Мова інтерфейсу', // ✎
+      uk: 'Українська', // ✎
+      en: 'English', // ✎
+    },
     dataset: {
       title: 'Набір даних',
       helper: 'Демонстраційний містить вбудований еталонний портфель. Живий починається порожнім і містить ваші справжні дані. Перемикання перезавантажує застосунок.',

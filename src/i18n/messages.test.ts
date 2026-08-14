@@ -31,6 +31,10 @@ const UK = leaves(uk as unknown as Node);
 const SHARED = new Set([
   // A dataset marker, not prose — the same token in both, like the ₴/$ labels.
   'sidebar.demoBadge',
+  // Each language names ITSELF in its own script, in both dictionaries — the
+  // brief's S2 rule. Identical values here are the requirement, not a miss.
+  'settings.language.uk',
+  'settings.language.en',
 ]);
 
 describe('the dictionaries', () => {

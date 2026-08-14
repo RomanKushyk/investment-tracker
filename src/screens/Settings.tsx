@@ -8,7 +8,7 @@ import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
-import { useSettings, type Theme } from '../state/settings';
+import { useSettings, type Language, type Theme } from '../state/settings';
 import { AssetManager } from './settings/AssetManager';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
@@ -58,12 +58,6 @@ function SettingRow({
 
 function Divider() {
   return <div className="bg-hairline my-4 h-px" />;
-}
-
-// Interim placeholder line (Automation-card idiom) for sections whose real
-// controls land in the follow-up Phase 2 tasks.
-function Placeholder({ children }: { children: string }) {
-  return <div className="text-muted text-[13px] leading-normal">{children}</div>;
 }
 
 // S7 — the P1 sidebar Backup pill relocated to its designed home. Identical
@@ -173,6 +167,44 @@ function ThemeControl() {
           className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
         >
           {t.settings.theme[value]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// The Українська / English control (P5 S2). Two segments, so it keeps flex and
+// the 50% - 6px thumb of its CurrencyControl twin rather than the three-column
+// grid the theme control needed. Both labels are the same length in neither
+// language, but a two-segment flex track distributes what is left evenly and
+// the thumb is derived from the TRACK, not from the words.
+const LANGUAGE_ORDER: Language[] = ['uk', 'en'];
+
+function LanguageControl() {
+  const { language, setLanguage } = useSettings();
+  const t = useT();
+  return (
+    <div
+      role="radiogroup"
+      aria-label={t.settings.language.ariaLabel}
+      className="border-panel-border bg-panel relative grid grid-cols-2 gap-1 rounded-[12px] border p-1 max-sm:w-full"
+    >
+      <div
+        aria-hidden
+        data-owns-motion
+        className="bg-card absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        style={{ transform: `translateX(calc(${LANGUAGE_ORDER.indexOf(language)} * (100% + 4px)))` }}
+      />
+      {LANGUAGE_ORDER.map((value) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={language === value}
+          onClick={() => setLanguage(value)}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${language === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+        >
+          {t.settings.language[value]}
         </button>
       ))}
     </div>
@@ -463,6 +495,10 @@ export function Settings() {
             <ThemeControl />
           </SettingRow>
           <Divider />
+          <SettingRow title={t.settings.language.title} helper={t.settings.language.helper}>
+            <LanguageControl />
+          </SettingRow>
+          <Divider />
           <SettingRow title={t.settings.currency.title} helper={t.settings.currency.helper}>
             <CurrencyControl />
           </SettingRow>
@@ -473,8 +509,6 @@ export function Settings() {
           >
             <UsdRateField />
           </SettingRow>
-          <Divider />
-          <Placeholder>{t.settings.languagePlaceholder}</Placeholder>
         </Card>
       </div>
     </div>

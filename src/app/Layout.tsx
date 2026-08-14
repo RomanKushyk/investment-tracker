@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router';
 import { useDbSync } from '../hooks/useDbSync';
 import { useReminderToast } from '../hooks/useReminders';
 import { Sidebar } from './Sidebar';
+import { useDocumentLang } from '../i18n/useDocumentLang';
 import { useTheme } from './theme';
 
 export function Layout() {
@@ -16,6 +17,8 @@ export function Layout() {
   // owner for the whole life of the page (index.html's head script owns the
   // first paint and nothing else).
   useTheme();
+  // Same one-mount-point reasoning: <html lang> is a root attribute too.
+  useDocumentLang();
   // Same reason: another tab replacing or clearing the dataset must reach this
   // tab whatever route it is sitting on (P4/D24).
   useDbSync();
