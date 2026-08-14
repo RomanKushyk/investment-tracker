@@ -64,6 +64,13 @@ target, only a new record and one more entry in the association.
 | `quirenote.com`, `www.quirenote.com` | `main` (stage PRODUCTION) | `main` |
 | `dev.quirenote.com` | `dev` (stage DEVELOPMENT) | `dev` |
 
+**The split is the FRONTEND's only.** There is one AWS backend stack, and
+`deploy-backend.yml` triggers on `dev` alone — so the backend a production visitor
+would reach is whatever `dev` last deployed. That is harmless today because the app
+does not talk to the backend at all (it is a standalone daily archiver), and it stops
+being harmless at **W7**, when the migration wires the app to it. Whoever does W7 owns
+the choice then: a second stack, a stage parameter, or a promotion step of its own.
+
 `dev.quirenote.com` needs no separate certificate: Amplify issues `*.quirenote.com`
 alongside the apex, so every subdomain added later is already covered.
 
