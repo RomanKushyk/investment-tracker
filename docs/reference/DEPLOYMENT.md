@@ -47,14 +47,13 @@ the standing "no" list. Amplify supports third-party DNS and issues its own ACM
 certificate for free, so the domain adds **no standing AWS charge** — attaching it
 cost nothing and changes no line on the bill.
 
-**The apex and `www` are PROXIED; everything else is DNS-only** (2026-08-14, D61).
+**Every HTTP record is PROXIED; everything else is DNS-only** (2026-08-14, D61).
 The distinction is not a preference — it is what each record is for:
 
 | Record | Mode | Why |
 |---|---|---|
-| `@`, `www` | **proxied** | Cloudflare caches the immutable assets and absorbs floods before they become Amplify egress |
+| `@`, `www`, `dev` | **proxied** | Cloudflare caches the immutable assets and absorbs floods before they become Amplify egress — and hides the origin. All three point at the same CloudFront distribution, so ONE grey record would publish the origin for all of them |
 | `_f2385149…` (ACM validation) | dns-only | a proxied CNAME answers with Cloudflare's own addresses, so ACM never sees what it asked for and the certificate stops renewing — the trap the SES DKIM records already hit once |
-| `dev` | dns-only | already closed by basic auth; a second hop buys nothing |
 | DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP; Cloudflare cannot proxy it at all |
 
 The apex is legal as a CNAME only because Cloudflare flattens it, and the zone's MX
