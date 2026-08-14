@@ -100,7 +100,7 @@ export function DailyQuotes() {
       cash,
     };
     saveSnapshot.mutate(snapshot, {
-      onSuccess: () => toast.success('Snapshot saved'),
+      onSuccess: () => toast.success(t.dailyQuotes.snapshotSavedToast),
     });
   }
 
@@ -166,7 +166,7 @@ export function DailyQuotes() {
               key={filledCount}
               className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-[6px] px-3 py-1 text-xs font-semibold duration-150"
             >
-              {filledCount} of {assets.length} filled
+              {t.dailyQuotes.filled(filledCount, assets.length)}
             </span>
             <FetchQuotesButton
               state={fetch.state}
@@ -176,7 +176,7 @@ export function DailyQuotes() {
             />
             <div className="ml-auto flex items-center gap-2">
               <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
-                Date
+                {t.dailyQuotes.dateLabel}
               </label>
               <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
             </div>
@@ -222,14 +222,14 @@ export function DailyQuotes() {
           </div>
 
           <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
-            <Button onClick={handleSave}>Save snapshot</Button>
+            <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
             <Button variant="outline" onClick={handleCopyYesterday}>
-              Copy yesterday
+              {t.dailyQuotes.copyYesterday}
             </Button>
             <span className="text-muted ml-auto text-xs">
               {lastSavedAt
-                ? `Last saved ${f.savedAt(lastSavedAt)}`
-                : 'Not saved yet'}
+                ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
+                : t.dailyQuotes.notSavedYet}
             </span>
           </div>
 

@@ -47,6 +47,26 @@ export const en = {
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
+  dailyQuotes: {
+    filled: (n: number, total: number) => `${n} of ${total} filled`,
+    dateLabel: 'Date',
+    saveSnapshot: 'Save snapshot',
+    copyYesterday: 'Copy yesterday',
+    lastSaved: (when: string) => `Last saved ${when}`,
+    notSavedYet: 'Not saved yet',
+    snapshotSavedToast: 'Snapshot saved',
+    yieldSinceStart: 'Yield since start:',
+    yieldChartLink: 'Yield chart →',
+    keepMyValue: 'Keep my value',
+    dismissSuggestion: 'Dismiss suggestion',
+    provenance: {
+      auto: 'Filled from Inzhur (units × sell price).',
+      manual: 'Typed by hand — fetch never overwrites it.',
+      stale: 'From the last successful fetch — Inzhur was unreachable.',
+      accrual: 'Filled from coupon accrual — a suggestion you accepted.',
+      ghost: 'Suggested from coupon accrual — accept or type your own.',
+    },
+  },
   screen: {
     dailyQuotes: {
       title: 'Daily quotes',
@@ -118,6 +138,28 @@ export const uk: Dict = {
     // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+  },
+  dailyQuotes: {
+    filled: (n: number, total: number) => `${n} з ${total} заповнено`,
+    dateLabel: 'Дата',
+    // `зріз` for snapshot — the term the design session drafted in
+    // "Зберегти зріз", and the one the Balances subtitle already uses.
+    saveSnapshot: 'Зберегти зріз', // ✎
+    copyYesterday: 'Скопіювати вчорашні',
+    lastSaved: (when: string) => `Збережено ${when}`,
+    notSavedYet: 'Ще не збережено',
+    snapshotSavedToast: 'Зріз збережено',
+    yieldSinceStart: 'Дохідність від початку:',
+    yieldChartLink: 'Графік дохідності →',
+    keepMyValue: 'Лишити моє значення',
+    dismissSuggestion: 'Відхилити пропозицію',
+    provenance: {
+      auto: 'Заповнено з Inzhur (одиниці × ціна продажу).',
+      manual: 'Введено вручну — отримання цього не перезаписує.',
+      stale: 'З останнього вдалого отримання — Inzhur був недоступний.',
+      accrual: 'Заповнено з нарахування купона — прийнята пропозиція.',
+      ghost: 'Запропоновано з нарахування купона — прийміть або введіть власне.',
+    },
   },
   screen: {
     dailyQuotes: {

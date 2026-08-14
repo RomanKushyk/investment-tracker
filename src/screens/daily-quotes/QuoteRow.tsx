@@ -10,26 +10,18 @@ import { quoteInputSchema } from '../../core/schemas';
 import type { ProvenanceChip } from './fetch-quotes';
 import type { QuoteOffer } from './useQuoteFetch';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 // S2 — provenance of the row's CURRENT draft value: `auto` (a fetch filled
 // it), `manual` (the user's own — a fetch never overwrites it) or the amber
 // `as of dd.MM` stale chip when the value came from the last-good cache.
 // Geometry is one pill for all three; only the paint tokens differ.
-const CHIP_TITLE = {
-  auto: 'Filled from Inzhur (units × sell price).',
-  manual: 'Typed by hand — fetch never overwrites it.',
-  stale: 'From the last successful fetch — Inzhur was unreachable.',
-};
-
-// S2's title vocabulary has no accrual entry (S4 mints the microcopy) — the
-// pill's tooltip states the source in the same voice.
-const ACCRUAL_CHIP_TITLE = 'Filled from coupon accrual — a suggestion you accepted.';
-
-// S4 input tooltip, verbatim from the reference.
-const GHOST_TITLE = 'Suggested from coupon accrual — accept or type your own.';
+// The three titles, S2's accrual entry (S4 mints that microcopy) and the S4
+// input tooltip all live in the dictionary now — `t.dailyQuotes.provenance`.
 
 function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
   const f = useFormat();
+  const t = useT();
   const paint =
     chip.chip === 'auto'
       ? 'bg-pos-tint text-pos-tint-text'
@@ -41,7 +33,7 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
     <>
       <span
         key={chip.chip}
-        title={accrual ? ACCRUAL_CHIP_TITLE : CHIP_TITLE[chip.chip]}
+        title={accrual ? t.dailyQuotes.provenance.accrual : t.dailyQuotes.provenance[chip.chip]}
         className={`animate-in fade-in zoom-in-95 rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 ${paint}`}
       >
         {chip.chip === 'stale' ? `as of ${f.dateShort(kyivDateIso(new Date(chip.at)))}` : chip.chip}
@@ -112,6 +104,7 @@ function UseFetchedOffer({
   onDismiss: () => void;
 }) {
   const f = useFormat();
+  const t = useT();
   const value = f.num(offer.value);
   return (
     <OfferLine
@@ -120,7 +113,7 @@ function UseFetchedOffer({
           ? `Use ${value} (as of ${f.dateShort(kyivDateIso(new Date(offer.at)))})?`
           : `Use fetched ${value}?`
       }
-      dismissLabel="Keep my value"
+      dismissLabel={t.dailyQuotes.keepMyValue}
       stale={offer.stale}
       onAccept={onAccept}
       onDismiss={onDismiss}
@@ -215,6 +208,7 @@ export function QuoteRow({
   onDismissSuggestion: () => void;
 }) {
   const f = useFormat();
+  const t = useT();
   const parsed = raw !== undefined ? quoteInputSchema.safeParse(raw) : undefined;
   const filled = parsed?.success === true;
   const delta =
@@ -249,7 +243,7 @@ export function QuoteRow({
           <input
             id={`quote-${asset.id}`}
             name={`quote-${asset.id}`}
-            title={ghost !== undefined ? GHOST_TITLE : undefined}
+            title={ghost !== undefined ? t.dailyQuotes.provenance.ghost : undefined}
             className={
               'bg-card h-9 w-full rounded-[9px] border px-3 text-right font-body text-[13px] transition ' +
               (filled
@@ -293,7 +287,7 @@ export function QuoteRow({
       {offer === undefined && ghost !== undefined && (
         <OfferLine
           label={`Use suggested ${f.num(ghost)}?`}
-          dismissLabel="Dismiss suggestion"
+          dismissLabel={t.dailyQuotes.dismissSuggestion}
           onAccept={onAcceptSuggestion}
           onDismiss={onDismissSuggestion}
         />
