@@ -22,13 +22,13 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | **done** (2026-08-12) |
-| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied on first pass, reply sent 2026-08-11, awaiting re-review** |
+| A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
 | A13 | The alert channel gets its own liveness signal | `infra/alert-liveness` | S | **done** (2026-08-11, D47) |
 | **Section D** | **The one large sweep** | | | |
 | A8 | Design brief: appearance + language | `docs/design-brief-phase-5` | M | **done** (2026-08-12) — extension merged `f486121` |
 | A9 | Dark theme | `feat/dark-theme` | L | **done** (2026-08-13) |
-| A10 | Ukrainian | `feat/i18n-uk` | L | **done** (2026-08-14, D58) |
+| A10 | Ukrainian | `feat/i18n-uk` | L | **done** (2026-08-14, D58) — shipped as **v1.5.0** |
 | **Section F** | **Phase 6 — the mobile shell** | | | |
 | A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — awaiting the design session |
 | A17 | Mobile shell + record cards | `feat/mobile-shell` | L | design-gated |
@@ -36,7 +36,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
-| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11) |
+| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox closed 2026-08-14) |
 
 ---
 
@@ -612,8 +612,9 @@ workflow back. The old stack never stopped working.
 - [x] `infra/README.md` — both role policies verbatim, every prefix, and a field
       note recording what the move actually cost.
 - [x] `docs/reference/DEPLOYMENT.md`, `docs/README.md` backend table, `CLAUDE.md` key facts.
-- [ ] Amplify app name in the console — cosmetic, unrelated to the custom domain
-      in A11.
+- [x] Amplify app name in the console — **renamed `kubushka` -> `quirenote`
+      2026-08-14.** Cosmetic, as predicted: the App ID `d17m4jf400my6` is what the
+      URLs and every IAM ARN reference, and it does not change with the name.
 - [x] Update `PLAN-WAITING.md` W1/W3/W4 dates by the days actually lost, measured
       against the E3 baseline rather than estimated.
 
