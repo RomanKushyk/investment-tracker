@@ -28,6 +28,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O16 | CSV export after the repository becomes HTTP | 4 | **closed — D35** a scope note, not a decision |
 | O17 | SES sender identity — domain or address | 1 | **closed — D40** `quirenote.com`, acquired 2026-08-11; A11 unblocked |
 | O18 | Is the app renamed from Kubushka to match the domain? | 4 | **closed — D41** user-facing renamed to Quirenote; every addressed identifier left alone |
+| O20 | Separate dev and production databases — worth it, and when? | — | **researched 2026-08-14, owner's call** — the app's store is already per-origin and therefore already split; the backend split costs ~$0.40/mo and doubles the operational surface. Recommendation: at W7 |
 
 ---
 
@@ -86,3 +87,77 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 ## What must never happen
 
 An item from this file being resolved implicitly, by a commit that assumes an answer without naming it. If you find yourself needing one of these to proceed, that is the signal to stop and ask — not the signal to pick the obvious option quietly.
+
+## O20 — Should dev and production have separate databases, and when? — researched 2026-08-14
+
+**Asked by the owner** after the frontend prod/dev split (D59): if git has two
+environments, should the data be two stores as well?
+
+### What is already separate, at no cost
+
+**The app's database is per-ORIGIN, and dev and production are different
+origins.** Data lives in IndexedDB (`quirenote` for demo, `quirenote-live` for
+live), and the browser scopes those stores to `https://quirenote.com` and
+`https://dev.quirenote.com` independently. Nothing written on dev can reach
+production, today, by construction — and more thoroughly than a server split
+would give, since each browser profile is its own store too. `src/` makes no call
+to any server we own.
+
+So the question is only about the **backend**: one Aurora DSQL cluster, written by
+one nightly Lambda, read by nothing in the app.
+
+### What a second cluster would cost in money — almost nothing
+
+| Line | Figure | Source |
+|---|---|---|
+| DSQL DPU | **$9.50 / M DPU** (eu-north-1) | rate card in the cost spec |
+| DSQL storage | **$0.36 / GB-month** | same |
+| Free allowance | **100,000 DPU + 1 GB, always, recurring monthly** | same |
+| Current projection | **~325 DPU/month** at year 1 — 0.3% of the allowance | cost spec |
+| Current storage | **34.6 MiB / 6,630 rows** — 3.4% of the 1 GB | durability measurement |
+| DSQL billed this month | **$0.00, usage quantity 0** | Cost Explorer, 2026-08-14 |
+
+AWS free tiers are account-level, so a second cluster shares that allowance rather
+than earning its own — and even doubled, the workload is under 1% of it. The one
+line that does appear is CloudWatch: **7 alarms today against 10 free**, so a
+duplicated stack lands at 14 and the four over cost **$0.10 each — $0.40/month**.
+
+**Money is not the reason to hesitate.** The costs that matter are not on the bill.
+
+### What it would cost that is not money
+
+1. **A second nightly capture doubles the requests to Inzhur and NBU**, who
+   publish this data for free, for an archive nobody reads. Avoidable — a dev
+   stack can deploy its schedule `DISABLED` and be invoked by hand — but it has
+   to be a deliberate part of the design, not an afterthought.
+2. **A dev archive is worthless by construction.** The production archive's value
+   IS its history: the backend exists because Inzhur publishes none, so a day not
+   captured is lost permanently (D27). A dev cluster starts empty and stays thin,
+   which means it can rehearse **schema and migrations** and nothing else. That is
+   a real use — it is just much narrower than "a place where dev data lives".
+3. **The operational surface doubles**: 20 stack resources become 40, 7 alarms 14,
+   two backup selections, a second GitHub environment, a widened or second IAM
+   role, and every future infra change either applied twice or parameterised
+   first. Today's frontend split is the honest reference for the shape of that
+   work — six moving parts across AWS, GitHub and the workflow.
+4. **It buys nothing the app can use yet.** Nothing in `src/` reads the backend.
+   Until W7 the split would protect a production store from a dev application
+   that does not exist.
+
+### Recommendation — do it AT W7, not before
+
+W7 is the migration that first makes the app talk to a server. That is the moment
+the split stops being hygiene and becomes necessary: from then on, a dev build
+writing into the production archive is a live hazard rather than a theoretical
+one. Doing it then also means the migration is *designed* for two environments
+instead of retrofitted onto one, and the dev cluster gets created with a purpose
+already attached.
+
+Doing it now would mean maintaining two of everything for a backend with one job
+and no consumers, and the protection it adds today is protection the browser
+already provides for free.
+
+**If the owner prefers to move earlier**, the cheap first step is not a second
+cluster — it is making the stack take the environment as a parameter, so that
+standing one up later is a deploy rather than a fork. That is a small change and
+it is the part that would otherwise be done twice.
