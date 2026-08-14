@@ -848,38 +848,59 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
 
     · type=hover/scroll, so the bar OVERLAYS and takes no layout width —
       content does not reflow when it appears;
-    · GEOMETRY IS SHADCN'S, MEASURED OFF ITS OWN RENDERING: the scrollbar is
-      10 px wide (w-2.5) with 1 px of padding, so the thumb is 8 px. The bar
-      is inset 4 px from the panel edge so the thumb never crosses the corner
-      arc; the track is transparent — no chrome, which is the whole point;
-    · type="scroll": THE THUMB IS NOT PERMANENTLY DRAWN. It appears while the
-      region is being scrolled and fades out after. A scroll indicator that
-      sits there when nothing is moving is furniture;
-    · RADIUS 4 — A CAP, NOT A CORNER, AND D56'S PROPORTIONAL RULE DOES NOT
-      REACH HERE. That rule reads round(min(w, h) x 0.26) off two DESIGNED
-      dimensions. A thumb has one: its 8 px width. Its length is the ratio of
-      viewport to content — the app does not choose it, and it changes as the
-      content does. This is the same objection this file already makes twice,
-      for the header bar and the action bar: a box without a designed short
-      side takes no proportional radius. What a variable-length bar takes is a
-      cap, r = w / 2 = 4.
-      THE FIRST PASS OF THIS FILE GOT THIS WRONG and it is worth recording,
-      because the mistake is the reusable part: applying the rule mechanically
-      gave round(8 x 0.26) = 2, which on an 8 px bar is visually square, and
-      the result read as a stick of furniture rather than a scroll thumb.
-      D56 exists to stop shapes drifting, not to make every rounded end a
-      violation — and the four exceptions it lists are round for exactly this
-      reason, that their geometry is intrinsic rather than chosen;
-    · COLOUR: `faint` at rest, `muted` on hover and while dragging. The first
-      pass chose `muted` at rest on a strict reading of WCAG 1.4.11 (3 : 1 for
-      a non-text indicator; on `card`, hairline 1.24, panel-border 1.37, faint
-      2.12, muted 3.46). That reading is too strict for this element and made
-      it heavy: 1.4.11 governs information REQUIRED to identify a component or
-      its state, and a scroll region is identified by its content — position is
-      also conveyed by the content moving. The thumb is a transient affordance,
-      so it is quiet at rest and takes the contrast-passing `muted` at the
-      moment it is being used. In dark: faint 3.29, muted 6.04 on #1c1c1f, so
-      the same two tokens serve both themes and nothing branches on theme;
+    · GEOMETRY — A RAIL, A GAP, AND A THUMB, 6 px in total:
+          1 px  rail stroke
+          1 px  gap
+          2 px  thumb
+          1 px  gap
+          1 px  rail stroke
+      The rail is DRAWN, and that is what the first two passes of this file
+      missed: they showed a thumb alone, floating with nothing to run in. A
+      thumb without its rail says where you are but not that the region
+      scrolls at all — the rail is the affordance, the thumb is the state.
+      Proportions come from the owner reference (figma 8pokIqhrfvttK4KLKh9YHx,
+      node 6325:14975 — a 6 x 285 node whose source is one stroked rect at
+      rx 2.5 plus one 2 px round-capped line). THE REFERENCE IS PROPORTIONS
+      ONLY: its stroke is #DBE2EB, a cool blue-grey belonging to another
+      palette. Shape and colour below are re-derived in this app terms.
+    · The bar is inset 4 px from the panel edge, so neither rail nor thumb
+      crosses the 24 px corner arc. It is persistent while the content
+      overflows — a rail that appeared only on scroll would announce the
+      affordance at the moment it stops being needed;
+    · RADII ARE DERIVED, NOT COPIED: rail r 3, thumb r 1 — each is HALF ITS
+      OWN WIDTH, because neither has a designed short side for D56 to read.
+      That rule takes round(min(w, h) x 0.26) off two chosen dimensions; a
+      rail length is the panel height and a thumb length is the
+      viewport-to-content ratio. Neither is chosen, and both change without
+      anyone deciding.
+      This is the same objection this file already makes for the header bar
+      and the action bar — with the difference that decides the shape: those
+      bars END AT THE VIEWPORT, so there is nothing to round, while these ends
+      are free and take caps. Same rule, opposite answer, and the reason is
+      geometry rather than taste.
+      TWO EARLIER PASSES GOT THIS WRONG, and both mistakes are kept because
+      they are the reusable part. The first applied the proportional rule
+      mechanically — round(8 x 0.26) = 2 — which on an 8 px bar is visually
+      square and read as a stick of furniture. The second fixed the cap and
+      still drew no rail. D56 exists to stop shapes drifting, not to make
+      every rounded end a violation: the four exceptions it names are round
+      because their geometry is intrinsic, and a bar whose length nobody chose
+      is the same case;
+    · COLOUR IS THE APP OWN, AND THE TWO PARTS HAVE DIFFERENT JOBS:
+          rail   `panel-border` — the edge-of-a-box token, and the nearest in
+                 weight to the reference stroke (L 0.717 against 0.755;
+                 `hairline` at 0.799 is lighter than the reference, `faint` at
+                 0.445 far darker). 1.37 : 1 on card.
+          thumb  `faint` at rest, `muted` while dragging — 2.12 : 1 and
+                 3.46 : 1 on card; 1.55 : 1 and 2.51 : 1 against its own rail.
+      Stated rather than claimed to pass: at rest the thumb is BELOW the 3 : 1
+      WCAG 1.4.11 asks of a non-text indicator, and that is deliberate. 1.4.11
+      governs information REQUIRED to identify a component or its state — a
+      scroll region is identified by its content, position is also carried by
+      the content moving, and the rail already marks where the control is. The
+      contrast-passing value arrives at the moment the thumb is being used.
+      In dark both tokens are stronger, not weaker — 3.29 and 6.04 on #1c1c1f
+      — so nothing branches on theme;
     · the panel's own padding moves inside the viewport, so the bar rides in
       the padding gutter rather than over the text.
 
@@ -915,8 +936,8 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
           <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Перша купівля</div>
           <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">03.02.2026</div>
           <!-- the ScrollArea thumb: 6 wide, inset 4, radius 2, muted -->
-          <div style="position:absolute;right:4px;top:24px;bottom:24px;width:10px;padding:1px">
-            <div style="width:8px;height:120px;background:#b3b2ae;border-radius:4px"></div>
+          <div style="position:absolute;right:4px;top:24px;bottom:24px;width:6px;border:1px solid #dedcd8;border-radius:3px;padding:1px">
+            <div style="width:2px;height:96px;background:#b3b2ae;border-radius:1px"></div>
           </div>
         </div>
       </div>
@@ -924,8 +945,8 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
     <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
       The thumb <strong>overlays</strong> — no layout width, so nothing reflows when it appears — and it is inset from the panel edge, so it never crosses the 24 px corner arc.
       That crossing is the artifact this replaces: a square platform track running the full height of a rounded panel.
-      <br>Proportions are shadcn's (10 px bar, 1 px padding, 8 px thumb) and so is the cap: <strong>r 4</strong>, because a thumb has one designed dimension — its width — while its length is the viewport-to-content ratio. D56's proportional rule needs two, which is the same reason the header and action bars take square corners.
-      <br><code style="font-size:11px">faint</code> at rest, <code style="font-size:11px">muted</code> while dragging, and <code style="font-size:11px">type="scroll"</code> so it is not drawn at all when nothing is moving.
+      <br><strong>1 px rail · 1 px gap · 2 px thumb · 1 px gap · 1 px rail = 6.</strong> The rail is drawn — it is the affordance, and the thumb is the state. Radii are half of each part own width, rail 3 and thumb 1, because neither has a designed short side for D56 to read.
+      <br>Rail <code style="font-size:11px">panel-border</code>, thumb <code style="font-size:11px">faint</code> at rest and <code style="font-size:11px">muted</code> while dragging. The proportions come from the owner Figma reference; the palette does not — its cool <code style="font-size:11px">#DBE2EB</code> belongs to another system.
     </p>
   </div>
 
