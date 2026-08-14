@@ -87,6 +87,7 @@ function KindSegment({
   value: 'fund' | 'bond';
   onChange: (kind: 'fund' | 'bond') => void;
 }) {
+  const t = useT();
   const segment = (kind: 'fund' | 'bond', label: string) => (
     <button
       type="button"
@@ -107,8 +108,8 @@ function KindSegment({
         className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300"
         style={{ transform: value === 'fund' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
-      {segment('fund', 'Fund')}
-      {segment('bond', 'Bond')}
+      {segment('fund', t.asset.picker.fund)}
+      {segment('bond', t.asset.picker.bond)}
     </div>
   );
 }

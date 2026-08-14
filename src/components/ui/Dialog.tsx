@@ -18,8 +18,11 @@ export const DialogTitle = RadixDialog.Title;
 // to `ink`, so this is a no-op there — and #0f0f11 in dark.
 const OVERLAY_CLASS =
   'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
+// The border is transparent in light (the shadow separates it there) and a
+// hairline in dark, where --shadow-dialog is zeroed and the panel would
+// otherwise meet the scrim with no edge at all.
 const PANEL_CLASS =
-  'bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-6 shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-3xl p-6 shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 
 export function Dialog({
   open,

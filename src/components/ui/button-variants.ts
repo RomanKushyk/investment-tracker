@@ -28,7 +28,13 @@ export const buttonVariants = cva(
         // measured pair is recorded here rather than the quoted one.
         // Not to be confused with the inverted planes (`KpiCard` dark, the
         // `Dialog` overlay), which keep white and change their FILL instead.
-        primary: 'border-transparent bg-ink text-page hover:bg-sidebar-hover',
+        // The hover fill was `sidebar-hover`, a RAIL token — the same borrowing
+        // the outline variant below was already fixed for. In light it happened
+        // to read as "ink, a little lighter"; in dark the rail token is DARK
+        // while `bg-ink` is near-white, so hovering flipped the fill to #26262b
+        // under #141416 text and the label vanished into it. `ink-hover` is the
+        // fill's own token and moves with it in both themes.
+        primary: 'border-transparent bg-ink text-page hover:bg-ink-hover',
         // The hover fill was `sidebar-text`, a RAIL token borrowed onto a light
         // surface. Here `text-ink` is right and must invert — so in dark the
         // label went to #eceae7 and the hover fill went to #eceae7 with it, and

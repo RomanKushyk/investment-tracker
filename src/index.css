@@ -63,12 +63,23 @@
 
   --color-page: #f6f5f3;
   --color-ink: #26262a;
+  /* The filled button's hover. It must move WITH `ink` — a filled button that
+     hovers toward a fixed colour inverts in one of the two themes. The light
+     value is the #3d3d42 this always used (via the sidebar's hover token); the
+     dark one lifts the near-white fill instead of dropping it to a rail grey. */
+  --color-ink-hover: #3d3d42;
   --color-card: #ffffff;
   --color-muted: #8b8a86;
   --color-faint: #b3b2ae;
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
   --color-panel-border: #dedcd8;
+  /* The edge a surface needs when its SHADOW cannot draw one — the same trade
+     --shadow-thumb above makes, for the surfaces whose shadow is a plain drop
+     rather than a separator. Transparent in light on purpose: the rail is
+     #26262a on a #f6f5f3 page and the dialog carries --shadow-dialog, so an
+     outline there is decoration nothing asked for. */
+  --color-surface-edge: transparent;
   --color-label: #6f6e6a; /* Transaction panel field labels (design lines 110-146) */
   --color-sidebar: #26262a;
   --color-sidebar-text: #e9e8e6;
@@ -169,11 +180,17 @@
   --color-page: #141416;
   --color-card: #1c1c1f;
   --color-ink: #eceae7; /* 15.32 on page · 14.16 on card */
+  --color-ink-hover: #ffffff;
   --color-muted: #9b9a96; /* 6.04 on card */
   --color-faint: #6e6d6a; /* 3.29 on card — decorative only, never body text */
   --color-hairline: #2a2a2e;
   --color-panel: #232327;
   --color-panel-border: #33333a;
+  /* Dark is where this token earns its keep. The rail goes DARKER than the page
+     (#0f0f11 on #141416 — the two planes meet at 1.1:1) and every shadow above
+     is zeroed, so the dialog floats over the scrim with no boundary at all.
+     One hairline, `panel-border`'s own value, gives both their edge back. */
+  --color-surface-edge: #33333a;
   --color-label: #a8a7a3; /* 7.06 on card */
 
   /* Sidebar. In light it is already dark against a light page; in dark it goes

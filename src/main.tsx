@@ -45,6 +45,16 @@ void ensureSeeded().then(() => {
               // Same token as the popovers, so the toast loses its shadow in
               // dark with everything else rather than keeping a lone halo.
               boxShadow: 'var(--shadow-popover)',
+              // sonner paints from its own `theme` prop, which defaults to
+              // light — so in the dark app it drew a #ffffff card with an
+              // #ededed edge, the one surface that never turned. Painting it
+              // from the palette instead makes it follow the theme through the
+              // same tokens as everything else, with no second source of truth
+              // for which theme is on. `panel-border` is also the edge the dark
+              // theme needs once --shadow-popover is zeroed.
+              background: 'var(--color-card)',
+              color: 'var(--color-ink)',
+              border: '1px solid var(--color-panel-border)',
             },
           }}
         />

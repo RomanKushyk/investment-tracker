@@ -108,7 +108,7 @@ export function Sidebar() {
     // the gap between them, so 14 + 16 = 30 (and 14 + 10 = 24 on the rail).
     // The proportional rule gave 63px here and cut across the header plate's
     // own corner — a full-height panel has no designed short side to scale.
-    <aside data-dark-surface className="sticky top-0 flex h-screen w-[244px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[30px] max-sm:rounded-r-[24px] bg-sidebar p-4 max-sm:px-2.5 text-sidebar-text">
+    <aside data-dark-surface className="border-surface-edge sticky top-0 flex h-screen w-[244px] max-sm:w-[136px] flex-none flex-col gap-[3px] overflow-x-hidden overflow-y-auto rounded-r-[30px] border max-sm:rounded-r-[24px] bg-sidebar p-4 max-sm:px-2.5 text-sidebar-text">
       {/* clipping layer keeps the overflowing circle out of the scrollable area,
           so the sidebar only scrolls when its actual content overflows */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[30px] max-sm:rounded-r-[24px]">
