@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
 import type { FeedFreshness, FetchButtonState } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 // S1 — the phase's headline control (design/extensions/daily-quotes-live.dc.html
 // S1): an outline pill in the Daily-quotes header, one notch shorter than the
@@ -14,12 +15,8 @@ import { useFormat } from '../../hooks/useFormat';
 // flash ("Fetched 13:05" in `pos`, ~2.5s) · error (a TOAST — never a red
 // button) · stale-cache (the microcopy beside it turns warn). Gating adds
 // `demo` (in-button DEMO tag) and `unlinked` (nothing to fetch).
-const COPY = {
-  idle: 'Fetch quotes',
-  loading: 'Fetching…',
-  unlinked: 'No Inzhur-linked assets yet — link one in Settings → Portfolio.',
-  demo: 'Fetching is disabled in the demo dataset — switch to Live in Settings → Data.',
-};
+// The five states' copy lives in `t.dailyQuotes.fetch` — a module constant
+// could not follow a language that switches without a reload.
 
 export function FetchQuotesButton({
   state,
@@ -33,10 +30,11 @@ export function FetchQuotesButton({
   onFetch: () => void;
 }) {
   const f = useFormat();
+  const t = useT();
   const gated = state === 'demo' || state === 'unlinked';
   const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
-  const title = state === 'demo' ? COPY.demo : state === 'unlinked' ? COPY.unlinked : undefined;
+  const title = state === 'demo' ? t.dailyQuotes.fetch.demo : state === 'unlinked' ? t.dailyQuotes.fetch.unlinked : undefined;
 
   const button = (
     <Button
@@ -65,10 +63,10 @@ export function FetchQuotesButton({
       {/* Re-keyed so every label change crossfades instead of swapping (D7). */}
       <span key={state} className="animate-in fade-in duration-200">
         {state === 'loading'
-          ? COPY.loading
+          ? t.dailyQuotes.fetch.loading
           : success
-            ? `Fetched ${kyivTimeHm(new Date(flashAt))}`
-            : COPY.idle}
+            ? t.dailyQuotes.fetch.fetchedAt(kyivTimeHm(new Date(flashAt)))
+            : t.dailyQuotes.fetch.idle}
       </span>
       {state === 'demo' && (
         <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] uppercase">
@@ -100,8 +98,8 @@ export function FetchQuotesButton({
           }`}
         >
           {freshness.state === 'stale'
-            ? `Inzhur as of ${f.dateShort(kyivDateIso(new Date(freshness.at)))}`
-            : `Inzhur ${kyivTimeHm(new Date(freshness.at))}`}
+            ? t.dailyQuotes.fetch.feedAsOf(f.dateShort(kyivDateIso(new Date(freshness.at))))
+            : t.dailyQuotes.fetch.feedAt(kyivTimeHm(new Date(freshness.at)))}
         </span>
       )}
     </>

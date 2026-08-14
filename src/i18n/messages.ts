@@ -48,6 +48,27 @@ export const en = {
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
   dailyQuotes: {
+    fetch: {
+      idle: 'Fetch quotes',
+      loading: 'Fetching…',
+      fetchedAt: (time: string) => `Fetched ${time}`,
+      unlinked: 'No Inzhur-linked assets yet — link one in Settings → Portfolio.',
+      demo: 'Fetching is disabled in the demo dataset — switch to Live in Settings → Data.',
+      feedAsOf: (date: string) => `Inzhur as of ${date}`,
+      feedAt: (time: string) => `Inzhur ${time}`,
+    },
+    chip: {
+      auto: 'auto',
+      manual: 'manual',
+      asOf: (date: string) => `as of ${date}`,
+      suggested: 'suggested',
+    },
+    yesterdayValue: (amount: string) => `${amount} yesterday`,
+    useFetched: (value: string) => `Use fetched ${value}?`,
+    useCached: (value: string, date: string) => `Use ${value} (as of ${date})?`,
+    useSuggested: (value: string) => `Use suggested ${value}?`,
+    priceDoesNotFit: (published: string, implied: string) =>
+      `Price does not fit ${published} on any day of the last two weeks — it would imply ${implied} if struck today.`,
     filled: (n: number, total: number) => `${n} of ${total} filled`,
     dateLabel: 'Date',
     saveSnapshot: 'Save snapshot',
@@ -140,6 +161,27 @@ export const uk: Dict = {
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
   },
   dailyQuotes: {
+    fetch: {
+      idle: 'Отримати котирування',
+      loading: 'Отримання…', // ✎
+      fetchedAt: (time: string) => `Отримано ${time}`, // ✎
+      unlinked: 'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Налаштуваннях → Портфель.',
+      demo: 'Отримання вимкнено на демонстраційному наборі — перемкніть на Живий у Налаштуваннях → Дані.',
+      feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
+      feedAt: (time: string) => `Inzhur ${time}`,
+    },
+    chip: {
+      auto: 'авто',
+      manual: 'вручну',
+      asOf: (date: string) => `станом на ${date}`, // ✎
+      suggested: 'пропозиція',
+    },
+    yesterdayValue: (amount: string) => `${amount} учора`,
+    useFetched: (value: string) => `Взяти отримане ${value}?`,
+    useCached: (value: string, date: string) => `Взяти ${value} (станом на ${date})?`,
+    useSuggested: (value: string) => `Взяти запропоноване ${value}?`,
+    priceDoesNotFit: (published: string, implied: string) =>
+      `Ціна не відповідає ${published} у жоден день останніх двох тижнів — за сьогоднішнього розрахунку вона означала б ${implied}.`,
     filled: (n: number, total: number) => `${n} з ${total} заповнено`,
     dateLabel: 'Дата',
     // `зріз` for snapshot — the term the design session drafted in

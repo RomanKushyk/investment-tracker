@@ -36,7 +36,9 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
         title={accrual ? t.dailyQuotes.provenance.accrual : t.dailyQuotes.provenance[chip.chip]}
         className={`animate-in fade-in zoom-in-95 rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 ${paint}`}
       >
-        {chip.chip === 'stale' ? `as of ${f.dateShort(kyivDateIso(new Date(chip.at)))}` : chip.chip}
+        {chip.chip === 'stale'
+          ? t.dailyQuotes.chip.asOf(f.dateShort(kyivDateIso(new Date(chip.at))))
+          : t.dailyQuotes.chip[chip.chip]}
       </span>
       {chip.chip === 'auto' && (
         <span className="text-muted text-[10px]">
@@ -110,8 +112,8 @@ function UseFetchedOffer({
     <OfferLine
       label={
         offer.stale
-          ? `Use ${value} (as of ${f.dateShort(kyivDateIso(new Date(offer.at)))})?`
-          : `Use fetched ${value}?`
+          ? t.dailyQuotes.useCached(value, f.dateShort(kyivDateIso(new Date(offer.at))))
+          : t.dailyQuotes.useFetched(value)
       }
       dismissLabel={t.dailyQuotes.keepMyValue}
       stale={offer.stale}
@@ -132,6 +134,7 @@ function UseFetchedOffer({
  * noise, and noise is what stops anyone reading the one row that matters.
  */
 function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
+  const t = useT();
   const f = useFormat();
   if (verdict.state === 'consistent' || verdict.state === 'not_applicable') return null;
 
@@ -153,8 +156,10 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   if (verdict.state === 'revised') {
     return (
       <div className="text-warn animate-in fade-in text-[11px] duration-300">
-        Price does not fit {verdict.publishedPct}% on any day of the last two weeks — it
-        would imply {verdict.impliedPct.toFixed(2)}% if struck today.
+        {t.dailyQuotes.priceDoesNotFit(
+          f.pctPlain(verdict.publishedPct, 2),
+          f.pctPlain(verdict.impliedPct, 2),
+        )}
       </div>
     );
   }
@@ -227,13 +232,15 @@ export function QuoteRow({
         <div className="min-w-[110px] flex-1 break-words">
           <div className="text-sm font-semibold">{asset.name}</div>
           <div className="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span>{yesterday !== undefined ? `${f.money(yesterday)} yesterday` : '—'}</span>
+            <span>
+              {yesterday !== undefined ? t.dailyQuotes.yesterdayValue(f.money(yesterday)) : '—'}
+            </span>
             {chip !== undefined && <ProvenanceChipPill chip={chip} />}
           </div>
         </div>
         {ghost !== undefined && (
           <span className="text-faint animate-in fade-in flex-none text-[9px] tracking-[.12em] uppercase duration-300">
-            suggested
+            {t.dailyQuotes.chip.suggested}
           </span>
         )}
         {/* The input keeps its geometry; the ghost is real text rendered OVER
@@ -286,7 +293,7 @@ export function QuoteRow({
       )}
       {offer === undefined && ghost !== undefined && (
         <OfferLine
-          label={`Use suggested ${f.num(ghost)}?`}
+          label={t.dailyQuotes.useSuggested(f.num(ghost))}
           dismissLabel={t.dailyQuotes.dismissSuggestion}
           onAccept={onAcceptSuggestion}
           onDismiss={onDismissSuggestion}
