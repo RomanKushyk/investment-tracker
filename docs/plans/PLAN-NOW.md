@@ -254,6 +254,50 @@ Granted accounts default to 50,000 messages/day, which is four orders of magnitu
       **Checked 2026-08-14, three days after the reply:** `ProductionAccessEnabled: false`, quota still 200/day at 1/s, and `ReviewDetails` still reads `{Status: DENIED, CaseId: 178647479100146}` — the SAME case id, so this is the original denial still standing rather than a second one. Account is otherwise `SendingEnabled: true`, `EnforcementStatus: HEALTHY`. Nothing is blocked: SES is not wired into anything until W7.
 - [ ] If denied a second time, the fallback is not another appeal — it is to stay in the sandbox and verify the handful of recipient addresses by hand. At one user and two messages per account lifetime, 200/day is not a constraint; production access is convenience, and treating it as a blocker would invert that.
 
+### Why it was denied — audited 2026-08-14, and what changed
+
+**The case text cannot be read from here.** `sesv2 get-account` returns only
+`{Status: DENIED, CaseId: 178647479100146}`, and the Support API needs a paid
+support plan (`SubscriptionRequiredException` on Basic). Everything below is
+therefore either a fact about the account or an inference clearly labelled as one.
+
+**Fact — the website in the request did not load when the request was reviewed.**
+`WebsiteURL` is `https://quirenote.com`. The domain was registered 2026-08-11
+(D40) and the Cloudflare zone carried **only mail records** — three DKIM CNAMEs,
+MX, SPF, DMARC — until 2026-08-14, when the apex, `www` and `dev` CNAMEs were
+created (D59). So from submission until that day the URL in the request answered
+nothing. A reviewer who opens the stated site is a standard part of this review,
+and this is the single most likely cause of the denial. **Now fixed by
+circumstance:** the site is live, on its own domain, behind a real certificate.
+
+**Fact — the flow the request describes does not exist in the app.** The request
+says sign-up creates a request that the owner approves by hand, and that approval
+sends the only two messages. There is no auth, no sign-up and no email in the
+codebase at all — a reviewer visiting quirenote.com today finds a portfolio
+tracker with no account system. The description is true of the app that W7 will
+build, and cannot be verified against the app that exists.
+
+**Fixed 2026-08-14 — bounce and complaint handling was asserted, not built.** The
+reply told AWS that "the account-level suppression list is enabled and used" and
+that every bounce is seen individually. That was thin: the suppression list is an
+account default, and there was **no configuration set at all**, so no event went
+anywhere. Now there is one — `quirenote-mail`, reputation metrics on, with an
+event destination `problems-to-eventbridge` for BOUNCE, COMPLAINT, REJECT,
+DELIVERY_DELAY and RENDERING_FAILURE on the default bus, which is the project's
+own alert channel (SNS stays absent, D45/D47). It is set as the identity's
+DEFAULT configuration set, so a future caller cannot forget to attach it.
+
+- [ ] **Do not resubmit yet — resubmit when the sign-up flow is reachable (W7).**
+      `PutAccountDetails` is the resubmission mechanism, so calling it is the act;
+      it is deliberately not being called. Two of the three findings above are
+      already fixed, but the central claim of the request — that an approval step
+      gates every recipient — is exactly the one a reviewer cannot see today.
+      Resubmitting into that gap risks a second denial on a case that already
+      carries one, and buys nothing: **0 messages have ever been sent**, the
+      sandbox's 200/day is four orders of magnitude above the need, and its only
+      real limit (verified recipients) is satisfied by verifying the handful of
+      addresses by hand. Nothing downstream is blocked until W7.
+
 **Verify:** `GetSendQuota` reports a production quota rather than the 200/day sandbox one, and a test message reaches an address that was never verified.
 **Risk:** none to the running system — SES is not wired into anything until W7. The only failure mode is leaving it too late.
 

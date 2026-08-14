@@ -121,6 +121,21 @@ The backend uses its **own** OIDC role, separate from `quirenote-frontend-deploy
 so the existing frontend deploy role stays unable to touch hosting config
 (D15).
 
+### SES, created by hand and outside the stack (2026-08-14)
+
+Mail has no CloudFormation of its own yet — it is not wired to anything until W7.
+What exists in the account: the verified domain `quirenote.com` (Easy DKIM, custom
+MAIL FROM `mail.quirenote.com`, SPF on it, DMARC `p=none`), and a configuration set
+**`quirenote-mail`** with reputation metrics enabled and an event destination
+`problems-to-eventbridge` sending BOUNCE, COMPLAINT, REJECT, DELIVERY_DELAY and
+RENDERING_FAILURE to the default EventBridge bus — the same channel the alarms use,
+and the reason no SNS topic appears here either (D45/D47). It is the identity's
+DEFAULT configuration set, so a sender that forgets to name one still gets it.
+
+The account is still in the **sandbox**: 200 messages/day, 1/s, verified recipients
+only. Production access was denied once; `PLAN-NOW.md` A11 records what was audited
+and why the resubmission waits for W7.
+
 ### One-time console setup
 
 Two roles, deliberately. The GitHub role can do almost nothing by itself — it

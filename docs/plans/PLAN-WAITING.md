@@ -16,7 +16,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W4 | Inzhur observation schema | W3 + `PLAN-NOW.md` A4 | **2026-09-02** | no | blocks B3 migration |
 | W5 | **cum/ex boundary on UA4000238976** | the coupon itself | **2026-09-24** | **yes** | **182 days** — next chance 2027-03-24 |
 | W6 | DPU measured over a real month | 30 days of captures | **2026-09-10** | no | none |
-| W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-01** | no | everything downstream — **and it inherits the backend half of the prod/dev split (D59): the frontend has two environments, the backend has one stack that deploys from `dev`** |
+| W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-01** | no | everything downstream — **it inherits the backend half of the prod/dev split (D59)**, and **it is the gate on resubmitting SES production access**: the request describes a sign-up-then-approve flow that will not exist until this lands (A11 audit, 2026-08-14) |
 | W8 | Super-admin control surface | W7 | after W7 | no | parse control stays code-only |
 | W9 | First year sealed in the archive | the 01:00 run on 1 Jan writes 31 Dec | **2027-01-01** | no | a year cached wrong is cached forever |
 | W10 | UA4000238976 matures | the bond | **2027-03-24** | **yes** | first production exercise of the `sold` term |
