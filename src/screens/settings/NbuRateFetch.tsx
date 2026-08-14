@@ -4,7 +4,7 @@
 // what NBU published and offers to apply it. `usdRate` stays exactly what it
 // was — a manual override the user owns — and the fetched value is additive,
 // which is the contract A5 pinned.
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
@@ -23,9 +23,18 @@ export interface NbuRateFetchProps {
    * synchronising around it.
    */
   onApply: (rate: number) => void;
+  /**
+   * The manual ₴/$ input, rendered on the SAME line as the button. It lives
+   * here rather than beside this component because the status line below is
+   * wider than the button: as a sibling it stretched the shared row and left
+   * the input stranded 238px from the button it belongs to (measured), and
+   * before that it made the block three rows tall, which pushed SettingRow's
+   * vertically-centred label in BETWEEN the input and the button.
+   */
+  children: ReactNode;
 }
 
-export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
+export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
   const t = useT();
   const f = useFormat();
   const { data, lastGood, isFetching, isError, disabled, fetchRate } = useNbuRate();
@@ -50,19 +59,22 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      {/* No aria-label: it would REPLACE the visible text, so "Fetch rate" —
-          the words on screen — stops being part of the accessible name and a
-          voice-control user saying them hits nothing (WCAG 2.5.3). It also hid
-          the "Fetching…" state from screen readers. `title` adds the longer
-          wording without taking the name away. */}
-      <Button
-        variant="outline"
-        onClick={handleFetch}
-        disabled={disabled || isFetching}
-        title={t.nbu.title}
-      >
-        {isFetching ? 'Fetching…' : 'Fetch rate'}
-      </Button>
+      <div className="flex items-center gap-2">
+        {children}
+        {/* No aria-label: it would REPLACE the visible text, so "Fetch rate" —
+            the words on screen — stops being part of the accessible name and a
+            voice-control user saying them hits nothing (WCAG 2.5.3). It also hid
+            the "Fetching…" state from screen readers. `title` adds the longer
+            wording without taking the name away. */}
+        <Button
+          variant="outline"
+          onClick={handleFetch}
+          disabled={disabled || isFetching}
+          title={t.nbu.title}
+        >
+          {isFetching ? t.nbu.fetching : t.nbu.fetch}
+        </Button>
+      </div>
 
       {disabled && (
         <span className="text-muted text-[11px]">{t.nbu.demoDisabled}</span>
@@ -71,15 +83,18 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
       {!disabled && shown !== undefined && (
         <div className="animate-in fade-in slide-in-from-top-1 flex items-center gap-2 text-[11px] duration-200">
           <span className={isStale ? 'text-muted' : 'text-pos-tint-text'}>
-            NBU {shown.rate} for {f.date(shown.date)}
-            {isStale && ' · last known, not refreshed'}
+            {t.nbu.shown(f.units(shown.rate), f.date(shown.date))}
+            {isStale && t.nbu.stale}
           </span>
           {shown.rate !== usdRate && (
             <button
               type="button"
               onClick={() => {
                 onApply(shown.rate);
-                toast.success(t.nbu.applied(String(shown.rate)));
+                // f.units, not String(): the line right above already reads
+                // "44,6988" in Ukrainian, and a toast saying 44.6988 makes the
+                // same number look like a different one (Contract 0).
+                toast.success(t.nbu.applied(f.units(shown.rate)));
               }}
               className="text-pos hover:text-pos-tint-text underline underline-offset-2 transition duration-200"
             >
@@ -91,7 +106,7 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
 
       {!disabled && tried && isError && shown === undefined && (
         <span className="text-neg animate-in fade-in text-[11px] duration-200">
-          No rate available — the stored {usdRate} stays in effect.
+          {t.nbu.none(f.units(usdRate))}
         </span>
       )}
     </div>

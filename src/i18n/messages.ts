@@ -516,6 +516,9 @@ export const en = {
     demoDisabled: 'Demo data — no requests leave the app.',
     failed: 'Could not reach the NBU rate directory — please try again.',
     applied: (rate: string) => `Rate set to ${rate}`,
+    shown: (rate: string, date: string) => `NBU ${rate} for ${date}`,
+    stale: ' · last known, not refreshed',
+    none: (rate: string) => `No rate available — the stored ${rate} stays in effect.`,
   },
   settings: {
     sections: {
@@ -1175,6 +1178,9 @@ export const uk: Dict = {
     demoDisabled: 'Демонстраційні дані — жоден запит не залишає застосунок.',
     failed: 'Не вдалося звернутися до довідника курсів НБУ — спробуйте ще раз.',
     applied: (rate: string) => `Курс встановлено на ${rate}`,
+    shown: (rate: string, date: string) => `НБУ ${rate} на ${date}`,
+    stale: ' · останній відомий, не оновлювався',
+    none: (rate: string) => `Курс недоступний — лишається збережений ${rate}.`,
   },
   settings: {
     sections: {

@@ -244,24 +244,28 @@ function UsdRateField() {
     // ml-auto so the block still hugs the right edge on the narrow widths where
     // SettingRow wraps it onto its own line — every other control in this card
     // sits right, and a left-aligned one reads as a mistake.
+    // The input goes INSIDE the fetch block: the two are one control — the
+    // rate, and a way to refresh it — and only that nesting keeps them on one
+    // line. See NbuRateFetchProps.children for what stacking them cost.
     <div className="ml-auto flex flex-col items-end gap-2">
-      <input
-        id="usd-rate"
-        name="usdRate"
-        value={raw}
-        onChange={(e) => handleChange(e.target.value)}
-        onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
-        inputMode="decimal"
-        aria-label={t.settings.rate.ariaLabel}
-        aria-invalid={error}
-        className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
-      />
+      <NbuRateFetch onApply={applyFetched}>
+        <input
+          id="usd-rate"
+          name="usdRate"
+          value={raw}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
+          inputMode="decimal"
+          aria-label={t.settings.rate.ariaLabel}
+          aria-invalid={error}
+          className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+        />
+      </NbuRateFetch>
       {error && (
         <div className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200">
           {t.settings.rate.invalid}
         </div>
       )}
-      <NbuRateFetch onApply={applyFetched} />
     </div>
   );
 }
@@ -294,12 +298,12 @@ function LeadDaysField() {
       <input
         id="reminder-lead-days"
         name="reminderLeadDays"
-        value={raw}
-        onChange={(e) => handleChange(e.target.value)}
-        onBlur={() => setError(parseLeadDays(raw) === null)}
-        inputMode="decimal"
-        aria-label={t.settings.reminders.leadAriaLabel}
-        aria-invalid={error}
+          value={raw}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={() => setError(parseLeadDays(raw) === null)}
+          inputMode="decimal"
+          aria-label={t.settings.reminders.leadAriaLabel}
+          aria-invalid={error}
         // The message lives outside the label, so the link has to be explicit —
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
