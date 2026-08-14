@@ -121,6 +121,32 @@ The backend uses its **own** OIDC role, separate from `quirenote-frontend-deploy
 so the existing frontend deploy role stays unable to touch hosting config
 (D15).
 
+### Is reading the Inzhur feed sanctioned? — checked 2026-08-14
+
+The handler must send a `User-Agent` or the request 403s, which reads at first
+like a door being closed. It is not one, and the evidence is worth keeping
+because the question will be asked again:
+
+- **The block is on the ABSENCE of a UA, not on ours.** No UA -> 403 with a
+  generic CloudFront error page; our honest `quirenote-price-capture/1.0
+  (+https://quirenote.com)` -> 200; a bare `Mozilla/5.0` -> 200. That is AWS
+  WAF's stock `NoUserAgent_HEADER` bot-hygiene rule, not a targeted measure. A
+  site hiding an endpoint would block the self-identifying agent first.
+- **`https://www.inzhur.reit/robots.txt` allows it.** `User-agent: * / Allow: /`,
+  with a curated deny list — `/dashboard/`, `/signin/`, `/signup/`, `/documents`,
+  `/fund_merger_report`, `/annual_report_2025`, `/terms`, `/privacy-policy`.
+  They thought about what to exclude; `/_api/` is not excluded.
+- **It is the site's own public endpoint**, the same one the SPA read directly
+  from visitors' browsers before the capture existed (D19: "public marketing
+  endpoint, not a documented API"), fetched as a bare GET with no credentials.
+- **Volume is one request a day** — and only up to six on a day the capture
+  fails, because `alreadySettled` checks before fetching (D64).
+
+**Not checked, deliberately:** their `/terms`, because `robots.txt` disallows
+retrieving it programmatically and reading it with a crawler while arguing that
+we respect their crawl rules would be self-refuting. It is a page for a person to
+open in a browser.
+
 ### SES, created by hand and outside the stack (2026-08-14)
 
 Mail has no CloudFormation of its own yet — it is not wired to anything until W7.
