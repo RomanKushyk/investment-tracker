@@ -19,9 +19,11 @@
 # So if a URL ever does turn up in a search result, the fix is not a stricter
 # rule here; it is to allow crawling and serve `X-Robots-Tag: noindex` instead.
 #
-# Cloudflare prepends its content-signals preamble to whatever this file says
-# (D61) — that preamble carries no User-agent and no Disallow of its own, so the
-# rules below are the operative ones.
+# Cloudflare SYNTHESISES a content-signals robots.txt only when the origin has
+# none. Shipping this file replaced it outright — verified after deploy, the
+# preamble is gone. That also means deleting this file at W7 hands robots.txt
+# back to Cloudflare's version, so if the AI-training reservations it stated are
+# wanted afterwards, they have to be written here instead.
 
 User-agent: *
 Disallow: /

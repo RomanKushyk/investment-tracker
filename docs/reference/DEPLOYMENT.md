@@ -64,12 +64,17 @@ carries `User-agent: * / Disallow: /` — deliberately temporary, and the file s
 so: until W7 gives the app a registration flow, anything indexed is a page a
 visitor cannot act on. Delete the file when sign-up ships.
 
-Proxying the zone also made Cloudflare prepend its **content-signals** preamble to
-whatever that file says: reservations about AI training and search input, with no
-`User-agent` and no `Disallow` of its own, so the shipped rules are the operative
-ones. The SPA rewrite (§1.2) excludes `txt`, so `/robots.txt` is served as a file
-rather than swallowed into `index.html` — worth knowing, because the naive rewrite
-this project rejected would have returned the app's HTML for it.
+Before that file existed, proxying the zone made Cloudflare **synthesise** a
+content-signals robots.txt — reservations about AI training and search input, with
+no `User-agent` and no `Disallow`. It does that only when the origin has none:
+shipping ours replaced it outright, verified after the deploy. The consequence is
+worth carrying to W7 — **deleting `public/robots.txt` hands `/robots.txt` back to
+Cloudflare's version**, so if those AI-training reservations are wanted once
+crawling is allowed, they must be written into the shipped file instead.
+
+The SPA rewrite (§1.2) excludes `txt`, so `/robots.txt` is served as a file rather
+than swallowed into `index.html` — worth knowing, because the naive rewrite this
+project rejected would have returned the app's HTML for it.
 
 **Do not pair `Disallow` with `noindex`.** They cancel: a crawler forbidden to
 fetch never sees the header or the meta tag telling it not to list. `Disallow` is
