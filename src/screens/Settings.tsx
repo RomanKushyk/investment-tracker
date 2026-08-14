@@ -215,6 +215,8 @@ function LanguageControl() {
 // app-wide "positive number, comma or dot decimals" input rule); an invalid
 // or ≤0 value never reaches the store — the last valid rate stays in effect.
 // Empty input only errors on blur (arming is progressive).
+const USD_RATE_ERROR_ID = 'usd-rate-error';
+
 function UsdRateField() {
   const t = useT();
   const { usdRate, setUsdRate } = useSettings();
@@ -249,23 +251,34 @@ function UsdRateField() {
     // line. See NbuRateFetchProps.children for what stacking them cost.
     <div className="ml-auto flex flex-col items-end gap-2">
       <NbuRateFetch onApply={applyFetched}>
-        <input
-          id="usd-rate"
-          name="usdRate"
-          value={raw}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
-          inputMode="decimal"
-          aria-label={t.settings.rate.ariaLabel}
-          aria-invalid={error}
-          className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
-        />
-      </NbuRateFetch>
-      {error && (
-        <div className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200">
-          {t.settings.rate.invalid}
+        {/* The error travels WITH the input, not after the fetch block: as a
+            sibling below it, the message rendered under the NBU status line —
+            two rows away from the field it describes. `aria-describedby` links
+            it for the same reason LeadDaysField links its own; `aria-invalid`
+            alone announces "invalid" with no reason. */}
+        <div className="flex flex-col items-end gap-1">
+          <input
+            id="usd-rate"
+            name="usdRate"
+            value={raw}
+            onChange={(e) => handleChange(e.target.value)}
+            onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
+            inputMode="decimal"
+            aria-label={t.settings.rate.ariaLabel}
+            aria-invalid={error}
+            aria-describedby={error ? USD_RATE_ERROR_ID : undefined}
+            className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+          />
+          {error && (
+            <div
+              id={USD_RATE_ERROR_ID}
+              className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200"
+            >
+              {t.settings.rate.invalid}
+            </div>
+          )}
         </div>
-      )}
+      </NbuRateFetch>
     </div>
   );
 }

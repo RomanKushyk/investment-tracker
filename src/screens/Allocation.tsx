@@ -74,7 +74,7 @@ export function Allocation() {
                   <div className="mb-1.5 flex justify-between text-[12.5px]">
                     <span className="font-semibold">{r.asset.name}</span>
                     <span>
-                      {f.pctPlain(r.share)} / {f.pctPlain(r.target, 0)}{' '}
+                      {f.pctPlain(r.share)} / {f.pctPlain(r.target, Number.isInteger(r.target) ? 0 : 1)}{' '}
                       <strong className={r.severity === 'off' ? 'text-neg' : 'text-pos'}>
                         {f.pp(r.deltaPp)}
                       </strong>

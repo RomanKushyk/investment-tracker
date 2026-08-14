@@ -14,7 +14,7 @@ import { useFormat } from '../../hooks/useFormat';
 // one row per asset (dot · name · muted current share · 72px %-input), a live
 // preview ShareBar re-rendering the ENTERED targets, and the Σ pill — =100
 // pos tint, ≠100 warn tint, recomputed on every keystroke and never a save
-// blocker (brief S4). Explicit {t.targets.save} per the reference — per-asset
+// blocker (brief S4). Explicit "Save targets" per the reference — per-asset
 // useUpdateAsset patches for the rows that actually changed.
 //
 // Renders its own divider + "Targets" microlabel so the whole sub-section
@@ -111,9 +111,12 @@ export function TargetsEditor() {
             status === 'ok' ? 'bg-pos-tint text-pos-tint-text' : 'bg-warn-tint text-warn-tint-text'
           }`}
         >
+          {/* The precision follows the VALUE, not a fixed 0: sumStatus compares
+              the unrounded sum against 100, so rounding 99.6 to "100 %" here
+              printed a warn pill that contradicted its own sentence. */}
           {status === 'ok'
-            ? t.targets.sumOk(f.pctPlain(sum, 0))
-            : t.targets.sumOff(f.pctPlain(sum, 0))}
+            ? t.targets.sumOk(f.pctPlain(sum, Number.isInteger(sum) ? 0 : 1))
+            : t.targets.sumOff(f.pctPlain(sum, Number.isInteger(sum) ? 0 : 1))}
         </span>
         <Button
           className="ml-auto"

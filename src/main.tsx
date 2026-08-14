@@ -54,6 +54,10 @@ void ensureSeeded().then(() => {
               // theme needs once --shadow-popover is zeroed.
               background: 'var(--color-card)',
               color: 'var(--color-ink)',
+              // `panel-border`, not `surface-edge`: the toast HAD an edge in
+              // light already (sonner's own #ededed), so the light value must
+              // stay visible — and surface-edge is transparent there by
+              // definition, for surfaces that carry a shadow instead.
               border: '1px solid var(--color-panel-border)',
             },
           }}

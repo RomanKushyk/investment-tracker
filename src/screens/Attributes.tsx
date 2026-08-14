@@ -76,23 +76,31 @@ export function Attributes() {
               <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">
                 {isBond ? (
                   <>
-                    <Fact label={t.analytics.attributes.ytmAtPurchase}>{f.pctPlain(a.expectedPct)} / yr</Fact>
+                    <Fact label={t.analytics.attributes.ytmAtPurchase}>
+                      {f.pctPlain(a.expectedPct)} {t.analytics.perYear}
+                    </Fact>
                     <Fact label={t.analytics.attributes.coupon}>
                       {a.couponAmount !== undefined
                         ? `${f.moneyWhole(a.couponAmount)} ${t.asset.couponFrequency[a.payoutSchedule]}`
                         : '—'}
                     </Fact>
                     <Fact label={t.analytics.attributes.maturity}>{a.maturity ? f.date(a.maturity) : '—'}</Fact>
-                    <Fact label={t.analytics.attributes.targetShare}>{a.targetPct}%</Fact>
+                    <Fact label={t.analytics.attributes.targetShare}>
+                      {f.pctPlain(a.targetPct, Number.isInteger(a.targetPct) ? 0 : 1)}
+                    </Fact>
                     <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
                     <Fact label={t.analytics.attributes.nextCoupon}>{a.nextCoupon ? f.date(a.nextCoupon) : '—'}</Fact>
                   </>
                 ) : (
                   <>
-                    <Fact label={t.analytics.attributes.expectedReturn}>{f.pctPlain(a.expectedPct)} / yr</Fact>
+                    <Fact label={t.analytics.attributes.expectedReturn}>
+                      {f.pctPlain(a.expectedPct)} {t.analytics.perYear}
+                    </Fact>
                     <Fact label={t.analytics.attributes.actualAnn}>{actualAnnualized(a)}</Fact>
                     <Fact label={t.analytics.attributes.payoutSchedule}>{payoutScheduleLabel(a, transactions, t)}</Fact>
-                    <Fact label={t.analytics.attributes.targetShare}>{a.targetPct}%</Fact>
+                    <Fact label={t.analytics.attributes.targetShare}>
+                      {f.pctPlain(a.targetPct, Number.isInteger(a.targetPct) ? 0 : 1)}
+                    </Fact>
                     <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
                     <Fact label={t.analytics.attributes.reinvestPolicy}>{a.reinvestPolicy ?? '—'}</Fact>
                   </>

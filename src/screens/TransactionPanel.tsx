@@ -296,7 +296,7 @@ export function TransactionPanel() {
               >
                 <span className="min-w-0 flex-1 truncate">
                   {tx.type === 'interest_payout' ? t.transaction.recentCoupon : t.transaction.types[tx.type]} ·{' '}
-                  {asset ? shortLabel(asset) : 'Portfolio'}
+                  {asset ? shortLabel(asset) : t.transaction.portfolioRow}
                 </span>
                 <strong className="whitespace-nowrap">
                   {f.money(tx.amount)}

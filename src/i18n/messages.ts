@@ -424,6 +424,12 @@ export const en = {
     capitalGainUah: 'Capital gain, ₴',
     capitalGainPct: 'Capital gain, %',
     ofItReinvested: 'of it reinvested',
+    // The unit that follows a rate on the Attributes facts ("16.5 % / yr").
+    perYear: '/ yr',
+    // Percentage POINTS, the unit of a vs-expected gap. NBSP in both languages:
+    // a figure that wraps away from its unit is the failure f.pp's `%` branch
+    // already guards against.
+    ppSuffix: ' pp',
     share: 'Share',
     snapshot: 'Snapshot',
     cash: 'Cash',
@@ -458,6 +464,9 @@ export const en = {
     },
     portfolio: {
       bestPerformer: 'Best performer',
+      // The income kind named in the engine card's sub-line.
+      dividendsWord: 'dividends',
+      couponsWord: 'coupons',
       laggard: 'Laggard',
       incomeEngine: 'Income engine',
       noQuotes: 'No quotes yet.',
@@ -753,6 +762,8 @@ export const en = {
       tax: 'Tax',
     },
     recentCoupon: 'Coupon',
+    // A row with no asset — a deposit or a withdrawal belongs to the whole book.
+    portfolioRow: 'Portfolio',
     recordedToast: 'Transaction recorded',
     failedToast: 'Could not record transaction — please try again.',
     sources: {
@@ -1024,13 +1035,12 @@ export const uk: Dict = {
           parts.length > 1
             ? `${parts.slice(0, -1).join(', ')} і ${parts.at(-1)}`
             : parts[0];
-        return `${subject} у наборі ${dataset} немає в цьому файлі — їх буде вилучено.`;
+        return `${subject} у наборі «${dataset}» немає в цьому файлі — їх буде вилучено.`;
       },
       noAssets: 'У файлі немає активів — після імпорту набір буде порожній.',
       noSnapshots: (current: number, dataset: string) =>
-        `У файлі немає зрізів — усі ${current} збережених днів у наборі ${dataset} буде вилучено.`,
-      otherDataset: (dataset: string) =>
-        `Цей файл експортовано з набору ${dataset}.`,
+        `У файлі немає зрізів — усі ${current} ${plural(current, 'збережений день', 'збережені дні', 'збережених днів')} у наборі «${dataset}» буде вилучено.`,
+      otherDataset: (dataset: string) => `Цей файл експортовано з набору «${dataset}».`,
       exportedLongAgo: (days: number, date: string) =>
         `Експортовано ${days} ${plural(days, 'день', 'дні', 'днів')} тому (${date}).`,
       newerDbVersion: (file: string, app: string) =>
@@ -1232,6 +1242,8 @@ export const uk: Dict = {
     capitalGainUah: 'Приріст капіталу, ₴',
     capitalGainPct: 'Приріст капіталу, %',
     ofItReinvested: 'з них реінвестовано',
+    perYear: '/ рік',
+    ppSuffix: ' в.п.',
     share: 'Частка',
     snapshot: 'Зріз',
     cash: 'Готівка',
@@ -1266,6 +1278,8 @@ export const uk: Dict = {
     },
     portfolio: {
       bestPerformer: 'Найкращий',
+      dividendsWord: 'дивідендів',
+      couponsWord: 'купонів',
       laggard: 'Відстаючий',
       incomeEngine: 'Джерело доходу',
       noQuotes: 'Котирувань ще немає.',
@@ -1546,6 +1560,7 @@ export const uk: Dict = {
       tax: 'Податок',
     },
     recentCoupon: 'Купон',
+    portfolioRow: 'Портфель',
     recordedToast: 'Транзакцію записано',
     failedToast: 'Не вдалося записати транзакцію — спробуйте ще раз.',
     sources: {

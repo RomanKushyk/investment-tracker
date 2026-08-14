@@ -101,7 +101,7 @@ function DeleteAssetDialog({
 }
 
 // Settings→Portfolio asset manager (S2): every existing asset as a row
-// (dot · name · short yield label · Edit/Delete), footer {t.assets.add} —
+// (dot · name · short yield label · Edit/Delete), footer "+ Add asset" —
 // both open the standalone AssetForm in a dialog (S3).
 export function AssetManager() {
   const t = useT();

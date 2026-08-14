@@ -140,6 +140,10 @@ export function warningSentence(
   t: Dict,
 ): string {
   const w = t.importing.warning;
+  // The dataset reaches here as its STORED token ('demo' | 'live'). Splicing
+  // that into a Ukrainian sentence left an English word inside it, while the
+  // switch two cards above named the same dataset «Демо» / «Живий».
+  const name = t.datasetSwitch[dataset];
   switch (warning.code) {
     // The brief's sentence names snapshots and transactions; assets join it
     // when a file drops some but not all of them — the same fact, stated for
@@ -151,14 +155,15 @@ export function warningSentence(
         warning.snapshots > 0 ? c.snapshots(warning.snapshots) : null,
         warning.transactions > 0 ? c.transactions(warning.transactions) : null,
       ].filter((part): part is string => part !== null);
-      return w.rowsRemoved(parts, dataset);
+      return w.rowsRemoved(parts, name);
     }
     case 'no-assets':
       return w.noAssets;
     case 'no-snapshots':
-      return w.noSnapshots(warning.current, dataset);
+      return w.noSnapshots(warning.current, name);
     case 'other-dataset':
-      return w.otherDataset(warning.dataset);
+      // The FILE's dataset, not the active one — same translation, other value.
+      return w.otherDataset(t.datasetSwitch[warning.dataset]);
     case 'exported-long-ago':
       return w.exportedLongAgo(warning.days, f.date(warning.date));
     case 'newer-db-version':

@@ -8,7 +8,8 @@ import { uk } from '../../i18n/messages';
 
 import { parseAssetsFeed } from '../../core/inzhur/parse';
 import fixture from '../../core/inzhur/__fixtures__/assets-sample.json';
-import { inzhurRefOptions } from './asset-form';
+import { assetFormSchema } from '../../core/schemas';
+import { assetFormDefaults, inzhurRefOptions } from './asset-form';
 
 // The formatter is a parameter now (Contract 0), so these fixtures bind it
 // to Ukrainian — the language whose forms these expectations were written in
@@ -55,4 +56,33 @@ describe('inzhurRefOptions (S7)', () => {
     ]);
     expect(inzhurRefOptions([], 'bond', '', f, t)).toEqual([]);
   });
+});
+
+describe('assetFormDefaults round-trips through the schema in BOTH languages', () => {
+  // The prefill is FORMATTED (Contract 0) and the schema parses that same
+  // string back, so the two have to agree in every language. They did not:
+  // English formats 6164 units as "6,164", the parser read the comma as a
+  // decimal point, and saving an untouched linked asset stored 6.164 units —
+  // its value (units x sell price) collapsing by three orders of magnitude.
+  const linked = {
+    id: 'reit',
+    name: 'Inzhur REIT',
+    code: 'RE',
+    colorKey: 'reit',
+    yieldType: 'div_cap',
+    expectedPct: 14,
+    targetPct: 40,
+    payoutSchedule: 'monthly',
+    firstPurchase: '2026-02-03',
+    inzhur: { kind: 'fund', ref: 'inzhur-reit', units: 6164 },
+  } as const;
+
+  for (const lang of ['uk', 'en'] as const) {
+    it(`keeps 6164 units in ${lang}`, () => {
+      const defaults = assetFormDefaults(makeFormat(lang), linked as never);
+      const parsed = assetFormSchema('edit').safeParse(defaults);
+      expect(parsed.success, JSON.stringify(defaults.inzhur)).toBe(true);
+      expect(parsed.success && parsed.data.inzhur?.units).toBe(6164);
+    });
+  }
 });

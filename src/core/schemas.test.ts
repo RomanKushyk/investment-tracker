@@ -21,6 +21,19 @@ describe('quoteInputSchema (README §8: inputs accept table format)', () => {
     expect(quoteInputSchema.parse('1,000,000.50')).toBeCloseTo(1000000.5, 2);
   });
 
+  it('reads a comma-grouped INTEGER as grouping, not as a fraction', () => {
+    // The regression this exists for: the English form prefills Units with
+    // f.units(6164) = "6,164". Reading that comma as a decimal point stored
+    // 6.164 units for an asset the user had only opened and saved.
+    expect(quoteInputSchema.parse('6,164')).toBe(6164);
+    expect(quoteInputSchema.parse('10,000')).toBe(10000);
+    expect(quoteInputSchema.parse('1,000,000')).toBe(1000000);
+    // Not every comma groups three digits — these stay decimals.
+    expect(quoteInputSchema.parse('16,5')).toBeCloseTo(16.5, 2);
+    expect(quoteInputSchema.parse('1240,00')).toBeCloseTo(1240, 2);
+    expect(quoteInputSchema.parse('6,16')).toBeCloseTo(6.16, 2);
+  });
+
   it('reads the LAST mark as the decimal, whichever it is', () => {
     // Not a locale switch: the rule is positional, so a grouped-dot entry a
     // pasted value might carry still lands on the right number instead of NaN.

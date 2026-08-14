@@ -80,7 +80,7 @@ export function Yield() {
                 <td
                   className={`py-2 text-right ${r.vsExpectedPp === undefined ? 'text-muted' : r.vsExpectedPp < 0 ? 'text-neg' : 'text-pos'}`}
                 >
-                  {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, ' pp')}
+                  {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
                 </td>
               </tr>
             ))}

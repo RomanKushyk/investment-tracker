@@ -171,7 +171,9 @@ export function Portfolio() {
               ? (() => {
                   const isDividends = engine.dividends >= engine.coupons;
                   const amount = isDividends ? engine.dividends : engine.coupons;
-                  const kind = isDividends ? 'dividends' : 'coupons';
+                  const kind = isDividends
+                    ? t.analytics.portfolio.dividendsWord
+                    : t.analytics.portfolio.couponsWord;
                   const reinvestedNote =
                     (reinvested[engine.asset.id] ?? 0) > 0 ? t.analytics.portfolio.autoReinvested : '';
                   return `${f.moneyWhole(amount)} ${kind}${reinvestedNote}`;

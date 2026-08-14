@@ -85,7 +85,6 @@
   --color-sidebar-text: #e9e8e6;
   --color-sidebar-muted: #96959b;
   --color-sidebar-inset: #333338;
-  --color-sidebar-hover: #3d3d42;
   --color-sidebar-nav: #cfcecb;
   --color-pos: #5c7355;
   --color-pos-tint: #e3eadf;
@@ -199,7 +198,6 @@
   --color-sidebar-text: #eceae7; /* 15.95 */
   --color-sidebar-muted: #8b8a90; /* 5.59 */
   --color-sidebar-inset: #1c1c20;
-  --color-sidebar-hover: #26262b;
   --color-sidebar-nav: #c4c3c0; /* 10.86 */
 
   /* Semantic. `pos-on-dark` is deliberately UNCHANGED: it was always meant for

@@ -12,10 +12,24 @@ import { z } from 'zod';
  * as a decimal point rejected the very text the English placeholder showed
  * (`10,000.00` → `10.000.00` → NaN).
  *
- * The rule needs no locale: when both marks appear, the LAST one is the decimal
- * and the other is grouping. With one mark there is nothing to disambiguate and
- * a comma stays a decimal point, which is what the Ukrainian input needs.
+ * Two rules, neither of which needs to know the language:
+ *
+ * 1. When BOTH marks appear, the last one is the decimal and the other is
+ *    grouping. `1,234.56` and `1.234,56` both read as 1234.56.
+ * 2. When only commas appear AND every one of them groups three digits, they
+ *    are grouping. This is the case that matters: `f.units(6164)` prefills the
+ *    English Units field with `6,164`, so reading that comma as a decimal point
+ *    turned 6164 units into 6.164 the moment the user pressed Save — a silent
+ *    1000× loss on an asset that had been opened, not edited.
+ *
+ * Anything else keeps a lone comma as the decimal point, which is what the
+ * Ukrainian input needs (`16,5`, `1 240,00`). The two rules can only disagree on
+ * a Ukrainian value with exactly three decimals and no other mark — `1,234`
+ * meaning 1.234 — which no field here produces: money carries two decimals,
+ * units and percentages at most one.
  */
+const GROUPED_INTEGER = /^[+-]?\d{1,3}(,\d{3})+$/;
+
 export function normalizeNumberInput(input: string): string {
   const bare = input.replace(/\s/g, '');
   const comma = bare.lastIndexOf(',');
@@ -24,6 +38,7 @@ export function normalizeNumberInput(input: string): string {
     const [decimal, grouping] = comma > dot ? [',', '.'] : ['.', ','];
     return bare.split(grouping).join('').replace(decimal, '.');
   }
+  if (GROUPED_INTEGER.test(bare)) return bare.split(',').join('');
   return bare.replace(',', '.');
 }
 

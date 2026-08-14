@@ -1,6 +1,11 @@
 import { Popover } from 'radix-ui';
 import { useState } from 'react';
-import { enUS, uk } from 'date-fns/locale';
+// Locales come from react-day-picker's OWN subpath, not from a direct
+// date-fns dependency: the calendar already depends on date-fns and
+// re-exports these, so a second declared range on the same package is a
+// second constraint that can drift out of overlap — and two installed copies
+// mean the calendar and the app read different locale objects.
+import { enUS, uk } from 'react-day-picker/locale';
 import { DayPicker } from 'react-day-picker';
 
 import { useFormat } from '../../hooks/useFormat';
