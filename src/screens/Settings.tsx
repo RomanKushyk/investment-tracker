@@ -72,6 +72,7 @@ function Placeholder({ children }: { children: string }) {
 // variant is back on its native light palette, so the sidebar's
 // ON_DARK_OUTLINE token remap is gone with the pill.
 function BackupButton() {
+  const t = useT();
   const backup = useBackupDownload();
   return (
     <Button
@@ -81,7 +82,7 @@ function BackupButton() {
         void backup.download();
       }}
     >
-      Download backup
+      {t.settings.backup.button}
     </Button>
   );
 }
@@ -136,19 +137,18 @@ function CurrencyControl() {
 // padding box, so with p-1 (4) and gap-1 (4) between three columns each is
 // (100% - 16px) / 3. The same derivation gives the two-segment control above
 // its (100% - 12px)/2, i.e. the 50% - 6px it already carries.
-const THEMES: [value: Theme, label: string][] = [
-  ['light', 'Light'],
-  ['dark', 'Dark'],
-  ['system', 'System'],
-];
+// ORDER here, LABELS in the dictionary — the same split the transaction
+// selects use. Light before Dark before System is the reference's order.
+const THEME_ORDER: Theme[] = ['light', 'dark', 'system'];
 
 function ThemeControl() {
+  const t = useT();
   const { theme, setTheme } = useSettings();
-  const index = THEMES.findIndex(([v]) => v === theme);
+  const index = THEME_ORDER.indexOf(theme);
   return (
     <div
       role="radiogroup"
-      aria-label="Colour theme"
+      aria-label={t.settings.theme.ariaLabel}
       // Wraps to its own line under `sm` rather than squeezing three segments
       // into the row: at 360px the label and a three-up control cannot share it.
       className="border-panel-border bg-panel relative grid grid-cols-3 gap-1 rounded-[12px] border p-1 max-sm:w-full"
@@ -163,7 +163,7 @@ function ThemeControl() {
         className="bg-card absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
       />
-      {THEMES.map(([value, label]) => (
+      {THEME_ORDER.map((value) => (
         <button
           key={value}
           type="button"
@@ -172,7 +172,7 @@ function ThemeControl() {
           onClick={() => setTheme(value)}
           className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
         >
-          {label}
+          {t.settings.theme[value]}
         </button>
       ))}
     </div>
@@ -184,6 +184,7 @@ function ThemeControl() {
 // or ≤0 value never reaches the store — the last valid rate stays in effect.
 // Empty input only errors on blur (arming is progressive).
 function UsdRateField() {
+  const t = useT();
   const { usdRate, setUsdRate } = useSettings();
   const [raw, setRaw] = useState(() => String(usdRate));
   const [error, setError] = useState(false);
@@ -219,13 +220,13 @@ function UsdRateField() {
         onChange={(e) => handleChange(e.target.value)}
         onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
         inputMode="decimal"
-        aria-label="₴/$ rate"
+        aria-label={t.settings.rate.ariaLabel}
         aria-invalid={error}
         className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
         <div className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200">
-          Enter a rate above 0.
+          {t.settings.rate.invalid}
         </div>
       )}
       <NbuRateFetch onApply={applyFetched} />
@@ -240,6 +241,7 @@ function UsdRateField() {
 const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
 
 function LeadDaysField() {
+  const t = useT();
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
   const [raw, setRaw] = useState(() => String(reminderLeadDays));
   const [error, setError] = useState(false);
@@ -264,7 +266,7 @@ function LeadDaysField() {
         onChange={(e) => handleChange(e.target.value)}
         onBlur={() => setError(parseLeadDays(raw) === null)}
         inputMode="decimal"
-        aria-label="Reminder lead time, days"
+        aria-label={t.settings.reminders.leadAriaLabel}
         aria-invalid={error}
         // The message lives outside the label, so the link has to be explicit —
         // otherwise assistive tech announces "invalid" with no reason.
@@ -276,7 +278,7 @@ function LeadDaysField() {
           id={LEAD_DAYS_ERROR_ID}
           className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200"
         >
-          Enter 1–30 days.
+          {t.settings.reminders.leadInvalid}
         </div>
       )}
     </div>
@@ -288,6 +290,7 @@ function LeadDaysField() {
 // window. Disabled with no count while nothing is dismissed; the label re-keys
 // so a count change fades (D7).
 function RestoreDismissedButton() {
+  const t = useT();
   const { dismissedReminders, restoreDismissed } = useSettings();
   const count = dismissedReminders.length;
   return (
@@ -296,11 +299,11 @@ function RestoreDismissedButton() {
       disabled={count === 0}
       onClick={() => {
         restoreDismissed();
-        toast.success('Dismissed reminders restored');
+        toast.success(t.settings.reminders.restoredToast);
       }}
     >
       <span key={count} className="animate-in fade-in duration-150">
-        {count === 0 ? 'Restore dismissed' : `Restore dismissed (${count})`}
+        {count === 0 ? t.settings.reminders.restore : t.settings.reminders.restoreWithCount(count)}
       </span>
     </Button>
   );
@@ -311,6 +314,7 @@ function RestoreDismissedButton() {
 // local derivations, so the card is identical in demo and live (fetching itself
 // has no toggle: it is a manual click by construction).
 function AutomationRows() {
+  const t = useT();
   const {
     autoQuoteSuggest,
     couponSuggest,
@@ -322,29 +326,29 @@ function AutomationRows() {
   return (
     <>
       <SettingRow
-        title="Quote suggestions"
-        helper="Pre-fill ghost values for unquoted fixed-coupon assets from coupon accrual. Suggestions stay ghosts until you accept them."
+        title={t.settings.quoteSuggest.title}
+        helper={t.settings.quoteSuggest.helper}
       >
         <Switch
-          label="Quote suggestions"
+          label={t.settings.quoteSuggest.title}
           checked={autoQuoteSuggest}
           onCheckedChange={setAutoQuoteSuggest}
         />
       </SettingRow>
       <Divider />
       <SettingRow
-        title="Coupon suggestions"
-        helper="Offer one-tap recording when a coupon date arrives. Every entry is confirmed by you — amounts stay editable."
+        title={t.settings.couponSuggest.title}
+        helper={t.settings.couponSuggest.helper}
       >
-        <Switch label="Coupon suggestions" checked={couponSuggest} onCheckedChange={setCouponSuggest} />
+        <Switch label={t.settings.couponSuggest.title} checked={couponSuggest} onCheckedChange={setCouponSuggest} />
       </SettingRow>
       <Divider />
       <SettingRow
-        title="Reminders"
-        helper="In-app banners for missing quotes, upcoming and overdue coupons, and maturities. Nothing leaves the app."
+        title={t.settings.reminders.title}
+        helper={t.settings.reminders.helper}
       >
         <Switch
-          label="Reminders"
+          label={t.settings.reminders.title}
           checked={remindersEnabled}
           onCheckedChange={setRemindersEnabled}
         />
@@ -357,12 +361,12 @@ function AutomationRows() {
         distance={1}
         className="border-hairline mt-3.5 flex flex-col gap-3.5 border-l pl-3"
       >
-        <SettingRow title="Lead time, days" helper="How many days ahead coupon reminders appear.">
+        <SettingRow title={t.settings.reminders.leadTitle} helper={t.settings.reminders.leadHelper}>
           <LeadDaysField />
         </SettingRow>
         <SettingRow
-          title="Dismissed reminders"
-          helper="Dismissed banners stay hidden until their date passes."
+          title={t.settings.reminders.dismissedTitle}
+          helper={t.settings.reminders.dismissedHelper}
         >
           <RestoreDismissedButton />
         </SettingRow>
@@ -371,8 +375,8 @@ function AutomationRows() {
             the B3 user model (PLAN-OPEN O14); seeing what the parse did needs
             nothing, and that is the half that was missing. */}
         <SettingRow
-          title="Last feed parse"
-          helper="What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads."
+          title={t.settings.parse.title}
+          helper={t.settings.parse.helper}
         >
           <ParseSkips className="ml-auto text-right" />
         </SettingRow>
@@ -394,7 +398,7 @@ export function Settings() {
 
       <div className="flex flex-col gap-3.5">
         <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">
-          <SectionLabel>Portfolio</SectionLabel>
+          <SectionLabel>{t.settings.sections.portfolio}</SectionLabel>
           <AssetManager />
           {/* S4 targets editor — brings its own divider + microlabel so the
               sub-section vanishes with the Portfolio empty state */}
@@ -405,10 +409,10 @@ export function Settings() {
           radius={24}
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-75 duration-300"
         >
-          <SectionLabel>Data</SectionLabel>
+          <SectionLabel>{t.settings.sections.data}</SectionLabel>
           <SettingRow
-            title="Dataset"
-            helper="Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app."
+            title={t.settings.dataset.title}
+            helper={t.settings.dataset.helper}
           >
             <DatasetSwitch />
           </SettingRow>
@@ -417,10 +421,8 @@ export function Settings() {
               import in a later release.") is kept, and now points at the row
               that keeps it. */}
           <SettingRow
-            title="Backup"
-            helper={
-              'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.'
-            }
+            title={t.settings.backup.title}
+            helper={t.settings.backup.helper}
           >
             <BackupButton />
           </SettingRow>
@@ -434,8 +436,8 @@ export function Settings() {
           <CsvExportRow />
           <Divider />
           <SettingRow
-            title="Danger zone"
-            helper="Both actions ask for a typed confirmation and offer a backup first."
+            title={t.settings.dangerZone.title}
+            helper={t.settings.dangerZone.helper}
           >
             <DangerZone />
           </SettingRow>
@@ -445,7 +447,7 @@ export function Settings() {
           radius={24}
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-150 duration-300"
         >
-          <SectionLabel>Automation</SectionLabel>
+          <SectionLabel>{t.settings.sections.automation}</SectionLabel>
           <AutomationRows />
         </Card>
 
@@ -453,26 +455,26 @@ export function Settings() {
           radius={24}
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-200 duration-300"
         >
-          <SectionLabel>Appearance</SectionLabel>
+          <SectionLabel>{t.settings.sections.appearance}</SectionLabel>
           {/* Theme is the FIRST row, above Currency — the brief places it there
               (phase-5 Surface 1), and its copy is the brief's verbatim: a brief
               wins copy disputes even after its extension has merged (D14). */}
-          <SettingRow title="Theme" helper="System follows your device setting.">
+          <SettingRow title={t.settings.theme.title} helper={t.settings.theme.helper}>
             <ThemeControl />
           </SettingRow>
           <Divider />
-          <SettingRow title="Currency" helper="Mirrors the sidebar toggle — headline figures only.">
+          <SettingRow title={t.settings.currency.title} helper={t.settings.currency.helper}>
             <CurrencyControl />
           </SettingRow>
           <Divider />
           <SettingRow
-            title="₴/$ rate"
-            helper="Used for the $ view of headline figures. Tables always stay in ₴."
+            title={t.settings.rate.title}
+            helper={t.settings.rate.helper}
           >
             <UsdRateField />
           </SettingRow>
           <Divider />
-          <Placeholder>Language settings are coming later.</Placeholder>
+          <Placeholder>{t.settings.languagePlaceholder}</Placeholder>
         </Card>
       </div>
     </div>

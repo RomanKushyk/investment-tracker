@@ -47,6 +47,71 @@ export const en = {
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
+  settings: {
+    sections: {
+      portfolio: 'Portfolio',
+      data: 'Data',
+      automation: 'Automation',
+      appearance: 'Appearance',
+    },
+    theme: {
+      title: 'Theme',
+      helper: 'System follows your device setting.',
+      ariaLabel: 'Colour theme',
+      light: 'Light',
+      dark: 'Dark',
+      system: 'System',
+    },
+    currency: {
+      title: 'Currency',
+      helper: 'Mirrors the sidebar toggle — headline figures only.',
+    },
+    rate: {
+      title: '₴/$ rate',
+      helper: 'Used for the $ view of headline figures. Tables always stay in ₴.',
+      ariaLabel: '₴/$ rate',
+      invalid: 'Enter a rate above 0.',
+    },
+    languagePlaceholder: 'Language settings are coming later.',
+    dataset: {
+      title: 'Dataset',
+      helper: 'Demo holds the built-in reference portfolio. Live starts empty and holds your real data. Switching reloads the app.',
+    },
+    backup: {
+      title: 'Backup',
+      helper: 'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.',
+      button: 'Download backup',
+    },
+    dangerZone: {
+      title: 'Danger zone',
+      helper: 'Both actions ask for a typed confirmation and offer a backup first.',
+    },
+    quoteSuggest: {
+      title: 'Quote suggestions',
+      helper: 'Pre-fill ghost values for unquoted fixed-coupon assets from coupon accrual. Suggestions stay ghosts until you accept them.',
+    },
+    couponSuggest: {
+      title: 'Coupon suggestions',
+      helper: 'Offer one-tap recording when a coupon date arrives. Every entry is confirmed by you — amounts stay editable.',
+    },
+    reminders: {
+      title: 'Reminders',
+      helper: 'In-app banners for missing quotes, upcoming and overdue coupons, and maturities. Nothing leaves the app.',
+      leadTitle: 'Lead time, days',
+      leadHelper: 'How many days ahead coupon reminders appear.',
+      leadAriaLabel: 'Reminder lead time, days',
+      leadInvalid: 'Enter 1–30 days.',
+      dismissedTitle: 'Dismissed reminders',
+      dismissedHelper: 'Dismissed banners stay hidden until their date passes.',
+      restore: 'Restore dismissed',
+      restoreWithCount: (count: number) => `Restore dismissed (${count})`,
+      restoredToast: 'Dismissed reminders restored',
+    },
+    parse: {
+      title: 'Last feed parse',
+      helper: 'What the last Inzhur fetch could and could not read. Entries that fail are skipped, never guessed — the rest of the feed still loads.',
+    },
+  },
   transaction: {
     title: 'Transaction',
     badge: 'Occasional',
@@ -200,6 +265,71 @@ export const uk: Dict = {
     // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+  },
+  settings: {
+    sections: {
+      portfolio: 'Портфель',
+      data: 'Дані',
+      automation: 'Автоматизація',
+      appearance: 'Вигляд',
+    },
+    theme: {
+      title: 'Тема', // ✎
+      helper: 'Системна стежить за налаштуванням пристрою.', // ✎
+      ariaLabel: 'Тема оформлення', // ✎
+      light: 'Світла', // ✎
+      dark: 'Темна', // ✎
+      system: 'Системна', // ✎
+    },
+    currency: {
+      title: 'Валюта',
+      helper: 'Дублює перемикач у бічній панелі — лише підсумкові показники.',
+    },
+    rate: {
+      title: 'Курс ₴/$',
+      helper: 'Використовується для показу підсумків у $. Таблиці завжди лишаються в ₴.',
+      ariaLabel: 'Курс ₴/$',
+      invalid: 'Введіть курс, більший за 0.',
+    },
+    languagePlaceholder: 'Налаштування мови з’являться пізніше.',
+    dataset: {
+      title: 'Набір даних',
+      helper: 'Демонстраційний містить вбудований еталонний портфель. Живий починається порожнім і містить ваші справжні дані. Перемикання перезавантажує застосунок.',
+    },
+    backup: {
+      title: 'Резервна копія',
+      helper: 'Повна копія активного набору в JSON — quirenote-backup-<дата>.json. Відновлюється через Імпорт нижче.',
+      button: 'Завантажити копію',
+    },
+    dangerZone: {
+      title: 'Небезпечна зона',
+      helper: 'Обидві дії просять підтвердження вводом і спершу пропонують резервну копію.',
+    },
+    quoteSuggest: {
+      title: 'Пропозиції котирувань',
+      helper: 'Попередньо заповнює притлумлені значення для некотированих активів із фіксованим купоном за нарахуванням. Пропозиції лишаються притлумленими, доки їх не прийнято.',
+    },
+    couponSuggest: {
+      title: 'Пропозиції купонів',
+      helper: 'Пропонує запис одним дотиком, коли настає дата купона. Кожен запис підтверджується вручну — суми лишаються редаговними.',
+    },
+    reminders: {
+      title: 'Нагадування',
+      helper: 'Банери в застосунку про пропущені котирування, найближчі та прострочені купони й погашення. Нічого не залишає застосунок.',
+      leadTitle: 'Завчасність, днів',
+      leadHelper: 'За скільки днів наперед з’являються нагадування про купони.',
+      leadAriaLabel: 'Завчасність нагадувань, днів',
+      leadInvalid: 'Введіть від 1 до 30 днів.',
+      dismissedTitle: 'Відхилені нагадування',
+      dismissedHelper: 'Відхилені банери лишаються прихованими, доки не мине їхня дата.',
+      restore: 'Повернути відхилені',
+      restoreWithCount: (count: number) => `Повернути відхилені (${count})`,
+      restoredToast: 'Відхилені нагадування повернуто',
+    },
+    parse: {
+      title: 'Останній розбір стрічки',
+      helper: 'Що останнє отримання з Inzhur змогло і не змогло прочитати. Записи, які не вдалося прочитати, пропускаються, а не вгадуються — решта стрічки завантажується.',
+    },
   },
   transaction: {
     title: 'Транзакція',
