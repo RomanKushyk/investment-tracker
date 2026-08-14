@@ -86,7 +86,7 @@ function DeleteAssetDialog({
           void backup.download().then((ok) => ok && setBackedUp(true));
         }}
       >
-        {backedUp ? 'Backup downloaded ✓' : 'Download backup first'}
+        {backedUp ? t.danger.backupDone : t.danger.backupFirst}
       </Button>
       <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
         <AlertDialogCancel asChild>

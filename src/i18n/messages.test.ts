@@ -39,6 +39,10 @@ const SHARED = new Set([
   // A financial acronym, spelled the same in both — the "(ann.)" variant beside
   // it is what carries the translated word.
   'analytics.yield.xirr',
+  // A whole-number placeholder: no thousands mark and no decimals, so there is
+  // nothing for a convention to change. Its neighbours (16.5 / 16,5) carry the
+  // difference this field is teaching.
+  'asset.placeholder.targetPct',
 ]);
 
 describe('the dictionaries', () => {

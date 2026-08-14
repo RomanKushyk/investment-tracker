@@ -12,6 +12,7 @@ import { useExportAll } from '../../hooks/queries';
 import { saveTextFile } from '../../lib/download';
 import { dbVersion } from '../../lib/repository';
 import { useSettings } from '../../state/settings';
+import { useT } from '../../i18n/useT';
 
 export const BACKUP_MIME = 'application/json';
 
@@ -29,6 +30,7 @@ export interface BackupDownloadOptions {
 }
 
 export function useBackupDownload() {
+  const t = useT();
   const exportAll = useExportAll();
   const { currency, usdRate, dataset } = useSettings();
 
@@ -55,7 +57,7 @@ export function useBackupDownload() {
       });
       return outcome === 'saved';
     } catch {
-      if (!opts.quiet) toast.error('Could not build the backup — please try again.');
+      if (!opts.quiet) toast.error(t.settings.backup.failedToast);
       return false;
     }
   }

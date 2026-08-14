@@ -12,19 +12,15 @@ import { useState } from 'react';
 import type { SkippedEntry } from '../../core/inzhur/parse';
 import { useLastParse } from '../../hooks/useInzhurAssets';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
-/** Tokens live in core; the English lives here (D8). */
-const REASON: Record<SkippedEntry['reason'], string> = {
-  not_an_array: 'the response was not a list of assets',
-  shape: 'unreadable fields',
-  no_ref: 'no ISIN or slug to identify it',
-};
-
+// Tokens live in core; the words live in the dictionary (D8).
 function SkipLine({ skip }: { skip: SkippedEntry }) {
+  const t = useT();
   return (
     <li className="text-muted flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
       <span className="text-ink font-semibold">{skip.ref}</span>
-      <span>— {REASON[skip.reason]}</span>
+      <span>— {t.parse.reason[skip.reason]}</span>
       {skip.fields !== undefined && (
         // The load-bearing detail: WHICH field. A rename is the likeliest way
         // this feed breaks, and the path is the whole diagnosis.
@@ -36,6 +32,7 @@ function SkipLine({ skip }: { skip: SkippedEntry }) {
 
 export function ParseSkips({ className = '' }: { className?: string }) {
   const f = useFormat();
+  const t = useT();
   const parse = useLastParse();
   const [open, setOpen] = useState(false);
 
@@ -50,7 +47,7 @@ export function ParseSkips({ className = '' }: { className?: string }) {
   if (count === 0) {
     return (
       <p className={`text-faint text-[11px] ${className}`}>
-        All {parse.entries} feed entries read cleanly · {f.savedAt(parse.at)}
+        {t.parse.allClean(parse.entries, f.savedAt(parse.at))}
       </p>
     );
   }
@@ -63,9 +60,9 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         aria-expanded={open}
         className="text-warn hover:text-warn-tint-text text-[11px] underline underline-offset-2 transition duration-200"
       >
-        {count === 1 ? '1 feed entry could not be read' : `${count} feed entries could not be read`}
+        {t.parse.failed(count)}
         {' · '}
-        {parse.entries} read fine · {open ? 'hide' : 'show'}
+        {t.parse.readFine(parse.entries)} · {open ? t.parse.hide : t.parse.show}
       </button>
       {open && (
         <ul className="animate-in fade-in slide-in-from-top-1 mt-1.5 flex flex-col gap-1 duration-200">

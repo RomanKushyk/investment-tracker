@@ -142,7 +142,7 @@ function ClearDataDialog({
       >
         {/* re-keyed label = D7 crossfade on success (enter-only idiom) */}
         <span key={String(backedUp)} className="animate-in fade-in duration-200">
-          {backedUp ? 'Backup downloaded ✓' : 'Download backup first'}
+          {backedUp ? t.danger.backupDone : t.danger.backupFirst}
         </span>
       </Button>
       <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">

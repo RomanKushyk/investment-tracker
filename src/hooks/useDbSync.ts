@@ -11,15 +11,17 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { onDbSync } from '../lib/sync';
+import { useT } from '../i18n/useT';
 
 export function useDbSync(): void {
   const qc = useQueryClient();
+  const t = useT();
   useEffect(
     () =>
       onDbSync(() => {
         void qc.invalidateQueries();
-        toast('Data was replaced in another tab.');
+        toast(t.sync.replacedInOtherTab);
       }),
-    [qc],
+    [qc, t],
   );
 }

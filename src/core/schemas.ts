@@ -5,11 +5,33 @@
 // issue paths to the pinned per-field messages.
 import { z } from 'zod';
 
+/**
+ * One number, two conventions. A comma is the DECIMAL mark in Ukrainian
+ * (`68 702,10`) and the THOUSANDS mark in English (`10,000.00`), and each
+ * language's field offers its own — so a parser that only ever read the comma
+ * as a decimal point rejected the very text the English placeholder showed
+ * (`10,000.00` → `10.000.00` → NaN).
+ *
+ * The rule needs no locale: when both marks appear, the LAST one is the decimal
+ * and the other is grouping. With one mark there is nothing to disambiguate and
+ * a comma stays a decimal point, which is what the Ukrainian input needs.
+ */
+export function normalizeNumberInput(input: string): string {
+  const bare = input.replace(/\s/g, '');
+  const comma = bare.lastIndexOf(',');
+  const dot = bare.lastIndexOf('.');
+  if (comma >= 0 && dot >= 0) {
+    const [decimal, grouping] = comma > dot ? [',', '.'] : ['.', ','];
+    return bare.split(grouping).join('').replace(decimal, '.');
+  }
+  return bare.replace(',', '.');
+}
+
 export const quoteInputSchema = z
   .string()
   .trim()
   .min(1)
-  .transform((s) => Number(s.replace(/\s/g, '').replace(',', '.')))
+  .transform((s) => Number(normalizeNumberInput(s)))
   .pipe(z.number().finite().positive());
 
 // Same normalization, but 0 is a valid target share (README targets 40/40/17/3
@@ -20,7 +42,7 @@ export const percentInputSchema = z
   .string()
   .trim()
   .min(1)
-  .transform((s) => Number(s.replace(/\s/g, '').replace(',', '.')))
+  .transform((s) => Number(normalizeNumberInput(s)))
   .pipe(z.number().finite().min(0).max(100));
 
 const isoDateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);

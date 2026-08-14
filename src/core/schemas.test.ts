@@ -13,6 +13,23 @@ describe('quoteInputSchema (README §8: inputs accept table format)', () => {
     expect(quoteInputSchema.parse('4374.12')).toBeCloseTo(4374.12, 2);
   });
 
+  it('parses the English convention the English placeholder shows', () => {
+    // The field offers `10,000.00` in English. Reading its comma as a decimal
+    // point produced `10.000.00` → NaN, so the form rejected its own example.
+    expect(quoteInputSchema.parse('10,000.00')).toBeCloseTo(10000, 2);
+    expect(quoteInputSchema.parse('1,240.00')).toBeCloseTo(1240, 2);
+    expect(quoteInputSchema.parse('1,000,000.50')).toBeCloseTo(1000000.5, 2);
+  });
+
+  it('reads the LAST mark as the decimal, whichever it is', () => {
+    // Not a locale switch: the rule is positional, so a grouped-dot entry a
+    // pasted value might carry still lands on the right number instead of NaN.
+    expect(quoteInputSchema.parse('1.234,56')).toBeCloseTo(1234.56, 2);
+    expect(quoteInputSchema.parse('1,234.56')).toBeCloseTo(1234.56, 2);
+    // One mark stays a decimal point — the Ukrainian field depends on it.
+    expect(quoteInputSchema.parse('1234,56')).toBeCloseTo(1234.56, 2);
+  });
+
   it('rejects empty, zero, negative and garbage input', () => {
     expect(quoteInputSchema.safeParse('').success).toBe(false);
     expect(quoteInputSchema.safeParse('0').success).toBe(false);

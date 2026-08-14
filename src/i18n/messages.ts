@@ -274,6 +274,20 @@ export const en = {
       units: 'Enter the number of units.',
       summary: 'Check the highlighted fields and try again.',
     },
+    // A placeholder MODELS the input convention, so it follows the language
+    // like any other figure (Contract 0). Both conventions parse either way
+    // (core/schemas normalizes them) — what changes here is which one the
+    // field OFFERS.
+    placeholder: {
+      name: 'OVDP UA4000241234',
+      units: '6,164',
+      expectedPct: '16.5',
+      targetPct: '10',
+      couponAmount: '1,240.00',
+      maturity: '25 Feb 2027',
+      nextCoupon: '25 Aug 2026',
+      reinvestPolicy: 'Auto (dividends)',
+    },
     picker: {
       placeholder: 'Pick from Inzhur…',
       loading: 'Loading Inzhur assets…',
@@ -291,6 +305,22 @@ export const en = {
       matures: (date: string) => `matures ${date}`,
     },
   },
+  // A7 — the last Inzhur parse, said out loud (components/ui/ParseSkips).
+  parse: {
+    reason: {
+      not_an_array: 'the response was not a list of assets',
+      shape: 'unreadable fields',
+      no_ref: 'no ISIN or slug to identify it',
+    },
+    allClean: (entries: number, at: string) =>
+      `All ${entries} feed entries read cleanly · ${at}`,
+    failed: (count: number) =>
+      count === 1 ? '1 feed entry could not be read' : `${count} feed entries could not be read`,
+    readFine: (entries: number) => `${entries} read fine`,
+    hide: 'hide',
+    show: 'show',
+  },
+  sync: { replacedInOtherTab: 'Data was replaced in another tab.' },
   reminders: {
     quoteMissing: 'No quotes saved today yet.',
     coupon: (asset: string, when: string, date: string) =>
@@ -550,6 +580,8 @@ export const en = {
     empty: 'No assets yet — add your first asset to start tracking.',
     deleteTitle: (name: string) => `Delete ${name}?`,
     deleteAction: 'Delete asset',
+    editTitle: 'Edit asset',
+    saveChanges: 'Save changes',
     cancel: 'Cancel',
     addedToast: 'Asset added',
     updatedToast: 'Asset updated',
@@ -649,6 +681,7 @@ export const en = {
       helper:
         'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.',
       button: 'Download backup',
+      failedToast: 'Could not build the backup — please try again.',
     },
     dangerZone: {
       title: 'Danger zone',
@@ -1075,6 +1108,16 @@ export const uk: Dict = {
       units: 'Введіть кількість одиниць.',
       summary: 'Перевірте підсвічені поля та спробуйте ще раз.',
     },
+    placeholder: {
+      name: 'ОВДП UA4000241234',
+      units: '6 164',
+      expectedPct: '16,5',
+      targetPct: '10',
+      couponAmount: '1 240,00',
+      maturity: '25.02.2027',
+      nextCoupon: '25.08.2026',
+      reinvestPolicy: 'Авто (дивіденди)',
+    },
     picker: {
       placeholder: 'Обрати з Inzhur…',
       loading: 'Завантаження активів Inzhur…',
@@ -1092,6 +1135,21 @@ export const uk: Dict = {
       matures: (date: string) => `погашення ${date}`,
     },
   },
+  parse: {
+    reason: {
+      not_an_array: 'відповідь не була списком активів',
+      shape: 'нечитабельні поля',
+      no_ref: 'немає ISIN чи слаґа, щоб упізнати запис',
+    },
+    allClean: (entries: number, at: string) =>
+      `Усі ${entries} ${plural(entries, 'запис', 'записи', 'записів')} стрічки прочитано чисто · ${at}`,
+    failed: (count: number) =>
+      `${count} ${plural(count, 'запис', 'записи', 'записів')} стрічки не вдалося прочитати`,
+    readFine: (entries: number) => `${entries} прочитано нормально`,
+    hide: 'сховати',
+    show: 'показати',
+  },
+  sync: { replacedInOtherTab: 'Дані замінено в іншій вкладці.' },
   reminders: {
     quoteMissing: 'Котирувань сьогодні ще не збережено.',
     coupon: (asset: string, when: string, date: string) =>
@@ -1324,6 +1382,8 @@ export const uk: Dict = {
     empty: 'Активів ще немає — додайте перший, щоб почати облік.',
     deleteTitle: (name: string) => `Видалити ${name}?`,
     deleteAction: 'Видалити актив',
+    editTitle: 'Редагувати актив',
+    saveChanges: 'Зберегти зміни',
     cancel: 'Скасувати',
     addedToast: 'Актив додано',
     updatedToast: 'Актив оновлено',
@@ -1418,6 +1478,7 @@ export const uk: Dict = {
       helper:
         'Повна копія активного набору в JSON — quirenote-backup-<дата>.json. Відновлюється через Імпорт нижче.',
       button: 'Завантажити копію',
+      failedToast: 'Не вдалося створити копію — спробуйте ще раз.',
     },
     dangerZone: {
       title: 'Небезпечна зона',

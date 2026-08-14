@@ -93,7 +93,6 @@ function useCapitalCard() {
 
 // S5: persistent while dataset==='demo' (absent in live) — warn-tint family
 // only, never pos/neg/asset hues. D7: fade + zoom-in on first paint, 200ms.
-const DEMO_BADGE_TITLE = 'Demo dataset — reference data. Switch in Settings → Data.';
 
 export function Sidebar() {
   const t = useT();
@@ -140,10 +139,10 @@ export function Sidebar() {
           </span>
           {demo && (
             <span
-              title={DEMO_BADGE_TITLE}
+              title={t.sidebar.demoTitle}
               className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text hidden rounded-[4px] px-1.5 py-px text-[8px] font-bold tracking-[.08em] uppercase duration-200 max-sm:inline-block"
             >
-              DEMO
+              {t.sidebar.demoBadge}
             </span>
           )}
         </div>
@@ -156,10 +155,10 @@ export function Sidebar() {
           // INTO the corner it is pinned to instead of away from it. Absolute,
           // so it no longer takes a slot in the flow the wordmark is laid out in.
           <span
-            title={DEMO_BADGE_TITLE}
+            title={t.sidebar.demoTitle}
             className="font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text absolute top-2.5 right-[15px] origin-top-right scale-75 rounded-[5px] px-2 py-[3px] text-[10px] font-bold tracking-[.08em] uppercase duration-200 max-sm:hidden"
           >
-            DEMO
+            {t.sidebar.demoBadge}
           </span>
         )}
       </div>

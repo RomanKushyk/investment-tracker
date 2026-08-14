@@ -174,7 +174,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           className={`h-11 rounded-[11px] border px-3 font-display text-[15px] font-semibold ${
             errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
           } bg-page text-ink transition`}
-          placeholder="6 164"
+          placeholder={t.asset.placeholder.units}
           inputMode="decimal"
           {...form.register('inzhur.units')}
         />
@@ -284,7 +284,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.expectedPct} error={!!errors.expectedPct && MSG.expectedPct}>
         <input
           className={inputClass(!!errors.expectedPct)}
-          placeholder="16,5"
+          placeholder={t.asset.placeholder.expectedPct}
           inputMode="decimal"
           {...form.register('expectedPct')}
         />
@@ -292,7 +292,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.targetPct} error={!!errors.targetPct && MSG.targetPct}>
         <input
           className={inputClass(!!errors.targetPct)}
-          placeholder="10"
+          placeholder={t.asset.placeholder.targetPct}
           inputMode="decimal"
           {...form.register('targetPct')}
         />
@@ -369,7 +369,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.name} error={!!errors.name && MSG.name}>
         <input
           className={inputClass(!!errors.name)}
-          placeholder="OVDP UA4000241234"
+          placeholder={t.asset.placeholder.name}
           {...form.register('name', {
             onChange: (e: ChangeEvent<HTMLInputElement>) => {
               if (mode === 'create' && !dirtyFields.code) {
@@ -438,7 +438,7 @@ export function AssetFormFields({
                     onChange={field.onChange}
                     bg="page"
                     className="w-full text-left"
-                    placeholder="25.02.2027"
+                    placeholder={t.asset.placeholder.maturity}
                     invalid={!!errors.maturity}
                   />
                 )}
@@ -454,7 +454,7 @@ export function AssetFormFields({
                     onChange={field.onChange}
                     bg="page"
                     className="w-full text-left"
-                    placeholder="25.08.2026"
+                    placeholder={t.asset.placeholder.nextCoupon}
                     invalid={!!errors.nextCoupon}
                   />
                 )}
@@ -465,7 +465,7 @@ export function AssetFormFields({
             <Field label={t.asset.field.couponAmount} error={!!errors.couponAmount && MSG.couponAmount}>
               <input
                 className={inputClass(!!errors.couponAmount)}
-                placeholder="1 240,00"
+                placeholder={t.asset.placeholder.couponAmount}
                 inputMode="decimal"
                 {...form.register('couponAmount')}
               />
@@ -473,7 +473,7 @@ export function AssetFormFields({
             <Field label={t.asset.field.reinvestPolicy}>
               <input
                 className={inputClass(false)}
-                placeholder="Auto (dividends)"
+                placeholder={t.asset.placeholder.reinvestPolicy}
                 {...form.register('reinvestPolicy')}
               />
             </Field>
@@ -539,7 +539,7 @@ export function AssetForm({
       <DialogTitle asChild>
         <div className="text-pos-tint-text mb-1 flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
           {mode === 'create' && <Plus size={13} strokeWidth={2.75} />}
-          {mode === 'create' ? 'New asset details' : 'Edit asset'}
+          {mode === 'create' ? t.transaction.newAssetDetails : t.assets.editTitle}
         </div>
       </DialogTitle>
       <AssetFormFields
@@ -551,10 +551,10 @@ export function AssetForm({
       />
       <div className="mt-1 flex flex-wrap justify-end gap-2.5">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t.assets.cancel}
         </Button>
         <Button type="submit" disabled={pending}>
-          {mode === 'create' ? 'Add asset' : 'Save changes'}
+          {mode === 'create' ? t.assets.add : t.assets.saveChanges}
         </Button>
       </div>
       {hasErrors && (
