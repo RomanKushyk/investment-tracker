@@ -7,17 +7,21 @@ import { ShareBar } from '../../components/ui/ShareBar';
 import { headlineTotal, latestQuotes, sharePct } from '../../core/derive';
 import { useAssets, useSnapshots, useUpdateAsset } from '../../hooks/queries';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './targets';
+import { useT } from '../../i18n/useT';
+import { useFormat } from '../../hooks/useFormat';
 
 // S4 — Settings→Portfolio targets editor (design/extensions/settings.dc.html):
 // one row per asset (dot · name · muted current share · 72px %-input), a live
 // preview ShareBar re-rendering the ENTERED targets, and the Σ pill — =100
 // pos tint, ≠100 warn tint, recomputed on every keystroke and never a save
-// blocker (brief S4). Explicit "Save targets" per the reference — per-asset
+// blocker (brief S4). Explicit {t.targets.save} per the reference — per-asset
 // useUpdateAsset patches for the rows that actually changed.
 //
 // Renders its own divider + "Targets" microlabel so the whole sub-section
 // disappears behind the S2 Portfolio empty state (and while assets load).
 export function TargetsEditor() {
+  const f = useFormat();
+  const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const updateAsset = useUpdateAsset();
@@ -41,14 +45,14 @@ export function TargetsEditor() {
         updateAsset.mutateAsync({ id: p.id, patch: { targetPct: p.targetPct } }),
       ),
     )
-      .then(() => toast.success('Targets saved'))
-      .catch(() => toast.error('Could not save targets — please try again.'));
+      .then(() => toast.success(t.targets.savedToast))
+      .catch(() => toast.error(t.targets.saveFailed));
   }
 
   return (
     <div>
       <div className="bg-hairline my-4 h-px" />
-      <div className="text-muted mb-3 text-[10px] tracking-[.12em] uppercase">Targets</div>
+      <div className="text-muted mb-3 text-[10px] tracking-[.12em] uppercase">{t.targets.title}</div>
 
       <div className="flex flex-col gap-0.5">
         {assets.map((a, i) => {
@@ -64,7 +68,7 @@ export function TargetsEditor() {
                   {a.name}
                 </span>
                 <span className="text-muted text-xs whitespace-nowrap">
-                  now {sharePct(values[a.id] ?? 0, total).toFixed(1)}%
+                  {t.targets.now(f.pctPlain(sharePct(values[a.id] ?? 0, total)))}
                 </span>
                 <input
                   id={`target-${a.id}`}
@@ -80,7 +84,7 @@ export function TargetsEditor() {
               </div>
               {error && (
                 <div className="text-neg animate-in fade-in slide-in-from-top-1 mx-3 text-right text-[11px] duration-200">
-                  Enter a percentage.
+                  {t.targets.invalid}
                 </div>
               )}
             </Fragment>
@@ -114,7 +118,7 @@ export function TargetsEditor() {
           disabled={updateAsset.isPending || invalid}
           onClick={save}
         >
-          Save targets
+          {t.targets.save}
         </Button>
       </div>
     </div>

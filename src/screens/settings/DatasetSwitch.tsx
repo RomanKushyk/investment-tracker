@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { Dataset } from '../../core/backup/json';
 import { useDataset, useSettings } from '../../state/settings';
+import { useT } from '../../i18n/useT';
 
 // S5 dataset switch (design/extensions/settings.dc.html) — light-surface twin
 // of the sidebar currency toggle: track `panel`, thumb `card` with the card
@@ -11,6 +12,7 @@ import { useDataset, useSettings } from '../../state/settings';
 // synchronously and location.reload()s (G4) — the brief pre-reload lockout
 // disables both segments so a second click can't race the navigation.
 export function DatasetSwitch() {
+  const t = useT();
   const dataset = useDataset();
   const setDataset = useSettings((s) => s.setDataset);
   const [switching, setSwitching] = useState(false);
@@ -45,8 +47,8 @@ export function DatasetSwitch() {
         className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: dataset === 'demo' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
-      {segment('demo', 'Demo')}
-      {segment('live', 'Live')}
+      {segment('demo', t.datasetSwitch.demo)}
+      {segment('live', t.datasetSwitch.live)}
     </div>
   );
 }

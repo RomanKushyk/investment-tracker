@@ -26,6 +26,7 @@ import {
 } from '../../hooks/queries';
 import { cascadeCounts } from './settings';
 import { useBackupDownload } from './useBackupDownload';
+import { useT } from '../../i18n/useT';
 
 type DialogState =
   | { kind: 'create' }
@@ -46,6 +47,7 @@ function DeleteAssetDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const transactions = useTransactions().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const deleteAsset = useDeleteAsset();
@@ -59,17 +61,17 @@ function DeleteAssetDialog({
   function confirm() {
     deleteAsset.mutate(asset.id, {
       onSuccess: () => {
-        toast.success('Asset deleted');
+        toast.success(t.assets.deletedToast);
         onClose();
       },
-      onError: () => toast.error('Could not complete — nothing was deleted.'),
+      onError: () => toast.error(t.assets.deleteFailed),
     });
   }
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
       <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-2 text-lg">Delete {asset.name}?</h3>
+        <h3 className="mt-0 mb-2 text-lg">{t.assets.deleteTitle(asset.name)}</h3>
       </AlertDialogTitle>
       <AlertDialogDescription asChild>
         <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
@@ -89,10 +91,10 @@ function DeleteAssetDialog({
       </Button>
       <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
         <AlertDialogCancel asChild>
-          <Button variant="ghost">Cancel</Button>
+          <Button variant="ghost">{t.assets.cancel}</Button>
         </AlertDialogCancel>
         <Button variant="danger" disabled={deleteAsset.isPending} onClick={confirm}>
-          Delete asset
+          {t.assets.deleteAction}
         </Button>
       </div>
     </AlertDialog>
@@ -100,9 +102,10 @@ function DeleteAssetDialog({
 }
 
 // Settings→Portfolio asset manager (S2): every existing asset as a row
-// (dot · name · short yield label · Edit/Delete), footer "+ Add asset" —
+// (dot · name · short yield label · Edit/Delete), footer {t.assets.add} —
 // both open the standalone AssetForm in a dialog (S3).
 export function AssetManager() {
+  const t = useT();
   const assets = useAssets().data ?? [];
   const addAsset = useAddAsset();
   const updateAsset = useUpdateAsset();
@@ -125,10 +128,10 @@ export function AssetManager() {
   function submitCreate(values: AssetFormValues) {
     addAsset.mutate(assetFromForm(values, values.firstPurchase, assets.length), {
       onSuccess: () => {
-        toast.success('Asset added');
+        toast.success(t.assets.addedToast);
         close();
       },
-      onError: () => toast.error('Could not save the asset — please try again.'),
+      onError: () => toast.error(t.assets.saveFailed),
     });
   }
 
@@ -137,10 +140,10 @@ export function AssetManager() {
       { id: asset.id, patch: assetPatchFromForm(values) },
       {
         onSuccess: () => {
-          toast.success('Asset updated');
+          toast.success(t.assets.updatedToast);
           close();
         },
-        onError: () => toast.error('Could not save the asset — please try again.'),
+        onError: () => toast.error(t.assets.saveFailed),
       },
     );
   }
@@ -149,7 +152,7 @@ export function AssetManager() {
     <div>
       {assets.length === 0 ? (
         <div className="text-muted text-[13px] leading-normal">
-          No assets yet — add your first asset to start tracking.
+          {t.assets.empty}
         </div>
       ) : (
         <div className="flex flex-col gap-0.5">
@@ -173,14 +176,14 @@ export function AssetManager() {
                 size="sm"
                 onClick={() => openDialog({ kind: 'edit', asset: a })}
               >
-                Edit
+                {t.assets.edit}
               </Button>
               <Button
                 variant="outlineDanger"
                 size="sm"
                 onClick={() => openDialog({ kind: 'delete', asset: a })}
               >
-                Delete
+                {t.assets.delete}
               </Button>
             </div>
           ))}
@@ -190,7 +193,7 @@ export function AssetManager() {
       <div className="mt-3">
         <Button variant="outline" onClick={() => openDialog({ kind: 'create' })}>
           <Plus size={13} strokeWidth={2.75} />
-          Add asset
+          {t.assets.add}
         </Button>
       </div>
 

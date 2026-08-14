@@ -13,31 +13,20 @@ import { useDraft } from '../../state/draft';
 import { useDataset } from '../../state/settings';
 import { useBackupDownload } from './useBackupDownload';
 import type { Dataset } from '../../core/backup/json';
+import type { Dict } from '../../i18n/messages';
+import { useT } from '../../i18n/useT';
 
 // S6 copy (brief = copy authority). The erase body's middle sentence
 // documents the D17 erase scope: the kubushka-draft quote draft goes with the
 // data, kubushka-settings is retained.
-const VARIANTS: Record<
-  Dataset,
-  { trigger: string; title: string; body: string; inputLabel: string; action: string; success: string }
-> = {
-  live: {
-    trigger: 'Erase live data…',
-    title: 'Erase live data?',
-    body: 'This permanently deletes every asset, snapshot and transaction in the live dataset. The unsaved quote draft is cleared too — settings are kept. This cannot be undone.',
-    inputLabel: 'Type live to confirm',
-    action: 'Erase live data',
-    success: 'Live data erased',
-  },
-  demo: {
-    trigger: 'Reset demo data…',
-    title: 'Reset demo data?',
-    body: 'This replaces everything in the demo dataset with the built-in reference portfolio. Any changes you made in demo mode are lost.',
-    inputLabel: 'Type demo to confirm',
-    action: 'Reset demo data',
-    success: 'Demo data reset',
-  },
-};
+// Was a module constant; the copy now comes from the dictionary, and the one
+// piece that must NOT be translated is passed as DATA: `typeToConfirm(dataset)`
+// keeps the literal `live`/`demo` the confirm compares against, so no
+// translation can make the button unarmable.
+function variantCopy(t: Dict, dataset: Dataset) {
+  const v = dataset === 'live' ? t.danger.live : t.danger.demo;
+  return { ...v, inputLabel: t.danger.typeToConfirm(dataset) };
+}
 
 // Settings→Data danger zone (S6/D17): one trigger per dataset — "Erase live
 // data…" only ever renders in live (clearAll({reseed:false})), "Reset demo
@@ -46,6 +35,7 @@ const VARIANTS: Record<
 // state while the closed dialog stays mounted through its 220ms symmetric
 // exit (D7/S6 — unmounting on close would skip the animation).
 export function DangerZone() {
+  const t = useT();
   const dataset = useDataset();
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
@@ -58,7 +48,7 @@ export function DangerZone() {
           setOpen(true);
         }}
       >
-        {VARIANTS[dataset].trigger}
+        {variantCopy(t, dataset).trigger}
       </Button>
       {session > 0 && (
         <ClearDataDialog
@@ -81,7 +71,8 @@ function ClearDataDialog({
   open: boolean;
   onClose: () => void;
 }) {
-  const v = VARIANTS[dataset];
+  const t = useT();
+  const v = variantCopy(t, dataset);
   const clearAll = useClearAll();
   const backup = useBackupDownload();
   const [typed, setTyped] = useState('');
@@ -107,7 +98,7 @@ function ClearDataDialog({
           onClose();
         },
         // Atomic clearAll: a failure commits nothing (dialog stays open).
-        onError: () => toast.error('Could not complete — nothing was deleted.'),
+        onError: () => toast.error(t.danger.failed),
       },
     );
   }
@@ -156,7 +147,7 @@ function ClearDataDialog({
       </Button>
       <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
         <AlertDialogCancel asChild>
-          <Button variant="ghost">Cancel</Button>
+          <Button variant="ghost">{t.assets.cancel}</Button>
         </AlertDialogCancel>
         <Button variant="danger" disabled={!armed || clearAll.isPending} onClick={confirm}>
           {v.action}

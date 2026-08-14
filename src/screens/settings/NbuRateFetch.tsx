@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { useNbuRate } from '../../hooks/useNbuRate';
 import { useSettings } from '../../state/settings';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 export interface NbuRateFetchProps {
   /**
@@ -25,6 +26,7 @@ export interface NbuRateFetchProps {
 }
 
 export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
+  const t = useT();
   const f = useFormat();
   const { data, lastGood, isFetching, isError, disabled, fetchRate } = useNbuRate();
   const usdRate = useSettings((s) => s.usdRate);
@@ -43,7 +45,7 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
   async function handleFetch() {
     setTried(true);
     const r = await fetchRate();
-    if (r === undefined && !disabled) toast.error('Could not reach the NBU rate directory — please try again.');
+    if (r === undefined && !disabled) toast.error(t.nbu.failed);
   }
 
   return (
@@ -57,13 +59,13 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
         variant="outline"
         onClick={handleFetch}
         disabled={disabled || isFetching}
-        title="Fetch the official National Bank of Ukraine rate"
+        title={t.nbu.title}
       >
         {isFetching ? 'Fetching…' : 'Fetch rate'}
       </Button>
 
       {disabled && (
-        <span className="text-muted text-[11px]">Demo data — no requests leave the app.</span>
+        <span className="text-muted text-[11px]">{t.nbu.demoDisabled}</span>
       )}
 
       {!disabled && shown !== undefined && (
@@ -77,11 +79,11 @@ export function NbuRateFetch({ onApply }: NbuRateFetchProps) {
               type="button"
               onClick={() => {
                 onApply(shown.rate);
-                toast.success(`Rate set to ${shown.rate}`);
+                toast.success(t.nbu.applied(String(shown.rate)));
               }}
               className="text-pos hover:text-pos-tint-text underline underline-offset-2 transition duration-200"
             >
-              Use it
+              {t.nbu.useIt}
             </button>
           )}
         </div>
