@@ -205,7 +205,18 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
     } finally {
       clearTimeout(timer);
     }
-    if (attempt < MAX_ATTEMPTS) await sleep(attempt === 1 ? 30_000 : 300_000);
+    // 30s then 60s — NOT the 300s this used to wait. That value made the third
+    // attempt unreachable: 10 + 30 + 10 + 300 = 350s of a 300s Lambda timeout,
+    // so the function was killed while sleeping and the attempt it was waiting
+    // for never ran. Both sources share one invocation, so the budget is per
+    // run, not per source.
+    //
+    // Short backoff is also the right shape now: these attempts exist for a
+    // blip — a 502 from a load balancer, a reset connection — while a provider
+    // that is genuinely down is answered by the schedule firing again in two
+    // hours (template.yaml), which is a wait no Lambda should be paid to sit
+    // through.
+    if (attempt < MAX_ATTEMPTS) await sleep(attempt === 1 ? 30_000 : 60_000);
   }
   return last;
 }
@@ -431,6 +442,30 @@ const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
  *     `StalePricesAlarm` watches that metric with a five-day threshold. A
  *     backfill has no business firing an alarm about 2018.
  */
+/**
+ * Has this source already produced a usable answer for this date?
+ *
+ * Keyed on `ok = true`, NEVER on a row existing. That distinction is D43's
+ * lesson paid for once already: the NBU backfill's completeness check asked
+ * whether a row EXISTED, so ~1,200 dates filled by a defective run were skipped
+ * forever by an ordinary re-run. A failed capture writes a row too — treating
+ * that as "done" would turn the six firings into one firing with extra steps.
+ *
+ * `not_published` counts as settled on purpose. NBU publishes nothing on a
+ * weekend, and that is the calendar rather than a failure (the scheduled path
+ * already excludes it from the alarm). Without this, every Saturday would spend
+ * six firings re-asking NBU for a file that will never exist.
+ */
+async function alreadySettled(client: Client, source: string, asOf: string): Promise<boolean> {
+  const res = await client.query(
+    `SELECT 1 FROM price_capture
+      WHERE source = $1 AND as_of = $2 AND (ok = true OR error = $3)
+      LIMIT 1`,
+    [source, asOf, NOT_PUBLISHED],
+  );
+  return res.rows.length > 0;
+}
+
 async function captureOne(
   client: Client,
   source: string,
@@ -1098,8 +1133,16 @@ export async function handler(event: HandlerEvent = {}) {
     const asOf = event.asOf ?? asOfFor(new Date());
     const results: CaptureResult[] = [];
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
+      // The schedule fires six times a day, two hours apart, so that a provider
+      // outage at 01:00 is not the end of the matter (see template.yaml). Every
+      // firing after the first is a no-op for a source already settled, and the
+      // guard runs BEFORE the fetch — so in the ordinary case the providers see
+      // exactly one request a day, as they did when this was a single firing.
+      if (await alreadySettled(client, source, asOf)) continue;
       results.push(await captureOne(client, source, asOf));
     }
+    // Nothing left to do: every source was already settled by an earlier firing.
+    if (results.length === 0) return { asOf, results, skipped: 'already settled' };
 
     // Today's payload becomes today's observation, on the same run that
     // captured it.

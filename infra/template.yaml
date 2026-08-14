@@ -26,7 +26,11 @@ Globals:
     # 300 rather than 60 because the same function runs the NBU backfill, which
     # walks ~2,600 business days back to 2016 in bounded chunks. The daily run
     # still finishes in seconds, and Lambda bills duration, not the ceiling.
-    Timeout: 300
+    # 600, not 300. Billing is by the millisecond actually used, so a higher
+    # ceiling costs nothing until it is needed — and the old 300 was a cliff
+    # rather than a limit: two sources, each with three attempts and their
+    # backoff, could reach it and be killed mid-retry with no row written.
+    Timeout: 600
     Tracing: Active
 
 Resources:
@@ -147,12 +151,45 @@ Resources:
   CaptureSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Description: Capture the Inzhur feed at 01:00 Europe/Kyiv.
+      Description: Capture the Inzhur feed at 01:00 Europe/Kyiv, retrying every two hours until 11:00.
       State: ENABLED
       FlexibleTimeWindow:
         Mode: 'OFF'
       # Six fields, and one of day-of-month / day-of-week must be '?'.
-      ScheduleExpression: cron(0 1 * * ? *)
+      #
+      # SIX FIRINGS, TWO HOURS APART — and still ONE schedule, so the "exactly
+      # one automation" ruling holds. The retry the owner asked for cannot be
+      # expressed as a RetryPolicy: EventBridge Scheduler exposes only
+      # MaximumRetryAttempts and MaximumEventAgeInSeconds, and spaces the
+      # attempts by its OWN exponential backoff ("retry attempts with
+      # exponential backoff", API reference) — which clusters them minutes
+      # apart, not hours. A provider under maintenance is still under
+      # maintenance five minutes later; two hours is the interval that gives it
+      # time to come back.
+      #
+      # WHY IT STOPS AT 11:00, AND WHY SIX IS THE NUMBER. The ceiling is not
+      # midnight, it is the FEED REFRESH: Inzhur settles prices at ~13:00 Kyiv,
+      # and `asOfFor` derives as_of from the clock as (Kyiv date - 1). A capture
+      # after the refresh would read the CURRENT day's prices and stamp them
+      # with yesterday's date — wrong data wearing a correct-looking label,
+      # which is worse than a missing day. NBU is immune (its file is fetched
+      # BY date), so this bounds the Inzhur half.
+      #
+      # 01:00 -> 11:00 with a two-hour floor is therefore the widest window
+      # available, and six is simply how many attempts fit in it. The last
+      # firing keeps a full two-hour margin against a refresh that runs early.
+      #
+      # Note this is CONSTANT spacing, not the exponential backoff the AWS
+      # guidance recommends elsewhere — deliberately. That guidance addresses
+      # many clients retrying a throttling service in seconds; here there is one
+      # client, one request a day, and the thing being waited out is a
+      # maintenance window whose length has nothing to do with how many times
+      # we have already asked.
+      #
+      # Every firing after the first is a no-op for a source already settled —
+      # `alreadySettled` in the handler checks BEFORE fetching, so the providers
+      # see one request a day unless something actually failed.
+      ScheduleExpression: cron(0 1,3,5,7,9,11 * * ? *)
       # Load-bearing. Ukraine still observes DST in 2026 — the 2024 abolition law
       # was never signed and clocks moved on 29 March — so a fixed-UTC schedule
       # would silently drift an hour twice a year. Kyiv transitions at 03:00
@@ -161,8 +198,11 @@ Resources:
       Target:
         Arn: !GetAtt CaptureFunction.Arn
         RoleArn: !GetAtt SchedulerRole.Arn
-        # Scheduler's defaults are 185 attempts over 24 hours. A retry that lands
-        # tomorrow would stamp the wrong as_of, so both are cut hard.
+        # This is the OTHER retry, and it answers a different question: the
+        # firings above cover a provider being down, while this covers the
+        # invocation itself failing to be delivered. Scheduler's defaults are 185
+        # attempts over 24 hours; a delivery that lands tomorrow would stamp the
+        # wrong as_of, so both stay cut hard.
         RetryPolicy:
           MaximumRetryAttempts: 3
           MaximumEventAgeInSeconds: 3600
