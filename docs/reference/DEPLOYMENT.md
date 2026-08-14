@@ -74,6 +74,21 @@ the choice then: a second stack, a stage parameter, or a promotion step of its o
 `dev.quirenote.com` needs no separate certificate: Amplify issues `*.quirenote.com`
 alongside the apex, so every subdomain added later is already covered.
 
+**The dev branch is behind HTTP basic auth** (Amplify → branch `dev` → Access control),
+enabled 2026-08-14. It covers the branch, not the host, so **both** `dev.quirenote.com` and
+`dev.d17m4jf400my6.amplifyapp.com` answer 401 — verified. Crawlers get 401 too, which is the
+indexing answer as well. The credentials live in the Amplify console; they are deliberately
+not written down here, because this file is public. Production carries no auth and must not:
+it is the published app.
+
+**What protects production is not a gate but a pipeline.** `pnpm lint`, `pnpm test` and
+`pnpm build` all run *before* the job assumes any AWS credential, so a failing check cannot
+deploy; the `prod` environment accepts only `main`; the role can touch nothing but two
+Amplify branches; and the repo ruleset blocks force-pushes and deletions on `main` even for
+the owner. The remaining exposure is egress cost, and that is watched by an existing $5
+monthly budget with alerts at $1 / $3 actual and $5 forecast, plus a daily cost-anomaly
+subscription — all confirmed to have a live email subscriber, not merely to exist.
+
 ## 1. One-time AWS console setup
 
 Done by hand, deliberately not automated — the CI role has no permission to change hosting
