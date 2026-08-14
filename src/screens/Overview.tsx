@@ -121,7 +121,7 @@ export function Overview() {
         <KpiCard
           tone="dark"
           className="animate-in fade-in slide-in-from-bottom-1 duration-300"
-          label="Total capital"
+          label={t.analytics.overview.totalCapital}
           value={capital.value}
           sub={capital.sub}
           subClassName="text-pos-on-dark"
@@ -129,7 +129,7 @@ export function Overview() {
         {/* S9a relabel (D13): capital-gain family — value/sub D5-pinned, label only. */}
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-75 duration-300"
-          label="Capital gain"
+          label={t.analytics.overview.capitalGain}
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
           sub={`${f.pct(net.pct)} since ${f.dateShort(PORTFOLIO_START)}`}
@@ -138,7 +138,7 @@ export function Overview() {
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-150 duration-300"
-          label="Total return (net)"
+          label={t.analytics.overview.totalReturnNet}
           value={totalReturnValue}
           valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
           sub={totalReturn.roi === null ? '—' : `${f.pct(totalReturn.roi)} on net deposits`}
@@ -150,13 +150,13 @@ export function Overview() {
         />
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-200 duration-300"
-          label="Deposited / Reinvested"
+          label={t.analytics.overview.depositedReinvested}
           value={deposit.value}
           sub={deposit.sub}
         />
         <KpiCard
           className="animate-in fade-in slide-in-from-bottom-1 delay-300 duration-300"
-          label="Free cash"
+          label={t.analytics.overview.freeCash}
           value={cashValue}
           sub={
             <>
@@ -183,7 +183,7 @@ export function Overview() {
 
       <div className="grid grid-cols-[1.5fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in overflow-x-auto p-[22px] duration-300">
-          <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">Assets</div>
+          <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">{t.analytics.overview.assets}</div>
           <div className="flex flex-col gap-3">
             {assets.map((a, i) => {
               const value = values[a.id] ?? 0;
@@ -196,7 +196,7 @@ export function Overview() {
                   <ColorDot colorKey={a.colorKey} />
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{a.name}</span>
                   <span className="text-muted text-xs whitespace-nowrap">
-                    {YIELD_LABEL_SHORT[a.yieldType]} · {sharePct(value, total).toFixed(1)}%
+                    {YIELD_LABEL_SHORT[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
                   </span>
                   <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
                   <span
@@ -215,10 +215,10 @@ export function Overview() {
         <div className="flex flex-col gap-3.5">
           <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
             <div className="text-pos-tint-text mb-1.5 text-[10px] tracking-[.12em] uppercase">
-              Next payouts
+              {t.analytics.overview.nextPayouts}
             </div>
             <div className="flex flex-col gap-2 text-[13px]">
-              {payoutRows.length === 0 && <span>No upcoming payouts.</span>}
+              {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
@@ -233,30 +233,31 @@ export function Overview() {
 
           <Card radius={24} className="animate-in fade-in p-5 duration-300">
             <div className="text-muted mb-1.5 text-[10px] tracking-[.12em] uppercase">
-              Rebalance hint
+              {t.analytics.overview.rebalanceHint}
             </div>
             {total === 0 ? (
-              <EmptyState message="No snapshots yet — save your first daily quote to see the rebalance hint." height={44} />
+              <EmptyState message={t.analytics.empty.rebalance} height={44} />
             ) : underweight ? (
               <p className="text-[13px] leading-[1.5]">
                 {underweight.asset.yieldType === 'fixed_coupon'
                   ? bondAbbrev(underweight.asset)
                   : shortLabel(underweight.asset)}{' '}
-                is <strong className="text-neg">{f.pp(underweight.deltaPp, '%')}</strong>{' '}
-                under its {underweight.asset.targetPct}% target — top up{' '}
+                {t.analytics.prose.rebalanceIs}{' '}
+                <strong className="text-neg">{f.pp(underweight.deltaPp, '%')}</strong>{' '}
+                {t.analytics.prose.underTarget(f.pctPlain(underweight.asset.targetPct, 0))}{' '}
                 <strong>{f.money(underweight.topUp)}</strong>.
               </p>
             ) : (
-              <p className="text-[13px]">Allocation is on target.</p>
+              <p className="text-[13px]">{t.analytics.overview.onTarget}</p>
             )}
             <Link to="/allocation" className={buttonVariants({ variant: 'ghost', inset: 'flushLeft' })}>
-              Open Allocation →
+              {t.analytics.overview.openAllocation}
             </Link>
           </Card>
 
           <KpiCard
             className="animate-in fade-in duration-300"
-            label="Income received"
+            label={t.analytics.overview.incomeReceived}
             value={f.money(income.total)}
             valueSize="md"
             sub={

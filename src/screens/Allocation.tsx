@@ -44,7 +44,7 @@ export function Allocation() {
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">
           {total === 0 ? (
-            <EmptyState message="No snapshots yet — save your first daily quote to see the allocation mix." height={220} />
+            <EmptyState message={t.analytics.empty.allocation} height={220} />
           ) : (
             <AllocationDonut
               slices={slices}
@@ -66,7 +66,7 @@ export function Allocation() {
         <div className="flex flex-col gap-3.5">
           <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
             <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">
-              Current vs target
+              {t.analytics.allocation.currentVsTarget}
             </div>
             <div className="flex flex-col gap-3.5">
               {rows.map((r) => (
@@ -96,7 +96,7 @@ export function Allocation() {
           </Card>
 
           <div className="animate-in fade-in bg-panel border-panel-border rounded-3xl border px-[22px] py-5 duration-300">
-            <div className="text-label mb-2 text-[10px] tracking-[.12em] uppercase">Rebalance plan</div>
+            <div className="text-label mb-2 text-[10px] tracking-[.12em] uppercase">{t.analytics.allocation.rebalancePlan}</div>
             <div className="flex flex-col gap-2 text-[13px]">
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">

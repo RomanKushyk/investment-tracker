@@ -10,6 +10,7 @@ import { makeFormat, signed, toUsd } from './money';
 describe('pp — a signed percentage-point gap', () => {
   const uk = makeFormat('uk');
   const en = makeFormat('en');
+  const NBSP = ' ';
 
   it('signs explicitly and keeps one decimal', () => {
     expect(en.pp(6.1)).toBe('+6.1');
@@ -22,10 +23,17 @@ describe('pp — a signed percentage-point gap', () => {
     expect(r).not.toContain('-');
   });
 
-  it('appends the suffix each screen’s copy needs', () => {
+  it('spaces a % suffix like every other percentage', () => {
+    // Overview puts a pp gap and a plain percentage in one sentence; without
+    // this they read "−6,4% ... 17 %" — two conventions, four words apart.
+    expect(uk.pp(-6.4, '%')).toBe(`−6,4${NBSP}%`);
     expect(en.pp(-6.4, '%')).toBe('−6.4%');
-    expect(en.pp(-4.7, ' pp')).toBe('−4.7 pp');
+    // any other suffix is the caller's, appended as given
     expect(uk.pp(-4.7, ' pp')).toBe('−4,7 pp');
+  });
+
+  it('appends a non-percent suffix exactly as given (Yield uses " pp")', () => {
+    expect(en.pp(-4.7, ' pp')).toBe('−4.7 pp');
   });
 
   it('defaults to no suffix (Allocation pills)', () => {

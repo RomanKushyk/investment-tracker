@@ -60,16 +60,16 @@ export function Portfolio() {
         <table className="w-full border-collapse text-[12.5px]">
           <thead>
             <tr className="text-muted text-left">
-              <th className="py-2 font-normal">Asset</th>
-              <th className="py-2 font-normal">Yield type</th>
-              <th className="py-2 text-right font-normal">Invested, ₴</th>
-              <th className="py-2 text-right font-normal">of it reinvested</th>
-              <th className="py-2 text-right font-normal">Value now, ₴</th>
+              <th className="py-2 font-normal">{t.analytics.asset}</th>
+              <th className="py-2 font-normal">{t.analytics.yieldType}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.ofItReinvested}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
               {/* S9c relabel (D13): capital-gain family, disambiguated from
                   the Yield screen's Total return — values unchanged. */}
-              <th className="py-2 text-right font-normal">Capital gain, ₴</th>
-              <th className="py-2 text-right font-normal">Capital gain, %</th>
-              <th className="py-2 text-right font-normal">Share</th>
+              <th className="py-2 text-right font-normal">{t.analytics.capitalGainUah}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.capitalGainPct}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.share}</th>
             </tr>
           </thead>
           <tbody>
@@ -101,12 +101,12 @@ export function Portfolio() {
                   >
                     {f.pct(pnlPct)}
                   </td>
-                  <td className="py-2 text-right">{sharePct(value, total).toFixed(1)}%</td>
+                  <td className="py-2 text-right">{f.pctPlain(sharePct(value, total))}</td>
                 </tr>
               );
             })}
             <tr className="border-panel-border border-t-2">
-              <td className="py-2 font-bold">Total + cash {f.money(cash)}</td>
+              <td className="py-2 font-bold">{t.analytics.prose.totalPlusCash(f.money(cash))}</td>
               <td className="py-2"></td>
               <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
               <td className="py-2 text-right font-bold">{f.num(reinvestedTotal(transactions))}</td>
@@ -117,13 +117,12 @@ export function Portfolio() {
               <td className={`py-2 text-right font-bold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}>
                 {f.pct(net.pct)}
               </td>
-              <td className="py-2 text-right font-bold">100%</td>
+              <td className="py-2 text-right font-bold">{f.pctPlain(100, 0)}</td>
             </tr>
           </tbody>
         </table>
         <div className="text-muted mt-2.5 text-[11.5px]">
-          Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total
-          return on the Yield screen.
+          {t.analytics.prose.capitalGainNote}
         </div>
       </Card>
 
@@ -132,41 +131,41 @@ export function Portfolio() {
           <KpiCard
             className="animate-in fade-in duration-300"
             valueSize="sm"
-            label="Best performer"
+            label={t.analytics.portfolio.bestPerformer}
             value={highlightLabel(best.asset)}
             sub={
               bestWeeks !== undefined ? (
                 <span className="text-pos font-bold">
-                  {f.pct(best.yield)} in {bestWeeks} weeks
+                  {t.analytics.prose.inWeeks(f.pct(best.yield), bestWeeks)}
                 </span>
               ) : undefined
             }
           />
         ) : (
           <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Best performer</div>
-            <EmptyState message="No quotes yet." height={40} />
+            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.portfolio.bestPerformer}</div>
+            <EmptyState message={t.analytics.portfolio.noQuotes} height={40} />
           </Card>
         )}
         {worst ? (
           <KpiCard
             className="animate-in fade-in delay-75 duration-300"
             valueSize="sm"
-            label="Laggard"
+            label={t.analytics.portfolio.laggard}
             value={highlightLabel(worst.asset)}
-            sub={`${f.pct(worst.yield)} · watch vs ${worst.asset.expectedPct}% expected`}
+            sub={t.analytics.prose.watchVsExpected(f.pct(worst.yield), f.pctPlain(worst.asset.expectedPct))}
           />
         ) : (
           <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Laggard</div>
-            <EmptyState message="No quotes yet." height={40} />
+            <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.portfolio.laggard}</div>
+            <EmptyState message={t.analytics.portfolio.noQuotes} height={40} />
           </Card>
         )}
         <KpiCard
           tone="tint"
           className="animate-in fade-in delay-150 duration-300"
           valueSize="sm"
-          label="Income engine"
+          label={t.analytics.portfolio.incomeEngine}
           value={engine ? highlightLabel(engine.asset) : '—'}
           sub={
             engine

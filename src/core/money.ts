@@ -147,7 +147,15 @@ export function makeFormat(lang: Lang): Format {
     // formatter's rounding options are one more thing to keep in step.
     pct: (n, fractionDigits = 2) => signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
     pctPlain: (n, fractionDigits = 1) => pctBody(n, fractionDigits, uk),
-    pp: (n, suffix = '') => signed(n, decimal(Math.abs(n).toFixed(1), uk) + suffix),
+    // A raw suffix would bypass the language rule, and did: Overview passes
+    // '%' and rendered "−6,4%" beside a "17 %" produced by pctPlain, one space
+    // apart in the same sentence. The percent sign is therefore spaced here
+    // like everywhere else; any other suffix (' pp') is appended as given.
+    pp: (n, suffix = '') =>
+      signed(
+        n,
+        decimal(Math.abs(n).toFixed(1), uk) + (suffix === '%' && uk ? `${NBSP}%` : suffix),
+      ),
     date,
     dateShort,
     savedAt: (iso) => {

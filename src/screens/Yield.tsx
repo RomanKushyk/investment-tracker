@@ -7,6 +7,7 @@ import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
+import { PORTFOLIO_START } from '../core/derive';
 
 export function Yield() {
   const f = useFormat();
@@ -34,7 +35,7 @@ export function Yield() {
           ))}
         </div>
         {series.length === 0 ? (
-          <EmptyState message="No snapshots yet — save your first daily quote to start this chart." height={280} />
+          <EmptyState message={t.analytics.empty.chart} height={280} />
         ) : (
           <YieldLines data={series} assets={assets} />
         )}
@@ -44,14 +45,14 @@ export function Yield() {
         <table className="w-full min-w-[780px] border-collapse text-[12.5px]">
           <thead>
             <tr className="text-muted text-left">
-              <th className="py-2 font-normal">Asset</th>
-              <th className="py-2 text-right font-normal">Invested, ₴</th>
-              <th className="py-2 text-right font-normal">Value now, ₴</th>
-              <th className="py-2 text-right font-normal">Δ total</th>
-              <th className="py-2 text-right font-normal">Annualized</th>
-              <th className="py-2 text-right font-normal">Total return</th>
+              <th className="py-2 font-normal">{t.analytics.asset}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.deltaTotal}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.annualized}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.totalReturn}</th>
               <th className="py-2 text-right font-normal">{xirrHeader}</th>
-              <th className="py-2 text-right font-normal">vs expected</th>
+              <th className="py-2 text-right font-normal">{t.analytics.vsExpected}</th>
             </tr>
           </thead>
           <tbody>
@@ -84,9 +85,7 @@ export function Yield() {
           </tbody>
         </table>
         <div className="text-muted mt-2.5 text-[11.5px]">
-          Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ
-          on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and
-          annualized — with under a year of history, treat it as an extrapolation.
+          {t.analytics.prose.yieldNote(f.date(PORTFOLIO_START))}
         </div>
       </Card>
     </div>

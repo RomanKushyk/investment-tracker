@@ -78,25 +78,25 @@ export function Attributes() {
               <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">
                 {isBond ? (
                   <>
-                    <Fact label="YTM at purchase">{f.pctPlain(a.expectedPct)} / yr</Fact>
-                    <Fact label="Coupon">
+                    <Fact label={t.analytics.attributes.ytmAtPurchase}>{f.pctPlain(a.expectedPct)} / yr</Fact>
+                    <Fact label={t.analytics.attributes.coupon}>
                       {a.couponAmount !== undefined
                         ? `${f.moneyWhole(a.couponAmount)} ${COUPON_FREQUENCY[a.payoutSchedule]}`
                         : '—'}
                     </Fact>
-                    <Fact label="Maturity">{a.maturity ? f.date(a.maturity) : '—'}</Fact>
-                    <Fact label="Target share">{a.targetPct}%</Fact>
-                    <Fact label="First purchase">{f.date(a.firstPurchase)}</Fact>
-                    <Fact label="Next coupon">{a.nextCoupon ? f.date(a.nextCoupon) : '—'}</Fact>
+                    <Fact label={t.analytics.attributes.maturity}>{a.maturity ? f.date(a.maturity) : '—'}</Fact>
+                    <Fact label={t.analytics.attributes.targetShare}>{a.targetPct}%</Fact>
+                    <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
+                    <Fact label={t.analytics.attributes.nextCoupon}>{a.nextCoupon ? f.date(a.nextCoupon) : '—'}</Fact>
                   </>
                 ) : (
                   <>
-                    <Fact label="Expected return">{f.pctPlain(a.expectedPct)} / yr</Fact>
-                    <Fact label="Actual (ann.)">{actualAnnualized(a)}</Fact>
-                    <Fact label="Payout schedule">{payoutScheduleLabel(a, transactions)}</Fact>
-                    <Fact label="Target share">{a.targetPct}%</Fact>
-                    <Fact label="First purchase">{f.date(a.firstPurchase)}</Fact>
-                    <Fact label="Reinvest policy">{a.reinvestPolicy ?? '—'}</Fact>
+                    <Fact label={t.analytics.attributes.expectedReturn}>{f.pctPlain(a.expectedPct)} / yr</Fact>
+                    <Fact label={t.analytics.attributes.actualAnn}>{actualAnnualized(a)}</Fact>
+                    <Fact label={t.analytics.attributes.payoutSchedule}>{payoutScheduleLabel(a, transactions)}</Fact>
+                    <Fact label={t.analytics.attributes.targetShare}>{a.targetPct}%</Fact>
+                    <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
+                    <Fact label={t.analytics.attributes.reinvestPolicy}>{a.reinvestPolicy ?? '—'}</Fact>
                   </>
                 )}
               </dl>

@@ -91,15 +91,14 @@ export function Seasonality() {
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         <SeasonalityBars data={chartData} />
         <div className="text-muted mt-2 text-[11.5px]">
-          * expected — projected from the asset's next coupon date. Gray stubs = ordinary price-drift
-          days with no income.
+          {t.analytics.prose.seasonalityNote}
         </div>
       </Card>
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
         <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
           <div className="text-pos-tint-text mb-1 text-[10px] tracking-[.12em] uppercase">
-            Income anchor
+            {t.analytics.seasonality.incomeAnchor}
           </div>
           <div className="text-[13.5px] leading-[1.5]">
             {anchor && anchorAsset && growth ? (
@@ -115,7 +114,7 @@ export function Seasonality() {
         </div>
 
         <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Coupon season</div>
+          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.seasonality.couponSeason}</div>
           <div className="text-[13.5px] leading-[1.5]">
             {big && bigInfo ? (
               <>
@@ -141,7 +140,7 @@ export function Seasonality() {
         </Card>
 
         <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">Quiet stretch</div>
+          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.seasonality.quietStretch}</div>
           <div className="text-[13.5px] leading-[1.5]">
             {quiet ? (
               <>

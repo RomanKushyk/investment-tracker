@@ -41,11 +41,11 @@ export function Payouts() {
           <div className="text-label mb-2 flex gap-4 text-[11.5px]">
             <span className="flex items-center gap-1.5">
               <span className="bg-reit inline-block size-2.5 rounded-[3px]" />
-              Dividends
+              {t.analytics.dividends}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="bg-ovdp8976 inline-block size-2.5 rounded-[3px]" />
-              Coupons
+              {t.analytics.coupons}
             </span>
           </div>
           <PayoutsBars data={chartData} />
@@ -55,16 +55,16 @@ export function Payouts() {
           <KpiCard
             tone="dark"
             className="animate-in fade-in duration-300"
-            label="Received total"
+            label={t.analytics.receivedTotal}
             value={f.money(income.total)}
             subClassName="text-pos-on-dark"
             sub={`${f.money(income.dividends)} dividends · ${f.money(income.coupons)} coupons`}
           />
 
           <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
-            <div className="text-pos-tint-text mb-1.5 text-[10px] tracking-[.12em] uppercase">Upcoming</div>
+            <div className="text-pos-tint-text mb-1.5 text-[10px] tracking-[.12em] uppercase">{t.analytics.upcoming}</div>
             <div className="flex flex-col gap-2 text-[13px]">
-              {payoutRows.length === 0 && <span>No upcoming payouts.</span>}
+              {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
@@ -80,9 +80,9 @@ export function Payouts() {
           <KpiCard
             className="animate-in fade-in duration-300"
             valueSize="md"
-            label="Reinvested"
+            label={t.analytics.reinvested}
             value={f.money(reinvested)}
-            sub={`${reinvestedPct.toFixed(1)}% of received income`}
+            sub={t.analytics.prose.ofReceivedIncome(f.pctPlain(reinvestedPct))}
           />
         </div>
       </div>
@@ -91,11 +91,11 @@ export function Payouts() {
         <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
           <thead>
             <tr className="text-muted text-left">
-              <th className="py-2 font-normal">Date</th>
-              <th className="py-2 font-normal">Asset</th>
-              <th className="py-2 font-normal">Type</th>
-              <th className="py-2 text-right font-normal">Amount, ₴</th>
-              <th className="py-2 font-normal">Destination</th>
+              <th className="py-2 font-normal">{t.analytics.date}</th>
+              <th className="py-2 font-normal">{t.analytics.asset}</th>
+              <th className="py-2 font-normal">{t.analytics.type}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
+              <th className="py-2 font-normal">{t.analytics.destination}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,8 +114,8 @@ export function Payouts() {
                 <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
                 <td className="py-2">
                   {row.destination.kind === 'reinvested'
-                    ? `reinvested (₴${f.num(row.destination.amount)})`
-                    : 'account'}
+                    ? t.analytics.prose.reinvestedInto(f.money(row.destination.amount))
+                    : t.analytics.prose.toAccount}
                 </td>
               </tr>
             ))}

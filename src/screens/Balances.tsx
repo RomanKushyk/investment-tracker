@@ -27,7 +27,7 @@ export function Balances() {
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         {chartData.length === 0 ? (
-          <EmptyState message="No snapshots yet — save your first daily quote to start this chart." height={260} />
+          <EmptyState message={t.analytics.empty.chart} height={260} />
         ) : (
           <BalancesArea data={chartData} />
         )}
@@ -37,21 +37,21 @@ export function Balances() {
         <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
           <thead>
             <tr className="text-muted text-left">
-              <th className="py-2 font-normal">Snapshot</th>
+              <th className="py-2 font-normal">{t.analytics.snapshot}</th>
               {assets.map((a) => (
                 <th key={a.id} className="py-2 text-right font-normal">
                   {a.name}
                 </th>
               ))}
-              <th className="py-2 text-right font-normal">Cash</th>
-              <th className="py-2 text-right font-normal">Total, ₴</th>
+              <th className="py-2 text-right font-normal">{t.analytics.cash}</th>
+              <th className="py-2 text-right font-normal">{t.analytics.totalUah}</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
                 <td colSpan={assets.length + 3} className="text-muted py-4 text-center">
-                  No snapshots yet — save your first daily quote to fill this table.
+                  {t.analytics.empty.table}
                 </td>
               </tr>
             )}
@@ -89,7 +89,7 @@ export function Balances() {
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
             >
-              Prev
+              {t.analytics.prev}
             </Button>
             <Button
               variant="outline"
@@ -97,7 +97,7 @@ export function Balances() {
               onClick={() => setPage((p) => p + 1)}
               disabled={currentPage >= totalPages - 1}
             >
-              Next
+              {t.analytics.next}
             </Button>
           </div>
         </div>
