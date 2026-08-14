@@ -59,6 +59,13 @@ The distinction is not a preference — it is what each record is for:
 The apex is legal as a CNAME only because Cloudflare flattens it, and the zone's MX
 records for Email Routing keep working beside it.
 
+**Cloudflare now serves a `robots.txt` the build does not contain.** `public/` has
+no such file; proxying the zone made Cloudflare synthesise its content-signals
+preamble at `/robots.txt`. It declares reservations about AI training and search
+input and contains **no `User-agent` or `Disallow` line at all**, so it restricts
+no crawling — production indexing is unaffected. To state real crawl rules, ship
+`public/robots.txt` and it will be served instead.
+
 **Two TLS legs, both verified.** The visitor gets Cloudflare's Universal SSL
 certificate (`CN=quirenote.com`, Google Trust Services, auto-renewed); Cloudflare
 reaches CloudFront over the ACM `*.quirenote.com` certificate. The zone's SSL mode is
