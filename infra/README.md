@@ -142,10 +142,32 @@ because the question will be asked again:
 - **Volume is one request a day** — and only up to six on a day the capture
   fails, because `alreadySettled` checks before fetching (D64).
 
-**Not checked, deliberately:** their `/terms`, because `robots.txt` disallows
-retrieving it programmatically and reading it with a crawler while arguing that
-we respect their crawl rules would be self-refuting. It is a page for a person to
-open in a browser.
+**The contract was then read** — the owner downloaded it in a browser rather than
+letting anything here crawl `/terms`, which `robots.txt` disallows: reading it
+with a crawler while arguing that we respect their crawl rules would be
+self-refuting. It is *Договір про надання фінансових послуг щодо цінних паперів
+«INZHUR»*, the client agreement of ТОВ «ІНЖУР КЕПІТАЛ», edition of 12.08.2026,
+35 pages. Three findings:
+
+- **Its subject is the client relationship, not the website.** §1.6 defines the
+  Site as the depositary institution's official page, and §1.46 defines the
+  "Software Module" as the Personal Cabinet and the mobile app — the
+  AUTHENTICATED surface. §13 governs a Client's access to that module. The
+  unauthenticated `/_api/assets` the capture reads is not that.
+- **No clause prohibits automated access, scraping, copying or reproduction.**
+  Searched for the verbs that would carry such a rule — заборон / не має права /
+  копіювання / відтворення / автоматизован / програмн / інтелектуальн /
+  торговельна марка — and every prohibition found concerns something else
+  (guaranteeing profit, the bonus programme, statutory limits).
+- **Confidentiality carves this out explicitly.** §6.1 makes information
+  exchanged under the contract confidential *"крім інформації, що може бути
+  отримана будь-якою особою з загальнодоступних джерел"* — except information
+  any person can obtain from publicly accessible sources. A feed served
+  unauthenticated to any browser, and allowed by their own robots.txt, is that.
+
+**Stated as what it is:** a targeted read of a 35-page contract by someone who is
+not a lawyer — "no prohibition found where a prohibition would live", not a
+clearance.
 
 ### SES, created by hand and outside the stack (2026-08-14)
 
