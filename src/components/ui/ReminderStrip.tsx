@@ -7,12 +7,12 @@ import { useFormat } from '../../hooks/useFormat';
 import { useReminders } from '../../hooks/useReminders';
 import { useSettings } from '../../state/settings';
 import {
-  DISMISS_REMINDER_LABEL,
   moreRemindersLabel,
-  REMINDER_ACTION,
+  reminderAction,
   REMINDER_STRIP_CAP,
   reminderText,
 } from './reminder-labels';
+import { useT } from '../../i18n/useT';
 
 // S6 (design/extensions/reminders.dc.html) — the banner strip above the screen
 // content on `/` and `/overview`. Severity IS the container: a tint background
@@ -52,8 +52,9 @@ function ReminderBanner({
   onDismiss: () => void;
 }) {
   const f = useFormat();
+  const t = useT();
   const Icon = SEVERITY_ICON[reminder.severity];
-  const action = withAction ? REMINDER_ACTION[reminder.kind] : undefined;
+  const action = withAction ? reminderAction(t)[reminder.kind] : undefined;
   return (
     <div
       className={`flex items-start gap-2.5 rounded-2xl px-4 py-3 ${SEVERITY_PAINT[reminder.severity]} ${
@@ -64,7 +65,7 @@ function ReminderBanner({
     >
       <Icon size={16} strokeWidth={2.25} className="mt-[2px] flex-none" />
       <div className="min-w-0 flex-1 text-[13px] leading-[1.5]">
-        {reminderText(reminder, assetName, f)}{' '}
+        {reminderText(reminder, assetName, f, t)}{' '}
         {action !== undefined && (
           // Both actions lead to the daily ritual (the quotes screen). The
           // design's `white-space:nowrap` holds from `sm` up; at the 360px rail
@@ -80,7 +81,7 @@ function ReminderBanner({
       </div>
       <button
         type="button"
-        aria-label={DISMISS_REMINDER_LABEL}
+        aria-label={t.reminders.dismiss}
         onClick={onDismiss}
         className="flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition hover:opacity-100 active:scale-[.97]"
       >
@@ -98,6 +99,7 @@ function ReminderBanner({
 const DISMISS_EXIT_MS = 220;
 
 export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' }) {
+  const t = useT();
   const { reminders, names } = useReminders();
   const dismissReminder = useSettings((s) => s.dismissReminder);
   const [expanded, setExpanded] = useState(false);
@@ -147,7 +149,7 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
           onClick={() => setExpanded(true)}
           className="text-muted animate-in fade-in cursor-pointer self-start px-1 py-[2px] text-xs transition hover:opacity-85 active:scale-[.97]"
         >
-          {moreRemindersLabel(hidden)}
+          {moreRemindersLabel(hidden, t)}
         </button>
       )}
     </div>

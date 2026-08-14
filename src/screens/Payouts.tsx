@@ -5,7 +5,6 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
 import { incomeReceived, reinvestedTotal } from '../core/derive';
-import { fmtPayoutDate, MONTH_SHORT } from '../components/ui/date-labels';
 import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
 import { useFormat } from '../hooks/useFormat';
@@ -23,7 +22,7 @@ export function Payouts() {
   const payoutRows = nextPayoutRows(assets, transactions);
 
   const chartData = monthlyPayouts(transactions).map((m) => ({
-    monthLabel: MONTH_SHORT[Number(m.month.slice(5, 7)) - 1],
+    monthLabel: t.dates.monthShort[Number(m.month.slice(5, 7)) - 1],
     dividends: m.dividends,
     coupons: m.coupons,
     totalLabel: f.num(m.total),
@@ -70,7 +69,7 @@ export function Payouts() {
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
-                    {f.moneyWhole(r.amount)} · {fmtPayoutDate(r.date)}
+                    {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
                   </strong>
                 </div>
               ))}

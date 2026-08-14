@@ -18,10 +18,7 @@ import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 // Full month names for the "Coupon season" card prose only (design line 448
 // spells "June", not the shared MONTH_SHORT's "Jun" used on chart axes).
-const MONTH_FULL = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+// Full month names live in the dictionary (t.dates.monthFull).
 
 const SCHEDULE_FREQUENCY: Record<Asset['payoutSchedule'], string> = {
   monthly: 'every month',
@@ -119,7 +116,7 @@ export function Seasonality() {
             {big && bigInfo ? (
               <>
                 <strong>
-                  {bigInfo.months.map((m) => MONTH_FULL[m - 1]).join(' & ')} (day {bigInfo.day})
+                  {bigInfo.months.map((m) => t.dates.monthFull[m - 1]).join(' & ')} (day {bigInfo.day})
                 </strong>{' '}
                 carry the big {shortLabel(big)} coupons
                 {others.map((o) => {
@@ -127,7 +124,7 @@ export function Seasonality() {
                   const month = info?.historicalMonths[0] ?? info?.months[0];
                   return info && month ? (
                     <span key={o.id}>
-                      ; {shortLabel(o)} pays in {dayDescriptor(info.day)} {MONTH_FULL[month - 1]}
+                      ; {shortLabel(o)} pays in {dayDescriptor(info.day)} {t.dates.monthFull[month - 1]}
                     </span>
                   ) : null;
                 })}

@@ -84,3 +84,35 @@ describe('the dictionaries', () => {
     }
   });
 });
+
+// Ported from the deleted date-labels.test.ts. `fmtPayoutDate` and MONTH_SHORT
+// went with their module — the formatter's `dateShort` IS the Contract 0 form
+// of the first, and the months are dictionary data now. The ordinal edge cases
+// are the part that had real logic and no other guard.
+describe('day-of-month', () => {
+  it('formats English ordinal suffixes, including the 11-13 exception', () => {
+    const d = en.dates.dayOfMonth;
+    expect(d(1)).toBe('1st');
+    expect(d(2)).toBe('2nd');
+    expect(d(3)).toBe('3rd');
+    expect(d(10)).toBe('10th');
+    expect(d(11)).toBe('11th'); // not "11st"
+    expect(d(12)).toBe('12th');
+    expect(d(13)).toBe('13th');
+    expect(d(21)).toBe('21st');
+    expect(d(25)).toBe('25th');
+  });
+
+  it('writes the Ukrainian day with its genitive marker instead', () => {
+    expect(uk.dates.dayOfMonth(10)).toBe('10-го');
+    expect(uk.dates.dayOfMonth(1)).toBe('1-го');
+  });
+
+  it('indexes months by (month - 1), as the chart axes do', () => {
+    expect(en.dates.monthShort[1]).toBe('Feb');
+    expect(en.dates.monthShort[6]).toBe('Jul');
+    expect(uk.dates.monthShort[1]).toBe('лют');
+    expect(en.dates.monthFull[5]).toBe('June');
+    expect(uk.dates.monthFull[5]).toBe('червень');
+  });
+});

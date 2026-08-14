@@ -26,7 +26,6 @@ import {
   soldAmount,
   yieldSinceStart,
 } from '../core/derive';
-import { fmtPayoutDate } from '../components/ui/date-labels';
 import { todayIso } from '../core/dates';
 import { toUsd } from '../core/money';
 import { useSettings } from '../state/settings';
@@ -224,7 +223,7 @@ export function Overview() {
                   <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
-                    {f.moneyWhole(r.amount)} · {fmtPayoutDate(r.date)}
+                    {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
                   </strong>
                 </div>
               ))}

@@ -6,21 +6,21 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { YIELD_LABEL_LONG } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { ordinal } from '../components/ui/date-labels';
 import { COUPON_FREQUENCY, SCHEDULE_LABEL } from '../components/ui/schedule-labels';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
 import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
 import type { Asset, Transaction } from '../core/types';
 import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
 import { useFormat } from '../hooks/useFormat';
+import type { Dict } from '../i18n/messages';
 import { useT } from '../i18n/useT';
 
 // "Monthly · ~10th" — words assembled here from the pure module's
 // {schedule, day} tokens (structured-returns rule, G1).
-function payoutScheduleLabel(asset: Asset, transactions: Transaction[]): string {
+function payoutScheduleLabel(asset: Asset, transactions: Transaction[], t: Dict): string {
   const fact = payoutScheduleFact(asset, transactions);
   const base = SCHEDULE_LABEL[fact.schedule];
-  return fact.day ? `${base} · ~${ordinal(fact.day)}` : base;
+  return fact.day ? `${base} · ~${t.dates.dayOfMonth(fact.day)}` : base;
 }
 
 // A <div>-wrapped dt/dd pair is valid dl content (HTML5 content model allows
@@ -93,7 +93,7 @@ export function Attributes() {
                   <>
                     <Fact label={t.analytics.attributes.expectedReturn}>{f.pctPlain(a.expectedPct)} / yr</Fact>
                     <Fact label={t.analytics.attributes.actualAnn}>{actualAnnualized(a)}</Fact>
-                    <Fact label={t.analytics.attributes.payoutSchedule}>{payoutScheduleLabel(a, transactions)}</Fact>
+                    <Fact label={t.analytics.attributes.payoutSchedule}>{payoutScheduleLabel(a, transactions, t)}</Fact>
                     <Fact label={t.analytics.attributes.targetShare}>{a.targetPct}%</Fact>
                     <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
                     <Fact label={t.analytics.attributes.reinvestPolicy}>{a.reinvestPolicy ?? '—'}</Fact>

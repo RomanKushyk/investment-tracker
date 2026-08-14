@@ -25,6 +25,23 @@
  * by the owner yet.
  */
 
+
+/**
+ * The Ukrainian plural rule, which has three forms where English has two:
+ *   1, 21, 31 …            -> one   (1 день)
+ *   2-4, 22-24 …           -> few   (2 дні)
+ *   0, 5-20, 25-30 …       -> many  (5 днів)
+ * The 11-14 band is the exception every naive implementation gets wrong: it
+ * takes `many` despite ending in 1-4.
+ */
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
 export const en = {
   nav: {
     groupDailyEntry: 'Daily entry',
@@ -46,6 +63,47 @@ export const en = {
     totalCapital: 'Total capital',
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
+  },
+  reminders: {
+    quoteMissing: 'No quotes saved today yet.',
+    coupon: (asset: string, when: string, date: string) => `${asset} pays a coupon ${when} (${date}).`,
+    couponOverdue: (asset: string, date: string) =>
+      `${asset} coupon was due ${date} — record it on Daily quotes.`,
+    maturesToday: (asset: string, date: string) => `${asset} matures today (${date}).`,
+    matures: (asset: string, when: string, date: string) => `${asset} matures ${when} (${date}).`,
+    // English has TWO plural forms; Ukrainian has three, which is why this is a
+    // function per language rather than a string with a count spliced in.
+    inDays: (days: number) => (days === 1 ? 'in 1 day' : `in ${days} days`),
+    moreReminders: (hidden: number) => `+${hidden} more reminder${hidden === 1 ? '' : 's'}`,
+    enterQuotes: 'Enter quotes →',
+    openDailyQuotes: 'Open Daily quotes →',
+    dismiss: 'Dismiss reminder',
+    andMore: (rest: number) => ` · +${rest} more`,
+  },
+  dates: {
+    // Chart axes and month labels. The formatter owns full DATES (Contract 0);
+    // these are the month WORDS a chart axis and a sentence need on their own.
+    monthShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    monthFull: [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ],
+    // "~10th" in English; Ukrainian has no ordinal suffix of this kind and
+    // writes the day with a genitive marker instead.
+    dayOfMonth: (n: number) => {
+      const v = n % 100;
+      if (v >= 11 && v <= 13) return `${n}th`;
+      switch (n % 10) {
+        case 1:
+          return `${n}st`;
+        case 2:
+          return `${n}nd`;
+        case 3:
+          return `${n}rd`;
+        default:
+          return `${n}th`;
+      }
+    },
   },
   analytics: {
     // Column and field terms shared by several screens — one place, so the
@@ -417,6 +475,32 @@ export const uk: Dict = {
     // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+  },
+  reminders: {
+    quoteMissing: 'Котирувань сьогодні ще не збережено.',
+    coupon: (asset: string, when: string, date: string) => `${asset} платить купон ${when} (${date}).`,
+    couponOverdue: (asset: string, date: string) =>
+      `Купон ${asset} мав бути ${date} — запишіть його на екрані котирувань.`,
+    maturesToday: (asset: string, date: string) => `${asset} погашається сьогодні (${date}).`,
+    matures: (asset: string, when: string, date: string) => `${asset} погашається ${when} (${date}).`,
+    // Ukrainian has THREE plural forms and English two, so a shared template
+    // with a count spliced in would be wrong for 2, 3 and 4 — "2 днів" instead
+    // of "2 дні". Each language owns its own rule.
+    inDays: (days: number) => `через ${days} ${plural(days, 'день', 'дні', 'днів')}`,
+    moreReminders: (hidden: number) =>
+      `+${hidden} ${plural(hidden, 'нагадування', 'нагадування', 'нагадувань')}`,
+    enterQuotes: 'Ввести котирування →',
+    openDailyQuotes: 'Відкрити котирування →',
+    dismiss: 'Відхилити нагадування',
+    andMore: (rest: number) => ` · +${rest}`,
+  },
+  dates: {
+    monthShort: ['січ', 'лют', 'бер', 'кві', 'тра', 'чер', 'лип', 'сер', 'вер', 'жов', 'лис', 'гру'],
+    monthFull: [
+      'січень', 'лютий', 'березень', 'квітень', 'травень', 'червень',
+      'липень', 'серпень', 'вересень', 'жовтень', 'листопад', 'грудень',
+    ],
+    dayOfMonth: (n: number) => `${n}-го`,
   },
   analytics: {
     asset: 'Актив',

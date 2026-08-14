@@ -11,6 +11,7 @@ import { computeReminders, type Reminder } from '../core/reminders';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
 import { useAssets, useSnapshots, useTransactions } from './queries';
+import { useT } from '../i18n/useT';
 
 export interface RemindersView {
   /** Ordered overdue → warn → info, dismissals already filtered out. */
@@ -57,12 +58,13 @@ let toastShown = false;
 
 export function useReminderToast(): void {
   const f = useFormat();
+  const t = useT();
   const { reminders, names, ready } = useReminders();
 
   useEffect(() => {
     if (toastShown || !ready) return;
     toastShown = true; // first resolved read decides — nothing announces twice
-    const text = reminderToastText(reminders, names, f);
+    const text = reminderToastText(reminders, names, f, t);
     if (text !== '') toast(text); // informational: default sonner look, no action
-  }, [ready, reminders, names, f]);
+  }, [ready, reminders, names, f, t]);
 }

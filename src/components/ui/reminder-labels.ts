@@ -4,12 +4,9 @@
 // inventory; i18n lands in Phase 5.
 import type { Reminder, ReminderKind } from '../../core/reminders';
 import type { Format } from '../../core/money';
+import type { Dict } from '../../i18n/messages';
 
 /** "in 5 days" / "in 1 day" — the reference copy is plural; 1 must not read "1 days". */
-function inDays(days: number): string {
-  return days === 1 ? 'in 1 day' : `in ${days} days`;
-}
-
 /**
  * One banner's sentence. `assetName` is the reminder's asset (empty for the
  * portfolio-wide quote-missing kind).
@@ -18,18 +15,24 @@ function inDays(days: number): string {
  * copy not literal in the reference: the brief pins the "in N days" pattern and
  * these are its unavoidable edges (a same-day maturity, a single day).
  */
-export function reminderText(reminder: Reminder, assetName: string, f: Format): string {
+export function reminderText(
+  reminder: Reminder,
+  assetName: string,
+  f: Format,
+  t: Dict,
+): string {
+  const r = t.reminders;
   switch (reminder.kind) {
     case 'quote-missing':
-      return 'No quotes saved today yet.';
+      return r.quoteMissing;
     case 'coupon':
-      return `${assetName} pays a coupon ${inDays(reminder.days)} (${f.date(reminder.date)}).`;
+      return r.coupon(assetName, r.inDays(reminder.days), f.date(reminder.date));
     case 'coupon-overdue':
-      return `${assetName} coupon was due ${f.date(reminder.date)} — record it on Daily quotes.`;
+      return r.couponOverdue(assetName, f.date(reminder.date));
     case 'maturity':
       return reminder.days === 0
-        ? `${assetName} matures today (${f.date(reminder.date)}).`
-        : `${assetName} matures ${inDays(reminder.days)} (${f.date(reminder.date)}).`;
+        ? r.maturesToday(assetName, f.date(reminder.date))
+        : r.matures(assetName, r.inDays(reminder.days), f.date(reminder.date));
   }
 }
 
@@ -37,20 +40,19 @@ export function reminderText(reminder: Reminder, assetName: string, f: Format): 
  * The banner's action link — rendered on `/overview` only (on `/` the ritual UI
  * and the S5 card are right there). Both links navigate to `/`.
  */
-export const REMINDER_ACTION: Partial<Record<ReminderKind, string>> = {
-  'quote-missing': 'Enter quotes →',
-  'coupon-overdue': 'Open Daily quotes →',
-};
-
-/** `aria-label` of a banner's dismiss ✕. */
-export const DISMISS_REMINDER_LABEL = 'Dismiss reminder';
+export function reminderAction(t: Dict): Partial<Record<ReminderKind, string>> {
+  return {
+    'quote-missing': t.reminders.enterQuotes,
+    'coupon-overdue': t.reminders.openDailyQuotes,
+  };
+}
 
 /** The strip never shows more than this many banners before collapsing the rest. */
 export const REMINDER_STRIP_CAP = 3;
 
 /** The pressable overflow line under a capped strip. */
-export function moreRemindersLabel(hidden: number): string {
-  return `+${hidden} more reminder${hidden === 1 ? '' : 's'}`;
+export function moreRemindersLabel(hidden: number, t: Dict): string {
+  return t.reminders.moreReminders(hidden);
 }
 
 /**
@@ -61,10 +63,11 @@ export function reminderToastText(
   reminders: Reminder[],
   names: Record<string, string>,
   f: Format,
+  t: Dict,
 ): string {
   const [top] = reminders;
   if (top === undefined) return '';
-  const text = reminderText(top, top.assetId === undefined ? '' : (names[top.assetId] ?? ''), f);
+  const text = reminderText(top, top.assetId === undefined ? '' : (names[top.assetId] ?? ''), f, t);
   const rest = reminders.length - 1;
-  return rest > 0 ? `${text} · +${rest} more` : text;
+  return rest > 0 ? `${text}${t.reminders.andMore(rest)}` : text;
 }
