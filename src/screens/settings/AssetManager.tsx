@@ -12,7 +12,6 @@ import {
   AlertDialogTitle,
   Dialog,
 } from '../../components/ui/Dialog';
-import { YIELD_LABEL_SHORT } from '../../components/ui/yield-labels';
 import { assetFromForm, assetPatchFromForm } from '../../core/asset-builder';
 import type { AssetFormValues } from '../../core/schemas';
 import type { Asset } from '../../core/types';
@@ -169,7 +168,7 @@ export function AssetManager() {
                 {a.name}
               </span>
               <span className="text-muted text-xs whitespace-nowrap">
-                {YIELD_LABEL_SHORT[a.yieldType]}
+                {t.asset.yieldShort[a.yieldType]}
               </span>
               <Button
                 variant="outline"

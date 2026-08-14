@@ -3,7 +3,6 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { YIELD_LABEL_SHORT } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import {
   headlineTotal,
@@ -86,7 +85,7 @@ export function Portfolio() {
                 >
                   <td className="py-2 font-semibold">{a.name}</td>
                   <td className="py-2">
-                    <Tag colorKey={a.colorKey}>{YIELD_LABEL_SHORT[a.yieldType]}</Tag>
+                    <Tag colorKey={a.colorKey}>{t.asset.yieldShort[a.yieldType]}</Tag>
                   </td>
                   <td className="py-2 text-right">{f.num(inv)}</td>
                   <td className="py-2 text-right">{reinv > 0 ? f.num(reinv) : '—'}</td>

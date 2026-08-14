@@ -52,7 +52,15 @@ describe('the dictionaries', () => {
     // The failure this catches is a key copied across and never translated,
     // which is type-correct and invisible until it is on screen.
     const untranslated = [...EN]
-      .filter(([key, value]) => typeof value === 'string' && !SHARED.has(key) && UK.get(key) === value)
+      .filter(
+        ([key, value]) =>
+          typeof value === 'string' &&
+          // An empty string has nothing to translate — `couponFrequency.none`
+          // is the deliberate absence of a frequency word, not a missed one.
+          value !== '' &&
+          !SHARED.has(key) &&
+          UK.get(key) === value,
+      )
       .map(([key]) => key);
     expect(untranslated).toEqual([]);
   });

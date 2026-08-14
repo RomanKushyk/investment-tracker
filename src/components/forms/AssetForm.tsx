@@ -27,15 +27,14 @@ import { Reveal } from '../ui/Reveal';
 import { Select } from '../ui/Select';
 import { Switch } from '../ui/Switch';
 import {
-  ASSET_FIELD_MESSAGE as MSG,
   assetFormDefaults,
   deriveCode,
-  INZHUR_PICKER_COPY as PICK,
   inzhurRefOptions,
   scheduleOptions,
-  YIELD_TYPE_OPTIONS,
+  yieldTypeOptions,
 } from './asset-form';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 // The single standalone asset form (NEXT-PHASE-PLAN P2 feat/asset-form,
 // brief S3, design/extensions/asset-form.dc.html) — replaces the
@@ -128,6 +127,9 @@ function KindSegment({
 //   · demo forces manual mode with the specced note (G4/D16: no request can
 //     leave the app there).
 function InzhurGroup({ form }: { form: AssetFormHandle }) {
+  const t = useT();
+  const MSG = t.asset.message;
+  const PICK = t.asset.picker;
   const f = useFormat();
   const { errors } = useFormState({ control: form.control });
   const inzhur = useWatch({ control: form.control, name: 'inzhur' });
@@ -140,7 +142,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const feed = data ?? lastGood;
   const stale = data === undefined && lastGood !== undefined;
   const options =
-    feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '', f);
+    feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '', f, t);
   const failed = isError && !isFetching && options.length === 0;
   const showManual = disabled || manual || failed;
 
@@ -167,7 +169,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
       {/* Units-first framing (S3): while linked, quantity is the input —
           value is derived — so Units leads, emphasized (h 44, display
           font 15/600). */}
-      <Field label="Units" error={!!errors.inzhur?.units && MSG.units}>
+      <Field label={t.asset.field.units} error={!!errors.inzhur?.units && MSG.units}>
         <input
           className={`h-11 rounded-[11px] border px-3 font-display text-[15px] font-semibold ${
             errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
@@ -179,7 +181,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
       </Field>
       <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
         <div className="text-label flex flex-col gap-1 text-[11px]">
-          Kind
+          {t.asset.field.kind}
           <Controller
             control={form.control}
             name="inzhur.kind"
@@ -189,7 +191,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           />
         </div>
         <Field
-          label={showManual ? PICK.manualLabel[kind] : PICK.pickerLabel[kind]}
+          label={showManual ? (kind === 'bond' ? PICK.bondManual : PICK.fundManual) : kind === 'bond' ? PICK.bond : PICK.fund}
           error={!!errors.inzhur?.ref && (kind === 'bond' ? MSG.refBond : MSG.refFund)}
         >
           <Controller
@@ -259,6 +261,8 @@ export function AssetFormFields({
   avatarColorKey: ColorKey;
   allowNone?: boolean;
 }) {
+  const t = useT();
+  const MSG = t.asset.message;
   // useFormState/useWatch (not form.formState/form.watch): the form instance
   // arrives via props, so this component must hold its OWN subscription —
   // otherwise the owner's re-render can be bailed out of by the memoized
@@ -277,7 +281,7 @@ export function AssetFormFields({
 
   const expectedTargetRow = (
     <div className="grid grid-cols-2 gap-2.5">
-      <Field label="Expected, %" error={!!errors.expectedPct && MSG.expectedPct}>
+      <Field label={t.asset.field.expectedPct} error={!!errors.expectedPct && MSG.expectedPct}>
         <input
           className={inputClass(!!errors.expectedPct)}
           placeholder="16,5"
@@ -285,7 +289,7 @@ export function AssetFormFields({
           {...form.register('expectedPct')}
         />
       </Field>
-      <Field label="Target, %" error={!!errors.targetPct && MSG.targetPct}>
+      <Field label={t.asset.field.targetPct} error={!!errors.targetPct && MSG.targetPct}>
         <input
           className={inputClass(!!errors.targetPct)}
           placeholder="10"
@@ -297,7 +301,7 @@ export function AssetFormFields({
   );
 
   const yieldTypeField = (
-    <Field label="Yield type">
+    <Field label={t.asset.field.yieldType}>
       <Controller
         control={form.control}
         name="yieldType"
@@ -317,7 +321,7 @@ export function AssetFormFields({
                 form.clearErrors(['maturity', 'couponAmount', 'nextCoupon', 'reinvestPolicy']);
               }
             }}
-            options={YIELD_TYPE_OPTIONS}
+            options={yieldTypeOptions(t)}
             bg="page"
           />
         )}
@@ -326,7 +330,7 @@ export function AssetFormFields({
   );
 
   const payoutField = (
-    <Field label="Payout schedule">
+    <Field label={t.asset.field.payoutSchedule}>
       <Controller
         control={form.control}
         name="payoutSchedule"
@@ -334,7 +338,7 @@ export function AssetFormFields({
           <Select
             value={field.value}
             onValueChange={field.onChange}
-            options={scheduleOptions(allowNone)}
+            options={scheduleOptions(allowNone, t)}
             bg="page"
           />
         )}
@@ -343,7 +347,7 @@ export function AssetFormFields({
   );
 
   const firstPurchaseField = (
-    <Field label="First purchase" error={!!errors.firstPurchase && MSG.firstPurchase}>
+    <Field label={t.asset.field.firstPurchase} error={!!errors.firstPurchase && MSG.firstPurchase}>
       <Controller
         control={form.control}
         name="firstPurchase"
@@ -362,7 +366,7 @@ export function AssetFormFields({
 
   return (
     <>
-      <Field label="Name" error={!!errors.name && MSG.name}>
+      <Field label={t.asset.field.name} error={!!errors.name && MSG.name}>
         <input
           className={inputClass(!!errors.name)}
           placeholder="OVDP UA4000241234"
@@ -381,7 +385,7 @@ export function AssetFormFields({
         />
       </Field>
 
-      <Field label="Code" error={!!errors.code && MSG.code}>
+      <Field label={t.asset.field.code} error={!!errors.code && MSG.code}>
         <div className="flex items-center gap-2.5">
           <AssetAvatar code={(code || 'GB').toUpperCase()} colorKey={avatarColorKey} />
           <input
@@ -421,10 +425,10 @@ export function AssetFormFields({
 
       <Reveal show={isBond} className="border-hairline flex flex-col gap-2.5 border-t pt-2.5">
         <div className="text-pos-tint-text text-[11px] font-bold tracking-[.06em] uppercase">
-          Fixed coupon
+          {t.asset.field.fixedCouponGroup}
         </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Maturity" error={!!errors.maturity && MSG.maturity}>
+            <Field label={t.asset.field.maturity} error={!!errors.maturity && MSG.maturity}>
               <Controller
                 control={form.control}
                 name="maturity"
@@ -440,7 +444,7 @@ export function AssetFormFields({
                 )}
               />
             </Field>
-            <Field label="Next coupon" error={!!errors.nextCoupon && MSG.nextCoupon}>
+            <Field label={t.asset.field.nextCoupon} error={!!errors.nextCoupon && MSG.nextCoupon}>
               <Controller
                 control={form.control}
                 name="nextCoupon"
@@ -458,7 +462,7 @@ export function AssetFormFields({
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Coupon amount, ₴" error={!!errors.couponAmount && MSG.couponAmount}>
+            <Field label={t.asset.field.couponAmount} error={!!errors.couponAmount && MSG.couponAmount}>
               <input
                 className={inputClass(!!errors.couponAmount)}
                 placeholder="1 240,00"
@@ -466,7 +470,7 @@ export function AssetFormFields({
                 {...form.register('couponAmount')}
               />
             </Field>
-            <Field label="Reinvest policy">
+            <Field label={t.asset.field.reinvestPolicy}>
               <input
                 className={inputClass(false)}
                 placeholder="Auto (dividends)"
@@ -478,9 +482,9 @@ export function AssetFormFields({
 
       <div className="border-hairline border-t pt-2.5">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-ink text-[13px] font-semibold">Link to Inzhur</span>
+          <span className="text-ink text-[13px] font-semibold">{t.asset.field.linkToInzhur}</span>
           <Switch
-            label="Link to Inzhur"
+            label={t.asset.field.linkToInzhur}
             checked={linked}
             onCheckedChange={(on) => {
               if (on) {
@@ -519,6 +523,8 @@ export function AssetForm({
   onCancel: () => void;
   onSubmit: (values: AssetFormValues) => void;
 }) {
+  const t = useT();
+  const MSG = t.asset.message;
   const f = useFormat();
   const form = useForm<AssetFormInput, unknown, AssetFormValues>({
     resolver: zodResolver(assetFormSchema(mode)),

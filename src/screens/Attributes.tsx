@@ -4,9 +4,7 @@ import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
-import { YIELD_LABEL_LONG } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { COUPON_FREQUENCY, SCHEDULE_LABEL } from '../components/ui/schedule-labels';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
 import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
 import type { Asset, Transaction } from '../core/types';
@@ -19,7 +17,7 @@ import { useT } from '../i18n/useT';
 // {schedule, day} tokens (structured-returns rule, G1).
 function payoutScheduleLabel(asset: Asset, transactions: Transaction[], t: Dict): string {
   const fact = payoutScheduleFact(asset, transactions);
-  const base = SCHEDULE_LABEL[fact.schedule];
+  const base = t.asset.schedule[fact.schedule];
   return fact.day ? `${base} · ~${t.dates.dayOfMonth(fact.day)}` : base;
 }
 
@@ -72,7 +70,7 @@ export function Attributes() {
                 <AssetAvatar code={a.code} colorKey={a.colorKey} />
                 <h3 className="m-0 text-[17px]">{a.name}</h3>
                 <span className="ml-auto">
-                  <Tag colorKey={a.colorKey}>{YIELD_LABEL_LONG[a.yieldType]}</Tag>
+                  <Tag colorKey={a.colorKey}>{t.asset.yieldLong[a.yieldType]}</Tag>
                 </span>
               </div>
               <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">
@@ -81,7 +79,7 @@ export function Attributes() {
                     <Fact label={t.analytics.attributes.ytmAtPurchase}>{f.pctPlain(a.expectedPct)} / yr</Fact>
                     <Fact label={t.analytics.attributes.coupon}>
                       {a.couponAmount !== undefined
-                        ? `${f.moneyWhole(a.couponAmount)} ${COUPON_FREQUENCY[a.payoutSchedule]}`
+                        ? `${f.moneyWhole(a.couponAmount)} ${t.asset.couponFrequency[a.payoutSchedule]}`
                         : '—'}
                     </Fact>
                     <Fact label={t.analytics.attributes.maturity}>{a.maturity ? f.date(a.maturity) : '—'}</Fact>

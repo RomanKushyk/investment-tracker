@@ -8,7 +8,6 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ShareBar } from '../components/ui/ShareBar';
-import { YIELD_LABEL_SHORT } from '../components/ui/yield-labels';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import {
@@ -195,7 +194,7 @@ export function Overview() {
                   <ColorDot colorKey={a.colorKey} />
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{a.name}</span>
                   <span className="text-muted text-xs whitespace-nowrap">
-                    {YIELD_LABEL_SHORT[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
+                    {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
                   </span>
                   <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
                   <span

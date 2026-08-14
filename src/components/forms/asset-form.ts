@@ -1,63 +1,36 @@
 // Non-component companions of AssetForm.tsx — split out (button-variants.ts
 // rationale) so the .tsx file only exports components for react-refresh.
-// English copy lives HERE, in the component layer (structured returns, D8):
-// core/schemas emits paths, this map owns the pinned S3 message vocabulary.
+// core/schemas emits paths; the pinned S3 message vocabulary now lives in the
+// dictionary (t.asset.message), because the words follow the language.
 import { todayIso } from '../../core/dates';
 import type { InzhurQuote } from '../../core/inzhur/parse';
 import type { Format } from '../../core/money';
+import type { Dict } from '../../i18n/messages';
 import type { AssetFormInput } from '../../core/schemas';
-import type { Asset, PayoutSchedule } from '../../core/types';
+import type { Asset, PayoutSchedule, YieldType } from '../../core/types';
 import type { SelectOption } from '../ui/Select';
-import { SCHEDULE_LABEL } from '../ui/schedule-labels';
 
-export const YIELD_TYPE_OPTIONS = [
-  { value: 'fixed_coupon', label: 'Fixed coupon' },
-  { value: 'dividends', label: 'Dividends' },
-  { value: 'capitalization', label: 'Capitalization' },
-  { value: 'div_cap', label: 'Dividends + capitalization' },
-];
+// ORDER here, labels in the dictionary — the split every option list in the
+// app now uses.
+const YIELD_TYPE_ORDER: YieldType[] = ['fixed_coupon', 'dividends', 'capitalization', 'div_cap'];
+
+export function yieldTypeOptions(t: Dict) {
+  return YIELD_TYPE_ORDER.map((value) => ({ value, label: t.asset.yieldOption[value] }));
+}
 
 // The 4 create options; edit mode of an asset ALREADY holding the seed-only
 // 'none' additionally shows "None (price only)" (brief S3 — create never
 // offers it, and neither does editing a non-'none' asset).
 const CREATE_SCHEDULES: PayoutSchedule[] = ['maturity', 'monthly', 'quarterly', 'semiannual'];
 
-export function scheduleOptions(allowNone: boolean) {
+export function scheduleOptions(allowNone: boolean, t: Dict) {
   const values: PayoutSchedule[] = allowNone ? [...CREATE_SCHEDULES, 'none'] : CREATE_SCHEDULES;
-  return values.map((value) => ({ value, label: SCHEDULE_LABEL[value] }));
+  return values.map((value) => ({ value, label: t.asset.schedule[value] }));
 }
 
-// Pinned per-field error vocabulary (asset-form.dc.html "Message vocabulary").
-export const ASSET_FIELD_MESSAGE = {
-  name: 'Name is required.',
-  code: 'Code is 1–2 letters.',
-  expectedPct: 'Enter a percentage.',
-  targetPct: 'Enter a percentage.',
-  couponAmount: 'Enter an amount.',
-  firstPurchase: 'Pick a date.',
-  maturity: 'Pick a date.',
-  nextCoupon: 'Pick a date.',
-  refFund: 'Enter the fund slug.',
-  refBond: 'Enter the bond ISIN.',
-  units: 'Enter the number of units.',
-  summary: 'Check the highlighted fields and try again.',
-} as const;
-
-// ── S7: the Inzhur ref field's live picker (automation.dc.html S7). Copy is
-// the brief's, verbatim; the option rows are derived below.
-export const INZHUR_PICKER_COPY = {
-  placeholder: 'Pick from Inzhur…',
-  loading: 'Loading Inzhur assets…',
-  failed: "Couldn't load the list — enter it manually.",
-  empty: 'Nothing of this kind in the feed — enter it manually.',
-  toManual: 'Enter manually',
-  toPicker: 'Pick from the list',
-  demo: 'Live list is disabled in demo — enter the slug or ISIN manually.',
-  helper:
-    'Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.',
-  pickerLabel: { fund: 'Fund', bond: 'Bond' },
-  manualLabel: { fund: 'Fund slug', bond: 'Bond ISIN' },
-} as const;
+// Both vocabularies live in the dictionary now (t.asset.message,
+// t.asset.picker) — the brief pins the WORDS, and the words follow the
+// language like every other string.
 
 /**
  * Option rows for the active kind: funds read "Inzhur REIT · inzhur-reit"
@@ -74,6 +47,7 @@ export function inzhurRefOptions(
   kind: 'fund' | 'bond',
   currentRef: string,
   f: Format,
+  t: Dict,
 ): SelectOption[] {
   const options = entries
     .filter((entry) => entry.kind === kind)
@@ -87,7 +61,7 @@ export function inzhurRefOptions(
         : {
             value: entry.ref,
             label: entry.ref,
-            ...(entry.maturity === undefined ? {} : { hint: `matures ${f.date(entry.maturity)}` }),
+            ...(entry.maturity === undefined ? {} : { hint: t.asset.picker.matures(f.date(entry.maturity)) }),
           },
     );
   const ref = currentRef.trim();
