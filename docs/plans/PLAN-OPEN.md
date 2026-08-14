@@ -28,7 +28,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O16 | CSV export after the repository becomes HTTP | 4 | **closed — D35** a scope note, not a decision |
 | O17 | SES sender identity — domain or address | 1 | **closed — D40** `quirenote.com`, acquired 2026-08-11; A11 unblocked |
 | O18 | Is the app renamed from Kubushka to match the domain? | 4 | **closed — D41** user-facing renamed to Quirenote; every addressed identifier left alone |
-| O20 | Separate dev and production databases — worth it, and when? | — | **researched 2026-08-14, owner's call** — the app's store is already per-origin and therefore already split; the backend split costs ~$0.40/mo and doubles the operational surface. Recommendation: at W7 |
+| O20 | Separate dev and production databases — worth it, and when? | — | **closed — D63** the split happens at W7 and covers USER data only; one archive and one capture serve every environment |
 
 ---
 

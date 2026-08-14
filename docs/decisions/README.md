@@ -116,6 +116,8 @@ only for the decision you actually need.
 | D60 | The repository is public, writable by one account, and rewritable by none | 2026-08-14 |
 | D61 | Production sits behind Cloudflare's edge; the records that must not be proxied are named | 2026-08-14 |
 | D62 | SMS is not a way around the SES denial; it trades one queue for two at 1,615x the price | 2026-08-14 |
+| D63 | The environment split stops at the user's data; the archive has none | 2026-08-14 |
+| D64 | The capture retries by firing again, not by waiting longer | 2026-08-14 |
 
 ## A pattern these entries kept finding
 
