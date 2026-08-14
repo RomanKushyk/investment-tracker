@@ -70,7 +70,7 @@ export function FetchQuotesButton({
       </span>
       {state === 'demo' && (
         <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] uppercase">
-          DEMO
+          {t.sidebar.demoBadge}
         </span>
       )}
     </Button>

@@ -76,7 +76,7 @@ export function TargetsEditor() {
                   value={drafts[a.id] ?? String(a.targetPct)}
                   onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: e.target.value }))}
                   inputMode="decimal"
-                  aria-label={`${a.name} target, %`}
+                  aria-label={t.targets.fieldAria(a.name)}
                   aria-invalid={error}
                   className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
                 />
@@ -111,7 +111,9 @@ export function TargetsEditor() {
             status === 'ok' ? 'bg-pos-tint text-pos-tint-text' : 'bg-warn-tint text-warn-tint-text'
           }`}
         >
-          {status === 'ok' ? `Σ ${sum}%` : `Σ ${sum}% — targets don't add up to 100%`}
+          {status === 'ok'
+            ? t.targets.sumOk(f.pctPlain(sum, 0))
+            : t.targets.sumOff(f.pctPlain(sum, 0))}
         </span>
         <Button
           className="ml-auto"

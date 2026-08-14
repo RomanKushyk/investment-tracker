@@ -68,8 +68,16 @@ export function Overview() {
   const capitalUsd = toUsd(total, usdRate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
   const capital = usd
-    ? { value: f.money(tweenedCapital, 'USD'), sub: `${f.money(total)} · rate ${usdRate}` }
-    : { value: f.money(tweenedCapital), sub: `${f.money(capitalUsd, 'USD')} · rate ${usdRate}` };
+    ? {
+        value: f.money(tweenedCapital, 'USD'),
+        // f.units on the rate: it is a figure like any other, and 44.83 beside
+        // a Ukrainian 149 016 ₴ reads as a different notation for the same page.
+        sub: t.analytics.prose.withRate(f.money(total), f.units(usdRate)),
+      }
+    : {
+        value: f.money(tweenedCapital),
+        sub: t.analytics.prose.withRate(f.money(capitalUsd, 'USD'), f.units(usdRate)),
+      };
 
   const tweenedNet = useTweenedNumber(usd ? toUsd(net.uah, usdRate) : net.uah);
   const netValue = usd ? f.signedMoney(tweenedNet, 'USD') : f.signedMoney(tweenedNet);
@@ -87,8 +95,14 @@ export function Overview() {
   const reinvestedUsd = toUsd(reinvested, usdRate);
   const tweenedDeposited = useTweenedNumber(usd ? depositedUsd : deposited);
   const deposit = usd
-    ? { value: f.money(tweenedDeposited, 'USD'), sub: `+ ${f.money(reinvestedUsd, 'USD')} reinvested` }
-    : { value: f.moneyWhole(tweenedDeposited), sub: `+ ${f.money(reinvested)} reinvested` };
+    ? {
+        value: f.money(tweenedDeposited, 'USD'),
+        sub: t.analytics.prose.plusReinvested(f.money(reinvestedUsd, 'USD')),
+      }
+    : {
+        value: f.moneyWhole(tweenedDeposited),
+        sub: t.analytics.prose.plusReinvested(f.money(reinvested)),
+      };
 
   const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
   const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
@@ -130,7 +144,7 @@ export function Overview() {
           label={t.analytics.overview.capitalGain}
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={`${f.pct(net.pct)} since ${f.dateShort(PORTFOLIO_START)}`}
+          sub={t.analytics.prose.sinceDate(f.pct(net.pct), f.dateShort(PORTFOLIO_START))}
           subClassName={`font-semibold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}
         />
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
@@ -139,7 +153,11 @@ export function Overview() {
           label={t.analytics.overview.totalReturnNet}
           value={totalReturnValue}
           valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={totalReturn.roi === null ? '—' : `${f.pct(totalReturn.roi)} on net deposits`}
+          sub={
+            totalReturn.roi === null
+              ? '—'
+              : t.analytics.prose.onNetDeposits(f.pct(totalReturn.roi))
+          }
           subClassName={
             totalReturn.roi === null
               ? 'text-muted'
@@ -158,7 +176,7 @@ export function Overview() {
           value={cashValue}
           sub={
             <>
-              {f.pctPlain(cashSharePct, 2)} of account
+              {t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))}
               {/* S9d ledger-drift chip: warn tokens only (a reconciliation
                   nudge, not an error); hidden while |drift| ≤ ₴0.01 — demo
                   drift is 0 by construction. Re-keyed by value so a change
@@ -167,10 +185,10 @@ export function Overview() {
                 <div className="mt-2">
                   <span
                     key={drift}
-                    title="Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash."
+                    title={t.analytics.overview.ledgerDrift}
                     className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-200"
                   >
-                    Ledger drift {f.signedMoney(drift)}
+                    {t.analytics.overview.ledgerDriftLabel(f.signedMoney(drift))}
                   </span>
                 </div>
               )}
@@ -219,7 +237,11 @@ export function Overview() {
               {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
-                  <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
+                  <span>
+                    {r.kind === 'coupon'
+                      ? t.analytics.prose.couponOf(r.assetRef)
+                      : t.analytics.prose.dividendOf(r.assetRef)}
+                  </span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
                     {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
@@ -260,10 +282,13 @@ export function Overview() {
             valueSize="md"
             sub={
               <>
-                dividends {f.money(income.dividends)} · coupons {f.money(income.coupons)}
+                {t.analytics.prose.dividendsCouponsSplit(
+                  f.money(income.dividends),
+                  f.money(income.coupons),
+                )}
                 {/* S9a net-of-tax line (incomeReceivedNet.total) — equals the
                     gross value while no tax rows exist (demo: taxes 0). */}
-                <div>net of tax {f.money(incomeNet.total)}</div>
+                <div>{t.analytics.prose.netOfTax(f.money(incomeNet.total))}</div>
               </>
             }
           />

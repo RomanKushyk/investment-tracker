@@ -42,7 +42,9 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
       </span>
       {chip.chip === 'auto' && (
         <span className="text-muted text-[10px]">
-          {accrual ? 'accrual' : `fetched ${kyivTimeHm(new Date(chip.at))}`}
+          {accrual
+            ? t.dailyQuotes.chip.accrual
+            : t.dailyQuotes.chip.fetched(kyivTimeHm(new Date(chip.at)))}
         </span>
       )}
     </>
@@ -142,9 +144,7 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
     const { daysStale, date, atWindowEdge } = verdict.fit;
     return (
       <div className="text-muted animate-in fade-in text-[11px] duration-300">
-        Provider price is {atWindowEdge ? 'at least ' : ''}
-        {daysStale === 1 ? 'a day' : `${daysStale} days`} old — it still prices to{' '}
-        {f.dateShort(date)}.
+        {t.dailyQuotes.model.stale(daysStale, atWindowEdge, f.dateShort(date))}
       </div>
     );
   }
@@ -170,15 +170,14 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   if (verdict.reason === 'unexplained') {
     return (
       <div className="text-neg animate-in fade-in text-[11px] duration-300">
-        This price matches no yield the schedule can produce — the feed's payment
-        schedule or its price may be wrong.
+        {t.dailyQuotes.model.unexplained}
       </div>
     );
   }
 
   return (
     <div className="text-faint animate-in fade-in text-[11px] duration-300">
-      Too close to maturity to check the yield from the price.
+      {t.dailyQuotes.model.tooCloseToMaturity}
     </div>
   );
 }

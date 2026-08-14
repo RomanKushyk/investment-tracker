@@ -3,6 +3,8 @@ import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, 
 import type { BarShapeProps } from 'recharts';
 
 import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
+import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 import type { ColorKey } from '../../core/types';
 
 export interface SeasonalityChartPoint {
@@ -96,6 +98,8 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
 // Design lines 415-437: income-by-day-of-month bars. Motion (D7): bars grow
 // from baseline on mount and animate from previous height on data updates.
 export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
+  const f = useFormat();
+  const t = useT();
   const incomeLabel = makeIncomeLabel(data);
   return (
     <ResponsiveContainer width="100%" height={230}>
@@ -110,8 +114,8 @@ export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
           interval={0}
         />
         <Tooltip
-          formatter={(v) => `₴${Number(v).toFixed(2)}`}
-          labelFormatter={(label) => `Day ${label}`}
+          formatter={(v) => f.money(Number(v))}
+          labelFormatter={(label) => t.analytics.seasonality.anchorDay(Number(label))}
           contentStyle={CHART_TOOLTIP}
           cursor={CHART_CURSOR_FILL}
         />

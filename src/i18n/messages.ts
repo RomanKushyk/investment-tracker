@@ -342,6 +342,27 @@ export const en = {
       'November',
       'December',
     ],
+    // The month AFTER a preposition of time ("pays in early June"). English
+    // repeats monthFull; Ukrainian needs the genitive — "на початку червня",
+    // never "червень" — so the two lists cannot be one.
+    // Joins the two coupon months in the Seasonality card.
+    listAnd: ' & ',
+    pick: 'Pick a date',
+    selected: (date: string) => `Date: ${date}`,
+    monthIn: [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ],
     // "~10th" in English; Ukrainian has no ordinal suffix of this kind and
     // writes the day with a genitive marker instead.
     dayOfMonth: (n: number) => {
@@ -403,22 +424,64 @@ export const en = {
       freeCash: 'Free cash',
       ledgerDrift:
         "Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash.",
+      ledgerDriftLabel: (amount: string) => `Ledger drift ${amount}`,
     },
     portfolio: {
       bestPerformer: 'Best performer',
       laggard: 'Laggard',
       incomeEngine: 'Income engine',
       noQuotes: 'No quotes yet.',
+      autoReinvested: ' · auto-reinvested',
     },
+    // Each card is a sentence built around ONE <strong> span, so it splits in
+    // two: the bolded opener and the rest. Both languages put the bold first,
+    // which is what makes the split translatable at all.
     seasonality: {
       incomeAnchor: 'Income anchor',
       couponSeason: 'Coupon season',
       quietStretch: 'Quiet stretch',
+      anchorDay: (day: number) => `Day ${day}`,
+      // Lowercase: it sits after a figure on the chart's own bar label.
+      dayShort: (day: number) => `day ${day}`,
+      anchorRest: (asset: string, frequency: string, first: string, last: string) =>
+        ` is the paycheck: ${asset} dividends land ${frequency}, ${first} → ${last} and growing.`,
+      anchorEmpty: 'No recurring income yet.',
+      couponMonths: (months: string, day: number) => `${months} (day ${day})`,
+      couponRest: (asset: string) => ` carry the big ${asset} coupons`,
+      couponOther: (asset: string, when: string, month: string) =>
+        `; ${asset} pays in ${when} ${month}`,
+      couponEmpty: 'No bond coupons yet.',
+      quietDays: (from: number, to: number) => `Days ${from}–${to}`,
+      quietRest: ' see almost no cash events — a good window for rebalancing buys.',
+      quietEmpty: 'Income is spread evenly across the month.',
+      frequency: {
+        monthly: 'every month',
+        quarterly: 'every quarter',
+        semiannual: 'twice a year',
+        maturity: 'at maturity',
+        none: '',
+      },
+      dayPart: { early: 'early', mid: 'mid', late: 'late' },
     },
     allocation: {
       currentVsTarget: 'Current vs target',
       rebalancePlan: 'Rebalance plan',
+      buy: 'Buy',
+      trim: 'Trim',
+      orPauseReinvest: ' (or pause reinvest)',
+      withinRange: 'within ±0.5% — no action',
+      // The donut's centre: a rounded thousands figure, so the unit word is
+      // part of the phrase and not something the money formatter can place.
+      centerTotal: (thousands: number) => `₴${thousands}k`,
+      assetsPlusCash: (n: number) => `${n} ${n === 1 ? 'asset' : 'assets'} + cash`,
     },
+    yield: {
+      xirr: 'XIRR',
+      // "(ann.)" only while history < 365 days (S9b) — an extrapolation, said
+      // as one.
+      xirrAnn: 'XIRR (ann.)',
+    },
+    balances: { pending: 'pending' },
     attributes: {
       ytmAtPurchase: 'YTM at purchase',
       coupon: 'Coupon',
@@ -441,6 +504,23 @@ export const en = {
       ofReceivedIncome: (pct: string) => `${pct} of received income`,
       reinvestedInto: (amount: string) => `reinvested (${amount})`,
       toAccount: 'account',
+      ofAccount: (pct: string) => `${pct} of account`,
+      withRate: (total: string, rate: string) => `${total} · rate ${rate}`,
+      plusReinvested: (amount: string) => `+ ${amount} reinvested`,
+      sinceDate: (pct: string, date: string) => `${pct} since ${date}`,
+      onNetDeposits: (pct: string) => `${pct} on net deposits`,
+      couponOf: (asset: string) => `Coupon ${asset}`,
+      dividendOf: (asset: string) => `${asset} dividend`,
+      // The Payouts table's own tag — lowercase, one word per row.
+      dividendTag: 'dividend',
+      couponTag: 'coupon',
+      dividendsAndCoupons: (dividends: string, coupons: string) =>
+        `${dividends} dividends · ${coupons} coupons`,
+      dividendsCouponsSplit: (dividends: string, coupons: string) =>
+        `dividends ${dividends} · coupons ${coupons}`,
+      showingSnapshots: (shown: number, total: number, since: string) =>
+        `Showing last ${shown} snapshots · ${total} total since ${since}`,
+      netOfTax: (amount: string) => `net of tax ${amount}`,
       seasonalityNote:
         "* expected — projected from the asset's next coupon date. Gray stubs = ordinary price-drift days with no income.",
       yieldNote: (start: string) =>
@@ -484,6 +564,9 @@ export const en = {
     saveFailed: 'Could not save targets — please try again.',
     invalid: 'Enter a percentage.',
     now: (pct: string) => `now ${pct}`,
+    fieldAria: (asset: string) => `${asset} target, %`,
+    sumOk: (sum: string) => `Σ ${sum}`,
+    sumOff: (sum: string) => `Σ ${sum} — targets don't add up to 100%`,
   },
   datasetSwitch: { demo: 'Demo', live: 'Live' },
   danger: {
@@ -637,6 +720,8 @@ export const en = {
       tax: 'Tax',
     },
     recentCoupon: 'Coupon',
+    recordedToast: 'Transaction recorded',
+    failedToast: 'Could not record transaction — please try again.',
     sources: {
       own: 'Own funds',
       accrual: 'Accrual',
@@ -660,6 +745,8 @@ export const en = {
       manual: 'manual',
       asOf: (date: string) => `as of ${date}`,
       suggested: 'suggested',
+      accrual: 'accrual',
+      fetched: (time: string) => `fetched ${time}`,
     },
     yesterdayValue: (amount: string) => `${amount} yesterday`,
     useFetched: (value: string) => `Use fetched ${value}?`,
@@ -678,6 +765,35 @@ export const en = {
     yieldChartLink: 'Yield chart →',
     keepMyValue: 'Keep my value',
     dismissSuggestion: 'Dismiss suggestion',
+    // A6 — what the pricing model makes of the provider's own quote.
+    model: {
+      stale: (days: number, atLeast: boolean, date: string) =>
+        `Provider price is ${atLeast ? 'at least ' : ''}${days === 1 ? 'a day' : `${days} days`} old — it still prices to ${date}.`,
+      unexplained:
+        "This price matches no yield the schedule can produce — the feed's payment schedule or its price may be wrong.",
+      tooCloseToMaturity: 'Too close to maturity to check the yield from the price.',
+    },
+    fetchFailed: "Couldn't reach Inzhur — check your connection.",
+    useValuesFrom: (date: string) => `Use values from ${date}`,
+    quoteAria: (asset: string) => `${asset} quote`,
+    // S5 — the coupon-due card. `Amount, ₴` and the failure toast are the
+    // transaction section's (same field, same failure), so they are not
+    // repeated here.
+    coupon: {
+      badge: 'Coupon due',
+      heading: (name: string, amount: string) => `${name} — coupon ${amount}`,
+      headingNoAmount: (name: string) => `${name} — coupon`,
+      scheduled: (date: string) =>
+        `Scheduled for ${date}. Confirm to record it — the amount is editable, history is never rewritten.`,
+      amountMissing: 'Enter an amount.',
+      reinvest: 'Also record a reinvest of this amount',
+      reinvestHint:
+        'Same date, same asset — the payout then counts as reinvested, not paid out.',
+      confirm: 'Record coupon',
+      skip: 'Skip',
+      recordedToast: 'Coupon recorded',
+      recordedReinvestToast: 'Coupon + reinvest recorded',
+    },
     provenance: {
       auto: 'Filled from Inzhur (units × sell price).',
       manual: 'Typed by hand — fetch never overwrites it.',
@@ -1027,6 +1143,23 @@ export const uk: Dict = {
       'листопад',
       'грудень',
     ],
+    listAnd: ' і ',
+    pick: 'Оберіть дату',
+    selected: (date: string) => `Дата: ${date}`,
+    monthIn: [
+      'січня',
+      'лютого',
+      'березня',
+      'квітня',
+      'травня',
+      'червня',
+      'липня',
+      'серпня',
+      'вересня',
+      'жовтня',
+      'листопада',
+      'грудня',
+    ],
     dayOfMonth: (n: number) => `${n}-го`,
   },
   analytics: {
@@ -1071,22 +1204,63 @@ export const uk: Dict = {
       freeCash: 'Вільні кошти',
       ledgerDrift:
         'Збережена готівка розходиться з реєстром транзакцій. Запишіть пропущений внесок чи виведення або виправте готівку у зрізі.',
+      ledgerDriftLabel: (amount: string) => `Розбіжність реєстру ${amount}`,
     },
     portfolio: {
       bestPerformer: 'Найкращий',
       laggard: 'Відстаючий',
       incomeEngine: 'Джерело доходу',
       noQuotes: 'Котирувань ще немає.',
+      autoReinvested: ' · авто-реінвестиція',
     },
     seasonality: {
       incomeAnchor: 'Якір доходу',
       couponSeason: 'Купонний сезон',
       quietStretch: 'Тиха смуга',
+      anchorDay: (day: number) => `День ${day}`,
+      dayShort: (day: number) => `день ${day}`,
+      anchorRest: (asset: string, frequency: string, first: string, last: string) =>
+        ` — це зарплата: дивіденди ${asset} надходять ${frequency}, ${first} → ${last} і зростають.`,
+      anchorEmpty: 'Регулярних надходжень ще немає.',
+      // Ukrainian writes month names in lowercase — but this one opens the
+      // sentence, so the card capitalises it here rather than storing a
+      // second, capitalised month list.
+      couponMonths: (months: string, day: number) =>
+        `${months.charAt(0).toUpperCase()}${months.slice(1)} (день ${day})`,
+      couponRest: (asset: string) => ` несуть великі купони ${asset}`,
+      couponOther: (asset: string, when: string, month: string) =>
+        `; ${asset} платить ${when} ${month}`,
+      couponEmpty: 'Купонів по облігаціях ще немає.',
+      quietDays: (from: number, to: number) => `Дні ${from}–${to}`,
+      quietRest: ' майже без грошових подій — добре вікно для докупівель під ребаланс.',
+      quietEmpty: 'Дохід рівномірно розподілений протягом місяця.',
+      frequency: {
+        monthly: 'щомісяця',
+        quarterly: 'щокварталу',
+        semiannual: 'двічі на рік',
+        maturity: 'при погашенні',
+        none: '',
+      },
+      // Prepositional phrases, so they take the genitive month from
+      // dates.monthIn — "на початку червня", not "на початку червень".
+      dayPart: { early: 'на початку', mid: 'у середині', late: 'наприкінці' },
     },
     allocation: {
       currentVsTarget: 'Поточне проти цілі',
       rebalancePlan: 'План ребалансу',
+      buy: 'Купити',
+      trim: 'Зменшити',
+      orPauseReinvest: ' (або призупинити реінвестицію)',
+      withinRange: 'у межах ±0,5 % — без дій',
+      centerTotal: (thousands: number) => `${thousands} тис. ₴`,
+      assetsPlusCash: (n: number) =>
+        `${n} ${plural(n, 'актив', 'активи', 'активів')} + готівка`,
     },
+    yield: {
+      xirr: 'XIRR',
+      xirrAnn: 'XIRR (річн.)',
+    },
+    balances: { pending: 'очікується' },
     attributes: {
       ytmAtPurchase: 'YTM на купівлі',
       coupon: 'Купон',
@@ -1109,6 +1283,22 @@ export const uk: Dict = {
       ofReceivedIncome: (pct: string) => `${pct} отриманого доходу`,
       reinvestedInto: (amount: string) => `реінвестовано (${amount})`,
       toAccount: 'на рахунок',
+      ofAccount: (pct: string) => `${pct} від рахунку`,
+      withRate: (total: string, rate: string) => `${total} · курс ${rate}`,
+      plusReinvested: (amount: string) => `+ ${amount} реінвестовано`,
+      sinceDate: (pct: string, date: string) => `${pct} від ${date}`,
+      onNetDeposits: (pct: string) => `${pct} на чисті внески`,
+      couponOf: (asset: string) => `Купон ${asset}`,
+      dividendOf: (asset: string) => `Дивіденд ${asset}`,
+      dividendTag: 'дивіденд',
+      couponTag: 'купон',
+      dividendsAndCoupons: (dividends: string, coupons: string) =>
+        `${dividends} дивідендів · ${coupons} купонів`,
+      dividendsCouponsSplit: (dividends: string, coupons: string) =>
+        `дивіденди ${dividends} · купони ${coupons}`,
+      showingSnapshots: (shown: number, total: number, since: string) =>
+        `Показано останні ${shown} ${plural(shown, 'зріз', 'зрізи', 'зрізів')} · усього ${total} від ${since}`,
+      netOfTax: (amount: string) => `після податку ${amount}`,
       seasonalityNote:
         '* очікувано — спрогнозовано за датою наступного купона активу. Сірі стовпчики = звичайні дні коливання ціни без доходу.',
       yieldNote: (start: string) =>
@@ -1148,6 +1338,9 @@ export const uk: Dict = {
     saveFailed: 'Не вдалося зберегти цілі — спробуйте ще раз.',
     invalid: 'Введіть відсоток.',
     now: (pct: string) => `зараз ${pct}`,
+    fieldAria: (asset: string) => `Ціль ${asset}, %`,
+    sumOk: (sum: string) => `Σ ${sum}`,
+    sumOff: (sum: string) => `Σ ${sum} — цілі не дають у сумі 100 %`,
   },
   datasetSwitch: { demo: 'Демо', live: 'Живий' },
   danger: {
@@ -1292,6 +1485,8 @@ export const uk: Dict = {
       tax: 'Податок',
     },
     recentCoupon: 'Купон',
+    recordedToast: 'Транзакцію записано',
+    failedToast: 'Не вдалося записати транзакцію — спробуйте ще раз.',
     sources: {
       own: 'Власні кошти',
       accrual: 'Нарахування',
@@ -1315,6 +1510,8 @@ export const uk: Dict = {
       manual: 'вручну',
       asOf: (date: string) => `станом на ${date}`, // ✎
       suggested: 'пропозиція',
+      accrual: 'нарахування',
+      fetched: (time: string) => `отримано ${time}`,
     },
     yesterdayValue: (amount: string) => `${amount} учора`,
     useFetched: (value: string) => `Взяти отримане ${value}?`,
@@ -1336,6 +1533,32 @@ export const uk: Dict = {
     yieldChartLink: 'Графік дохідності →',
     keepMyValue: 'Лишити моє значення',
     dismissSuggestion: 'Відхилити пропозицію',
+    model: {
+      stale: (days: number, atLeast: boolean, date: string) =>
+        `Ціна постачальника застаріла ${atLeast ? 'щонайменше ' : ''}на ${days} ${plural(days, 'день', 'дні', 'днів')} — вона досі відповідає ${date}.`,
+      unexplained:
+        'Ця ціна не відповідає жодній дохідності, яку може дати графік — помилятися може графік виплат стрічки або сама ціна.',
+      tooCloseToMaturity:
+        'Занадто близько до погашення, щоб перевіряти дохідність за ціною.',
+    },
+    fetchFailed: 'Не вдалося зв’язатися з Inzhur — перевірте з’єднання.',
+    useValuesFrom: (date: string) => `Взяти значення від ${date}`,
+    quoteAria: (asset: string) => `Котирування ${asset}`,
+    coupon: {
+      badge: 'Купон до сплати',
+      heading: (name: string, amount: string) => `${name} — купон ${amount}`,
+      headingNoAmount: (name: string) => `${name} — купон`,
+      scheduled: (date: string) =>
+        `Заплановано на ${date}. Підтвердьте, щоб записати — суму можна змінити, історія не переписується.`,
+      amountMissing: 'Вкажіть суму.',
+      reinvest: 'Також записати реінвестицію цієї суми',
+      reinvestHint:
+        'Та сама дата, той самий актив — виплата тоді рахується реінвестованою, а не виплаченою.',
+      confirm: 'Записати купон',
+      skip: 'Пропустити',
+      recordedToast: 'Купон записано',
+      recordedReinvestToast: 'Купон + реінвестицію записано',
+    },
     provenance: {
       auto: 'Заповнено з Inzhur (одиниці × ціна продажу).',
       manual: 'Введено вручну — отримання цього не перезаписує.',

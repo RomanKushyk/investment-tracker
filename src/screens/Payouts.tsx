@@ -57,7 +57,10 @@ export function Payouts() {
             label={t.analytics.receivedTotal}
             value={f.money(income.total)}
             subClassName="text-pos-on-dark"
-            sub={`${f.money(income.dividends)} dividends · ${f.money(income.coupons)} coupons`}
+            sub={t.analytics.prose.dividendsAndCoupons(
+              f.money(income.dividends),
+              f.money(income.coupons),
+            )}
           />
 
           <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
@@ -66,7 +69,11 @@ export function Payouts() {
               {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
               {payoutRows.map((r) => (
                 <div key={r.assetId} className="flex justify-between gap-2">
-                  <span>{r.kind === 'coupon' ? `Coupon ${r.assetRef}` : `${r.assetRef} dividend`}</span>
+                  <span>
+                    {r.kind === 'coupon'
+                      ? t.analytics.prose.couponOf(r.assetRef)
+                      : t.analytics.prose.dividendOf(r.assetRef)}
+                  </span>
                   <strong className="whitespace-nowrap">
                     {r.approx ? '~' : ''}
                     {f.moneyWhole(r.amount)} · {f.dateShort(r.date)}
@@ -107,7 +114,9 @@ export function Payouts() {
                 <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
                 <td className="py-2">
                   <Tag colorKey={row.type === 'dividend_accrual' ? 'reit' : 'ovdp8976'}>
-                    {row.type === 'dividend_accrual' ? 'dividend' : 'coupon'}
+                    {row.type === 'dividend_accrual'
+                      ? t.analytics.prose.dividendTag
+                      : t.analytics.prose.couponTag}
                   </Tag>
                 </td>
                 <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>

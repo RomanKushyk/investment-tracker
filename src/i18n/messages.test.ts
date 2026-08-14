@@ -36,6 +36,9 @@ const SHARED = new Set([
   // brief's S2 rule. Identical values here are the requirement, not a miss.
   'settings.language.uk',
   'settings.language.en',
+  // A financial acronym, spelled the same in both — the "(ann.)" variant beside
+  // it is what carries the translated word.
+  'analytics.yield.xirr',
 ]);
 
 describe('the dictionaries', () => {

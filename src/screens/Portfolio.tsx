@@ -173,7 +173,7 @@ export function Portfolio() {
                   const amount = isDividends ? engine.dividends : engine.coupons;
                   const kind = isDividends ? 'dividends' : 'coupons';
                   const reinvestedNote =
-                    (reinvested[engine.asset.id] ?? 0) > 0 ? ' · auto-reinvested' : '';
+                    (reinvested[engine.asset.id] ?? 0) > 0 ? t.analytics.portfolio.autoReinvested : '';
                   return `${f.moneyWhole(amount)} ${kind}${reinvestedNote}`;
                 })()
               : undefined

@@ -115,7 +115,7 @@ export function TransactionPanel() {
       { tx, newAsset },
       {
         onSuccess: () => {
-          toast.success('Transaction recorded');
+          toast.success(t.transaction.recordedToast);
           form.reset({
             date: values.date,
             type: 'buy',
@@ -125,7 +125,7 @@ export function TransactionPanel() {
           });
           assetForm.reset(assetFormDefaults(f));
         },
-        onError: () => toast.error('Could not record transaction — please try again.'),
+        onError: () => toast.error(t.transaction.failedToast),
       },
     );
   }
@@ -208,7 +208,7 @@ export function TransactionPanel() {
                   placeholder={t.transaction.assetPlaceholder}
                   borderColor={isNewAsset ? 'faint' : 'hairline'}
                   options={[
-                    { value: 'new', label: '+ New asset…' },
+                    { value: 'new', label: t.transaction.newAssetOption },
                     ...assets.map((a) => ({ value: a.id, label: a.name })),
                   ]}
                 />

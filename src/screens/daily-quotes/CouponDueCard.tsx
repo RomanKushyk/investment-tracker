@@ -18,6 +18,7 @@ import { quoteInputSchema } from '../../core/schemas';
 import type { Asset, Transaction } from '../../core/types';
 import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 export function CouponDueCard({
   asset,
@@ -39,6 +40,7 @@ export function CouponDueCard({
   schedule: readonly string[] | undefined;
   onSkip: () => void;
 }) {
+  const t = useT();
   const f = useFormat();
   // The field mirrors the prefill until the user touches it — `edited` is the
   // discriminator, so a prefill that only becomes available LATER (a linked
@@ -90,13 +92,15 @@ export function CouponDueCard({
         if (roll?.kind === 'rolled') {
           await updateAsset.mutateAsync({ id: asset.id, patch: { nextCoupon: roll.nextCoupon } });
         }
-        toast.success(reinvest ? 'Coupon + reinvest recorded' : 'Coupon recorded');
+        toast.success(
+          reinvest ? t.dailyQuotes.coupon.recordedReinvestToast : t.dailyQuotes.coupon.recordedToast,
+        );
       } catch {
         // The recorded rows stand (nothing is rolled back): the card simply
         // stops offering this occurrence once its payout row exists.
         confirmed.current = false;
         setPending(false);
-        toast.error('Could not record transaction — please try again.');
+        toast.error(t.transaction.failedToast);
       }
     })();
   }
@@ -107,7 +111,9 @@ export function CouponDueCard({
       // The card is a suggestion: dashed `faint` edge, never pos/warn tinted.
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="text-muted text-[10px] tracking-[.12em] uppercase">Coupon due</span>
+        <span className="text-muted text-[10px] tracking-[.12em] uppercase">
+          {t.dailyQuotes.coupon.badge}
+        </span>
         {due.overdueDays > 0 && (
           <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase">
             {f.dateShort(due.date)}
@@ -115,15 +121,16 @@ export function CouponDueCard({
         )}
       </div>
       <div className="text-[13px] leading-[1.4] font-semibold">
-        {asset.name} — coupon{prefill === undefined ? '' : ` ${f.money(prefill)}`}
+        {prefill === undefined
+          ? t.dailyQuotes.coupon.headingNoAmount(asset.name)
+          : t.dailyQuotes.coupon.heading(asset.name, f.money(prefill))}
       </div>
       <p className="text-muted mt-1.5 mb-3 text-xs leading-[1.5]">
-        Scheduled for {f.date(due.date)}. Confirm to record it — the amount is editable, history is
-        never rewritten.
+        {t.dailyQuotes.coupon.scheduled(f.date(due.date))}
       </p>
 
       <label className="text-label mb-1 block text-[11px]" htmlFor={`coupon-amount-${asset.id}`}>
-        Amount, ₴
+        {t.transaction.amount}
       </label>
       <input
         id={`coupon-amount-${asset.id}`}
@@ -147,7 +154,7 @@ export function CouponDueCard({
           id={errorId}
           className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-[11px] duration-200"
         >
-          Enter an amount.
+          {t.dailyQuotes.coupon.amountMissing}
         </div>
       )}
 
@@ -159,19 +166,19 @@ export function CouponDueCard({
           className="accent-ink border-panel-border bg-page mt-[1px] size-4 flex-none rounded-[5px] transition active:scale-[.97]"
         />
         <span className="text-xs leading-[1.45]">
-          Also record a reinvest of this amount
+          {t.dailyQuotes.coupon.reinvest}
           <span className="text-muted block text-[11px]">
-            Same date, same asset — the payout then counts as reinvested, not paid out.
+            {t.dailyQuotes.coupon.reinvestHint}
           </span>
         </span>
       </label>
 
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
         <Button size="header" onClick={handleConfirm} disabled={pending}>
-          Record coupon
+          {t.dailyQuotes.coupon.confirm}
         </Button>
         <Button size="header" variant="ghost" onClick={onSkip} disabled={pending}>
-          Skip
+          {t.dailyQuotes.coupon.skip}
         </Button>
       </div>
     </Card>

@@ -63,7 +63,9 @@ export function Balances() {
                   {row.cells.map((cell, i) => (
                     <td key={assets[i].id} className="py-2 text-right">
                       {cell.status === 'value' && f.num(cell.amount)}
-                      {cell.status === 'pending' && <span className="text-faint">pending</span>}
+                      {cell.status === 'pending' && (
+                        <span className="text-faint">{t.analytics.balances.pending}</span>
+                      )}
                       {cell.status === 'none' && '—'}
                     </td>
                   ))}
@@ -79,8 +81,11 @@ export function Balances() {
 
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
           <span>
-            Showing last {rows.length} snapshots · {total} total since{' '}
-            {earliest ? f.date(earliest) : '—'}
+            {t.analytics.prose.showingSnapshots(
+              rows.length,
+              total,
+              earliest ? f.date(earliest) : '—',
+            )}
           </span>
           <div className="flex gap-2">
             <Button

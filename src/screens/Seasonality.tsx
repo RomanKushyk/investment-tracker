@@ -16,19 +16,14 @@ import {
 } from './seasonality/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-// Full month names for the "Coupon season" card prose only (design line 448
-// spells "June", not the shared MONTH_SHORT's "Jun" used on chart axes).
-// Full month names live in the dictionary (t.dates.monthFull).
+// The "Coupon season" card spells months out (design line 448 says "June", not
+// the chart axes' "Jun"). Both forms live in the dictionary: t.dates.monthFull
+// for the card's heading, t.dates.monthIn after a preposition.
 
-const SCHEDULE_FREQUENCY: Record<Asset['payoutSchedule'], string> = {
-  monthly: 'every month',
-  quarterly: 'every quarter',
-  semiannual: 'twice a year',
-  maturity: 'at maturity',
-  none: '',
-};
-
-function dayDescriptor(day: number): string {
+// A token, not a word: the phrase it turns into is prepositional in Ukrainian
+// ("на початку червня") and adverbial in English ("in early June"), so only the
+// dictionary can spell it.
+function dayPart(day: number): 'early' | 'mid' | 'late' {
   if (day <= 10) return 'early';
   if (day <= 20) return 'mid';
   return 'late';
@@ -58,7 +53,7 @@ export function Seasonality() {
       actualLabel:
         d.actual > 0
           ? anchor?.day === d.day
-            ? `${f.moneyWhole(d.actual)} · day ${d.day}`
+            ? `${f.moneyWhole(d.actual)} · ${t.analytics.seasonality.dayShort(d.day)}`
             : f.moneyWhole(d.actual)
           : undefined,
       expectedLabel: d.expected !== undefined ? `${f.moneyWhole(d.expected)}*` : undefined,
@@ -100,12 +95,16 @@ export function Seasonality() {
           <div className="text-[13.5px] leading-[1.5]">
             {anchor && anchorAsset && growth ? (
               <>
-                <strong>Day {anchor.day}</strong> is the paycheck: {shortLabel(anchorAsset)} dividends
-                land {SCHEDULE_FREQUENCY[anchorAsset.payoutSchedule]}, {f.moneyWhole(growth.first)} →{' '}
-                {f.moneyWhole(growth.last)} and growing.
+                <strong>{t.analytics.seasonality.anchorDay(anchor.day)}</strong>
+                {t.analytics.seasonality.anchorRest(
+                  shortLabel(anchorAsset),
+                  t.analytics.seasonality.frequency[anchorAsset.payoutSchedule],
+                  f.moneyWhole(growth.first),
+                  f.moneyWhole(growth.last),
+                )}
               </>
             ) : (
-              'No recurring income yet.'
+              t.analytics.seasonality.anchorEmpty
             )}
           </div>
         </div>
@@ -116,22 +115,29 @@ export function Seasonality() {
             {big && bigInfo ? (
               <>
                 <strong>
-                  {bigInfo.months.map((m) => t.dates.monthFull[m - 1]).join(' & ')} (day {bigInfo.day})
-                </strong>{' '}
-                carry the big {shortLabel(big)} coupons
+                  {t.analytics.seasonality.couponMonths(
+                    bigInfo.months.map((m) => t.dates.monthFull[m - 1]).join(t.dates.listAnd),
+                    bigInfo.day,
+                  )}
+                </strong>
+                {t.analytics.seasonality.couponRest(shortLabel(big))}
                 {others.map((o) => {
                   const info = bondCouponInfo(o, transactions);
                   const month = info?.historicalMonths[0] ?? info?.months[0];
                   return info && month ? (
                     <span key={o.id}>
-                      ; {shortLabel(o)} pays in {dayDescriptor(info.day)} {t.dates.monthFull[month - 1]}
+                      {t.analytics.seasonality.couponOther(
+                        shortLabel(o),
+                        t.analytics.seasonality.dayPart[dayPart(info.day)],
+                        t.dates.monthIn[month - 1],
+                      )}
                     </span>
                   ) : null;
                 })}
                 .
               </>
             ) : (
-              'No bond coupons yet.'
+              t.analytics.seasonality.couponEmpty
             )}
           </div>
         </Card>
@@ -141,13 +147,11 @@ export function Seasonality() {
           <div className="text-[13.5px] leading-[1.5]">
             {quiet ? (
               <>
-                <strong>
-                  Days {quiet.from}–{quiet.to}
-                </strong>{' '}
-                see almost no cash events — a good window for rebalancing buys.
+                <strong>{t.analytics.seasonality.quietDays(quiet.from, quiet.to)}</strong>
+                {t.analytics.seasonality.quietRest}
               </>
             ) : (
-              'Income is spread evenly across the month.'
+              t.analytics.seasonality.quietEmpty
             )}
           </div>
         </Card>

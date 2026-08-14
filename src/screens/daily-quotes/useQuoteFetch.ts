@@ -32,6 +32,7 @@ import {
   type ProvenanceChip,
 } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 
 /** The success flash reverts to the idle label after this long (S1). */
 const FLASH_MS = 2500;
@@ -72,6 +73,7 @@ export interface QuoteFetch {
 }
 
 export function useQuoteFetch(assets: Asset[]): QuoteFetch {
+  const t = useT();
   const f = useFormat();
   const { data, lastGood, isFetching, disabled, fetchAssets } = useInzhurAssets();
   const quotes = useDraft((s) => s.quotes);
@@ -128,18 +130,20 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       if (disabled) return; // demo: no request left the app, so no failure
       // Never a silent no-op and never a thrown boundary: a toast, plus the
       // last-good cache offered explicitly (never applied by itself).
-      toast.error("Couldn't reach Inzhur — check your connection.", {
+      toast.error(t.dailyQuotes.fetchFailed, {
         ...(lastGood === undefined
           ? {}
           : {
               action: {
-                label: `Use values from ${f.dateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}`,
+                label: t.dailyQuotes.useValuesFrom(
+                  f.dateShort(kyivDateIso(new Date(lastGood.fetchedAt))),
+                ),
                 onClick: () => apply(lastGood, 'cache'),
               },
             }),
       });
     })();
-  }, [apply, data, disabled, fetchAssets, lastGood, f]);
+  }, [apply, data, disabled, fetchAssets, lastGood, f, t]);
 
   const chipFor = useCallback(
     (asset: Asset) =>

@@ -48,8 +48,8 @@ export function Allocation() {
           ) : (
             <AllocationDonut
               slices={slices}
-              centerTop={`₴${Math.round(total / 1000)}k`}
-              centerSub={`${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} + cash`}
+              centerTop={t.analytics.allocation.centerTotal(Math.round(total / 1000))}
+              centerSub={t.analytics.allocation.assetsPlusCash(assets.length)}
             />
           )}
           <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
@@ -101,8 +101,11 @@ export function Allocation() {
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">
                   <span>
-                    {i + 1} · {a.kind === 'buy' ? 'Buy' : 'Trim'} {planLabel(a.asset)}
-                    {a.kind === 'sell' && a.asset.reinvestPolicy ? ' (or pause reinvest)' : ''}
+                    {i + 1} · {a.kind === 'buy' ? t.analytics.allocation.buy : t.analytics.allocation.trim}{' '}
+                    {planLabel(a.asset)}
+                    {a.kind === 'sell' && a.asset.reinvestPolicy
+                      ? t.analytics.allocation.orPauseReinvest
+                      : ''}
                   </span>
                   <strong className="whitespace-nowrap">
                     {a.kind === 'buy' ? '+' : '−'}
@@ -113,7 +116,7 @@ export function Allocation() {
               {withinRange.length > 0 && (
                 <div className="text-muted flex justify-between gap-2.5">
                   <span>{withinRange.map((a) => shortLabel(a)).join(' & ')}</span>
-                  <span>within ±0.5% — no action</span>
+                  <span>{t.analytics.allocation.withinRange}</span>
                 </div>
               )}
             </div>

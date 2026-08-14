@@ -4,6 +4,7 @@ import { enUS, uk } from 'date-fns/locale';
 import { DayPicker } from 'react-day-picker';
 
 import { useFormat } from '../../hooks/useFormat';
+import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
 
 // The calendar's own words — month and weekday names — come from date-fns
@@ -71,6 +72,7 @@ export function DatePicker({
   bg?: 'card' | 'page'; // explicit variant, same rationale as Select's `bg`
 }) {
   const f = useFormat();
+  const t = useT();
   const language = useSettings((st) => st.language);
   const [open, setOpen] = useState(false);
 
@@ -80,14 +82,14 @@ export function DatePicker({
         <button
           type="button"
           id={id}
-          aria-label={value ? `Date: ${f.date(value)}` : (placeholder ?? 'Pick a date')}
+          aria-label={value ? t.dates.selected(f.date(value)) : (placeholder ?? t.dates.pick)}
           aria-invalid={invalid || undefined}
           className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[9px] border px-3 text-[13px] transition active:scale-[.97] ${className}`}
         >
           {value ? (
             f.date(value)
           ) : (
-            <span className="text-muted">{placeholder ?? 'Pick a date'}</span>
+            <span className="text-muted">{placeholder ?? t.dates.pick}</span>
           )}
         </button>
       </Popover.Trigger>

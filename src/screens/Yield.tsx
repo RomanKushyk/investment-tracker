@@ -19,7 +19,9 @@ export function Yield() {
   const series = cumulativeYieldSeries(snapshots, transactions, assets);
   const rows = yieldTableRows(assets, snapshots, transactions);
   // "(ann.)" clarity suffix while history < 365 days (S9b) — plain "XIRR" after.
-  const xirrHeader = xirrIsExtrapolated(snapshots) ? 'XIRR (ann.)' : 'XIRR';
+  const xirrHeader = xirrIsExtrapolated(snapshots)
+    ? t.analytics.yield.xirrAnn
+    : t.analytics.yield.xirr;
 
   return (
     <div>
