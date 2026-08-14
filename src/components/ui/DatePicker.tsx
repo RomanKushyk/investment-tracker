@@ -1,7 +1,19 @@
 import { Popover } from 'radix-ui';
 import { useState } from 'react';
+import { enUS, uk } from 'date-fns/locale';
 import { DayPicker } from 'react-day-picker';
+
 import { useFormat } from '../../hooks/useFormat';
+import { useSettings } from '../../state/settings';
+
+// The calendar's own words — month and weekday names — come from date-fns
+// rather than the app dictionary: they are a locale's data, not this app's
+// copy, and react-day-picker already speaks that format.
+//
+// `weekStartsOn` is the part that is NOT cosmetic. The locale carries it (uk
+// starts Monday, en-US Sunday) and getting it wrong shifts every column by one
+// — a calendar that looks fine and is read wrong.
+const LOCALE = { uk, en: enUS } as const;
 
 
 // ISO 'yyyy-MM-dd' <-> local Date, avoiding UTC-shift surprises.
@@ -59,6 +71,7 @@ export function DatePicker({
   bg?: 'card' | 'page'; // explicit variant, same rationale as Select's `bg`
 }) {
   const f = useFormat();
+  const language = useSettings((st) => st.language);
   const [open, setOpen] = useState(false);
 
   return (
@@ -85,6 +98,7 @@ export function DatePicker({
           className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 rounded-2xl border p-2 shadow-(--shadow-popover) duration-200"
         >
           <DayPicker
+            locale={LOCALE[language]}
             mode="single"
             selected={value ? isoToDate(value) : undefined}
             defaultMonth={value ? isoToDate(value) : undefined}
