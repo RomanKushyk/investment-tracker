@@ -29,50 +29,37 @@ import {
 import type { Asset, Transaction, TxType } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import { useFormat } from '../hooks/useFormat';
+import { useT } from '../i18n/useT';
 
 // Pinned option order (S10, metrics-exposure reference): Withdrawal after
 // Deposit (portfolio-level, like Deposit), Redemption after Reinvest
 // (targets an asset) — the P1 domain types (D13), exposed since P2.
-const TYPE_OPTIONS: { value: TxType; label: string }[] = [
-  { value: 'buy', label: 'Buy' },
-  { value: 'sell', label: 'Sell' },
-  { value: 'deposit', label: 'Deposit' },
-  { value: 'withdrawal', label: 'Withdrawal' },
-  { value: 'dividend_accrual', label: 'Dividend accrual' },
-  { value: 'interest_payout', label: 'Interest payout' },
-  { value: 'reinvest', label: 'Reinvest' },
-  { value: 'redemption', label: 'Redemption' },
-  { value: 'tax', label: 'Tax' },
+// ORDER stays here — it is a design decision (S10). The LABELS are looked up,
+// because they are language-dependent and the order is not.
+const TYPE_ORDER: TxType[] = [
+  'buy',
+  'sell',
+  'deposit',
+  'withdrawal',
+  'dividend_accrual',
+  'interest_payout',
+  'reinvest',
+  'redemption',
+  'tax',
 ];
 
 // The Recent transactions rows use "Coupon" for interest_payout — matches
 // design copy (line 145) even though the Type select spells out "Interest
 // payout"; the other 8 select types share their select label. The Record
 // stays total over TxType.
-const RECENT_TYPE_LABEL: Record<TxType, string> = {
-  buy: 'Buy',
-  sell: 'Sell',
-  deposit: 'Deposit',
-  withdrawal: 'Withdrawal',
-  dividend_accrual: 'Dividend accrual',
-  interest_payout: 'Coupon',
-  reinvest: 'Reinvest',
-  redemption: 'Redemption',
-  tax: 'Tax',
-};
-
-const SOURCE_OPTIONS = [
-  { value: 'own', label: 'Own funds' },
-  { value: 'accrual', label: 'Accrual' },
-  { value: 'reinvest_reit', label: 'Reinvest (REIT)' },
-  { value: 'reinvest_6475', label: 'Reinvest (…6475)' },
-];
+const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as const;
 
 const inputClass =
   'h-9 rounded-[9px] border border-hairline bg-card px-3 font-body text-[13px] text-ink transition';
 
 export function TransactionPanel() {
   const f = useFormat();
+  const t = useT();
   const assetsData = useAssets().data;
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
   const transactions = useTransactions().data ?? [];
@@ -166,14 +153,13 @@ export function TransactionPanel() {
         className="animate-in border-panel-border bg-panel fade-in border px-[22px] py-5 duration-300"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <div className="font-display text-lg font-semibold">Transaction</div>
+          <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
           <span className="text-muted text-[10px] tracking-[.08em] uppercase">
-            Occasional
+            {t.transaction.badge}
           </span>
         </div>
         <p className="text-muted mt-1 mb-3.5 text-xs">
-          Deposits, buys, accruals, reinvests — opened only when something
-          happened.
+          {t.transaction.subtitle}
         </p>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -181,7 +167,7 @@ export function TransactionPanel() {
         >
           <div className="grid grid-cols-2 gap-2.5">
             <label className="text-label flex flex-col gap-1 text-[11px]">
-              Date
+              {t.transaction.date}
               <Controller
                 control={form.control}
                 name="date"
@@ -195,7 +181,7 @@ export function TransactionPanel() {
               />
             </label>
             <label className="text-label flex flex-col gap-1 text-[11px]">
-              Type
+              {t.transaction.type}
               <Controller
                 control={form.control}
                 name="type"
@@ -203,7 +189,7 @@ export function TransactionPanel() {
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
-                    options={TYPE_OPTIONS}
+                    options={TYPE_ORDER.map((value) => ({ value, label: t.transaction.types[value] }))}
                   />
                 )}
               />
@@ -211,7 +197,7 @@ export function TransactionPanel() {
           </div>
 
           <label className="text-label flex flex-col gap-1 text-[11px]">
-            Asset
+            {t.transaction.asset}
             <Controller
               control={form.control}
               name="assetId"
@@ -219,7 +205,7 @@ export function TransactionPanel() {
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
-                  placeholder="Select an asset…"
+                  placeholder={t.transaction.assetPlaceholder}
                   borderColor={isNewAsset ? 'faint' : 'hairline'}
                   options={[
                     { value: 'new', label: '+ New asset…' },
@@ -238,7 +224,7 @@ export function TransactionPanel() {
               <div className="border-faint flex flex-col gap-2.5 rounded-2xl border border-dashed bg-card p-3.5">
                 <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
                   <Plus size={13} strokeWidth={2.75} />
-                  New asset details
+                  {t.transaction.newAssetDetails}
                 </div>
                 <AssetFormFields
                   form={assetForm}
@@ -252,16 +238,16 @@ export function TransactionPanel() {
 
           <div className="grid grid-cols-2 gap-2.5">
             <label className="text-label flex flex-col gap-1 text-[11px]">
-              Amount, ₴
+              {t.transaction.amount}
               <input
                 className={inputClass}
-                placeholder="10 000,00"
+                placeholder={t.transaction.amountPlaceholder}
                 inputMode="decimal"
                 {...form.register('amount')}
               />
             </label>
             <label className="text-label flex flex-col gap-1 text-[11px]">
-              Source of funds
+              {t.transaction.source}
               <Controller
                 control={form.control}
                 name="source"
@@ -269,7 +255,7 @@ export function TransactionPanel() {
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
-                    options={SOURCE_OPTIONS}
+                    options={SOURCE_ORDER.map((value) => ({ value, label: t.transaction.sources[value] }))}
                   />
                 )}
               />
@@ -282,12 +268,12 @@ export function TransactionPanel() {
             className="w-full"
             disabled={recordTransaction.isPending}
           >
-            Record transaction
+            {t.transaction.submit}
           </Button>
           {(Object.keys(form.formState.errors).length > 0 ||
             Object.keys(assetForm.formState.errors).length > 0) && (
             <p className="text-neg text-xs">
-              Check the highlighted fields and try again.
+              {t.transaction.invalid}
             </p>
           )}
         </form>
@@ -295,11 +281,11 @@ export function TransactionPanel() {
 
       <Card className="px-5 py-4">
         <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
-          Recent transactions
+          {t.transaction.recentTitle}
         </div>
         <div className="flex flex-col gap-2 text-[12.5px]">
           {recent.length === 0 && (
-            <span className="text-muted">No transactions yet.</span>
+            <span className="text-muted">{t.transaction.recentEmpty}</span>
           )}
           {recent.map((tx) => {
             const asset = assetById.get(tx.assetId);
@@ -309,7 +295,7 @@ export function TransactionPanel() {
                 className="animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-2 duration-300"
               >
                 <span className="min-w-0 flex-1 truncate">
-                  {RECENT_TYPE_LABEL[tx.type]} ·{' '}
+                  {tx.type === 'interest_payout' ? t.transaction.recentCoupon : t.transaction.types[tx.type]} ·{' '}
                   {asset ? shortLabel(asset) : 'Portfolio'}
                 </span>
                 <strong className="whitespace-nowrap">

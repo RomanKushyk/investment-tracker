@@ -47,6 +47,47 @@ export const en = {
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
   },
+  transaction: {
+    title: 'Transaction',
+    badge: 'Occasional',
+    subtitle: 'Deposits, buys, accruals, reinvests — opened only when something happened.',
+    date: 'Date',
+    type: 'Type',
+    asset: 'Asset',
+    assetPlaceholder: 'Select an asset…',
+    newAssetOption: '+ New asset…',
+    newAssetDetails: 'New asset details',
+    amount: 'Amount, ₴',
+    // A placeholder MODELS the input convention, so it follows the language
+    // like any other figure (Contract 0) — the parity test caught this one
+    // sharing the Ukrainian form with English.
+    amountPlaceholder: '10,000.00',
+    source: 'Source of funds',
+    submit: 'Record transaction',
+    invalid: 'Check the highlighted fields and try again.',
+    recentTitle: 'Recent transactions',
+    recentEmpty: 'No transactions yet.',
+    // The Type select spells out "Interest payout"; the Recent rows say
+    // "Coupon" for the same type, per the design copy.
+    types: {
+      buy: 'Buy',
+      sell: 'Sell',
+      deposit: 'Deposit',
+      withdrawal: 'Withdrawal',
+      dividend_accrual: 'Dividend accrual',
+      interest_payout: 'Interest payout',
+      reinvest: 'Reinvest',
+      redemption: 'Redemption',
+      tax: 'Tax',
+    },
+    recentCoupon: 'Coupon',
+    sources: {
+      own: 'Own funds',
+      accrual: 'Accrual',
+      reinvest_reit: 'Reinvest (REIT)',
+      reinvest_6475: 'Reinvest (…6475)',
+    },
+  },
   dailyQuotes: {
     fetch: {
       idle: 'Fetch quotes',
@@ -159,6 +200,42 @@ export const uk: Dict = {
     // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+  },
+  transaction: {
+    title: 'Транзакція',
+    badge: 'Нерегулярно',
+    subtitle: 'Внески, купівлі, нарахування, реінвестиції — відкривається лише тоді, коли щось сталося.',
+    date: 'Дата',
+    type: 'Тип',
+    asset: 'Актив',
+    assetPlaceholder: 'Оберіть актив…',
+    newAssetOption: '+ Новий актив…',
+    newAssetDetails: 'Дані нового активу',
+    amount: 'Сума, ₴',
+    amountPlaceholder: '10 000,00',
+    source: 'Джерело коштів',
+    submit: 'Записати транзакцію',
+    invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
+    recentTitle: 'Останні транзакції',
+    recentEmpty: 'Транзакцій ще немає.',
+    types: {
+      buy: 'Купівля',
+      sell: 'Продаж',
+      deposit: 'Внесок',
+      withdrawal: 'Виведення',
+      dividend_accrual: 'Нарахування дивідендів',
+      interest_payout: 'Виплата відсотків',
+      reinvest: 'Реінвестиція',
+      redemption: 'Погашення',
+      tax: 'Податок',
+    },
+    recentCoupon: 'Купон',
+    sources: {
+      own: 'Власні кошти',
+      accrual: 'Нарахування',
+      reinvest_reit: 'Реінвестиція (REIT)',
+      reinvest_6475: 'Реінвестиція (…6475)',
+    },
   },
   dailyQuotes: {
     fetch: {

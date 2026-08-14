@@ -72,10 +72,14 @@ describe('the dictionaries', () => {
   });
 
   it('write Ukrainian in Cyrillic, so a stray English string cannot hide', () => {
-    // Only for leaves long enough to carry a word — "DEMO" and the like are
-    // exempt via SHARED, and short tokens are not evidence either way.
+    // The test hunts for stray ENGLISH, so the precondition is Latin letters:
+    // a leaf with none of them cannot be English, whatever else it contains.
+    // That exempts pure figures like the amount placeholder `10 000,00`
+    // without needing a hand-maintained list. Short tokens are not evidence
+    // either way, and SHARED covers the ones that are deliberately identical.
     for (const [key, value] of UK) {
       if (typeof value !== 'string' || SHARED.has(key) || value.length < 8) continue;
+      if (!/[A-Za-z]/.test(value)) continue;
       expect(/[а-яіїєґА-ЯІЇЄҐ]/.test(value), `${key}: ${value}`).toBe(true);
     }
   });
