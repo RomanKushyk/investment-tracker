@@ -852,16 +852,34 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
       10 px wide (w-2.5) with 1 px of padding, so the thumb is 8 px. The bar
       is inset 4 px from the panel edge so the thumb never crosses the corner
       arc; the track is transparent — no chrome, which is the whole point;
-    · THE ONE THING NOT TAKEN FROM SHADCN IS ITS RADIUS. Its thumb is
-      `rounded-full`, and nothing in this app is a capsule (D56). Recomputed
-      on the short side: round(8 x 0.26) = round(2.08) = 2 — the same
-      derivation the Switch thumb uses (16 -> 4);
-    · thumb colour `muted`, hover/press `ink`. MEASURED, not chosen by eye:
-      on `card` the candidates are hairline 1.24 : 1, panel-border 1.37 : 1,
-      faint 2.12 : 1 — all under the 3 : 1 WCAG 1.4.11 asks of a non-text
-      indicator — and `muted` at 3.46 : 1 passes. In dark on #1c1c1f, faint
-      reaches 3.29 and `muted` 6.04, so ONE token serves both themes and no
-      component branches on theme;
+    · type="scroll": THE THUMB IS NOT PERMANENTLY DRAWN. It appears while the
+      region is being scrolled and fades out after. A scroll indicator that
+      sits there when nothing is moving is furniture;
+    · RADIUS 4 — A CAP, NOT A CORNER, AND D56'S PROPORTIONAL RULE DOES NOT
+      REACH HERE. That rule reads round(min(w, h) x 0.26) off two DESIGNED
+      dimensions. A thumb has one: its 8 px width. Its length is the ratio of
+      viewport to content — the app does not choose it, and it changes as the
+      content does. This is the same objection this file already makes twice,
+      for the header bar and the action bar: a box without a designed short
+      side takes no proportional radius. What a variable-length bar takes is a
+      cap, r = w / 2 = 4.
+      THE FIRST PASS OF THIS FILE GOT THIS WRONG and it is worth recording,
+      because the mistake is the reusable part: applying the rule mechanically
+      gave round(8 x 0.26) = 2, which on an 8 px bar is visually square, and
+      the result read as a stick of furniture rather than a scroll thumb.
+      D56 exists to stop shapes drifting, not to make every rounded end a
+      violation — and the four exceptions it lists are round for exactly this
+      reason, that their geometry is intrinsic rather than chosen;
+    · COLOUR: `faint` at rest, `muted` on hover and while dragging. The first
+      pass chose `muted` at rest on a strict reading of WCAG 1.4.11 (3 : 1 for
+      a non-text indicator; on `card`, hairline 1.24, panel-border 1.37, faint
+      2.12, muted 3.46). That reading is too strict for this element and made
+      it heavy: 1.4.11 governs information REQUIRED to identify a component or
+      its state, and a scroll region is identified by its content — position is
+      also conveyed by the content moving. The thumb is a transient affordance,
+      so it is quiet at rest and takes the contrast-passing `muted` at the
+      moment it is being used. In dark: faint 3.29, muted 6.04 on #1c1c1f, so
+      the same two tokens serve both themes and nothing branches on theme;
     · the panel's own padding moves inside the viewport, so the bar rides in
       the padding gutter rather than over the text.
 
@@ -898,7 +916,7 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
           <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">03.02.2026</div>
           <!-- the ScrollArea thumb: 6 wide, inset 4, radius 2, muted -->
           <div style="position:absolute;right:4px;top:24px;bottom:24px;width:10px;padding:1px">
-            <div style="width:8px;height:120px;background:#8b8a86;border-radius:2px"></div>
+            <div style="width:8px;height:120px;background:#b3b2ae;border-radius:4px"></div>
           </div>
         </div>
       </div>
@@ -906,7 +924,8 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
     <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
       The thumb <strong>overlays</strong> — no layout width, so nothing reflows when it appears — and it is inset from the panel edge, so it never crosses the 24 px corner arc.
       That crossing is the artifact this replaces: a square platform track running the full height of a rounded panel.
-      <br>Proportions are shadcn's (10 px bar, 1 px padding, 8 px thumb); the radius is <strong>not</strong> — its <code style="font-size:11px">rounded-full</code> would be the app's only capsule, so D56 recomputes it to <strong>2</strong>.
+      <br>Proportions are shadcn's (10 px bar, 1 px padding, 8 px thumb) and so is the cap: <strong>r 4</strong>, because a thumb has one designed dimension — its width — while its length is the viewport-to-content ratio. D56's proportional rule needs two, which is the same reason the header and action bars take square corners.
+      <br><code style="font-size:11px">faint</code> at rest, <code style="font-size:11px">muted</code> while dragging, and <code style="font-size:11px">type="scroll"</code> so it is not drawn at all when nothing is moving.
     </p>
   </div>
 
@@ -1117,7 +1136,7 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
       <li>S1–S6 drawn in the master reference's idiom: <code>&lt;x-dc&gt;</code>, all styles inline, every colour and size literal, no runtime script.</li>
       <li>Every surface at <strong>360</strong> and at <strong>768</strong>; the drawer <strong>open and closed</strong>; the keyboard-open state of <code>/</code> drawn.</li>
       <li><code>--color-scrim</code> minted with <strong>both</strong> values and its separation re-derived — 5.23 : 1 in light, and the finding that dark needs an edge instead (1.02 : 1 without one).</li>
-      <li>No radius contradicts D56. The two recomputed values are shown with their arithmetic; two full-bleed bars take square corners with the reason stated; the ScrollArea thumb is recomputed from shadcn's 8 px rather than inheriting its capsule.</li>
+      <li>No radius contradicts D56. The two recomputed values are shown with their arithmetic; two full-bleed bars and the ScrollArea thumb are shown to fall <em>outside</em> the proportional rule, each with the reason — a box with only one designed dimension takes no proportional radius.</li>
       <li>Every width claim checked against <strong>Ukrainian</strong>: 153.9 px in a 220 px drawer box, 44.6 px day cells at 312 px.</li>
       <li>No D5-pinned figure moves — every number was read from production on 2026-08-14.</li>
     </ul>
