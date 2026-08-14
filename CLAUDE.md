@@ -29,6 +29,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 
 ## Git conventions (this repo)
 - Personal pet project — **no Jira, never ask for a ticket key**.
-- Base branch: `dev`. Feature branches `<type>/<kebab-title>` (e.g. `feat/daily-quotes`), plain conventional commits, squash-merge back to `dev`.
-- Remote: `origin` → `git@github-personal:RomanKushyk/investment-tracker.git` (personal GitHub account). Push `dev` after merging.
+- **Two long-lived branches (2026-08-14).** `dev` is the integration base — feature branches `<type>/<kebab-title>` (e.g. `feat/daily-quotes`) branch from it, plain conventional commits, squash-merge back into it, and every push deploys to **dev.quirenote.com**. `main` is **production** — **quirenote.com** — and moves only by merging `dev` into it, at most weekly. Never branch a feature off `main`, and never push straight to it.
+- Remote: `origin` → `git@github-personal:RomanKushyk/investment-tracker.git` (personal GitHub account). Push `dev` after merging; push `main` only when promoting a release.
+- **`gh` has two accounts in the keyring and the active one flips between sessions.** The work account is read-only here. Run `gh auth status` and `gh auth switch --user RomanKushyk` before any `gh` write — `git push` is unaffected (it goes over the `github-personal` SSH alias).
 - Author identity is repo-local and personal: `RomanKushyk <romankushyk0@gmail.com>` — never commit here with the work identity.

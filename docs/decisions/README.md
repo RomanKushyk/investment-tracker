@@ -110,6 +110,7 @@ only for the decision you actually need.
 | D56 | Nested radii are concentric, standalone radii are proportional | 2026-08-12 |
 | D57 | The theme is one list of values, stamped as an answer | 2026-08-13 |
 | D58 | Formatting follows the language, and the type system cannot see most of it | 2026-08-14 |
+| D59 | Production is a branch, and the domain is what makes that real | 2026-08-14 |
 
 ## A pattern these entries kept finding
 

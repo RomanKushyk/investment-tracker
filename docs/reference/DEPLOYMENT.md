@@ -17,11 +17,55 @@ the IAM resource ARNs below and the `AWS_REGION` repo variable.
 
 ## 0. Live app
 
-- URL: `https://dev.d17m4jf400my6.amplifyapp.com`
-- App ID: `d17m4jf400my6` (public — it is part of the URL)
+- **Production:** `https://quirenote.com` (and `www.`) — served from the **`main`** branch
+- **Development:** `https://dev.quirenote.com` — served from the **`dev`** branch
+- App ID: `d17m4jf400my6` (public — it is part of the Amplify URLs, which all keep working:
+  `https://main.d17m4jf400my6.amplifyapp.com`, `https://dev.d17m4jf400my6.amplifyapp.com`)
 - Region: `eu-north-1`
 - IAM role: `quirenote-frontend-deploy` (ARN held in the `AWS_FRONTEND_ROLE_ARN` secret; the
   account ID stays out of this file deliberately)
+
+## 0a. The custom domain — `quirenote.com`
+
+Attached 2026-08-14 and verified the same day: `domainStatus AVAILABLE`, the apex
+and `www` both answer HTTP 200 with the app, `/settings` and `/seasonality` return
+the SPA shell rather than a 404 (so the §1.2 rewrite covers the new host too),
+`http://` answers 301, and the certificate is `CN=*.quirenote.com` issued by
+Amazon — the free ACM one Amplify manages. The Amplify URL keeps working; it is
+now the second address, not the only one.
+
+| Record | Name | Value |
+|---|---|---|
+| CNAME | `_f2385149c1ffac22fed755635002cfd6` | `_0dee0158e98c51da584fa5373ae2938c.jkddzztszm.acm-validations.aws` |
+| CNAME | `@` (apex) | `d2jaridkoub072.cloudfront.net` |
+| CNAME | `www` | `d2jaridkoub072.cloudfront.net` |
+
+**Three things about this setup are decisions, not defaults.**
+
+**DNS is Cloudflare's, not Route 53's (D40).** A hosted zone is $0.50/mo and on
+the standing "no" list. Amplify supports third-party DNS and issues its own ACM
+certificate for free, so the domain adds **no standing AWS charge** — attaching it
+cost nothing and changes no line on the bill.
+
+**Every record is DNS-only — grey cloud, never proxied.** This is the same trap
+the SES DKIM records hit: a proxied CNAME resolves to Cloudflare's own addresses,
+so ACM sees an answer that is not the one it asked for and validation never
+completes. The apex is legal as a CNAME only because Cloudflare flattens it —
+verified against a public resolver, `quirenote.com` answers with CloudFront
+addresses while the zone's MX records for Email Routing keep working beside it.
+
+**Two branches, two hosts.** The apex and `www` map to the Amplify branch `main`; `dev`
+maps to the branch `dev`. All three DNS records point at the SAME CloudFront
+distribution — Amplify routes by Host header, so a new subdomain never means a new
+target, only a new record and one more entry in the association.
+
+| Host | Amplify branch | Git branch |
+|---|---|---|
+| `quirenote.com`, `www.quirenote.com` | `main` (stage PRODUCTION) | `main` |
+| `dev.quirenote.com` | `dev` (stage DEVELOPMENT) | `dev` |
+
+`dev.quirenote.com` needs no separate certificate: Amplify issues `*.quirenote.com`
+alongside the apex, so every subdomain added later is already covered.
 
 ## 1. One-time AWS console setup
 
@@ -157,10 +201,12 @@ Two consequences, both deliberate:
   environment a deployment branch policy when you create it (§2). Without one, a job on any
   branch can target that environment and assume this role.
 - **A new environment that deploys a different Amplify branch still needs one AWS edit** —
-  widen the permission policy's `branches/dev` to `branches/<name>` or `branches/*`. Left
-  pinned deliberately: nothing needs it yet.
+  widen the permission policy's `branches/dev` to `branches/<name>` or `branches/*`. **Done
+  2026-08-14** for the production split: the policy now names `main` and `dev` explicitly
+  rather than `branches/*`, so a third branch is still a deliberate edit.
 
-Inline permission policy `quirenote-amplify-deploy` — replace `<account-id>` and `<appId>`:
+Inline permission policy — **named `quirenote-frontend-deployPolicy` in the console**, which
+is what `aws iam get-role-policy --policy-name` needs. Replace `<account-id>` and `<appId>`:
 
 ```json
 {
@@ -176,6 +222,8 @@ Inline permission policy `quirenote-amplify-deploy` — replace `<account-id>` a
         "amplify:GetJob"
       ],
       "Resource": [
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main/*",
         "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev",
         "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev/*"
       ]
@@ -232,8 +280,11 @@ from `PLAN-NOW.md` A11 lands.
 
 ## 2. GitHub repository configuration
 
-Settings → Environments → **`dev`**. All three live in that environment's scope, so
-`deploy-frontend.yml` declares `environment: name: dev` — without it the job reads them as empty.
+Settings → Environments → **`dev`** and **`prod`**. Every value lives in an environment's
+scope, so `deploy-frontend.yml` picks the environment from the branch
+(`github.ref_name == 'main' && 'prod' || 'dev'`) — without an environment the job reads them
+as empty. **Both environments carry the same three entries**, because each environment sees
+only its own:
 
 | Kind | Name | Value |
 |------|------|-------|
@@ -241,21 +292,29 @@ Settings → Environments → **`dev`**. All three live in that environment's sc
 | Variable | `AWS_REGION` | `eu-north-1` |
 | Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` |
 
+The two environments deploy the same app with the same role — what differs is the branch
+policy (`dev` → `dev`, `prod` → `main`) and the Amplify branch the job writes to.
+
 Repo-level (Settings → Secrets and variables → Actions) would work too — a job with an
 environment can still read repo-scoped values; environment-scoped ones just take precedence.
 
-**Deployment branch policy — required, not cosmetic.** Settings → Environments → `dev` →
-**Deployment branches and tags** → *Selected branches and tags* → add `dev`. Since the IAM
-trust `sub` keys on the environment rather than the branch (§1.5), this policy is the only
-thing preventing a job on another branch from targeting environment `dev` and assuming the
-deploy role.
+**Deployment branch policy — required, not cosmetic.** Settings → Environments → `<env>` →
+**Deployment branches and tags** → *Selected branches and tags* → add the one branch that
+environment deploys (`dev` → `dev`, `prod` → `main`). Since the IAM trust `sub` keys on the
+environment rather than the branch (§1.5), this policy is the only thing preventing a job on
+another branch from targeting an environment and assuming the deploy role — **including a
+dev-branch job targeting `prod`**.
 
 **This applies to every environment you add later.** The trust policy accepts
 `environment:*`, so a new environment is trusted the moment it exists — its branch policy is
 the whole of its branch restriction. Set it at creation time, not afterwards.
 
-Use the **web UI**. The `gh` CLI on the development machine is authenticated as a different
-GitHub account with read-only access to this repo, so `gh secret set` returns 403.
+The `gh` CLI works, but only under the right account: the development machine has **two**
+GitHub accounts in its keyring and the active one flips between sessions. The work account
+has read-only access here, so `gh secret set` returns 403 under it. Check with
+`gh auth status`, switch with `gh auth switch --user RomanKushyk`, and confirm with
+`gh api repos/RomanKushyk/investment-tracker --jq .permissions` before any write. The web UI
+is always available as the fallback.
 
 The role ARN is a secret only because it embeds the AWS account ID; it grants nothing
 without the OIDC trust. The app ID is a variable because it is already public in the site
@@ -263,9 +322,18 @@ URL.
 
 ## 3. Deploying
 
-Automatic on every push to `dev`, **except commits that touch only Markdown or `docs/`** —
-those cannot change `dist/`, so `paths-ignore` skips them. A commit touching both docs and
-code still deploys; `paths-ignore` skips only when every changed file matches.
+**`dev` is continuous, `main` is a release.** One workflow serves both: it deploys on every
+push to either branch, reads the Amplify branch straight from `github.ref_name`, and picks
+the matching environment. Nothing else distinguishes them — the difference in cadence comes
+from how often a merge into `main` happens, not from a second pipeline that could drift.
+
+Production is therefore promoted by merging `dev` into `main` and pushing it. Target: **at
+most weekly.** `dev` deploys on every push, **except commits that touch only Markdown or
+`docs/`** — those cannot change `dist/`, so `paths-ignore` skips them. A commit touching both
+docs and code still deploys; `paths-ignore` skips only when every changed file matches.
+
+Concurrency is keyed per branch (`deploy-frontend-${{ github.ref_name }}`), so a dev push
+cannot cancel a production deploy in flight.
 
 Manual re-deploy without a commit — also the way to ship after a docs-only change: Actions →
 **Deploy** → **Run workflow**.
@@ -280,7 +348,7 @@ headers are both satisfied by a misrouted asset, so check **content types and th
 console** too:
 
 ```bash
-BASE=https://dev.d17m4jf400my6.amplifyapp.com
+BASE=https://quirenote.com      # or https://dev.quirenote.com for the dev branch
 curl -sS -o /dev/null -w 'root=%{http_code}\n' "$BASE/"
 curl -sS -o /dev/null -w 'deep=%{http_code}\n' "$BASE/overview"        # SPA rewrite
 ASSET=$(curl -sS "$BASE/" | grep -o '/assets/[^"]*\.js' | head -1)

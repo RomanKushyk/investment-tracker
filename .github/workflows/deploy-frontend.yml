@@ -2,7 +2,10 @@ name: Deploy frontend
 
 on:
   push:
-    branches: [dev]
+    # Two targets, one pipeline. `dev` deploys the integration branch to
+    # dev.quirenote.com; `main` is production — quirenote.com — and moves only
+    # when something is merged into it, which is what keeps its cadence low.
+    branches: [dev, main]
     # A docs-only commit cannot change dist/, so skip the deploy. A commit touching both
     # docs and code still runs — paths-ignore only skips when EVERY changed file matches.
     # To ship after a docs-only change anyway, use the workflow_dispatch below.
@@ -17,8 +20,9 @@ on:
   workflow_dispatch:
 
 # Always reflect the newest push: supersede an in-flight deploy rather than racing it.
+# Keyed per BRANCH — a dev push must never cancel a production deploy in flight.
 concurrency:
-  group: deploy-dev
+  group: deploy-frontend-${{ github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -28,10 +32,13 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # AMPLIFY_APP_ID / AWS_REGION / AWS_FRONTEND_ROLE_ARN live in this environment's scope.
+    # AMPLIFY_APP_ID / AWS_REGION / AWS_FRONTEND_ROLE_ARN live in the environment's
+    # scope, so each environment carries its own copies. The environment also
+    # carries the deployment-branch policy that stops any other branch from
+    # deploying to it, and it is what the role's OIDC `sub` claim names.
     environment:
-      name: dev
-      url: https://dev.d17m4jf400my6.amplifyapp.com
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      url: ${{ github.ref_name == 'main' && 'https://quirenote.com' || 'https://dev.quirenote.com' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -62,4 +69,6 @@ jobs:
         run: ./scripts/deploy-amplify.sh dist.zip
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
-          AMPLIFY_BRANCH: dev
+          # The Amplify branch is named after the git branch on purpose: one
+          # name to reason about, and nothing to keep in sync by hand.
+          AMPLIFY_BRANCH: ${{ github.ref_name }}

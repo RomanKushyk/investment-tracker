@@ -243,14 +243,15 @@ Nothing is broken **today**, because the read API of B2 does not exist yet and n
 Granted accounts default to 50,000 messages/day, which is four orders of magnitude beyond the two-messages-per-account-lifetime that passkey-first onboarding needs.
 
 - [x] Sender identity chosen: **`quirenote.com`**, acquired 2026-08-11 (D40).
-- [ ] **DNS stays off Route 53.** A hosted zone is $0.50/mo and on the standing "no" list, and nothing needs it — the registrar's free DNS serves every record below, and Amplify supports third-party DNS with its own free certificate. This is what keeps the domain from adding a standing AWS charge.
-- [x] Verified in `eu-north-1` on 2026-08-11: DKIM `SUCCESS`, signing enabled. Custom MAIL FROM `mail.quirenote.com` still `PENDING` — the MX resolves publicly, SES just re-checks on its own schedule.
+- [x] **DNS stays off Route 53.** A hosted zone is $0.50/mo and on the standing "no" list, and nothing needs it — Cloudflare's free DNS serves every record below, and Amplify supports third-party DNS with its own free certificate. This is what keeps the domain from adding a standing AWS charge. **Held: 2026-08-14 the Amplify custom domain went on the same Cloudflare zone, with no hosted zone created.**
+- [x] Verified in `eu-north-1` on 2026-08-11: DKIM `SUCCESS`, signing enabled. Custom MAIL FROM `mail.quirenote.com` was `PENDING` then and is **`SUCCESS` as of 2026-08-14** — it did resolve itself on SES's own schedule, as expected.
 - [x] Six records live in Cloudflare and confirmed against a public resolver: 3 DKIM CNAMEs (**DNS-only, not proxied** — a proxied CNAME resolves to Cloudflare and DKIM never verifies), MX + SPF on `mail.`, and `_dmarc` at `p=none` with `rua=mailto:dmarc@quirenote.com`, forwarded to the owner by Cloudflare Email Routing.
 - [x] Checked for the one conflict that matters: **exactly one SPF record per name**. Cloudflare's sits on the apex, ours on `mail.` — two on one name would be a permerror and neither would pass. Multiple DKIM keys cannot conflict at all, since DKIM is selector-addressed.
 - [x] Requested 2026-08-11 via `PutAccountDetails`, stating the case that carries the most weight: **sign-up creates a request, not an account**, so every recipient is an address the owner explicitly approved and a typo is caught at approval rather than by a bounce.
 - [x] **Denied on the first pass**, with a questionnaire rather than a refusal: identity, what is sent and how often, how recipient lists are maintained, bounce/complaint handling, unsubscribe, example content. `ReviewDetails: {Status: DENIED, CaseId: 178647479100146}` — this is SES's normal first move, not a verdict.
 - [x] Replied 2026-08-11 with the six answers. The load-bearing one is structural rather than promissory: **sign-up creates a request, not an account**, so no message can be addressed to anyone the owner has not approved by hand.
 - [ ] **Awaiting re-review.** Watch `ProductionAccessEnabled` flip to `true` and the quota move from 200/day to 50,000. Record the granted figure in `infra/README.md` field notes.
+      **Checked 2026-08-14, three days after the reply:** `ProductionAccessEnabled: false`, quota still 200/day at 1/s, and `ReviewDetails` still reads `{Status: DENIED, CaseId: 178647479100146}` — the SAME case id, so this is the original denial still standing rather than a second one. Account is otherwise `SendingEnabled: true`, `EnforcementStatus: HEALTHY`. Nothing is blocked: SES is not wired into anything until W7.
 - [ ] If denied a second time, the fallback is not another appeal — it is to stay in the sandbox and verify the handful of recipient addresses by hand. At one user and two messages per account lifetime, 200/day is not a constraint; production access is convenience, and treating it as a blocker would invert that.
 
 **Verify:** `GetSendQuota` reports a production quota rather than the 200/day sandbox one, and a test message reaches an address that was never verified.
@@ -540,9 +541,13 @@ capturing.
       it stops writing → clear `DeletionProtectionEnabled` on the old cluster →
       delete the old stack (the cluster is retained by policy) → delete the
       orphaned old cluster by hand.
-- [ ] Confirm the bill returns to baseline — two clusters existed for a while and
-      exactly one should remain.
-- [ ] Delete the old IAM roles.
+- [x] Confirm the bill returns to baseline — two clusters existed for a while and
+      exactly one should remain. **Verified 2026-08-14:** `dsql list-clusters`
+      returns exactly one, and August month-to-date across the whole account is
+      **$0.0000050** — Lambda, S3 and CloudShell only. DSQL and AWS Backup bill
+      nothing at this size, so the double-cluster window cost nothing either.
+- [x] Delete the old IAM roles. **Verified 2026-08-14:** no role matching
+      `kubushka` exists; the six that remain are all `quirenote-*`.
 
 **Rollback at any point before the teardown:** switch the GitHub secret and the
 workflow back. The old stack never stopped working.
@@ -556,9 +561,9 @@ workflow back. The old stack never stopped working.
 > in the console — cosmetic, and the App ID it does not change is what the URL
 > depends on.
 
-- [x] `infra/src/capture.ts` — `USER_AGENT`. Its URL should become
-      `https://quirenote.com` once A11 and the Amplify custom domain land; until
-      then the Amplify URL stays, because a User-Agent that points nowhere is
+- [x] `infra/src/capture.ts` — `USER_AGENT`. **Done 2026-08-14:** the custom
+      domain is live, so the URL is now `https://quirenote.com`. It pointed at
+      the Amplify URL until then, because a User-Agent that points nowhere is
       worse than one that points somewhere old.
 - [x] `infra/README.md` — both role policies verbatim, every prefix, and a field
       note recording what the move actually cost.
