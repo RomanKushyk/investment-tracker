@@ -73,6 +73,17 @@ CREATE TABLE IF NOT EXISTS price_capture (
   -- identifies the affected rows.
   parser_version  TEXT        NOT NULL,
 
+  -- THERE IS DELIBERATELY NO FX COLUMN HERE, and D30 reads as though there
+  -- should be. D69 settles it: the provider's rate is a CONCLUSION, and both of
+  -- its premises are in payload_gzip above, kept forever — `buyUAH / buyUSD` on
+  -- any entry recovers it at any point in the archive's life.
+  -- Two further facts a column could not carry honestly. It is not ONE rate:
+  -- inside a single payload the funds and the bonds convert at different ones
+  -- (D31 measured 44.7579 against 44.8305; re-measured 2026-08-17, 44.8086
+  -- against 44.8568). And it is not exact: `buyUSD` is published to six
+  -- decimals, so a rate recovered by division jitters in the fourth.
+  -- Do not add it. Read D69 before deciding otherwise.
+
   PRIMARY KEY (id)
 );
 

@@ -122,6 +122,7 @@ only for the decision you actually need.
 | D66 | Two shells, one composition; and 44 px is hit area, never geometry | 2026-08-17 |
 | D67 | Production moves on a version, not on a calendar — supersedes D59's cadence | 2026-08-17 |
 | D68 | `muted` is re-derived against the surface it is worst on, and `label` is retired into it | 2026-08-17 |
+| D69 | The provider's FX rate is not stored at all — supersedes D30's placement of it | 2026-08-17 |
 
 ## A pattern these entries kept finding
 

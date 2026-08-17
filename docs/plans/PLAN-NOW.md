@@ -13,7 +13,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section A** | **Time-critical** | | | |
 | A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | **done** (2026-08-11) |
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
-| A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48) |
+| A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48; last box closed 2026-08-17 by D69, as *not done*) |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
@@ -105,7 +105,7 @@ At ~12 kB/row that is a real and growing multiplier on the one cost DSQL charges
 - [ ] ~~Backfill from the existing rows in batches under the 3,000-mutated-rows-per-transaction cap, retrying SQLSTATE 40001.~~ **Moot with the split.**
 - [ ] ~~Drop the inline columns only after the copy is verified row-for-row by hash. **`DeletionPolicy: Retain` and deletion protection stay on throughout.**~~ **Moot with the split.**
 - [x] Add the missing index the two queries actually want — shipped as `price_capture_source_as_of (source, as_of, requested_at)`; `source` leads because an index is only usable from its leading column. **The reference DDL in `migrations/001_price_capture.sql` did not carry it until 2026-08-14** — the handler created it while the file that documents the schema did not mention it.
-- [ ] **Record the payload's implied FX rate on `price_capture`** (D30). It is one number per run — every entry in a payload converts at the same rate, proven in D31 — and it is not stored today. `buyUAH / buyUSD` on any entry recovers it; NBU's own rate for the same date identifies its vintage. Currently unrecoverable once the payload ages out of anyone's attention.
+- [ ] ~~**Record the payload's implied FX rate on `price_capture`** (D30). It is one number per run — every entry in a payload converts at the same rate, proven in D31 — and it is not stored today. `buyUAH / buyUSD` on any entry recovers it; NBU's own rate for the same date identifies its vintage. Currently unrecoverable once the payload ages out of anyone's attention.~~ **Not done, by D69 — and the sentence above is wrong twice.** It is not one number: D31, cited here as the proof, measured the funds at 44.7579 and the bonds at 44.8305 *inside one payload*, and a re-measure on 2026-08-17 reproduced the split (44.8086 / 44.8568). Nor is it unrecoverable — `payload_gzip` stays inline on the row (D48), so both premises of the division are archived forever and only the attention was ever missing. Storing it would write a conclusion into an append-only archive, which A6's last box below forbids in as many words.
 
 **Verify:** re-run `EXPLAIN ANALYZE` and record the before/after bytes in `infra/README.md` field notes. Row count and every `payload_sha256` identical before and after. A scheduled run and a `{backfill:…}` run both still succeed.
 **Risk:** this is the only phase here that rewrites live archived data. It is sequenced first *because* the archive is ~2 days of Inzhur plus a settled NBU backfill — the cheapest it will ever be. Every day of delay adds rows.
