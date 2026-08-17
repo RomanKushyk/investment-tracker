@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
@@ -35,13 +35,51 @@ import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
-import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useT } from '../i18n/useT';
 
 /** One frozen instance, so "no assets yet" keeps a STABLE identity. A fresh
  *  `[]` per render would change the verdict memo's dependency every time and
  *  make the memo do nothing at all. */
 const NO_ASSETS: Asset[] = [];
+
+/**
+ * Publishes the action bar's RENDERED height as `--action-bar-h` while the bar
+ * is up, and removes the property when it goes. Returns the ref to hang on it.
+ *
+ * WHAT IT IS FOR — FOLLOW-UPS 16(b): a toast fired by `Save snapshot` was drawn
+ * over the bar that fired it, so `Copy yesterday` could not be pressed for the
+ * four seconds the toast lived. sonner is mounted above the router and takes one
+ * static `mobileOffset` string, so it cannot be told about a bar that comes and
+ * goes on one route; a custom property is the only channel between them, and the
+ * arithmetic then happens in `main.tsx`'s `max()` rather than here.
+ *
+ * MEASURED, NOT MIRRORED. The height is knowable — 1 border + `pt-2` + a 44px
+ * button + `pb-[max(8px,env(...))]` — and the spacer below already writes that
+ * sum out, with a comment explaining why it must track the bar. A third copy is
+ * a third thing to forget, so this reads the box instead. `ResizeObserver`
+ * rather than a one-shot measure: the safe-area inset changes on rotation, and
+ * the height with it.
+ */
+function useActionBarHeight(active: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const root = document.documentElement;
+    if (!active || !el) return;
+    const write = () => root.style.setProperty('--action-bar-h', `${el.offsetHeight}px`);
+    write();
+    const observer = new ResizeObserver(write);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      // Removed, not zeroed: the toast's `max()` falls back to 0px on its own,
+      // and a stale `--action-bar-h` left on the root would push every toast in
+      // the app up by the height of a bar that is no longer on screen.
+      root.style.removeProperty('--action-bar-h');
+    };
+  }, [active]);
+  return ref;
+}
 
 export function DailyQuotes() {
   const f = useFormat();
@@ -136,8 +174,8 @@ export function DailyQuotes() {
   // It carries the same two controls, not new ones — so they are rendered here
   // or in flow, never both.
   const desktop = useIsDesktop();
-  const keyboardInset = useKeyboardInset();
   const stickyActions = !desktop && filledCount > 0;
+  const actionBarRef = useActionBarHeight(stickyActions);
 
   const lastSavedAt = maxSavedAt(snapshots);
   const values = latestQuotes(snapshots);
@@ -311,13 +349,20 @@ export function DailyQuotes() {
               The portal takes it out of reach of any transform. */}
           {createPortal(
             <div
+              ref={actionBarRef}
               // The bar rides the VISUAL viewport, not the layout one: on iOS
               // the keyboard does not shrink the layout viewport, so `bottom: 0`
               // would put these two buttons underneath it (B4). `bottom` rather
               // than a transform, because a transform would make its own
               // children's `position: fixed` resolve against it.
-              style={{ bottom: `${keyboardInset}px` }}
-              className="border-hairline bg-page animate-in slide-in-from-bottom-2 fixed inset-x-0 z-30 flex gap-2 border-t px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220"
+              //
+              // Read from the root's `--keyboard-inset` (app/keyboard-inset.ts)
+              // rather than subscribed to here: this bar was the value's first
+              // consumer and used to own the subscription, which meant the whole
+              // route re-rendered on every visual-viewport event just to move one
+              // fixed box. Two more surfaces need the same number now, and CSS
+              // moves all three without React hearing about it.
+              className="border-hairline bg-page animate-in slide-in-from-bottom-2 fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex gap-2 border-t px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220"
             >
               {/* SQUARE CORNERS, hairline top edge — the same reading as the
                   header bar (S2): a full-bleed bar has no designed short side,

@@ -595,7 +595,7 @@ so and picks one.
       clipped corner or off-screen edge.
 - [x] The date-picker popover's collision behaviour is explicit.
 - [x] Toasts do not overlap the header bar.
-- [x] Dialog height is correct with the keyboard open. **Partial, and the register entry is optimistic.** C5 prescribes a `dvh`-based bound and that is shipped — but `dvh` follows the browser's toolbars, NOT the keyboard, so it fixes the retracted-toolbar half of the defect and not the keyboard half. The keyboard half is solved on `/` by S4's action bar, which rides the visual viewport; a long dialog opened with a keyboard up is still bounded by the viewport rather than by what remains visible. Logged as FOLLOW-UPS 16.
+- [x] Dialog height is correct with the keyboard open. **Was partial when A17 closed, and is now complete (2026-08-17, FOLLOW-UPS 16).** C5 prescribes a `dvh`-based bound and that shipped with A17 — but `dvh` follows the browser's toolbars, NOT the keyboard, so it fixed the retracted-toolbar half of the defect and not the keyboard half. The panel now subtracts `--keyboard-inset` from its bound **and from its centre**: bounding alone leaves a correctly-sized dialog centred on the layout viewport, still hanging into the keyboard. Measured at a 300px inset on an 844px viewport — bound 510 = 85% of what remains, panel inside the visible band and centred in it.
 - [x] Radii unchanged: 24 dialog, 16 date picker, 14 select, 13 toast.
 
 ---

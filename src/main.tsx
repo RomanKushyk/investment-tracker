@@ -19,10 +19,15 @@ import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router/dom';
 import { Toaster } from 'sonner';
 
+import { publishKeyboardInset } from './app/keyboard-inset';
 import { ensureSeeded } from './lib/repository';
 import { router } from './routes';
 
 const queryClient = new QueryClient();
+
+// Before the first render, and outside it: `--keyboard-inset` is read by CSS on
+// three surfaces and written by nothing else (app/keyboard-inset.ts).
+publishKeyboardInset();
 
 void ensureSeeded().then(() => {
   createRoot(document.getElementById('root')!).render(
@@ -48,10 +53,41 @@ void ensureSeeded().then(() => {
           // The position stays sonner's default, bottom-right: at these widths
           // the two offsets make it span the width anyway, and moving it would
           // change the desktop app for no reason.
+          //
+          // THE BOTTOM IS A `max()` OF THREE, and the third term is FOLLOW-UPS
+          // 16(b): a toast raised by `Save snapshot` was painted straight over
+          // the sticky action bar that raised it, so `Copy yesterday` sat under
+          // it for the toast's whole four seconds — the one control you reach
+          // for next. `/` publishes the bar's measured height while it is up,
+          // and `--keyboard-inset` is the strip iOS gives the keyboard without
+          // shrinking the layout viewport (app/keyboard-inset.ts).
+          //
+          // `max()` and NOT a sum, which is the part worth reading twice. Summed,
+          // the two safe-area terms double-count — the bar already pads itself
+          // past the home indicator, so the toast would float a further ~34px
+          // above it on exactly the devices where the gap is already largest.
+          // As a max, each term is a floor the toast must clear and the tallest
+          // wins: with no bar and no keyboard the third term is 14px and the
+          // whole expression collapses to precisely what was here before.
           mobileOffset={{
             left: '12px',
             right: '12px',
-            bottom: 'max(14px, env(safe-area-inset-bottom))',
+            bottom:
+              'max(14px, env(safe-area-inset-bottom), calc(var(--keyboard-inset, 0px) + var(--action-bar-h, 0px) + 14px))',
+          }}
+          // AND THE SAME FLOOR ON THE DESKTOP OFFSET, because the two
+          // breakpoints do not line up: sonner swaps to `mobileOffset` below
+          // 600px and the app swaps to the mobile shell below `md`, 768. In the
+          // 168px band between them the action bar is on screen while sonner is
+          // still using this offset, so fixing only the mobile one would have
+          // left the defect alive exactly where a small laptop window lands.
+          // `24px` is sonner's own default and stays the floor, so a desktop —
+          // where neither variable is ever set — resolves to 24px as before.
+          // The other three sides are omitted on purpose: sonner fills a missing
+          // key with that same default, so naming them would only be a chance to
+          // disagree with it later.
+          offset={{
+            bottom: 'max(24px, calc(var(--keyboard-inset, 0px) + var(--action-bar-h, 0px) + 14px))',
           }}
           toastOptions={{
             style: {

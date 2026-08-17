@@ -29,8 +29,26 @@ const OVERLAY_CLASS =
 // the viewport as the toolbars come and go. On a desktop, where nothing
 // retracts, the two are identical — so this is one value rather than a
 // breakpoint-gated pair.
+//
+// AND `dvh` IS ONLY HALF OF C5, which is what FOLLOW-UPS 16 was left holding:
+// the dynamic viewport tracks the browser's TOOLBARS and knows nothing about the
+// keyboard, because on iOS the keyboard does not resize the layout viewport at
+// all — it is drawn over it (see app/keyboard-inset.ts). So both numbers here
+// subtract `--keyboard-inset`, and BOTH are needed:
+//
+//   · the BOUND, or the panel is 85% of a box whose lower half is under the
+//     keyboard;
+//   · the CENTRE, or a correctly-bounded panel is still centred on the layout
+//     viewport and hangs into the keyboard anyway. Shifting up by half the inset
+//     centres it in what is left, which is the same arithmetic `-translate-y-1/2`
+//     is already doing, against a shorter box.
+//
+// `* 0.5` and not `/ 2`: Tailwind reads a slash in an arbitrary value as the
+// opacity modifier and would cut the expression in half at the wrong seam.
+// Both fall back to 0px, so a desktop — where nothing publishes an inset —
+// compiles to exactly the `85dvh` and `-50%` that were here before.
 const PANEL_CLASS =
-  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] w-[calc(100vw-32px)] -translate-x-1/2 translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 
 // THE PANEL IS THREE BANDS AND ONLY THE MIDDLE ONE SCROLLS. A title that slides
 // away takes the answer to "what am I confirming" with it, and a Save button
