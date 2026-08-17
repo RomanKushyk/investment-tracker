@@ -26,6 +26,7 @@ other plans exist to keep things *out* of that one.
 | [`plans/PLAN-NOW.md`](plans/PLAN-NOW.md) | **Plan A — startable today.** Nothing gates these | Pick the first non-done task in section order. Gates green per merge |
 | [`plans/PLAN-WAITING.md`](plans/PLAN-WAITING.md) | **Plan B — dated.** Gated on elapsed time or an external event | **Read its table before any session touching `infra/` or the migration.** Move an item to Plan A the day its gate opens |
 | [`plans/PLAN-OPEN.md`](plans/PLAN-OPEN.md) | **Plan C — open questions**, with the trail from each answer to the task it created | **Never implement from this file.** Answer → decision entry → file the work into Plan A or B |
+| [`plans/USER-FEATURES-DRAFT.md`](plans/USER-FEATURES-DRAFT.md) | The owner's raw idea list, in the owner's words | **Never implement from this file either**, and **keep it plain** — bare bullets, no ceremony, so it stays fast to add a line to. It fills up, gets groomed into Plan A or B, then gets wiped and fills again |
 | [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) | Cosmetic backlog consciously shipped as-is | Items 1–8 cleared 2026-07-28; **9–11 open**. Add deferred-cosmetic findings here rather than reopening a closed plan |
 
 ## Why things are the way they are

@@ -26,12 +26,19 @@
 | B1 | Backend: price capture archive | **done, live** (2026-08-11) | closed — A2 (index, D48), A3 (durability gate, D49), A14 (backup liveness) all done |
 | B2 | Backend: observation schema + read API | **NBU half done** (2026-08-11, D50) | Inzhur half → `PLAN-WAITING.md` W3–W4 · read API still to come |
 | B3 | Backend: auth, user schema, repository → HTTP | todo — the migration proper, scope now specified (D32–D34) | `PLAN-WAITING.md` W7 |
-| 5 | Appearance & language: dark theme + UK | todo | `PLAN-NOW.md` A8–A10 |
+| 5 | Appearance & language: dark theme + UK | **done** (2026-08-14) — v1.5.0 | closed — A8 brief, A9 dark theme, A10 Ukrainian (D58) |
 | 6 | Chart analytics: ranges + cap-by-day | todo | `PLAN-WAITING.md` W13 |
 | 7 | Full control: DB browser | todo | `PLAN-WAITING.md` W14 |
+| M | The mobile shell — two shells, one breakpoint | **done** (2026-08-17) — v1.6.0 | closed — A16 brief, A17 shell + record cards (D66), A18 one scroll surface (D65) |
 | — | Coupon dates walk the published schedule | **done** (2026-08-11) | `PLAN-NOW.md` A1 — landed well before the 2026-09-23 deadline |
 
-Current version: **v1.3.0**. Per-phase tags continue per `docs/reference/VERSIONING.md`.
+**Phase 6 is lettered M above on purpose.** The design briefs number their own
+phases, and *their* phase 6 is the mobile shell while *this* table's phase 6 is
+chart analytics — two different bodies of work under one number. The mobile work
+gets a letter here until one of the two numbering schemes is retired; do not
+merge the rows.
+
+Current version: **v1.6.1**. Per-phase tags continue per `docs/reference/VERSIONING.md`.
 
 ## What shipped (compressed record — detail lives in git + DECISIONS)
 
@@ -42,6 +49,9 @@ Current version: **v1.3.0**. Per-phase tags continue per `docs/reference/VERSION
 - **Phase 4** `feat/backup-import` — validate → diff → confirm → one rw transaction, safety backup first (D24). `feat/csv-export` — one CSV per table with the pinned dialect, plus `src/lib/download.ts` (save-picker parity, a cancelled picker is not an error) which the JSON backup button now shares (D29).
 - **Backend B1** — `infra/` SAM stack: Aurora DSQL cluster, capture Lambda on EventBridge Scheduler at 01:00 Europe/Kyiv, DLQ, five alarms, two metric filters. Captures **two** sources per run (Inzhur `_api/assets`, NBU fair value), writes a journal row on every outcome including failures, and detects a frozen upstream by hashing prices rather than payloads (D26–D28). NBU archive backfilled to 2016-01-04.
 - **2026-08-11, outside any phase** — `fix: count sale proceeds in netResult and accrue coupons over the real period` (commit `290b26f`). Both were latent sign/precision defects found during the backend work: `netResult` ignored sale proceeds (a redemption inverted the sign), `dailyAccrual` divided by 365 instead of the real 182-day coupon period. FORMULA-AUDIT ruling 4 now records the ACT/ACT exception.
+- **Phase 5** `feat/dark-theme`, `feat/i18n-uk` — the Light/Dark/System control and the whole dark sheet measured against WCAG, then Ukrainian as the DEFAULT language with formatting that follows the language rather than the context (Contract 0, D58). The font pair changed with it: IBM Plex Sans + JetBrains Mono, because neither original face carries a single Cyrillic letter (D54).
+- **The mobile shell** `feat/mobile-shell`, `feat/scroll-surface` — two shells at one breakpoint, `md` (D66): an off-canvas drawer and a header that carries the capital below it, the 244px rail and a collapse control above, and the four tables folded into record cards. 44 × 44 is hit area and never geometry, so no radius moved. Every constrained box went through one `Scroller` (D65) and dialogs became three bands of which only the middle scrolls. Closed with zero horizontal overflow on all ten routes across five widths and both themes.
+- **2026-08-17, outside any phase** — `muted` re-derived against the surface it is worst on and `label` retired into it (D68), after the light palette was measured against WCAG 1.4.3 for the first time and failed on all three backdrops.
 
 ## Retired — and why
 
@@ -91,23 +101,30 @@ The four tracks that used to be listed here, plus everything queued behind the m
 ## Cross-phase rules
 
 - **Git/gates:** per-task branches as named; plain conventional commits; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
-- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — D35 is the current tail); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/archive/design-briefs/`, `design/extensions/`, `infra/`).
+- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — **D69 is the current tail**, and it is appended to the highest-numbered range file, never renumbered); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/archive/design-briefs/`, `design/extensions/`, `infra/`).
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
-## Ungroomed input — `docs/archive/NEXT-PHASE-DRAFT.md`
+## Ungroomed input — [`USER-FEATURES-DRAFT.md`](USER-FEATURES-DRAFT.md)
 
-The draft was replaced with a fresh wishlist (the old items are all shipped or retired above). **Nothing below is planned yet** — it is raw input, listed here so it is not orphaned:
+The owner's raw idea list. It is **deliberately unformatted and deliberately
+not copied here** — it is a scratchpad that fills up, gets groomed into
+`PLAN-NOW.md` / `PLAN-WAITING.md`, and is then wiped to fill again. A second
+copy in this file is how the two drift.
 
-- mobile version, responsiveness
-- analytics pages become editable in place (an edit button top-right): target setting moves onto the Allocation page, Settings → Portfolio onto the Portfolio page
-- live ₴/$ rate instead of the hand-entered `usdRate`
-- asset form reworked around the provider: pick provider → pick from its fetched asset list → every derivable field fills itself. The stated goal is **minimum input, especially minimum sensitive input** — ideally the user types only an amount.
-- currency in Settings sets the default on app open; the sidebar toggle stays a throwaway preview and persists nowhere
+**Nothing in it is planned**, and nothing is implemented off that page. Moved
+out of `docs/archive/` on 2026-08-17 (the archive rule is *never a task list*)
+and pruned from 23 items to 7 in the same pass.
 
-One interacts with a decision already made: the provider-first asset form overlaps B3's catalog (the scheduler already registers newly listed provider assets).
-
-**Correction (2026-08-11):** an earlier version of this note claimed the live ₴/$ rate collides with the "exactly one automation" ruling. It does not. NBU's rate endpoint is public with `Access-Control-Allow-Origin: *` (verified: `bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=usd&date=…&json` → `rate: 44.8305` on 2026-08-11), so the app can fetch it on demand exactly like "Fetch quotes" — a user-triggered read, not a scheduled job. The ruling constrains **timers**, not requests. This is startable now and retires the hard-coded 44.83.
+Two of the survivors touch rulings recorded here. **A settings toggle that
+auto-saves the daily quotes writes without a Save press, which is what G5
+below forbids** — the list now specifies it as opt-in, with the switch OFF
+meaning today's suggest-only behaviour, so what is left is not the shape but
+the ruling: G5 is called binding and non-negotiable, and narrowing it to
+"binding unless the owner opts out" needs a decision entry before any of it is
+built. **The provider-first asset form overlaps B3's catalog**, which already
+registers newly listed provider assets into the catalog and never into a
+portfolio.
 
 ## Flagged deviations from the original draft
 
