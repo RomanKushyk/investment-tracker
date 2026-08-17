@@ -226,15 +226,21 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 38 values instead of two that
+   CSS never has to express "system". One list of 40 values instead of two that
    can drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 38 PALETTE tokens are here. The 19 --color-chart-* aliases are
-   declared as `var(--color-reit)` and resolve against whatever wins on the same
-   element, so they follow these automatically — verified at runtime by
-   overriding a base token and watching the alias move. Redeclaring them would
-   be 19 more values able to disagree with the ones above.
+   Only the 40 PALETTE tokens are here, and they are the SAME 40 that @theme
+   declares outside the chart aliases — one for one, neither set holding a name
+   the other lacks. That equality is the real invariant; the number is just how
+   it is counted, and the number is what rots. It read 38 from A9 until
+   2026-08-17, correct when written and then quietly wrong three times over: D61
+   added `surface-edge`, phase 6 added `scrim` and `drawer-edge`, D68 removed
+   `label`. The 19 --color-chart-* aliases are declared as `var(--color-reit)`
+   and resolve against whatever wins on the same element, so they follow these
+   automatically — verified at runtime by overriding a base token and watching
+   the alias move. Redeclaring them would be 19 more values able to disagree
+   with the ones above.
 
    Unlayered on purpose: Tailwind puts @theme in `@layer theme`, and an
    unlayered rule beats a layered one regardless of source order, so this cannot
