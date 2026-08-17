@@ -774,7 +774,7 @@ The subtlest class, and the one a mobile pass usually damages.
 
 ---
 
-## S7 · The scroll surface — supersedes S5's scrollbar (added 2026-08-15)
+## S7 · The scroll surface — supersedes S5's scrollbar (added 2026-08-17)
 
 `design/extensions/mobile.dc.html` is merged, so per D14 it keeps saying what it
 said and this section supersedes the part of it that is now wrong. The new

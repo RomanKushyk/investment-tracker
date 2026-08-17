@@ -32,7 +32,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section F** | **Phase 6 — the mobile shell** | | | |
 | A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — extension merged 2026-08-14 |
 | A17 | Mobile shell + record cards | `feat/mobile-shell` | L | **unblocked** — `design/extensions/mobile.dc.html` merged 2026-08-14 |
-| A18 | One scroll surface (`Scroller`) + three-band dialogs | `feat/scroll-surface` | M | **done** (2026-08-15, D65) — new reference `design/extensions/scroll-surface.dc.html` + brief § S7 supersede S5's scrollbar; closes FOLLOW-UPS 11 |
+| A18 | One scroll surface (`Scroller`) + three-band dialogs | `feat/scroll-surface` | M | **done** (2026-08-17, D65) — new reference `design/extensions/scroll-surface.dc.html` + brief § S7 supersede S5's scrollbar; closes FOLLOW-UPS 11 |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
