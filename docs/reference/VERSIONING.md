@@ -20,5 +20,8 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
 ## Verify after bumping
 
-- Sidebar bottom shows `V X.Y.Z` (micro-label style, muted) on desktop and the narrow (<640px) rail.
+- Sidebar bottom shows `V X.Y.Z` (micro-label style, muted) in BOTH shells — the
+  244px rail at and above `md`, and the 280px drawer below it. The narrow
+  136px rail this line used to name was retired by A17/D66; there is no third
+  place to check.
 - `pnpm build` green — `tsc --noEmit` also type-checks `vite.config.ts`'s `package.json` import (`resolveJsonModule`).
