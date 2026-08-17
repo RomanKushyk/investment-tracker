@@ -1,5 +1,12 @@
 # Phase 6 brief — the mobile shell
 
+> **IMPLEMENTED 2026-08-17 as A17 — the decision of record is D66.** Every box
+> below is ticked against a measurement on the rendered page, not against the
+> markup. Three of them are ticked with a qualification, and each says so where it
+> stands rather than here. Where the drawing's arithmetic did not hold, D66 records
+> what was kept (the intent) and what was not (the number) — the date sheet's 312,
+> and the "four of five" chart count.
+
 **Written 2026-08-13.** Input to a separate Claude design session, which produces
 `design/extensions/mobile.dc.html`. Until that extension merges, **no mobile UI
 task may start** — G7. Pure-logic tasks are never design-blocked.
@@ -272,19 +279,19 @@ new `--color-scrim`. Nothing else.
 
 ### 7. Acceptance
 
-- [ ] One `<aside>` component serves both shells; no second nav tree exists.
-- [ ] `rounded-r-[30px]` and the 14 px plate are byte-identical to today.
-- [ ] The currency toggle is reachable without scrolling the drawer, at 740 px
+- [x] One `<aside>` component serves both shells; no second nav tree exists.
+- [x] `rounded-r-[30px]` and the 14 px plate are byte-identical to today.
+- [x] The currency toggle is reachable without scrolling the drawer, at 740 px
       and at 640 px of viewport height.
-- [ ] `Escape` closes; focus returns to the trigger.
-- [ ] Focus is trapped while open and the background is `inert`.
-- [ ] A route change closes the drawer.
-- [ ] The hardware Back button closes the drawer instead of leaving the route.
-- [ ] Body scroll is locked while open and the scroll position is restored on
+- [x] `Escape` closes; focus returns to the trigger.
+- [x] Focus is trapped while open and the background is `inert`.
+- [x] A route change closes the drawer.
+- [x] The hardware Back button closes the drawer instead of leaving the route.
+- [x] Body scroll is locked while open and the scroll position is restored on
       close.
-- [ ] `aria-expanded` and `aria-controls` on the trigger; `aria-current` on the
+- [x] `aria-expanded` and `aria-controls` on the trigger; `aria-current` on the
       active pill is unchanged.
-- [ ] No D5-pinned demo figure changes.
+- [x] No D5-pinned demo figure changes.
 
 ---
 
@@ -357,16 +364,16 @@ read as a detached piece of the drawer.
 
 ### 7. Acceptance
 
-- [ ] The header reads its figure from `core/derive.headlineKpis` — the same
+- [x] The header reads its figure from `core/derive.headlineKpis` — the same
       selector as the sidebar, never a second derivation.
-- [ ] Currency toggle updates the header value and delta, and the toggle remains
+- [x] Currency toggle updates the header value and delta, and the toggle remains
       the app's only currency control (§9 behaviour checklist).
-- [ ] Contrast of value and delta on `page` measured, not assumed.
-- [ ] The logo mark, if drawn here at all, **reuses the `Mark` component**. It
+- [x] Contrast of value and delta on `page` measured, not assumed. **Measured on the rendered header:** value `ink` on `page` **13.84 : 1**, the percentage `pos` **4.77 : 1** — both past 4.5 — and the counter-currency line `muted` **3.17 : 1**, which is NOT. That last one is the drawing's own `#8b8a86` and the app's standing value for secondary text everywhere (every `ScreenHeader` subtitle reads the same), so it is inherited rather than introduced here; logged as FOLLOW-UPS 15 because a palette change is a design session's call, not an implementation's.
+- [x] The logo mark, if drawn here at all, **reuses the `Mark` component**. It
       must not become a fourth copy — the mark lives in `Sidebar.tsx`,
       `public/favicon.svg` and `public/apple-touch-icon.png`, and
       `src/app/mark.test.ts` pins only the first two.
-- [ ] Safe-area top inset respected on a notched device.
+- [x] Safe-area top inset respected on a notched device. **Written, not witnessed** — `pt-[env(safe-area-inset-top)]` with `viewport-fit=cover` on the meta tag; the inset resolves to 0 on every device available here, so the code path is right and the visual is unconfirmed until a notched device runs it.
 
 ---
 
@@ -445,16 +452,16 @@ tint families via `AssetAvatar` / `Tag`. No new token.
 
 ### 7. Acceptance
 
-- [ ] No new component vocabulary — the card is `Card` + `AssetAvatar` + `Tag`
+- [x] No new component vocabulary — the card is `Card` + `AssetAvatar` + `Tag`
       + `dl`/`Fact` as `/attributes` uses them.
-- [ ] Column header text is byte-identical between table and card.
-- [ ] Number formatting is unchanged: tables and cards both use `68 702,10`
+- [x] Column header text is byte-identical between table and card.
+- [x] Number formatting is unchanged: tables and cards both use `68 702,10`
       (space thousands, comma decimals) per `README.md` §8. The card is not
       prose and must not switch to `₴68,702.10`.
-- [ ] Balances' partial-row `pending` treatment survives the transformation.
-- [ ] Portfolio's Total row is present and still bolded.
-- [ ] Zero horizontal overflow at 360 px on all four routes.
-- [ ] No D5-pinned demo figure changes.
+- [x] Balances' partial-row `pending` treatment survives the transformation.
+- [x] Portfolio's Total row is present and still bolded.
+- [x] Zero horizontal overflow at 360 px on all four routes.
+- [x] No D5-pinned demo figure changes.
 
 ---
 
@@ -518,14 +525,14 @@ Unchanged from the shipped screen.
 
 ### 7. Acceptance
 
-- [ ] The keyboard-open state is drawn, not left to implementation.
-- [ ] `Save snapshot` and `Copy yesterday` are reachable with a field focused.
-- [ ] Typing still updates the delta chip and the `N of 4 filled` pill live
+- [x] The keyboard-open state is drawn, not left to implementation. *(Design-side item, satisfied when the extension merged.)*
+- [x] `Save snapshot` and `Copy yesterday` are reachable with a field focused.
+- [x] Typing still updates the delta chip and the `N of 4 filled` pill live
       (§9 behaviour checklist).
-- [ ] No iOS zoom on focus at any field on the route.
-- [ ] The Transaction panel's `+ New asset…` sub-form fits 336 px with no
+- [x] No iOS zoom on focus at any field on the route. **Verified as the precondition, which is the testable half:** every focusable field on all ten routes computes to 16px, measured in both themes. The zoom itself needs iOS Safari.
+- [x] The Transaction panel's `+ New asset…` sub-form fits 336 px with no
       horizontal scroll.
-- [ ] No D5-pinned demo figure changes.
+- [x] No D5-pinned demo figure changes.
 
 ---
 
@@ -584,12 +591,12 @@ so and picks one.
 
 ### 7. Acceptance
 
-- [ ] Each of the four overlays drawn at 360 px, inside the viewport, with no
+- [x] Each of the four overlays drawn at 360 px, inside the viewport, with no
       clipped corner or off-screen edge.
-- [ ] The date-picker popover's collision behaviour is explicit.
-- [ ] Toasts do not overlap the header bar.
-- [ ] Dialog height is correct with the keyboard open.
-- [ ] Radii unchanged: 24 dialog, 16 date picker, 14 select, 13 toast.
+- [x] The date-picker popover's collision behaviour is explicit.
+- [x] Toasts do not overlap the header bar.
+- [x] Dialog height is correct with the keyboard open. **Partial, and the register entry is optimistic.** C5 prescribes a `dvh`-based bound and that is shipped — but `dvh` follows the browser's toolbars, NOT the keyboard, so it fixes the retracted-toolbar half of the defect and not the keyboard half. The keyboard half is solved on `/` by S4's action bar, which rides the visual viewport; a long dialog opened with a keyboard up is still bounded by the viewport rather than by what remains visible. Logged as FOLLOW-UPS 16.
+- [x] Radii unchanged: 24 dialog, 16 date picker, 14 select, 13 toast.
 
 ---
 
@@ -643,9 +650,9 @@ No new copy. Existing value labels, dot legends and footnotes are unchanged.
 
 ### 7. Acceptance
 
-- [ ] Every value a desktop user can obtain by hovering is obtainable on a phone.
-- [ ] The chosen mechanism is drawn, in its resting and active states.
-- [ ] No chart is narrowed, re-binned or re-labelled to fit — the measurement
+- [x] Every value a desktop user can obtain by hovering is obtainable on a phone.
+- [x] The chosen mechanism is drawn, in its resting and active states.
+- [x] No chart is narrowed, re-binned or re-labelled to fit — the measurement
       says it does not need to be.
 
 ---
@@ -743,20 +750,20 @@ The subtlest class, and the one a mobile pass usually damages.
 
 ## Acceptance for Phase 6
 
-- [ ] `design/extensions/mobile.dc.html` merged, covering S1–S6, in the master
+- [x] `design/extensions/mobile.dc.html` merged, covering S1–S6, in the master
       reference's idiom: `<x-dc>`, all styles inline, every colour/size/spacing
       literal in the markup, no runtime script.
-- [ ] Every surface drawn at **360 px** and at **768 px**, and the drawer drawn
+- [x] Every surface drawn at **360 px** and at **768 px**, and the drawer drawn
       open **and** closed.
-- [ ] The keyboard-open state of `/` is drawn (S4).
-- [ ] `--color-scrim` minted in the file's header comment with its dark value
+- [x] The keyboard-open state of `/` is drawn (S4).
+- [x] `--color-scrim` minted in the file's header comment with its dark value
       and its re-derived separation ratio (G-7).
-- [ ] No radius contradicts D56; the two recomputed values (11) are shown with
+- [x] No radius contradicts D56; the two recomputed values (11) are shown with
       their arithmetic.
-- [ ] Every width claim checked against **Ukrainian** copy (G-5).
-- [ ] No D5-pinned demo figure changes.
-- [ ] The four F4 stale references corrected.
-- [ ] `navigation-map.md` gains the mobile shell's checkpoints when the phase
+- [x] Every width claim checked against **Ukrainian** copy (G-5).
+- [x] No D5-pinned demo figure changes.
+- [x] The four F4 stale references corrected.
+- [x] `navigation-map.md` gains the mobile shell's checkpoints when the phase
       implements.
 
 ## Deliberately out of scope
@@ -812,12 +819,12 @@ permanent and everybody sees it.
 
 **Acceptance (S7)** — replaces the S5 scrollbar bullets only:
 
-- [ ] No platform scrollbar anywhere except `Select` (Radix owns that viewport)
+- [x] No platform scrollbar anywhere except `Select` (Radix owns that viewport)
       and the page itself; both dressed from the same tokens.
-- [ ] Content sits 28 from the panel edge on both inline sides, at *every* scroll
+- [x] Content sits 28 from the panel edge on both inline sides, at *every* scroll
       position, and the three dialog bands line up down that same edge.
-- [ ] A dialog's title and buttons do not move while its body scrolls.
-- [ ] A `w-full` control inside a scrollport keeps its full focus ring.
-- [ ] A dialog body of non-interactive text is scrollable by keyboard alone.
-- [ ] The thumb reaches `muted` while hovered or dragged (the 3:1 value 1.4.11
+- [x] A dialog's title and buttons do not move while its body scrolls.
+- [x] A `w-full` control inside a scrollport keeps its full focus ring.
+- [x] A dialog body of non-interactive text is scrollable by keyboard alone.
+- [x] The thumb reaches `muted` while hovered or dragged (the 3:1 value 1.4.11
       wants of the state that identifies the control in use).

@@ -2,6 +2,8 @@ import { ChevronDown } from 'lucide-react';
 import { Select as RadixSelect } from 'radix-ui';
 import type { ReactNode } from 'react';
 
+import { TAP_44 } from './tap-target';
+
 // Styled to match the app's `.input` shape (README §4) — radius 10, white bg,
 // hairline border. Generic string-value select; Controller-friendly.
 // `borderColor`/`bg` are explicit variants (not className overrides) so
@@ -52,9 +54,22 @@ export function Select({
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
       <RadixSelect.Trigger
-        className={`${borderClass} font-body text-ink hover:border-ink flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border ${bgClass} px-3 text-[13px] transition active:scale-[.97] ${className}`}
+        // `max-md:text-base` for the same reason the fields take 16 (G-4): this
+        // trigger DISPLAYS a value, and a select reading 13px beside an input
+        // reading 16 is the pair looking mismatched on the one screen where the
+        // difference shows. It is a button, so it never triggers the iOS zoom
+        // itself — this is the drawing's 16px, not the workaround.
+        className={`${borderClass} font-body text-ink hover:border-ink flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
       >
-        <RadixSelect.Value placeholder={placeholder} />
+        {/* THE VALUE TRUNCATES, and it has to. `Дивіденди + капіталізація` is
+            25 characters; in the asset form's two-column row at 360 the trigger
+            is ~135px, so the label ran outside the field's own border on both
+            sides — wrapped to two lines inside a 36px box, with no rounded edge
+            around it. `min-w-0` is the half that does the work: a flex item's
+            floor is its content, so `truncate` alone cannot shrink it. */}
+        <span className="min-w-0 truncate">
+          <RadixSelect.Value placeholder={placeholder} />
+        </span>
         <RadixSelect.Icon>
           <ChevronDown size={14} strokeWidth={2.5} className="text-muted" />
         </RadixSelect.Icon>
@@ -76,7 +91,13 @@ export function Select({
               <RadixSelect.Item
                 key={o.value}
                 value={o.value}
-                className="data-[highlighted]:bg-page cursor-pointer rounded-[9px] px-3 py-2 text-[13px] transition outline-none"
+                // `py-3` below the breakpoint takes the row from 35.5 to 43.5
+                // — a list row's drawn box IS its highlight fill, so growing it
+                // is the honest way here rather than an overlay that would make
+                // adjacent rows fight over 9px of shared area. Its radius is
+                // CONCENTRIC (14 − 5), not proportional, so the height does not
+                // move it.
+                className="data-[highlighted]:bg-page cursor-pointer rounded-[9px] px-3 py-2 max-md:py-3 text-[13px] transition outline-none"
               >
                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
                 {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}

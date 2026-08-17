@@ -1,5 +1,7 @@
 import { Switch as RadixSwitch } from 'radix-ui';
 
+import { TAP_44 } from './tap-target';
+
 // The app's one switch anatomy (P2 asset-form.dc.html "Link to Inzhur" toggle,
 // reused verbatim by the P3 Settings→Automation rows, automation.dc.html S8):
 // track 40 × 22 radius 6 — off `hairline` fill + `panel-border` edge, on
@@ -26,7 +28,10 @@ export function Switch({
       checked={checked}
       onCheckedChange={onCheckedChange}
       aria-label={label}
-      className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${
+      // 40 x 22 drawn, 44 x 44 pressable below the breakpoint (G-2). The two
+      // radii above are keyed to the DRAWN height, so growing the box would move
+      // them both — which is exactly what `TAP_44` exists to avoid.
+      className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${TAP_44} ${
         checked ? 'border-ink bg-ink' : 'border-panel-border bg-hairline'
       }`}
     >

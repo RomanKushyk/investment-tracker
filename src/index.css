@@ -7,6 +7,37 @@
   --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* The mobile drawer's slide (S1's motion table): 260 ms in, 220 ms out —
+     asymmetric on purpose, because arriving should feel unhurried and leaving
+     should feel done. Written as keyframes rather than a `transition`, because
+     Radix mounts the panel on open and unmounts it on close, and there is no
+     "before" state for a transition to run from.
+     `both` on both: the fill is what stops a single frame of the panel at
+     translateX(0) before the entry starts, and another at 0 after the exit
+     finishes but before Radix removes the node.
+     The global reduced-motion kill-switch collapses these like everything else,
+     which is S1's "reduced: instant" without a second code path. */
+  --animate-drawer-in: drawer-in 260ms var(--ease-soft) both;
+  --animate-drawer-out: drawer-out 220ms var(--ease-soft) both;
+
+  @keyframes drawer-in {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes drawer-out {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
   /* Cyrillic-capable replacements, chosen by measurement (D54). JetBrains Mono
      keeps the 0.6em advance of Spline Sans Mono exactly, so no column, table or
      sidebar width moves. IBM Plex Sans is the display face because its figures
@@ -81,6 +112,27 @@
      outline there is decoration nothing asked for. */
   --color-surface-edge: transparent;
   --color-label: #6f6e6a; /* Transaction panel field labels (design lines 110-146) */
+  /* The one token phase 6 mints (G-7): the veil behind the mobile drawer.
+     Nothing in the palette was a translucent film, so this mints an ALPHA
+     rather than a hue — `ink` at 45%. Over `page` it composites to #989899,
+     against which the drawer's own #26262a is 5.23:1, well past the 3:1 WCAG
+     1.4.11 asks of a non-text boundary. So in LIGHT the scrim IS the
+     separation and the drawer draws no edge.
+     It is deliberately NOT the Dialog's overlay (`sidebar/40`, D-d): that one
+     is an INVERTED PLANE in both themes by design (D57), which is exactly the
+     property this ink-based light value does not have. One veil token would
+     have to pick a theme to be wrong in. */
+  --color-scrim: rgba(38, 38, 42, 0.45);
+  /* AN ALIAS, NOT A COLOUR — which is what lets it exist at all beside G-7's
+     "phase 6 mints exactly one token". It names nothing new: transparent here,
+     and `sidebar-muted`'s own value in dark. The drawer needs an edge in ONE
+     theme and not the other (see --color-scrim), and the two ways of saying so
+     are this or a `dark:` variant on the component. Phase 5 chose token
+     redefinition precisely so no component has to know which theme is on, and a
+     variant here would be the first crack in that. Same shape as
+     `--color-surface-edge` (D61), which is transparent in light for the same
+     kind of reason. */
+  --color-drawer-edge: transparent;
   --color-sidebar: #26262a;
   --color-sidebar-text: #e9e8e6;
   --color-sidebar-muted: #96959b;
@@ -192,6 +244,27 @@
   --color-surface-edge: #33333a;
   --color-label: #a8a7a3; /* 7.06 on card */
 
+  /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
+     anyone moving the alpha. The drawer (`sidebar` #0f0f11) is DARKER than the
+     page (#141416) here — D57 made it so on purpose — so a darkening scrim
+     moves the background TOWARDS the drawer instead of away from it: 55% of
+     #0f0f11 over #141416 gives #111113, and the drawer against that is
+     1.02:1. Invisible.
+     An ink-based scrim is worse, not better: `ink` inverts to #eceae7, so 45%
+     of it over the dark page is #757474 — a grey wash over the app, the same
+     mistake D57 records for the Dialog overlay.
+     So the value below keeps the veil doing the job a veil can still do —
+     dimming what is behind — and the drawer takes an EDGE instead. Measured
+     against #111113: hairline 1.32, panel-border and surface-edge 1.50 (D61 is
+     NOT enough here), faint 3.65, sidebar-muted 5.51. `sidebar-muted` is the
+     one used: it belongs to the drawer's own family and clears the bar with
+     room, where a brighter option would read as a stroke rather than an edge. */
+  --color-scrim: rgba(15, 15, 17, 0.55);
+  /* 5.51:1 against the composited scrim — the measurement in the block above.
+     Read through the alias rather than repeated as #8b8a90, so it cannot drift
+     from the token it was measured as. */
+  --color-drawer-edge: var(--color-sidebar-muted);
+
   /* Sidebar. In light it is already dark against a light page; in dark it goes
      DARKER than the page, not lighter, or it stops reading as its own plane. */
   --color-sidebar: #0f0f11;
@@ -289,6 +362,35 @@
     stroke 200ms linear !important;
 }
 
+/* G-4 — FIELDS ARE 16px BELOW THE BREAKPOINT, and this is a platform
+   workaround rather than a design decision, which is why it is one rule instead
+   of a class on eighteen inputs. Under 16px, iOS Safari zooms the page when a
+   field takes focus AND DOES NOT ZOOM BACK OUT — on the one screen the user
+   touches daily. The app's fields are 13px and 11px, so every one of them does
+   it today.
+
+   NO RADIUS MOVES. Heights are explicit (`h-9` is 36, and the quote input's 44
+   comes from G-2), so this sets larger type inside an unchanged box; D56 reads
+   the box, not the text.
+
+   UNLAYERED, and that is the mechanism. Tailwind puts utilities in
+   `@layer utilities`, and an unlayered rule beats a layered one whatever the
+   specificity — a `@layer base` version of this would lose to every
+   `text-[13px]` in the app and silently do nothing. Same reasoning as the dark
+   block above.
+
+   The query is the exact complement of Tailwind's `md`, in the form Tailwind
+   itself emits for `max-md:`, so the two cannot drift apart.
+
+   Checkboxes and radios are excluded: `font-size` on them changes the drawn
+   control on some engines, and neither zooms on focus. */
+@media not all and (min-width: 48rem) {
+  input:not([type='checkbox']):not([type='radio']),
+  textarea {
+    font-size: 16px;
+  }
+}
+
 @layer base {
   /* Tells the engine which way round this page is, so the form controls,
      scrollbars and caret it paints itself follow the theme. Without it a dark
@@ -296,6 +398,16 @@
      unlayered, so it wins. */
   :root {
     color-scheme: light;
+    /* C4 — pull-to-refresh reloads the page, and the quote draft is held in
+       memory until "Save snapshot", so an accidental overscroll at the top of
+       `/` discards the ritual's work. `contain` keeps the gesture inside the
+       page: the scroll still stops at the top, it just no longer hands the
+       overflow to the browser.
+       On the ROOT and not on `body`: overscroll-behavior propagates like
+       `overflow` — the root element's value is applied to the viewport, and
+       body's is only consulted while the root's is `auto`. Stating it here
+       means it does not depend on that fallback. */
+    overscroll-behavior-y: contain;
   }
 
   body {
@@ -383,6 +495,39 @@
      Any future dark panel opts in by carrying the attribute. */
   [data-dark-surface] :focus-visible {
     outline-color: var(--color-sidebar-text);
+  }
+
+  /* THE SAME IDEA, ONE LEVEL UP — an inverted plane needs the DARK theme's
+     surface furniture even while the app is in LIGHT. Found by measurement when
+     the mobile drawer's nav first overflowed (phase 6, S1): the `Scroller`'s
+     colours were chosen against `card`, and on the sidebar's #26262a the very
+     same tokens read
+
+         rail   panel-border #dedcd8   10.98 : 1   (chosen as 1.37 : 1)
+         thumb  faint        #b3b2ae    7.08 : 1   (chosen as 2.12 : 1)
+
+     — eight times the intended weight, so the quietest furniture in the app
+     became a bright white stick down the primary mobile surface. It is a
+     pre-existing gap in D65 rather than something the drawer introduced; the
+     drawer is only where it became unavoidable, because a 640 px-tall phone
+     always overflows this nav.
+
+     NO COLOUR IS MINTED HERE. These are the values the Phase 5 session already
+     chose and measured FOR A DARK PLANE, borrowed on the one plane that is dark
+     in both themes — the same move `pos-on-dark` exists to make. Re-measured on
+     #26262a: rail 1.20 : 1, thumb 2.90 : 1 at rest, 5.29 : 1 in use, all inside
+     the range D65 already sanctions across the two themes (1.36–1.37, 2.12–3.29,
+     3.46–6.04). In the dark theme these three are already these values, so the
+     block is a literal no-op there and nothing branches at runtime.
+
+     Nothing else under `[data-dark-surface]` reads them today — the sidebar
+     paints from its own `sidebar-*` family throughout — so the blast radius is
+     the rail. And if something later does, a dark plane is exactly where these
+     readings are the correct ones. */
+  [data-dark-surface] {
+    --color-panel-border: #33333a;
+    --color-faint: #6e6d6a;
+    --color-muted: #9b9a96;
   }
 
   ::selection {

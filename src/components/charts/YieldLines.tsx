@@ -6,6 +6,7 @@ import { signed } from '../../core/money';
 import type { Asset } from '../../core/types';
 import type { YieldSeriesPoint } from '../../screens/yield/yield';
 import { useFormat } from '../../hooks/useFormat';
+import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 
 // The index of an asset's last defined (non-undefined) point — each line gets
 // its OWN end dot, since assets purchased later (…6475) have shorter series.
@@ -22,6 +23,7 @@ function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
 // data updates (recharts default — never a cold redraw).
 export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets: Asset[] }) {
   const f = useFormat();
+  const trigger = useTooltipTrigger();
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -47,7 +49,9 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           tickLine={false}
           width={40}
         />
+        {/* S6 / D-b — per-asset cumulative yield exists only here. */}
         <Tooltip
+          trigger={trigger}
           labelFormatter={(label) => f.dateShort(String(label))}
           formatter={(v, name) => {
             const n = Number(v);

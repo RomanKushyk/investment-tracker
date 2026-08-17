@@ -38,6 +38,21 @@ void ensureSeeded().then(() => {
             Radius 13 is the rule on the toast's measured 51.5px height, the
             same value the sidebar's currency toggle lands on. */}
         <Toaster
+          // BELOW 600px sonner swaps to this offset instead of its 24px default
+          // (its own breakpoint, not the app's — sonner owns its layout). 12 a
+          // side is the drawing's. The bottom is `max(14px, env(...))` — 14 and
+          // not 12, because a toast is the one surface with nothing below it to
+          // borrow from — and it pays back `env(safe-area-inset-bottom)` whenever
+          // that is larger, so it never sits under the home indicator now that
+          // `viewport-fit=cover` extends the page there.
+          // The position stays sonner's default, bottom-right: at these widths
+          // the two offsets make it span the width anyway, and moving it would
+          // change the desktop app for no reason.
+          mobileOffset={{
+            left: '12px',
+            right: '12px',
+            bottom: 'max(14px, env(safe-area-inset-bottom))',
+          }}
           toastOptions={{
             style: {
               borderRadius: '13px',

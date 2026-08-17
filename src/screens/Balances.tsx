@@ -4,16 +4,19 @@ import { BalancesArea } from '../components/charts/BalancesArea';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
 import { balanceChartData, buildBalanceRow, paginateSnapshots } from './balances/balances';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 export function Balances() {
   const f = useFormat();
   const t = useT();
+  const desktop = useIsDesktop();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const [page, setPage] = useState(0);
@@ -21,6 +24,34 @@ export function Balances() {
   const chartData = balanceChartData(snapshots, assets);
   const { rows, page: currentPage, totalPages, total } = paginateSnapshots(snapshots, page);
   const earliest = [...snapshots].sort((a, b) => a.date.localeCompare(b.date))[0]?.date;
+
+  // The pagination strip belongs to the screen, not to either form of the data,
+  // so it is written once and placed under whichever one is on screen.
+  const pager = (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
+      <span>
+        {t.analytics.prose.showingSnapshots(rows.length, total, earliest ? f.date(earliest) : '—')}
+      </span>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="px-3.5 py-1.5 text-xs"
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+          disabled={currentPage === 0}
+        >
+          {t.analytics.prev}
+        </Button>
+        <Button
+          variant="outline"
+          className="px-3.5 py-1.5 text-xs"
+          onClick={() => setPage((p) => p + 1)}
+          disabled={currentPage >= totalPages - 1}
+        >
+          {t.analytics.next}
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -34,6 +65,13 @@ export function Balances() {
         )}
       </Card>
 
+      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
+          and `md:hidden`, so a phone still built the min-width table, mounted a
+          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
+          browser still paid for it. `useIsDesktop` is the same breakpoint the
+          shell, the charts and the DatePicker already switch on, so this mounts
+          one branch and only one. */}
+      {desktop ? (
       <Card radius={24} className="animate-in fade-in px-[22px] py-2.5 duration-300">
         {/* The table keeps its min-width; the Scroller is what clips and draws
             the rail. Card no longer sets overflow — a rounded card clipping its
@@ -85,34 +123,46 @@ export function Balances() {
           </table>
         </Scroller>
 
-        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
-          <span>
-            {t.analytics.prose.showingSnapshots(
-              rows.length,
-              total,
-              earliest ? f.date(earliest) : '—',
-            )}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="px-3.5 py-1.5 text-xs"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
-            >
-              {t.analytics.prev}
-            </Button>
-            <Button
-              variant="outline"
-              className="px-3.5 py-1.5 text-xs"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={currentPage >= totalPages - 1}
-            >
-              {t.analytics.next}
-            </Button>
-          </div>
-        </div>
+        <div className="mt-2.5">{pager}</div>
       </Card>
+      ) : (
+      /* THIS IS THE SCREEN THE CARD FORM EXISTS FOR. Balances is `3 + N assets`
+          columns, so its width GROWS with the portfolio — a horizontal scroll
+          fixed at 684 px today is a different number next year. One `dt` per
+          asset, then Cash and Total, makes the record grow in HEIGHT instead,
+          which the page already scrolls. */
+      <div className="flex flex-col gap-2.5">
+        {rows.length === 0 && (
+          <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
+            <div className="text-muted text-center">{t.analytics.empty.table}</div>
+          </Card>
+        )}
+        {rows.map((s, i) => {
+          const row = buildBalanceRow(s, assets);
+          return (
+            <RecordCard key={s.date} index={i} title={f.date(s.date)}>
+              {row.cells.map((cell, ci) => (
+                <Fact key={assets[ci].id} label={assets[ci].name}>
+                  {cell.status === 'value' && f.num(cell.amount)}
+                  {/* A partial row keeps its treatment exactly: `pending` in
+                      `faint`, and the total `—` rather than a number that would
+                      read as complete. */}
+                  {cell.status === 'pending' && (
+                    <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
+                  )}
+                  {cell.status === 'none' && '—'}
+                </Fact>
+              ))}
+              <Fact label={t.analytics.cash}>{f.num(row.cash)}</Fact>
+              <Fact label={t.analytics.totalUah}>
+                {row.total === null ? <span className="font-normal text-faint">—</span> : f.num(row.total)}
+              </Fact>
+            </RecordCard>
+          );
+        })}
+        <div className="px-1">{pager}</div>
+      </div>
+      )}
     </div>
   );
 }

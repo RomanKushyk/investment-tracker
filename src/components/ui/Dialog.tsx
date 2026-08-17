@@ -23,8 +23,14 @@ const OVERLAY_CLASS =
 // The border is transparent in light (the shadow separates it there) and a
 // hairline in dark, where --shadow-dialog is zeroed and the panel would
 // otherwise meet the scrim with no edge at all.
+// C5 — `dvh`, not `vh`. `100vh` on a mobile browser is the height the viewport
+// has with the toolbars RETRACTED, so `85vh` is 85% of a taller box than the one
+// on screen and a full dialog runs under the chrome at the bottom. `dvh` follows
+// the viewport as the toolbars come and go. On a desktop, where nothing
+// retracts, the two are identical — so this is one value rather than a
+// breakpoint-gated pair.
 const PANEL_CLASS =
-  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 
 // THE PANEL IS THREE BANDS AND ONLY THE MIDDLE ONE SCROLLS. A title that slides
 // away takes the answer to "what am I confirming" with it, and a Save button
@@ -66,7 +72,7 @@ export function DialogFooter({ children }: { children: ReactNode }) {
 /**
  * The scrolling band. `min-h-0` is what makes it give instead of pushing the
  * footer out of the panel — a flex item's floor is its content, so without it
- * a long form grows the column past `max-h-[85vh]` and the buttons leave the
+ * a long form grows the column past `max-h-[85dvh]` and the buttons leave the
  * screen rather than the body scrolling.
  *
  * It passes the PANEL's radius even though this band usually sits between two

@@ -19,6 +19,7 @@ import { parseLeadDays } from './settings/settings';
 import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 import { useT } from '../i18n/useT';
+import { TAP_44 } from '../components/ui/tap-target';
 
 // Section microlabel — the card-label idiom shared with Overview's cards
 // (design/extensions/settings.dc.html S2, 10px uppercase tracking .12em).
@@ -93,7 +94,7 @@ function CurrencyControl() {
       type="button"
       aria-pressed={currency === c}
       onClick={() => setCurrency(c)}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${currency === c ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-muted hover:opacity-85'}`}
     >
       {label}
     </button>
@@ -164,7 +165,7 @@ function ThemeControl() {
           role="radio"
           aria-checked={theme === value}
           onClick={() => setTheme(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
         >
           {t.settings.theme[value]}
         </button>
@@ -202,7 +203,7 @@ function LanguageControl() {
           role="radio"
           aria-checked={language === value}
           onClick={() => setLanguage(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${language === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
         >
           {t.settings.language[value]}
         </button>

@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 
 import { AssetAvatar } from '../../components/ui/AssetAvatar';
+import { TAP_44, TAP_44_BOX } from '../../components/ui/tap-target';
 import { Card } from '../../components/ui/Card';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
 import { yieldSinceStart } from '../../core/derive';
@@ -76,7 +77,7 @@ function OfferLine({
       <button
         type="button"
         onClick={onAccept}
-        className={`cursor-pointer rounded-[7px] border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
+        className={`${TAP_44} cursor-pointer rounded-[7px] border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
           stale
             ? 'border-warn text-warn hover:bg-page'
             : 'border-faint text-ink hover:border-muted hover:bg-page'
@@ -84,11 +85,19 @@ function OfferLine({
       >
         {label}
       </button>
+      {/* A REAL 44px box, not `TAP_44`. This ✕ draws no fill and no border —
+          only the 11px glyph — so growing the box moves nothing visually, and
+          it is what stops the two controls fighting. With the overlay it
+          reached (44 − 19) / 2 = 12.5px to its left, across the 8px gap and
+          4.5px onto the accept button; being later in DOM order at the same
+          z-index it won, so a tap on the last 4.5px of "Use 68 702,10"
+          DISCARDED the fetched quote. Measured, not theorised. A real box is
+          laid out, so the gap holds. */}
       <button
         type="button"
         aria-label={dismissLabel}
         onClick={onDismiss}
-        className="text-muted cursor-pointer p-1 opacity-85 transition hover:opacity-100 active:scale-[.97]"
+        className={`${TAP_44_BOX} text-muted cursor-pointer p-1 opacity-85 transition hover:opacity-100 active:scale-[.97]`}
       >
         <X size={11} strokeWidth={2.75} />
       </button>
@@ -226,9 +235,19 @@ export function QuoteRow({
 
   return (
     <Card className="animate-in flex flex-col gap-2 fade-in px-5 py-3.5 duration-300 slide-in-from-bottom-1">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* TWO LINES BELOW THE BREAKPOINT, as S4 draws it: [avatar][name] on the
+          first, [input][delta] on the second. The single wrapping row is a
+          desktop shape — at 360 it leaves the input about 100px, and a 16px
+          value (G-4) needs 110 for `68 702,10` plus its padding, so the number
+          the screen exists to type was being clipped by its own field.
+          `basis-[calc(100%-60px)]` is the avatar (48) plus 12 — one more than
+          the row's own `max-md:gap-x-2`, so the basis is 4px short and `flex-1`
+          grows it back. Deliberately not exact: the line has to be FULL for the
+          three that follow to wrap together, and rounding the basis down is what
+          guarantees that on a sub-pixel width. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-md:gap-x-2">
         <AssetAvatar code={asset.code} colorKey={asset.colorKey} size={48} />
-        <div className="min-w-[110px] flex-1 break-words">
+        <div className="min-w-[110px] flex-1 break-words max-md:basis-[calc(100%-60px)]">
           <div className="text-sm font-semibold">{asset.name}</div>
           <div className="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
             <span>
@@ -245,13 +264,20 @@ export function QuoteRow({
         {/* The input keeps its geometry; the ghost is real text rendered OVER
             its empty value (never a placeholder — a placeholder would vanish on
             focus and could never be told apart from yesterday's hint). */}
-        <div className="relative flex max-w-[160px] min-w-[90px] flex-1 items-center">
+        <div className="relative flex max-w-[160px] min-w-[90px] flex-1 items-center max-md:max-w-none">
           <input
             id={`quote-${asset.id}`}
             name={`quote-${asset.id}`}
             title={ghost !== undefined ? t.dailyQuotes.provenance.ghost : undefined}
+            // THE SECOND DELIBERATE G-2 EXCEPTION: 36 -> 44 below the
+            // breakpoint, radius recomputed as round(44 × 0.26) = 11. This is
+            // the control of the daily ritual, so a bigger target here is the
+            // design rather than a concession. The row's avatar stays 48, which
+            // keeps it inside the 60-70% block rule (README §4) as long as the
+            // row's height does not shrink.
+            // The 16px type comes from the G-4 rule in index.css, not from here.
             className={
-              'bg-card h-9 w-full rounded-[9px] border px-3 text-right font-body text-[13px] transition ' +
+              'bg-card h-9 max-md:h-11 w-full rounded-[9px] max-md:rounded-[11px] border px-3 text-right font-body text-[13px] transition ' +
               (filled
                 ? 'border-pos-border'
                 : ghost !== undefined

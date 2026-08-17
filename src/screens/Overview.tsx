@@ -211,18 +211,36 @@ export function Overview() {
                 const value = values[a.id] ?? 0;
                 const yield_ = yieldSinceStart(value, invested[a.id] ?? 0);
                 return (
+                  // A4 — THE FIXED VALUE COLUMNS DROP BELOW THE BREAKPOINT, and
+                  // the row folds to two lines instead of losing a field. The
+                  // 110 and 60 exist to align five rows' figures into a column;
+                  // that is worth 170px of a 1.5fr card and not worth 170px of a
+                  // 336px phone, where they make the row `min-w-fit` and push a
+                  // horizontal rail under a list that would otherwise fit.
+                  // Measured at 292px of usable card width: name, type·share,
+                  // value and yield are 311px on one line and 285px on two. So
+                  // the identity keeps line 1 and the three figures take line 2
+                  // — nothing is hidden, which is owner decision 1 (full parity,
+                  // not a phone subset). Above the breakpoint nothing moves.
                   <div
                     key={a.id}
-                    className={`animate-in fade-in slide-in-from-bottom-1 flex min-w-fit items-center gap-3.5 duration-300 ${STAGGER[i % STAGGER.length]}`}
+                    className={`animate-in fade-in slide-in-from-bottom-1 flex min-w-fit items-center gap-3.5 duration-300 max-md:min-w-0 max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1 ${STAGGER[i % STAGGER.length]}`}
                   >
                     <ColorDot colorKey={a.colorKey} />
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{a.name}</span>
+                    {/* `basis-[calc(100%-18px)]` is the dot (10) plus the row's
+                        gap (8): it fills line 1 exactly, which is what makes the
+                        three figures wrap together rather than one at a time. */}
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-18px)]">
+                      {a.name}
+                    </span>
                     <span className="text-muted text-xs whitespace-nowrap">
                       {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
                     </span>
-                    <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
+                    <strong className="w-[110px] text-right text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
+                      {f.money(value)}
+                    </strong>
                     <span
-                      className={`w-[60px] text-right text-xs font-bold ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+                      className={`w-[60px] text-right text-xs font-bold whitespace-nowrap max-md:w-auto ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
                     >
                       {f.pct(yield_)}
                     </span>

@@ -2,7 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` is HALF of a pair and useless alone: without it
+         every `env(safe-area-inset-*)` in the stylesheet resolves to 0, so the
+         header's top inset and the action bar's bottom inset silently do
+         nothing on the one class of device they exist for (phase 6, G-3). With
+         it, the page also extends UNDER the notch and the home indicator — so
+         every edge that a finger or a cutout can reach now has to pay the inset
+         back explicitly. That is the trade, and it is why the two are one
+         change. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Both themes exist now (A9), so the UA is told so before any CSS

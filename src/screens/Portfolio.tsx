@@ -1,6 +1,8 @@
+import { AssetAvatar } from '../components/ui/AssetAvatar';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
+import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
@@ -23,6 +25,7 @@ import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").
@@ -30,9 +33,14 @@ function highlightLabel(asset: Asset): string {
   return asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : asset.name;
 }
 
+function signClass(v: number): string {
+  return v < 0 ? 'text-neg' : 'text-pos';
+}
+
 export function Portfolio() {
   const f = useFormat();
   const t = useT();
+  const desktop = useIsDesktop();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
@@ -52,10 +60,26 @@ export function Portfolio() {
   const now = latestSnapshotDate(snapshots);
   const bestWeeks = best && now ? Math.round(daysBetween(best.asset.firstPurchase, now) / 7) : undefined;
 
+  // One shape for both forms, so the table and the cards read the same numbers
+  // from the same place rather than each doing the arithmetic again (S3).
+  const rows = assets.map((a) => {
+    const value = values[a.id] ?? 0;
+    const inv = invested[a.id] ?? 0;
+    const reinv = reinvested[a.id] ?? 0;
+    return { asset: a, value, inv, reinv, pnl: value - inv, pnlPct: yieldSinceStart(value, inv) };
+  });
+
   return (
     <div>
       <ScreenHeader title={t.screen.portfolio.title} subtitle={t.screen.portfolio.subtitle} />
 
+      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
+          and `md:hidden`, so a phone still built the min-width table, mounted a
+          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
+          browser still paid for it. `useIsDesktop` is the same breakpoint the
+          shell, the charts and the DatePicker already switch on, so this mounts
+          one branch and only one. */}
+      {desktop ? (
       <Card radius={24} className="animate-in fade-in mb-3.5 px-[22px] py-2.5 duration-300">
         {/* The table keeps its min-width; the Scroller is what clips and draws
             the rail. Card no longer sets overflow — a rounded card clipping its
@@ -77,48 +101,37 @@ export function Portfolio() {
               </tr>
             </thead>
             <tbody>
-              {assets.map((a) => {
-                const value = values[a.id] ?? 0;
-                const inv = invested[a.id] ?? 0;
-                const reinv = reinvested[a.id] ?? 0;
-                const pnl = value - inv;
-                const pnlPct = yieldSinceStart(value, inv);
-                return (
-                  <tr
-                    key={a.id}
-                    className="border-hairline hover:bg-page/60 border-t transition-colors"
-                  >
-                    <td className="py-2 font-semibold">{a.name}</td>
-                    <td className="py-2">
-                      <Tag colorKey={a.colorKey}>{t.asset.yieldShort[a.yieldType]}</Tag>
-                    </td>
-                    <td className="py-2 text-right">{f.num(inv)}</td>
-                    <td className="py-2 text-right">{reinv > 0 ? f.num(reinv) : '—'}</td>
-                    <td className="py-2 text-right">{f.num(value)}</td>
-                    <td
-                      className={`py-2 text-right font-bold ${pnl < 0 ? 'text-neg' : 'text-pos'}`}
-                    >
-                      {f.signedNum(pnl)}
-                    </td>
-                    <td
-                      className={`py-2 text-right font-bold ${pnlPct < 0 ? 'text-neg' : 'text-pos'}`}
-                    >
-                      {f.pct(pnlPct)}
-                    </td>
-                    <td className="py-2 text-right">{f.pctPlain(sharePct(value, total))}</td>
-                  </tr>
-                );
-              })}
+              {rows.map((r) => (
+                <tr
+                  key={r.asset.id}
+                  className="border-hairline hover:bg-page/60 border-t transition-colors"
+                >
+                  <td className="py-2 font-semibold">{r.asset.name}</td>
+                  <td className="py-2">
+                    <Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>
+                  </td>
+                  <td className="py-2 text-right">{f.num(r.inv)}</td>
+                  <td className="py-2 text-right">{r.reinv > 0 ? f.num(r.reinv) : '—'}</td>
+                  <td className="py-2 text-right">{f.num(r.value)}</td>
+                  <td className={`py-2 text-right font-bold ${signClass(r.pnl)}`}>
+                    {f.signedNum(r.pnl)}
+                  </td>
+                  <td className={`py-2 text-right font-bold ${signClass(r.pnlPct)}`}>
+                    {f.pct(r.pnlPct)}
+                  </td>
+                  <td className="py-2 text-right">{f.pctPlain(sharePct(r.value, total))}</td>
+                </tr>
+              ))}
               <tr className="border-panel-border border-t-2">
                 <td className="py-2 font-bold">{t.analytics.prose.totalPlusCash(f.money(cash))}</td>
                 <td className="py-2"></td>
                 <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
                 <td className="py-2 text-right font-bold">{f.num(reinvestedTotal(transactions))}</td>
                 <td className="py-2 text-right font-bold">{f.num(total)}</td>
-                <td className={`py-2 text-right font-bold ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}>
+                <td className={`py-2 text-right font-bold ${signClass(net.uah)}`}>
                   {f.signedNum(net.uah)}
                 </td>
-                <td className={`py-2 text-right font-bold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}>
+                <td className={`py-2 text-right font-bold ${signClass(net.pct)}`}>
                   {f.pct(net.pct)}
                 </td>
                 <td className="py-2 text-right font-bold">{f.pctPlain(100, 0)}</td>
@@ -126,10 +139,51 @@ export function Portfolio() {
             </tbody>
           </table>
         </Scroller>
-        <div className="text-muted mt-2.5 text-[11.5px]">
-          {t.analytics.prose.capitalGainNote}
-        </div>
+        <div className="text-muted mt-2.5 text-[11.5px]">{t.analytics.prose.capitalGainNote}</div>
       </Card>
+      ) : (
+      <div className="mb-3.5 flex flex-col gap-2.5">
+        {rows.map((r, i) => (
+          <RecordCard
+            key={r.asset.id}
+            index={i}
+            avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
+            title={r.asset.name}
+            tag={<Tag colorKey={r.asset.colorKey}>{t.asset.yieldShort[r.asset.yieldType]}</Tag>}
+          >
+            <Fact label={t.analytics.invested}>{f.num(r.inv)}</Fact>
+            <Fact label={t.analytics.ofItReinvested}>{r.reinv > 0 ? f.num(r.reinv) : '—'}</Fact>
+            <Fact label={t.analytics.valueNow}>{f.num(r.value)}</Fact>
+            <Fact label={t.analytics.share}>{f.pctPlain(sharePct(r.value, total))}</Fact>
+            <Fact label={t.analytics.capitalGainUah}>
+              <span className={signClass(r.pnl)}>{f.signedNum(r.pnl)}</span>
+            </Fact>
+            <Fact label={t.analytics.capitalGainPct}>
+              <span className={signClass(r.pnlPct)}>{f.pct(r.pnlPct)}</span>
+            </Fact>
+          </RecordCard>
+        ))}
+        {/* The bolded total row survives as a final card — no avatar, the same
+            copy, and the `border-t-2` that separated it in the table. */}
+        <RecordCard
+          index={rows.length}
+          title={t.analytics.prose.totalPlusCash(f.money(cash))}
+          className="border-panel-border border-t-2"
+        >
+          <Fact label={t.analytics.invested}>{f.num(investedTotal)}</Fact>
+          <Fact label={t.analytics.ofItReinvested}>{f.num(reinvestedTotal(transactions))}</Fact>
+          <Fact label={t.analytics.valueNow}>{f.num(total)}</Fact>
+          <Fact label={t.analytics.share}>{f.pctPlain(100, 0)}</Fact>
+          <Fact label={t.analytics.capitalGainUah}>
+            <span className={signClass(net.uah)}>{f.signedNum(net.uah)}</span>
+          </Fact>
+          <Fact label={t.analytics.capitalGainPct}>
+            <span className={signClass(net.pct)}>{f.pct(net.pct)}</span>
+          </Fact>
+        </RecordCard>
+        <div className="text-muted px-1 text-[11.5px]">{t.analytics.prose.capitalGainNote}</div>
+      </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
         {best ? (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
@@ -33,6 +34,8 @@ import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { TransactionPanel } from './TransactionPanel';
 import { useFormat } from '../hooks/useFormat';
+import { useIsDesktop } from '../hooks/useIsDesktop';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useT } from '../i18n/useT';
 
 /** One frozen instance, so "no assets yet" keeps a STABLE identity. A fresh
@@ -124,6 +127,18 @@ export function DailyQuotes() {
     return out;
   }, [assets, fetch.feed, feedDate]);
 
+  // S4 / DECISION D-a — A STICKY ACTION BAR, not scroll-into-view. The choice
+  // is forced by where the controls sit: `Save snapshot` and `Copy yesterday`
+  // are BELOW all four quote rows, so no amount of scrolling the focused row
+  // brings them out from under the keyboard. The user would have to dismiss it,
+  // losing the caret, to reach the button that ends the ritual.
+  //
+  // It carries the same two controls, not new ones — so they are rendered here
+  // or in flow, never both.
+  const desktop = useIsDesktop();
+  const keyboardInset = useKeyboardInset();
+  const stickyActions = !desktop && filledCount > 0;
+
   const lastSavedAt = maxSavedAt(snapshots);
   const values = latestQuotes(snapshots);
   const invested = investedByAsset(transactions);
@@ -158,7 +173,19 @@ export function DailyQuotes() {
       {/* S6 — above the header row, full content width; quote-missing is
           suppressed here (the progress pill already says it). */}
       <ReminderStrip place="daily-quotes" />
-      <div className="flex flex-wrap items-start gap-6">
+      {/* A CONTAINER, so the side column can be capped only while it is
+          actually beside something. `max-w-[360px]` exists to stop the
+          transaction panel stretching across a wide desktop — but the moment
+          the two columns wrap onto separate rows it stops being a cap and
+          becomes a hole: measured, the aside sat at 360 while its row was
+          465 wide at a 500px viewport and 733 at 767, leaving 106 to 373px of
+          dead space to its right.
+          884 is not a guess: it is the two flex bases plus the gap between
+          them (560 + 24 + 300), i.e. exactly the width at which flexbox stops
+          wrapping them. A media query cannot ask this — the answer depends on
+          the CONTAINER, which is the viewport minus the sidebar minus main's
+          padding, and those differ per shell. */}
+      <div className="@container flex flex-wrap items-start gap-6">
         <div className="min-w-0 flex-[1_1_560px]">
           <div className="mb-1 flex flex-wrap items-center gap-3">
             <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
@@ -222,10 +249,17 @@ export function DailyQuotes() {
           </div>
 
           <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
-            <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
-            <Button variant="outline" onClick={handleCopyYesterday}>
-              {t.dailyQuotes.copyYesterday}
-            </Button>
+            {!stickyActions && (
+              <>
+                <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
+                <Button variant="outline" onClick={handleCopyYesterday}>
+                  {t.dailyQuotes.copyYesterday}
+                </Button>
+              </>
+            )}
+            {/* "Last saved" stays in flow in both arrangements: it is a fact
+                about the data, not a control, and a fact does not need to
+                follow the thumb. */}
             <span className="text-muted ml-auto text-xs">
               {lastSavedAt
                 ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
@@ -236,7 +270,7 @@ export function DailyQuotes() {
           <YieldTeaser assets={assets} values={values} invested={invested} />
         </div>
 
-        <aside className="min-w-0 flex max-w-[360px] flex-[1_1_300px] flex-col gap-3.5">
+        <aside className="min-w-0 flex flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]">
           {/* S5 cards first, then Transaction, then Recent transactions. */}
           {due.map((d) => {
             const asset = assets.find((a) => a.id === d.assetId)!;
@@ -254,6 +288,51 @@ export function DailyQuotes() {
           <TransactionPanel />
         </aside>
       </div>
+
+      {stickyActions && (
+        <>
+          {/* The page has to give up the bar's height, or the last card sits
+              under it at the bottom of the scroll range — the exact obstruction
+              the whole scroll surface exists to prevent (D65).
+              MIRRORS THE BAR'S OWN EXPRESSION rather than a literal: the bar is
+              1 border + `pt-2` + a 44px button + `pb-[max(8px, env(...))]`, so a
+              flat 76 was right at a 0 inset and 11px short on a home-indicator
+              device — exactly where the obstruction it prevents would come back.
+              The extra 8 is breathing room, not slack in the arithmetic. */}
+          <div
+            aria-hidden
+            className="h-[calc(61px+max(8px,env(safe-area-inset-bottom)))]"
+          />
+          {/* PORTALLED TO THE BODY on purpose. `position: fixed` resolves against
+              the nearest ancestor with a transform, and the route wrapper in
+              Layout carries `slide-in-from-bottom-2` for 300 ms on every
+              navigation — so a bar rendered in place would be pinned to that
+              wrapper for the length of the entry animation and jump afterwards.
+              The portal takes it out of reach of any transform. */}
+          {createPortal(
+            <div
+              // The bar rides the VISUAL viewport, not the layout one: on iOS
+              // the keyboard does not shrink the layout viewport, so `bottom: 0`
+              // would put these two buttons underneath it (B4). `bottom` rather
+              // than a transform, because a transform would make its own
+              // children's `position: fixed` resolve against it.
+              style={{ bottom: `${keyboardInset}px` }}
+              className="border-hairline bg-page animate-in slide-in-from-bottom-2 fixed inset-x-0 z-30 flex gap-2 border-t px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220"
+            >
+              {/* SQUARE CORNERS, hairline top edge — the same reading as the
+                  header bar (S2): a full-bleed bar has no designed short side,
+                  so the proportional rule has nothing to read. */}
+              <Button className="flex-1" onClick={handleSave}>
+                {t.dailyQuotes.saveSnapshot}
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={handleCopyYesterday}>
+                {t.dailyQuotes.copyYesterday}
+              </Button>
+            </div>,
+            document.body,
+          )}
+        </>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { PayoutsBars } from '../components/charts/PayoutsBars';
 import { Card } from '../components/ui/Card';
 import { KpiCard } from '../components/ui/KpiCard';
+import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
@@ -10,10 +11,12 @@ import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 
 export function Payouts() {
   const f = useFormat();
   const t = useT();
+  const desktop = useIsDesktop();
   const assets = useAssets().data ?? [];
   const transactions = useTransactions().data ?? [];
 
@@ -31,6 +34,16 @@ export function Payouts() {
 
   const logRows = payoutLogRows(transactions);
   const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
+  // The type Tag's paint is the row's KIND, not the asset's — dividends read
+  // `reit` and coupons `ovdp8976` in both forms, exactly as the table does.
+  const typeColorKey = (type: string): 'reit' | 'ovdp8976' =>
+    type === 'dividend_accrual' ? 'reit' : 'ovdp8976';
+  const typeLabel = (type: string) =>
+    type === 'dividend_accrual' ? t.analytics.prose.dividendTag : t.analytics.prose.couponTag;
+  const destination = (row: (typeof logRows)[number]) =>
+    row.destination.kind === 'reinvested'
+      ? t.analytics.prose.reinvestedInto(f.money(row.destination.amount))
+      : t.analytics.prose.toAccount;
 
   return (
     <div>
@@ -94,6 +107,13 @@ export function Payouts() {
         </div>
       </div>
 
+      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
+          and `md:hidden`, so a phone still built the min-width table, mounted a
+          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
+          browser still paid for it. `useIsDesktop` is the same breakpoint the
+          shell, the charts and the DatePicker already switch on, so this mounts
+          one branch and only one. */}
+      {desktop ? (
       <Card radius={24} className="animate-in fade-in px-[22px] py-2.5 duration-300">
         {/* The table keeps its min-width; the Scroller is what clips and draws
             the rail. Card no longer sets overflow — a rounded card clipping its
@@ -118,24 +138,35 @@ export function Payouts() {
                   <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
                   <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
                   <td className="py-2">
-                    <Tag colorKey={row.type === 'dividend_accrual' ? 'reit' : 'ovdp8976'}>
-                      {row.type === 'dividend_accrual'
-                        ? t.analytics.prose.dividendTag
-                        : t.analytics.prose.couponTag}
-                    </Tag>
+                    <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
                   </td>
                   <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
-                  <td className="py-2">
-                    {row.destination.kind === 'reinvested'
-                      ? t.analytics.prose.reinvestedInto(f.money(row.destination.amount))
-                      : t.analytics.prose.toAccount}
-                  </td>
+                  <td className="py-2">{destination(row)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </Scroller>
       </Card>
+      ) : (
+      /* Below the breakpoint the log becomes one card per payout: the DATE and
+         the asset are the record's identity, so they go in the header, and the
+         type keeps its Tag there. Two facts remain. */
+      <div className="flex flex-col gap-2.5">
+        {logRows.map((row, i) => (
+          <RecordCard
+            key={`${row.date}-${row.assetId}-${row.amount}`}
+            index={i}
+            eyebrow={f.date(row.date)}
+            title={assetName(row.assetId)}
+            tag={<Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>}
+          >
+            <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
+            <Fact label={t.analytics.destination}>{destination(row)}</Fact>
+          </RecordCard>
+        ))}
+      </div>
+      )}
     </div>
   );
 }

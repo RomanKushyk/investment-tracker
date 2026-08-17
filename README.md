@@ -55,6 +55,25 @@ Do **not** apply the proportional rule to a full-height panel: its short side is
 
 **Circle in a block** — an avatar inside a row occupies **60–70%** of the row's height (quote row: 48px circle in a 76px row = 63%).
 
+**44px is HIT AREA, never geometry (D66).** Below `md` every pressable gets a
+44 × 44 region through `components/ui/tap-target.ts` — a transparent `::after`,
+centred, never smaller than the control it sits in — and **the drawn box does not
+move**. That is what protects the rule above: growing controls to 44 would take
+the nav pill from 9 to 11, `Button` md from 10 to 11 and the currency track from
+13 to 17, rewriting five radii as a side effect of an accessibility fix. Exactly
+**two** controls are allowed to grow, both of the daily ritual — the quote input
+and `Button` size `md`, each 36/40 → 44 with the radius **recomputed** as
+`round(44 × 0.26) = 11`. Text fields are not among them, and cannot be: an
+`<input>` is a replaced element and renders no pseudo-element at all. The class
+also needs SPACING from its caller — two overlapping 44px regions hand the tap to
+the wrong control — which is why the sidebar nav opens its column gap to 8 below
+the breakpoint (36 + 8 = 44, and the regions tile exactly).
+
+**Two full-bleed bars take square corners** — the mobile header and the sticky
+action bar. The proportional rule reads two DESIGNED dimensions; a bar whose long
+side runs edge to edge has only one, so `0.26 × 56` would be a radius taken from a
+layout dimension. Their boundary is a `hairline`, not a curve.
+
 **Overlays.** Popovers and dialogs are surfaces (16 / 20 / 24) *unless* a rounded child hugs their corners at a uniform gap, which makes them concentric instead — the `Select` popover is 14 (items 9 + 5 inset), while the `DatePicker` (16) and `Dialog` (24) are not, because their corner-adjacent children do not hug all four sides.
 
 **Scrollbars.** Nothing scrolls with the platform's bar — every constrained box goes through `src/components/ui/Scroller.tsx` (D65). The rail is 12px, `2+2+4+2+2`, thumb r1 and rail r5, with a margin of **8 equal on all four sides** and a reserved gutter of `2m + 12` = 28 taken from the ScrollArea ROOT's padding — not the scrolling child's, which would slide out from under the rail. Dialogs are three bands (`DialogHeader` / `DialogBody` / `DialogFooter`) and only the middle one scrolls.
@@ -65,7 +84,26 @@ Do **not** apply the proportional rule to a full-height panel: its short side is
 
 ## 5. Layout shell
 
-`flex; min-height:100vh`.
+`flex; min-height:100dvh` — `dvh`, never `vh`: on a mobile browser `100vh` is the
+height the viewport has with the toolbars RETRACTED, so a `vh` shell is taller
+than what is on screen and its bottom sits under the chrome.
+
+**TWO SHELLS, ONE BREAKPOINT — `md`, 768px (D66).** Below it the sidebar is an
+off-canvas 280px drawer over `--color-scrim` and a 56px header bar carries the
+capital; at and above it, the layout below, plus a control that collapses the rail
+and hands the header the same job. There is no third geometry: the 136px rail that
+used to appear under `sm` is retired. The breakpoint is written twice — `max-md:`
+in markup and `(min-width: 768px)` in `hooks/useIsDesktop.ts`, because a drawer
+needs a focus trap and a focus trap has to know which shell is mounted — and the
+two must stay one number.
+
+**One composition, laid out two ways.** `SidebarPanel` is the whole navigation;
+`variant` decides only what belongs to a shell rather than to the nav — the
+collapse control, and the Total capital card, which below the breakpoint IS the
+header. Both read the same `useCapitalCard`, so the headline is derived once.
+Both shells are three bands (lockup / scrolling nav / pinned cluster) and only the
+middle one scrolls — measured, the sidebar's content is 851px in a 740px viewport,
+so an `mt-auto` cluster sits below the fold.
 
 **Sidebar** — 244px fixed, bg `#26262a`, padding 16px, `border-radius: 0 30px 30px 0` (concentric: 14 + 16), sticky full-height, **internally scrollable** (footer cards must never clip on short viewports). Decorative 200px circle `#333338` @ .7 opacity overflowing bottom-right. Contents top→bottom:
 1. Logo lockup card (`#333338`, radius 14, padding 10px 15px, `justify-content:flex-start`): 36px light circle containing **mark 04** — four bars, height is value and opacity is age — beside the wordmark "Quirenote" over "INVEST TRACKER" microlabel. The circle no longer carries the currency symbol; the toggle below is the only currency indicator. The DEMO badge is absolutely pinned to the card's top-right corner at the card's own 15/10 padding and scaled to .75 — out of flow, so it cannot stretch the row.
@@ -74,7 +112,15 @@ Do **not** apply the proportional rule to a full-height panel: its short side is
 4. `margin-top:auto` → currency segmented toggle (container `#333338`, radius **13** = segment 7 + 6 padding, padding 6px; active segment `#e9e8e6`, radius 7). The sliding thumb's width encodes the container geometry as `50% − (padding + gap/2)` — re-derive it whenever that padding moves.
 5. "Total capital" card (`#333338`, radius **13** — matched to the toggle above it, so the two read as one bottom cluster): label, value (21px, white), delta line (`#b9cdb4`).
 
-**Main** — `flex:1; min-width:0`, padding 32px 36px 48px. Every tab: h2 (26px) + one-line muted subtitle, then content. Grids use `repeat(auto-fit,minmax(200px,1fr))` style wrapping — no horizontal scroll at any width.
+**Main** — `flex:1; min-width:0`, padding 32px 36px 48px (12px inline and 16px top below `md`). Every tab: h2 (26px) + one-line muted subtitle, then content. Grids use `repeat(auto-fit,minmax(200px,1fr))` style wrapping — **no horizontal scroll at any width, and since D66 that is measured rather than intended**: zero on all ten routes at 360, in both themes and both languages.
+
+**Platform (D66).** The viewport meta carries `viewport-fit=cover`, so the page
+extends under a notch and every edge that a cutout can reach pays the inset back
+explicitly: `env(safe-area-inset-left/right)` on the content column, `-top` on the
+header, `-bottom` on the drawer and the sticky action bar. The two are one change
+— without `viewport-fit=cover` every `env()` resolves to 0. The root also sets
+`overscroll-behavior-y: contain`, so a pull-to-refresh cannot discard an unsaved
+quote draft.
 
 ## 6. Screens
 

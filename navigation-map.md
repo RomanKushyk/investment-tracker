@@ -21,7 +21,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 | Route | Screen | Built in | Status |
 |-------|--------|----------|--------|
-| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); sidebar narrows to a rail below 640px; third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1) |
+| — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1); **TWO SHELLS since A17/D66 — below 768px the sidebar is an off-canvas drawer and a header bar carries the capital; the old 136px rail is gone** |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — quote entry flow + transaction panel live; type select incl. Withdrawal/Redemption (P2 `feat/metrics-exposure`, S10); **"Fetch quotes" button + provenance chips + "Use fetched?" offer (P3 `feat/fetch-quotes`, S1–S3); ghost accrual suggestions + coupon-due card (P3 `feat/fixed-yield`, S4–S5); ReminderStrip above the header (P3 `feat/reminders`, S6)** |
 | `/overview` | Overview | Task 5 | done — 5 KPIs currency-aware (5th "Total return (net)" + "Capital gain" relabel + net-of-tax income line + drift chip, P2 `feat/metrics-exposure`); values tween ~300ms on toggle (Task 7); "Next payouts" projects user-created bonds too (P3 `feat/fixed-yield`); ReminderStrip above the ScreenHeader (P3 `feat/reminders`, S6) |
 | `/balances` | Balances | Task 6 | done |
@@ -35,19 +35,140 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 ## Global shell (visible on every route)
 
-Expect: dark **244px** sidebar, padding 16, right edge rounded **30** (concentric with the 14 of the logo card inside it — D56), internally scrollable (test on a short window — footer cards must never clip). Since D65 the aside itself no longer scrolls: its content sits in a `Scroller`, and on a short window a **12px rail** appears 24px in from the right edge (its 8px margin inside the p-4) and the nav narrows by 28 — it must never be crossed by a bar or cut by the 30px corner. Below `sm` the rail is 136px and its radius 24.
+**AT AND ABOVE 768px** (`md` — the app's one breakpoint, D66) expect: dark **244px** sidebar, padding 16, right edge rounded **30** (concentric with the 14 of the logo card inside it — D56). Since D65 the aside itself no longer scrolls, and since D66 it is THREE BANDS — lockup, scrolling nav, pinned cluster — so the currency toggle and the capital card stay on screen at 740px of viewport height and at 640. On a short window a **12px rail** appears in the nav band, 8px in from its edge, and the nav narrows by 28; it must never be crossed by a bar or cut by the 30px corner. On the sidebar's inverted plane the rail reads `panel-border`/`faint` at their DARK-theme values (D66) — quiet furniture, not a white stick.
+
+**BELOW 768px there is no rail at all** — see "Mobile shell" below.
 
 **Shapes, since D56:** nothing in the app is a capsule any more. Controls take `round(min(w,h) × 0.26)` — badges 5-6, segments 7, small buttons 8, inputs and nav pills 9, larger buttons and segmented boxes 10. The only round things left are the logo circle, asset avatars, colour dots and the decorative blob. If you see a `rounded-full` capsule anywhere, that is a regression.
 
 - **Logo lockup card** (`#333338`, radius 14, `justify-content:flex-start`): a 36px light circle holding the **Quirenote mark** — four bars, rising, the last one tallest — beside the wordmark "Quirenote" / "INVEST TRACKER". The circle **no longer carries the currency symbol**; it does not change when the currency is toggled. Same mark in the browser tab (`public/favicon.svg`, theme-aware) and as the iOS home-screen icon.
-- **DEMO badge (S5/D16):** while the demo dataset is active, an amber `DEMO` badge (warn-tint tokens, radius 5, scaled to **.75**) is pinned to the **top-right corner of the logo card**, inset by the card's own 15/10 padding, on **every route**. It is absolutely positioned, so it must not stretch the card — the card stays ~57px tall, `title` tooltip "Demo dataset — reference data. Switch in Settings → Data."; it fades/zooms in on first paint (D7). Below 640px it replaces the "INVEST TRACKER" microline (nav never pushed down). In live mode the badge is absent and the microline always shows.
+- **DEMO badge (S5/D16):** while the demo dataset is active, an amber `DEMO` badge (warn-tint tokens, radius 5, scaled to **.75**) is pinned to the **top-right corner of the logo card**, inset by the card's own 15/10 padding, on **every route**. It is absolutely positioned, so it must not stretch the card — the card stays ~57px tall, `title` tooltip "Demo dataset — reference data. Switch in Settings → Data."; it fades/zooms in on first paint (D7). **Since D66 it steps left to `right-[38px]` when the desktop collapse control shares that corner** (6 inset + 26 button + 6 gap), which is what leaves `Quirenote` 5.9px of clearance on line 1; in the drawer, where there is no collapse control, it sits at the plate's own 15px padding. In live mode the badge is absent and the microline always shows.
 - Nav: "DAILY ENTRY" group → "Daily quotes" pill; "ANALYTICS" group → 8 pills; "SETTINGS" group → "Settings" pill (next-phase P2 — same pill anatomy/motion, no icon). Active pill = light bg + `aria-current="page"`; clicking navigates without full reload.
 - Currency toggle (₴ / $ segmented control, radius **13**, padding 6, segments 7) near the bottom — **the only currency indicator in the sidebar**. 13 is concentric: segment 7 + the 6 padding around it. It is borderless; the bordered switches in Settings add the 1px border too and land on 12.
 - **Total capital card** (radius **13** — matched to the toggle above it, so the two read as one bottom cluster)**:** value `149 016 ₴` (whole ₴), sub-line `+3,08 % · 3 324,03 $`. After toggling to $: the logo does **not** change (the mark is not the currency), only the toggle's own thumb moves; value/sub-line flip to the USD form (`$…` main, `… · 149 016,36 ₴` sub); choice **survives a page reload**.
 - **No sidebar Backup pill** (removed in next-phase P2 per S7) — the backup download lives on `/settings` → Data.
 - **Version badge** at the very bottom (below the capital card, centered muted micro-label): `v` + the `package.json` version — must match it exactly (see `docs/reference/VERSIONING.md`).
 - **App-open reminder toast (P3 `feat/reminders`, S6):** on every app OPEN (a full page load), if at least one undismissed reminder exists, exactly ONE plain sonner toast appears carrying the highest-severity banner sentence (+ ` · +N more` when others exist) — on the untouched demo seed that is **"No quotes saved today yet."**. It never repeats on client-side navigation (verified across four route changes) and never fires twice under StrictMode; `Reminders` OFF at boot means no toast at all.
-- No horizontal scroll at 360px viewport width on any route — **except three known pre-existing v1 layout defects**, `docs/plans/FOLLOW-UPS.md` items 10, 13 and 14: `/attributes` overflows **128px** (yield-type tag pills are `whitespace-nowrap` beside long asset names), `/settings` **77px** (nowrap buttons in an `items-end` column) and `/` **52px** (a 254px `inline-flex` span in a quote row). None comes from Phase 3 or from D65 — all three live in files the scroll work never touched — so do not report them as regressions. **`/overview`'s old 4px is fixed** (item 11, D65: the rows scroll inside their card now). Re-measured 2026-08-17 at 360×740; the other seven routes are 0.
+- **No horizontal scroll at 360px on ANY route, and there are no exceptions left.** Re-measured 2026-08-17 after A17/D66 at 360×740, in **both themes and both languages** — forty measurements, every one `0`. The three that used to be listed here (FOLLOW-UPS 10 `/attributes` 133px, 13 `/settings` 82px, 14 `/` 57px, plus `/overview`'s 4px which D65 had already fixed) are all closed. **Any non-zero reading at 360 is now a regression** — measure it as `document.documentElement.scrollWidth − clientWidth`, in Ukrainian, which is the wider language.
+
+## Mobile shell — below 768px (A17 / D66)
+
+**One breakpoint, `md` = 768px, and it is the only one.** Resize to **360 × 740**
+and run these; then to **768 × 800**, where the desktop shell must be back
+byte-for-byte. There is no third geometry — the old 136px rail is gone, and a
+`max-sm:` override anywhere in the shell is a regression.
+
+**The header bar (S2)**
+- Sticky at the top, **56px** tall plus `env(safe-area-inset-top)`, **square
+  corners** and a `hairline` bottom edge — a full-bleed bar has no designed short
+  side, so no proportional radius (README §4).
+- Left: a hamburger whose DRAWN glyph is 18 × 12 (three 2px bars, radius 1) inside
+  a **44 × 44** pressable box that has no fill and no edge of its own.
+- Then `TOTAL CAPITAL` in 9.5px uppercase `muted` over **`149 016 ₴`** at 18px
+  IBM Plex Sans bold; right, stacked: **`+3,08 %`** in `pos` over **`3 324,03 $`**
+  in `muted`. Toggling the currency in the drawer flips both. Both figures come
+  from the same `useCapitalCard` as the sidebar's card — a discrepancy between the
+  two is a defect, not a rounding difference.
+- With no KPIs at all the value and the delta are both a `faint` `—`.
+- It is a **light** surface: `page`/`ink`/`muted`/`pos`/`neg`/`hairline` only.
+  The focus ring on its trigger must be the ink one, NOT the sidebar's light ring
+  — `[data-dark-surface]` deliberately does not reach here.
+- At **≥ 768** the header is ABSENT while the sidebar is in flow, and appears only
+  when the sidebar is collapsed (fade + 4px rise, 220ms).
+
+**The drawer (S1)**
+- Tapping the hamburger slides a **280px** drawer in from the left over
+  `--color-scrim` (260ms in, 220ms out). It is the SAME navigation as the desktop
+  rail — same lockup, same pills, same currency toggle, same `rounded-r-[30px]`.
+- **The Total capital card is absent in the drawer.** The header carries that
+  number; drawing it twice would be two truths about one figure.
+- The bottom cluster is PINNED, not pushed by `mt-auto`: at 740px of viewport
+  height and at **640** the currency toggle and `v…` must both be on screen
+  without scrolling the drawer.
+- In **dark** the drawer takes a 1px `sidebar-muted` right edge; in light it draws
+  none, because the scrim already separates it (5.23:1 against 1.02:1 — D66).
+- Behaviour, all six: `Escape` closes and focus returns to the trigger · the
+  background is inert and Tab cycles inside the drawer · tapping a nav pill closes
+  it · the **hardware Back button closes it and stays on the route** · body scroll
+  is locked while open and the scroll POSITION is restored on close · under
+  `prefers-reduced-motion` it arrives instantly.
+- Nav pills stay 36px tall at radius 9 — the pressable region grows to 44 around
+  them and the column gap opens to 8, so the regions tile without overlapping. A
+  pill drawn at 44 (radius 11) is a regression: G-2 forbids it.
+
+**The record cards (S3)** — `/yield`, `/portfolio`, `/payouts`, `/balances`
+- Each table becomes a list of cards: `Card` radius 24, `p-[22px]`, avatar +
+  17px title + tag in the header, then a **two-column `<dl>`**. This is the
+  `/attributes` card, shared from `components/ui/RecordCard`.
+- **Every `dt` is the table's own `th`, character for character.** `Вкладено, ₴`
+  and `Вартість зараз, ₴` on Yield; `з них реінвестовано` and `Частка` on
+  Portfolio; `Сума, ₴` and `Призначення` on Payouts. A re-worded or abbreviated
+  term is a defect.
+- Numbers keep the TABLE format — `68 702,10`, never `68 702,10 ₴`. A card is not
+  prose (README §8).
+- Portfolio's bolded **Разом + готівка 7,75 ₴** row survives as a final card with
+  its `border-t-2`; Balances keeps `очікується` in `faint` and `—` for a partial
+  row's total.
+- At **≥ 768** the `<table>` is back, unchanged, and the card list is gone.
+
+**Daily quotes (S4)**
+- Each row is TWO lines: `[48px avatar][name + "… ₴ учора"]`, then
+  `[input][delta]`. The input is **44px tall at radius 11 with 16px type**; at
+  ≥768 it is back to 36 / radius 9 / 13px.
+- Once anything is filled, `Зберегти зріз` and `Скопіювати вчорашні` move into a
+  **sticky bar pinned to the bottom of the VISUAL viewport** — square corners,
+  `hairline` top edge, both buttons 44px at radius 11 — and they are NOT drawn in
+  flow at the same time. With a field focused they must stay above the keyboard.
+- `+ Новий актив…` in the transaction panel opens its sub-form with no horizontal
+  scroll.
+- **The Transaction / Recent-transactions `<aside>` fills the row whenever the two
+  columns are stacked** — 360, 500, 767 and 900 all measure zero dead space to its
+  right. Its `max-w-[360px]` is a container query (`@min-[884px]`) and re-engages
+  only when the two columns actually share a row: 340 at 1280, 360 at 1920.
+  A fixed 360-wide panel under a 733-wide column is the regression this replaced.
+
+**The overlays (S5)**
+- The `Dialog` is `calc(100vw − 32px)` wide, `max-h-[85dvh]`, three bands, and its
+  title and buttons do not move while the body scrolls.
+- The **date picker stops anchoring**: it opens as a centred **328px** sheet at
+  radius 16 over the dialog scrim, with day cells 42.3 × 44 and month-nav buttons
+  44 × 44. At ≥768 it is an anchored popover again, 269px, with 32px day cells.
+- Every field and both value-showing triggers (`Select`, `DatePicker`) read at
+  **16px** — under that iOS Safari zooms on focus and does not zoom back.
+- Toasts sit at the bottom, 12px a side, clear of `env(safe-area-inset-bottom)`,
+  and never under the header.
+
+**Charts without a pointer (S6)**
+- On `/balances`, `/payouts` and `/yield` a **tap pins the tooltip** to the nearest
+  point; a tap elsewhere moves it, a tap outside releases it. `/seasonality` is
+  deliberately NOT wired — it draws both its amounts on the bars — and
+  `/allocation` has no tooltip at all.
+- The plot is focusable in both shells: Tab to it and the tooltip appears at the
+  first point; ArrowRight walks it forward.
+- Payouts' tooltip reads `Купони : 0,00` / `Дивіденди : 472,13` — Ukrainian names
+  and comma decimals. `coupons : 472.13` is the pre-D66 defect.
+
+**Settings → Портфель**
+- Each asset is a clear two-line block below the breakpoint: the name owns line 1,
+  and the yield-type label plus `Змінити` / `Видалити` share line 2, ending at the
+  same right edge the name does. Rows are 6px apart, not 2. The zig-zag it
+  replaced — name left, type right, buttons left — is the regression to watch for.
+
+**Hit areas** — every pressable is 44 × 44 below 768, with exactly two documented
+exceptions (D66):
+- the **seven text fields**, which stay 36px tall on purpose — an `<input>` is a
+  replaced element and renders no pseudo-element at all, and growing the box would
+  move its radius from 9 to 11;
+- the **reminder strip's action link**, 133 × 37, because it is inline in a
+  sentence: a pseudo-element resolves against an inline element's first line box,
+  so the overlay lands unpredictably, and WCAG 2.5.8 exempts that case by name.
+
+Anything else under 44 is a regression. Watch in particular for a control with NO
+fill and NO border (an icon button, a ghost text button) carrying `TAP_44` — those
+take a REAL 44px box (`TAP_44_BOX`), because a centred overlay on a small control
+reaches `(44 − w) / 2` past its own edges and lands on the neighbour. That is how
+the offer row's ✕ took 4.5px of the accept button beside it.
+
 
 ## `/` — Daily quotes (landing)
 

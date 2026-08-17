@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { Dataset } from '../../core/backup/json';
 import { useDataset, useSettings } from '../../state/settings';
 import { useT } from '../../i18n/useT';
+import { TAP_44 } from '../../components/ui/tap-target';
 
 // S5 dataset switch (design/extensions/settings.dc.html) — light-surface twin
 // of the sidebar currency toggle: track `panel`, thumb `card` with the card
@@ -29,7 +30,7 @@ export function DatasetSwitch() {
       aria-pressed={dataset === d}
       disabled={switching}
       onClick={() => flip(d)}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-[22px] py-1.5 text-xs font-bold transition active:scale-[.97] ${dataset === d ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[22px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${dataset === d ? 'text-ink' : 'text-muted hover:opacity-85'}`}
     >
       {label}
     </button>

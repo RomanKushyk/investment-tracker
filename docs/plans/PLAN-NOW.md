@@ -31,7 +31,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A10 | Ukrainian | `feat/i18n-uk` | L | **done** (2026-08-14, D58) — shipped as **v1.5.0** |
 | **Section F** | **Phase 6 — the mobile shell** | | | |
 | A16 | Design brief: mobile | `docs/design-brief-phase-6` | M | **done** (2026-08-13) — extension merged 2026-08-14 |
-| A17 | Mobile shell + record cards | `feat/mobile-shell` | L | **unblocked** — `design/extensions/mobile.dc.html` merged 2026-08-14 |
+| A17 | Mobile shell + record cards | `feat/mobile-shell` | L | **done** (2026-08-17, D66) — zero horizontal overflow on all ten routes at 360, both themes, both languages |
 | A18 | One scroll surface (`Scroller`) + three-band dialogs | `feat/scroll-surface` | M | **done** (2026-08-17, D65) — new reference `design/extensions/scroll-surface.dc.html` + brief § S7 supersede S5's scrollbar; closes FOLLOW-UPS 11 |
 | **Section E** | **Finish the rename (D42)** | | | |
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
@@ -647,22 +647,37 @@ workflow back. The old stack never stopped working.
 
 **Also fixed here**, since each contradicted something already shipped: the brief template's part 6 (still demanding `radius 999` and a 232 px sidebar), the missing `appearance-language.dc.html` rows in `design/README.md` and `design/extensions/README.md`, and the stale "awaiting the design session" in this file and in `docs/design-briefs/README.md`. One stale reference is **left as flagged, not edited** — `src/components/ui/Tag.tsx`'s comment cites "radius 999px" while the code ships `rounded-[6px]`; this task changes no code.
 
-## A17 — Mobile shell + record cards — `feat/mobile-shell`
+## A17 — Mobile shell + record cards — **DONE 2026-08-17 (D66)** — `feat/mobile-shell`
 
-**Design-gated (G7).** Nothing starts before `design/extensions/mobile.dc.html` merges.
+> **Measured at the close, not eyeballed:** zero horizontal overflow on all ten
+> routes at 360 × 740, in **both themes and both languages** — forty
+> measurements. The A10 sweep left five routes over (attributes 133, settings 82,
+> daily quotes 57, overview and payouts 5 each). No focusable field under 16 px.
+> Every pressable 44 × 44 except the seven text fields, which stay at 36 because
+> an `<input>` renders no pseudo-element and G-2's own table forbids growing the
+> box. Drawer: route change, hardware Back, `Escape` with focus returned, 18 Tab
+> stops with none escaping, scroll 600 → locked → 600, reduced motion instant.
+> Console clean, `pnpm build` green, 624 tests green, no D5-pinned figure moved.
 
-- [ ] S1 — one `<aside>`, two shells, breakpoint `md`; the 136 px rail is retired along with every `max-sm:` override that serves it.
-- [ ] S2 — header bar, reading `headlineKpis` (never a second derivation); the mark, if drawn, reuses the `Mark` component rather than becoming a fourth copy.
-- [ ] S3 — the record card, which is the `/attributes` asset card verbatim, applied to Yield, Portfolio, Payouts and Balances. Column header text byte-identical between table and card; table markup retained at `≥ md`.
-- [ ] S4 — `/` with the keyboard open: 44 px quote input at radius 11, ≥16 px fields, actions reachable.
-- [ ] S5 — the four overlays re-checked at 360 px; radii unchanged (24 / 16 / 14 / 13).
-- [ ] S6 — every hover-only chart value made reachable without a pointer.
-- [ ] `viewport-fit=cover` + `env(safe-area-inset-*)`; `100dvh` replaces `100vh`; `overscroll-behavior-y: contain`.
-- [ ] `--color-scrim` added to `@theme` with its dark value in the same commit.
-- [ ] `navigation-map.md` gains the mobile checkpoints.
+- [x] S1 — one `<aside>`, two shells, breakpoint `md`; the 136 px rail is retired along with every `max-sm:` override that served it. The drawer is a Radix `Dialog`, so focus trap / Escape / scroll lock / focus return come from a dependency the app already ships; hardware Back is one synthetic history entry, pushed by a HANDLER because StrictMode double-fires an effect.
+- [x] S2 — header bar, reading `headlineKpis` through the new `useCapitalCard` (never a second derivation); no mark is drawn there, so the F3 fourth-copy risk does not arise.
+- [x] S3 — the record card, lifted out of `/attributes` into `components/ui/RecordCard` and applied to Yield, Portfolio, Payouts and Balances. Column header text byte-identical; table markup retained at `≥ md`. Closes A3/E3 and A4.
+- [x] S4 — `/` with the keyboard open: 44 px quote input at radius 11, ≥16 px fields, and a sticky action bar on the VISUAL viewport (D-a). The quote row folds to two lines below `md` — the single wrapping row is a desktop shape and clipped the value at 360.
+- [x] S5 — the four overlays re-checked at 360 px; radii unchanged (24 / 16 / 14 / 13). The date picker stops anchoring and becomes a 328 px centred sheet (D-c); the drawing's 312 misses its own ">44 px cell" target once the sheet's own padding is counted.
+- [x] S6 — tap-to-pin on the three charts whose value is hover-only; recharts' `accessibilityLayer` already gives the keyboard path, verified in both shells.
+- [x] `viewport-fit=cover` + `env(safe-area-inset-*)`; `100dvh` replaces `100vh`; `overscroll-behavior-y: contain`.
+- [x] `--color-scrim` added to `@theme` with its dark value in the same commit.
+- [x] `navigation-map.md` gains the mobile checkpoints.
 
-**Verify:** zero horizontal overflow at 360 px on all ten routes, measured, not eyeballed — including `/attributes`, which overflows by 27 px today. No focusable field under 16 px. Every pressable ≥ 44 × 44. Drawer: route change, hardware Back, `Escape`, focus trap, scroll lock and restore, reduced motion. Ukrainian widths, not English. Gates green; no D5-pinned demo figure changes.
-**Risk:** the sweep is wide and touches every screen — freeze other UI branches while it runs, the same rule A9/A10 carry, and do not run it concurrently with the i18n sweep.
+**Two findings worth carrying forward, both browser-only.** The `Scroller`'s
+colours were wrong on an inverted plane — 10.98:1 and 7.08:1 against the 1.37 and
+2.12 they were chosen for, a pre-existing D65 gap the drawer made unavoidable —
+and the 244 px lockup cannot hold a fifth element in flow, so the collapse control
+and the DEMO badge both float over a full-width plate. Both are in D66.
+
+**Risk (as written, and it held):** the sweep is wide and touches every screen —
+freeze other UI branches while it runs, the same rule A9/A10 carry, and do not run
+it concurrently with the i18n sweep.
 
 ## Cross-phase rules
 

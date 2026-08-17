@@ -4,6 +4,7 @@ import type { DotItemDotProps } from 'recharts';
 import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP } from '../../core/colors';
 import type { BalanceChartPoint } from '../../screens/balances/balances';
 import { useFormat } from '../../hooks/useFormat';
+import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 
 // Design lines 216-222: green area over total capital per complete snapshot,
@@ -12,6 +13,10 @@ import { useT } from '../../i18n/useT';
 export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   const f = useFormat();
   const t = useT();
+  // S6 — hover on a pointer, tap-to-pin on a touch screen. This line is the
+  // whole of D-b for this chart: every value on the line is inside the tooltip
+  // and nowhere else.
+  const trigger = useTooltipTrigger();
   return (
     <ResponsiveContainer width="100%" height={260}>
       <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
@@ -33,6 +38,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           width={44}
         />
         <Tooltip
+          trigger={trigger}
           formatter={(v) => [f.money(Number(v)), t.analytics.overview.totalCapital]}
           labelFormatter={(label) => f.dateShort(String(label))}
           contentStyle={CHART_TOOLTIP}

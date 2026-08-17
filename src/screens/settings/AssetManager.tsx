@@ -163,23 +163,38 @@ export function AssetManager() {
           {t.assets.empty}
         </div>
       ) : (
-        <div className="flex flex-col gap-0.5">
+        // `gap-1.5` below the breakpoint: a row is two lines tall there, and
+        // 2px between two-line rows leaves four assets reading as one block.
+        <div className="flex flex-col gap-0.5 max-md:gap-1.5">
           {assets.map((a) => (
             <div
               key={a.id}
               // flex-wrap + the name's 120px basis: one line on desktop, and
-              // at the 136px-rail widths the label/buttons wrap below the
-              // name instead of overflowing the card (S2 wrap rule, 360px).
+              // two lines at 360 — but WHICH two matters. Left to itself the row
+              // broke as name-left / type-right / buttons-left, a zig-zag that
+              // gave four assets no readable grouping. So the identity takes
+              // line 1 whole and everything else wraps together onto line 2,
+              // with the actions pushed to the same right edge — the rule
+              // Overview's asset rows already follow, so the app gains one
+              // behaviour rather than two.
               className="hover:bg-page/60 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 rounded-xl px-3 py-2 transition"
             >
               <ColorDot colorKey={a.colorKey} />
-              <span className="min-w-0 flex-[1_1_120px] truncate text-[13.5px] font-semibold">
+              {/* `basis-[calc(100%-24px)]` is the dot (10) plus the row's gap
+                  (14): it fills line 1 exactly, which is what makes the label
+                  and both buttons wrap together instead of one at a time. */}
+              <span className="min-w-0 flex-[1_1_120px] truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-24px)]">
                 {a.name}
               </span>
               <span className="text-muted text-xs whitespace-nowrap">
                 {t.asset.yieldShort[a.yieldType]}
               </span>
+              {/* `ml-auto` only below the breakpoint: on one line the name's
+                  own grow already pushes the pair right, and adding it there
+                  would fight that. On two lines it is what puts the actions on
+                  the same right edge the name ends at. */}
               <Button
+                className="max-md:ml-auto"
                 variant="outline"
                 size="sm"
                 onClick={() => openDialog({ kind: 'edit', asset: a })}

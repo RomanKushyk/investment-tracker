@@ -56,6 +56,14 @@ export const en = {
     portfolio: 'Portfolio',
     allocation: 'Allocation',
     settings: 'Settings',
+    // Phase 6 (S1). `navigation` is the drawer's accessible NAME, never drawn:
+    // the wordmark is already on screen, so a visible second title would say the
+    // same thing twice while a screen reader would still have nothing to
+    // announce the dialog by.
+    navigation: 'Navigation',
+    openNav: 'Open navigation',
+    closeNav: 'Close navigation',
+    collapseNav: 'Collapse navigation',
   },
   sidebar: {
     brandTagline: 'Invest tracker',
@@ -911,6 +919,10 @@ export const uk: Dict = {
     portfolio: 'Портфель', // ✎
     allocation: 'Розподіл', // ✎
     settings: 'Налаштування', // ✎
+    navigation: 'Навігація', // ✎
+    openNav: 'Відкрити навігацію', // ✎
+    closeNav: 'Закрити навігацію', // ✎
+    collapseNav: 'Згорнути навігацію', // ✎
   },
   sidebar: {
     brandTagline: 'Інвест-трекер',

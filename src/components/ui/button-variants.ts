@@ -1,5 +1,7 @@
 import { cva } from 'class-variance-authority';
 
+import { TAP_44 } from './tap-target';
+
 // Buttons per README §4 — the D56 radius rule, not the old 999px pill + D7
 // tactile press on every button.
 // Split into its own module (not Button.tsx) so link-styled-as-button spots
@@ -12,7 +14,10 @@ export const buttonVariants = cva(
   // stood taller than "Save snapshot" (primary, 40.3px) beside it. Every
   // variant now reserves the same ring and the filled ones paint it
   // transparent, so all variants of a size are isometric by construction.
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap border-[1.5px] font-display transition active:scale-[.97] disabled:pointer-events-none',
+  // `TAP_44` gives every size a 44 x 44 pressable region below the breakpoint
+  // without touching a drawn box; on `md`, which is already 44 there, it is
+  // inert because the overlay never shrinks below the control it sits in.
+  `inline-flex items-center justify-center gap-2 whitespace-nowrap border-[1.5px] font-display transition active:scale-[.97] disabled:pointer-events-none ${TAP_44}`,
   {
     variants: {
       variant: {
@@ -75,7 +80,17 @@ export const buttonVariants = cva(
         // 1.5px border out as 1px at DPR 1 and 1.5px at DPR 2, so no single
         // padding restores the height on both. `header` is 36 on purpose — it
         // sits beside the 36px Date field (README §4).
-        md: 'rounded-[10px] h-10 pr-5 text-[13.5px]',
+        // `md` IS ONE OF THE TWO DELIBERATE G-2 EXCEPTIONS, and it is the size
+        // variant rather than two call sites: `md` is the primary-action size,
+        // there is no instance of it for which 44 is wrong below the
+        // breakpoint, and giving two individual buttons their own height would
+        // mean a third size that exists on two screens.
+        // The radius is RECOMPUTED, not inherited: round(44 × 0.26) = 11.
+        md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 pr-5 text-[13.5px]',
+        // `header` and `sm` do NOT change, and `header` is the clearer case: it
+        // is 36 precisely so it sits beside the 36px Date field (README §4), so
+        // moving one without the other breaks the pairing. Both reach 44 by hit
+        // area instead — see `TAP_44` in the base class above.
         header: 'rounded-[10px] h-9 pr-[18px] text-[13px]',
         sm: 'rounded-[8px] h-[30px] pr-3.5 text-xs',
       },

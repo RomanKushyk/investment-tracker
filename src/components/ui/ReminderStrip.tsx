@@ -6,6 +6,7 @@ import type { Reminder, ReminderSeverity } from '../../core/reminders';
 import { useFormat } from '../../hooks/useFormat';
 import { useReminders } from '../../hooks/useReminders';
 import { useSettings } from '../../state/settings';
+import { TAP_44_BOX } from './tap-target';
 import {
   moreRemindersLabel,
   reminderAction,
@@ -73,6 +74,14 @@ function ReminderBanner({
           // wrap or the row would push the page into horizontal scroll.
           <Link
             to="/"
+            // NO tap-target class, and that is deliberate. This link is inline
+            // inside a sentence: an absolutely positioned pseudo-element
+            // resolves against an inline element's FIRST line box, so on a
+            // wrapped link the overlay lands somewhere nobody chose — and WCAG
+            // 2.5.8 exempts a target "inline in a sentence" for exactly that
+            // reason, because the line height belongs to the prose, not to the
+            // control. Measured here it added 3px and reached toward the body
+            // copy above; both are the wrong outcome.
             className="font-bold underline decoration-transparent transition hover:decoration-current active:scale-[.97] sm:whitespace-nowrap"
           >
             {action}
@@ -83,7 +92,10 @@ function ReminderBanner({
         type="button"
         aria-label={t.reminders.dismiss}
         onClick={onDismiss}
-        className="flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition hover:opacity-100 active:scale-[.97]"
+        // A real box (no fill, no border, so nothing is redrawn): the overlay
+        // version reached 9px into the text column beside it, which put a
+        // dismiss under a tap on plain prose.
+        className={`${TAP_44_BOX} flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition hover:opacity-100 active:scale-[.97]`}
       >
         <X size={13} strokeWidth={2.5} />
       </button>
@@ -147,7 +159,9 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="text-muted animate-in fade-in cursor-pointer self-start px-1 py-[2px] text-xs transition hover:opacity-85 active:scale-[.97]"
+          // Text, not an icon, so it keeps its own width and only grows to 44
+          // in height — again a real box, because this control draws no fill.
+          className="text-muted animate-in fade-in max-md:min-h-11 cursor-pointer self-start px-1 py-[2px] text-xs transition hover:opacity-85 active:scale-[.97]"
         >
           {moreRemindersLabel(hidden, t)}
         </button>
