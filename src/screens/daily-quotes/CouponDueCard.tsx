@@ -129,7 +129,7 @@ export function CouponDueCard({
         {t.dailyQuotes.coupon.scheduled(f.date(due.date))}
       </p>
 
-      <label className="text-label mb-1 block text-[11px]" htmlFor={`coupon-amount-${asset.id}`}>
+      <label className="text-muted mb-1 block text-[11px]" htmlFor={`coupon-amount-${asset.id}`}>
         {t.transaction.amount}
       </label>
       <input

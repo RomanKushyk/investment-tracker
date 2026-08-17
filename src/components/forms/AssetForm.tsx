@@ -58,7 +58,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="text-label flex min-w-0 flex-col gap-1 text-[11px]">
+    <label className="text-muted flex min-w-0 flex-col gap-1 text-[11px]">
       {label}
       {children}
       {error && (
@@ -181,7 +181,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
         />
       </Field>
       <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
-        <div className="text-label flex flex-col gap-1 text-[11px]">
+        <div className="text-muted flex flex-col gap-1 text-[11px]">
           {t.asset.field.kind}
           <Controller
             control={form.control}

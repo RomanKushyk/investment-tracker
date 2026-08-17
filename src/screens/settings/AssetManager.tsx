@@ -79,7 +79,7 @@ function DeleteAssetDialog({
       </DialogHeader>
       <DialogBody>
         <AlertDialogDescription asChild>
-          <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
+          <p className="text-muted m-0 mb-3.5 text-[13px] leading-normal">
             This removes the asset and everything recorded for it — {counts.transactions} {txNoun}{' '}
             and quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
           </p>

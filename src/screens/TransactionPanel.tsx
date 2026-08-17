@@ -170,7 +170,7 @@ export function TransactionPanel() {
           className="flex flex-col gap-2.5"
         >
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="text-label flex flex-col gap-1 text-[11px]">
+            <label className="text-muted flex flex-col gap-1 text-[11px]">
               {t.transaction.date}
               <Controller
                 control={form.control}
@@ -184,7 +184,7 @@ export function TransactionPanel() {
                 )}
               />
             </label>
-            <label className="text-label flex flex-col gap-1 text-[11px]">
+            <label className="text-muted flex flex-col gap-1 text-[11px]">
               {t.transaction.type}
               <Controller
                 control={form.control}
@@ -200,7 +200,7 @@ export function TransactionPanel() {
             </label>
           </div>
 
-          <label className="text-label flex flex-col gap-1 text-[11px]">
+          <label className="text-muted flex flex-col gap-1 text-[11px]">
             {t.transaction.asset}
             <Controller
               control={form.control}
@@ -241,7 +241,7 @@ export function TransactionPanel() {
           )}
 
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="text-label flex flex-col gap-1 text-[11px]">
+            <label className="text-muted flex flex-col gap-1 text-[11px]">
               {t.transaction.amount}
               <input
                 className={inputClass}
@@ -250,7 +250,7 @@ export function TransactionPanel() {
                 {...form.register('amount')}
               />
             </label>
-            <label className="text-label flex flex-col gap-1 text-[11px]">
+            <label className="text-muted flex flex-col gap-1 text-[11px]">
               {t.transaction.source}
               <Controller
                 control={form.control}

@@ -96,7 +96,7 @@ export function Allocation() {
           </Card>
 
           <div className="animate-in fade-in bg-panel border-panel-border rounded-3xl border px-[22px] py-5 duration-300">
-            <div className="text-label mb-2 text-[10px] tracking-[.12em] uppercase">{t.analytics.allocation.rebalancePlan}</div>
+            <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">{t.analytics.allocation.rebalancePlan}</div>
             <div className="flex flex-col gap-2 text-[13px]">
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">

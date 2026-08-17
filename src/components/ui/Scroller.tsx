@@ -38,13 +38,17 @@
 // end at the viewport and have nothing to round, while these ends are free.
 //
 // COLOUR, measured on `card` rather than picked: rail `panel-border` 1.37:1,
-// thumb `faint` 2.12:1 at rest and `muted` 3.46:1 while dragging (dark: 1.36,
-// 3.29, 6.04 — stronger, so nothing branches on theme). The resting thumb is
-// deliberately below the 3:1 WCAG 1.4.11 asks of a non-text indicator: 1.4.11
-// covers information REQUIRED to identify a component or its state, and a scroll
-// region is identified by its content — position is carried by the content moving
-// too, and the rail already marks where the control is. The passing value arrives
-// when the thumb is actually being used.
+// thumb `faint` 2.12:1 at rest and `muted` 5.57:1 while dragging (dark: 1.36,
+// 3.29, 6.04 — still stronger, so nothing branches on theme). The dragging
+// figure was 3.46 until D68 re-derived `muted` for legibility; that decision
+// changes the number here and leaves the argument below untouched, because the
+// value it lifted is the one that was already the passing one.
+//
+// The resting thumb is deliberately below the 3:1 WCAG 1.4.11 asks of a
+// non-text indicator: 1.4.11 covers information REQUIRED to identify a component
+// or its state, and a scroll region is identified by its content — position is
+// carried by the content moving too, and the rail already marks where the
+// control is. The passing value arrives when the thumb is actually being used.
 import { ScrollArea } from 'radix-ui';
 import type { CSSProperties, ReactNode } from 'react';
 

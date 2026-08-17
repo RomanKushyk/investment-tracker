@@ -35,7 +35,8 @@ Use the provided `package.json` as-is, with these notes:
 Palette (pastel monochrome + muted tints):
 
 - Page bg `#f6f5f3` · ink `#26262a` · card `#fff` · card shadow `0 1px 3px rgba(38,38,42,.06)`
-- Muted text `#8b8a86` · faint `#b3b2ae` · hairline `#e8e7e4` · panel bg `#eceae7` / border `#dedcd8`
+- Muted text `#696865` · faint `#b3b2ae` · hairline `#e8e7e4` · panel bg `#eceae7` / border `#dedcd8`
+  - **`muted` diverges from the reference on purpose (D68)**, which draws `#8b8a86` — that value measured **2.88:1 on `panel`**, 3.17 on `page` and 3.46 on `card` across 258 rendered elements, all of them 9.5–13px body text that WCAG 1.4.3 holds to 4.5. Re-derived against `panel`, the surface it is worst on: 4.64 / 5.11 / 5.57. The **separate `label` token `#6f6e6a` is retired into it** — it failed the same surface and landed on the same luminance once solved, so there is no `text-label`. Dark is untouched (`muted` `#9b9a96`, 5.56–6.53).
 - Sidebar: bg `#26262a`, text `#e9e8e6`, muted `#96959b`, inset surfaces `#333338`, hover `#3d3d42`
 - Positive/green: text `#5c7355`, tint bg `#e3eadf`, tint text `#4c5a48`, delta on dark `#b9cdb4`, filled-input border `#c9d4c4`
 - Negative: `#a8695a`

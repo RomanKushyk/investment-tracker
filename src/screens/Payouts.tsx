@@ -51,7 +51,7 @@ export function Payouts() {
 
       <div className="mb-3.5 grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
-          <div className="text-label mb-2 flex gap-4 text-[11.5px]">
+          <div className="text-muted mb-2 flex gap-4 text-[11.5px]">
             <span className="flex items-center gap-1.5">
               <span className="bg-reit inline-block size-2.5 rounded-[3px]" />
               {t.analytics.dividends}

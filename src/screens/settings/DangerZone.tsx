@@ -122,9 +122,9 @@ function ClearDataDialog({
       </DialogHeader>
       <DialogBody>
         <AlertDialogDescription asChild>
-          <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">{v.body}</p>
+          <p className="text-muted m-0 mb-3.5 text-[13px] leading-normal">{v.body}</p>
         </AlertDialogDescription>
-        <label htmlFor={inputId} className="text-label mb-1 block text-[11px]">
+        <label htmlFor={inputId} className="text-muted mb-1 block text-[11px]">
           {v.inputLabel}
         </label>
         <input

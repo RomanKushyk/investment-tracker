@@ -100,7 +100,18 @@
      dark one lifts the near-white fill instead of dropping it to a rail grey. */
   --color-ink-hover: #3d3d42;
   --color-card: #ffffff;
-  --color-muted: #8b8a86;
+  /* RE-DERIVED AGAINST `panel`, NOT `card` (D68). The master reference's
+     #8b8a86 measured 2.88 : 1 on `panel`, 3.17 on `page` and 3.46 on `card`
+     across 258 rendered elements — every one of them 9.5–13 px at weight 400,
+     so WCAG 1.4.3 asks 4.5 : 1 and not one reaches the large-text exemption.
+     `panel` is the binding backdrop: at L 0.82448 it needs the text at
+     L ≤ 0.14433, and this value sits at L 0.13843 — 4.64 / 5.11 / 5.57 on
+     panel / page / card. #6b6a67 was rejected for landing exactly ON 4.50.
+     The warm axis is kept (R 105 > G 104 > B 101, same ordering as #8b8a86),
+     so no neutral grey enters the palette. The cost is real and D68 states it:
+     the step down from `ink` narrows from 4.36 : 1 to 2.71 : 1.
+     Second deliberate divergence from the master reference, after D54's fonts. */
+  --color-muted: #696865;
   --color-faint: #b3b2ae;
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
@@ -111,7 +122,13 @@
      #26262a on a #f6f5f3 page and the dialog carries --shadow-dialog, so an
      outline there is decoration nothing asked for. */
   --color-surface-edge: transparent;
-  --color-label: #6f6e6a; /* Transaction panel field labels (design lines 110-146) */
+  /* `--color-label` #6f6e6a stood here, for transaction-panel field labels.
+     RETIRED INTO `muted` (D68) rather than re-derived beside it: it failed the
+     same backdrop and only that one (4.25 on `panel`), and solving both against
+     `panel` put them on the same luminance. Two tokens that must hold one value
+     to be legible are one step drawn twice. Its thirteen call sites now read
+     `text-muted`; darkening `muted` alone would have left `label` LIGHTER than
+     it, inverting the relationship the pair existed to express. Do not re-mint. */
   /* The one token phase 6 mints (G-7): the veil behind the mobile drawer.
      Nothing in the palette was a translucent film, so this mints an ALPHA
      rather than a hue — `ink` at 45%. Over `page` it composites to #989899,
@@ -242,7 +259,6 @@
      is zeroed, so the dialog floats over the scrim with no boundary at all.
      One hairline, `panel-border`'s own value, gives both their edge back. */
   --color-surface-edge: #33333a;
-  --color-label: #a8a7a3; /* 7.06 on card */
 
   /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
      anyone moving the alpha. The drawer (`sidebar` #0f0f11) is DARKER than the
@@ -515,10 +531,15 @@
      NO COLOUR IS MINTED HERE. These are the values the Phase 5 session already
      chose and measured FOR A DARK PLANE, borrowed on the one plane that is dark
      in both themes — the same move `pos-on-dark` exists to make. Re-measured on
-     #26262a: rail 1.20 : 1, thumb 2.90 : 1 at rest, 5.29 : 1 in use, all inside
-     the range D65 already sanctions across the two themes (1.36–1.37, 2.12–3.29,
-     3.46–6.04). In the dark theme these three are already these values, so the
-     block is a literal no-op there and nothing branches at runtime.
+     #26262a: rail 1.20 : 1, thumb 2.90 : 1 at rest, 5.29 : 1 in use. The first
+     two sit inside the range D65 sanctions across the two themes (1.36–1.37,
+     2.12–3.29); the in-use thumb now sits 0.28 UNDER its floor, because D68
+     lifted the LIGHT theme's in-use thumb from 3.46 to 5.57 while this plane
+     goes on borrowing the dark theme's #9b9a96 — the range moved, not the
+     value. Nothing to correct: it is non-text furniture that 1.4.11 does not
+     bind at all (see Scroller.tsx), and it is still the strong end of D65's
+     rest-to-drag pair. In the dark theme these three are already these values,
+     so the block is a literal no-op there and nothing branches at runtime.
 
      Nothing else under `[data-dark-surface]` reads them today — the sidebar
      paints from its own `sidebar-*` family throughout — so the blast radius is
