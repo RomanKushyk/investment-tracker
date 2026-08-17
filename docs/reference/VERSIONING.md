@@ -7,6 +7,9 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 1. Edit `"version"` in `package.json` (that's the whole code change).
 2. The badge picks it up at build time. The dev server evaluates `define` at config load — **restart `pnpm dev`** to see the new value (HMR alone won't refresh it).
 3. Land the bump on `dev` as part of the release-worthy change (or as a final `chore: bump version to X.Y.Z` commit), then — per the repo's git conventions — cut one **annotated tag `vX.Y.Z`** on the exact release commit. Tag and `package.json` must always agree.
+4. **Promote `dev` into `main` by fast-forward and push it.** Since D67 a version bump IS the release trigger: production moves on a new stable version — MAJOR, MINOR or PATCH — or on demand, and on nothing else. The tag reaches `main` by the same fast-forward, so it never needs cutting twice. See `DEPLOYMENT.md` §3.
+
+> **The table below therefore sets production's cadence.** Before D67 a calendar held the line; now this does. A version cut carelessly is a production deploy nobody asked for, and a change worth shipping that never gets a bump never ships at all.
 
 ## When to bump what (SemVer)
 

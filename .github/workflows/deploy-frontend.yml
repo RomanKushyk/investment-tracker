@@ -4,7 +4,9 @@ on:
   push:
     # Two targets, one pipeline. `dev` deploys the integration branch to
     # dev.quirenote.com; `main` is production — quirenote.com — and moves only
-    # when something is merged into it, which is what keeps its cadence low.
+    # when `dev` is fast-forwarded into it, which happens on a new stable version
+    # (MAJOR, MINOR or PATCH) or on demand (D67). Production's cadence is the
+    # release cadence, not a calendar.
     branches: [dev, main]
     # A docs-only commit cannot change dist/, so skip the deploy. A commit touching both
     # docs and code still runs — paths-ignore only skips when EVERY changed file matches.

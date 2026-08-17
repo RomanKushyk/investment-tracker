@@ -120,6 +120,7 @@ only for the decision you actually need.
 | D64 | The capture retries by firing again, not by waiting longer | 2026-08-14 |
 | D65 | Scrolling is a drawn surface, and its gutter is the parent's padding, not the child's | 2026-08-17 |
 | D66 | Two shells, one composition; and 44 px is hit area, never geometry | 2026-08-17 |
+| D67 | Production moves on a version, not on a calendar — supersedes D59's cadence | 2026-08-17 |
 
 ## A pattern these entries kept finding
 

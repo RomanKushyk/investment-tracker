@@ -385,10 +385,18 @@ push to either branch, reads the Amplify branch straight from `github.ref_name`,
 the matching environment. Nothing else distinguishes them — the difference in cadence comes
 from how often a merge into `main` happens, not from a second pipeline that could drift.
 
-Production is therefore promoted by merging `dev` into `main` and pushing it. Target: **at
-most weekly.** `dev` deploys on every push, **except commits that touch only Markdown or
+Production is therefore promoted by merging `dev` into `main` and pushing it, **fast-forward
+only**. It happens **when a new stable version is cut — MAJOR, MINOR or PATCH — or on
+demand** (D67; this replaces the "at most weekly" target D59 set). There is no minimum
+interval and no maximum: the gate is a judgment someone already made when they bumped
+`package.json`, not a date that happens to fall. `docs/reference/VERSIONING.md` defines when
+each part bumps, and under this rule that table is what sets production's cadence.
+
+`dev` deploys on every push, **except commits that touch only Markdown or
 `docs/`** — those cannot change `dist/`, so `paths-ignore` skips them. A commit touching both
 docs and code still deploys; `paths-ignore` skips only when every changed file matches.
+**That exclusion bites harder on `main` now:** a release whose only change is documentation
+deploys nothing, so it needs the manual run below.
 
 Concurrency is keyed per branch (`deploy-frontend-${{ github.ref_name }}`), so a dev push
 cannot cancel a production deploy in flight.
