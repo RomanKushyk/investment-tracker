@@ -596,6 +596,13 @@ export const en = {
     add: 'Add asset',
     empty: 'No assets yet — add your first asset to start tracking.',
     deleteTitle: (name: string) => `Delete ${name}?`,
+    // The cascade the confirm is really asking about. Built as ONE sentence per
+    // language rather than a template with nouns spliced in: English needs one
+    // plural form and Ukrainian three, which is the same call `import.count`
+    // makes. Two counts, so it is also the one sentence in this dictionary
+    // where a naive shared template would have to get two of them right.
+    deleteBody: (transactions: number, quoteDays: number) =>
+      `This removes the asset and everything recorded for it — ${transactions} transaction${transactions === 1 ? '' : 's'} and quotes on ${quoteDays} day${quoteDays === 1 ? '' : 's'}. This cannot be undone.`,
     deleteAction: 'Delete asset',
     editTitle: 'Edit asset',
     saveChanges: 'Save changes',
@@ -1407,6 +1414,8 @@ export const uk: Dict = {
     add: 'Додати актив',
     empty: 'Активів ще немає — додайте перший, щоб почати облік.',
     deleteTitle: (name: string) => `Видалити ${name}?`,
+    deleteBody: (transactions: number, quoteDays: number) =>
+      `Це видалить актив і все, що для нього записано, — ${transactions} ${plural(transactions, 'транзакцію', 'транзакції', 'транзакцій')} і котирування за ${quoteDays} ${plural(quoteDays, 'день', 'дні', 'днів')}. Це не можна скасувати.`,
     deleteAction: 'Видалити актив',
     editTitle: 'Редагувати актив',
     saveChanges: 'Зберегти зміни',

@@ -57,8 +57,6 @@ function DeleteAssetDialog({
   const [backedUp, setBackedUp] = useState(false);
 
   const counts = cascadeCounts(asset.id, transactions, snapshots);
-  const txNoun = counts.transactions === 1 ? 'transaction' : 'transactions';
-  const dayNoun = counts.quoteDays === 1 ? 'day' : 'days';
 
   function confirm() {
     deleteAsset.mutate(asset.id, {
@@ -80,8 +78,7 @@ function DeleteAssetDialog({
       <DialogBody>
         <AlertDialogDescription asChild>
           <p className="text-muted m-0 mb-3.5 text-[13px] leading-normal">
-            This removes the asset and everything recorded for it — {counts.transactions} {txNoun}{' '}
-            and quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
+            {t.assets.deleteBody(counts.transactions, counts.quoteDays)}
           </p>
         </AlertDialogDescription>
         <Button

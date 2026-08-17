@@ -161,3 +161,40 @@ describe('day-of-month', () => {
     expect(uk.dates.monthFull[5]).toBe('червень');
   });
 });
+
+// The Ukrainian plural rule had no guard, though its own comment calls the
+// 11-14 band "the exception every naive implementation gets wrong" — the
+// English ordinal above was tested and its Cyrillic counterpart was not. The
+// helper is private, so the delete-cascade sentence tests it: two counts in one
+// string, which is where a form is most likely to be picked for the wrong one.
+describe('the delete-cascade sentence', () => {
+  const body = (tx: number, days: number) => uk.assets.deleteBody(tx, days);
+
+  it('picks all three Ukrainian forms, per count independently', () => {
+    expect(body(1, 1)).toContain('1 транзакцію');
+    expect(body(1, 1)).toContain('за 1 день');
+    expect(body(2, 3)).toContain('2 транзакції');
+    expect(body(2, 3)).toContain('за 3 дні');
+    expect(body(5, 8)).toContain('5 транзакцій');
+    expect(body(5, 8)).toContain('за 8 днів');
+    // Zero is reachable: an asset can be created and deleted untouched.
+    expect(body(0, 0)).toContain('0 транзакцій');
+    expect(body(0, 0)).toContain('за 0 днів');
+  });
+
+  it('takes the many form through the 11-14 band and the one form at 21', () => {
+    expect(body(11, 14)).toContain('11 транзакцій');
+    expect(body(11, 14)).toContain('за 14 днів');
+    expect(body(21, 22)).toContain('21 транзакцію');
+    expect(body(21, 22)).toContain('за 22 дні');
+    expect(body(111, 112)).toContain('111 транзакцій');
+    expect(body(111, 112)).toContain('за 112 днів');
+  });
+
+  it('keeps English to its two forms', () => {
+    expect(en.assets.deleteBody(1, 1)).toContain('1 transaction and');
+    expect(en.assets.deleteBody(1, 1)).toContain('on 1 day.');
+    expect(en.assets.deleteBody(2, 0)).toContain('2 transactions and');
+    expect(en.assets.deleteBody(2, 0)).toContain('on 0 days.');
+  });
+});
