@@ -96,6 +96,41 @@ implement in:
 
 Full statement in README §4 and D56.
 
+## Amendment, 2026-08-17 — the light `muted` step is superseded (D68)
+
+Surface 3's sheet tabulates **both** columns, and the LIGHT one it copied out of
+the master reference was never measured against WCAG 1.4.3 — this brief only
+ever asked for the dark half to be computed. It has since been measured, on the
+rendered app: `muted` `#8b8a86` reads **2.88 : 1 on `panel`**, 3.17 on `page`
+and 3.46 on `card`, and `label` `#6f6e6a` reads **4.25 on `panel`**. All of it
+is 9.5–13 px body text at weight 400, so 4.5 : 1 is the bar and none of it is
+anywhere near the large-text exemption.
+
+**D68 supersedes two cells of that table and nothing else in this brief.**
+
+- `muted` light becomes **`#696865`** — 4.64 / 5.11 / 5.57 on panel / page /
+  card — re-derived against `panel`, the surface it was worst on, rather than
+  against `card`.
+- The **`label` row goes away entirely**: the token is deleted and its thirteen
+  call sites read `text-muted`. It failed the same surface and only that one,
+  and solving both against `panel` landed them on the same luminance.
+
+**The DARK column of both rows stands, and was re-measured rather than
+assumed** — 6.04 and 7.06 were right, and the sheet's whole dark half came
+through a 228-element sweep with zero failures. What the deletion costs in dark
+is one step of quiet: the thirteen former `label` sites now read 6.04 instead of
+7.06, which is still comfortably past the bar.
+
+The acceptance line "all 57 tokens defined in dark" is a **phase-5 count, not an
+invariant**. It reads 59 today — D61 added `surface-edge`, phase 6 added `scrim`
+and `drawer-edge`, D68 removed `label` — and the live arithmetic is recorded in
+`src/index.css` beside the dark block, which is the one place that cannot drift
+from it.
+
+Surface 3's table is left exactly as drawn: a brief is superseded, never
+rewritten, and D14 gives the merged extension the visual dispute. Read the light
+`muted` value from README §4 and D68, never from Surface 3.
+
 ## Contract 0 — the formatting split (read this before anything else)
 
 This is the sharpest new contract in the phase and the one with the longest
