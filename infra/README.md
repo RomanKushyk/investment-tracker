@@ -537,3 +537,57 @@ schema written, and backfilled from the payloads already stored.
 
 Free observation already scheduled: **2026-09-23**, the cum/ex boundary on
 UA4000238976 (≈1081.82 cum vs ≈1003.42 ex).
+
+## W2 — a week of real DPU, measured 2026-08-17
+
+The cost spec projected **~325 DPU/month at year 1** and said to measure anyway,
+because background and system DPU (auto-ANALYZE, index maintenance) cannot be
+modelled. Measured over the first full week of the current cluster
+(`obt7…`, eu-north-1), from `AWS/AuroraDSQL` CloudWatch metrics.
+
+**The unit costs, decomposed.**
+
+| Event | TotalDPU | ReadDPU | BytesRead | WriteDPU | ComputeDPU |
+|---|---|---|---|---|---|
+| Capture with something new published | **69.0** | 65.8 | 34.2 MiB | 1.86 | 1.36 |
+| Capture with nothing new | **3.1** | — | — | — | — |
+| A no-op firing (the `alreadySettled` guard) | **0.484** | 0.244 | 117 KiB | 0 | 0.241 |
+
+Cluster storage at the time of measurement: **34.9 MiB**. Zero Lambda errors
+across the window; the cheap days are "nothing published", not failures.
+
+**Extrapolated: ~1,620 DPU/month** — 22 weekday captures at 69, ~8 weekend ones
+at 3.1, and 150 no-op firings at 0.484. That is **5× the ~325 projection** and
+**1.6% of the 100,000 always-free allowance**, so the spec's conclusion holds
+unchanged: no design decision differs across this spread. It is the *shape* of
+the miss that is worth keeping, not the size.
+
+**Two numbers that contradict what was written before.**
+
+1. **D64 estimated the guard at "~6 DPU a month"; it costs ~73.** The estimate
+   assumed a minimum-size read (2 KiB). The lookup actually reads **117 KiB** —
+   57× the minimum — so five no-op firings a day cost 2.4 DPU/day, not 0.2.
+   Twelve times the estimate, and still negligible in absolute terms: the
+   six-firing retry schedule remains free in every sense that matters.
+2. **A full capture reads 34.2 MiB while the entire cluster holds 34.9 MiB.**
+   It reads approximately everything. Whether that is a genuine full scan or a
+   large bounded read is NOT established by this measurement — two consecutive
+   full captures were flat at 69.06 and 69.04, which a scan over a growing
+   archive would not stay. **W6 (2026-09-10) is what settles it**: a month of
+   growth either moves that number or does not. If it grows linearly with the
+   archive, the year-20 projection of ~6,506 DPU/month is wrong, and A2/D48's
+   index is not covering the path this job actually takes.
+
+**One-off, and worth knowing before anyone recreates a cluster casually:**
+**2026-08-11 cost 34,956 DPU in a single day** — cluster creation, backfill and
+the D49 restore test together. That is a third of a month's free allowance in
+one day, and it is the reason the weekly total (~35,700) says nothing useful
+until the creation day is excluded from it.
+
+**The weekly shape is the provider's, not ours.** Captures that ran on Sunday
+and Monday cost 3.1 DPU against 69 for the weekday ones. Inzhur refreshes prices
+on Saturday *for* Monday, so the Monday 01:00 run finds nothing new — the
+owner's note, confirmed by the numbers. This matters more for **W1's frozen-feed
+detector** than for cost: a normal weekend already holds a value unchanged for
+three days against `STALE_AFTER_DAYS=5`, leaving two days of margin. A public
+holiday adjoining a weekend would spend it.

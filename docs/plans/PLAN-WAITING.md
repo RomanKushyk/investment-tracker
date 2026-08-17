@@ -45,8 +45,8 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Gate:** elapsed time only. The cost spec calls this out — the formula is documented (`ReadDPU = max(BytesRead, 2048) × 0.00000183105`) and reproduces a published bill to three significant figures, but **background/system DPU (auto-ANALYZE, index maintenance) is genuinely unmodellable** and only measurement settles it.
 
-- [ ] 2026-08-17 — record a week's actual DPU against the ~325 DPU/month year-1 projection, in `infra/README.md` field notes.
-- [ ] 2026-09-10 — record the month figure. This is also the honest denominator for `PLAN-NOW.md` A2's before/after.
+- [x] 2026-08-17 — recorded in `infra/README.md` § "W2 — a week of real DPU": **~1,620 DPU/month** extrapolated, **5× the ~325 projection** and 1.6% of the free allowance, so nothing decided by it changes. Two corrections fell out: D64's guard costs ~73 DPU/month, not ~6 (it reads 117 KiB, not the 2 KiB minimum assumed), and a full capture reads 34.2 MiB against 34.9 MiB of total cluster storage — **W6 is now the measurement that decides whether that grows with the archive.**
+- [ ] 2026-09-10 — record the month figure. This is also the honest denominator for `PLAN-NOW.md` A2's before/after, **and it now carries a second question**: whether the 34.2 MiB a capture reads is fixed or grows with the archive (W2, 2026-08-17).
 
 **No design decision differs across the $0–$2/month spread this could move.** Measure it to know it, not to decide anything.
 
