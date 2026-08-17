@@ -118,6 +118,7 @@ only for the decision you actually need.
 | D62 | SMS is not a way around the SES denial; it trades one queue for two at 1,615x the price | 2026-08-14 |
 | D63 | The environment split stops at the user's data; the archive has none | 2026-08-14 |
 | D64 | The capture retries by firing again, not by waiting longer | 2026-08-14 |
+| D65 | Scrolling is a drawn surface, and its gutter is the parent's padding, not the child's | 2026-08-14 |
 
 ## A pattern these entries kept finding
 

@@ -17,6 +17,9 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
 } from '../../components/ui/Dialog';
 import { todayIso } from '../../core/dates';
 import { signed } from '../../core/money';
@@ -44,6 +47,7 @@ import type { BackupEnvelope, Dataset } from '../../core/backup/json';
 import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
+import { Scroller } from '../../components/ui/Scroller';
 
 /** What the S2 row produced: either a validated file, or the reason it failed. */
 export type ImportAttempt =
@@ -189,130 +193,135 @@ function Preview({
   const { name, envelope, diff } = attempt;
   return (
     <>
-      <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-1.5 text-lg">
-          {t.importing.preview.title(dataset)}
-        </h3>
-      </AlertDialogTitle>
-      <div className="text-muted mb-3.5 text-[11px] leading-relaxed [overflow-wrap:anywhere]">
-        {fileSubline(name, envelope.exportedAt, envelope.dataset, f, t)}
-      </div>
+      <DialogHeader>
+        <AlertDialogTitle asChild>
+          <h3 className="m-0 text-lg">
+            {t.importing.preview.title(dataset)}
+          </h3>
+        </AlertDialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <div className="text-muted mb-3.5 text-[11px] leading-relaxed [overflow-wrap:anywhere]">
+          {fileSubline(name, envelope.exportedAt, envelope.dataset, f, t)}
+        </div>
 
-      {/* Replace banner — never dismissible, and it names the dataset it
-          destroys. `neg-tint` at block scale (the widened rule, site 1 of 2). */}
-      <AlertDialogDescription asChild>
-        <div className="bg-neg-tint text-neg-tint-text mb-4 flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[12.5px] leading-[1.55]">
-          <AlertTriangle
-            size={16}
-            strokeWidth={2.25}
-            className="mt-0.5 flex-none"
-          />
-          <span>
-            {t.importing.preview.banner(dataset)}
-            {dataset === 'demo' ? t.importing.preview.bannerDemoSuffix : ''}
+        {/* Replace banner — never dismissible, and it names the dataset it
+            destroys. `neg-tint` at block scale (the widened rule, site 1 of 2). */}
+        <AlertDialogDescription asChild>
+          <div className="bg-neg-tint text-neg-tint-text mb-4 flex items-start gap-2.5 rounded-2xl px-3.5 py-3 text-[12.5px] leading-[1.55]">
+            <AlertTriangle
+              size={16}
+              strokeWidth={2.25}
+              className="mt-0.5 flex-none"
+            />
+            <span>
+              {t.importing.preview.banner(dataset)}
+              {dataset === 'demo' ? t.importing.preview.bannerDemoSuffix : ''}
+            </span>
+          </div>
+        </AlertDialogDescription>
+
+        <DiffPanel diff={diff} dimmed={pending} />
+        <div className="mt-3.5 text-[13px] leading-normal">
+          {resultLine(diff.after, t)}
+        </div>
+
+        {diff.warnings.length > 0 && (
+          <>
+            <div className="text-muted mt-4 mb-2 text-[10px] tracking-[.12em] uppercase">
+              {t.importing.preview.warningsLabel}
+            </div>
+            {/* One warn-tint block: a list of cautions reads as one object. Every
+                warning is non-blocking — the confirm stays enabled. */}
+            <div className="bg-warn-tint text-warn-tint-text animate-in fade-in slide-in-from-top-1 flex flex-col gap-2 rounded-2xl px-3.5 py-3 duration-300">
+              {diff.warnings.map((w) => (
+                <div
+                  key={w.code}
+                  className="flex items-start gap-2 text-xs leading-normal"
+                >
+                  <span className="flex-none font-bold">!</span>
+                  <span>{warningSentence(w, dataset, f, t)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {envelope.settings ? (
+          <label
+            className={`hover:bg-page/60 mt-4 flex items-start gap-2.5 rounded-xl p-2 transition ${
+              pending ? 'pointer-events-none opacity-70' : 'cursor-pointer'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={applySettings}
+              disabled={pending}
+              onChange={(e) => onApplySettings(e.target.checked)}
+              className="accent-ink border-panel-border bg-page mt-px size-4 flex-none rounded-[5px] transition active:scale-[.97]"
+            />
+            <span className="flex-1">
+              <span className="block text-[13px]">
+                {t.importing.preview.settingsOptIn}
+              </span>
+              <span className="text-muted mt-[3px] block text-[11px] leading-relaxed">
+                {settingsOptInHelper(envelope.settings, f, t)}
+              </span>
+            </span>
+          </label>
+        ) : (
+          // Never a disabled checkbox: there is nothing to opt into.
+          <div className="text-muted mt-4 text-[11px]">
+            {t.importing.preview.noSettings}
+          </div>
+        )}
+
+        <div className="text-muted mt-3.5 flex items-start gap-2 text-[11px] leading-relaxed">
+          <Download size={13} strokeWidth={2.5} className="mt-[3px] flex-none" />
+          <span className="[overflow-wrap:anywhere]">
+            {safetyBackupLine(dataset, safetyName, backedUp, t)}
           </span>
         </div>
-      </AlertDialogDescription>
-
-      <DiffPanel diff={diff} dimmed={pending} />
-      <div className="mt-3.5 text-[13px] leading-normal">
-        {resultLine(diff.after, t)}
-      </div>
-
-      {diff.warnings.length > 0 && (
-        <>
-          <div className="text-muted mt-4 mb-2 text-[10px] tracking-[.12em] uppercase">
-            {t.importing.preview.warningsLabel}
-          </div>
-          {/* One warn-tint block: a list of cautions reads as one object. Every
-              warning is non-blocking — the confirm stays enabled. */}
-          <div className="bg-warn-tint text-warn-tint-text animate-in fade-in slide-in-from-top-1 flex flex-col gap-2 rounded-2xl px-3.5 py-3 duration-300">
-            {diff.warnings.map((w) => (
-              <div
-                key={w.code}
-                className="flex items-start gap-2 text-xs leading-normal"
-              >
-                <span className="flex-none font-bold">!</span>
-                <span>{warningSentence(w, dataset, f, t)}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {envelope.settings ? (
-        <label
-          className={`hover:bg-page/60 mt-4 flex items-start gap-2.5 rounded-xl p-2 transition ${
-            pending ? 'pointer-events-none opacity-70' : 'cursor-pointer'
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={applySettings}
-            disabled={pending}
-            onChange={(e) => onApplySettings(e.target.checked)}
-            className="accent-ink border-panel-border bg-page mt-px size-4 flex-none rounded-[5px] transition active:scale-[.97]"
-          />
-          <span className="flex-1">
-            <span className="block text-[13px]">
-              {t.importing.preview.settingsOptIn}
-            </span>
-            <span className="text-muted mt-[3px] block text-[11px] leading-relaxed">
-              {settingsOptInHelper(envelope.settings, f, t)}
-            </span>
-          </span>
-        </label>
-      ) : (
-        // Never a disabled checkbox: there is nothing to opt into.
-        <div className="text-muted mt-4 text-[11px]">
-          {t.importing.preview.noSettings}
-        </div>
-      )}
-
-      <div className="text-muted mt-3.5 flex items-start gap-2 text-[11px] leading-relaxed">
-        <Download size={13} strokeWidth={2.5} className="mt-[3px] flex-none" />
-        <span className="[overflow-wrap:anywhere]">
-          {safetyBackupLine(dataset, safetyName, backedUp, t)}
-        </span>
-      </div>
-
-      {/* At 360px the buttons stack full width with the destructive one LAST. */}
-      <div className="mt-4 flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
-        <AlertDialogCancel asChild>
+      </DialogBody>
+      <DialogFooter>
+        {/* At 360px the buttons stack full width with the destructive one LAST. */}
+        <div className="flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
+          <AlertDialogCancel asChild>
+            <Button
+              variant="ghost"
+              disabled={pending}
+              className="@max-[419px]:w-full"
+            >
+              {t.importing.preview.cancel}
+            </Button>
+          </AlertDialogCancel>
           <Button
-            variant="ghost"
+            variant="danger"
             disabled={pending}
+            disabledTone="busy"
             className="@max-[419px]:w-full"
+            onClick={onConfirm}
           >
-            {t.importing.preview.cancel}
+            {/* No percentage bar anywhere: the write is one atomic transaction and
+                a progress number would be fiction. Lock contention swaps the word
+                in the same slot. */}
+            <span
+              key={pending ? (waiting ? 'waiting' : 'pending') : 'idle'}
+              className={
+                pending
+                  ? 'animate-pulse [animation-duration:1.2s]'
+                  : 'animate-in fade-in duration-200'
+              }
+            >
+              {pending
+                ? waiting
+                  ? t.importing.preview.waiting
+                  : t.importing.preview.pending
+                : t.importing.preview.confirm}
+            </span>
           </Button>
-        </AlertDialogCancel>
-        <Button
-          variant="danger"
-          disabled={pending}
-          disabledTone="busy"
-          className="@max-[419px]:w-full"
-          onClick={onConfirm}
-        >
-          {/* No percentage bar anywhere: the write is one atomic transaction and
-              a progress number would be fiction. Lock contention swaps the word
-              in the same slot. */}
-          <span
-            key={pending ? (waiting ? 'waiting' : 'pending') : 'idle'}
-            className={
-              pending
-                ? 'animate-pulse [animation-duration:1.2s]'
-                : 'animate-in fade-in duration-200'
-            }
-          >
-            {pending
-              ? waiting
-                ? t.importing.preview.waiting
-                : t.importing.preview.pending
-              : t.importing.preview.confirm}
-          </span>
-        </Button>
-      </div>
+        </div>
+      </DialogFooter>
     </>
   );
 }
@@ -473,69 +482,80 @@ function Report({
   const { name, rejection } = attempt;
   return (
     <>
-      <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-1.5 text-lg">{t.importing.report.title}</h3>
-      </AlertDialogTitle>
-      <div className="text-muted font-body mb-3 text-[11px] [overflow-wrap:anywhere]">
-        {name}
-      </div>
-      <AlertDialogDescription asChild>
-        <p className="text-neg m-0 mb-3.5 text-[13px] leading-normal">
-          {t.importing.report.lead}
-        </p>
-      </AlertDialogDescription>
-
-      {rejection.kind === 'format' ? (
-        // A format-level rejection is ONE sentence, never a list.
-        <div className="animate-in fade-in duration-200">
-          <div className="text-[13px] leading-normal">
-            {formatReasonSentence(rejection.code, rejection.version, t)}
-          </div>
-          {/* The ONE place the D12 parser's own sentence appears on screen. */}
-          <div className="text-muted font-body mt-1.5 text-[11.5px] [overflow-wrap:anywhere]">
-            {rejection.detail}
-          </div>
+      <DialogHeader>
+        <AlertDialogTitle asChild>
+          <h3 className="m-0 text-lg">{t.importing.report.title}</h3>
+        </AlertDialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <div className="text-muted font-body mb-3 text-[11px] [overflow-wrap:anywhere]">
+          {name}
         </div>
-      ) : (
-        <>
-          <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
-            {problemCount(rejection.total, rejection.issues.length, t)}
-          </div>
-          {/* The list scrolls inside its own sub-panel — the page never does.
-              Fade only, no stagger: a wall of staggered errors reads as an
-              animation, not a report. */}
-          <div className="bg-panel animate-in fade-in max-h-[200px] overflow-y-auto rounded-2xl px-3.5 py-3 duration-200">
-            <div className="font-body text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
-              {rejection.issues.map((issue, i) => (
-                <div
-                  key={`${issue.table}-${issue.at ?? i}-${issue.field ?? ''}-${i}`}
-                >
-                  {issueLine(issue, t)}
-                </div>
-              ))}
+        <AlertDialogDescription asChild>
+          <p className="text-neg m-0 mb-3.5 text-[13px] leading-normal">
+            {t.importing.report.lead}
+          </p>
+        </AlertDialogDescription>
+
+        {rejection.kind === 'format' ? (
+          // A format-level rejection is ONE sentence, never a list.
+          <div className="animate-in fade-in duration-200">
+            <div className="text-[13px] leading-normal">
+              {formatReasonSentence(rejection.code, rejection.version, t)}
+            </div>
+            {/* The ONE place the D12 parser's own sentence appears on screen. */}
+            <div className="text-muted font-body mt-1.5 text-[11.5px] [overflow-wrap:anywhere]">
+              {rejection.detail}
             </div>
           </div>
-          <div className="text-muted mt-2.5 text-xs leading-relaxed">
-            {t.importing.report.hint}
-          </div>
-        </>
-      )}
-
-      <div className="mt-4 flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
-        <AlertDialogCancel asChild>
-          <Button variant="ghost" className="@max-[419px]:w-full">
-            {t.importing.report.close}
+        ) : (
+          <>
+            <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
+              {problemCount(rejection.total, rejection.issues.length, t)}
+            </div>
+            {/* The list scrolls inside its own sub-panel — the page never does.
+                Fade only, no stagger: a wall of staggered errors reads as an
+                animation, not a report. */}
+            <div className="bg-panel animate-in fade-in rounded-2xl duration-200">
+              {/* The height limit sits on the Scroller's viewport; the INLINE
+                  padding must not. Passing `radius` already opens the gutter
+                  from the root — adding px here inset the issue lines a second
+                  time and took the column they wrap in from ~404 to ~308. */}
+              <Scroller radius={16} className="max-h-[200px] py-3">
+                <div className="font-body text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
+                  {rejection.issues.map((issue, i) => (
+                    <div
+                      key={`${issue.table}-${issue.at ?? i}-${issue.field ?? ''}-${i}`}
+                    >
+                      {issueLine(issue, t)}
+                    </div>
+                  ))}
+                </div>
+              </Scroller>
+            </div>
+            <div className="text-muted mt-2.5 text-xs leading-relaxed">
+              {t.importing.report.hint}
+            </div>
+          </>
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <div className="flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
+          <AlertDialogCancel asChild>
+            <Button variant="ghost" className="@max-[419px]:w-full">
+              {t.importing.report.close}
+            </Button>
+          </AlertDialogCancel>
+          {/* Re-opens the file dialog directly — never a dead end. */}
+          <Button
+            variant="outline"
+            className="@max-[419px]:w-full"
+            onClick={onChooseAnother}
+          >
+            {t.importing.report.another}
           </Button>
-        </AlertDialogCancel>
-        {/* Re-opens the file dialog directly — never a dead end. */}
-        <Button
-          variant="outline"
-          className="@max-[419px]:w-full"
-          onClick={onChooseAnother}
-        >
-          {t.importing.report.another}
-        </Button>
-      </div>
+        </div>
+      </DialogFooter>
     </>
   );
 }

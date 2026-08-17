@@ -319,6 +319,57 @@
     outline-offset: 2px;
   }
 
+  /* The NATIVE scrollbar, dressed to match `components/ui/Scroller.tsx`.
+     Two things still use it and always will: the page itself, which is not
+     inside any component, and any Scroller before its JS runs. Left alone,
+     those two would be the only platform-drawn chrome in an app that owns
+     every other pixel — and on Windows that means a 17px light-grey trough
+     against a dark theme.
+
+     The custom component draws a rail; this does not. A native track cannot
+     be given the 2px stroke without the corners going square at exactly the
+     radius the rail exists to keep, so the fallback keeps the thumb, drops
+     the rail, and stays quiet. Same tokens, so it follows the theme with no
+     dark-mode branch.
+
+     The 4px transparent border is how a wide hit area gets a narrow thumb:
+     the bar is 12 to stay comfortable to grab, `background-clip: content-box`
+     paints only the middle 4, and the visible width then matches the
+     Scroller's own 4px thumb. Radius 5 is the rail's, not the thumb's: the
+     radius applies to the 12px border box the platform lays out, so the shape
+     it rounds is the track's, and matching the rail keeps the fallback the
+     same silhouette as the component. Native bars already take layout width,
+     so they push the content over exactly like the Scroller does. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-faint) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-faint);
+    background-clip: content-box;
+    border: 4px solid transparent;
+    border-radius: 5px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted);
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   /* The ink ring IS the sidebar's own colour — 1.00:1 against `sidebar` and
      1.20:1 against `sidebar-inset`, i.e. keyboard focus was invisible on every
      nav pill and both toggles. `sidebar-text` gives 12.31:1 and 10.26:1, past

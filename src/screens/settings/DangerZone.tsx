@@ -7,6 +7,9 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
 } from '../../components/ui/Dialog';
 import { useClearAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
@@ -112,47 +115,53 @@ function ClearDataDialog({
         inputRef.current?.focus();
       }}
     >
-      <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-2 text-lg">{v.title}</h3>
-      </AlertDialogTitle>
-      <AlertDialogDescription asChild>
-        <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">{v.body}</p>
-      </AlertDialogDescription>
-      <label htmlFor={inputId} className="text-label mb-1 block text-[11px]">
-        {v.inputLabel}
-      </label>
-      <input
-        ref={inputRef}
-        id={inputId}
-        value={typed}
-        onChange={(e) => setTyped(e.target.value)}
-        autoComplete="off"
-        spellCheck={false}
-        className="border-hairline bg-page hover:border-faint h-9 w-full rounded-[9px] border px-3 text-[13px] transition"
-      />
-      <Button
-        variant={backedUp ? 'outlineMuted' : 'outline'}
-        className="mt-3 w-full"
-        disabled={backup.pending}
-        aria-disabled={backedUp || undefined}
-        tabIndex={backedUp ? -1 : undefined}
-        onClick={() => {
-          void backup.download().then((ok) => ok && setBackedUp(true));
-        }}
-      >
-        {/* re-keyed label = D7 crossfade on success (enter-only idiom) */}
-        <span key={String(backedUp)} className="animate-in fade-in duration-200">
-          {backedUp ? t.danger.backupDone : t.danger.backupFirst}
-        </span>
-      </Button>
-      <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
-        <AlertDialogCancel asChild>
-          <Button variant="ghost">{t.assets.cancel}</Button>
-        </AlertDialogCancel>
-        <Button variant="danger" disabled={!armed || clearAll.isPending} onClick={confirm}>
-          {v.action}
+      <DialogHeader>
+        <AlertDialogTitle asChild>
+          <h3 className="m-0 text-lg">{v.title}</h3>
+        </AlertDialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <AlertDialogDescription asChild>
+          <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">{v.body}</p>
+        </AlertDialogDescription>
+        <label htmlFor={inputId} className="text-label mb-1 block text-[11px]">
+          {v.inputLabel}
+        </label>
+        <input
+          ref={inputRef}
+          id={inputId}
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+          className="border-hairline bg-page hover:border-faint h-9 w-full rounded-[9px] border px-3 text-[13px] transition"
+        />
+        <Button
+          variant={backedUp ? 'outlineMuted' : 'outline'}
+          className="mt-3 w-full"
+          disabled={backup.pending}
+          aria-disabled={backedUp || undefined}
+          tabIndex={backedUp ? -1 : undefined}
+          onClick={() => {
+            void backup.download().then((ok) => ok && setBackedUp(true));
+          }}
+        >
+          {/* re-keyed label = D7 crossfade on success (enter-only idiom) */}
+          <span key={String(backedUp)} className="animate-in fade-in duration-200">
+            {backedUp ? t.danger.backupDone : t.danger.backupFirst}
+          </span>
         </Button>
-      </div>
+      </DialogBody>
+      <DialogFooter>
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <AlertDialogCancel asChild>
+            <Button variant="ghost">{t.assets.cancel}</Button>
+          </AlertDialogCancel>
+          <Button variant="danger" disabled={!armed || clearAll.isPending} onClick={confirm}>
+            {v.action}
+          </Button>
+        </div>
+      </DialogFooter>
     </AlertDialog>
   );
 }

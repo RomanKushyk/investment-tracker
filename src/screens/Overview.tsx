@@ -37,6 +37,7 @@ import {
 } from './overview/overview';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
+import { Scroller } from '../components/ui/Scroller';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
@@ -198,32 +199,38 @@ export function Overview() {
       </div>
 
       <div className="grid grid-cols-[1.5fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card radius={24} className="animate-in fade-in overflow-x-auto p-[22px] duration-300">
+        <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
           <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">{t.analytics.overview.assets}</div>
-          <div className="flex flex-col gap-3">
-            {assets.map((a, i) => {
-              const value = values[a.id] ?? 0;
-              const yield_ = yieldSinceStart(value, invested[a.id] ?? 0);
-              return (
-                <div
-                  key={a.id}
-                  className={`animate-in fade-in slide-in-from-bottom-1 flex min-w-fit items-center gap-3.5 duration-300 ${STAGGER[i % STAGGER.length]}`}
-                >
-                  <ColorDot colorKey={a.colorKey} />
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{a.name}</span>
-                  <span className="text-muted text-xs whitespace-nowrap">
-                    {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
-                  </span>
-                  <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
-                  <span
-                    className={`w-[60px] text-right text-xs font-bold ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+          {/* Only the ROWS scroll. They carry `min-w-fit` with fixed value
+              columns, so they are the one thing in this card that can outgrow
+              it — the divider, the totals and the ShareBar below must stay
+              put, which is why the Scroller wraps the list and not the Card. */}
+          <Scroller orientation="horizontal">
+            <div className="flex flex-col gap-3">
+              {assets.map((a, i) => {
+                const value = values[a.id] ?? 0;
+                const yield_ = yieldSinceStart(value, invested[a.id] ?? 0);
+                return (
+                  <div
+                    key={a.id}
+                    className={`animate-in fade-in slide-in-from-bottom-1 flex min-w-fit items-center gap-3.5 duration-300 ${STAGGER[i % STAGGER.length]}`}
                   >
-                    {f.pct(yield_)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <ColorDot colorKey={a.colorKey} />
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{a.name}</span>
+                    <span className="text-muted text-xs whitespace-nowrap">
+                      {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
+                    </span>
+                    <strong className="w-[110px] text-right text-[13.5px]">{f.money(value)}</strong>
+                    <span
+                      className={`w-[60px] text-right text-xs font-bold ${yield_ < 0 ? 'text-neg' : 'text-pos'}`}
+                    >
+                      {f.pct(yield_)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Scroller>
           <div className="bg-hairline my-4 h-px" />
           <ShareBar segments={shareSegments} />
         </Card>

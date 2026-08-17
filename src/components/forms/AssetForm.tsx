@@ -22,7 +22,7 @@ import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
-import { DialogTitle } from '../ui/Dialog';
+import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '../ui/Dialog';
 import { Reveal } from '../ui/Reveal';
 import { Select } from '../ui/Select';
 import { Switch } from '../ui/Switch';
@@ -536,33 +536,48 @@ export function AssetForm({
   const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-2.5">
-      <DialogTitle asChild>
-        <div className="text-pos-tint-text mb-1 flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
-          {mode === 'create' && <Plus size={13} strokeWidth={2.75} />}
-          {mode === 'create' ? t.transaction.newAssetDetails : t.assets.editTitle}
+    // The FORM spans all three bands, so `contents`: it keeps every field and
+    // the submit button in one <form> — the button sits in the fixed footer
+    // while the fields it submits scroll above it — while its own box drops out
+    // of layout so the three bands land directly in the panel's grid rows.
+    // Nothing is lost to the a11y tree: a form is only a landmark when it has
+    // an accessible name, and this one is inside a dialog that supplies it.
+    <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
+      <DialogHeader>
+        <DialogTitle asChild>
+          <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
+            {mode === 'create' && <Plus size={13} strokeWidth={2.75} />}
+            {mode === 'create' ? t.transaction.newAssetDetails : t.assets.editTitle}
+          </div>
+        </DialogTitle>
+      </DialogHeader>
+      <DialogBody className="flex flex-col gap-2.5">
+        <AssetFormFields
+          form={form}
+          mode={mode}
+          layout="dialog"
+          avatarColorKey={avatarColorKey}
+          allowNone={mode === 'edit' && asset?.payoutSchedule === 'none'}
+        />
+      </DialogBody>
+      <DialogFooter>
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <Button variant="ghost" onClick={onCancel}>
+            {t.assets.cancel}
+          </Button>
+          <Button type="submit" disabled={pending}>
+            {mode === 'create' ? t.assets.add : t.assets.saveChanges}
+          </Button>
         </div>
-      </DialogTitle>
-      <AssetFormFields
-        form={form}
-        mode={mode}
-        layout="dialog"
-        avatarColorKey={avatarColorKey}
-        allowNone={mode === 'edit' && asset?.payoutSchedule === 'none'}
-      />
-      <div className="mt-1 flex flex-wrap justify-end gap-2.5">
-        <Button variant="ghost" onClick={onCancel}>
-          {t.assets.cancel}
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {mode === 'create' ? t.assets.add : t.assets.saveChanges}
-        </Button>
-      </div>
-      {hasErrors && (
-        <p className="text-neg animate-in fade-in slide-in-from-top-1 m-0 text-right text-xs duration-200">
-          {MSG.summary}
-        </p>
-      )}
+        {/* Stays with the buttons, not with the fields: it reports on the press,
+            and a summary that scrolled away with the form would be announced
+            about a control the reader can no longer see. */}
+        {hasErrors && (
+          <p className="text-neg animate-in fade-in slide-in-from-top-1 m-0 mt-2 text-right text-xs duration-200">
+            {MSG.summary}
+          </p>
+        )}
+      </DialogFooter>
     </form>
   );
 }

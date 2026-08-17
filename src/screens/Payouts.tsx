@@ -9,6 +9,7 @@ import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
+import { Scroller } from '../components/ui/Scroller';
 
 export function Payouts() {
   const f = useFormat();
@@ -93,42 +94,47 @@ export function Payouts() {
         </div>
       </div>
 
-      <Card radius={24} className="animate-in fade-in overflow-x-auto px-[22px] py-2.5 duration-300">
-        <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
-          <thead>
-            <tr className="text-muted text-left">
-              <th className="py-2 font-normal">{t.analytics.date}</th>
-              <th className="py-2 font-normal">{t.analytics.asset}</th>
-              <th className="py-2 font-normal">{t.analytics.type}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
-              <th className="py-2 font-normal">{t.analytics.destination}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logRows.map((row) => (
-              <tr
-                key={`${row.date}-${row.assetId}-${row.amount}`}
-                className="border-hairline hover:bg-page/60 border-t transition-colors"
-              >
-                <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
-                <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
-                <td className="py-2">
-                  <Tag colorKey={row.type === 'dividend_accrual' ? 'reit' : 'ovdp8976'}>
-                    {row.type === 'dividend_accrual'
-                      ? t.analytics.prose.dividendTag
-                      : t.analytics.prose.couponTag}
-                  </Tag>
-                </td>
-                <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
-                <td className="py-2">
-                  {row.destination.kind === 'reinvested'
-                    ? t.analytics.prose.reinvestedInto(f.money(row.destination.amount))
-                    : t.analytics.prose.toAccount}
-                </td>
+      <Card radius={24} className="animate-in fade-in px-[22px] py-2.5 duration-300">
+        {/* The table keeps its min-width; the Scroller is what clips and draws
+            the rail. Card no longer sets overflow — a rounded card clipping its
+            own content is where the square platform track came from. */}
+        <Scroller orientation="horizontal">
+          <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
+            <thead>
+              <tr className="text-muted text-left">
+                <th className="py-2 font-normal">{t.analytics.date}</th>
+                <th className="py-2 font-normal">{t.analytics.asset}</th>
+                <th className="py-2 font-normal">{t.analytics.type}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
+                <th className="py-2 font-normal">{t.analytics.destination}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {logRows.map((row) => (
+                <tr
+                  key={`${row.date}-${row.assetId}-${row.amount}`}
+                  className="border-hairline hover:bg-page/60 border-t transition-colors"
+                >
+                  <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
+                  <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
+                  <td className="py-2">
+                    <Tag colorKey={row.type === 'dividend_accrual' ? 'reit' : 'ovdp8976'}>
+                      {row.type === 'dividend_accrual'
+                        ? t.analytics.prose.dividendTag
+                        : t.analytics.prose.couponTag}
+                    </Tag>
+                  </td>
+                  <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
+                  <td className="py-2">
+                    {row.destination.kind === 'reinvested'
+                      ? t.analytics.prose.reinvestedInto(f.money(row.destination.amount))
+                      : t.analytics.prose.toAccount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Scroller>
       </Card>
     </div>
   );

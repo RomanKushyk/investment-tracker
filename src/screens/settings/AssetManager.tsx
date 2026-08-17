@@ -10,6 +10,9 @@ import {
   AlertDialogCancel,
   AlertDialogDescription,
   AlertDialogTitle,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
   Dialog,
 } from '../../components/ui/Dialog';
 import { assetFromForm, assetPatchFromForm } from '../../core/asset-builder';
@@ -69,33 +72,39 @@ function DeleteAssetDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <AlertDialogTitle asChild>
-        <h3 className="mt-0 mb-2 text-lg">{t.assets.deleteTitle(asset.name)}</h3>
-      </AlertDialogTitle>
-      <AlertDialogDescription asChild>
-        <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
-          This removes the asset and everything recorded for it — {counts.transactions} {txNoun}{' '}
-          and quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
-        </p>
-      </AlertDialogDescription>
-      <Button
-        variant="outline"
-        className="w-full"
-        disabled={backup.pending || backedUp}
-        onClick={() => {
-          void backup.download().then((ok) => ok && setBackedUp(true));
-        }}
-      >
-        {backedUp ? t.danger.backupDone : t.danger.backupFirst}
-      </Button>
-      <div className="mt-3.5 flex flex-wrap justify-end gap-2.5">
-        <AlertDialogCancel asChild>
-          <Button variant="ghost">{t.assets.cancel}</Button>
-        </AlertDialogCancel>
-        <Button variant="danger" disabled={deleteAsset.isPending} onClick={confirm}>
-          {t.assets.deleteAction}
+      <DialogHeader>
+        <AlertDialogTitle asChild>
+          <h3 className="m-0 text-lg">{t.assets.deleteTitle(asset.name)}</h3>
+        </AlertDialogTitle>
+      </DialogHeader>
+      <DialogBody>
+        <AlertDialogDescription asChild>
+          <p className="text-label m-0 mb-3.5 text-[13px] leading-normal">
+            This removes the asset and everything recorded for it — {counts.transactions} {txNoun}{' '}
+            and quotes on {counts.quoteDays} {dayNoun}. This cannot be undone.
+          </p>
+        </AlertDialogDescription>
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={backup.pending || backedUp}
+          onClick={() => {
+            void backup.download().then((ok) => ok && setBackedUp(true));
+          }}
+        >
+          {backedUp ? t.danger.backupDone : t.danger.backupFirst}
         </Button>
-      </div>
+      </DialogBody>
+      <DialogFooter>
+        <div className="flex flex-wrap justify-end gap-2.5">
+          <AlertDialogCancel asChild>
+            <Button variant="ghost">{t.assets.cancel}</Button>
+          </AlertDialogCancel>
+          <Button variant="danger" disabled={deleteAsset.isPending} onClick={confirm}>
+            {t.assets.deleteAction}
+          </Button>
+        </div>
+      </DialogFooter>
     </AlertDialog>
   );
 }

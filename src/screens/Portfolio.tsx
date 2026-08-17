@@ -22,6 +22,7 @@ import { bondAbbrev } from './daily-quotes/quotes';
 import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
+import { Scroller } from '../components/ui/Scroller';
 
 // Highlight-card asset label (design lines 478/483/488): bonds abbreviate to
 // "OVDP …6475"; other assets show their full name ("Inzhur Energy").
@@ -55,71 +56,76 @@ export function Portfolio() {
     <div>
       <ScreenHeader title={t.screen.portfolio.title} subtitle={t.screen.portfolio.subtitle} />
 
-      <Card radius={24} className="animate-in fade-in mb-3.5 overflow-x-auto px-[22px] py-2.5 duration-300">
-        <table className="w-full border-collapse text-[12.5px]">
-          <thead>
-            <tr className="text-muted text-left">
-              <th className="py-2 font-normal">{t.analytics.asset}</th>
-              <th className="py-2 font-normal">{t.analytics.yieldType}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.ofItReinvested}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
-              {/* S9c relabel (D13): capital-gain family, disambiguated from
-                  the Yield screen's Total return — values unchanged. */}
-              <th className="py-2 text-right font-normal">{t.analytics.capitalGainUah}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.capitalGainPct}</th>
-              <th className="py-2 text-right font-normal">{t.analytics.share}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assets.map((a) => {
-              const value = values[a.id] ?? 0;
-              const inv = invested[a.id] ?? 0;
-              const reinv = reinvested[a.id] ?? 0;
-              const pnl = value - inv;
-              const pnlPct = yieldSinceStart(value, inv);
-              return (
-                <tr
-                  key={a.id}
-                  className="border-hairline hover:bg-page/60 border-t transition-colors"
-                >
-                  <td className="py-2 font-semibold">{a.name}</td>
-                  <td className="py-2">
-                    <Tag colorKey={a.colorKey}>{t.asset.yieldShort[a.yieldType]}</Tag>
-                  </td>
-                  <td className="py-2 text-right">{f.num(inv)}</td>
-                  <td className="py-2 text-right">{reinv > 0 ? f.num(reinv) : '—'}</td>
-                  <td className="py-2 text-right">{f.num(value)}</td>
-                  <td
-                    className={`py-2 text-right font-bold ${pnl < 0 ? 'text-neg' : 'text-pos'}`}
+      <Card radius={24} className="animate-in fade-in mb-3.5 px-[22px] py-2.5 duration-300">
+        {/* The table keeps its min-width; the Scroller is what clips and draws
+            the rail. Card no longer sets overflow — a rounded card clipping its
+            own content is where the square platform track came from. */}
+        <Scroller orientation="horizontal">
+          <table className="w-full border-collapse text-[12.5px]">
+            <thead>
+              <tr className="text-muted text-left">
+                <th className="py-2 font-normal">{t.analytics.asset}</th>
+                <th className="py-2 font-normal">{t.analytics.yieldType}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.ofItReinvested}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
+                {/* S9c relabel (D13): capital-gain family, disambiguated from
+                    the Yield screen's Total return — values unchanged. */}
+                <th className="py-2 text-right font-normal">{t.analytics.capitalGainUah}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.capitalGainPct}</th>
+                <th className="py-2 text-right font-normal">{t.analytics.share}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assets.map((a) => {
+                const value = values[a.id] ?? 0;
+                const inv = invested[a.id] ?? 0;
+                const reinv = reinvested[a.id] ?? 0;
+                const pnl = value - inv;
+                const pnlPct = yieldSinceStart(value, inv);
+                return (
+                  <tr
+                    key={a.id}
+                    className="border-hairline hover:bg-page/60 border-t transition-colors"
                   >
-                    {f.signedNum(pnl)}
-                  </td>
-                  <td
-                    className={`py-2 text-right font-bold ${pnlPct < 0 ? 'text-neg' : 'text-pos'}`}
-                  >
-                    {f.pct(pnlPct)}
-                  </td>
-                  <td className="py-2 text-right">{f.pctPlain(sharePct(value, total))}</td>
-                </tr>
-              );
-            })}
-            <tr className="border-panel-border border-t-2">
-              <td className="py-2 font-bold">{t.analytics.prose.totalPlusCash(f.money(cash))}</td>
-              <td className="py-2"></td>
-              <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
-              <td className="py-2 text-right font-bold">{f.num(reinvestedTotal(transactions))}</td>
-              <td className="py-2 text-right font-bold">{f.num(total)}</td>
-              <td className={`py-2 text-right font-bold ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}>
-                {f.signedNum(net.uah)}
-              </td>
-              <td className={`py-2 text-right font-bold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}>
-                {f.pct(net.pct)}
-              </td>
-              <td className="py-2 text-right font-bold">{f.pctPlain(100, 0)}</td>
-            </tr>
-          </tbody>
-        </table>
+                    <td className="py-2 font-semibold">{a.name}</td>
+                    <td className="py-2">
+                      <Tag colorKey={a.colorKey}>{t.asset.yieldShort[a.yieldType]}</Tag>
+                    </td>
+                    <td className="py-2 text-right">{f.num(inv)}</td>
+                    <td className="py-2 text-right">{reinv > 0 ? f.num(reinv) : '—'}</td>
+                    <td className="py-2 text-right">{f.num(value)}</td>
+                    <td
+                      className={`py-2 text-right font-bold ${pnl < 0 ? 'text-neg' : 'text-pos'}`}
+                    >
+                      {f.signedNum(pnl)}
+                    </td>
+                    <td
+                      className={`py-2 text-right font-bold ${pnlPct < 0 ? 'text-neg' : 'text-pos'}`}
+                    >
+                      {f.pct(pnlPct)}
+                    </td>
+                    <td className="py-2 text-right">{f.pctPlain(sharePct(value, total))}</td>
+                  </tr>
+                );
+              })}
+              <tr className="border-panel-border border-t-2">
+                <td className="py-2 font-bold">{t.analytics.prose.totalPlusCash(f.money(cash))}</td>
+                <td className="py-2"></td>
+                <td className="py-2 text-right font-bold">{f.num(investedTotal)}</td>
+                <td className="py-2 text-right font-bold">{f.num(reinvestedTotal(transactions))}</td>
+                <td className="py-2 text-right font-bold">{f.num(total)}</td>
+                <td className={`py-2 text-right font-bold ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}>
+                  {f.signedNum(net.uah)}
+                </td>
+                <td className={`py-2 text-right font-bold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}>
+                  {f.pct(net.pct)}
+                </td>
+                <td className="py-2 text-right font-bold">{f.pctPlain(100, 0)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Scroller>
         <div className="text-muted mt-2.5 text-[11.5px]">
           {t.analytics.prose.capitalGainNote}
         </div>

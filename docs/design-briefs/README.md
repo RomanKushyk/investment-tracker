@@ -15,7 +15,7 @@ extension reference is merged. Pure-logic tasks are never design-blocked.
 | Brief | Phase | Status |
 |---|---|---|
 | [`phase-5-appearance-language.md`](phase-5-appearance-language.md) | 5 — dark theme + Ukrainian | **drawn** — `design/extensions/appearance-language.dc.html` merged 2026-08-12 (`f486121`), amended the same day to the D56 radius rule. A9/A10 are no longer design-gated; the brief stays here until they ship. |
-| [`phase-6-mobile.md`](phase-6-mobile.md) | 6 — the mobile shell | **written 2026-08-13, awaiting the design session** |
+| [`phase-6-mobile.md`](phase-6-mobile.md) | 6 — the mobile shell | **written 2026-08-13**; extension merged 2026-08-14. **§ S7 added 2026-08-15** supersedes S5's scrollbar → `design/extensions/scroll-surface.dc.html` (D65) |
 
 ## Rules
 

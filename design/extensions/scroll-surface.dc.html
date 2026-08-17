@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces (D54/D55), as in mobile.dc.html: IBM Plex Sans + JetBrains
+     Mono. Every width claim below is computed from the 0.6 em advance of the
+     mono face, the same basis the phase-6 reference used. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/scroll-surface.dc.html — SUPERSEDES the scrollbar half of
+  mobile.dc.html S5 (D14 precedence: a merged surface is not reworked in place).
+
+  Brief section: docs/design-briefs/phase-6-mobile.md § S7.
+  Decision of record: D65.
+  Shipped: src/components/ui/Scroller.tsx + the native fallback in
+  src/index.css, 2026-08-15.
+
+  WHAT IS SUPERSEDED, precisely: S5's scrollbar bullets and its dialog drawing.
+  S5's other three overlays — the date picker as a centred sheet, the select,
+  the toast placement — are untouched, and mobile.dc.html remains their
+  authority. Nothing in this file changes a radius, a colour token or a piece
+  of copy that any other extension pinned.
+
+  ─── THE ONE SENTENCE S5 GOT WRONG ────────────────────────────────────────
+  S5 specified "type=hover/scroll, so the bar OVERLAYS and takes no layout
+  width — content does not reflow when it appears". That is the wrong trade. An
+  overlay bar lies across the last row of a table and across a value in a form;
+  the reflow it avoids is a one-time settle nobody notices, and the obstruction
+  it buys is permanent and unmissable. The bar RESERVES.
+
+  ─── THE CONSTRUCTION, unchanged from S5 and still right ──────────────────
+      2 px  rail stroke      panel-border
+      2 px  gap
+      4 px  thumb            faint at rest, muted while hovered or dragged
+      2 px  gap
+      2 px  rail stroke
+      ————
+     12 px
+
+  Radii are concentric, not proportional: thumb 1, rail 1 + 2 + 2 = 5. D56's
+  proportional half cannot apply — it reads round(min(w,h) x 0.26) off two
+  DESIGNED dimensions, and a rail's length is its panel's height while a
+  thumb's is the viewport-to-content ratio. Neither is chosen; both change
+  without anyone deciding.
+
+  ─── WHAT CHANGES: THE MARGIN, AND IT IS ONE NUMBER ───────────────────────
+  8, equal on all four sides. The distance to the parent's edge and the
+  distance to the text are the same number, because a box with more air on one
+  side than the other reads as misplaced rather than inset. The gutter is
+  therefore 2m + 12 = 28, on every surface and every screen.
+
+  TWO INSETS ARE WITHDRAWN, and the sequence is the reusable part:
+
+    R - r   19 in a dialog — the gap at which the rail's r5 shares the panel's
+            corner centre EXACTLY. Drawn, looked at, rejected.
+    R - 2r  14 — a relaxed version of the same idea. Drawn, shipped for a day,
+            rejected.
+
+  Both die of the same cause: CONCENTRICITY IS INVISIBLE ON A SHAPE THIS THIN.
+  Nothing in the panel is near enough to a 12 px rail to compare arcs with, so
+  the geometry that justified 14-19 px buys nothing anyone can see — while a
+  bar that abandons its own edge by that much reads as floating in the gutter
+  rather than belonging to it. The exchange is real estate: a dialog spent 40
+  a side and now spends 28, and at 360 that is the difference between 248 and
+  272 px of form.
+
+  The arc keeps a GUARD, not a rule. The floor is where the rail's corner lands
+  on the 45 degree point of the parent's arc — solve d = R - sqrt(R^2 - (R-d)^2)
+  and it falls out as R(1 - 1/sqrt 2): 7.03 at a 24, 4.69 at a 16, both under 8.
+  That is WHY one flat margin is safe on every surface here, and max(8, ...)
+  keeps it safe on a rounder one — past R 27 the floor overtakes 8.
+
+  ─── THE GUTTER BELONGS TO THE PARENT ─────────────────────────────────────
+  This cost three passes and it generalises past this file:
+
+      Padding on the SCROLLING element is inside the scroll box. It guarantees
+      a gap only at the ENDS of the scroll range; at every other position the
+      content slides straight under a bar that floats above it. Padding on the
+      box AROUND the scroller takes the strip out of the scroll box altogether.
+
+  So the gutter sits on the ScrollArea root, on BOTH inline sides, and FIXED.
+  Both, because the side without a rail still has to hold text off the panel
+  edge and the content cannot do that with its own padding. Fixed, because
+  gating it on the rail's presence makes a panel jump between symmetric and
+  lopsided the moment its content grows past the fold.
+
+  ─── FOUR PIXELS OF THE 28 ARE THE RING ALLOWANCE ─────────────────────────
+  A scrollport clips ink overflow and a focus ring IS ink overflow: :focus-visible
+  is a 2 px outline at 2 px offset, so a w-full control flush with the viewport
+  loses its ring on both sides. The old aside had 16 px of clearance only
+  because IT was the scroll box and carried p-4. So the root takes 24 and the
+  viewport takes 4: the content still sits 28 from the parent, and the ring
+  fits inside the clip. Those 4 are the only part of the gutter that scrolls.
+
+  ─── BOTH AXES, WHERE THE CONTENT IS NOT THE CALLER'S TO PREDICT ──────────
+  The axis a scroller does not manage is overflow:hidden. A field wider than
+  its panel is not merely unreachable — it is gone, with no bar to say anything
+  was there. type=auto mounts each rail only on real overflow, so the second
+  axis costs nothing until it is needed. Two floors go with it: a grid or flex
+  item's automatic minimum size is its CONTENT, so a scrolling band needs
+  min-h-0 AND min-w-0 or it refuses to shrink, grows past its panel and is
+  clipped instead of scrolled. Missing either has the same silent symptom.
+
+  ─── COLOUR (recomputed, not carried over) ────────────────────────────────
+      rail   panel-border  1.37 : 1 on card  (dark 1.36 on #1c1c1f)
+      thumb  faint         2.12 : 1 at rest  (dark 3.29)
+             muted         3.46 : 1 in use   (dark 6.04)
+  Stated rather than claimed to pass: the RESTING thumb is below the 3:1 that
+  WCAG 1.4.11 asks of a non-text indicator, deliberately. 1.4.11 governs
+  information REQUIRED to identify a component or its state — a scroll region
+  is identified by its content, position is also carried by the content moving,
+  and the rail already marks where the control is. The passing value arrives at
+  the moment the thumb is in use, and THAT is a shipped fact rather than an
+  intention: the first build carried a second class bound to radix's visible
+  data-state which cancelled the hover at equal specificity, so the 3:1 was
+  never reached. It was found by review, not by looking.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:28px 20px 12px">
+  <h1 style="font-size:25px;margin:0 0 6px">The scroll surface</h1>
+  <p style="margin:0 0 4px;font-size:13px;color:#6f6e6a">Supersedes the scrollbar half of <code>mobile.dc.html</code> S5 · brief § S7 · decision D65</p>
+  <p style="margin:0 0 24px;font-size:12.5px;color:#8b8a86">T1 the rail, at 6× and at size · T2 the gutter, and why it is the parent's · T3 the dialog as three bands</p>
+</div>
+
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+<h2 style="font-size:19px;margin:0 0 4px">T1 · The rail</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">The 12 px construction at 6× · the margin that is one number · the two withdrawn insets</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Anatomy at 6× — 2 · 2 · 4 · 2 · 2</div>
+    <div style="display:flex;align-items:flex-start;gap:18px">
+      <!-- the rail, 6x: 72 wide, stroke 12, padding 12, thumb 24 -->
+      <div style="width:72px;height:300px;border:12px solid #dedcd8;border-radius:30px;padding:12px;background:#ffffff">
+        <div style="width:24px;height:160px;background:#b3b2ae;border-radius:6px"></div>
+      </div>
+      <div style="font-size:11.5px;line-height:2.05;color:#6f6e6a">
+        <div><strong style="color:#26262a">2</strong> rail stroke · <code style="font-size:11px">panel-border</code></div>
+        <div><strong style="color:#26262a">2</strong> gap · the rail's padding</div>
+        <div><strong style="color:#26262a">4</strong> thumb · <code style="font-size:11px">faint</code> → <code style="font-size:11px">muted</code></div>
+        <div><strong style="color:#26262a">2</strong> gap</div>
+        <div><strong style="color:#26262a">2</strong> rail stroke</div>
+        <div style="border-top:1px solid #e8e7e4;margin-top:6px;padding-top:6px"><strong style="color:#26262a">12</strong> across</div>
+        <div style="margin-top:10px">radius rail <strong style="color:#26262a">5</strong> = 1 + 2 + 2</div>
+        <div>radius thumb <strong style="color:#26262a">1</strong></div>
+      </div>
+    </div>
+    <p style="width:330px;margin:10px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Radii are D56's <strong>concentric</strong> half — <code style="font-size:11px">outer = inner + gap</code>, and the gap from thumb to rail's outer face is the 2 px padding plus the 2 px stroke. The proportional half cannot apply: it reads <code style="font-size:11px">round(min(w,h) × 0.26)</code> off two DESIGNED dimensions, and neither a rail's length nor a thumb's is chosen by anyone.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">The margin is one number — 8 on every side</div>
+    <div style="width:330px;height:300px;border:1px solid #dedcd8;border-radius:12px;background:#ffffff;position:relative;overflow:hidden">
+      <!-- the parent corner, r24 -->
+      <div style="position:absolute;left:24px;right:24px;top:24px;bottom:24px;border:1px solid #e8e7e4;border-radius:24px;background:#f6f5f3"></div>
+      <!-- the rail, margin 8 inside that corner -->
+      <div style="position:absolute;right:32px;top:32px;bottom:32px;width:12px;border:2px solid #dedcd8;border-radius:5px;padding:2px;background:#ffffff">
+        <div style="width:4px;height:110px;background:#b3b2ae;border-radius:1px"></div>
+      </div>
+      <!-- the 8s, called out -->
+      <div style="position:absolute;right:24px;top:150px;width:8px;height:1px;background:#4c5a48"></div>
+      <div style="position:absolute;right:8px;top:140px;font-size:9px;color:#4c5a48;font-weight:700">8</div>
+      <div style="position:absolute;right:44px;top:150px;width:8px;height:1px;background:#4c5a48"></div>
+      <div style="position:absolute;right:52px;top:140px;font-size:9px;color:#4c5a48;font-weight:700">8</div>
+      <div style="position:absolute;right:30px;top:24px;height:8px;width:1px;background:#4c5a48"></div>
+      <div style="position:absolute;right:36px;top:24px;font-size:9px;color:#4c5a48;font-weight:700">8</div>
+      <span style="position:absolute;left:36px;bottom:36px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#8b8a86;background:#ffffff">parent r 24 · rail r 5 · margin 8 · gutter 2m + 12 = 28</span>
+    </div>
+    <p style="width:330px;margin:10px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#e3eadf;color:#3f5c37;border-radius:4px;padding:1px 5px;font-weight:700">computed</span>
+      The arc is a <strong>guard, not a rule</strong>: the floor is <code style="font-size:11px">R(1 − 1/√2)</code> — 7.03 at a 24, 4.69 at a 16 — so 8 clears every surface in the app, and <code style="font-size:11px">max(8, …)</code> takes over past R 27.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Withdrawn — and why they are kept here</div>
+    <div style="width:330px;border:1px solid #e8e7e4;border-radius:12px;background:#ffffff;padding:14px 16px">
+      <div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f0efec">
+        <div style="width:52px;height:34px;border:1px solid #dedcd8;border-radius:9px;position:relative;flex:none;background:#f6f5f3">
+          <div style="position:absolute;right:19px;top:4px;bottom:4px;width:5px;border:1px solid #b3b2ae;border-radius:2px"></div>
+        </div>
+        <div style="font-size:11.5px;line-height:1.5"><strong>R − r = 19</strong><br><span style="color:#8b8a86">radii exactly concentric · floats in the gutter</span></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #f0efec">
+        <div style="width:52px;height:34px;border:1px solid #dedcd8;border-radius:9px;position:relative;flex:none;background:#f6f5f3">
+          <div style="position:absolute;right:13px;top:4px;bottom:4px;width:5px;border:1px solid #b3b2ae;border-radius:2px"></div>
+        </div>
+        <div style="font-size:11.5px;line-height:1.5"><strong>R − 2r = 14</strong><br><span style="color:#8b8a86">relaxed · still 40 px a side of gutter</span></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;padding:8px 0">
+        <div style="width:52px;height:34px;border:1px solid #dedcd8;border-radius:9px;position:relative;flex:none;background:#ffffff">
+          <div style="position:absolute;right:5px;top:4px;bottom:4px;width:5px;border:1px solid #8b8a86;border-radius:2px"></div>
+        </div>
+        <div style="font-size:11.5px;line-height:1.5"><strong>margin 8 — shipped</strong><br><span style="color:#3f5c37">belongs to its edge · 28 a side</span></div>
+      </div>
+    </div>
+    <p style="width:330px;margin:10px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Both are kept because the reason they died is reusable: <strong>concentricity is invisible on a shape this thin</strong>. Nothing in the panel is near enough to a 12 px rail to compare arcs with, so the geometry buys nothing anyone can see — and the bar reads as detached from the edge it belongs to.
+    </p>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  T2 — THE GUTTER
+
+  The drawing on the left is the failure the shipped rule prevents, and it is
+  not hypothetical: it was the state of the build for one pass. Padding was on
+  the scrolling element, so it held at scrollLeft 0 and nowhere else.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+<h2 style="font-size:19px;margin:0 0 4px">T2 · The gutter is the parent's padding</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Why the same 28 px behaves differently depending on which box owns it</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Wrong — padding on the scroller, scrolled right</div>
+    <div style="width:330px;height:150px;border:1px solid #dedcd8;border-radius:24px;background:#ffffff;position:relative;overflow:hidden">
+      <div style="position:absolute;left:0;right:0;top:22px;font-size:13px;white-space:nowrap;color:#26262a">рвана колонка, що доїхала до краю</div>
+      <div style="position:absolute;left:0;right:0;top:56px;font-size:13px;white-space:nowrap;color:#26262a">і пройшла просто під смугою праворуч</div>
+      <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border:2px solid #dedcd8;border-radius:5px;padding:2px;background:transparent">
+        <div style="width:4px;height:60px;background:#b3b2ae;border-radius:1px"></div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:10px;border:1px dashed #c0705f;border-radius:5px;padding:2px 7px;font-size:10px;color:#c0705f;background:#ffffff">padding held at scrollLeft 0 — and only there</span>
+    </div>
+    <p style="width:330px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      Padding on the scrolling element is INSIDE the scroll box: it is scrollable content like anything else. At the start of the range it looks like a gutter; one drag later the text is under the rail on one side and against the panel edge on the other.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Shipped — padding on the box around it</div>
+    <div style="width:330px;height:150px;border:1px solid #dedcd8;border-radius:24px;background:#ffffff;position:relative;overflow:hidden;padding:0 24px">
+      <div style="position:relative;height:100%;overflow:hidden;padding:0 4px">
+        <div style="position:absolute;left:4px;right:4px;top:22px;font-size:13px;white-space:nowrap;color:#26262a">та сама колонка, зрізана</div>
+        <div style="position:absolute;left:4px;right:4px;top:56px;font-size:13px;white-space:nowrap;color:#26262a">за 28 від краю, на будь-якій</div>
+      </div>
+      <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border:2px solid #dedcd8;border-radius:5px;padding:2px;background:transparent">
+        <div style="width:4px;height:60px;background:#b3b2ae;border-radius:1px"></div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:10px;border:1px dashed #4c5a48;border-radius:5px;padding:2px 7px;font-size:10px;color:#4c5a48;background:#ffffff">24 root + 4 viewport = 28, fixed</span>
+    </div>
+    <p style="width:330px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#e3eadf;color:#3f5c37;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      28 at scroll positions 0, 400 and end. The <strong>4 px on the viewport is the ring allowance</strong> — a scrollport clips ink overflow, and a focus ring is ink overflow, so a <code style="font-size:11px">w-full</code> control flush with the viewport loses its ring on both sides.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Three debts a scrollport creates</div>
+    <div style="width:330px;border:1px solid #e8e7e4;border-radius:12px;background:#ffffff;padding:6px 16px">
+      <div style="padding:10px 0;border-bottom:1px solid #f0efec;font-size:11.5px;line-height:1.55">
+        <strong>Percentage heights.</strong> <span style="color:#8b8a86">Radix renders an auto-height <code style="font-size:11px">display:table</code> wrapper inside the viewport, so <code style="font-size:11px">min-h-full</code> resolves against nothing and <code style="font-size:11px">mt-auto</code> gets no free space. The sidebar's bottom cluster floated 16 px shy of the floor.</span>
+      </div>
+      <div style="padding:10px 0;border-bottom:1px solid #f0efec;font-size:11.5px;line-height:1.55">
+        <strong>Focus rings.</strong> <span style="color:#8b8a86">Clipped left and right on every full-width control. The old aside gave 16 px of clearance only because IT was the scroll box.</span>
+      </div>
+      <div style="padding:10px 0;font-size:11.5px;line-height:1.55">
+        <strong>Keyboard scrolling.</strong> <span style="color:#8b8a86">The panel used to answer PageDown; a Radix viewport is not focusable, so a dialog of non-interactive text became unreachable by keyboard (WCAG 2.1.1). It carries <code style="font-size:11px">tabIndex={0}</code>.</span>
+      </div>
+    </div>
+    <p style="width:330px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      All three were found by review, after the first version shipped none of them. They are drawn here because a scrollport LOOKS like a neutral wrapper and is not.
+    </p>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  T3 — THE DIALOG, THREE BANDS
+
+  A grid of auto / minmax(0,1fr) / auto, and not a flex column: the scrolling
+  box needs a parent whose height is DEFINITE, and a flex item sized by flex-1
+  under a max-h-clamped container is not — the percentage height quietly becomes
+  auto, the body takes its content height, and the buttons paint over the
+  fields. That was observed, not predicted.
+
+  AssetForm spans all three bands with display:contents, so every field and the
+  submit button stay in one <form> while the bands land in the grid rows.
+  Nothing is lost to the a11y tree: a form is only a landmark when it has an
+  accessible name, and this one is inside a dialog that supplies it.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
+<h2 style="font-size:19px;margin:0 0 4px">T3 · The dialog is three bands</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#8b8a86">Only the middle one scrolls — drawn at 360, at rest and scrolled</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">At 360 — at rest</div>
+    <div style="width:360px;height:520px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="position:absolute;inset:0;background:rgba(38,38,42,.40)"></div>
+      <div style="position:absolute;left:16px;right:16px;top:32px;bottom:32px;background:#ffffff;border-radius:24px;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto">
+        <div style="padding:24px 28px 16px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#4c5a48;font-weight:700">Редагувати актив</div>
+        <div style="position:relative;min-height:0;min-width:0;padding:0 24px;overflow:hidden">
+          <div style="overflow:hidden;padding:0 4px">
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Назва</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px;margin-bottom:12px">Inzhur REIT</div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Код</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <div style="width:34px;height:34px;flex:none;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">RE</div>
+              <div style="width:80px;height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">RE</div>
+            </div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Тип дохідності</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:16px;margin-bottom:12px">Дивіденди + кап <span style="color:#8b8a86">⌄</span></div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Перша купівля</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px">03.02.2026</div>
+          </div>
+          <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border:2px solid #dedcd8;border-radius:5px;padding:2px">
+            <div style="width:4px;height:150px;background:#b3b2ae;border-radius:1px"></div>
+          </div>
+        </div>
+        <div style="padding:16px 28px 24px;display:flex;justify-content:flex-end;gap:10px">
+          <div style="height:36px;border-radius:9px;display:flex;align-items:center;padding:0 14px;font-size:13px;color:#6f6e6a">Скасувати</div>
+          <div style="height:36px;border-radius:9px;display:flex;align-items:center;padding:0 16px;font-size:13px;font-weight:600;background:#26262a;color:#f6f5f3">Зберегти</div>
+        </div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:10px;border:1px dashed #ffffff;border-radius:5px;padding:2px 7px;font-size:10px;color:#ffffff">328 panel · 28 gutter · 272 content</span>
+    </div>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Scrolled — the bands do not move</div>
+    <div style="width:360px;height:520px;border:1px solid #dedcd8;border-radius:12px;overflow:hidden;background:#f6f5f3;position:relative">
+      <div style="position:absolute;inset:0;background:rgba(38,38,42,.40)"></div>
+      <div style="position:absolute;left:16px;right:16px;top:32px;bottom:32px;background:#ffffff;border-radius:24px;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr) auto">
+        <div style="padding:24px 28px 16px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#4c5a48;font-weight:700">Редагувати актив</div>
+        <div style="position:relative;min-height:0;min-width:0;padding:0 24px;overflow:hidden">
+          <div style="overflow:hidden;padding:0 4px">
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:16px;margin-bottom:12px;margin-top:-18px">Щомісяця <span style="color:#8b8a86">⌄</span></div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Погашення</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px;margin-bottom:12px">25.02.2027</div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Сума купона, ₴</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:16px;margin-bottom:12px">1 240,00</div>
+            <div style="font-size:11px;color:#6f6e6a;margin-bottom:4px">Політика реінвестування</div>
+            <div style="height:36px;border:1px solid #dedcd8;border-radius:9px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:16px">Авто (дивіденди) <span style="color:#8b8a86">⌄</span></div>
+          </div>
+          <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border:2px solid #dedcd8;border-radius:5px;padding:2px">
+            <div style="width:4px;height:150px;background:#8b8a86;border-radius:1px;margin-top:120px"></div>
+          </div>
+        </div>
+        <div style="padding:16px 28px 24px;display:flex;justify-content:flex-end;gap:10px">
+          <div style="height:36px;border-radius:9px;display:flex;align-items:center;padding:0 14px;font-size:13px;color:#6f6e6a">Скасувати</div>
+          <div style="height:36px;border-radius:9px;display:flex;align-items:center;padding:0 16px;font-size:13px;font-weight:600;background:#26262a;color:#f6f5f3">Зберегти</div>
+        </div>
+      </div>
+      <span style="position:absolute;left:12px;bottom:10px;border:1px dashed #ffffff;border-radius:5px;padding:2px 7px;font-size:10px;color:#ffffff">thumb in <code style="font-size:10px;color:#ffffff">muted</code> — the value 1.4.11 wants, while in use</span>
+    </div>
+  </div>
+
+  <div style="width:330px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a86;margin-bottom:8px">Why a grid and not a flex column</div>
+    <div style="border:1px solid #e8e7e4;border-radius:12px;background:#ffffff;padding:14px 16px;font-size:11.5px;line-height:1.6;color:#6f6e6a">
+      The scrolling box needs a parent whose height is <strong style="color:#26262a">definite</strong>. A flex item sized by <code style="font-size:11px">flex-1</code> under a <code style="font-size:11px">max-h</code>-clamped container is not: the percentage height quietly becomes <code style="font-size:11px">auto</code>, the body takes its content height, and <strong style="color:#26262a">the buttons paint over the fields</strong>. <code style="font-size:11px">minmax(0, 1fr)</code> is a real track — it has a size before its contents are laid out, and the 0 floor lets it shrink below them instead of being pushed open.
+      <div style="border-top:1px solid #f0efec;margin-top:10px;padding-top:10px">
+        At 360 the split earns more than anywhere: the form is longest exactly where the viewport is shortest, and a Save button that scrolls away is one the reader has to hunt for.
+      </div>
+    </div>
+    <p style="margin:10px 0 0;font-size:11.5px;line-height:1.55;color:#8b8a86">
+      <span style="background:#e3eadf;color:#3f5c37;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      Panel 442 = header 57 + body 304 + footer 80; after scrolling the body 62 px, the header moved <strong>0</strong> and the footer <strong>0</strong>.
+    </p>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  THE REGISTER THIS FILE ANSWERS
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 20px 56px">
+  <h2 style="font-size:19px;margin:0 0 12px">Answered</h2>
+  <div style="border:1px solid #e8e7e4;border-radius:12px;background:#ffffff;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <tr style="background:#f6f5f3;text-align:left">
+        <th style="padding:9px 12px;font-weight:600;width:120px">Item</th>
+        <th style="padding:9px 12px;font-weight:600">Answer</th>
+      </tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Overlay?</td><td style="padding:9px 12px">No. It reserves — 28 a side, given up by the content. S5's "takes no layout width" is withdrawn.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Inset</td><td style="padding:9px 12px">8, equal on all four sides, every surface and every screen. <code style="font-size:11px">R − r</code> and <code style="font-size:11px">R − 2r</code> withdrawn; the arc keeps a guard at <code style="font-size:11px">R(1 − 1/√2)</code>.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Whose padding</td><td style="padding:9px 12px">The parent's — 24 on the ScrollArea root plus 4 on the viewport for the focus ring. Never the scroller's alone.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Axes</td><td style="padding:9px 12px">Both, wherever the content is not the caller's to predict. The omitted axis is <code style="font-size:11px">overflow: hidden</code>, not merely unscrollable.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Dialog</td><td style="padding:9px 12px">Three bands in a grid; title and buttons fixed. Not a flex column — a flexed height is not definite enough for the body to resolve against.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Exceptions</td><td style="padding:9px 12px"><code style="font-size:11px">Select</code> keeps the native bar (Radix owns that viewport and will not nest a ScrollArea), as does the page itself. Both dressed from the same tokens in <code style="font-size:11px">index.css</code>.</td></tr>
+      <tr style="border-top:1px solid #f0efec"><td style="padding:9px 12px;font-weight:700">Unchanged</td><td style="padding:9px 12px">S5's date picker, select and toast placement. <code style="font-size:11px">mobile.dc.html</code> remains their authority.</td></tr>
+    </table>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
