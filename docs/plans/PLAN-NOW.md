@@ -18,7 +18,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
-| A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate | `infra/asof-alignment` | M | **todo — needs a plan and a decision first** (found 2026-08-18 by W1) |
+| A20 | Capture checks become structural — did it run, is the shape right — never "did the value change" | `infra/structural-checks` | S | **todo** (owner ruling 2026-08-18) |
+| A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **todo — deadline W4, 2026-09-02** (found 2026-08-18 by W1) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
@@ -692,34 +693,128 @@ it concurrently with the i18n sweep.
 
 A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. A16–A17 leave every route usable on a phone, with the sidebar collapsible at every width. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`).
 
-## A19 — `as_of` is one day early on every Inzhur row — **TODO, needs a plan**
 
-**Not planned here on purpose.** Found on 2026-08-18 while running W1; the
-measurement and its two independent confirmations are written up in
-`infra/README.md` § "W1 — the frozen-feed detector on real data". This row
-exists so the finding is not lost, not because the work is specified.
+---
 
-**What is established.** Inverting the DCF dates the price our archive files as
-`as_of = D` to `D + 1`, four consecutive days, residual 0.0035 ₴ — inside D31's
-band for a fresh bond. The provider's own answer about Saturday–Monday agrees
-once the shift is applied. `asOfFor` (`capture.ts`) subtracts a day because "the
-01:00 run reads the price settled the previous day", which is false for the live
-Inzhur endpoint.
+# Section G — What W1 found (2026-08-18)
 
-**What is NOT established, and must be before anything is written.**
+Both tasks come out of one afternoon's measurement and both edit `capture.ts`.
+**Do A20 first**: it deletes a consumer of `as_of`, which shrinks what A19 has to
+verify. If only one gets done, do A19 — it is the one with a deadline.
 
-- **One function, two meanings.** The same value is the NBU **request
-  parameter** — `nbuFairValueUrl(asOf)` fetches a named date's file, and that
-  file genuinely is that date's. **NBU is labelled correctly. Changing `asOfFor`
-  outright would break it.** The fix separates the meanings.
-- **The convention is pinned in writing** in `migrations/001_price_capture.sql`,
-  and pinned precisely against silent redefinition. It has to be superseded by a
-  decision, not edited.
-- **The migration rewrites live archived rows** — `as_of + 1` on every Inzhur
-  row. That is the most irreversible action on the board and the archive has no
-  PITR (only whole-cluster recovery points, see the durability section). Order
-  it after a fresh backup, and verify row-for-row.
-- **Downstream of `as_of`**: the observation derivation, the backfill
-  completeness check and the streak walk all key on it. The streak reading is
-  known to be unaffected (weekend dates are skipped either way); the other two
-  are unchecked.
+## A20 — Capture checks become structural, never value-based — `infra/structural-checks`
+
+**Goal:** the capture reports whether it RAN and whether the payload has the
+SHAPE it should. It stops reporting whether the numbers moved.
+
+**Owner ruling, 2026-08-18.** A price may change or not change for reasons that
+are none of the app's business — maintenance, a weekend, a public holiday, a
+holiday moved to the Monday after. Alarming on that manufactures work where there
+is no fault, and *"an alarm that pages for nothing gets muted"* is already this
+project's most expensive lesson (D44, D45, D47).
+
+**W1 measured that the value check was worthless anyway.** For `inzhur` the
+digest can never repeat while the feed is alive: 24 of the 31 live bonds carry
+daily accrued interest, so one hash over all 36 entries is fresh every day by
+construction. `unchangedDays` is pinned at 1 — a flat line carrying no
+information, bought with a 60-row query per source per run. For `nbu_fv` the
+weekend and the holiday are already answered by the 404 path (`NOT_PUBLISHED`),
+which is exempt from the failure throw on purpose.
+
+**What goes:**
+
+- [ ] `StalePricesAlarm` and `StalePricesMetricFilter` — the value check itself.
+- [ ] `UnchangedDaysMetricFilter` and the `unchangedStreak` query behind it.
+      Removing the metric rather than keeping a graph is a departure from this
+      file's usual "no alarm on it, deliberately, the graph is the signal": that
+      pattern is for a number that still *says* something. This one is provably
+      constant for the source that matters.
+- [ ] `StreakCheckLivenessAlarm`, which exists only to prove the streak check is
+      running. It goes with what it was watching, not before it.
+- [ ] `STALE_AFTER_DAYS`, and the `isWeekend` calls that exist only for the
+      streak walk. Check whether `isWeekend` has another caller before deleting.
+
+**What stays, and it is already most of the answer.** `SilenceAlarm`
+(`Invocations < 1`, missing = breaching) says the job stopped. A fetch failure, a
+parse failure, zero entries, or a tracked ISIN absent all set `error` and the
+handler throws, so `ErrorAlarm` fires — with the NBU weekend 404 exempted by
+name. `DlqAlarm` catches exhausted retries. `BackupAgeAlarm` and
+`AlertChannelAlarm` are about mechanisms running, not values.
+
+**What is missing, and is the positive half of this task:**
+
+- [ ] **A shape check on `skipped_refs`.** For `inzhur`, entries the parser could
+      not read are recorded per entry as `ref:reason` and **alarm on nothing**
+      unless the count reaches zero. A feed that quietly drops six instruments
+      from 36 is a shape change, is exactly what the archive exists to catch, and
+      is silent today. NBU already has this shape of check (`tracked ISIN
+      absent`); `inzhur` does not.
+- [ ] **A floor under `entry_count`.** The DDL comment already calls entry-count
+      collapse "the earliest signal of a feed shape change" — but nothing reads
+      it. Decide between an absolute floor and a drop-versus-previous-capture; a
+      drop test is sharper and needs one more query, so weigh it against the DPU
+      the streak query is giving back.
+- [ ] Both must exempt the legitimately-absent case the way the NBU 404 is
+      exempted, or this task recreates the defect it removes.
+
+**Verify:** a deploy with no capture behaviour change; `SetAlarmState` on the new
+shape alarm reaches the Console Mobile App (the D45 proof); a hand-invoke with a
+trimmed fixture trips it and a normal run does not.
+**Risk:** low. It removes alarms and adds one; no data is touched. The one trap
+is deleting `StreakCheckLivenessAlarm` and leaving the metric filter, or the
+reverse — the alarm then watches a metric nobody publishes, which is
+indistinguishable from health.
+
+## A19 — `as_of` is one day early on every Inzhur row — `infra/asof-alignment`
+
+**Goal:** the date beside a price is the date the price is FOR. Then fix the 14
+rows already filed under the wrong one.
+
+**Established by measurement, twice over, on 2026-08-18** — the write-up is
+`infra/README.md` § "W1 — the frozen-feed detector on real data". Inverting the
+DCF dates the cabinet's quote of 1066.50 (published yield 15.55 %) to **18
+August**; our archive filed it as **17 August**, and the same one-day offset
+holds for the three days before it at a 0.0035 ₴ residual — inside D31's band for
+a fresh bond. Independently, the provider's answer that prices are flat
+Saturday–Monday matches our Friday–Sunday plateau shifted by exactly one day.
+
+**The cause is one function serving two meanings.** `asOfFor` subtracts a day
+because "the 01:00 run reads the price settled the previous day". False for
+Inzhur: the live endpoint at 01:00 already serves the price struck for that
+calendar day. **True for NBU**, where the same value is a *request parameter* —
+`nbuFairValueUrl(asOf)` fetches a named date's file, and the file for D-1 is
+D-1's. **NBU is labelled correctly across 6 636 rows back to 2016-01-04 and must
+not be touched.**
+
+- [ ] **A decision entry first, not last.** The convention is pinned in writing
+      in `migrations/001_price_capture.sql`, and pinned precisely against silent
+      redefinition. Supersede it; do not edit it.
+- [ ] Split the two meanings in `capture.ts` — the Kyiv date of the run for the
+      live Inzhur read, the file date for the NBU request. Two names, so the next
+      reader cannot conflate them again. `asOfFor` should survive only as
+      whichever one keeps its meaning.
+- [ ] **Migrate 14 rows**: `source='inzhur'`, `as_of` 2026-08-10 through
+      2026-08-17, all `as_of + 1`. Well under DSQL's 3 000-mutated-rows cap, so
+      one transaction. `price_observation` holds 418 rows and **every one is
+      `nbu_fv`** — the Inzhur half is still W3/W4, so nothing downstream carries
+      the bad dates yet.
+- [ ] Take a fresh recovery point before the write and confirm it completed.
+      There is no PITR (see the durability section) — recovery is whole-cluster
+      only, so the backup IS the undo.
+- [ ] Re-check the two remaining consumers of `as_of`: the observation
+      derivation window and the backfill completeness check. The streak walk is
+      already known to be unaffected, and A20 deletes it anyway.
+
+**Deadline: before W4 (2026-09-02).** W4 designs the Inzhur observation schema,
+whose natural key is `(as_of, ref, basis, source)`. A wrong date is survivable in
+a journal table; in a key it is not, and DSQL primary keys are immutable — a
+wrong key is a DROP/CREATE, not a migration. Every day also adds one more row to
+correct, which is the same argument A2 was sequenced on.
+
+**Verify:** re-run the DCF inversion after the migration and confirm the fitted
+date equals the stored `as_of` for a live bond; `SELECT count(*)` per source
+unchanged; every `payload_sha256` unchanged (this moves labels, never payloads);
+NBU's min and max `as_of` still 2016-01-04 and unchanged at the top.
+**Risk:** the highest on this board despite the small row count, because it
+rewrites archived rows in a store with no point-in-time recovery. The volume is
+trivial; the semantics are not.
