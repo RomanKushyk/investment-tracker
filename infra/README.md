@@ -696,3 +696,27 @@ either. `quotes_sha256` is still computed and stored, so this whole reading can
 be reproduced from the archive at any time; it simply is not judged on a
 schedule any more.
 
+### A20's deploy failed first, and nothing local could have caught it
+
+`SkippedRefsMetricFilter` shipped with both `DefaultValue` and `Dimensions` on
+one metric transformation. CloudWatch Logs rejects that pair —
+`"metric transformation: dimensions and default value are mutually exclusive
+properties"`, a 400 raised while CREATING the resource. The stack rolled back
+cleanly and the Lambda went back with it, so nothing was left half-applied; the
+cost was one CI cycle.
+
+**Checked rather than assumed: `cfn-lint` does not catch it.** Linting the
+broken template and the fixed one against `eu-north-1` both return **zero**
+findings, so adding cfn-lint to the backend workflow would have bought nothing
+here and is not being added on the strength of a guess. The constraint is
+service-side and appears only when the resource is created — no local validation
+sees it.
+
+So the real protection is the two things that already worked: the update rolls
+back as one unit, and the deploy fails loudly instead of half-succeeding. What
+this note buys is the next person adding a metric filter **with dimensions**
+knowing not to reach for `DefaultValue` at the same time. It was not wanted
+anyway — `skippedRefs` is emitted on every scheduled run and carries 0 when
+nothing was skipped, so a default would only invent datapoints for runs that
+never happened.
+

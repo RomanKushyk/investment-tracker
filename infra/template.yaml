@@ -427,7 +427,14 @@ Resources:
         - MetricNamespace: Quirenote
           MetricName: SkippedRefs
           MetricValue: $.value
-          DefaultValue: 0
+          # NO DefaultValue here. CloudWatch Logs rejects a transformation that
+          # carries both a default and dimensions — "mutually exclusive
+          # properties", a 400 that only appears at deploy time, never at
+          # validate time. It is not wanted anyway: `skippedRefs` is emitted on
+          # every scheduled run and carries 0 when nothing was skipped, so the
+          # metric already has a datapoint whenever the capture ran. A default
+          # would only invent points for runs that never happened, which is
+          # exactly the reading `SilenceAlarm` exists to make impossible.
           Dimensions:
             - Key: source
               Value: $.source
