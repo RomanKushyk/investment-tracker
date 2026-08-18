@@ -17,6 +17,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; the non-key columns stay gated on `PLAN-WAITING.md` W3 |
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
+| O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **open, 2026-08-18.** G5 is called binding and non-negotiable; this asks it to stop being |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -162,3 +163,35 @@ already provides for free.
 cluster — it is making the stack take the environment as a parameter, so that
 standing one up later is a deploy rather than a fork. That is a small change and
 it is the part that would otherwise be done twice.
+
+## O22 — May a settings toggle make G5 opt-out?
+
+**Opened 2026-08-18, groomed out of the owner's idea list** (`PLAN-NOW.md`
+§ Section H). The draft line reads: *"toggle in settings to auto save daily
+quotes, G5 (suggest-only) if disabled"* — so the switch ON means the app writes
+a snapshot with no Save press, and OFF means today's behaviour.
+
+**Why this is a question and not a task.** G5 is stated in
+`NEXT-PHASE-PLAN.md` as *"automation is suggest-only by construction. Binding and
+non-negotiable: fetched and accrued values reach a draft or a prefilled form, and
+the user's Save/Confirm is the sole write path. This survives the cloud move
+unchanged and applies to anything the server suggests too."* A toggle does not
+bend that rule, it replaces it with *"binding unless the owner opts out"* — and
+the two are different contracts, one of which cannot be relied on by anything
+downstream. It is also load-bearing in more places than the quotes screen: D20's
+provenance map, D21's suggestion switches, D22's reminders and D24's cross-tab
+locking all assume a single human write path.
+
+**The shape is already conceded and is not what is in dispute.** The idea list
+specifies the switch as opt-in with OFF meaning today's behaviour, which is the
+careful version. What is undecided is whether the ruling may be narrowed at all.
+
+**What an answer has to say, whichever way it goes:**
+- If **no**: say so once, in a decision, so the line stops returning. The nearest
+  thing that does not touch G5 is a one-press confirm — fewer keystrokes, same
+  sole write path — and that is a design question, not a contract one.
+- If **yes**: name what the switch may write (the quote snapshot only? coupons
+  too?), what it may never write, whether a server-side suggestion is covered,
+  and how the user sees that a machine wrote a row — provenance already exists
+  for exactly this (D20), so an auto-written row must carry it.
+

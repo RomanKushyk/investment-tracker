@@ -40,6 +40,10 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox 2026-08-14) — but it missed `design/`: every reference still says `Kubushka`, recorded 2026-08-18 in `design/extensions/README.md` as a divergence rather than edited, since D14 makes a merged drawing immutable. It also left one comment in `core/backup/import.ts` naming the retired `kubushka-backup` marker, now fixed. |
+| **Section H** | **Groomed from the owner's idea list (2026-08-18)** | | | |
+| A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **todo** |
+| A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **todo** |
+| A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
 
 ---
 
@@ -693,7 +697,7 @@ it concurrently with the i18n sweep.
 
 ## Acceptance for Plan A
 
-A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. A16–A17 leave every route usable on a phone, with the sidebar collapsible at every width. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`).
+A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. A16–A17 leave every route usable on a phone, with the sidebar collapsible at every width. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`). **That state was reached on 2026-08-18 and lasted one afternoon:** Section H then refilled this file from the owner's idea list, so read the Status table rather than this paragraph for what is open.
 
 
 ---
@@ -840,3 +844,107 @@ the DCF dates every stored payload to its own `as_of`.
 archived rows in a store with no point-in-time recovery. Handled by taking the
 recovery point first and by proving the shift uniform before applying it rather
 than after.
+
+---
+
+# Section H — Groomed from the owner's idea list (2026-08-18)
+
+`USER-FEATURES-DRAFT.md` held seven lines and was wiped in the same commit that
+created this section, per its own cycle. **The mapping is recorded here because
+the source page no longer exists:**
+
+| Draft line | Where it went | Why there |
+|---|---|---|
+| currency in settings sets the default; the sidebar toggle is a quick preview | **A21**, below | pure state; no new pixel |
+| analytics pages editable (targets → allocation, settings›portfolio → portfolio) | **A22** brief | new interaction, G7 |
+| `daily entry` becomes `entry`, holding `Daily quotes` + `transactions` | **A22** brief | splits a screen in two; G7 |
+| sidebar groups can be collapsed | **A22** brief | new affordance on an existing group; G7 |
+| provider-first `new asset` form | **A23** brief | new flow, and it overlaps B3's catalog |
+| user profile page | **`PLAN-WAITING.md` W16** | there is no user until W7 |
+| settings toggle to auto-save daily quotes | **`PLAN-OPEN.md` O22** | it asks G5 to stop being binding |
+
+**Three of the seven are design briefs and not implementations, and that is the
+pipeline (G7), not caution.** A brief is startable today — A8 and A16 were both
+PLAN-NOW tasks — and the implementation rows come out of the design session that
+follows it. Only A21 is buildable now, because it changes no pixel.
+
+## A21 — Currency: Settings sets the default, the sidebar toggle is a session preview — `feat/currency-session`
+
+**The defect, stated plainly.** There is ONE persisted field, `currency`, and
+**two controls write it** — the sidebar toggle (`app/Sidebar.tsx`) and the
+Settings segmented control (`screens/Settings.tsx`, `t.settings.currency`). So
+flipping to `$` to glance at one KPI is remembered forever, and the Settings
+control is not a default at all: it is a second remote for the same switch.
+
+**Wanted:**
+- The **persisted** value is the DEFAULT, applied at app open. Settings writes it.
+- The **sidebar toggle changes the session only** and is never persisted. A
+  reload returns to the default.
+
+- [ ] Split the store: `currency` stays the persisted default (name it so —
+      a field called `currency` that is not what the app is currently showing
+      will be misread by the next reader), and the live value lives beside it,
+      outside `partialize`.
+- [ ] `partialize` carries the default and NOT the session value. Standing
+      invariant: every persisted settings field enters `partialize` in the same
+      commit — this task also has to make sure a field LEAVES it.
+- [ ] **`screens/settings/ImportDialog.tsx:125` calls `setCurrency(sane.currency)`
+      on restore, and it must keep writing the DEFAULT.** A backup carries the
+      user's preference, not their last glance; restoring into the session value
+      would make it evaporate on reload.
+- [ ] Every reader — KPIs, sidebar, `useFormat` — reads the SESSION value, which
+      falls back to the default. Nothing reads the default directly except
+      Settings' own control.
+- [ ] Tests: a sidebar flip does not survive a store rehydrate; a Settings change
+      does; a restore writes the default; the existing `settings.test.ts`
+      identity assertions stay green.
+
+**Not in scope:** `usdRate` (44.83) is unrelated and stays exactly as it is.
+
+## A22 — Design brief: where things live — `docs/design-brief-phase-7`
+
+**Three draft lines, one question: where does each control live and how is it
+reached.** They are one brief because answering any of them separately would
+re-decide the other two.
+
+- [ ] **Editable analytics pages.** The draft says "edit button top right", with
+      target setting moving into `/allocation` and Settings›Portfolio into
+      `/portfolio`. **The brief must resolve which of two things this is** — an
+      edit MODE that reveals inline controls on an otherwise read-only page, or
+      simply relocating specific settings onto the page they act on. Those are
+      different products and the draft line reads as either.
+- [ ] **`Daily entry` → `Entry`, holding `Daily quotes` and `Transactions`.**
+      Today the group holds one item and `TransactionPanel` is rendered INSIDE
+      `screens/DailyQuotes.tsx` (line 326) — so this is not a rename, it is
+      splitting one screen into two routes. The brief decides what `/` becomes.
+- [ ] **Collapsible sidebar groups.** The three groups already exist
+      (`groupDailyEntry`, `groupAnalytics`, `groupSettings`). Interacts with the
+      D66 collapse control and with the mobile drawer — a group collapsed on
+      desktop and a drawer that is already an overlay are not obviously the same
+      state, and the brief says whether they are.
+- [ ] Output per G7/D14: a merged `design/extensions/*.dc.html`, and the
+      implementation rows filed back here.
+
+**Constraint to carry into the session:** the sidebar is ONE composition with two
+layouts (D66) and shape is a system (D56) — a collapsed group's chevron takes
+`round(min(w,h) × 0.26)` like anything else, and 44 × 44 is hit area, never
+geometry.
+
+## A23 — Design brief: provider-first asset creation — `docs/design-brief-asset-create`
+
+**The draft's own words for the goal are the best statement of it:** *"the user
+should input minimum data, especially minimum sensitive data"* — pick a provider,
+pick from the assets it lists, type a name only for `custom`, and let everything
+else fill itself.
+
+- [ ] Read what exists first. `components/forms/AssetForm.tsx` already has an
+      `InzhurGroup` with a live ref picker and a manual fallback, and
+      `hooks/useInzhurAssets.ts` is the manual-only fetch behind it (D19). This
+      is a re-ordering of an existing form, not a new capability.
+- [ ] **`NEXT-PHASE-PLAN.md` already flags the overlap: B3's catalog registers
+      newly listed provider assets and never puts them in a portfolio.** The
+      brief must not design a provider list that the backend will re-decide at
+      W7 — say explicitly which half is the app's and which is the catalog's.
+- [ ] The quick-create path inside `TransactionPanel` reuses `AssetFormFields`,
+      so whatever the flow becomes has to work in both hosts or the brief has to
+      say why it does not.

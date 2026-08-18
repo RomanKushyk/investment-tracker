@@ -116,15 +116,19 @@ copy in this file is how the two drift.
 out of `docs/archive/` on 2026-08-17 (the archive rule is *never a task list*)
 and pruned from 23 items to 7 in the same pass.
 
-Two of the survivors touch rulings recorded here. **A settings toggle that
-auto-saves the daily quotes writes without a Save press, which is what G5
-below forbids** — the list now specifies it as opt-in, with the switch OFF
-meaning today's suggest-only behaviour, so what is left is not the shape but
-the ruling: G5 is called binding and non-negotiable, and narrowing it to
-"binding unless the owner opts out" needs a decision entry before any of it is
-built. **The provider-first asset form overlaps B3's catalog**, which already
-registers newly listed provider assets into the catalog and never into a
-portfolio.
+**Groomed and emptied 2026-08-18 (7 → 0).** The page is now collecting again.
+The seven lines became **A21, A22, A23** (`PLAN-NOW.md` § Section H, which also
+carries the line-by-line mapping), **W16** (`PLAN-WAITING.md`, gated on W7) and
+**O22** (`PLAN-OPEN.md`). Three of the seven became design briefs rather than
+implementations, per G7.
+
+**The two that touched rulings recorded here were filed as rulings, not as work.**
+The settings toggle that would auto-save the daily quotes is **O22** — G5 is
+called binding and non-negotiable below, and narrowing it to "binding unless the
+owner opts out" is a decision, not a feature. The provider-first asset form is
+**A23**, whose brief is required to say which half is the app's and which belongs
+to B3's catalog, since that catalog already registers newly listed provider
+assets and never puts them in a portfolio.
 
 ## Flagged deviations from the original draft
 

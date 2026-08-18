@@ -25,6 +25,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W13 | Phase 6: chart analytics | W7 — deferred by judgment, not blocked | after W7 | no | doing it twice |
 | W14 | Phase 7: DB browser | W7 — by construction | after W7 | no | building it twice |
 | W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **after 2026-09-02** | no | none — the files are in hand and read up in `docs/reference/INZHUR-FUND-HISTORY.md` |
+| W16 | User profile page and its settings | W7 — there is no user to have a profile until auth lands | **after W7** | no | none — the page has nothing to show today |
 
 ---
 
@@ -327,3 +328,28 @@ stored as text and will break a naive parser.
 this task. The tracker covers it, but at `sell` and as position value, so it
 would need units per date from the transactions sheet — a different source, a
 different basis, and a different provenance story.
+
+---
+
+## W16 — User profile page and its settings — **after W7**
+
+**From the owner's idea list, groomed 2026-08-18** (`PLAN-NOW.md` § Section H
+records the whole mapping).
+
+**Gate: W7, and it is a gate by construction rather than by judgment.** The app
+has no notion of a user. Identity arrives with the B3 migration — Cognito
+Essentials, managed login, passkey-first onboarding (D32/D36/D39) and a user
+schema (D38/D39: an application creates a DB row, not a Cognito user). A profile
+page before that would be a settings screen with a person's name typed into
+local storage, which is not a profile and would have to be thrown away.
+
+**Do not confuse it with Settings, which already exists.** Today's `/settings`
+holds preferences that belong to the BROWSER — theme, language, currency,
+dataset, automation switches, reminders. A profile holds what belongs to the
+ACCOUNT and follows it to another device. W7 is exactly the line between those
+two, so the split is free if it is drawn then and expensive if it is drawn twice.
+
+- [ ] Decide at W7 which of today's settings are account-scoped and which stay
+      local. `dataset` is plainly local; `language` and `theme` are arguable.
+- [ ] Needs a design brief (G7) before implementation, like any new screen.
+
