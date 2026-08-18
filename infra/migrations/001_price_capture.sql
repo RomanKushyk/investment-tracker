@@ -73,9 +73,12 @@ CREATE TABLE IF NOT EXISTS price_capture (
   skipped_refs    TEXT,       -- comma-joined; DSQL array support is unverified
 
   -- The payload itself, gzipped. ~165 KB raw, ~8 MB/year gzipped.
-  -- This is the load-bearing column: the provider publishes no history, so if
-  -- the parser is ever wrong — unit drift, a renamed field, a percentage that
-  -- becomes a fraction — this is the ONLY thing that can regenerate history.
+  -- This is the load-bearing column, and the argument survives D72 narrowing
+  -- the premise around it: whatever the provider publishes elsewhere, it does
+  -- not republish what IT served US on a given day. So if the parser is ever
+  -- wrong — unit drift, a renamed field, a percentage that becomes a fraction —
+  -- this is still the ONLY thing that can regenerate our history. W1 and D71
+  -- both read it to answer questions nobody anticipated storing an answer to.
   payload_gzip    BYTEA       NOT NULL,
   payload_bytes   INT         NOT NULL,   -- decoded size, before compression
   payload_sha256  TEXT        NOT NULL,   -- over the DECODED body text, not the

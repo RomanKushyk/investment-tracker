@@ -125,6 +125,7 @@ only for the decision you actually need.
 | D69 | The provider's FX rate is not stored at all — supersedes D30's placement of it | 2026-08-17 |
 | D70 | Capture checks are structural; the value check is retired — supersedes D28's frozen-feed half | 2026-08-18 |
 | D71 | `as_of` is per source; the Inzhur rows were a day early and were migrated | 2026-08-18 |
+| D72 | "the provider publishes no price history" is too strong — narrows D27 | 2026-08-18 |
 
 ## A pattern these entries kept finding
 

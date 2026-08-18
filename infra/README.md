@@ -7,8 +7,11 @@ Design and rationale live in `docs/superpowers/specs/` —
 
 **The app does not read any of this yet.** Nothing in `src/` knows the backend
 exists. Phase 1 buys one thing: prices stop being lost on days the app is not
-opened, because the provider publishes no history and a missed day is
-permanently unrecoverable.
+opened. **D72 narrows what that means:** what is unrecoverable is the Inzhur
+DEALER QUOTE, which exists nowhere else. The funds' own history is published as
+Excel on the site through June 2026, and bond history at NBU fair value is
+already held here from each bond's issuance — a different basis, never a
+substitute (~0.9% same-day divergence, D26/D27).
 
 ## Layout
 
