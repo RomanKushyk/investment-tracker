@@ -777,3 +777,46 @@ they DIFFER, so a future collapse back into one date fails the deploy instead of
 passing it. The step runs before `configure-aws-credentials`, so the failed run
 deployed nothing and the stack was never in a half-applied state.
 
+## A6 — the DCF check runs nightly now, 2026-08-18
+
+**A20 created the need and this closes it.** Retiring `StalePricesAlarm` rested
+on the argument that per-instrument staleness is the DCF inversion's job (D31).
+That job only ran when someone opened the app, so a provider that quietly stopped
+re-pricing was invisible on any day nobody looked. The capture now tallies
+`checkQuote` over every live bond on the scheduled path.
+
+**Measured over the eight days already in the archive before deciding what to
+alarm on** — the same discipline A20 used, and it gave the same answer:
+
+| verdict | per day |
+|---|---|
+| `consistent` | 18 |
+| `not_applicable` | 7 — D31's `status: 'completed'` bonds exactly |
+| `stale` | 3–4, **max 6 days**, every single day |
+| `revised` | 1–2, with **UA4000236624 revised on all eight** |
+| `inconclusive: insensitive` | 0–1 |
+| **`inconclusive: unexplained`** | **0, across ~190 evaluations** |
+
+**So staleness is graphed and never alarmed.** It is this feed's steady state,
+not an event: an alarm on it fires nightly and is muted inside a month (D44).
+`QuoteMaxStaleDays` per source is the graph, and a `quoteVerdicts` line carries
+the four counts for anyone reading the log.
+
+**One verdict alarms, and only because the measurement earned it.**
+`unexplained` means no yield the model can produce explains the quote at all — a
+schedule the parser mangled or a corrupt provider price. It has never happened.
+It is also not a value check in D70's sense: it says the payload we are archiving
+is internally incoherent, which is a structural fact, not a complaint that a
+number failed to move.
+
+**Nothing is stored.** The verdict is a conclusion whose premises — quote,
+schedule, published yield — are all in `payload_gzip` forever, so any day can be
+recomputed. A6's own plan pinned that, and it is the line D69 drew about the FX
+rate.
+
+**`tallyQuotes` lives in `infra/src/quotes.ts`, not in the handler**, for the
+reason `dates.ts` does: a test for it must not reach the handler's `@aws-sdk/*`
+imports, which the frontend CI job cannot resolve. Verified by walking both
+tests' import graphs rather than by running them and trusting the result — that
+is exactly the check that would have caught v1.6.2's failed deploy.
+

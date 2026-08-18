@@ -21,6 +21,7 @@ import { kyivDateIso } from '../../src/core/dates';
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
+import { tallyQuotes, type QuoteTally } from './quotes';
 import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
 
 /** Bumped whenever the parse changes shape. Stored per row so that, if the
@@ -350,6 +351,8 @@ interface CaptureResult {
   entries: number;
   /** How many entries the parser could not read. Published, never alarmed (A20). */
   skipped: number;
+  /** DCF verdicts over the live bonds, Inzhur only. Published, never stored (A6). */
+  quotes?: QuoteTally;
   error: string | null;
 }
 
@@ -412,6 +415,7 @@ async function captureOne(
 
   let entryCount: number | null = null;
   let skipped: string | null = null;
+  let quotes: QuoteTally | undefined;
   let error = outcome.error ?? null;
   let digest: string | null = null;
 
@@ -464,6 +468,9 @@ async function captureOne(
         if (entryCount === 0) error = 'feed parsed to zero entries';
         else if (expectTracked && absent.length > 0)
           error = `tracked ref absent: ${absent.join(',')}`;
+        // Diagnostic only — it never sets `error`, because a stale provider
+        // quote is a fact to record, not a failed capture (A6, G5).
+        quotes = tallyQuotes(feed, asOf);
       }
     } catch (err) {
       error = `parse failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -502,6 +509,7 @@ async function captureOne(
     ok: error === null,
     entries: entryCount ?? 0,
     skipped: skipped === null || skipped === '' ? 0 : skipped.split(',').length,
+    ...(quotes === undefined ? {} : { quotes }),
     error,
   };
 }
@@ -1102,6 +1110,39 @@ export async function handler(event: HandlerEvent = {}) {
     for (const r of results) {
       console.log(JSON.stringify({ metric: 'entryCount', source: r.source, asOf: r.asOf, value: r.entries }));
       console.log(JSON.stringify({ metric: 'skippedRefs', source: r.source, asOf: r.asOf, value: r.skipped }));
+      if (r.quotes === undefined) continue;
+
+      // HOW STALE THE PROVIDER'S OWN QUOTES ARE — graphed, never alarmed, and
+      // the distribution is why. Measured over the eight days in the archive:
+      // 18 `consistent`, 7 `not_applicable`, 3-4 `stale` capped at 6 days, and
+      // 1-2 `revised` — with UA4000236624 revised on EVERY one of the eight.
+      // Staleness here is the steady state of this feed, not an event, so an
+      // alarm on it would fire nightly and be muted inside a month (D44). The
+      // graph is the signal: a step change in the maximum is the thing to see.
+      console.log(JSON.stringify({
+        metric: 'quoteMaxStaleDays', source: r.source, asOf: r.asOf, value: r.quotes.maxStaleDays,
+      }));
+      console.log(JSON.stringify({
+        metric: 'quoteVerdicts', source: r.source, asOf: r.asOf,
+        consistent: r.quotes.consistent, stale: r.quotes.stale,
+        revised: r.quotes.revised, insensitive: r.quotes.insensitive,
+      }));
+
+      // AND THE ONE VERDICT THAT DOES DESERVE WAKING SOMEONE. `unexplained`
+      // means no yield the model can produce explains the quote at all — a
+      // schedule the parser mangled or a corrupt provider price, which the
+      // type's own documentation calls the loudest thing it can say. It has
+      // never occurred: zero across ~190 evaluations over the same eight days.
+      // That is what makes an alarm on it safe rather than another muted one.
+      //
+      // A log line and a metric filter rather than a throw: a mangled schedule
+      // is not transient, so retrying would write three more rows for the same
+      // day and help nobody.
+      if (r.quotes.unexplained.length > 0) {
+        console.warn(
+          `UNEXPLAINED_QUOTE source=${r.source} asOf=${r.asOf} refs=${r.quotes.unexplained.join(',')}`,
+        );
+      }
     }
 
     // Only on the scheduled path. A backfill has nothing to say about whether

@@ -439,6 +439,61 @@ Resources:
             - Key: source
               Value: $.source
 
+  # HOW STALE THE PROVIDER'S QUOTES ARE (A6). Graphed, never alarmed, for the
+  # same reason ObservationsWritten is: measured over eight days of archive the
+  # feed carries 3-4 stale bonds every single day, capped at 6 days, and 1-2
+  # `revised` with one ISIN revised on all eight. That is this feed's steady
+  # state. An alarm on it fires nightly and is muted inside a month (D44); a
+  # graph shows the step change that would actually matter.
+  QuoteMaxStaleDaysMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "quoteMaxStaleDays" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: QuoteMaxStaleDays
+          MetricValue: $.value
+          Dimensions:
+            - Key: source
+              Value: $.source
+
+  # THE ONE VERDICT WORTH WAKING SOMEONE FOR. `unexplained` means no yield the
+  # model can produce explains the quote at all — a schedule the parser mangled
+  # or a corrupt provider price. It is not a staleness signal and not a
+  # "the value did not move" signal (D70): it says the payload we are archiving
+  # is internally incoherent, which is a structural fact about the data.
+  #
+  # Safe to alarm on because it was measured first: ZERO occurrences across
+  # ~190 evaluations over eight days. That is the difference between this and
+  # the StalePrices alarm it replaces.
+  UnexplainedQuoteMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: UNEXPLAINED_QUOTE
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: UnexplainedQuote
+          MetricValue: '1'
+          DefaultValue: 0
+
+  UnexplainedQuoteAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: A bond quote cannot be explained by any yield the model can produce.
+      Namespace: Quirenote
+      MetricName: UnexplainedQuote
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      # notBreaching: no data means the line was never logged, which is the
+      # healthy state. SilenceAlarm is what covers "nothing ran at all", and
+      # `breaching` here would raise two alarms for one fault (the A14 lesson).
+      TreatMissingData: notBreaching
+
   DlqAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:

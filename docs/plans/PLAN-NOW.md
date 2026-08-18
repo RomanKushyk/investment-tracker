@@ -22,7 +22,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **done** (2026-08-18, D71) — two weeks inside the W4 deadline |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
-| A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
+| A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52; last box closed 2026-08-18 — the check now runs nightly in the capture) |
 | A7 | Parse errors become visible | `feat/parse-diagnostics` | S | **done** (2026-08-12) |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
 | A12 | Backfill stops flagging pre-issuance dates | `infra/backfill-tracked-isins` | S | **done** (2026-08-11) |
@@ -215,12 +215,14 @@ Nothing is broken **today**, because the read API of B2 does not exist yet and n
 
 **Rationale:** the feed's bond price is not a market quote but a discounted cash flow over `paymentSchedule` whose only free parameter is `returnRates.sell` — `P(D) = Σ CFᵢ × (1 + y)^(−ACT_days/365)`, verified out-of-sample 2026-07-28 → 2026-08-10 (predicted 1063.1288 vs quoted 1063.13). `returnRates` and `status` have been captured since `dee6b47`, so the inputs exist in every row from 2026-08-10 on.
 
-- [ ] `core/inzhur/dcf.ts` — `derivePrice(schedule, yield, onIso)` and `impliedYield(price, schedule, onIso)` by bisection. The inverse is what catches a revision when only the price moved.
-- [ ] Compare stored vs derived on fetch; a mismatch past a kopeck tolerance is a **surfaced anomaly**, never a silent correction (G5).
-- [ ] **Ship the inverse as a staleness diagnostic, not only a revision check (D31).** Searching the pricing date that best explains the quote dated seven live bonds to 1–6 days stale on 2026-08-11 — the one thing a price alone can never tell you. Surface it beside the quote.
-- [ ] **Skip `status: 'completed'` instruments (D31).** Their schedules lie entirely in the past, so the DCF correctly returns 0 and the model is undefined, not wrong. Seven of the 31 bonds are in this state. `status` is the discriminator — do not invent a residual threshold, and never filter the data on it (D19).
-- [ ] Later, in an `infra/` commit, hand the same function to the capture Lambda so the check runs nightly rather than only when the app is open.
-- [ ] Do not store the computed value. The spec is explicit: premises are captured forever, the conclusion never is — a stale provider value is stored as the observed fact.
+- [x] `core/inzhur/dcf.ts` — `derivePrice(schedule, yield, onIso)` and `impliedYield(price, schedule, onIso)` by bisection. The inverse is what catches a revision when only the price moved.
+- [x] Compare stored vs derived on fetch; a mismatch past a kopeck tolerance is a **surfaced anomaly**, never a silent correction (G5).
+- [x] **Ship the inverse as a staleness diagnostic, not only a revision check (D31).** Searching the pricing date that best explains the quote dated seven live bonds to 1–6 days stale on 2026-08-11 — the one thing a price alone can never tell you. Surface it beside the quote.
+- [x] **Skip `status: 'completed'` instruments (D31).** `checkQuote` answers `not_applicable` for them and the tally simply does not count it, so no residual threshold was invented and the data is never filtered on `status`. Their schedules lie entirely in the past, so the DCF correctly returns 0 and the model is undefined, not wrong. Seven of the 31 bonds are in this state. `status` is the discriminator — do not invent a residual threshold, and never filter the data on it (D19).
+- [x] **Done 2026-08-18** — the capture runs it nightly. `infra/src/quotes.ts` tallies `checkQuote` over every live bond and the scheduled handler publishes the result; the module is separate from `capture.ts` so its test needs no AWS, the same boundary `dates.ts` drew.
+      **Measured before choosing what to alarm on, over the eight days in the archive:** 18 `consistent`, 7 `not_applicable`, 3–4 `stale` capped at 6 days, and 1–2 `revised` — with UA4000236624 revised on **all eight**. Staleness is this feed's steady state, not an event, so it is **graphed and never alarmed**: `QuoteMaxStaleDays` per source, plus a `quoteVerdicts` line carrying the four counts.
+      **One verdict does alarm**, and only because it was measured first: `unexplained` — no yield the model can produce explains the quote at all, which the type's own docs call the loudest thing it can say — occurred **zero times in ~190 evaluations**. It is a structural claim about the payload's coherence rather than a "the value did not move" claim, which is why it survives D70.
+- [x] Do not store the computed value. The spec is explicit: premises are captured forever, the conclusion never is — a stale provider value is stored as the observed fact. **Nothing is written**: the verdict reaches a log line and a metric, and its premises (quote, schedule, published yield) are all in `payload_gzip`, so any day can be recomputed. Same line D69 drew about the FX rate.
 
 **Verify:** the out-of-sample pair as a fixture; round-trip `impliedYield(derivePrice(s, y)) ≈ y`; the seventeen bonds that fit on 2026-08-11 reproduce at a residual under 0.005 ₴; a `completed` instrument returns "not applicable" rather than an anomaly. Expect ~0.1 ₴ residuals on a few bonds even at their best date — the published yield is rounded to two decimals, which is a caveat on the residual, not on the date.
 
