@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { inzhurAsOf, nbuAsOf } from './capture';
+import { inzhurAsOf, nbuAsOf } from './dates';
 
 // THE TWO DATES HAD NO TEST, and they were one function that was wrong for
 // eight days of Inzhur rows (D71). This pins the split itself: the same instant
