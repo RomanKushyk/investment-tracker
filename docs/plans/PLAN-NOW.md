@@ -44,6 +44,10 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **done** (2026-08-18) |
 | A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **todo** |
 | A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
+| **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
+| A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
+| A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **todo** — pure logic, not design-blocked |
+| A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **todo** — blocked on A24 (done) |
 
 ---
 
@@ -979,3 +983,111 @@ else fill itself.
 - [ ] The quick-create path inside `TransactionPanel` reuses `AssetFormFields`,
       so whatever the flow becomes has to work in both hosts or the brief has to
       say why it does not.
+
+---
+
+# Section I — From the 2026-08-18 brainstorm
+
+The owner asked how `/overview`, `/yield` and `/seasonality` could be improved
+and what they might make editable. **The answer to the second half turned out to
+be "nothing":** every candidate for editing was declined in favour of deriving,
+so the A22 brief's rule — a page is editable where it shows STORED data — holds
+for all three, now as a tested conclusion rather than an assumption.
+
+Eight items came out of it, sequenced by dependency rather than taste, and the
+owner approved the sequence:
+
+**A24 (done) → A26's brief (period selection, and the content it adds) →
+A25 → the readability work, last.**
+
+**Why readability is last and that is not procrastination.** Period selection
+adds a control to `/yield`, sparkline-style comparison to `/overview` and a
+second axis to `/seasonality`. Designing the hierarchy of `/yield`'s eight
+columns and then adding a ninth element is drawing the same screen twice.
+
+## A24 — The portfolio start derives from the data — **DONE 2026-08-18** — `feat/derive-portfolio-start`
+
+**What was wrong.** `core/derive.ts` carried
+`export const PORTFOLIO_START = '2026-02-03'` — a literal that every annualized
+figure divides by. True of the demo seed, false of every other dataset, and
+therefore wrong on `/yield`'s whole annualized column, `/overview`'s
+"+3,08 % since 03.02" and `/attributes`' days-held for anyone whose portfolio
+did not start on that Tuesday. `src/README.md` already said no portfolio figure
+may be hard-coded; **a date that divides all the other figures is one.**
+
+- [x] `portfolioStart(assets, snapshots, transactions)` — the **earliest of
+      three signals**, not any single one. The value answers "on what day is
+      there evidence this portfolio existed", and a transaction, a snapshot or
+      an asset's `firstPurchase` each carry that evidence independently.
+- [x] **The direction is the argument.** A start that lands too LATE divides a
+      long return by a short span and prints a rate nobody earned; too early
+      only understates. The case that decides it: an asset carrying
+      `firstPurchase: '2020-01-01'` added without back-filling the ledger —
+      believing the transactions alone turns six years into six months.
+- [x] `undefined` on an empty dataset; both consumers keep the existing
+      zero-basis branch, and the two copy sites drop rather than render a date
+      nothing supports.
+- [x] `xirrIsExtrapolated` takes all three tables now, matching
+      `yieldTableRows` — asking it for snapshots alone would answer a different
+      question than the header asks.
+
+**Verified.** 651 tests (+7), lint and typecheck green. Browser, demo dataset:
+`/yield` reproduces every pinned figure (REIT +4,41 % / +9,3 % / −4,7 в.п.;
+…6475 +5,20 % / +10,9 %), the footnote still reads 03.02.2026, `/overview` still
+reads "+3,08 % від 03.02", `/attributes` unchanged. Browser, **empty live
+dataset**: no footnote, no sub-line, and no `NaN`/`Infinity`/"від —" anywhere —
+which is a visible improvement on the empty state, not merely a non-regression.
+
+**Two things worth recording.**
+
+**The seed made the choice of rule risk-free, and that is checkable rather than
+lucky.** Its earliest transaction, earliest snapshot and earliest
+`firstPurchase` are all `2026-02-03`, so no D5-pinned figure could move under
+any of the three candidate rules. `lib/seed.test.ts` now asserts exactly that,
+in two tests.
+
+**The seed assertion could not live in `core/derive.test.ts`, and the linter was
+right to say so.** `src/core` may not import `src/lib` (G1). The claim is about
+the SEED's rows, not about core, so it belongs in `lib/seed.test.ts` — and core's
+own tests keep inline fixtures. The old
+`expect(PORTFOLIO_START).toBe('2026-02-03')` was a literal asserting a literal;
+what replaces it asserts a derivation, in the file allowed to see both halves.
+
+**Out of scope and filed as `PLAN-OPEN.md` O23:** both consumers still apply ONE
+span to every asset, so a bond bought in June is annualized over the portfolio's
+174 days rather than its own 53. Pinned by D5#5 as a deliberate v1
+simplification; changing it moves pinned figures and needs a decision.
+
+## A25 — Portfolio-level XIRR — `feat/portfolio-xirr`
+
+Independent of everything except A24 (it divides by a span too). `core/xirr.ts`
+already solves the money-weighted rate per asset; there is no portfolio-level
+one anywhere — `/overview`'s "Total return (net)" is a different measure.
+
+- [ ] Pure logic in `core/`, unit-tested against the seed's flows. Not
+      design-blocked; where the figure is SHOWN is A26's question.
+
+## A26 — Design brief: period selection and the three screens — `docs/design-brief-phase-8`
+
+**Phase 8, deliberately not folded into the Phase 7 brief** — that one is written
+and not yet drawn, and handing a design session two unrelated jobs in one file
+is how both get done badly.
+
+- [ ] **Period selection is a cross-cutting concept, not a filter on one
+      screen.** Where the selected window lives, whether it persists, and what
+      each chart and table does with it. Today everything is "since start":
+      `/yield`'s annualized column and its four-line chart are both locked to
+      one window, with no YTD, no 12m, no custom range.
+- [ ] **`/overview` has no time dimension at all** — five KPIs and four cards,
+      all "now". "Versus last period" is the same concept applied to KPIs, so it
+      belongs in this brief rather than a separate one.
+- [ ] **`/seasonality` knows only day-of-month** (31 buckets). A month-of-year
+      axis is the more useful cut for a portfolio holding semiannual bonds, and
+      the data is already there. Independent of the period window — it is a
+      grouping axis, not a filter — but it lands on the same screen.
+- [ ] **Readability, last:** `/yield`'s eight columns have no hierarchy (XIRR
+      weighs the same as Invested, on desktop and in the eight-`Fact` mobile
+      card); `/overview`'s five KPIs and four cards have a fixed order in which
+      the rebalance hint and the income card compete; `/seasonality`'s three
+      insight cards are prose, which scales badly past four assets.
+

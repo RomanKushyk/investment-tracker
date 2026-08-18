@@ -7,7 +7,7 @@ import {
   investedOwnByAsset,
   latestQuotes,
   payoutsNetByAsset,
-  PORTFOLIO_START,
+  portfolioStart,
   reinvestedByAsset,
   soldAmountByAsset,
   totalReturnPct,
@@ -83,7 +83,10 @@ export function yieldTableRows(
   const payoutsNet = payoutsNetByAsset(transactions);
   const sold = soldAmountByAsset(transactions);
   const now = latestSnapshotDate(snapshots);
-  const daysHeld = now ? daysBetween(PORTFOLIO_START, now) : 0;
+  const start = portfolioStart(assets, snapshots, transactions);
+  // Both guards, not one: `now` is missing with no snapshots and `start` with
+  // no rows at all. 0 keeps `annualizedPct`'s existing no-basis branch (A24).
+  const daysHeld = now && start ? daysBetween(start, now) : 0;
 
   return assets.map((asset) => {
     const value = values[asset.id];
@@ -122,13 +125,22 @@ export function yieldTableRows(
 }
 
 // S9b "(ann.)" clarity suffix token: true while the portfolio history is
-// under a full year (daysHeld from PORTFOLIO_START to the latest snapshot
-// < 365) — with less than a year of flows the money-weighted rate is an
-// extrapolation, so the header carries the clarity label. The component owns
+// under a full year (daysHeld from the derived portfolio start to the latest
+// snapshot < 365) — with less than a year of flows the money-weighted rate is
+// an extrapolation, so the header carries the clarity label. The component owns
 // the "(ann.)" copy (D8); no snapshots → true (nothing to relativize yet).
-export function xirrIsExtrapolated(snapshots: Snapshot[]): boolean {
+//
+// Takes all three tables since A24, matching `yieldTableRows` — the start is
+// derived from every one of them, so asking for snapshots alone would answer a
+// different question than the one the header asks.
+export function xirrIsExtrapolated(
+  assets: Asset[],
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+): boolean {
   const now = latestSnapshotDate(snapshots);
-  return !now || daysBetween(PORTFOLIO_START, now) < 365;
+  const start = portfolioStart(assets, snapshots, transactions);
+  return !now || !start || daysBetween(start, now) < 365;
 }
 
 export interface YieldSeriesPoint {

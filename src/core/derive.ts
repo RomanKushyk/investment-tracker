@@ -1,10 +1,55 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
 // Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
-import type { Snapshot, Transaction } from './types';
+import type { Asset, Snapshot, Transaction } from './types';
 
-// Global daysHeld basis for annualization — a single date for ALL assets
-// (design §6.5 footnote), NOT each asset's own firstPurchase.
-export const PORTFOLIO_START = '2026-02-03';
+/**
+ * The first day the portfolio existed — DERIVED, never declared (A24).
+ *
+ * It was `export const PORTFOLIO_START = '2026-02-03'` until 2026-08-18: a
+ * literal that every annualized figure divides by. True of the demo seed and
+ * false of every other dataset, which made `/yield`'s whole annualized column,
+ * `/overview`'s "since 03.02" and `/attributes`' daysHeld wrong for anyone
+ * whose portfolio did not start on that Tuesday. The repo's own rule says every
+ * portfolio figure derives from stored data, and a date that divides all the
+ * others is a portfolio figure.
+ *
+ * THE EARLIEST OF THREE SIGNALS, not any one of them. The question the value
+ * answers is "on what day is there evidence this portfolio existed", and three
+ * different rows can carry that evidence: a transaction, a snapshot, or an
+ * asset declaring when it was first bought. Any one is sufficient, so the
+ * answer is the earliest of them.
+ *
+ * The direction matters and is the reason this is a `min` rather than a pick.
+ * A start that lands too LATE divides a long return by a short span and prints
+ * a rate nobody earned; too early only understates. The concrete case is an
+ * asset carrying `firstPurchase: '2020-01-01'` that was added without
+ * back-filling the ledger — the transactions begin in 2026, and believing them
+ * alone would turn six years of holding into six months.
+ *
+ * `undefined` on an empty dataset: there is no start, and every caller renders
+ * "—" rather than dividing by a span it invented. Dates are ISO `yyyy-MM-dd`,
+ * so `<` is chronological — the same property `byDate` already relies on.
+ *
+ * NOT per-asset, deliberately. Callers apply this ONE date to every asset,
+ * which is D5#5's pinned v1 simplification ("global PORTFOLIO_START basis")
+ * and is why an asset bought in June is still annualized over the portfolio's
+ * whole span. Changing that moves D5-pinned figures and is a decision, not a
+ * refactor — see `PLAN-OPEN.md` O23.
+ */
+export function portfolioStart(
+  assets: Asset[],
+  snaps: Snapshot[],
+  txs: Transaction[],
+): string | undefined {
+  let earliest: string | undefined;
+  const consider = (d: string | undefined) => {
+    if (d && (earliest === undefined || d < earliest)) earliest = d;
+  };
+  for (const a of assets) consider(a.firstPurchase);
+  for (const s of snaps) consider(s.date);
+  for (const t of txs) consider(t.date);
+  return earliest;
+}
 
 const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCompare(b.date));
 

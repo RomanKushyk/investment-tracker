@@ -166,16 +166,25 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
 
 describe('xirrIsExtrapolated (the "(ann.)" header token)', () => {
   it('true on the demo seed (03.02 → 27.07 = 174 days < 365)', () => {
-    expect(xirrIsExtrapolated(snaps)).toBe(true);
+    expect(xirrIsExtrapolated(SEED_ASSETS, snaps, SEED_TRANSACTIONS)).toBe(true);
   });
 
-  it('false once the latest snapshot is a full year past PORTFOLIO_START', () => {
+  it('false once the latest snapshot is a full year past the derived start', () => {
+    // A24 rewrote this case rather than only its arguments. It used to hand in
+    // one 2027 snapshot and lean on the constant for the other end; with a
+    // derived start that snapshot would be BOTH ends and the span would be
+    // zero. The seed's assets and transactions now supply the 2026-02-03 end,
+    // which is the relationship the token actually depends on.
     const yearOn: Snapshot[] = [{ date: '2027-02-03', cash: 0, quotes: { reit: 70000 } }];
-    expect(xirrIsExtrapolated(yearOn)).toBe(false);
+    expect(xirrIsExtrapolated(SEED_ASSETS, yearOn, SEED_TRANSACTIONS)).toBe(false);
   });
 
   it('true with no snapshots at all', () => {
-    expect(xirrIsExtrapolated([])).toBe(true);
+    expect(xirrIsExtrapolated(SEED_ASSETS, [], SEED_TRANSACTIONS)).toBe(true);
+  });
+
+  it('true on a wholly empty dataset — no start, nothing to relativize', () => {
+    expect(xirrIsExtrapolated([], [], [])).toBe(true);
   });
 });
 

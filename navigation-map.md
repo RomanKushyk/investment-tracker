@@ -207,7 +207,7 @@ On seed:
 - Subtitle contains the current date and "курс 44,83 ₴/$" (English: "rate 44.83 ₴/$").
 - KPIs — **5 cards since P2 `feat/metrics-exposure` (S9a)**, all currency-aware, staggered mount order Total capital → Capital gain → Total return (net) → Deposited → Free cash:
   - **Total capital 149 016,36 ₴** (dark card; converts with currency toggle).
-  - **Capital gain +4 452,61 ₴ / +3,08 % since 03.02** (green) — *relabeled from "Net result" in P2; value/sub byte-identical (D5-pinned)*.
+  - **Capital gain +4 452,61 ₴ / +3,08 % since 03.02** (green) — *relabeled from "Net result" in P2; value/sub byte-identical (D5-pinned)*. **The date is DERIVED since A24, not a constant** — on the seed it still reads 03.02, and on an EMPTY dataset the whole sub-line is absent rather than naming a date nothing supports.
   - **Total return (net) +5 839,99 ₴** with sub **"+4,08 % on net deposits"** (green; new total-return-family KPI = totalCapital − netDeposits with globalRoi sub; tweens + converts like its siblings; sub "—" muted when netDeposits ≤ 0).
   - **Deposited 143 176 ₴** with sub "+ 1 387,38 ₴ reinvested".
   - **Free cash 7,75 ₴** — **NO ledger-drift chip on untouched demo** (drift 0 by construction, S9d). After recording e.g. an unmatched Withdrawal 100 ₴ the amber warn-tint pill **"Ledger drift +100,00 ₴"** (U+2212 on negatives) appears under the sub with a `title` tooltip; it disappears once |stored − derived| ≤ 0,01 ₴ again.
@@ -238,7 +238,7 @@ On seed:
 - **Total return column** (signed bold, net of taxes, incl. payouts; ÷ investedOwn): REIT **+10,12 %** · Energy **+1,48 %** · …8976 **+10,65 %** · …6475 **+10,96 %**. May disagree with Δ total by design (illusion-of-loss, FORMULA-AUDIT §2).
 - **XIRR column** (plain ink, 1 dp, money-weighted): REIT **+23,0 %** · Energy **+3,1 %** · …8976 **+25,8 %** · …6475 **+99,4 %** (D18: derived figures, not D5-pinned; the extension mock's +99,5 % was illustrative rounding). Header reads **"XIRR (ann.)"** while portfolio history < 365 days (demo: yes, 174 days); plain "XIRR" after a full year. Null/unquoted metrics render "—" muted.
 - Table min-width grew (780px) — it scrolls INSIDE the card; the page still has no horizontal scroll at 360px.
-- Footnote (extended in P2): "Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation."
+- Footnote (extended in P2): "Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation." **The 03.02.2026 in it is derived from the data since A24** (earliest of: any transaction, any snapshot, any asset's first purchase) and reproduces the pinned date exactly on the seed. On an empty dataset the footnote does not render at all.
 
 ## `/attributes`
 

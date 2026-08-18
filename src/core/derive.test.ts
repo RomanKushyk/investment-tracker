@@ -22,7 +22,7 @@ import {
   payoutsGrossByAsset,
   payoutsNet,
   payoutsNetByAsset,
-  PORTFOLIO_START,
+  portfolioStart,
   sharePct,
   soldAmount,
   soldAmountByAsset,
@@ -34,7 +34,7 @@ import {
   trimAmount,
   yieldSinceStart,
 } from './derive';
-import type { Snapshot, Transaction } from './types';
+import type { Asset, Snapshot, Transaction } from './types';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
@@ -106,7 +106,11 @@ describe('yield (reference teaser strip + Yield table)', () => {
   });
 
   it('annualized uses the GLOBAL portfolio start (03.02 → 27.07 = 174 days) for every asset', () => {
-    expect(PORTFOLIO_START).toBe('2026-02-03');
+    // The `expect(PORTFOLIO_START).toBe('2026-02-03')` that stood here was a
+    // literal asserting a literal, and A24 deleted the literal. That the SEED
+    // derives that same date — the assertion that actually protects the 174
+    // below — lives in `lib/seed.test.ts`, because core may not import the seed
+    // (G1) and the claim is about the seed's rows, not about core.
     expect(annualizedPct(68702.1, 65800, 174)).toBeCloseTo(0.093, 3); // REIT +9.3%
     expect(annualizedPct(60086.09, 59208, 174)).toBeCloseTo(0.031, 3); // Energy +3.1%
     expect(annualizedPct(15846.3, 15390, 174)).toBeCloseTo(0.062, 3); // …8976 +6.2%
@@ -300,5 +304,63 @@ describe('netResult with closed positions (sold term)', () => {
     const atCost = netResult(rest, invested, 15390).uah;
     expect(netResult(rest, invested, 15500).uah - atCost).toBeCloseTo(110, 6);
     expect(netResult(rest, invested, 15000).uah - atCost).toBeCloseTo(-390, 6);
+  });
+});
+
+// A24 — the portfolio start is derived, not declared. Written before the
+// implementation: every case below failed until `portfolioStart` existed.
+describe('portfolioStart', () => {
+  const asset = (id: string, firstPurchase: string): Asset => ({
+    id,
+    name: id,
+    code: 'XX',
+    colorKey: 'reit',
+    yieldType: 'dividends',
+    expectedPct: 14,
+    targetPct: 25,
+    payoutSchedule: 'monthly',
+    firstPurchase,
+    createdAt: '2026-02-03T00:00:00',
+  });
+  const snap = (date: string): Snapshot => ({ date, quotes: {}, cash: 0 });
+  const tx = (date: string): Transaction => ({
+    id: date,
+    date,
+    type: 'buy',
+    assetId: 'reit',
+    amount: 1,
+    source: 'own',
+  });
+
+  it('takes the EARLIEST of the three signals, not any one of them', () => {
+    // Each source is the earliest in turn; the answer follows it every time.
+    expect(portfolioStart([asset('a', '2026-05-01')], [snap('2026-04-01')], [tx('2026-03-01')])).toBe(
+      '2026-03-01',
+    );
+    expect(portfolioStart([asset('a', '2026-05-01')], [snap('2026-02-01')], [tx('2026-03-01')])).toBe(
+      '2026-02-01',
+    );
+    expect(portfolioStart([asset('a', '2026-01-01')], [snap('2026-02-01')], [tx('2026-03-01')])).toBe(
+      '2026-01-01',
+    );
+  });
+
+  it('trusts a firstPurchase that predates the whole ledger', () => {
+    // The case the min() exists for: an asset added without back-filling. The
+    // ledger says six months; the user says six years. Believing the ledger
+    // would divide a six-year return by six months and print a fantasy.
+    expect(portfolioStart([asset('a', '2020-01-01')], [snap('2026-02-03')], [tx('2026-02-03')])).toBe(
+      '2020-01-01',
+    );
+  });
+
+  it('works from any single source alone', () => {
+    expect(portfolioStart([], [], [tx('2026-03-01')])).toBe('2026-03-01');
+    expect(portfolioStart([], [snap('2026-03-01')], [])).toBe('2026-03-01');
+    expect(portfolioStart([asset('a', '2026-03-01')], [], [])).toBe('2026-03-01');
+  });
+
+  it('is undefined on an empty dataset — there is no start to report', () => {
+    expect(portfolioStart([], [], [])).toBeUndefined();
   });
 });

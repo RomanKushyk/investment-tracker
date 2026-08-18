@@ -4,7 +4,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
-import { investedByAsset, latestQuotes, PORTFOLIO_START } from '../core/derive';
+import { investedByAsset, latestQuotes, portfolioStart } from '../core/derive';
 import type { Asset, Transaction } from '../core/types';
 import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
 import { useFormat } from '../hooks/useFormat';
@@ -29,7 +29,10 @@ export function Attributes() {
   const values = latestQuotes(snapshots);
   const invested = investedByAsset(transactions);
   const now = latestSnapshotDate(snapshots);
-  const daysHeld = now ? daysBetween(PORTFOLIO_START, now) : 0;
+  const start = portfolioStart(assets, snapshots, transactions);
+  // Still ONE span for every asset — D5#5's global basis, unchanged by A24.
+  // Deriving the date does not make it per-asset; that is O23.
+  const daysHeld = now && start ? daysBetween(start, now) : 0;
 
   function actualAnnualized(a: Asset) {
     const pct = actualAnnualizedPct(values[a.id], invested[a.id] ?? 0, daysHeld);

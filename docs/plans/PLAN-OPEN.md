@@ -18,6 +18,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **open, 2026-08-18.** G5 is called binding and non-negotiable; this asks it to stop being |
+| O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18.** D5#5 pins the global basis; changing it moves pinned figures |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -194,4 +195,35 @@ careful version. What is undecided is whether the ruling may be narrowed at all.
   too?), what it may never write, whether a server-side suggestion is covered,
   and how the user sees that a machine wrote a row — provenance already exists
   for exactly this (D20), so an auto-written row must carry it.
+
+## O23 — Should annualization use each asset's own holding period?
+
+**Opened 2026-08-18, found while deriving the portfolio start (A24).** Two
+callers — `screens/yield/yield.ts` and `screens/Attributes.tsx` — compute **one**
+`daysHeld` for the whole portfolio and apply it to **every** asset:
+
+```ts
+const daysHeld = now && start ? daysBetween(start, now) : 0;
+```
+
+So `UA4000236475`, bought **2026-06-02**, is annualized over the portfolio's
+**174** days rather than its own **53**. Its `+5.20 %` total becomes `+10.9 %`
+annualized; on its own basis it would be roughly `+38 %`.
+
+**This is not a bug that slipped in — it is pinned.** `core/derive.ts` carried
+the comment *"a single date for ALL assets (design §6.5 footnote), NOT each
+asset's own firstPurchase"* from v1, `D5#5` pins the basis, and
+`derive.test.ts` asserts `+10.9 %` with the words *"NOT per-asset basis"*. It was
+a deliberate simplification with a reference behind it.
+
+**Why it is a question rather than a task.** Changing it moves D5-pinned demo
+figures on `/yield` and `/attributes`, which the standing invariants forbid
+without a decision. And the right answer is not obvious: a per-asset basis is
+more honest per row but makes the column non-comparable between rows, which is
+what a reader of a table does first. **XIRR already gives the per-asset,
+money-weighted answer** (added in P2), so the question is partly whether the
+simple annualized column should duplicate it or stay the naive comparable one.
+
+**What an answer must state:** which basis each of the two screens uses, whether
+D5#5 is superseded or kept, and what happens to the seed figures the tests pin.
 

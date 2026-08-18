@@ -19,7 +19,7 @@ import {
   latestCash,
   latestQuotes,
   netResult,
-  PORTFOLIO_START,
+  portfolioStart,
   reinvestedTotal,
   sharePct,
   soldAmount,
@@ -61,6 +61,9 @@ export function Overview() {
   const incomeNet = incomeReceivedNet(transactions);
   const totalReturn = totalReturnKpi(snapshots, transactions);
   const drift = ledgerDriftChip(snapshots, transactions);
+  // A24 — derived, so absent on an empty dataset; the sub-line drops rather
+  // than naming a date nothing supports.
+  const start = portfolioStart(assets, snapshots, transactions);
 
   // Currency-aware KPI grid (renderVals ovCap/ovCapSub/ovNet/ovDep/ovDepSub/ovCash) —
   // only these headline cards convert; tables and every other card stay ₴.
@@ -145,7 +148,7 @@ export function Overview() {
           label={t.analytics.overview.capitalGain}
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={t.analytics.prose.sinceDate(f.pct(net.pct), f.dateShort(PORTFOLIO_START))}
+          sub={start ? t.analytics.prose.sinceDate(f.pct(net.pct), f.dateShort(start)) : undefined}
           subClassName={`font-semibold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}
         />
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}

@@ -13,6 +13,7 @@ import {
   ledgerCashDrift,
   netDeposits,
   netResult,
+  portfolioStart,
   reinvestedByAsset,
   reinvestedTotal,
   totalCapital,
@@ -197,5 +198,33 @@ describe('seed transaction invariants (D5#3)', () => {
         `reinvest ${r.id} on ${r.date}`,
       ).toBe(true);
     }
+  });
+});
+
+// A24 — the portfolio start stopped being a constant and became a derivation.
+// This is the assertion that protects every D5-pinned annualized figure: they
+// all divide by a 174-day span measured from 2026-02-03, and that date is now
+// an output rather than an input. It lives here and not in `core/derive.test.ts`
+// because the claim is about the SEED's rows, and core may not import them (G1).
+describe('the derived portfolio start (A24)', () => {
+  it('the seed derives 2026-02-03, so no D5-pinned figure moves', () => {
+    expect(portfolioStart(SEED_ASSETS, buildSeedSnapshots(), SEED_TRANSACTIONS)).toBe('2026-02-03');
+  });
+
+  it('all three of the seed signals agree on that date', () => {
+    // Why the choice of source could not have broken the seed: its earliest
+    // transaction, its earliest snapshot and its earliest firstPurchase are the
+    // same day. A change of rule would have shown up here rather than as a
+    // drifting percentage three screens away.
+    const earliestTx = [...SEED_TRANSACTIONS].sort((a, b) => a.date.localeCompare(b.date))[0].date;
+    const earliestSnap = buildSeedSnapshots()[0].date;
+    const earliestPurchase = [...SEED_ASSETS]
+      .map((a) => a.firstPurchase)
+      .sort((a, b) => a.localeCompare(b))[0];
+    expect([earliestTx, earliestSnap, earliestPurchase]).toEqual([
+      '2026-02-03',
+      '2026-02-03',
+      '2026-02-03',
+    ]);
   });
 });

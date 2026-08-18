@@ -9,7 +9,7 @@ import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-import { PORTFOLIO_START } from '../core/derive';
+import { portfolioStart } from '../core/derive';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
@@ -31,11 +31,15 @@ export function Yield() {
   const series = cumulativeYieldSeries(snapshots, transactions, assets);
   const rows = yieldTableRows(assets, snapshots, transactions);
   // "(ann.)" clarity suffix while history < 365 days (S9b) — plain "XIRR" after.
-  const xirrHeader = xirrIsExtrapolated(snapshots)
+  const xirrHeader = xirrIsExtrapolated(assets, snapshots, transactions)
     ? t.analytics.yield.xirrAnn
     : t.analytics.yield.xirr;
 
-  const note = t.analytics.prose.yieldNote(f.date(PORTFOLIO_START));
+  // A24 — the basis is derived, so it can be absent. An empty dataset has no
+  // start to name, and a footnote reading "365 days from —" is worse than no
+  // footnote: the table it annotates is empty too.
+  const start = portfolioStart(assets, snapshots, transactions);
+  const note = start ? t.analytics.prose.yieldNote(f.date(start)) : undefined;
 
   return (
     <div>
@@ -107,7 +111,7 @@ export function Yield() {
             </tbody>
           </table>
         </Scroller>
-        <div className="text-muted mt-2.5 text-[11.5px]">{note}</div>
+        {note && <div className="text-muted mt-2.5 text-[11.5px]">{note}</div>}
       </Card>
       ) : (
       /* THE SAME ROWS AS CARDS, below the breakpoint. The `dt` text is the `th`
@@ -147,7 +151,7 @@ export function Yield() {
             </Fact>
           </RecordCard>
         ))}
-        <div className="text-muted px-1 text-[11.5px]">{note}</div>
+        {note && <div className="text-muted px-1 text-[11.5px]">{note}</div>}
       </div>
       )}
     </div>
