@@ -14,10 +14,12 @@ import {
   netDeposits,
   netResult,
   portfolioStart,
+  portfolioXirr,
   reinvestedByAsset,
   reinvestedTotal,
   totalCapital,
 } from '../core/derive';
+import { daysBetween } from '../core/dates';
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
 
 const snaps = buildSeedSnapshots();
@@ -226,5 +228,54 @@ describe('the derived portfolio start (A24)', () => {
       '2026-02-03',
       '2026-02-03',
     ]);
+  });
+});
+
+// A25 — the portfolio's money-weighted rate on the real seed flows. Lives here
+// for the same reason as the A24 block above: the claim is about the seed's
+// rows, and core may not import them (G1).
+describe('portfolioXirr on the seed (A25)', () => {
+  const snaps = buildSeedSnapshots();
+  const terminalDate = snaps.reduce((max, s) => (s.date > max ? s.date : max), snaps[0].date);
+  const rate = portfolioXirr(SEED_TRANSACTIONS, headlineTotal(snaps), terminalDate)!;
+
+  it('is +8.93% money-weighted', () => {
+    expect(rate).toBeCloseTo(0.0893, 4);
+  });
+
+  it('sits just above the naive annualization of globalRoi, which is the check that it means anything', () => {
+    // globalRoi is the same measurement WITHOUT regard to timing: +4.08% of
+    // net deposits, the figure /overview already shows as "Total return (net)".
+    // Stretched linearly over the 174-day span it reads ~8.56%.
+    const roi = globalRoi(headlineTotal(snaps), netDeposits(SEED_TRANSACTIONS))!;
+    const start = portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS)!;
+    const days = daysBetween(start, terminalDate);
+    const naive = (roi * 365) / days;
+
+    expect(roi).toBeCloseTo(0.0408, 4);
+    expect(days).toBe(174);
+    expect(naive).toBeCloseTo(0.0856, 4);
+
+    // ABOVE the naive figure, and that direction is the point. XIRR compounds
+    // where the naive stretch is linear, and it weights the February money —
+    // which had the whole span to work — more than the June deposit that had
+    // eight weeks. Both effects push the same way, so a portfolio XIRR that
+    // ever came out BELOW the linear stretch on a purely-growing seed would
+    // mean the flows are being signed or dated wrong.
+    expect(rate).toBeGreaterThan(naive);
+    // And not wildly above it: same measurement, different weighting.
+    expect(rate - naive).toBeLessThan(0.01);
+  });
+
+  it("ignores the seed's internal flows entirely", () => {
+    // The seed carries 15 rows that are NOT deposits or withdrawals — buys,
+    // accruals, payouts and reinvests. Dropping them changes nothing, which is
+    // what "the boundary is external capital" means on real data rather than
+    // in a fixture.
+    const externalOnly = SEED_TRANSACTIONS.filter(
+      (t) => t.type === 'deposit' || t.type === 'withdrawal',
+    );
+    expect(externalOnly).toHaveLength(3);
+    expect(portfolioXirr(externalOnly, headlineTotal(snaps), terminalDate)).toBe(rate);
   });
 });

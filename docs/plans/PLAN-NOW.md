@@ -46,7 +46,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
 | **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
-| A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **todo** — pure logic, not design-blocked |
+| A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **todo** — blocked on A24 (done) |
 
 ---
@@ -1085,14 +1085,48 @@ span to every asset, so a bond bought in June is annualized over the portfolio's
 174 days rather than its own 53. Pinned by D5#5 as a deliberate v1
 simplification; changing it moves pinned figures and needs a decision.
 
-## A25 — Portfolio-level XIRR — `feat/portfolio-xirr`
+## A25 — Portfolio-level XIRR — **DONE 2026-08-18** — `feat/portfolio-xirr`
 
-Independent of everything except A24 (it divides by a span too). `core/xirr.ts`
-already solves the money-weighted rate per asset; there is no portfolio-level
-one anywhere — `/overview`'s "Total return (net)" is a different measure.
+`core/xirr.ts` already solved the money-weighted rate per asset; there was no
+portfolio-level one anywhere — `/overview`'s "Total return (net)" is a different
+measure (unannualized, and against net deposits).
 
-- [ ] Pure logic in `core/`, unit-tested against the seed's flows. Not
-      design-blocked; where the figure is SHOWN is A26's question.
+- [x] `portfolioXirr(txs, terminalValue, terminalDate)` in `core/derive.ts`.
+      `xirr.ts` stays generic math with no domain types; the domain-shaped
+      companion belongs beside `netDeposits`, which already draws the same line.
+- [x] Pure logic, unit-tested against the seed's real flows.
+
+**THE BOUNDARY IS EXTERNAL CAPITAL, and that is the whole design.** `deposit`
+and `withdrawal` are the only rows that cross the portfolio's edge — the line
+`netDeposits` already draws, citing doc §5.1. Buys, sells, reinvests, payouts
+and taxes move money WITHIN it, between the cash pot and the assets or between
+assets, and whatever they did is already inside `terminalValue`. Feeding them in
+as flows would count them twice.
+
+**It is the exact mirror of the per-asset XIRR** in `screens/yield/yield.ts`,
+which takes the buys, sells and payouts and SKIPS deposits and withdrawals —
+because at an asset's boundary those are the internal ones. Neither is more
+correct; they answer about different boundaries, and the two comments now say so
+to each other.
+
+**Verified — and the pinned figure is not left hanging on its own.** The seed
+gives **+8.93 %**, and the test proves it means something rather than just
+reproducing itself: `globalRoi` is **+4.08 %** over a **174**-day span, which
+stretched linearly reads **+8.56 %**. The XIRR must come out ABOVE that (it
+compounds where the stretch is linear, and it weights the February money — which
+had the whole span — over the June deposit that had eight weeks) and within a
+percentage point of it (same measurement, different weighting). A portfolio XIRR
+that ever fell BELOW the linear stretch on a purely-growing seed would mean the
+flows are being signed or dated wrong, and that is what the assertion catches.
+A third test drops the seed's 15 internal rows and asserts the rate is
+byte-identical — the boundary claim, on real data rather than in a fixture.
+
+**Not browser-verified, because there is nothing to see:** the figure is
+computed and tested but rendered nowhere. Where it belongs on screen is a design
+question and stays with A26's brief (G7). Tested, not dead — `core/derive.ts`
+says so at the function.
+
+**659 tests (+8)**, lint and typecheck green.
 
 ## A26 — Design brief: period selection and the three screens — `docs/design-brief-phase-8`
 

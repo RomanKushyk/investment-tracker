@@ -1,6 +1,7 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
 // Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
 import type { Asset, Snapshot, Transaction } from './types';
+import { xirr, type CashFlow } from './xirr';
 
 /**
  * The first day the portfolio existed — DERIVED, never declared (A24).
@@ -359,6 +360,55 @@ export function cashYieldPct(
 ): number | null {
   const base = investedOwn + reinvested;
   return base === 0 ? null : payoutsNetAmount / base;
+}
+
+/**
+ * The PORTFOLIO's money-weighted annualized rate (A25) — the annualized
+ * counterpart of `globalRoi`, which measures the same thing without regard to
+ * when the money arrived.
+ *
+ * THE BOUNDARY IS EXTERNAL CAPITAL, and that is the whole design. `deposit`
+ * and `withdrawal` are the only rows that cross the portfolio's edge —
+ * `netDeposits` below already draws the line there, citing doc §5.1. Buys,
+ * sells, reinvests, payouts and taxes move money WITHIN the boundary: between
+ * the cash pot and the assets, or between assets. Whatever they did is already
+ * in `terminalValue`, so feeding them in as flows would count them twice.
+ *
+ * This is exactly what makes it different from the per-asset XIRR in
+ * `screens/yield/yield.ts`, which is the mirror image: it takes the buys,
+ * sells and payouts and SKIPS deposits and withdrawals, because at the asset's
+ * boundary those are the internal ones. Neither is more correct; they answer
+ * about different boundaries.
+ *
+ * Signs follow `CashFlow`'s convention, from the investor's side: a deposit is
+ * money going in, so negative; a withdrawal comes back, so positive; the
+ * terminal value is what is still there to come back, so positive.
+ *
+ * `terminalDate` is `latestSnapshotDate(snapshots)` and `terminalValue` is
+ * `headlineTotal(snapshots)` — passed in rather than derived here so the
+ * function stays a pure function of its arguments, the same shape
+ * `assetCashFlows` uses. Null with no snapshots, and null through `xirr`'s own
+ * guards when the flows are degenerate.
+ *
+ * NOT YET DISPLAYED ANYWHERE, deliberately: where this figure belongs on
+ * screen is a design question and belongs to `PLAN-NOW.md` A26's brief (G7).
+ * It is tested, not dead.
+ */
+export function portfolioXirr(
+  txs: Transaction[],
+  terminalValue: number,
+  terminalDate: string | undefined,
+): number | null {
+  if (!terminalDate) return null;
+  const flows: CashFlow[] = [];
+  for (const t of txs) {
+    // The assetId a deposit carries is noise — the transaction form attaches
+    // the selected asset to every row it writes. Only the type matters here.
+    if (t.type === 'deposit') flows.push({ date: t.date, amount: -t.amount });
+    else if (t.type === 'withdrawal') flows.push({ date: t.date, amount: t.amount });
+  }
+  flows.push({ date: terminalDate, amount: terminalValue });
+  return xirr(flows);
 }
 
 /** Doc §5.1 NetDeposits = Σ deposits − Σ withdrawals (external capital only). */

@@ -23,6 +23,7 @@ import {
   payoutsNet,
   payoutsNetByAsset,
   portfolioStart,
+  portfolioXirr,
   sharePct,
   soldAmount,
   soldAmountByAsset,
@@ -362,5 +363,73 @@ describe('portfolioStart', () => {
 
   it('is undefined on an empty dataset — there is no start to report', () => {
     expect(portfolioStart([], [], [])).toBeUndefined();
+  });
+});
+
+// A25 — the portfolio's money-weighted rate. Written before the implementation.
+describe('portfolioXirr', () => {
+  let n = 0;
+  const tx = (
+    date: string,
+    type: Transaction['type'],
+    amount: number,
+    assetId = '',
+  ): Transaction => ({ id: `t${(n += 1)}`, date, type, amount, assetId, source: 'own' });
+
+  it('solves a plain one-year 10%', () => {
+    // 100 in, 110 out, 365 days apart. If this ever stops being 0.1 the day
+    // count changed, not the portfolio.
+    expect(portfolioXirr([tx('2026-01-01', 'deposit', 100)], 110, '2027-01-01')).toBeCloseTo(
+      0.1,
+      6,
+    );
+  });
+
+  it('measures EXTERNAL capital only — internal flows never move it', () => {
+    // The assertion that pins the definition. Buys, sells, reinvests, payouts
+    // and taxes move money inside the portfolio's boundary; only deposits and
+    // withdrawals cross it. Whatever the assets did is already in the terminal
+    // value, so counting those rows again would double-count them.
+    const external = [tx('2026-01-01', 'deposit', 100)];
+    const alsoInternal = [
+      ...external,
+      tx('2026-02-01', 'buy', 60, 'a'),
+      tx('2026-03-01', 'sell', 20, 'a'),
+      tx('2026-04-01', 'interest_payout', 5, 'a'),
+      tx('2026-05-01', 'reinvest', 5, 'a'),
+      tx('2026-06-01', 'tax', 1, 'a'),
+      tx('2026-07-01', 'dividend_accrual', 3, 'a'),
+      tx('2026-08-01', 'redemption', 10, 'a'),
+    ];
+    expect(portfolioXirr(alsoInternal, 110, '2027-01-01')).toBe(
+      portfolioXirr(external, 110, '2027-01-01'),
+    );
+  });
+
+  it('a withdrawal is an inflow to the investor, a deposit an outflow', () => {
+    // Take 50 back at six months and still hold 60: the same 100 in, so the
+    // early return has to beat the 10% of the first test.
+    const rate = portfolioXirr(
+      [tx('2026-01-01', 'deposit', 100), tx('2026-07-02', 'withdrawal', 50)],
+      60,
+      '2027-01-01',
+    )!;
+    expect(rate).toBeGreaterThan(0.1);
+  });
+
+  it('is null when there is nothing to measure', () => {
+    expect(portfolioXirr([], 0, undefined)).toBeNull(); // no snapshot, no terminal date
+    expect(portfolioXirr([], 100, '2027-01-01')).toBeNull(); // a terminal value nobody paid for
+    expect(portfolioXirr([tx('2026-01-01', 'deposit', 100)], 0, '2026-01-01')).toBeNull(); // one date
+  });
+
+  it("ignores a deposit's assetId — the form always attaches one", () => {
+    // `assetCashFlows` documents the same trap from the other side: the
+    // transaction form attaches the selected asset to every row, so a deposit
+    // carries an assetId it has no business having.
+    expect(portfolioXirr([tx('2026-01-01', 'deposit', 100, 'reit')], 110, '2027-01-01')).toBeCloseTo(
+      0.1,
+      6,
+    );
   });
 });
