@@ -89,3 +89,9 @@ owner's ruling 2026-08-18 declining a nav/sell toggle — it would read zero for
 `ocean-plaza` and `zhytniy`, whose `nav` is 0). From 2026-04-23 the owner's own
 tracker already holds real `sell` values. Before that, any "what would this have
 sold for" is an estimate carrying an unverified 0.9 %.
+
+**Ruled on 2026-08-18 — D74.** The series is archived as published and no screen
+reads it; converting it to `sell` at read time is rejected permanently, on the
+evidence above. Drawing it as its own labelled line is not refused, only deferred
+to a design brief. The measurement of the 0.9 % stays here precisely because it
+is the thing being declined.

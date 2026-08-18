@@ -127,6 +127,7 @@ only for the decision you actually need.
 | D71 | `as_of` is per source; the Inzhur rows were a day early and were migrated | 2026-08-18 |
 | D72 | "the provider publishes no price history" is too strong — narrows D27 | 2026-08-18 |
 | D73 | A branch always; there is no diff small enough to commit straight onto `dev` | 2026-08-18 |
+| D74 | The funds' `nav` history is archived and never shown; the read-time conversion is rejected — closes O21 | 2026-08-18 |
 
 ## A pattern these entries kept finding
 

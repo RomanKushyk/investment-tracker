@@ -280,6 +280,14 @@ Re-read the dated table at the start of any session that touches `infra/` or the
 
 ## W15 — Import the provider's fund NAV history — **after W4 (2026-09-02)**
 
+**What these rows are allowed to become is now settled — D74, closing O21.**
+They are **archived as published and read by no screen.** The read-time
+conversion to `sell` is rejected permanently, not deferred: the 0.9 % spread is
+undocumented and verifiable over 75 days against a history reaching back to
+2024-11-14. Drawing the series as its own labelled line is *not* refused — it is
+simply not now, and it needs a design brief (G7) rather than a component. None of
+that changes a single box below; it changes what may be built on top of them.
+
 **Gate: W4, and the reason is not impatience.** The series lands in
 `price_observation`, whose Inzhur-side natural key `(as_of, ref, basis, source)`
 W4 exists to decide. Writing 900 rows into a key that is still being designed is
