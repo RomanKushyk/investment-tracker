@@ -63,19 +63,54 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **The only genuinely unrepeatable item in this plan.** The spec calls it "one free observation already scheduled": ≈1081.82 cum versus ≈1003.42 ex, a step of ≈78.40 — exactly the coupon. It settles the cum/ex convention by observation instead of inference.
 
-**The date arithmetic matters, get it right:**
+**The date arithmetic matters, get it right — and it was REWRITTEN on 2026-08-18 (D71).**
+The bullets here used to read *"the price published on day D is captured by the 01:00
+run on D+1 and stored with `as_of = D`"*. That is the premise `asOfFor` was built on,
+and D71 retired it for Inzhur: the endpoint is live, and the price current at 01:00
+Kyiv on day X is the price struck for X. The old chain reached the right pair of dates
+through a rule that is now false, which is the most dangerous kind of correct.
+
 - The coupon pays **2026-09-23**.
-- Inzhur refreshes prices ~13:00 Kyiv, so the price published on day D is captured by the 01:00 run on D+1 and stored with `as_of = D`.
-- Therefore the ex-price lands with `as_of = 2026-09-23`, **written at 01:00 on 2026-09-24**.
-- The comparison is `as_of 2026-09-22` (cum) against `as_of 2026-09-23` (ex).
+- An Inzhur row carries the RUN's Kyiv date (`inzhurAsOf`, D71), so the row written at
+  01:00 on day X is labelled `as_of = X`. Nothing is subtracted. NBU still subtracts a
+  day and is still right to — do not "align" them.
+- **The model already commits to an answer.** `futureFlows` filters `p.date > onIso`
+  — strictly future, same-day flows excluded — so `src/core/inzhur/dcf.ts` prices
+  `as_of 2026-09-23` **ex**. This item is therefore no longer an open observation: it
+  CONFIRMS OR REFUTES A CONVENTION THAT IS ALREADY IN THE CODE.
+- **So the pair to compare is not knowable in advance, and must not be pinned.** If the
+  code's convention holds, the step falls between `as_of 09-22` (cum) and `as_of 09-23`
+  (ex), and both rows are in the archive by **01:00 on 2026-09-23**. If it does not, the
+  step falls between `as_of 09-23` and `as_of 09-24` instead. Read the window
+  `as_of 2026-09-21 … 2026-09-25` and let the ≈ 78.40 step locate itself; a comparison
+  pinned to one pair can only confirm the convention it assumed.
+- **Reading on 2026-09-24 or after covers both cases**, which is why that date stands
+  unchanged as the hard one.
+
+**A6 now makes this observation automatically, which the item predates.**
+Since 2026-08-18 the DCF re-derivation runs inside the nightly capture and publishes
+`quoteVerdicts` / `UNEXPLAINED_QUOTE`. It walks the same schedule with the same
+same-day rule, so the boundary is measured whether or not anyone is watching:
+
+- **Quiet through the night of 09-23 → the convention in the code is right.**
+- **`UNEXPLAINED_QUOTE` fires that night → the convention is wrong**, and the alarm IS
+  the finding. Do not treat it as an incident and do not "fix" the check on the day —
+  that would destroy the one observation, and the next chance is 182 days out.
+
+Either way the verdict lands in the run journal, so the manual reading below is now
+corroboration rather than the only record.
 
 **Preparation — must be done before the date, not on it:**
-- [ ] `PLAN-NOW.md` **A1 must be merged first.** The date grid currently says 2026-09-25; a coupon suggested on the wrong day contaminates the very observation this exists to make.
-- [ ] Confirm before 2026-09-22 that the scheduled capture is healthy — the silence alarm covers a dead job, but check rather than assume.
+- [x] `PLAN-NOW.md` **A1 must be merged first.** The date grid used to say 2026-09-25; a
+      coupon suggested on the wrong day contaminates the very observation this exists to
+      make. **Done 2026-08-11** — the schedule now walks the published grid.
+- [ ] Confirm before 2026-09-22 that the scheduled capture is healthy — the silence
+      alarm covers a dead job, but check rather than assume.
 
 **On 2026-09-24 or after:**
-- [ ] Read both rows and record the actual step against the ≈78.40 prediction.
-- [ ] Record the verdict in DECISIONS — cum/ex convention, stated once, in writing.
+- [ ] Read the window, not a pair, and record where the ≈ 78.40 step actually falls.
+- [ ] Record the verdict in DECISIONS — cum/ex convention, stated once, in writing,
+      and say explicitly whether it confirms `futureFlows`' same-day rule or overturns it.
 
 **Cost of missing:** 182 days. The next boundary is 2027-03-24, which is also W10 (maturity) and therefore a *different*, messier observation — final coupon and principal on the same date. Missing 2026-09-24 means the clean version does not recur.
 
