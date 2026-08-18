@@ -767,3 +767,13 @@ the five rows previously filed under 08-10 were dev-time invokes run on the
 evening of the 11th. Nothing was captured before then, so there is no 08-10 to
 have.
 
+**The deploy caught the rename, and the guard was guarding the wrong thing.**
+`deploy-backend.yml` smoke-tests the bundle before it touches AWS, and one of its
+assertions was `asOfFor(2026-08-11T22:00Z) === '2026-08-11'` — a check that
+loaded the bundle, called the dating function, and confirmed **the very rule D71
+had to repair**. It failed on the rename rather than on the arithmetic, which is
+the only reason it looked like a chore. It now asserts both functions and that
+they DIFFER, so a future collapse back into one date fails the deploy instead of
+passing it. The step runs before `configure-aws-credentials`, so the failed run
+deployed nothing and the stack was never in a half-applied state.
+

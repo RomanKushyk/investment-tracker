@@ -84,10 +84,22 @@ jobs:
           node -e "
             const m = require('./capture.js');
             if (typeof m.handler !== 'function') throw new Error('handler missing from bundle');
-            if (m.asOfFor(new Date('2026-08-11T22:00:00Z')) !== '2026-08-11') {
-              throw new Error('asOfFor wrong: Kyiv date arithmetic broken in the bundle');
+            // 22:00Z on the 11th is 01:00 Kyiv on the 12th: the scheduled firing,
+            // and the instant where subtracting from the UTC date would silently
+            // yield D-2. Both dates are asserted, and so is the fact that they
+            // DIFFER — this step used to assert a single as_of and would have
+            // passed happily through the whole eight days D71 had to repair.
+            const run = new Date('2026-08-11T22:00:00Z');
+            if (m.inzhurAsOf(run) !== '2026-08-12') {
+              throw new Error('inzhurAsOf wrong: it must be the Kyiv date of the run (D71)');
             }
-            console.log('bundle loads, handler present, as_of correct');
+            if (m.nbuAsOf(run) !== '2026-08-11') {
+              throw new Error('nbuAsOf wrong: it must be the previous Kyiv date (D71)');
+            }
+            if (m.inzhurAsOf(run) === m.nbuAsOf(run)) {
+              throw new Error('the two as_of rules collapsed back into one (D71)');
+            }
+            console.log('bundle loads, handler present, both as_of rules correct');
           "
 
       - uses: aws-actions/setup-sam@v3
