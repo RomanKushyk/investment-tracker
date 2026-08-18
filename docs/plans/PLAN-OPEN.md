@@ -16,6 +16,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O4 | Account bootstrap and registration policy | 1 | **closed — D38/D39** an application creates a DB row, not a Cognito user; super-admin approves; toggle opens it fully |
 | O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; the non-key columns stay gated on `PLAN-WAITING.md` W3 |
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
+| O21 | Does the funds' `nav` history ever reach the APP, and as what? | — | **open, 2026-08-18.** Storing it is settled (W15); showing it is not |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -161,3 +162,34 @@ already provides for free.
 cluster — it is making the stack take the environment as a parameter, so that
 standing one up later is a deploy rather than a fork. That is a small change and
 it is the part that would otherwise be done twice.
+
+## O21 — Does the funds' `nav` history ever reach the app, and as what?
+
+**Opened 2026-08-18, once the provider's files turned out to be a different
+basis than the app computes in.** Storing them is decided — `nav`, unconverted,
+`PLAN-WAITING.md` W15. What is NOT decided is whether any of it is ever shown,
+and that question has teeth because the app has exactly one notion of value.
+
+**The constraint, so nobody re-litigates it:** the app values holdings at `sell`,
+because that is the amount actually realisable. The owner declined a nav/sell
+toggle on 2026-08-18 and the reasons are recorded — `nav` reads 0 for
+`ocean-plaza` and `zhytniy` (D31), and a toggle would change what every derived
+figure MEANS rather than how it looks, unlike currency, language and theme.
+
+**So the readings are:**
+
+1. **Never shown.** The archive holds it for completeness and future analysis; no
+   screen reads it. Cheapest, and loses the only long fund history there is —
+   Energy back to 2024-11-14.
+2. **Shown as its own series, labelled `nav`**, never mixed into portfolio value.
+   Honest, and needs a design brief (G7): a second price line is a new visual
+   claim and the app has never drawn one.
+3. **Converted to `sell` at read time** with the 0.9 % spread stated as an
+   assumption. Gives historical portfolio value — but the spread is
+   **undocumented** (the services agreement pins no NAV formula; the 0.5 % in it
+   is a referral early-sale fee) and verifiable only for 2026-04-23 → 07-06.
+   Every figure before April would carry an unverified 0.9 %.
+
+**Whichever is chosen, it must not be chosen quietly inside W15.** W15 writes
+rows; this decides what they are allowed to become. The evidence for all three is
+in [`../reference/INZHUR-FUND-HISTORY.md`](../reference/INZHUR-FUND-HISTORY.md).

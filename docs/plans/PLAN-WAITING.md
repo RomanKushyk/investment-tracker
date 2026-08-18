@@ -24,6 +24,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W12 | UA4000236475 matures | the bond | **2028-09-27** | **yes** | second redemption |
 | W13 | Phase 6: chart analytics | W7 — deferred by judgment, not blocked | after W7 | no | doing it twice |
 | W14 | Phase 7: DB browser | W7 — by construction | after W7 | no | building it twice |
+| W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **after 2026-09-02** | no | none — the files are in hand and read up in `docs/reference/INZHUR-FUND-HISTORY.md` |
 
 ---
 
@@ -241,3 +242,45 @@ At a $0.02 baseline only a fixed charge moves the bill: NAT Gateway **$33.58/mo*
 ## Review cadence
 
 Re-read the dated table at the start of any session that touches `infra/` or the migration. Move an item to `PLAN-NOW.md` the day its gate opens; do not let a passed date sit here unexecuted, because a plan whose dates are stale stops being read.
+
+## W15 — Import the provider's fund NAV history — **after W4 (2026-09-02)**
+
+**Gate: W4, and the reason is not impatience.** The series lands in
+`price_observation`, whose Inzhur-side natural key `(as_of, ref, basis, source)`
+W4 exists to decide. Writing 900 rows into a key that is still being designed is
+exactly the "schema decided on thin evidence" W3 was created to avoid — and DSQL
+primary keys are immutable, so a wrong one is a DROP/CREATE of a live archive
+rather than a migration.
+
+**There is also no user-visible payoff before W7.** `src/` reads nothing from the
+backend today; the app cannot display an archived observation until the
+migration. So the whole value of doing this early would be the analysis, and the
+analysis is already banked.
+
+**Everything the task needs is written up** in
+[`docs/reference/INZHUR-FUND-HISTORY.md`](../reference/INZHUR-FUND-HISTORY.md) —
+what the files cover, the arithmetic proving they are `nav` and not `sell`, the
+undocumented 0.9 % spread and why it must not be applied, and the one row that is
+stored as text and will break a naive parser.
+
+- [ ] Parse both files to `(as_of, instrument_ref, basis='nav', source='inzhur',
+      price)`. Handle the text-formatted row explicitly rather than by a
+      tolerant number cast — a silent coercion here is a wrong price, not a
+      missing one.
+- [ ] **Store `nav` as published. Do not derive `sell` into the archive.** The
+      0.9 % holds for the 75 days the tracker can check and is unverifiable for
+      2024–2025; storing the product would put an unverified number into an
+      append-only archive (D69's line, D71's line).
+- [ ] The FX column travels as the provider's own, or not at all — **D69 already
+      ruled that the provider's rate is not stored**, and this file's rate is the
+      same kind of serve-time figure. Decide explicitly, do not default.
+- [ ] Idempotent: `ON CONFLICT DO NOTHING` on the natural key, and safe to re-run
+      when a newer file arrives with more months.
+- [ ] Verify against the owner's tracker over the 2026-04-23 → 2026-07-06
+      overlap: implied units must stay whole after dividing by 1.009. That is the
+      same check that identified the basis, reused as a regression test.
+
+**The 35-day gap (2026-07-07 → 2026-08-10) is a separate question** and is not
+this task. The tracker covers it, but at `sell` and as position value, so it
+would need units per date from the transactions sheet — a different source, a
+different basis, and a different provenance story.

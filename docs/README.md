@@ -47,6 +47,7 @@ Cited from code by bare number (`D5`, `D30`), so numbers never change.
 | [`reference/FORMULA-AUDIT.md`](reference/FORMULA-AUDIT.md) | Per challenge → app formula → validation figures → verdict, plus the pinned fintech rulings | Consult before touching any `core/derive.ts` / `core/xirr.ts` formula |
 | [`reference/WEALTH-MANAGEMENT-ARCHITECTURE.md`](reference/WEALTH-MANAGEMENT-ARCHITECTURE.md) | The spreadsheet-era business-logic spec this app was migrated from | Source of truth for the formula audit. Every deviation from it is pinned there, with D13 |
 | [`reference/VERSIONING.md`](reference/VERSIONING.md) | App version and the sidebar badge | `package.json` is the single source; the badge derives from it at build time. Tag `vX.Y.Z` must agree |
+| [`reference/INZHUR-FUND-HISTORY.md`](reference/INZHUR-FUND-HISTORY.md) | The provider's published fund price files: what they cover, and the proof that they are `nav` and not `sell` | Read before planning or writing the import (W15). The files are `.xlsx` in `~/.quirenote` and never committed |
 
 ## Where it is going
 
