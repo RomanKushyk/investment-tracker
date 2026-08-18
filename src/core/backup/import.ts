@@ -154,7 +154,14 @@ function formatRejection(
     };
   }
   // 'not-an-object' and 'not-a-backup' are the same thing to a reader: the
-  // file carries no kubushka-backup marker.
+  // file carries no `quirenote-backup` marker.
+  //
+  // The marker WAS `kubushka-backup` and this comment kept saying so after the
+  // rename. D42's table row still reads "it stays — renaming it makes every
+  // backup ever exported unreadable", and is reversed 47 lines below it by the
+  // amendment the owner made during E1: there is one user and no real data, so
+  // dual-marker acceptance was flexibility nobody asked for. A pre-rename file
+  // is rejected on purpose.
   return { kind: 'format', code: code === 'not-json' ? 'not-json' : 'not-a-backup', detail };
 }
 

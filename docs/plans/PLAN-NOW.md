@@ -39,7 +39,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E1 | App-side renames | `chore/rename-quirenote-app` | M | **done** (2026-08-11, `98de0b0`) |
 | E2 | New IAM roles (three) | console | S | **done** (2026-08-11) |
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
-| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox closed 2026-08-14) |
+| E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox 2026-08-14) — but it missed `design/`: every reference still says `Kubushka`, recorded 2026-08-18 in `design/extensions/README.md` as a divergence rather than edited, since D14 makes a merged drawing immutable. It also left one comment in `core/backup/import.ts` naming the retired `kubushka-backup` marker, now fixed. |
 
 ---
 
@@ -533,17 +533,17 @@ collide with the stack.
 GitHub Actions, so "github" distinguished nothing. The scheme becomes
 `quirenote-<target>-<function>`.
 
-- [ ] Create `quirenote-backend-deploy` — same OIDC trust policy and repo/branch
+- [x] Create `quirenote-backend-deploy` — same OIDC trust policy and repo/branch
       condition as its predecessor.
-- [ ] Create `quirenote-backend-cfn-exec` — trusted by CloudFormation only.
-- [ ] **Rewrite every `kubushka-backend-*` prefix**, and there are more than the
+- [x] Create `quirenote-backend-cfn-exec` — trusted by CloudFormation only. **Verified 2026-08-18:** both roles exist, created 2026-08-11.
+- [x] **Rewrite every `kubushka-backend-*` prefix**, and there are more than the
       stack name: the exec policy scopes **eight** ARN patterns —
       `cloudformation`, `lambda`, `iam`, `logs`, `sqs`, `sns`, `cloudwatch`,
       `scheduler`. Miss one and the deploy fails on a permission, which this
       project has already paid for eight times (`infra/README.md` field notes).
       The `iam:*` prefix scoping matters most: SAM creates the function's
       execution role named after the stack, so it becomes `quirenote-backend-*`.
-- [ ] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
+- [x] Add the new deploy-role ARN to GitHub. Keep the old secret value recorded —
       switching back is the rollback.
 - [x] **`quirenote-frontend-deploy`** (was `kubushka-github-deploy`) — **done 2026-08-11**, verified end to end: run `31512461483` green through `configure-aws-credentials` and the Amplify deploy, and the live site serves `<title>Quirenote — Invest Tracker</title>` with `/overview` still rewriting to 200. — trust
       policy byte-identical, permission policy in `docs/reference/DEPLOYMENT.md` §1.5a.

@@ -39,3 +39,23 @@ phase's brief (`docs/archive/design-briefs/phase-N-<name>.md`) into one or more
 - Light theme only until Phase 5 defines the dark palette.
 - Mock figures shown are D5 demo values (pinned — additive-only) or clearly
   annotated live-dataset/audit illustrations; the app always derives them.
+
+## EVERY FILE HERE STILL SAYS `Kubushka`, AND THAT IS CORRECT
+
+They were drawn before D42 renamed the product, and D14 makes a merged reference
+immutable — so the drawings keep the old name and the app does not. Recorded
+2026-08-18, because E4 closed "last identifiers and docs" without it and a
+reader rebuilding a surface from a drawing would otherwise copy a dead brand.
+Four distinct divergences, three of them stale and one that never existed:
+
+| Drawn | Shipped |
+|---|---|
+| Sidebar wordmark `Kubushka` — master reference, `Tracker Options` (7 variants), `settings.dc.html` | `Quirenote` over the `INVEST TRACKER` microlabel (README §5) |
+| Download named `kubushka-backup-<date>.json` | `quirenote-backup-<date>.json` (`useBackupDownload.ts`) |
+| Rejection copy *"it has no `kubushka-backup` marker"* | *"it has no `quirenote-backup` marker"* — the marker WAS renamed. D42's table says it stays and its own E1 amendment, 47 lines later, reverses that. The amendment is the ruling |
+| `kubushka-mirror.json` and the whole file-mirror row, 7 times in `data-portability.dc.html` | **Nothing.** `feat/file-mirror` was retired outright (`NEXT-PHASE-PLAN.md` → Retired), so those cells draw a feature that does not exist |
+
+**Do not "fix" the drawings.** This is the same shape as D54's fonts and D56's
+capsules: the reference is the record of what was drawn, the divergence is
+recorded rather than silent, and README §4/§5 is where shape and copy are read
+from when the two disagree.
