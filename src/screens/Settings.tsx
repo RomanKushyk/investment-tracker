@@ -85,10 +85,16 @@ function BackupButton() {
 // Light-surface twin of the sidebar currency toggle (S2/S8): track `panel`,
 // thumb `card` with the card shadow, sliding-thumb motion cloned from the
 // sidebar control (D7: transform 300ms soft; press scale; reduced-motion
-// collapses via the global kill-switch). Same store — flipping here flips
-// the sidebar and every headline KPI.
+// collapses via the global kill-switch).
+//
+// SAME ANATOMY AS THE SIDEBAR TOGGLE, DIFFERENT FIELD (A21). This one writes
+// the PREFERENCE — what the app opens in — and the sidebar's writes the
+// session. It was the same field until 2026-08-18, which made this control a
+// second remote for the sidebar switch rather than a default. It still moves
+// the view immediately, because `setDefaultCurrency` carries the session with
+// it; the sidebar toggle does not come back the other way.
 function CurrencyControl() {
-  const { currency, setCurrency } = useSettings();
+  const { defaultCurrency: currency, setDefaultCurrency: setCurrency } = useSettings();
   const segment = (c: 'UAH' | 'USD', label: string) => (
     <button
       type="button"

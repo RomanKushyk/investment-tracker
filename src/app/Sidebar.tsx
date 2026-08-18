@@ -128,6 +128,10 @@ function SidebarPanel({
   onCollapse?: () => void;
 }) {
   const t = useT();
+  // A GLANCE, NOT A PREFERENCE (A21). `setCurrency` writes the session value
+  // only — it is deliberately outside `partialize`, so flipping to `$` to read
+  // one KPI is gone on the next reload. Settings' own control writes the
+  // preference this falls back to.
   const { currency, setCurrency } = useSettings();
   const demo = useDataset() === 'demo';
   const rail = variant === 'rail';

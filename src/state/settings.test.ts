@@ -5,7 +5,7 @@ import { mergeSettings, migrateSettings, useSettings, type PersistedSettings } f
 // new field (P3 added the two automation switches + dismissedReminders) does not
 // rewrite twenty assertions.
 const DEFAULTS: PersistedSettings = {
-  currency: 'UAH',
+  defaultCurrency: 'UAH',
   usdRate: 44.83,
   theme: 'system',
   language: 'uk',
@@ -20,19 +20,51 @@ const DEFAULTS: PersistedSettings = {
 // v0 payloads are what zustand persisted before `version: 1` landed —
 // `{"state":{"currency":…},"version":0}`; migrate receives the `state` part.
 // v0/v1.1 payloads carry no usdRate or dataset — both fill from defaults.
+//
+// NOTE ON THE `currency` KEY BELOW. Every payload in this file writes it, and
+// since A21 that is the LEGACY key: the field is persisted as
+// `defaultCurrency` now. They are left as they are on purpose — read this way,
+// each one doubles as a check that a payload written by any pre-A21 build
+// still hydrates, which is the compatibility that let the split ship without a
+// `version` bump.
 describe('migrateSettings', () => {
   it('keeps a valid persisted currency from a v0 payload', () => {
-    expect(migrateSettings({ currency: 'USD' })).toEqual({ ...DEFAULTS, currency: 'USD' });
-    expect(migrateSettings({ currency: 'UAH' })).toEqual({ ...DEFAULTS, currency: 'UAH' });
+    expect(migrateSettings({ currency: 'USD' })).toEqual({ ...DEFAULTS, defaultCurrency: 'USD' });
+    expect(migrateSettings({ currency: 'UAH' })).toEqual({ ...DEFAULTS, defaultCurrency: 'UAH' });
+  });
+
+  it('reads the current key, and prefers it over the legacy one', () => {
+    expect(migrateSettings({ defaultCurrency: 'USD' })).toEqual({
+      ...DEFAULTS,
+      defaultCurrency: 'USD',
+    });
+    // Both present is only reachable by a hand-edited payload or a rollback and
+    // back again. The current key wins — the legacy one is a fallback, not a
+    // second source of truth.
+    expect(migrateSettings({ defaultCurrency: 'USD', currency: 'UAH' })).toEqual({
+      ...DEFAULTS,
+      defaultCurrency: 'USD',
+    });
+  });
+
+  it('never writes the legacy key back', () => {
+    expect(migrateSettings({ currency: 'USD' })).not.toHaveProperty('currency');
+  });
+
+  it('does not persist the session value', () => {
+    // The live value is outside `partialize`, so it can never appear in a
+    // payload — and if one carries it anyway (hand-edited), it is an unknown
+    // field and is dropped like any other.
+    expect(migrateSettings({ defaultCurrency: 'UAH', currency: 'USD' })).toEqual(DEFAULTS);
   });
 
   it('drops unknown fields', () => {
     // This case used `theme: 'dark'` as its example of a field that does not
     // exist — until P5 made it one that does. Swapped for fields that are
     // still genuinely unknown, so the test keeps testing what it claims to.
-    expect(migrateSettings({ currency: 'USD', accent: 'teal', legacy: true })).toEqual({
+    expect(migrateSettings({ defaultCurrency: 'USD', accent: 'teal', legacy: true })).toEqual({
       ...DEFAULTS,
-      currency: 'USD',
+      defaultCurrency: 'USD',
     });
   });
 
@@ -262,5 +294,58 @@ describe('automation actions', () => {
     expect(useSettings.getState().dismissedReminders).toHaveLength(2);
     useSettings.getState().restoreDismissed();
     expect(useSettings.getState().dismissedReminders).toEqual([]);
+  });
+});
+
+// A21 — the sidebar toggle is a glance and the Settings control is a
+// preference. They were ONE field until 2026-08-18, so these tests exist to
+// keep them apart: the interesting assertions are the ones about what does NOT
+// happen.
+describe('currency: the session value and the persisted default', () => {
+  const reset = () => {
+    useSettings.setState({ currency: 'UAH', defaultCurrency: 'UAH' });
+  };
+
+  it('setCurrency moves the view and leaves the preference alone', () => {
+    reset();
+    useSettings.getState().setCurrency('USD');
+    expect(useSettings.getState().currency).toBe('USD');
+    expect(useSettings.getState().defaultCurrency).toBe('UAH');
+  });
+
+  it('setDefaultCurrency moves both, so the control is not inert until reload', () => {
+    reset();
+    useSettings.getState().setDefaultCurrency('USD');
+    expect(useSettings.getState().defaultCurrency).toBe('USD');
+    expect(useSettings.getState().currency).toBe('USD');
+  });
+
+  it('a sidebar flip does not survive a rehydrate', () => {
+    reset();
+    useSettings.getState().setCurrency('USD'); // the glance
+    // What zustand would write and read back: the persisted payload holds the
+    // preference only, so the session starts over from it.
+    const merged = mergeSettings({ defaultCurrency: 'UAH' }, useSettings.getState());
+    expect(merged.currency).toBe('UAH');
+    expect(merged.defaultCurrency).toBe('UAH');
+  });
+
+  it('a Settings change does survive a rehydrate', () => {
+    reset();
+    useSettings.getState().setDefaultCurrency('USD');
+    const merged = mergeSettings({ defaultCurrency: 'USD' }, useSettings.getState());
+    expect(merged.currency).toBe('USD');
+    expect(merged.defaultCurrency).toBe('USD');
+  });
+
+  it('rehydrating overrides a session value the store already had', () => {
+    // The order matters: `merge` receives the CURRENT store (whose `currency`
+    // is the initial 'UAH', or whatever a same-tab flip left) and must not let
+    // it win over the payload. This is the assertion that would catch a naive
+    // `{ ...current, ...persisted }` losing the join.
+    useSettings.setState({ currency: 'USD', defaultCurrency: 'USD' });
+    const merged = mergeSettings({ defaultCurrency: 'UAH' }, useSettings.getState());
+    expect(merged.currency).toBe('UAH');
+    reset();
   });
 });

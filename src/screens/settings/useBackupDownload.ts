@@ -32,7 +32,10 @@ export interface BackupDownloadOptions {
 export function useBackupDownload() {
   const t = useT();
   const exportAll = useExportAll();
-  const { currency, usdRate, dataset } = useSettings();
+  // The PREFERENCE, not the session value (A21): a backup carries what the
+  // user chose, never what they were glancing at when they pressed Export —
+  // and it restores through `setDefaultCurrency`, so the two ends match.
+  const { defaultCurrency: currency, usdRate, dataset } = useSettings();
 
   async function download(opts: BackupDownloadOptions = {}): Promise<boolean> {
     try {

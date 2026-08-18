@@ -23,7 +23,17 @@ export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'uk' | 'en';
 
 interface SettingsState {
+  /**
+   * WHAT THE APP IS SHOWING RIGHT NOW — session only, never persisted (A21).
+   *
+   * The sidebar toggle writes this and nothing else, because it is a glance:
+   * flipping to `$` to read one KPI is not a preference and must not outlive
+   * the tab. `defaultCurrency` below is the preference, and this starts each
+   * page life as a copy of it (see `mergeSettings`).
+   */
   currency: 'UAH' | 'USD';
+  /** The persisted preference, applied at app open. Settings writes it. */
+  defaultCurrency: 'UAH' | 'USD';
   usdRate: number;
   theme: Theme;
   language: Language;
@@ -33,7 +43,14 @@ interface SettingsState {
   remindersEnabled: boolean;
   reminderLeadDays: number;
   dismissedReminders: string[];
+  /** Session only — the sidebar toggle. Gone on reload, by design. */
   setCurrency: (c: 'UAH' | 'USD') => void;
+  /**
+   * The preference. Moves the session with it, because a default that does not
+   * visibly take effect until the next reload reads as a control that does
+   * nothing. The reverse does not hold: a session flip never touches this.
+   */
+  setDefaultCurrency: (c: 'UAH' | 'USD') => void;
   setUsdRate: (rate: number) => void;
   setTheme: (t: Theme) => void;
   setLanguage: (l: Language) => void;
@@ -48,7 +65,10 @@ interface SettingsState {
 
 /** The persisted payload — keep in exact sync with `partialize` below. */
 export interface PersistedSettings {
-  currency: 'UAH' | 'USD';
+  // The DEFAULT, not the live value (A21) — the sidebar toggle's choice is
+  // deliberately absent from this payload. Stored under `currency` until
+  // 2026-08-18; `migrateSettings` still reads that key, see below.
+  defaultCurrency: 'UAH' | 'USD';
   usdRate: number;
   // Appearance (P5 S1). MUST stay top-level under `state` — see doctrine #2:
   // the FOUC-free head script in index.html reads it straight out of
@@ -73,7 +93,7 @@ export interface PersistedSettings {
 }
 
 const PERSISTED_DEFAULTS: PersistedSettings = {
-  currency: 'UAH',
+  defaultCurrency: 'UAH',
   usdRate: 44.83,
   theme: 'system',
   language: 'uk',
@@ -98,11 +118,22 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
   const p = (
     typeof persisted === 'object' && persisted !== null ? persisted : {}
   ) as Record<string, unknown>;
+  // TWO KEYS READ, ONE WRITTEN. The field was called `currency` before A21;
+  // falling back to it keeps a payload written by any earlier build working,
+  // which is why this needed no `version` bump — `merge` routes EVERY hydrate
+  // through here, so both shapes are handled on every path rather than only on
+  // a version mismatch. The old key is never written back.
+  //
+  // AND THE FALLBACK IS PERMANENT, NOT TRANSITIONAL — do not "clean it up"
+  // once old localStorage payloads have aged out. The BACKUP FILE format still
+  // carries `currency` (`core/backup/json.ts`) and was deliberately left
+  // alone, so every backup ever written, including the ones written after
+  // A21, restores through this line. Removing it would break restore silently:
+  // the value would simply fall back to UAH.
+  const stored = p.defaultCurrency ?? p.currency;
   return {
-    currency:
-      p.currency === 'UAH' || p.currency === 'USD'
-        ? p.currency
-        : PERSISTED_DEFAULTS.currency,
+    defaultCurrency:
+      stored === 'UAH' || stored === 'USD' ? stored : PERSISTED_DEFAULTS.defaultCurrency,
     // Same validity rule as the Settings→Appearance field (S8): a rate is a
     // finite number above 0 — anything else falls back to the default.
     usdRate:
@@ -157,7 +188,10 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
  * keeps store and DB in agreement on all paths.
  */
 export function mergeSettings(persisted: unknown, current: SettingsState): SettingsState {
-  return { ...current, ...migrateSettings(persisted) };
+  const merged = migrateSettings(persisted);
+  // The session starts as a copy of the preference. This is the ONLY place the
+  // two are joined on a read path — everything after it can move them apart.
+  return { ...current, ...merged, currency: merged.defaultCurrency };
 }
 
 /*
@@ -183,6 +217,7 @@ export const useSettings = create<SettingsState>()(
   persist(
     (set, get) => ({
       currency: 'UAH',
+      defaultCurrency: 'UAH',
       usdRate: 44.83,
       theme: 'system',
       language: 'uk',
@@ -193,6 +228,7 @@ export const useSettings = create<SettingsState>()(
       reminderLeadDays: DEFAULT_LEAD_DAYS,
       dismissedReminders: [],
       setCurrency: (currency) => set({ currency }),
+      setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
       // the Settings screen parses via core/schemas.quoteInputSchema.
       setUsdRate: (usdRate) => set({ usdRate }),
@@ -238,7 +274,9 @@ export const useSettings = create<SettingsState>()(
       migrate: migrateSettings,
       merge: mergeSettings, // sanitize EVERY hydrate, not only version bumps
       partialize: (s) => ({
-        currency: s.currency,
+        // `currency` is deliberately NOT here — it is the session value, and a
+        // field in this object is a field that survives a reload (A21).
+        defaultCurrency: s.defaultCurrency,
         usdRate: s.usdRate,
         theme: s.theme,
         language: s.language,

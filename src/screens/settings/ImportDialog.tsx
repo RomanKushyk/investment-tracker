@@ -122,7 +122,10 @@ export function ImportDialog({
         // Through the store's setters and the D11 sanitizer — never a direct
         // localStorage write, and never dataset/automation/reminder fields.
         const sane = migrateSettings(envelope.settings);
-        useSettings.getState().setCurrency(sane.currency);
+        // The PREFERENCE (A21). `setCurrency` here would have put the restored
+        // value in the session only, where it evaporates on the next reload —
+        // a restored setting that silently un-restores itself.
+        useSettings.getState().setDefaultCurrency(sane.defaultCurrency);
         useSettings.getState().setUsdRate(sane.usdRate);
       }
       toast.success(importToasts(t).success(diff.after));

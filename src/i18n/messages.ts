@@ -174,7 +174,7 @@ export const en = {
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `After import: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
-      `Replaces your currency and ₴/$ rate (${symbol} · ${rate}). Dataset, automation and reminder preferences are never touched.`,
+      `Replaces your default currency and ₴/$ rate (${symbol} · ${rate}). Dataset, automation and reminder preferences are never touched.`,
     safetyBackupDone: (name: string) =>
       `Safety backup downloaded — ${name}.json.`,
     safetyBackupPending: (dataset: string, name: string) =>
@@ -676,7 +676,7 @@ export const en = {
     },
     currency: {
       title: 'Currency',
-      helper: 'Mirrors the sidebar toggle — headline figures only.',
+      helper: 'The currency the app opens in. The sidebar toggle previews the other one without saving it.',
     },
     rate: {
       title: '₴/$ rate',
@@ -1040,7 +1040,7 @@ export const uk: Dict = {
     resultLine: (assets: string, snapshots: string, transactions: string) =>
       `Після імпорту: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
-      `Замінює вашу валюту та курс ₴/$ (${symbol} · ${rate}). Набір даних, автоматизація та налаштування нагадувань лишаються недоторканими.`,
+      `Замінює вашу валюту за замовчуванням та курс ₴/$ (${symbol} · ${rate}). Набір даних, автоматизація та налаштування нагадувань лишаються недоторканими.`,
     safetyBackupDone: (name: string) =>
       `Страхувальну копію завантажено — ${name}.json.`,
     safetyBackupPending: (dataset: string, name: string) =>
@@ -1487,7 +1487,7 @@ export const uk: Dict = {
     },
     currency: {
       title: 'Валюта',
-      helper: 'Дублює перемикач у бічній панелі — лише підсумкові показники.',
+      helper: 'Валюта, з якою відкривається застосунок. Перемикач у бічній панелі лише показує іншу, не зберігаючи вибір.',
     },
     rate: {
       title: 'Курс ₴/$',

@@ -41,7 +41,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E3 | Stack move — deploy new, then delete old | `infra/rename-stack` | M | **done** (2026-08-11, D46) |
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox 2026-08-14) — but it missed `design/`: every reference still says `Kubushka`, recorded 2026-08-18 in `design/extensions/README.md` as a divergence rather than edited, since D14 makes a merged drawing immutable. It also left one comment in `core/backup/import.ts` naming the retired `kubushka-backup` marker, now fixed. |
 | **Section H** | **Groomed from the owner's idea list (2026-08-18)** | | | |
-| A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **todo** |
+| A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **done** (2026-08-18) |
 | A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **todo** |
 | A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
 
@@ -881,25 +881,56 @@ control is not a default at all: it is a second remote for the same switch.
 - The **sidebar toggle changes the session only** and is never persisted. A
   reload returns to the default.
 
-- [ ] Split the store: `currency` stays the persisted default (name it so —
-      a field called `currency` that is not what the app is currently showing
-      will be misread by the next reader), and the live value lives beside it,
-      outside `partialize`.
-- [ ] `partialize` carries the default and NOT the session value. Standing
-      invariant: every persisted settings field enters `partialize` in the same
-      commit — this task also has to make sure a field LEAVES it.
-- [ ] **`screens/settings/ImportDialog.tsx:125` calls `setCurrency(sane.currency)`
-      on restore, and it must keep writing the DEFAULT.** A backup carries the
-      user's preference, not their last glance; restoring into the session value
-      would make it evaporate on reload.
-- [ ] Every reader — KPIs, sidebar, `useFormat` — reads the SESSION value, which
-      falls back to the default. Nothing reads the default directly except
-      Settings' own control.
-- [ ] Tests: a sidebar flip does not survive a store rehydrate; a Settings change
-      does; a restore writes the default; the existing `settings.test.ts`
-      identity assertions stay green.
+- [x] Split the store. **Named the other way round from this box, on purpose:**
+      `currency` is the LIVE value and `defaultCurrency` is the preference.
+      Almost every reader wants "what is on screen now" — the KPIs, the sidebar,
+      `useCapitalCard` — and only three sites want the preference, so the short
+      name went to the common meaning and all the readers stayed untouched.
+- [x] `partialize` carries `defaultCurrency` and not `currency`, with a comment
+      at the removal site saying why — this is the first field to LEAVE that
+      object, and the standing invariant only ever pointed one way.
+- [x] Restore writes the default — `setDefaultCurrency(sane.defaultCurrency)`.
+      **And the export end needed the same fix, which this plan missed:**
+      `screens/settings/useBackupDownload.ts` was writing whatever the user was
+      glancing at into the file. Both ends now read the preference.
+- [x] Every reader takes the session value, and none of them changed a line —
+      that is what the naming above bought. `mergeSettings` is the single place
+      the two are joined: on every rehydrate the session starts as a copy of the
+      preference.
+- [x] Tests: **644 passing, +8.** A sidebar flip does not survive a rehydrate; a
+      Settings change does; a rehydrate overrides a session value the store
+      already held (the assertion that catches a naive spread order); the legacy
+      key is read, preferred against, and never written back.
 
 **Not in scope:** `usdRate` (44.83) is unrelated and stays exactly as it is.
+
+**Two things this task turned up that were not in its brief.**
+
+**The persisted key was renamed, and it needed no `version` bump — but the
+fallback that made that true is PERMANENT.** `migrateSettings` reads
+`p.defaultCurrency ?? p.currency`, and `merge` routes every hydrate through it,
+so both shapes work on every path. The reason it can never be deleted is not the
+old localStorage payloads: **the backup FILE format still carries `currency`**
+(`core/backup/json.ts`), deliberately unchanged so existing backups stay
+readable, and every restore therefore lands on that fallback. Removing it would
+break restore silently — the value would just read UAH.
+
+**Three user-facing strings were lying and are fixed in both languages.** The
+Settings helper said *"Mirrors the sidebar toggle"*, which was an accurate
+description of the defect; the import dialog's opt-in helper said it replaces
+"your currency" where it now replaces the default. `navigation-map.md` carried
+the same two claims as checkpoints, plus "choice survives a page reload" on the
+sidebar toggle — the exact behaviour this task inverts.
+
+**Verified in the browser** at `localhost:3001`, dark theme, Ukrainian and
+English: a genuine pre-A21 payload (`{"currency":"USD"}`) hydrates to USD on both
+controls, proving the compatibility claim on real data rather than in a unit
+test; a sidebar flip moves the capital card to `3 324,03 $` while the Settings
+control stays put and localStorage is untouched; a reload returns to the
+preference; a Settings change moves both and writes `defaultCurrency`. Zero
+console errors, and zero horizontal overflow at 1440 and at a true 360 viewport
+in both languages — the new helper is longer than the one it replaced, and
+`/settings` rows have a history of overflowing at 360 (FOLLOW-UPS 13).
 
 ## A22 — Design brief: where things live — `docs/design-brief-phase-7`
 
