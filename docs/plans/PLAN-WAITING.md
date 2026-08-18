@@ -10,7 +10,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 
 | # | Item | Gate | Earliest | Hard? | Cost of missing |
 |---|------|------|----------|-------|-----------------|
-| W1 | Frozen-feed detector on real data | 5 business days of captures (`STALE_AFTER_DAYS=5`) | **2026-08-18** | no | none — streak history is per-cluster and restarted with the move (D46) |
+| W1 | ~~Frozen-feed detector on real data~~ | — | **done 2026-08-18** | — | reading was 1 on all five business days; see `infra/README.md` |
 | W2 | DPU measured over a real week | 7 days of captures | **2026-08-17** | no | none, but A2's before/after needs it |
 | W3 | Inzhur observation window closes | ~3 weeks of captures from **2026-08-11** (restarted by the stack move) | **2026-09-02** | no | schema decided on thin evidence |
 | W4 | Inzhur observation schema | W3 + `PLAN-NOW.md` A4 | **2026-09-02** | no | blocks B3 migration |
@@ -31,15 +31,19 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 
 These need nobody to do anything. They are listed so the *check* is not forgotten.
 
-## W1 — Frozen-feed detector on real data — **from 2026-08-17**
+## W1 — Frozen-feed detector on real data — **DONE 2026-08-18**
 
 **Gate:** the detector reports `unchangedDays` per source. Until several business days of digest-bearing rows exist, the number is trivially 1 and proves nothing. `STALE_AFTER_DAYS` is 5, so the first genuinely meaningful reading is five business days after the first digest row (2026-08-10).
 
-**What to check on the day:** invoke the Lambda with `{}` and read `unchangedDays` for `inzhur` and `nbu_fv`. 1 = prices moved (healthy). >1 = consecutive business days with an identical price digest — report which source and how many days.
+**Result: `1` on every business day, both sources — and `1` turns out to be structural for `inzhur` rather than evidence of health.** Full record in `infra/README.md` § "W1 — the frozen-feed detector on real data". In short: 24 of 31 live bonds accrue ~+0.43 **every calendar day, weekends included**, and `quotes_sha256` is one hash over all 36 entries — so an `inzhur` digest can never repeat while the feed is alive. `StalePricesAlarm` can only catch a TOTAL freeze, never one stale instrument; per-instrument staleness is the DCF inversion's job (D31), not this one.
+
+**AND IT FOUND SOMETHING BIGGER THAN ITS OWN QUESTION: `as_of` is one day early on every Inzhur row.** The provider's answer about Saturday–Monday appeared to contradict the archive; it did not, and chasing the disagreement exposed the offset. Inverting the DCF dated the cabinet's 2026-08-18 quote (1066.50 at a published 15.55 %) to **18 August** across four consecutive days with a 0.0035 ₴ residual — each one filed by us a day early. `asOfFor` subtracts a day on a premise that is false for the live Inzhur endpoint but TRUE for the NBU URL parameter, so one function is serving two meanings. **NBU is correctly labelled and must not be touched.** Full working in `infra/README.md`; the repair is its own task (`PLAN-NOW.md` A19) and nothing was migrated.
+
+**~~invoke the Lambda with `{}`~~ — do NOT.** `unchangedDays` is derived from stored hashes, so it is already in `Quirenote/UnchangedDays` and in `price_capture`; invoking would have made a second same-day request to the provider.
 
 **Do not confuse the two failure modes.** `StalePricesAlarm` fires when prices stop *moving*; `StreakCheckLivenessAlarm` fires when the check stops *running*. Only the second is automatic — a detector that silently stopped looks identical to a healthy feed. That is why both exist.
 
-**Note on the threshold:** 5 rather than the 2–3 the research suggested, because how often ОВДП quotes genuinely sit flat is empirical and nobody has the data yet. A threshold that cries wolf gets muted, and a muted alarm is worse than none. Revisit once W6 has a month of data.
+**Note on the threshold:** 5 rather than the 2–3 the research suggested, because how often ОВДП quotes genuinely sit flat is empirical and nobody had the data. Now measured: they never sit flat at all — the accrual moves them daily — so **the threshold is not what protects us and tuning it buys nothing**. Leave it; revisit only if W6 shows the accrual pausing.
 
 ## W2 / W6 — DPU measured over a week, then a month — **2026-08-17**, **2026-09-10**
 

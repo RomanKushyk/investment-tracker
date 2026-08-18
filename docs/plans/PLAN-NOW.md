@@ -18,6 +18,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
+| A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate | `infra/asof-alignment` | M | **todo — needs a plan and a decision first** (found 2026-08-18 by W1) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
@@ -690,3 +691,35 @@ it concurrently with the i18n sweep.
 ## Acceptance for Plan A
 
 A1 makes the 2026-09-23 coupon land on the 23rd. A2–A4 leave a narrow journal, a proven restore and a queryable NBU history. A5–A7 retire the hard-coded rate, catch a yield revision and make a parse failure visible. A8–A10 leave every route themed and localised. A16–A17 leave every route usable on a phone, with the sidebar collapsible at every width. At that point the only work left is dated (`PLAN-WAITING.md`) or undecided (`PLAN-OPEN.md`).
+
+## A19 — `as_of` is one day early on every Inzhur row — **TODO, needs a plan**
+
+**Not planned here on purpose.** Found on 2026-08-18 while running W1; the
+measurement and its two independent confirmations are written up in
+`infra/README.md` § "W1 — the frozen-feed detector on real data". This row
+exists so the finding is not lost, not because the work is specified.
+
+**What is established.** Inverting the DCF dates the price our archive files as
+`as_of = D` to `D + 1`, four consecutive days, residual 0.0035 ₴ — inside D31's
+band for a fresh bond. The provider's own answer about Saturday–Monday agrees
+once the shift is applied. `asOfFor` (`capture.ts`) subtracts a day because "the
+01:00 run reads the price settled the previous day", which is false for the live
+Inzhur endpoint.
+
+**What is NOT established, and must be before anything is written.**
+
+- **One function, two meanings.** The same value is the NBU **request
+  parameter** — `nbuFairValueUrl(asOf)` fetches a named date's file, and that
+  file genuinely is that date's. **NBU is labelled correctly. Changing `asOfFor`
+  outright would break it.** The fix separates the meanings.
+- **The convention is pinned in writing** in `migrations/001_price_capture.sql`,
+  and pinned precisely against silent redefinition. It has to be superseded by a
+  decision, not edited.
+- **The migration rewrites live archived rows** — `as_of + 1` on every Inzhur
+  row. That is the most irreversible action on the board and the archive has no
+  PITR (only whole-cluster recovery points, see the durability section). Order
+  it after a fresh backup, and verify row-for-row.
+- **Downstream of `as_of`**: the observation derivation, the backfill
+  completeness check and the streak walk all key on it. The streak reading is
+  known to be unaffected (weekend dates are skipped either way); the other two
+  are unchecked.
