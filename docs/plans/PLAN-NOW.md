@@ -42,7 +42,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | E4 | Last identifiers and docs | `docs/rename-cleanup` | S | **done** (2026-08-11; last checkbox 2026-08-14) — but it missed `design/`: every reference still says `Kubushka`, recorded 2026-08-18 in `design/extensions/README.md` as a divergence rather than edited, since D14 makes a merged drawing immutable. It also left one comment in `core/backup/import.ts` naming the retired `kubushka-backup` marker, now fixed. |
 | **Section H** | **Groomed from the owner's idea list (2026-08-18)** | | | |
 | A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **done** (2026-08-18) |
-| A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **todo** |
+| A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **done** (2026-08-18) — `docs/design-briefs/phase-7-where-things-live.md`; **extension NOT drawn**, so every Phase 7 UI task stays design-blocked (G7) |
 | A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
 | **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
@@ -942,28 +942,55 @@ in both languages — the new helper is longer than the one it replaced, and
 reached.** They are one brief because answering any of them separately would
 re-decide the other two.
 
-- [ ] **Editable analytics pages.** The draft says "edit button top right", with
-      target setting moving into `/allocation` and Settings›Portfolio into
-      `/portfolio`. **The brief must resolve which of two things this is** — an
-      edit MODE that reveals inline controls on an otherwise read-only page, or
-      simply relocating specific settings onto the page they act on. Those are
-      different products and the draft line reads as either.
-- [ ] **`Daily entry` → `Entry`, holding `Daily quotes` and `Transactions`.**
-      Today the group holds one item and `TransactionPanel` is rendered INSIDE
-      `screens/DailyQuotes.tsx` (line 326) — so this is not a rename, it is
-      splitting one screen into two routes. The brief decides what `/` becomes.
-- [ ] **Collapsible sidebar groups.** The three groups already exist
-      (`groupDailyEntry`, `groupAnalytics`, `groupSettings`). Interacts with the
-      D66 collapse control and with the mobile drawer — a group collapsed on
-      desktop and a drawer that is already an overlay are not obviously the same
-      state, and the brief says whether they are.
-- [ ] Output per G7/D14: a merged `design/extensions/*.dc.html`, and the
-      implementation rows filed back here.
+- [x] **Editable analytics pages.** Put to the owner and settled 2026-08-18: an
+      edit **MODE** behind a button, and a **general pattern for every** analytics
+      page rather than a one-off on the two named. The second answer asked a
+      question of its own — what the control does where there is nothing to edit
+      — and the brief answers it with a rule: **a page is editable where it
+      shows STORED data; a derived-only page gets no control, not a disabled
+      one.** Five of eight routes qualify; Phase 7 builds two.
+- [x] **`Daily entry` → `Entry`, holding `Daily quotes` and `Transactions`.**
+      Brief § S4. `/` stays the index and keeps the quote rows, coupon cards and
+      yield teaser; `/transactions` takes the panel and shows the FULL ledger
+      rather than the last three, which was only a cap because the panel was a
+      guest on someone else's screen. **One layout question is left open on
+      purpose** — what `/`'s two-column `@container` becomes on a day with no
+      coupon cards — and is flagged for the design session rather than guessed.
+- [x] **Collapsible sidebar groups.** Brief § S5. One state serves both shells
+      (the drawer IS the sidebar, D66). Two findings the section had to carry:
+      the collapsed set **is persisted** — a nav arrangement is a preference,
+      which is the opposite of the call A21 made for the currency glance three
+      days earlier — and **a group may not close around the active route**, or
+      the user loses the one pill that says where they are.
+- [ ] Output per G7/D14: a merged `design/extensions/where-things-live.dc.html`,
+      and the implementation rows filed back here. **Not done and not this
+      task's** — the design session is a separate Claude session, and until it
+      merges no Phase 7 UI may start.
 
 **Constraint to carry into the session:** the sidebar is ONE composition with two
 layouts (D66) and shape is a system (D56) — a collapsed group's chevron takes
 `round(min(w,h) × 0.26)` like anything else, and 44 × 44 is hit area, never
 geometry.
+
+**What writing it turned up, none of which was in the brief's own scope.**
+
+**`ScreenHeader` is a FRAGMENT, not a box** — `<h2>` + `<p>`, no container — so
+"a button top right" has nothing to attach to on nine of the ten routes. The
+component becomes a row before any of this exists, and `/`'s existing header
+(`DailyQuotes.tsx:227`) is the precedent it copies rather than a new invention.
+
+**The two named pages need DIFFERENT edit modes, and drawing them as one would
+have been wrong.** Targets are a batch — Σ = 100 only means something whole — so
+`/allocation` gets `Cancel` + `Save`. Asset CRUD already commits through its own
+dialogs, including a D17 typed-name delete, so `/portfolio` gets `Done` and **no
+Save**: a Save with nothing to write is a lie, and a Cancel that cannot undo the
+deletion behind it is a worse one. The brief pins this as G-2 so the design
+session does not have to discover it.
+
+**`/allocation` loses a button rather than gaining one.** With the header
+carrying `Save`, the card's own `Save targets` is removed — two saves on one
+page, one of which saves a subset, is exactly the ambiguity this phase exists to
+end.
 
 ## A23 — Design brief: provider-first asset creation — `docs/design-brief-asset-create`
 
