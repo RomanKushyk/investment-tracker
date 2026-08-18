@@ -19,7 +19,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
 | A20 | Capture checks become structural — did it run, is the shape right — never "did the value change" | `infra/structural-checks` | S | **done** (2026-08-18, D70) |
-| A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **todo — deadline W4, 2026-09-02** (found 2026-08-18 by W1) |
+| A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **done** (2026-08-18, D71) — two weeks inside the W4 deadline |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52) |
@@ -796,24 +796,31 @@ calendar day. **True for NBU**, where the same value is a *request parameter* �
 D-1's. **NBU is labelled correctly across 6 636 rows back to 2016-01-04 and must
 not be touched.**
 
-- [ ] **A decision entry first, not last.** The convention is pinned in writing
-      in `migrations/001_price_capture.sql`, and pinned precisely against silent
-      redefinition. Supersede it; do not edit it.
-- [ ] Split the two meanings in `capture.ts` — the Kyiv date of the run for the
-      live Inzhur read, the file date for the NBU request. Two names, so the next
-      reader cannot conflate them again. `asOfFor` should survive only as
-      whichever one keeps its meaning.
-- [ ] **Migrate 14 rows**: `source='inzhur'`, `as_of` 2026-08-10 through
-      2026-08-17, all `as_of + 1`. Well under DSQL's 3 000-mutated-rows cap, so
-      one transaction. `price_observation` holds 418 rows and **every one is
-      `nbu_fv`** — the Inzhur half is still W3/W4, so nothing downstream carries
-      the bad dates yet.
-- [ ] Take a fresh recovery point before the write and confirm it completed.
-      There is no PITR (see the durability section) — recovery is whole-cluster
-      only, so the backup IS the undo.
-- [ ] Re-check the two remaining consumers of `as_of`: the observation
-      derivation window and the backfill completeness check. The streak walk is
-      already known to be unaffected, and A20 deletes it anyway.
+- [x] **D71 written first**, and the DDL comment now carries the per-source rule
+      with the decision cited beside it — redefinition with a citation rather
+      than the silent kind it was pinned against.
+- [x] Split into `inzhurAsOf` (the Kyiv date of the run) and `nbuAsOf` (that date
+      minus one, which is also the NBU request parameter). `asOfFor` is gone
+      rather than kept under one of the two names — a survivor would have been
+      the same trap with fewer callers. The handler computes one per source; the
+      run's own date is what it logs and returns, because a single top-level
+      `as_of` was the conflation itself.
+- [x] **Five tests where there were none** (`infra/src/dates.test.ts`), including
+      the Kyiv-vs-UTC case the old comment warned about and one that simply
+      asserts the two dates never agree.
+- [x] **Migrated 14 rows** in one transaction. Checked FIRST that all 14 followed
+      the automatic rule — `as_of = kyivDate(requested_at) - 1`, zero exceptions —
+      because a row written with a hand-passed `asOf` would have been made wrong
+      by a uniform shift and nothing in the table labels one.
+- [x] Recovery point taken and confirmed **COMPLETED** (36.6 MB, 12:51) before
+      the write. A payload fingerprint over all 6 650 rows was identical before
+      and after: labels moved, bytes did not.
+- [x] **Verified by DCF inversion, 8 of 8 dates**, residuals 0.0008–0.0045 ₴ and
+      `daysStale` 0 throughout. Before the migration each fitted `as_of + 1`.
+- [x] Consumers re-checked: the observation window now takes the NBU date
+      explicitly (the table is NBU-only until W3/W4), the backfill completeness
+      check is NBU-only and unaffected, and the streak walk was deleted by A20
+      before this task ran — which is why A20 went first.
 
 **Deadline: before W4 (2026-09-02).** W4 designs the Inzhur observation schema,
 whose natural key is `(as_of, ref, basis, source)`. A wrong date is survivable in
@@ -821,10 +828,13 @@ a journal table; in a key it is not, and DSQL primary keys are immutable — a
 wrong key is a DROP/CREATE, not a migration. Every day also adds one more row to
 correct, which is the same argument A2 was sequenced on.
 
-**Verify:** re-run the DCF inversion after the migration and confirm the fitted
-date equals the stored `as_of` for a live bond; `SELECT count(*)` per source
-unchanged; every `payload_sha256` unchanged (this moves labels, never payloads);
-NBU's min and max `as_of` still 2016-01-04 and unchanged at the top.
-**Risk:** the highest on this board despite the small row count, because it
-rewrites archived rows in a store with no point-in-time recovery. The volume is
-trivial; the semantics are not.
+**Verified:** all of it, and the full working is in `infra/README.md` § "A19 —
+the as_of migration". Inzhur now spans 2026-08-11 to 2026-08-18 (the earliest
+moved off 08-10 correctly — those five rows were dev invokes run on the evening
+of the 11th, so there is no 08-10 to have). NBU is untouched at 6 636 rows from
+2016-01-04. Row counts per source unchanged, payload fingerprint identical, and
+the DCF dates every stored payload to its own `as_of`.
+**Risk, as run:** the highest on this board despite 14 rows, because it rewrote
+archived rows in a store with no point-in-time recovery. Handled by taking the
+recovery point first and by proving the shift uniform before applying it rather
+than after.

@@ -682,8 +682,8 @@ early and needs `as_of + 1`; the convention pinned in
 `migrations/001_price_capture.sql` — pinned precisely because "a silent
 redefinition later poisons the archive with no way to tell which rows used which
 rule" — has to be superseded by a decision first. The poisoning is uniform and
-now detectable, which is the only reason it is repairable. **Planned as its own
-task; nothing here was migrated.** The `unchangedDays` reading above is
+now detectable, which is the only reason it is repairable. **Repaired the same
+day — see the section below.** The `unchangedDays` reading above is
 unaffected: the streak walk skips weekend dates, so shifting the run to
 Sat–Sun–Mon still leaves Monday comparing against Friday, and still reads 1.
 
@@ -719,4 +719,51 @@ knowing not to reach for `DefaultValue` at the same time. It was not wanted
 anyway — `skippedRefs` is emitted on every scheduled run and carries 0 when
 nothing was skipped, so a default would only invent datapoints for runs that
 never happened.
+
+## A19 — the as_of migration, run 2026-08-18
+
+**14 rows, one statement, one transaction.** `source='inzhur'`, `as_of + 1`, far
+under DSQL's 3 000-mutated-rows cap. NBU was not touched: 6 636 rows back to
+2016-01-04 unchanged, because for NBU the value is the request parameter and was
+never wrong (D71).
+
+**Three checks before the write, not after.**
+
+- **Every row followed the automatic rule.** Compared `as_of` against
+  `kyivDate(requested_at) - 1` on all 14: zero rows written with an explicit
+  `asOf`, so the uniform shift was uniformly correct. A row with a hand-passed
+  date would have been made wrong by the migration, and nothing in the table
+  labels it as hand-passed.
+- **A fresh recovery point, confirmed COMPLETED** — 36.6 MB at 12:51, taken
+  before the write. There is no PITR here (whole-cluster recovery only), so the
+  backup is the entire undo.
+- **A payload fingerprint**, `md5(string_agg(payload_sha256))` over all 6 650
+  rows, taken before and after. **Identical.** This moves labels and never
+  bytes; a difference would have meant the migration touched something it had no
+  business touching.
+
+**Verified afterwards by the one instrument that answers independently.**
+Re-running the DCF inversion over the stored payload for each migrated date:
+
+| as_of | quote | DCF fits | residual ₴ | days stale |
+|---|---|---|---|---|
+| 2026-08-11 | 1063.55 | 2026-08-11 | 0.0013 | 0 |
+| 2026-08-12 | 1063.97 | 2026-08-12 | 0.0026 | 0 |
+| 2026-08-13 | 1064.39 | 2026-08-13 | 0.0040 | 0 |
+| 2026-08-14 | 1064.82 | 2026-08-14 | −0.0045 | 0 |
+| 2026-08-15 | 1065.24 | 2026-08-15 | −0.0027 | 0 |
+| 2026-08-16 | 1065.66 | 2026-08-16 | −0.0008 | 0 |
+| 2026-08-17 | 1066.08 | 2026-08-17 | 0.0012 | 0 |
+| 2026-08-18 | 1066.50 | 2026-08-18 | 0.0035 | 0 |
+
+**Eight of eight, every residual inside D31's 0.0007–0.0046 band, `daysStale` 0
+throughout.** Before the migration every one of these fitted `as_of + 1`. The
+DCF knows nothing about the provider's calendar or about our convention — it
+discounts the remaining coupons — which is what makes it the check worth running
+rather than a restatement of the change itself.
+
+**The earliest Inzhur date is now 2026-08-11, not 08-10, and that is correct:**
+the five rows previously filed under 08-10 were dev-time invokes run on the
+evening of the 11th. Nothing was captured before then, so there is no 08-10 to
+have.
 

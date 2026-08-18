@@ -40,10 +40,25 @@ CREATE TABLE IF NOT EXISTS price_capture (
   -- not substitutes and must never be merged.
   source          TEXT,
 
-  -- The Kyiv calendar date these prices are FOR. The 01:00 Europe/Kyiv run reads
-  -- prices published ~13:00 the previous day, so as_of = capture date - 1.
-  -- Pinned in writing because a silent redefinition later poisons the archive
-  -- with no way to tell which rows used which rule.
+  -- The Kyiv calendar date these prices are FOR — and the rule is PER SOURCE,
+  -- which it was not until 2026-08-18 (D71).
+  --
+  --   inzhur  as_of = the Kyiv date of the run. The endpoint is live and what
+  --           it serves at 01:00 on day D is the price struck for day D.
+  --   nbu_fv  as_of = the Kyiv date of the run - 1. Here the value is also the
+  --           REQUEST parameter: the URL names a date's file, and at 01:00 on D
+  --           the file for D does not exist yet (NBU publishes ~09:30).
+  --
+  -- This comment used to read "as_of = capture date - 1" for both, on the
+  -- premise that the 01:00 run reads prices published ~13:00 the previous day.
+  -- False for inzhur, true for nbu_fv — so one rule had to be wrong for one of
+  -- them, and it was wrong for 14 inzhur rows before inverting the DCF caught
+  -- it. Those rows were migrated +1 day on 2026-08-18; nbu_fv was never touched.
+  --
+  -- Still pinned in writing, and now with a decision behind it, because a
+  -- silent redefinition poisons the archive with no way to tell which rows used
+  -- which rule. That is exactly what happened, and it was only repairable
+  -- because the offset turned out to be uniform.
   as_of           DATE        NOT NULL,
 
   -- Outcome. `ok` false still writes a row: a failed run is exactly the fact the
@@ -105,8 +120,10 @@ CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
 -- on, and neither could use the index above: an index is only usable from its
 -- leading column. Measured before adding it, both queries scanned all 6,628
 -- rows to return 3, at ~730 ms each (`Rows Removed by Filter: 6625`).
--- `requested_at` is the third key so the streak query's ORDER BY is served by
--- the same index.
+-- `requested_at` was the third key so the streak query's ORDER BY was served by
+-- the same index. That query is gone (A20, D70) and the key stays: the backfill
+-- completeness check still leads with `source`, and dropping a key from a live
+-- index buys nothing at ~365 rows a year.
 CREATE INDEX ASYNC IF NOT EXISTS price_capture_source_as_of
   ON price_capture (source, as_of, requested_at);
 

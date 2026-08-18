@@ -240,14 +240,45 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
 }
 
 /**
- * The as-of date: the calendar day these prices are FOR.
+ * TWO DATES, NOT ONE, and they were one function until 2026-08-18 (D71).
  *
- * The feed refreshes ~13:00 Europe/Kyiv, so the 01:00 run reads the price
- * settled the previous day. The subtraction MUST happen on the Kyiv date, not
- * the UTC one — at 01:00 Kyiv the UTC date is already the previous day, so
- * subtracting from the UTC date silently yields D-2.
+ * `asOfFor` subtracted a day for BOTH sources on the premise that "the feed
+ * refreshes ~13:00, so the 01:00 run reads the price settled the previous day".
+ * That premise is false for Inzhur and true for NBU, so a single function had to
+ * be wrong for one of them — and it was wrong for eight days of Inzhur rows
+ * before the DCF inversion caught it. Two names now, because the conflation is
+ * invisible when they share one.
  */
-export function asOfFor(now: Date): string {
+
+/**
+ * Inzhur: the Kyiv date the run happens on, with no subtraction at all.
+ *
+ * The endpoint is LIVE — it serves whatever is current, and what is current at
+ * 01:00 Kyiv on day D is the price struck for day D. Measured, not assumed:
+ * inverting the DCF over the published coupon schedule dated a 1066.50 quote
+ * read on 18 August to **18 August**, at a 0.0035 ₴ residual, and reproduced the
+ * same one-day offset on the three days before it (`infra/README.md`, W1).
+ */
+export function inzhurAsOf(now: Date): string {
+  return kyivDateIso(now);
+}
+
+/**
+ * NBU: the previous Kyiv date — and here the subtraction is CORRECT, because
+ * here the value is not a label at all.
+ *
+ * `nbuFairValueUrl(asOf)` asks for a NAMED date's file. At 01:00 on day D the
+ * file for day D does not exist yet (NBU publishes ~09:30), so the latest one
+ * that can be fetched is D-1 — and a file for D-1 genuinely holds D-1's fair
+ * values. The request parameter and the row's label are the same date by
+ * construction, which is why 6 636 NBU rows back to 2016-01-04 were never
+ * affected by the Inzhur defect.
+ *
+ * The subtraction MUST happen on the Kyiv date, not the UTC one — at 01:00 Kyiv
+ * the UTC date is already the previous day, so subtracting from the UTC date
+ * silently yields D-2.
+ */
+export function nbuAsOf(now: Date): string {
   const kyiv = kyivDateIso(now); // yyyy-MM-dd, Kyiv wall clock
   // Pinning the Kyiv date to UTC midnight makes the subtraction plain integer
   // day arithmetic — no local-time DST shift can move it, and month/year
@@ -569,7 +600,7 @@ interface BackfillRequest {
  */
 async function backfillNbu(client: Client, req: BackfillRequest) {
   const from = req.from ?? NBU_ARCHIVE_START;
-  const to = req.to ?? asOfFor(new Date());
+  const to = req.to ?? nbuAsOf(new Date());
   const limit = req.limit ?? 200;
 
   const { rows } = await client.query<{ as_of: string }>(
@@ -697,7 +728,7 @@ export interface ObserveRequest {
  */
 async function observeNbu(client: Client, req: ObserveRequest) {
   const from = req.from ?? NBU_ARCHIVE_START;
-  const to = req.to ?? asOfFor(new Date());
+  const to = req.to ?? nbuAsOf(new Date());
   const refs = req.refs ?? TRACKED_ISINS;
   const limit = req.limit ?? 400;
   const wanted = new Set(refs);
@@ -967,7 +998,7 @@ async function diagnose(client: Client) {
     `EXPLAIN ANALYZE
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
        FROM price_capture WHERE source = $1 AND as_of BETWEEN $2 AND $3`,
-    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, asOfFor(new Date())],
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, nbuAsOf(new Date())],
   );
   plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
 
@@ -1049,13 +1080,20 @@ export async function handler(event: HandlerEvent = {}) {
 
     if (event.backfill !== undefined) return await backfillNbu(client, event.backfill);
 
-    // ONE automation, two sources: both are captured in a single scheduled run
-    // rather than as two schedules. Same as_of rule serves both — Inzhur's
-    // prices settle at ~13:00 the previous day, and NBU publishes day D's file
-    // at ~09:30 on day D, so a 01:00 run on D+1 finds both.
-    const asOf = event.asOf ?? asOfFor(new Date());
+    // ONE automation, two sources — and TWO as-of dates, which is the whole of
+    // D71. Both are captured in a single scheduled run rather than as two
+    // schedules, but they no longer share a date: Inzhur's live endpoint serves
+    // the price struck for the day the run happens on, while NBU's URL asks for
+    // a named file that cannot exist for today yet. One rule had to be wrong for
+    // one of them, and for eight days it was.
+    const now = new Date();
+    const runDate = kyivDateIso(now);
+    const asOfOf = (source: string) =>
+      event.asOf ?? (source === SOURCE.inzhur ? inzhurAsOf(now) : nbuAsOf(now));
+
     const results: CaptureResult[] = [];
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
+      const asOf = asOfOf(source);
       // The schedule fires six times a day, two hours apart, so that a provider
       // outage at 01:00 is not the end of the matter (see template.yaml). Every
       // firing after the first is a no-op for a source already settled, and the
@@ -1065,7 +1103,10 @@ export async function handler(event: HandlerEvent = {}) {
       results.push(await captureOne(client, source, asOf));
     }
     // Nothing left to do: every source was already settled by an earlier firing.
-    if (results.length === 0) return { asOf, results, skipped: 'already settled' };
+    // Reported under the RUN date, which is the one fact both sources share —
+    // each row carries its own as_of, and a single top-level one would be the
+    // conflation D71 exists to end.
+    if (results.length === 0) return { runDate, results, skipped: 'already settled' };
 
     // Today's payload becomes today's observation, on the same run that
     // captured it.
@@ -1082,7 +1123,11 @@ export async function handler(event: HandlerEvent = {}) {
     // years forward — hundreds of dates the operator never asked for, reported
     // as one enormous spike in the metric that is supposed to read "a couple of
     // rows a night".
-    await observeAndReport(client, addDays(asOf, -OBSERVE_WINDOW_DAYS), asOf);
+    // The observation table holds NBU rows only (its Inzhur half is W3/W4), so
+    // the window is NBU's date. Passing Inzhur's would ask for a day the source
+    // has not published.
+    const nbuDate = asOfOf(SOURCE.nbuFairValue);
+    await observeAndReport(client, addDays(nbuDate, -OBSERVE_WINDOW_DAYS), nbuDate);
 
     // THE SHAPE OF THE FEED, PUBLISHED AND NEVER ALARMED (A20). Both numbers
     // say something a graph can show and no threshold can judge: `entryCount`
@@ -1115,10 +1160,11 @@ export async function handler(event: HandlerEvent = {}) {
     const failed = results.filter((r) => !r.ok && r.error !== NOT_PUBLISHED);
     if (failed.length > 0) {
       throw new Error(
-        `capture ${asOf}: ` + failed.map((f) => `${f.source}: ${f.error}`).join('; '),
+        `capture ${runDate}: ` +
+          failed.map((f) => `${f.source} (as_of ${f.asOf}): ${f.error}`).join('; '),
       );
     }
-    return { asOf, results };
+    return { runDate, results };
   } finally {
     await client.end();
   }
