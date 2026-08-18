@@ -686,3 +686,13 @@ now detectable, which is the only reason it is repairable. **Planned as its own
 task; nothing here was migrated.** The `unchangedDays` reading above is
 unaffected: the streak walk skips weekend dates, so shifting the run to
 Sat–Sun–Mon still leaves Monday comparing against Friday, and still reads 1.
+
+**The detector this section measured no longer exists.** The reading above is
+the last one it produced: the owner's ruling the same day retired the value
+check outright (**D70**, shipped as A20). Checks are now structural — did the
+capture run, does the feed still list the refs it must — and the two shape
+numbers, `EntryCount` and `SkippedRefs`, are graphed per source with no alarm on
+either. `quotes_sha256` is still computed and stored, so this whole reading can
+be reproduced from the archive at any time; it simply is not judged on a
+schedule any more.
+

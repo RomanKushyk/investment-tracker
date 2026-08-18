@@ -18,7 +18,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
 | A15 | The daily run derives its own observation | `infra/observe-on-schedule` | S | **done** (2026-08-12) |
-| A20 | Capture checks become structural — did it run, is the shape right — never "did the value change" | `infra/structural-checks` | S | **todo** (owner ruling 2026-08-18) |
+| A20 | Capture checks become structural — did it run, is the shape right — never "did the value change" | `infra/structural-checks` | S | **done** (2026-08-18, D70) |
 | A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **todo — deadline W4, 2026-09-02** (found 2026-08-18 by W1) |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
@@ -723,16 +723,17 @@ which is exempt from the failure throw on purpose.
 
 **What goes:**
 
-- [ ] `StalePricesAlarm` and `StalePricesMetricFilter` — the value check itself.
-- [ ] `UnchangedDaysMetricFilter` and the `unchangedStreak` query behind it.
-      Removing the metric rather than keeping a graph is a departure from this
-      file's usual "no alarm on it, deliberately, the graph is the signal": that
-      pattern is for a number that still *says* something. This one is provably
-      constant for the source that matters.
-- [ ] `StreakCheckLivenessAlarm`, which exists only to prove the streak check is
-      running. It goes with what it was watching, not before it.
-- [ ] `STALE_AFTER_DAYS`, and the `isWeekend` calls that exist only for the
-      streak walk. Check whether `isWeekend` has another caller before deleting.
+- [x] `StalePricesAlarm` and `StalePricesMetricFilter` — the value check itself.
+- [x] `UnchangedDaysMetricFilter` and the `unchangedStreak` query behind it.
+- [x] `StreakCheckLivenessAlarm`, which existed only to prove the streak check
+      was running. It went with what it was watching.
+- [x] `STALE_AFTER_DAYS`, and the `trackStreak` option. **`isWeekend` STAYS** —
+      the check the plan asked for found a third caller, the backfill loop, which
+      skips weekend dates because NBU publishes no file on them.
+- [x] **`quotes_sha256` stays, and that distinction is the point.** D28's hashing
+      half is not retired: the premise is still captured on every row and only the
+      scheduled conclusion drawn from it is gone. W1 read the streak out of those
+      stored hashes, which is exactly why they are worth keeping.
 
 **What stays, and it is already most of the answer.** `SilenceAlarm`
 (`Invocations < 1`, missing = breaching) says the job stopped. A fetch failure, a
@@ -743,27 +744,36 @@ name. `DlqAlarm` catches exhausted retries. `BackupAgeAlarm` and
 
 **What is missing, and is the positive half of this task:**
 
-- [ ] **A shape check on `skipped_refs`.** For `inzhur`, entries the parser could
-      not read are recorded per entry as `ref:reason` and **alarm on nothing**
-      unless the count reaches zero. A feed that quietly drops six instruments
-      from 36 is a shape change, is exactly what the archive exists to catch, and
-      is silent today. NBU already has this shape of check (`tracked ISIN
-      absent`); `inzhur` does not.
-- [ ] **A floor under `entry_count`.** The DDL comment already calls entry-count
-      collapse "the earliest signal of a feed shape change" — but nothing reads
-      it. Decide between an absolute floor and a drop-versus-previous-capture; a
-      drop test is sharper and needs one more query, so weigh it against the DPU
-      the streak query is giving back.
-- [ ] Both must exempt the legitimately-absent case the way the NBU 404 is
-      exempted, or this task recreates the defect it removes.
+- [x] **Shipped as a NAMED-REF check rather than the count check planned here.**
+      `TRACKED_INZHUR_REFS` mirrors NBU's `TRACKED_ISINS` one source over: the
+      Inzhur capture asserts the refs it must still see, sets `error` when one is
+      absent, and reaches `ErrorAlarm` through the handler's existing throw. Refs
+      and not a count, because D30 fixed `isin` for bonds and `slug` for funds
+      and one feed carries both kinds.
+- [x] ~~A floor under `entry_count`.~~ **Deliberately not done, and measuring
+      first is why.** `entry_count` has only ever GROWN for inzhur (34 → 35 →
+      36), so a floor would be a threshold guessed from one week that the first
+      delisting invalidates — the exact failure that retired `STALE_AFTER_DAYS`.
+      `skipped_refs` measured the same way: empty on all 14 inzhur captures, but
+      non-empty on **6 133 of 6 636** NBU rows, where it is the backfill
+      correctly reporting bonds that did not exist yet (D43). No single rule is
+      right for both sources, so neither number gets a rule.
+- [x] **Both are published and never alarmed** — `EntryCount` and `SkippedRefs`
+      per source, the pattern `ObservationsWritten` already uses. Emitted from the
+      scheduled handler rather than from `captureOne`, which is what let
+      `trackStreak` be deleted outright: the backfill never reaches the line, so
+      it cannot scatter points across ten years of graph. Structural separation
+      instead of a boolean someone can forget to pass.
 
-**Verify:** a deploy with no capture behaviour change; `SetAlarmState` on the new
-shape alarm reaches the Console Mobile App (the D45 proof); a hand-invoke with a
-trimmed fixture trips it and a normal run does not.
-**Risk:** low. It removes alarms and adds one; no data is touched. The one trap
-is deleting `StreakCheckLivenessAlarm` and leaving the metric filter, or the
-reverse — the alarm then watches a metric nobody publishes, which is
-indistinguishable from health.
+**Verified:** `infra` typechecks, and re-parsing the template gives **five
+alarms, every one structural** — `SilenceAlarm`, `ErrorAlarm`, `DlqAlarm`,
+`BackupAgeAlarm`, `AlertChannelAlarm`, not one of which reads a price — beside
+five metric filters. Remaining: the deploy, then the next 01:00 run publishing
+`EntryCount` and `SkippedRefs` for both sources.
+**Risk:** low, and no data or schema was touched. The trap named when this was
+planned — deleting an alarm and leaving its filter, so an alarm watches a metric
+nobody publishes and reads healthy forever — was avoided by removing both halves
+of each pair and re-parsing the template to confirm the inventory.
 
 ## A19 — `as_of` is one day early on every Inzhur row — `infra/asof-alignment`
 

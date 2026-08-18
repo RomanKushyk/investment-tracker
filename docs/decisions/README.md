@@ -123,6 +123,7 @@ only for the decision you actually need.
 | D67 | Production moves on a version, not on a calendar — supersedes D59's cadence | 2026-08-17 |
 | D68 | `muted` is re-derived against the surface it is worst on, and `label` is retired into it | 2026-08-17 |
 | D69 | The provider's FX rate is not stored at all — supersedes D30's placement of it | 2026-08-17 |
+| D70 | Capture checks are structural; the value check is retired — supersedes D28's frozen-feed half | 2026-08-18 |
 
 ## A pattern these entries kept finding
 

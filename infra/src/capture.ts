@@ -118,6 +118,24 @@ async function fetchNbu(asOf: string): Promise<FetchOutcome> {
  *  changed shape. */
 const TRACKED_ISINS = ['UA4000238976', 'UA4000236475'];
 
+/**
+ * The refs the Inzhur feed must still carry, and the SAME idea as
+ * `TRACKED_ISINS` one source over: a feed that stops listing something we hold
+ * is the shape change worth being told about (A20).
+ *
+ * Refs, not ISINs, because Inzhur serves both kinds and D30 fixed the rule —
+ * `isin` for bonds, `slug` for funds. The bonds repeat `TRACKED_ISINS` rather
+ * than importing it: NBU's list is what a national file must contain, this one
+ * is what one provider must list, and the day they diverge is the day sharing
+ * them would be a bug.
+ *
+ * The same stopgap caveat applies as above: the real home is `listed_from` /
+ * `retired_at` on `instrument`. Until then a delisting shows up here as an
+ * alarm and is answered by editing this line, which is the honest cost of not
+ * having the table yet.
+ */
+const TRACKED_INZHUR_REFS = ['UA4000238976', 'UA4000236475', 'inzhur-reit', 'inzhur-energy'];
+
 interface ParsedNbu {
   rows: number;
   missing: string[];
@@ -345,68 +363,10 @@ interface CaptureResult {
   asOf: string;
   ok: boolean;
   entries: number;
+  /** How many entries the parser could not read. Published, never alarmed (A20). */
+  skipped: number;
   error: string | null;
-  /** Consecutive BUSINESS days ending today whose price digest is unchanged. */
-  unchangedDays?: number;
 }
-
-/**
- * How many consecutive business days, ending with this capture, carry an
- * identical price digest.
- *
- * Business days only. Counting calendar days would report a streak of 3 every
- * Monday, because a Saturday and Sunday capture legitimately repeat Friday's
- * price — the alarm would fire weekly and be muted within a month.
- *
- * Derived from stored hashes rather than kept as a counter column: a
- * denormalised streak drifts the moment a row is backfilled or re-captured out
- * of order, and this is cheap at 15 rows.
- */
-async function unchangedStreak(
-  client: Client,
-  source: string,
-  digest: string,
-  asOf: string,
-): Promise<number> {
-  const { rows } = await client.query<{ quotes_sha256: string | null; as_of: string }>(
-    `SELECT quotes_sha256, to_char(as_of, 'YYYY-MM-DD') AS as_of
-       FROM price_capture
-      WHERE source = $1 AND ok = true AND quotes_sha256 IS NOT NULL
-      ORDER BY as_of DESC, requested_at DESC
-      LIMIT 60`,
-    [source],
-  );
-
-  // ONE row per date. A date can hold several captures — a manual re-invoke, a
-  // repaired day, a scheduler retry — and counting rows instead of dates turned
-  // two captures of the same afternoon into a two-day streak. Caught by
-  // invoking twice in a row; the ordering above makes the first row seen for a
-  // date the newest one, which is the one that counts.
-  const latestPerDate = new Map<string, string | null>();
-  for (const r of rows) {
-    if (!latestPerDate.has(r.as_of)) latestPerDate.set(r.as_of, r.quotes_sha256);
-  }
-
-  let streak = 1; // the capture being written now
-  for (const [date, hash] of latestPerDate) {
-    // The date being captured is already counted as that 1. Re-capturing a day
-    // must not make its own streak grow.
-    if (date === asOf || isWeekend(date)) continue;
-    if (hash !== digest) break;
-    streak += 1;
-  }
-  return streak;
-}
-
-/**
- * Business days of identical prices before it is worth saying so.
- *
- * Deliberately loose and env-tunable rather than fixed at the 2–3 the research
- * suggested: the right value is an empirical question about how often OVDP
- * quotes genuinely sit flat, and nobody has 30 days of data yet. A threshold
- * that cries wolf gets muted, and a muted alarm is worse than none.
- */
-const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
 
 /**
  * One source, one date, one row. ALWAYS writes — including a 404 weekend and a
@@ -430,17 +390,6 @@ const STALE_AFTER_DAYS = Number(process.env.STALE_AFTER_DAYS ?? '5');
  * `instrument`, which the data model specifies for exactly this distinction:
  * telling "missing" apart from "did not exist yet".
  *
- * `trackStreak` — whether to compute the unchanged-price streak and emit the
- * `unchangedDays` metric. True for the daily capture, which is what the metric
- * is about. False for a backfill, for two reasons and the second is the real
- * one:
- *
- *  1. Cost. It is a query per date, and it made a forced re-capture roughly
- *     2.5x slower (540ms/date against 200ms).
- *  2. **It pollutes a production metric with history.** A 2,600-date backfill
- *     would emit 2,600 `unchangedDays` points dated across ten years, and
- *     `StalePricesAlarm` watches that metric with a five-day threshold. A
- *     backfill has no business firing an alarm about 2018.
  */
 /**
  * Has this source already produced a usable answer for this date?
@@ -470,7 +419,7 @@ async function captureOne(
   client: Client,
   source: string,
   asOf: string,
-  { expectTracked = true, trackStreak = true }: { expectTracked?: boolean; trackStreak?: boolean } = {},
+  { expectTracked = true }: { expectTracked?: boolean } = {},
 ): Promise<CaptureResult> {
   const requestedAt = new Date();
   const outcome =
@@ -509,43 +458,30 @@ async function captureOne(
             (e) => `${e.kind}:${e.ref.toLowerCase()}:${e.sellUAH}:${e.buyUAH ?? ''}:${e.navUAH ?? ''}`,
           ),
         );
+        // SHAPE, NEVER VALUES (A20, owner ruling). What the capture asserts is
+        // that the feed still LISTS what it should, never that a number moved:
+        // a price may sit still for maintenance, a weekend, a holiday or a
+        // holiday moved to the Monday after, and alarming on that manufactures
+        // work where there is no fault.
+        //
+        // Measured before choosing this shape: `skipped_refs` has been empty on
+        // every Inzhur capture, and `entry_count` has only ever GROWN (34 → 35
+        // → 36), so a floor under the count would have been a threshold guessed
+        // from one week — and the first delisting would have made it wrong.
+        // Naming the refs needs no threshold at all and says what we actually
+        // care about.
+        const present = new Set(feed.entries.map((e) => e.ref.toLowerCase()));
+        const absent = TRACKED_INZHUR_REFS.filter((r) => !present.has(r.toLowerCase()));
         // Zero readable entries means shape drift or an error page. Recorded as
         // a failure so the alarm fires — but the payload is still stored,
         // because a payload we cannot parse today is exactly what a future
         // parser fix needs to read.
         if (entryCount === 0) error = 'feed parsed to zero entries';
+        else if (expectTracked && absent.length > 0)
+          error = `tracked ref absent: ${absent.join(',')}`;
       }
     } catch (err) {
       error = `parse failed: ${err instanceof Error ? err.message : String(err)}`;
-    }
-  }
-
-  // Only meaningful for a capture that actually parsed, and only when the date
-  // is a business day — a weekend capture repeating Friday is not a symptom.
-  let unchangedDays: number | undefined;
-  if (trackStreak && digest !== null && error === null && !isWeekend(asOf)) {
-    unchangedDays = await unchangedStreak(client, source, digest, asOf);
-
-    // Emitted on EVERY business-day capture, not only when stale. A metric that
-    // exists only on failure cannot distinguish "healthy" from "the check
-    // stopped running" — both look like no data. Publishing the value always
-    // makes the mechanism's own liveness observable, which is the difference
-    // between a check you trust and one you have to remember to verify.
-    //
-    // JSON so the metric filter can extract the numeric value and the source
-    // dimension by JSON path rather than by column position.
-    console.log(
-      JSON.stringify({ metric: 'unchangedDays', source, asOf, value: unchangedDays }),
-    );
-
-    if (unchangedDays >= STALE_AFTER_DAYS) {
-      // A distinct, greppable line rather than a thrown error. A frozen
-      // upstream is not a transient fault: throwing would make EventBridge
-      // retry three times and write three more rows for the same day, none of
-      // which would help. A metric filter turns this into an alarm instead.
-      console.warn(
-        `STALE_PRICES source=${source} asOf=${asOf} unchangedBusinessDays=${unchangedDays}`,
-      );
     }
   }
 
@@ -580,8 +516,8 @@ async function captureOne(
     asOf,
     ok: error === null,
     entries: entryCount ?? 0,
+    skipped: skipped === null || skipped === '' ? 0 : skipped.split(',').length,
     error,
-    ...(unchangedDays === undefined ? {} : { unchangedDays }),
   };
 }
 
@@ -649,10 +585,7 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   for (let d = from; d <= to && captured < limit; d = addDays(d, 1)) {
     cursor = d;
     if (isWeekend(d) || (!req.force && done.has(d))) continue;
-    const res = await captureOne(client, SOURCE.nbuFairValue, d, {
-      expectTracked: false,
-      trackStreak: false,
-    });
+    const res = await captureOne(client, SOURCE.nbuFairValue, d, { expectTracked: false });
     captured += 1;
     if (res.ok) published += 1;
   }
@@ -680,9 +613,9 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
  * alarm, because it turns an unmonitored system into one everyone believes is
  * monitored (D44).
  *
- * So the channel is checked the same way `unchangedDays` is: the value is
- * emitted on EVERY run, healthy or not. A signal that appears only on failure
- * cannot tell "fine" from "the check stopped running".
+ * So the channel is checked the way every signal here is: the value is emitted
+ * on EVERY run, healthy or not. A signal that appears only on failure cannot
+ * tell "fine" from "the check stopped running".
  *
  * The alarm on this metric necessarily notifies through the very channel it is
  * measuring, which no amount of cleverness fixes. It is not meant to. The point
@@ -947,10 +880,9 @@ const NO_BACKUP_HOURS = 9999;
  * plan has exactly that shape — it fails silently, and the moment it is wanted
  * is the worst possible moment to find out.
  *
- * An AGE rather than a healthy/unhealthy flag, for the same reason
- * `unchangedDays` publishes the streak instead of only the breach: a number can
- * be watched drifting toward the threshold, a boolean can only be watched
- * flipping after it is too late.
+ * An AGE rather than a healthy/unhealthy flag: a number can be watched drifting
+ * toward the threshold, a boolean can only be watched flipping after it is too
+ * late.
  *
  * Filtered by the cluster's OWN arn, which matters more than it looks. Recovery
  * points survive their source for the full 35-day retention, so a recreated
@@ -1028,18 +960,9 @@ async function diagnose(client: Client) {
        FROM price_capture GROUP BY source ORDER BY source`,
   );
 
-  // The two queries that run in normal operation, planned as they actually run.
+  // The query that runs in normal operation, planned as it actually runs. The
+  // streak query that used to be planned beside it is gone with the check (A20).
   const plans: Record<string, string[]> = {};
-  const streak = await client.query<{ 'QUERY PLAN': string }>(
-    `EXPLAIN ANALYZE
-     SELECT quotes_sha256, to_char(as_of, 'YYYY-MM-DD') AS as_of
-       FROM price_capture
-      WHERE source = $1 AND ok = true AND quotes_sha256 IS NOT NULL
-      ORDER BY as_of DESC, requested_at DESC
-      LIMIT 60`,
-    [SOURCE.inzhur],
-  );
-  plans.unchangedStreak = streak.rows.map((r) => r['QUERY PLAN']);
   const completeness = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN ANALYZE
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
@@ -1160,6 +1083,27 @@ export async function handler(event: HandlerEvent = {}) {
     // as one enormous spike in the metric that is supposed to read "a couple of
     // rows a night".
     await observeAndReport(client, addDays(asOf, -OBSERVE_WINDOW_DAYS), asOf);
+
+    // THE SHAPE OF THE FEED, PUBLISHED AND NEVER ALARMED (A20). Both numbers
+    // say something a graph can show and no threshold can judge: `entryCount`
+    // has only ever grown, so a floor under it would be a guess that the first
+    // delisting makes wrong, and `skippedRefs` is empty on every Inzhur capture
+    // but non-empty on 6,133 of 6,636 NBU rows, where it is the backfill
+    // correctly reporting bonds that did not exist yet (D43). A single rule
+    // over both sources would therefore be wrong for one of them. What DOES
+    // alarm is a named ref going missing — `tracked ISIN absent` for NBU,
+    // `tracked ref absent` for Inzhur — because that needs no threshold and is
+    // the thing actually worth waking up for.
+    //
+    // Emitted HERE rather than inside `captureOne`, which is what retires the
+    // old `trackStreak` flag: a 2,600-date backfill would otherwise scatter
+    // points across ten years of graph. The scheduled path is the only caller
+    // that reaches this line, so the separation is structural instead of a
+    // boolean someone can forget to pass.
+    for (const r of results) {
+      console.log(JSON.stringify({ metric: 'entryCount', source: r.source, asOf: r.asOf, value: r.entries }));
+      console.log(JSON.stringify({ metric: 'skippedRefs', source: r.source, asOf: r.asOf, value: r.skipped }));
+    }
 
     // Only on the scheduled path. A backfill has nothing to say about whether
     // today's alerting works, and it would emit the value hundreds of times.

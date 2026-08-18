@@ -85,11 +85,6 @@ Resources:
           DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
-          # Business days of identical prices before the stale-price alarm.
-          # An environment variable rather than a constant so it can be
-          # recalibrated from real data without a deploy — the right value is
-          # an empirical question nobody can answer yet.
-          STALE_AFTER_DAYS: '5'
           # The alert channel checks ITSELF here (D44/D45). Looked up by
           # NAME rather than ARN on purpose: a configuration ARN carries
           # the account id, and this repository is public.
@@ -293,43 +288,9 @@ Resources:
   # plausible number — and none of them has moved. Neither the error alarm nor
   # the silence alarm can see it, because nothing errored and the job did run.
   #
-  # A metric filter over the log line costs nothing (filters are free; the
-  # metric is one of 10 free custom metrics) and needs no extra IAM.
-  StalePricesMetricFilter:
-    Type: AWS::Logs::MetricFilter
-    Properties:
-      LogGroupName: !Ref CaptureLogGroup
-      FilterPattern: STALE_PRICES
-      MetricTransformations:
-        - MetricNamespace: Quirenote
-          MetricName: StalePrices
-          MetricValue: '1'
-          DefaultValue: 0
-
-  StalePricesAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: Prices have not moved for several consecutive business days.
-      Namespace: Quirenote
-      MetricName: StalePrices
-      Statistic: Sum
-      Period: 86400
-      EvaluationPeriods: 1
-      Threshold: 1
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      # notBreaching, unlike the silence alarm: no data here means no stale
-      # capture was logged, which is the healthy state. The silence alarm is
-      # what covers "nothing ran at all".
-      TreatMissingData: notBreaching
-
-  # The streak VALUE, published on every business-day capture rather than only
-  # when it is bad. This is what makes the staleness check itself observable:
-  # a metric that appears only on failure cannot tell "healthy" apart from
-  # "the check stopped running".
   # The alert channel measuring itself (D44/D45). Emitted on EVERY scheduled
   # run, healthy or not — a signal that appears only on failure cannot tell
-  # "fine" from "the check stopped running", which is the same reasoning as
-  # UnchangedDays one level up.
+  # "fine" from "the check stopped running".
   AlertChannelsMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -427,44 +388,49 @@ Resources:
           MetricName: ObservationsWritten
           MetricValue: $.value
 
-  UnchangedDaysMetricFilter:
+  # THE SHAPE OF THE FEED, GRAPHED AND NEVER ALARMED (A20, owner ruling).
+  # Both replace the retired UnchangedDays/StalePrices pair, which asked whether
+  # the NUMBERS moved — a question with no good answer, because a price may sit
+  # still for maintenance, a weekend, a holiday or a holiday moved to the Monday
+  # after. Measured before removing it: for `inzhur` the digest can never repeat
+  # while the feed is alive, since 24 of 31 live bonds carry daily accrued
+  # interest, so the metric was a flat line bought with a query per run.
+  #
+  # No alarm on either, and deliberately, for the reason ObservationsWritten
+  # above has none: neither number has a threshold that is right for both
+  # sources. `entryCount` has only ever GROWN for inzhur (34 -> 35 -> 36), so a
+  # floor is a guess the first delisting invalidates; `skippedRefs` is empty on
+  # every inzhur capture but non-empty on 6,133 of 6,636 NBU rows, where it is
+  # the backfill correctly reporting bonds that did not exist yet (D43).
+  # What DOES alarm is a NAMED ref going missing — `tracked ISIN absent` for
+  # NBU, `tracked ref absent` for inzhur — which needs no threshold at all and
+  # reaches ErrorAlarm through the handler's own throw.
+  EntryCountMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: !Ref CaptureLogGroup
-      FilterPattern: '{ $.metric = "unchangedDays" }'
+      FilterPattern: '{ $.metric = "entryCount" }'
       MetricTransformations:
         - MetricNamespace: Quirenote
-          MetricName: UnchangedDays
+          MetricName: EntryCount
           MetricValue: $.value
           Dimensions:
             - Key: source
               Value: $.source
 
-  # Fires only if the streak stops being published for five consecutive days —
-  # i.e. the capture runs but the check silently does not.
-  #
-  # Five, not one: the value is emitted on business days only, so a normal
-  # weekend already produces two blank days and a public-holiday long weekend
-  # can produce four. One day would page every Saturday and be muted by
-  # Christmas.
-  #
-  # This deliberately does NOT cover "the streak is computed but always wrong" —
-  # no alarm can, because the correct value is exactly what is unknown. That one
-  # is answered by looking at the graph once, which is now possible.
-  StreakCheckLivenessAlarm:
-    Type: AWS::CloudWatch::Alarm
+  SkippedRefsMetricFilter:
+    Type: AWS::Logs::MetricFilter
     Properties:
-      AlarmDescription: The staleness check has stopped reporting for 5 days.
-      Namespace: Quirenote
-      MetricName: UnchangedDays
-      Dimensions: [{ Name: source, Value: inzhur }]
-      Statistic: Maximum
-      Period: 86400
-      EvaluationPeriods: 5
-      DatapointsToAlarm: 5
-      Threshold: 0
-      ComparisonOperator: LessThanThreshold
-      TreatMissingData: breaching
+      LogGroupName: !Ref CaptureLogGroup
+      FilterPattern: '{ $.metric = "skippedRefs" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: SkippedRefs
+          MetricValue: $.value
+          DefaultValue: 0
+          Dimensions:
+            - Key: source
+              Value: $.source
 
   DlqAlarm:
     Type: AWS::CloudWatch::Alarm
