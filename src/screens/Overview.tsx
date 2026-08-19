@@ -118,7 +118,11 @@ export function Overview() {
   }));
 
   const underweight = mostUnderweightAsset(assets, values, total);
-  const payoutRows = nextPayoutRows(assets, transactions);
+  // A28 — the reference is TODAY, not `latestSnapshotDate`. Every other
+  // figure on this screen is measured to the data's as-of, but this card
+  // answers "what comes next", which is a question about the calendar: a
+  // payout dated before today is not next, however fresh the snapshots are.
+  const payoutRows = nextPayoutRows(assets, transactions, todayIso());
 
   return (
     <div>

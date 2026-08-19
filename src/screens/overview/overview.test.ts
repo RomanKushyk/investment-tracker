@@ -98,7 +98,11 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
 });
 
 describe('nextPayoutRows', () => {
-  const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS);
+  // A28 gave this function a reference date. `2026-07-27` is the seed's last
+  // snapshot, so every assertion below is what the screen showed before the
+  // roll existed — the pinned figures are unchanged, not re-pinned.
+  const ON = '2026-07-27';
+  const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, ON);
 
   it('excludes assets with payoutSchedule "none" (Energy)', () => {
     expect(rows.some((r) => r.assetId === 'energy')).toBe(false);
@@ -141,13 +145,13 @@ describe('nextPayoutRows', () => {
       firstPurchase: '2026-07-27',
       createdAt: '2026-07-27T10:00:00',
     };
-    const withNew = nextPayoutRows([...SEED_ASSETS, newAsset], SEED_TRANSACTIONS);
+    const withNew = nextPayoutRows([...SEED_ASSETS, newAsset], SEED_TRANSACTIONS, ON);
     expect(withNew.some((r) => r.assetId === 'new1')).toBe(false);
   });
 
   it('a bond with neither a coupon date nor a maturity date is skipped (no date is invented)', () => {
     const txs: Transaction[] = [];
-    expect(nextPayoutRows([userBond()], txs)).toEqual([]);
+    expect(nextPayoutRows([userBond()], txs, ON)).toEqual([]);
   });
 });
 
@@ -181,7 +185,7 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
   };
 
   it('projects an estimated coupon when the asset states no couponAmount', () => {
-    const rows = nextPayoutRows([userBond({ nextCoupon: '2026-09-15' })], [buy]);
+    const rows = nextPayoutRows([userBond({ nextCoupon: '2026-09-15' })], [buy], '2026-07-27');
     // 15 % of ₴10 000,00 a year, half-yearly = ₴750,00, flagged approx ('~').
     expect(rows).toEqual([
       {
@@ -196,7 +200,7 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
   });
 
   it('dates a stated coupon at maturity when no next coupon is recorded', () => {
-    const rows = nextPayoutRows([userBond({ couponAmount: 500, maturity: '2027-03-01' })], [buy]);
+    const rows = nextPayoutRows([userBond({ couponAmount: 500, maturity: '2027-03-01' })], [buy], '2026-07-27');
     expect(rows).toEqual([
       {
         assetId: 'bond2',
@@ -213,9 +217,66 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
     const withUser = nextPayoutRows(
       [...SEED_ASSETS, userBond({ nextCoupon: '2026-09-15' })],
       [...SEED_TRANSACTIONS, buy],
+      '2026-07-27',
     );
     expect(withUser.filter((r) => r.assetId !== 'bond2')).toEqual(
-      nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS),
+      nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-07-27'),
     );
+  });
+});
+
+// A28 — the card is called "Next payouts" and it was offering dates in the past.
+// Found by the 2026-08-19 walk of navigation-map.md: the seed's last REIT
+// accrual is 10.07, so the card said 10.08 on a day the app printed as 19.08.
+describe('nextPayoutRows — nothing offered is in the past', () => {
+  const buy = (assetId: string): Transaction => ({
+    id: `b-${assetId}`,
+    date: '2026-02-03',
+    type: 'buy',
+    assetId,
+    amount: 10000,
+    source: 'own',
+  });
+
+  it('rolls a DIVIDEND forward by whole periods until it is on or after the date', () => {
+    // The reported defect, at the date it was reported on.
+    const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-08-19');
+    expect(rows.find((r) => r.assetId === 'reit')?.date).toBe('2026-09-10');
+    // Two periods behind rolls twice, not once — the bug would have been just
+    // as present with a single +1 month applied to a stale projection.
+    const far = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-10-01');
+    expect(far.find((r) => r.assetId === 'reit')?.date).toBe('2026-10-10');
+  });
+
+  it('offers the projected date itself when it is exactly the reference date', () => {
+    // The boundary: "on or after", so a payout due today is still next.
+    const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-08-10');
+    expect(rows.find((r) => r.assetId === 'reit')?.date).toBe('2026-08-10');
+  });
+
+  it('rolls a COUPON too — the pointer is as stale as the accrual was', () => {
+    // `couponProjection` reads `nextCoupon` verbatim, and that field only ever
+    // moves through the S5 confirm — so an unrecorded coupon leaves it frozen
+    // in the past exactly as the dividend was. Fixing one half and not the
+    // other was the first draft of this fix.
+    const bond = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
+    const rows = nextPayoutRows([bond], [buy('ovdp8976')], '2026-09-01');
+    expect(rows[0].date).toBe('2027-02-25'); // 25.08 was missed; the next is half a year on
+  });
+
+  it('never rolls a coupon past maturity', () => {
+    const bond = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!; // matures 2027-02-25
+    const rows = nextPayoutRows([bond], [buy('ovdp8976')], '2028-01-01');
+    // The final coupon lands ON maturity and the roll stops there (accrual.ts),
+    // so a matured bond drops off the card rather than projecting forever.
+    expect(rows).toEqual([]);
+  });
+
+  it('every row is on or after the reference date, on the seed and past it', () => {
+    for (const on of ['2026-07-27', '2026-08-19', '2026-12-31', '2027-01-15']) {
+      for (const row of nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, on)) {
+        expect(row.date >= on).toBe(true);
+      }
+    }
   });
 });

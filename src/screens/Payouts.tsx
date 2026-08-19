@@ -6,6 +6,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useTransactions } from '../hooks/queries';
 import { incomeReceived, reinvestedTotal } from '../core/derive';
+import { todayIso } from '../core/dates';
 import { nextPayoutRows } from './overview/overview';
 import { monthlyPayouts, payoutLogRows } from './payouts/payouts';
 import { useFormat } from '../hooks/useFormat';
@@ -23,7 +24,8 @@ export function Payouts() {
   const income = incomeReceived(transactions);
   const reinvested = reinvestedTotal(transactions);
   const reinvestedPct = income.total === 0 ? 0 : (reinvested / income.total) * 100;
-  const payoutRows = nextPayoutRows(assets, transactions);
+  // Today, not the last snapshot — see the note in Overview.tsx (A28).
+  const payoutRows = nextPayoutRows(assets, transactions, todayIso());
 
   const chartData = monthlyPayouts(transactions).map((m) => ({
     monthLabel: t.dates.monthShort[Number(m.month.slice(5, 7)) - 1],

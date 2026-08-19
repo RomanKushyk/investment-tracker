@@ -1,6 +1,6 @@
 // Pure glue for the Overview screen's derived (non-KPI-grid) cards — imports
 // core/ only, returns structured tokens (G1). Covered by overview.test.ts.
-import { couponProjection } from '../../core/accrual';
+import { couponProjection, rollNextCoupon } from '../../core/accrual';
 import { addMonths } from '../../core/dates';
 import {
   allocationDeltaPp,
@@ -88,6 +88,60 @@ export interface PayoutRow {
   date: string; // ISO; chronological sort key — the UI renders '10 Aug'
 }
 
+/**
+ * Step a projected date forward by whole periods until it is on or after
+ * `onIso` (A28).
+ *
+ * THE CARD IS CALLED "NEXT PAYOUTS" AND IT WAS OFFERING DATES IN THE PAST. A
+ * dividend was projected as "the latest accrual plus one period" and left
+ * there, so the demo seed's last REIT accrual (10.07) had the card promising
+ * 10.08 on a day the app itself printed as 19.08 — found by the 2026-08-19 walk
+ * of `navigation-map.md`.
+ *
+ * Whole periods, not "the next month": the schedule is the asset's, and landing
+ * between its own dates would invent an occurrence that never happens.
+ *
+ * `MAX_STEPS` is a corrupt-data guard, not a range — 600 monthly steps is fifty
+ * years, past any bond this app will hold.
+ */
+const MAX_STEPS = 600;
+
+function rollMonthlyTo(date: string, monthsPer: number, onIso: string): string {
+  let out = date;
+  for (let i = 0; i < MAX_STEPS && out < onIso; i++) out = addMonths(out, monthsPer);
+  return out;
+}
+
+/**
+ * The coupon half of the same roll — and it needed one too, which the first
+ * draft of A28 got wrong.
+ *
+ * `couponProjection` reads `asset.nextCoupon || asset.maturity` VERBATIM, and
+ * `nextCoupon` only ever moves through the S5 confirm (G5). So an unrecorded
+ * coupon leaves the pointer frozen in the past exactly as the dividend was —
+ * the seed merely hid it, because its stored 25.08.2026 still happened to be in
+ * the future on the day the defect was found.
+ *
+ * Steps with `rollNextCoupon`, the same stepper the confirm writes with, so
+ * this card can never show a date the roll would not produce — the argument
+ * `nextUnsettledCoupon` already makes. `undefined` when the bond matures before
+ * the reference date: a matured bond has no next payout and drops off the card.
+ *
+ * A missed occurrence is NOT hidden by this — it is the reminder strip's and
+ * the S5 card's job, and both read the grid rather than this projection. This
+ * card answers "what comes next", which is a different question from "what did
+ * you forget".
+ */
+function rollCouponTo(asset: Asset, date: string, onIso: string): string | undefined {
+  let out = date;
+  for (let i = 0; i < MAX_STEPS && out < onIso; i++) {
+    const roll = rollNextCoupon(asset, out);
+    if (roll === undefined || roll.kind === 'matured') return undefined;
+    out = roll.nextCoupon;
+  }
+  return out < onIso ? undefined : out;
+}
+
 // Next payouts card (design lines 187-194, D5#7): bonds read their coupon
 // projection (core/accrual.couponProjection — stated couponAmount + nextCoupon
 // when present, otherwise the expectedPct estimate and/or the maturity date, in
@@ -98,7 +152,11 @@ export interface PayoutRow {
 // 'none' (Energy) or missing the attributes/history needed to estimate are
 // omitted. Structured tokens only — the component layer assembles the visible
 // strings (G1).
-export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): PayoutRow[] {
+export function nextPayoutRows(
+  assets: Asset[],
+  transactions: Transaction[],
+  onIso: string,
+): PayoutRow[] {
   const rows: PayoutRow[] = [];
   const invested = investedByAsset(transactions);
 
@@ -106,13 +164,15 @@ export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): Pa
     if (asset.yieldType === 'fixed_coupon') {
       const coupon = couponProjection(asset, invested[asset.id] ?? 0);
       if (coupon === undefined) continue;
+      const date = rollCouponTo(asset, coupon.date, onIso);
+      if (date === undefined) continue; // matured before the reference date
       rows.push({
         assetId: asset.id,
         kind: 'coupon',
         assetRef: `…${asset.name.slice(-4)}`,
         amount: coupon.amount,
         approx: coupon.estimated,
-        date: coupon.date,
+        date,
       });
       continue;
     }
@@ -134,7 +194,7 @@ export function nextPayoutRows(assets: Asset[], transactions: Transaction[]): Pa
       assetRef: asset.name.split(' ').at(-1)!,
       amount: latest.amount,
       approx: true,
-      date: addMonths(latest.date, monthsPer),
+      date: rollMonthlyTo(addMonths(latest.date, monthsPer), monthsPer, onIso),
     });
   }
 

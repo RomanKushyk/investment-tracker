@@ -48,7 +48,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
 | A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
-| A28 | "Next payouts" offers a dividend date in the past | `fix/payout-projection-roll` | S | **todo** — found by the 2026-08-19 map walk |
+| A28 | "Next payouts" offers a date in the past | `fix/payout-projection-roll` | S | **done** (2026-08-19) — found by the map walk the same day |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
@@ -1253,20 +1253,43 @@ to the next occurrence at or after today. The seed's last REIT accrual is
 **10.07.2026**, so the card offered **10.08** on a day the app itself printed as
 **19.08**: nine days in the past, under the heading "Next payouts".
 
-**Coupons are unaffected and that is the shape of the fix.** A bond reads
-`couponProjection`, which walks the asset's own coupon grid to the next
-UNSETTLED occurrence (D23) — which is why …8976 correctly offered 25.08 on the
-same screen at the same moment. The dividend path needs the same walk, not a
-different one.
+**THE SENTENCE THAT STOOD HERE — "coupons are unaffected" — WAS WRONG, and the
+code said so within the hour.** It claimed a bond reads a grid walk. It does
+not: `couponProjection` reads `asset.nextCoupon || asset.maturity` **verbatim**,
+and `nextCoupon` only ever moves through the S5 confirm (G5). So an unrecorded
+coupon leaves the pointer frozen in the past exactly as the dividend was. The
+seed merely hid it, because its stored 25.08.2026 still happened to be in the
+future on the day the defect was found. The D23 grid walk is real but lives in
+`nextUnsettledCoupon`, which the reminder strip and the S5 card use — **not this
+card**. Fixing one half and shipping the other was the first draft of this fix.
 
-- [ ] Roll the projected date forward by whole periods until it is on or after
-      the reference date, the way D23's grid walk already does for coupons.
-- [ ] **The reference date is the caller's, not `todayIso()` inside `core/`.**
-      Every other figure on these screens is measured to `latestSnapshotDate`
-      (A24, A27), and a pure function reading the clock cannot be tested.
-- [ ] Amount stays the latest accrual's, unchanged — **D5#7 pins the estimate
-      and says nothing about the date**, which is why the date is fixable
-      without a decision entry and the amount is not.
+- [x] Roll BOTH branches forward by whole periods until the date is on or after
+      the reference. Whole periods, never "the next month": landing between the
+      asset's own dates would invent an occurrence that never happens.
+- [x] The coupon half steps with `rollNextCoupon` — the same stepper the S5
+      confirm writes with — so this card can never show a date the roll would
+      not produce. It also stops at maturity, so a matured bond drops off the
+      card rather than projecting forever.
+- [x] **The reference date is TODAY, and the box that stood here said
+      `latestSnapshotDate`.** That was the wrong instinct carried over from A24
+      and A27: those measure a VALUE, whose as-of is the data's. This card
+      answers "what comes next", which is a question about the calendar — a
+      payout dated before today is not next, however fresh the snapshots are.
+      It is still the caller's to supply (`Overview.tsx`, `Payouts.tsx` pass
+      `todayIso()`); a pure function reading the clock cannot be tested.
+- [x] Amount unchanged — **D5#7 pins the estimate and says nothing about the
+      date**, which is why the date was fixable without a decision entry.
+
+**A missed occurrence is not hidden by this.** Surfacing it is the reminder
+strip's and the S5 card's job, and both read the grid rather than this
+projection. This card answers "what comes next"; "what did you forget" is a
+different question with its own surface.
+
+**Verified.** 679 tests (+5), lint and typecheck green. Browser, demo dataset,
+2026-08-19: `/overview` and `/payouts` both now read **Дивіденд REIT ~700 ₴ ·
+10.09** where they read 10.08 an hour earlier, the two coupons are untouched at
+25.08 and 03.12, and the soonest-first sort is now genuinely soonest-first — the
+…8976 coupon leads, where the past-dated dividend used to.
 
 **Not a live-data-only defect, and not only a seed-ageing artifact.** On a
 ledger kept current the projection is in the future and nothing shows; the card
