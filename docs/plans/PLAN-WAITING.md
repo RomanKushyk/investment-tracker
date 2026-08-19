@@ -26,6 +26,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W14 | Phase 7: DB browser | W7 — by construction | after W7 | no | building it twice |
 | W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **after 2026-09-02** | no | none — the files are in hand and read up in `docs/reference/INZHUR-FUND-HISTORY.md` |
 | W16 | User profile page and its settings | W7 — there is no user to have a profile until auth lands | **after W7** | no | none — the page has nothing to show today |
+| W17 | How a hand-entered value is MARKED as the user's (D75) | W7 — the mark only exists once `coalesce(user_price, archive)` does | **after W7** | no | none today — nothing is coalesced yet |
 
 ---
 
@@ -352,4 +353,28 @@ two, so the split is free if it is drawn then and expensive if it is drawn twice
 - [ ] Decide at W7 which of today's settings are account-scoped and which stay
       local. `dataset` is plainly local; `language` and `theme` are arguable.
 - [ ] Needs a design brief (G7) before implementation, like any new screen.
+
+---
+
+## W17 — How a hand-entered value is marked as the user's — **after W7**
+
+**D75 ruled the WHAT and deliberately left the HOW.** A value the user entered by
+hand is marked as theirs; a value taken from the archive is not. How that mark is
+drawn — a chip, a weight, a dot, a tooltip — is a design question and must not be
+invented inside an implementation task.
+
+**Gated on W7 by construction:** the mark distinguishes the two halves of
+`coalesce(user_price(a, D), archive(a, D))`, and neither half exists until the
+migration lands. Today every value in the app is the user's, so a mark on all of
+them would say nothing.
+
+- [ ] It belongs in a brief **with the model notes it will sit beside** —
+      `stale` and `revised` already print under a quote row (`QuoteRow.tsx`
+      `ModelNote`), and a third annotation on the same line invented separately
+      is how a row grows three unrelated vocabularies.
+- [ ] **It INVERTS D20 and the brief must say so where a reader will find it.**
+      The draft store marks the MACHINE's value; this marks the USER's. One rule
+      — mark the exception — with the exception on the other side because the
+      default moved from the user's typing to the archive's supply. A reader who
+      meets both without that sentence will file a bug against one of them.
 
