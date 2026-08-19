@@ -43,7 +43,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section H** | **Groomed from the owner's idea list (2026-08-18)** | | | |
 | A21 | Currency: Settings sets the default, the sidebar toggle is a session preview | `feat/currency-session` | S | **done** (2026-08-18) |
 | A22 | Design brief: where things live — editable analytics, the `Entry` group, collapsible groups | `docs/design-brief-phase-7` | M | **done** (2026-08-18) — `docs/design-briefs/phase-7-where-things-live.md`; **extension NOT drawn**, so every Phase 7 UI task stays design-blocked (G7) |
-| A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **todo** |
+| A23 | Design brief: provider-first asset creation | `docs/design-brief-asset-create` | M | **done** (2026-08-19) — `docs/design-briefs/asset-create-provider-first.md`; **extension NOT drawn** |
 | **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
@@ -1001,17 +1001,44 @@ should input minimum data, especially minimum sensitive data"* — pick a provid
 pick from the assets it lists, type a name only for `custom`, and let everything
 else fill itself.
 
-- [ ] Read what exists first. `components/forms/AssetForm.tsx` already has an
-      `InzhurGroup` with a live ref picker and a manual fallback, and
-      `hooks/useInzhurAssets.ts` is the manual-only fetch behind it (D19). This
-      is a re-ordering of an existing form, not a new capability.
-- [ ] **`NEXT-PHASE-PLAN.md` already flags the overlap: B3's catalog registers
-      newly listed provider assets and never puts them in a portfolio.** The
-      brief must not design a provider list that the backend will re-decide at
-      W7 — say explicitly which half is the app's and which is the catalog's.
-- [ ] The quick-create path inside `TransactionPanel` reuses `AssetFormFields`,
-      so whatever the flow becomes has to work in both hosts or the brief has to
-      say why it does not.
+- [x] Read what exists first — and it is indeed a re-ordering, not a new
+      capability. Every state the flow needs (loading · loaded · empty ·
+      error→manual · stale · demo-disabled) already ships from Phase 3's S7.
+      What is currently the LAST group, off by default, becomes the FIRST
+      question.
+- [x] The catalog boundary is stated as G-1 — **and it turned out not to be an
+      open question at all, which retires my own twice-repeated advice to hold
+      this task until W7.** `NEXT-PHASE-PLAN.md` pins it verbatim: the scheduler
+      registers newly listed provider assets *into the catalog, never into a
+      portfolio*. W7 does not DECIDE that boundary, it IMPLEMENTS it, so a brief
+      written today can state it correctly rather than guess.
+- [x] Both hosts covered — § S5 takes the quick-create sub-card, including the
+      nesting problem the provider step creates inside an already-nested dashed
+      card at 360.
+
+**THE FINDING THAT RESHAPES THE REQUEST.** The idea list asks the form to "fill
+all possible inputs" so the user types "only asset name and amount". Mapped
+field by field from `InzhurQuote` onto `Asset`, **that is achievable for a BOND
+and is not for a FUND**: `yieldType`, `expectedPct` and `payoutSchedule` are
+bonds-only — the type's own comment says *"Bonds only — funds carry none"* — and
+nothing in the feed distinguishes a dividend fund from a capitalizing one. The
+seed proves it is not pedantic: REIT pays dividends, Energy capitalizes, and the
+feed separates them nowhere. So a bond pick leaves the user two fields and a
+fund pick leaves four, and the design may not present the two as one flow.
+
+**The second finding is about the dataset, not the feed.** The fetch is disabled
+in DEMO (G4/D16, D19) and demo is the DEFAULT — so a form whose first question
+is "which provider" has a dead provider list on first run, for every new user.
+Today that is harmless because the link is an opt-in afterthought. Making it the
+headline makes it the first thing a newcomer meets. § S4 draws the demo path as
+a first-class screen for that reason, with the note that if the drawing needs an
+apology, the design is wrong.
+
+**Five decisions are left to the design session** rather than guessed: which
+provider is preselected (the request's spirit and the default dataset point
+different ways), whether units still leads inside the linked group, how a user's
+edit is shown to be protected from a later fill, whether choosing Inzhur in demo
+is allowed at all, and — ruled OUT of scope — a second real provider.
 
 ---
 
