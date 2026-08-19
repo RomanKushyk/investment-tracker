@@ -17,7 +17,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; the non-key columns stay gated on `PLAN-WAITING.md` W3 |
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
-| O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **open, 2026-08-18.** G5 is called binding and non-negotiable; this asks it to stop being |
+| O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **open, 2026-08-18 — EVIDENCE GATHERED 2026-08-19**, see below. Buys one press a day; the machine's input was wrong for 5 of 23 instruments on the last measured day |
 | O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
@@ -195,6 +195,91 @@ careful version. What is undecided is whether the ruling may be narrowed at all.
   too?), what it may never write, whether a server-side suggestion is covered,
   and how the user sees that a machine wrote a row — provenance already exists
   for exactly this (D20), so an auto-written row must carry it.
+
+---
+
+## O22 — the evidence, gathered 2026-08-19
+
+I had said this one was "a contract question, not a numbers question, so there
+is nothing to compute". That was wrong twice over: the blast radius is countable
+and the cost is measured. Both are below.
+
+### 1. How load-bearing G5 is — counted, not asserted
+
+**23 citations across 18 files**, including one in `infra/` — the backend cites
+it too. The entry above asserted four dependents from memory; the audit found
+the assertion understated.
+
+They are not decorative. The structural ones:
+
+| Site | What it says |
+|---|---|
+| `state/draft.ts:14` | the origins map exists to make *"never overwrite a user value"* **decidable after a reload** |
+| `core/types.ts:62` | *"a draft with no origin is the user's own value — the fact G5 protects"* |
+| `screens/daily-quotes/fetch-quotes.ts:5` | *"G5 IS THE WHOLE POINT of this module"* |
+| `screens/DailyQuotes.tsx:93` | *"Save snapshot below stays the sole write path"* |
+| `screens/daily-quotes/useQuoteFetch.ts:6` | *"nothing here touches the repository"* |
+| `core/accrual.ts:268` | the coupon pointer *"is still rolled only by the user's Confirm press"* |
+
+### 2. What the toggle buys — ONE press per day
+
+The daily ritual in the live dataset with linked assets is two presses: **Fetch
+quotes**, then **Save snapshot**. The fetch is manual-only by a separate policy
+(D19), so an auto-save removes exactly **one of the two**.
+
+To remove both, the toggle would have to auto-FETCH as well — which the idea
+list does not ask for and which D19 forbids on its own grounds. So the honest
+accounting is: **one press, once a day.**
+
+### 3. What it costs — measured on the most recent real day
+
+The 01:00 capture on **2026-08-19** reported, from the DCF inversion A6 runs
+nightly:
+
+```
+quoteVerdicts   consistent 18 · stale 3 · revised 2 · insensitive 0
+quoteMaxStaleDays  6
+```
+
+**Three of twenty-three instruments' published prices did not correspond to that
+day** — the oldest by six days. Two more did not fit the published yield at all.
+
+Under G5 the user sees that on the row before deciding: `ModelNote`
+(`QuoteRow.tsx:147`) prints *"Provider price is N days old — it still prices to
+dd.MM."* for a stale one, and a `warn` line for a price no yield in the window
+explains. **Under auto-save those five rows are written as that day's snapshot
+with nobody looking**, and the note that would have said so is rendered to an
+empty room.
+
+This is the whole argument in one number: **the machine's input was measurably
+wrong for 5 of 23 instruments on the most recent day measured.** Not
+hypothetically — that is what the capture recorded.
+
+### 4. What collapses structurally, as opposed to merely bending
+
+The provenance model. `QuoteOrigin` exists so that *"a draft with NO origin is
+the user's own"* is decidable after a reload. If the app writes on its own, every
+stored snapshot is machine-origin and the distinction has nothing left to
+distinguish. **That is not a rule bending under a toggle — it is a type that
+stops meaning anything**, and the `origins` map in `state/draft.ts` becomes dead
+weight the next reader will delete.
+
+### 5. The cheap alternative that touches nothing
+
+**A one-press confirm.** The user still presses, but once for the whole day
+rather than per row. The S3 "Use fetched?" offer already batches at row level;
+batching it at day level is a design question for a brief, not a contract
+change. It removes most of the friction the idea list is aiming at and leaves
+G5 exactly as it is.
+
+### 6. What this evidence does NOT settle
+
+- **Whether G5 should bend for the BACKEND.** It already does not need to: the
+  nightly capture writes to the ARCHIVE, never to user data, and D63 draws that
+  line. Nothing here touches it.
+- **Whether the friction is felt.** The count above is presses, not annoyance.
+  One press a day is small on paper; only the owner knows whether it is small in
+  practice, and that is the half of this decision no audit can supply.
 
 ## O23 — Should annualization use each asset's own holding period?
 
