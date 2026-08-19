@@ -7,3 +7,4 @@ Cycle: collect here → groom into `PLAN-NOW.md` / `PLAN-WAITING.md` → wipe th
 list and start collecting again. Last groomed 2026-08-18 (7 → 0); where each
 line went is in `PLAN-NOW.md` § Section H.
 
+- sections in setting can be better visually separated, or even each can have link in settings sidebar group;
