@@ -18,7 +18,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **open, 2026-08-18.** G5 is called binding and non-negotiable; this asks it to stop being |
-| O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18.** D5#5 pins the global basis; changing it moves pinned figures |
+| O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -226,4 +226,83 @@ simple annualized column should duplicate it or stay the naive comparable one.
 
 **What an answer must state:** which basis each of the two screens uses, whether
 D5#5 is superseded or kept, and what happens to the seed figures the tests pin.
+
+---
+
+## O23 — the evidence, computed 2026-08-19
+
+Every figure below was computed from `lib/seed.ts` through the app's own
+`annualizedPct` and `xirr`, not estimated. Terminal date `2026-07-27` (the last
+snapshot); global basis **174 days**.
+
+| Asset | first purchase | own days | Δ total | **global ann.** | **own ann.** | XIRR | expected |
+|---|---|---|---|---|---|---|---|
+| Inzhur REIT | 2026-02-03 | 174 | +4,41 % | **+9,3 %** | **+9,3 %** | +23,0 % | 14,0 % |
+| Inzhur Energy | 2026-02-03 | 174 | +1,48 % | **+3,1 %** | **+3,1 %** | +3,1 % | 10,0 % |
+| OVDP …8976 | 2026-02-05 | 172 | +2,96 % | **+6,2 %** | **+6,3 %** | +25,8 % | 16,4 % |
+| OVDP …6475 | 2026-06-02 | **55** | +5,20 % | **+10,9 %** | **+34,5 %** | +99,4 % | 15,2 % |
+
+### 1. The question is about ONE row, not four
+
+Two of the four do not move at all — REIT and Energy were bought on the
+portfolio's first day, so their own basis IS the global one. …8976 moves by
+**0,1 pp**. **The entire decision rests on …6475**, and it rests on it only
+because that position is eight weeks old.
+
+### 2. The per-asset figure was already computed at v1, and already rejected
+
+`navigation-map.md` has carried the words *"…6475 annualized **+10,9 %** (global
+03.02 basis — D5#5; **NOT +34,5 %**)"* since v1, and `core/derive.test.ts`
+asserts the same with the comment *"NOT per-asset basis"*. **+34,5 % is exactly
+what the computation above produces.** So the alternative was not overlooked —
+it was calculated, named, and declined, and this entry is a re-examination
+rather than a discovery.
+
+### 3. The decisive number is not the annualized column — it is "vs expected"
+
+That column is what the screen actually asks the reader to judge, and it is
+`annualized − expectedPct`:
+
+| Asset | vs expected, **global** | vs expected, **own** |
+|---|---|---|
+| REIT | −4,7 pp | −4,7 pp |
+| Energy | −6,9 pp | −6,9 pp |
+| …8976 | −10,2 pp | −10,1 pp |
+| **…6475** | **−4,3 pp** | **+19,3 pp** |
+
+**Under a per-asset basis, …6475 reads as beating its own expected yield by 19,3
+percentage points — on a bond whose coupon is contractually fixed at 15,2 %.** A
+fixed-coupon instrument cannot outperform its own contract by 19 pp. The figure
+is not a measurement of the bond; it is 55 days of accrual multiplied by 6,6.
+
+### 4. The app already has the per-asset answer, and it already disclaims itself
+
+`XIRR` is money-weighted and uses each asset's own flows and dates — it IS the
+per-asset column. It reads **+99,4 %** for …6475, and its header carries the
+`(ann.)` clarity mark **precisely because a short history annualizes badly**
+(`xirrIsExtrapolated`, S9b). So the screen already offers a per-asset rate that
+labels itself an extrapolation. Making the simple annualized column agree with
+it would leave the table with two extrapolations and no comparable figure.
+
+### 5. What the distortion does over time
+
+It shrinks. …6475's own basis reaches 174 days in November 2026 and a full year
+in June 2027, at which point the two bases converge for it. **The distortion is
+therefore worst exactly when a position is new — which is when it is looked at
+most.**
+
+### 6. What this evidence does NOT settle
+
+- Whether the column should be **labelled** more explicitly. It currently reads
+  `Річна` / `Annualized` with the basis only in the footnote; "annualized over
+  the portfolio's life, not this asset's" is a copy question this evidence does
+  not answer.
+- `/attributes`' `ФАКТИЧНА (РІЧНА)` per-asset fact card, which uses the same
+  global span and where the "comparable between rows" argument is weaker —
+  a fact card is read one asset at a time.
+
+**A correction to this entry's own earlier wording.** It said …6475 "would be
+roughly +38 % on its own basis" over "53 days". Both were wrong: the terminal
+date is the last snapshot (2026-07-27), giving **55 days** and **+34,5 %** —
+the figure the map had named all along.
 
