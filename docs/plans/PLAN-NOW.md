@@ -48,6 +48,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
 | A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
+| A28 | "Next payouts" offers a dividend date in the past | `fix/payout-projection-roll` | S | **todo** — found by the 2026-08-19 map walk |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
@@ -1240,3 +1241,35 @@ behaviour-identical rather than merely plausible. Browser, demo dataset: every
 straightforward, but `portfolioXirr` needs the opening value as a synthetic flow
 and is a different formula from the one A25 shipped (brief § spine). Building it
 now would be guessing at a shape the design session may not ask for.
+
+## A28 — "Next payouts" offers a dividend date in the past — `fix/payout-projection-roll`
+
+**Found by the 2026-08-19 walk of `navigation-map.md`**, on a card whose title is
+the claim it breaks.
+
+`nextPayoutRows` projects a dividend as **the latest `dividend_accrual` date plus
+one payout-schedule period** and stops there — it never rolls the result forward
+to the next occurrence at or after today. The seed's last REIT accrual is
+**10.07.2026**, so the card offered **10.08** on a day the app itself printed as
+**19.08**: nine days in the past, under the heading "Next payouts".
+
+**Coupons are unaffected and that is the shape of the fix.** A bond reads
+`couponProjection`, which walks the asset's own coupon grid to the next
+UNSETTLED occurrence (D23) — which is why …8976 correctly offered 25.08 on the
+same screen at the same moment. The dividend path needs the same walk, not a
+different one.
+
+- [ ] Roll the projected date forward by whole periods until it is on or after
+      the reference date, the way D23's grid walk already does for coupons.
+- [ ] **The reference date is the caller's, not `todayIso()` inside `core/`.**
+      Every other figure on these screens is measured to `latestSnapshotDate`
+      (A24, A27), and a pure function reading the clock cannot be tested.
+- [ ] Amount stays the latest accrual's, unchanged — **D5#7 pins the estimate
+      and says nothing about the date**, which is why the date is fixable
+      without a decision entry and the amount is not.
+
+**Not a live-data-only defect, and not only a seed-ageing artifact.** On a
+ledger kept current the projection is in the future and nothing shows; the card
+goes wrong exactly when the user stops recording — which is when a reminder is
+worth most. The frozen demo seed simply makes it visible every day.
+

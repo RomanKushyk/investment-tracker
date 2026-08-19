@@ -6,6 +6,12 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 
 > **Nothing here is affected by the backend (2026-08-11).** `infra/` archives asset prices into Aurora DSQL, but no screen reads it — the app is still entirely IndexedDB (D26). Every checkpoint below remains valid as written. When the planned migration lands, this file needs a rewrite: the seed will no longer load from a local reseed and the demo dataset is slated to disappear.
 
+> **Walked end to end on 2026-08-19** — all ten routes, demo dataset, at 1440 and at a true 360 viewport, in Ukrainian and English, in both themes. **Every seed-pinned figure on every route matched**, and horizontal overflow measured **0 px on all ten routes in both languages**. English formatting matched Contract 0 exactly (`149,016.36` · `+3.08% since 3 Feb` · `19 Aug 2026`).
+>
+> The walk was run because three releases had shipped that day (A21 currency, A24 the derived basis, A27 the windowing delegation under `latestQuotes`/`latestCash`/`headlineTotal`, which every screen reads) and this file described a state that had been *asserted* rather than *observed*. **It found eight divergences, and all eight were in this file rather than in the app** — the corrections are marked inline with that date. Three of them were the same defect: a kopeck amount whose decimal comma had been dropped, so `687,02` · `484,36` · `216,00` were written as `68 702` · `48 436` · `21 600`, each a hundred times too large. `docs/decisions/README.md` D5#3 had them right the whole time.
+>
+> **One real behaviour finding came out of it and is filed as `docs/plans/PLAN-NOW.md` A28**, not fixed here: the "Next payouts" card projects a DIVIDEND as "last accrual + one period" and never rolls it past today, so on 2026-08-19 it offered `10.08` — nine days in the past. Coupons walk their own grid (D23) and are unaffected.
+
 ## Connecting & resetting
 
 - App runs on **http://localhost:3000** (pinned in vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied by another project, Vite falls back to :3001+ — read the dev-server output for the actual port.
@@ -31,7 +37,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/seasonality` | Seasonality | Task 6 | done — expected coupon bars project user-created bonds too (P3 `feat/fixed-yield`) |
 | `/portfolio` | Portfolio | Task 5 | done — P&L headers relabeled "Capital gain, ₴/%" + footnote, values unchanged (P2 `feat/metrics-exposure`, S9c) |
 | `/allocation` | Allocation | Task 6 | done |
-| `/settings` | Settings | next-phase P2 | done for P2 — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) + dataset switch (demo/live, reload-on-toggle) + typed-name erase/reset dialogs (S6, `feat/clear-data`); AssetForm Inzhur ref is a live picker in live / manual in demo (P3 `feat/fetch-quotes`, S7); Automation is complete (P3: the two suggestion switches plus the reminders switch, lead time and restore dismissed, S8); **Data→Import with its drop target, preview/diff dialog and rejected-file report (P4 `feat/backup-import`, S2–S4)**; theme/language stay placeholders (P5) |
+| `/settings` | Settings | next-phase P2 | done for P2 — shell + Backup + Appearance + asset manager (create/edit/delete dialogs) + targets editor (Σ pill, share preview, per-asset save) + dataset switch (demo/live, reload-on-toggle) + typed-name erase/reset dialogs (S6, `feat/clear-data`); AssetForm Inzhur ref is a live picker in live / manual in demo (P3 `feat/fetch-quotes`, S7); Automation is complete (P3: the two suggestion switches plus the reminders switch, lead time and restore dismissed, S8); **Data→Import with its drop target, preview/diff dialog and rejected-file report (P4 `feat/backup-import`, S2–S4)**; **Appearance is COMPLETE — theme, language, currency and the rate all ship (A9/A10, D58, v1.5.0). The "placeholders (P5)" this row claimed was three phases stale, found by the 2026-08-19 walk.** |
 
 ## Global shell (visible on every route)
 
@@ -203,14 +209,15 @@ Interactions to verify:
 ## `/overview`
 
 On seed:
-- **ReminderStrip (P3 `feat/reminders`, S6) — ACTIVE in demo**, rendered ABOVE the "Overview" header. On the untouched demo seed (any day with no saved snapshot for today) exactly ONE banner: warn (`warn-tint` #f0e6cb / `warn-tint-text` #6b5527, circle-alert icon) **"No quotes saved today yet."** + the bold action link **"Enter quotes →"** (navigates to `/`) + ✕. Save all 4 quotes for today on `/` → the banner is gone; a PARTIAL day (some assets still pending) keeps it. When several fire the order is overdue (`neg-tint`) → warn → info (`pos-tint`), by date inside a severity; beyond 3 they collapse behind a muted pressable **"+N more reminders"** that expands the strip in place. Overdue coupon banners carry **"Open Daily quotes →"** here. Empty / all-dismissed / `Reminders` OFF → the strip renders NOTHING (zero height, no placeholder, no layout shift).
+- **ReminderStrip (P3 `feat/reminders`, S6) — ACTIVE in demo**, rendered ABOVE the "Overview" header. On the untouched demo seed (any day with no saved snapshot for today) at least ONE banner: warn (`warn-tint` #f0e6cb / `warn-tint-text` #6b5527, circle-alert icon) **"No quotes saved today yet."** + the bold action link **"Enter quotes →"** (navigates to `/`) + ✕. Save all 4 quotes for today on `/` → the banner is gone; a PARTIAL day (some assets still pending) keeps it. When several fire the order is overdue (`neg-tint`) → warn → info (`pos-tint`), by date inside a severity; beyond 3 they collapse behind a muted pressable **"+N more reminders"** that expands the strip in place. Overdue coupon banners carry **"Open Daily quotes →"** here. Empty / all-dismissed / `Reminders` OFF → the strip renders NOTHING (zero height, no placeholder, no layout shift).
+  **THE COUNT IS DATE-DEPENDENT, AND THIS ROW USED TO SAY "exactly ONE" (corrected 2026-08-19).** The seed's coupon dates are FROZEN — 25.08.2026 and 03.12.2026 — while "today" moves, so inside the 7-day default lead a second, info banner joins it. On the 2026-08-19 walk the strip carried BOTH "No quotes saved today yet." and "OVDP UA4000238976 pays a coupon in 6 days (25 Aug 2026)." Both are correct, and a checkpoint that counts banners has to name the date it was counted on.
 - Subtitle contains the current date and "курс 44,83 ₴/$" (English: "rate 44.83 ₴/$").
 - KPIs — **5 cards since P2 `feat/metrics-exposure` (S9a)**, all currency-aware, staggered mount order Total capital → Capital gain → Total return (net) → Deposited → Free cash:
   - **Total capital 149 016,36 ₴** (dark card; converts with currency toggle).
   - **Capital gain +4 452,61 ₴ / +3,08 % since 03.02** (green) — *relabeled from "Net result" in P2; value/sub byte-identical (D5-pinned)*. **The date is DERIVED since A24, not a constant** — on the seed it still reads 03.02, and on an EMPTY dataset the whole sub-line is absent rather than naming a date nothing supports.
   - **Total return (net) +5 839,99 ₴** with sub **"+4,08 % on net deposits"** (green; new total-return-family KPI = totalCapital − netDeposits with globalRoi sub; tweens + converts like its siblings; sub "—" muted when netDeposits ≤ 0).
   - **Deposited 143 176 ₴** with sub "+ 1 387,38 ₴ reinvested".
-  - **Free cash 7,75 ₴** — **NO ledger-drift chip on untouched demo** (drift 0 by construction, S9d). After recording e.g. an unmatched Withdrawal 100 ₴ the amber warn-tint pill **"Ledger drift +100,00 ₴"** (U+2212 on negatives) appears under the sub with a `title` tooltip; it disappears once |stored − derived| ≤ 0,01 ₴ again.
+  - **Free cash 7,75 ₴**, sub **"0,01 % від рахунку"** — **NO ledger-drift chip on untouched demo** (drift 0 by construction, S9d). After recording e.g. an unmatched Withdrawal 100 ₴ the amber warn-tint pill **"Ledger drift +100,00 ₴"** (U+2212 on negatives) appears under the sub with a `title` tooltip; it disappears once |stored − derived| ≤ 0,01 ₴ again.
 - Assets card: 4 rows (color dot, name, meta like "div + cap · 46,1 %", value, green +%) + 12px stacked share bar.
 - Right stack: "Next payouts" (green tint; bond rows from coupon attributes, REIT row estimated "~… ₴" — see D5#7), "Rebalance hint" (**top up ≈11 429 ₴** — NOT the reference's 11 413, D5#4; "Open Allocation →" navigates), "Income received" **5 040,94 ₴** (dividends 3 641,44 ₴ / coupons 1 399,50 ₴, **plus the P2 second sub line "net of tax 5 040,94 ₴"** — equals gross on demo, no seeded tax rows).
 
@@ -227,7 +234,7 @@ On seed:
 On seed:
 - Stacked monthly bars (dividends green, coupons blue-gray, value labels on top).
 - Cards: **Received 5 040,94 ₴** (dark) · Upcoming (green tint, attribute-based) · **Reinvested 1 387,38 ₴ · 27,5 % of received income**.
-- Payout log table: Date | Asset | Type tag | Amount | Destination — destinations show **"reinvested (68 702 ₴)"**-style when a same-date reinvest exists, else "account". One row is seeded as **472,13 on 10.05** (adjusted per D5#3).
+- Payout log table: Date | Asset | Type tag | Amount | Destination — destinations show **"reinvested (687,02 ₴)"**-style when a same-date reinvest exists, else "account". The seed's three are **687,02 · 484,36 · 216,00**. *(This example read "68 702 ₴" until the 2026-08-19 walk — REIT's quote, and 100x any reinvest that exists. D5#3 had it right; only this file was wrong.)* One row is seeded as **472,13 on 10.05** (adjusted per D5#3).
 - Recording a new dividend/interest transaction on `/` updates bars + log.
 
 ## `/yield`
@@ -250,7 +257,7 @@ On seed:
 ## `/seasonality`
 
 On seed:
-- Day-of-month bar chart: gray 3–5px stubs on no-income days; tall bars on days **3, 10, 25**; **day-10 label 3 641 ₴** (NOT the reference's 3 817 ₴ — D5#3); **1 240 ₴\*** expected bar on day 25 (`*` = expected, from coupon attributes).
+- Day-of-month bar chart: gray 3–5px stubs on no-income days; tall bars on days **3, 10, 25**; **THREE labelled bars, each `actual · expected*`** (measured 2026-08-19, EN rendering): day 3 `₴216 · ₴216*`, day 10 `₴3,641 · day 10` (NOT the reference's 3 817 ₴ — D5#3), day 25 `₴1,184 · ₴1,240*`. The `*` marks the expected half, from coupon attributes. *(This row named two of the three and gave neither the actual-versus-expected pairing.)*
 - Footnote explaining stubs; 3 insight cards: "Income anchor" (day 10, green tint), "Coupon season" (**February & August (day 25)** carry the big …8976 coupons; …6475 pays in early **June** — full month name, not "Jun"), "Quiet stretch" (days 26–31).
 
 ## `/portfolio`
@@ -264,7 +271,7 @@ On seed:
 
 On seed:
 - Donut (30px ring, asset colors) with center **"149 ₴k / 4 assets + cash"** + legend.
-- "Current vs target" pills: fill = current share, black 2px tick at target. Deltas: REIT **+6.1 (red — overweight)**, …8976 **−6.4 (red)**, …6475 **−0.1 (green — near target)**. Color encodes **off-target severity, not sign**.
+- "Current vs target" pills: fill = current share, black 2px tick at target. Deltas: REIT **+6.1 (red — overweight)**, Energy **+0.3 (green)**, …8976 **−6.4 (red)**, …6475 **−0.1 (green — near target)**. Color encodes **off-target severity, not sign**.
 - Rebalance plan: numbered actions — top up …8976 **≈11 429 ₴** (D5#4), trim REIT **≈9 096 ₴** (derived 9 095,56, prose-rounded).
 
 ## `/settings` — Settings home (next-phase P2)
@@ -335,7 +342,7 @@ Testing agents must NOT report these as bugs (full rationale in `docs/decisions/
 | Overview rebalance hint / Allocation plan | top up 11 413 ₴ | ≈11 429 ₴ |
 | Seasonality day-10 label | 3 817 ₴ | 3 641 ₴ |
 | Payout log, one dividend row | 648,13 on 12.05 | 472,13 on 10.05 |
-| Payout log, 10.06 dividend destination | plain "reinvested" | reinvested (48 436 ₴) |
-| Payout log, 03.06 coupon destination | plain "reinvested" | reinvested (21 600 ₴) |
+| Payout log, 10.06 dividend destination | plain "reinvested" | reinvested (484,36 ₴) |
+| Payout log, 03.06 coupon destination | plain "reinvested" | reinvested (216,00 ₴) |
 | Overview "Next payouts" REIT estimate | ~715 ₴ | ~700 ₴ (latest dividend) |
 | May payouts bar label | includes 648,13 | includes 472,13 |
