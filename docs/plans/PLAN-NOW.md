@@ -47,7 +47,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
-| A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **todo** — blocked on A24 (done) |
+| A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
 
@@ -1146,9 +1146,53 @@ is how both get done badly.
       axis is the more useful cut for a portfolio holding semiannual bonds, and
       the data is already there. Independent of the period window — it is a
       grouping axis, not a filter — but it lands on the same screen.
-- [ ] **Readability, last:** `/yield`'s eight columns have no hierarchy (XIRR
-      weighs the same as Invested, on desktop and in the eight-`Fact` mobile
-      card); `/overview`'s five KPIs and four cards have a fixed order in which
-      the rebalance hint and the income card compete; `/seasonality`'s three
-      insight cards are prose, which scales badly past four assets.
+- [x] **Readability, last:** brief § S6, written now so the session sees the
+      whole shape but drawn after S1–S5 settle. Each of the three carries the
+      constraint that stops it being solved destructively — no `/yield` column
+      may be deleted without a decision (they were each added deliberately in
+      P2), the five-KPI grid's proportions are D5-pinned, and `/seasonality`'s
+      words stay in the dictionary with token-based assembly (D8/Contract 0).
+
+**What writing it turned up, and the first item reframes the whole phase.**
+
+**NOTHING in `core/derive.ts` is date-bounded.** Every function takes the whole
+array and answers since-inception: `latestQuotes` merges ALL snapshots,
+`investedByAsset` and `netDeposits` sum ALL transactions. So a period is **not a
+control over existing functions** — it is a windowing layer that does not exist.
+The only time-walking code in the app is `cumulativeYieldSeries`, which filters
+`t.date <= s.date` inline inside one screen's glue; that is the pattern to lift
+into `core/`, not to copy a second time. **That half is pure logic and is not
+design-blocked** — it can be built before the extension merges.
+
+**A period means three different things, and this is the spine of the brief.** A
+FLOW (income, payouts, deposits) sums over the window; a STOCK (total capital,
+free cash, share) is a level at the window's END and does not change with its
+length; a RETURN (Δ, annualized, XIRR) needs BOTH ends, with the opening value as
+a synthetic flow. A KPI grid mixing all three under one unmarked period control
+is the failure mode, and `/overview` is exactly such a grid. It also means
+**`portfolioXirr` under a window is a different formula from the one A25
+shipped** — the brief says so rather than letting it be discovered.
+
+**`/seasonality`'s expected series breaks on a month axis, and it would have been
+inherited silently.** `expectedByDayOfMonth` takes ONE projected coupon per asset
+from `couponProjection`. On a day axis that is one bar; on a MONTH axis a
+semiannual bond shows a single expected bar and nothing in its other coupon
+month, reading as "this bond pays once a year". Either the projection is extended
+across the schedule or the series is absent on that axis — pinned as a state, not
+left as a bug.
+
+**The case for the month axis is in the seed, and it is verified arithmetic, not
+an argument.** February's income is **1 763,70** against March's **595,80** —
+three times — because a bond coupon landed there. The day axis puts that coupon's
+1 183,50 in bucket 25 and the fund's 580,20 in bucket 10, where they read as two
+ordinary days. **The bond coupons are exactly what a seasonality screen exists to
+reveal, and exactly what the current axis hides.** All six monthly and three
+daily figures in the brief were recomputed from `lib/seed.ts` before it shipped.
+
+**Four things are deliberately left to the design session** rather than guessed:
+where the period control lives (header slot or sidebar, both with precedent and
+both with a real cost), whether `/overview` gets sparklines, which seasonality
+axis opens by default, and which of three homes the portfolio XIRR takes. Custom
+date ranges are ruled OUT of scope — a range picker is a surface of its own and
+would supersede S1 rather than extend it.
 
