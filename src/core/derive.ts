@@ -1,6 +1,7 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
 // Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
 import type { Asset, Snapshot, Transaction } from './types';
+import type { PeriodWindow } from './period';
 import { xirr, type CashFlow } from './xirr';
 
 /**
@@ -55,8 +56,17 @@ export function portfolioStart(
 const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCompare(b.date));
 
 /**
- * Latest available quote PER ASSET, partial snapshots included — the
- * HEADLINE basis (D5#1).
+ * Quote PER ASSET as of a date — partial snapshots included, and the HEADLINE
+ * basis (D5#1) when the bound is omitted.
+ *
+ * THE BOUND IS WHAT MAKES A PERIOD POSSIBLE (A27). Nothing in this file was
+ * date-bounded before Phase 8: every function took the whole array and answered
+ * since-inception. Rather than grow a second merge beside the first, the
+ * unbounded accessors below now delegate here — one implementation, two names,
+ * because a second copy of this arithmetic would be a second answer.
+ *
+ * A STOCK, in the brief's terms: a level at an instant, so a window gives it
+ * the window's END and never its length.
  *
  * WEALTH-MANAGEMENT-ARCHITECTURE §4 ("latest price per asset, strict
  * querying not array manipulation"): resolved by merging sorted snapshots
@@ -67,19 +77,53 @@ const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCom
  * 0 that would corrupt headlineTotal and every share/net figure built on it
  * (documented improvement, see docs/reference/FORMULA-AUDIT.md §4).
  */
-export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
+export function quotesAsOf(snaps: Snapshot[], asOf?: string): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const s of byDate(snaps)) Object.assign(out, s.quotes);
+  for (const s of byDate(snaps)) {
+    if (asOf !== undefined && s.date > asOf) break; // sorted, so the rest are later too
+    Object.assign(out, s.quotes);
+  }
   return out;
 }
 
+/** `quotesAsOf` with no bound — see the note above it for why this delegates. */
+export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
+  return quotesAsOf(snaps);
+}
+
+export function cashAsOf(snaps: Snapshot[], asOf?: string): number {
+  const upTo = byDate(snaps).filter((s) => asOf === undefined || s.date <= asOf);
+  return upTo.length ? upTo[upTo.length - 1].cash : 0;
+}
+
 export function latestCash(snaps: Snapshot[]): number {
-  const sorted = byDate(snaps);
-  return sorted.length ? sorted[sorted.length - 1].cash : 0;
+  return cashAsOf(snaps);
+}
+
+export function headlineTotalAsOf(snaps: Snapshot[], asOf?: string): number {
+  return (
+    Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) + cashAsOf(snaps, asOf)
+  );
 }
 
 export function headlineTotal(snaps: Snapshot[]): number {
-  return Object.values(latestQuotes(snaps)).reduce((a, b) => a + b, 0) + latestCash(snaps);
+  return headlineTotalAsOf(snaps);
+}
+
+/**
+ * The transactions a window covers — **inclusive at both ends**.
+ *
+ * A one-line filter with a whole function around it on purpose (Phase 8 brief
+ * § G-5): three screens each writing their own boundary test is three chances
+ * to disagree about whether the opening day counts. It does, at both ends, and
+ * this is the only place that says so.
+ *
+ * Returns a new array in the caller's order — the order is a display concern
+ * everywhere it is used, and a filter that silently sorted would be a second
+ * behaviour hiding inside a first.
+ */
+export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction[] {
+  return txs.filter((t) => t.date >= w.from && t.date <= w.to);
 }
 
 // Balances-only: the most recent snapshot quoting every given asset.

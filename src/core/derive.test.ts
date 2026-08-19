@@ -4,11 +4,13 @@ import {
   annualizedPct,
   capitalGain,
   capitalGainPct,
+  cashAsOf,
   cashYieldPct,
   freeCashFromLedger,
   globalRoi,
   headlineKpis,
   headlineTotal,
+  headlineTotalAsOf,
   incomeReceived,
   incomeReceivedNet,
   investedOwnByAsset,
@@ -24,6 +26,7 @@ import {
   payoutsNetByAsset,
   portfolioStart,
   portfolioXirr,
+  quotesAsOf,
   sharePct,
   soldAmount,
   soldAmountByAsset,
@@ -32,6 +35,7 @@ import {
   totalCapital,
   totalNetProfit,
   totalReturnPct,
+  transactionsIn,
   trimAmount,
   yieldSinceStart,
 } from './derive';
@@ -431,5 +435,80 @@ describe('portfolioXirr', () => {
       0.1,
       6,
     );
+  });
+});
+
+// A27 — the bounded twins of the headline accessors (Phase 8 brief § G-5).
+// Written before the implementation.
+describe('windowed accessors', () => {
+  const tx = (date: string, amount: number): Transaction => ({
+    id: date,
+    date,
+    type: 'deposit',
+    assetId: '',
+    amount,
+    source: 'own',
+  });
+
+  it('quotesAsOf merges only the snapshots up to and including the date', () => {
+    // The partial 27.07 carries REIT alone. Bounded at 25.07 it must not be
+    // seen at all — the merge is what makes this subtle, since a bound that
+    // leaked would show 68 702,10 with the other three assets from 25.07 and
+    // look entirely plausible.
+    expect(quotesAsOf(snaps, '2026-07-25')).toEqual({
+      reit: 68629.36,
+      energy: 60086.09,
+      ovdp8976: 15846.3,
+      ovdp6475: 4374.12,
+    });
+    expect(quotesAsOf(snaps, '2026-07-27').reit).toBe(68702.1);
+    expect(quotesAsOf(snaps, '2026-07-26').reit).toBe(68629.36);
+  });
+
+  it('is empty before the first snapshot rather than guessing', () => {
+    expect(quotesAsOf(snaps, '2026-07-24')).toEqual({});
+    expect(headlineTotalAsOf(snaps, '2026-07-24')).toBe(0);
+  });
+
+  it('the unbounded accessors are the same function with no bound', () => {
+    // One implementation of the merge, two names. A second copy of this
+    // arithmetic would be a second answer.
+    expect(quotesAsOf(snaps)).toEqual(latestQuotes(snaps));
+    expect(cashAsOf(snaps)).toBe(latestCash(snaps));
+    expect(headlineTotalAsOf(snaps)).toBeCloseTo(headlineTotal(snaps), 10);
+  });
+
+  it('cashAsOf takes the last snapshot at or before the date, not the last of all', () => {
+    const withCashMove: Snapshot[] = [
+      { date: '2026-07-20', cash: 500, quotes: {} },
+      ...snaps,
+    ];
+    expect(cashAsOf(withCashMove, '2026-07-20')).toBe(500);
+    expect(cashAsOf(withCashMove, '2026-07-25')).toBe(7.75);
+    expect(cashAsOf(withCashMove, '2026-07-19')).toBe(0);
+  });
+
+  it('headlineTotalAsOf is Σ quotes + cash at the same instant', () => {
+    expect(headlineTotalAsOf(snaps, '2026-07-25')).toBeCloseTo(68629.36 + 60086.09 + 15846.3 + 4374.12 + 7.75, 2);
+  });
+
+  it('transactionsIn is INCLUSIVE at both ends, and that is the whole point of it existing', () => {
+    // G-5: three screens each writing their own boundary test is three chances
+    // to disagree about whether the opening day counts. It does, at both ends.
+    const txs = [tx('2026-02-03', 1), tx('2026-04-27', 2), tx('2026-07-27', 3)];
+    const w = { from: '2026-02-03', to: '2026-07-27', clamped: false };
+    expect(transactionsIn(txs, w).map((t) => t.amount)).toEqual([1, 2, 3]);
+    expect(
+      transactionsIn(txs, { from: '2026-02-04', to: '2026-07-26', clamped: false }).map(
+        (t) => t.amount,
+      ),
+    ).toEqual([2]);
+  });
+
+  it('transactionsIn preserves order and does not mutate its input', () => {
+    const txs = [tx('2026-07-27', 3), tx('2026-02-03', 1)];
+    const out = transactionsIn(txs, { from: '2026-01-01', to: '2026-12-31', clamped: false });
+    expect(out.map((t) => t.amount)).toEqual([3, 1]);
+    expect(txs.map((t) => t.amount)).toEqual([3, 1]);
   });
 });

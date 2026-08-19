@@ -47,6 +47,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section I** | **From the 2026-08-18 brainstorm — three analytics screens** | | | |
 | A24 | The portfolio start derives from the data instead of being a literal | `feat/derive-portfolio-start` | S | **done** (2026-08-18) |
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
+| A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
@@ -1196,3 +1197,46 @@ axis opens by default, and which of three homes the portfolio XIRR takes. Custom
 date ranges are ruled OUT of scope — a range picker is a surface of its own and
 would supersede S1 rather than extend it.
 
+## A27 — The windowing layer in `core/` — **DONE 2026-08-19** — `feat/period-window`
+
+**The half of Phase 8 that G-5 marks as pure logic**, built before the design
+session so the extension lands on a mechanism that already exists and is tested.
+No screen reads any of it yet.
+
+- [x] `core/period.ts` — `PeriodOption` (`all` · `1m` · `3m` · `6m` · `12m` ·
+      `ytd`) and `resolveWindow(option, start, to) → {from, to, clamped}`.
+- [x] `quotesAsOf` / `cashAsOf` / `headlineTotalAsOf` in `core/derive.ts`, with
+      the unbounded `latestQuotes` / `latestCash` / `headlineTotal` **delegating
+      to them**. One merge, two names — growing a second bounded copy beside
+      the first would have been a second answer.
+- [x] `transactionsIn(txs, window)`, inclusive at both ends.
+
+**Three decisions worth reading twice.**
+
+**Counted back from the LATEST SNAPSHOT, never from today.** Today is not a
+portfolio fact: it moves while the data does not, so "3 months" measured to today
+would quietly lengthen every night on a portfolio nobody updated, and would
+disagree with the span every other figure on these screens is already measured
+to. This is A24's argument applied to the other end of the window.
+
+**`clamped` means "you asked for more than exists", not "from equals start".**
+That is why it is decided by comparing the REQUEST against the start rather than
+the result — and why `all` is never clamped even though it always begins at the
+start. Flagging `all` would put a warning on the default state, which is the
+state that reproduces every pinned figure.
+
+**`transactionsIn` is a one-line filter with a whole function around it, on
+purpose.** G-5's reason stated plainly: three screens each writing their own
+boundary test is three chances to disagree about whether the opening day counts.
+
+**Verified.** 674 tests (+15) in 43 files (+1); lint and typecheck green. The
+whole pre-existing suite passes UNCHANGED, which is what proves the delegation is
+behaviour-identical rather than merely plausible. Browser, demo dataset: every
+`/overview` figure byte-identical — `149 016,36 ₴`, `+4 452,61 ₴ / +3,08 % від
+03.02`, `+5 839,99 ₴ / +4,08 %`, `143 176 ₴`, sidebar `149 016 ₴` — with no
+`NaN`, `Infinity` or `undefined` anywhere.
+
+**Deliberately NOT built:** windowed returns. `annualizedPct` under a window is
+straightforward, but `portfolioXirr` needs the opening value as a synthetic flow
+and is a different formula from the one A25 shipped (brief § spine). Building it
+now would be guessing at a shape the design session may not ask for.
