@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces (D54/D55), not the master reference's. This file measures
+     Ukrainian, which is the default language and the longer one on every string
+     Phase 7 introduces (brief G-9). -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/where-things-live.dc.html — Phase 7 design reference
+  (pipeline G7 / decision D14)
+
+  Surfaces, one block per brief section:
+    T0  the rule made visible — three headers, three answers (brief § "The rule
+        decision 2 forces" + § G-1)
+    S1  the edit affordance: ScreenHeader as a row, the two edit variants, the
+        discard dialog, the save-failed toast, 360 in both languages
+    S2  /allocation in edit mode — the BATCH variant (Cancel + Save)
+    S3  /portfolio in edit mode — the PER-ENTITY variant (Done only), desktop
+        table and the record card below md
+    S4  the Entry group, the /transactions route, and what /'s two columns
+        become once TransactionPanel leaves
+    S5  collapsible sidebar groups, drawn on one sheet with the D66 control
+        that collapses the whole sidebar
+
+  Brief (copy + behaviour authority): docs/design-briefs/phase-7-where-things-live.md
+  Visual authority once merged: THIS file (D14 precedence).
+
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  ★ NO TOKEN IS MINTED (brief G-7). Every colour below is an existing        ★
+  ★ src/index.css @theme value in one of the two themes. Two notes on which  ★
+  ★ values were used, because the older extensions carry different ones:     ★
+  ★   · `muted` is drawn at #696865 (D68), NOT the #8b8a86 the master        ★
+  ★     reference and every phase 2–6 extension still carry.                 ★
+  ★   · the annotation chips use REAL tokens (warn-tint / pos-tint /         ★
+  ★     panel), not the ad-hoc #f4e3cd / #e3eadf pair mobile.dc.html         ★
+  ★     invented for the same job.                                          ★
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  ───────────────────────────────────────────────────────────────────────────
+  THE FOUR DECISIONS THE BRIEF DELEGATED, AND HOW THEY CLOSE
+  ───────────────────────────────────────────────────────────────────────────
+
+  D-1 (brief § S1 / § A22-scope) — WHAT AN EDIT MODE LOOKS LIKE WITH NO
+      PAGE-WIDE TINT (G-5). Two signals, both local, neither a wash:
+
+        (a) THE HEADER CARRIES EXACTLY ONE FILLED BUTTON IN EDIT MODE AND NONE
+            AT REST. Read-only shows a single `ghost` Edit — no fill, no
+            border, the lightest control the app has. Edit mode replaces it
+            with the variant's controls, and one of them is always `primary`
+            (`bg-ink`), the darkest object on the page. A reader does not have
+            to compare two screenshots: the presence of a dark button in the
+            title row IS the mode.
+        (b) CONTROLS APPEAR WHERE VALUES WERE, AND ONLY INSIDE THE ONE BLOCK
+            THAT OWNS STORED DATA. On /allocation the target figure becomes a
+            72 px field; the donut card and the rebalance plan do not change at
+            all. On /portfolio the rows gain actions and the list gains
+            `+ Add asset`; the Total row and the three highlight cards do not.
+            Which block is editable is therefore stated by the block, not by a
+            colour applied to the page.
+
+      Nothing else changes: no border, no background, no badge, no banner.
+      That is the entire signal, and it is the brief's own sentence ("the
+      header buttons changing and the inputs appearing is the whole signal")
+      drawn rather than restated.
+
+  D-2 (brief § S4 § 6) — WHAT /'s TWO-COLUMN @container BECOMES.
+      THE ASIDE IS CONDITIONAL, NOT THE LAYOUT.
+
+        · On a day WITH coupon-due cards: unchanged. Same
+          `@container flex flex-wrap items-start gap-6`, same
+          `flex-[1_1_560px]` ritual column, same
+          `flex-[1_1_300px] @min-[884px]:max-w-[360px]` aside. The suggestion
+          belongs BESIDE the ritual — pushing it under four quote rows would
+          bury it on the one day it exists.
+        · On a day with NONE: the `<aside>` is not rendered. It cannot be
+          rendered empty — `flex: 1 1 300px` on an empty box still claims its
+          share of the row and leaves a 300–360 px hole to the right of the
+          quotes, which is the same defect the `@min-[884px]:max-w-[360px]`
+          cap was added to fix at the other end.
+        · AND THE RITUAL COLUMN TAKES `max-w-[884px]`. Measured: at a 1440
+          viewport `main` is 1196, so with the aside present the quote rows are
+          1196 − 24 gap − 360 aside = 812 px wide. Drop the aside with no cap
+          and they jump to 1196 — a 47 % stretch that puts ~700 px of nothing
+          between an asset's name and its input. 884 is not a new number: it is
+          the app's own `@min-[884px]` threshold, 560 + 24 + 300, the width at
+          which the two columns stop wrapping. Capping there means the ritual
+          is never wider than the whole two-column row is DESIGNED to be, and
+          the day-to-day difference is 884 − 812 = 72 px, which is drawn below
+          so it is judged rather than hidden.
+        · Below `md` nothing changes: the two columns already stack, quotes
+          first, coupon cards after (mobile.dc.html S4's load-bearing order).
+
+  D-3 (brief § S3 § 6) — WHERE ROW ACTIONS ATTACH ON A RecordCard.
+      A FOOTER BAND INSIDE THE CARD, ABOVE ITS BOTTOM PADDING, ACTIONS RIGHT.
+
+      Not the header row: that row is avatar + truncating title + Tag, and it
+      is where A3/E3's 360 px overflow was fixed. Adding two buttons to it
+      re-opens exactly the defect `RecordCard` was built to close.
+      Not inline per fact: a `<dl>` cell is a value, not a control host.
+      So the card gains a band after the `<dl>`, separated by a 1 px `hairline`
+      rule (14 above, 14 below), with `Змінити` + `Видалити` pushed right by
+      `ml-auto`. A table row's actions sit at the END of the row; a card's END
+      is its bottom edge, and right-aligned keeps the same reading direction.
+      Both are `Button size="sm"` — h 30, r 8 — with `gap-2.5` (10), which
+      clears the TAP_44 spacing rule: (44 − 30) / 2 = 7 ≤ 10, so the two 44 px
+      regions do not overlap and no tap lands on the wrong one.
+
+  D-4 (brief § S5 § 6) — HOW A GROUP'S COLLAPSE DIFFERS FROM THE SIDEBAR'S.
+      ONE RULE, THREE VISIBLE CONSEQUENCES:
+
+        A BOXED CONTROL ACTS ON THE SHELL. A BARE GLYPH ACTS ON THE CONTENT
+        IT LABELS.
+
+        | | whole sidebar (D66, Sidebar.tsx:194) | one nav group (new) |
+        |—|—|—|
+        | box     | 26 × 26, 1 px `sidebar-muted` border, r 7 | none — a bare glyph |
+        | axis    | ChevronLeft ‹ — HORIZONTAL | ChevronDown ▾ — VERTICAL |
+        | band    | band 1, on the lockup plate | band 2, in the nav column |
+        | target  | the 26 px box itself | the whole label row |
+        | shells  | ≥ md only | both shells |
+
+      The axis is the one that carries the meaning without being learned: the
+      sidebar leaves SIDEWAYS, a group closes DOWNWARDS. The two are drawn on
+      one panel in S5 so the difference is looked at rather than argued.
+
+      THE PINNED EDGE CASE — A GROUP MAY NEVER CLOSE AROUND THE ACTIVE ROUTE.
+      Chosen: THE ACTIVE PILL STAYS VISIBLE (not auto-expand). Auto-expand
+      makes the control refuse the press, and — because collapsed groups
+      PERSIST (S5 acceptance) — it would silently rewrite the stored preference
+      every time the user navigated into that group, so the arrangement would
+      decay on its own. Keeping the active pill stores exactly what was asked
+      for and still answers "where am I": a collapsed group is either zero rows
+      or one row, never a surprise. Drawn in S5.
+
+  ───────────────────────────────────────────────────────────────────────────
+  SEVEN THINGS IN THE BRIEF THAT COULD NOT BE DRAWN AS WRITTEN
+  ───────────────────────────────────────────────────────────────────────────
+  F1  § S1 § 6 pins `Button` size `md` at "rendered height 44, radius 11". That
+      is the BELOW-md value only. Shipped (`button-variants.ts`), `md` is
+      `h-10 max-md:h-11` with `rounded-[10px] max-md:rounded-[11px]` — 40 / r10
+      at and above the breakpoint, 44 / r11 below it. Both are drawn; both
+      arithmetics are stated. The brief names one of the two.
+  F2  § S1 § 7 asks the nine action-less callers to render "byte-identically".
+      A header row that always wraps the `<h2>` in a flex div cannot do that —
+      it adds a node. Drawn instead as TWO BRANCHES: no actions → no wrapper,
+      the `<h2>` keeps its own `mb-1` and the DOM is untouched; actions → the
+      row. One ternary, and the acceptance item becomes literally true.
+  F3  § S1 § 3 says the action "sits right of the subtitle line"; § S1 § 1 and
+      § 6 pin the precedent as `/`'s header row, where the controls sit beside
+      the TITLE and the subtitle is the `<p>` beneath it. Drawn beside the
+      title — two of the three statements agree and they are the ones that name
+      the precedent.
+  F4  § S1 § 2 mints `Could not save — nothing was changed.`, while § S2 § 2
+      keeps `t.targets.saveFailed` ("Could not save targets — please try
+      again.") as copy moved unchanged. Two failure strings, one save. Drawn
+      with the S1 string, because the S1 surface is the one that owns the
+      commit now that the card's own Save is gone; the collision is the
+      engineering session's to resolve, not this file's to invent around.
+  F5  § S2 § 4 specifies the keystroke preview as "`ShareBar` widths". There is
+      no `ShareBar` on /allocation — the card draws each asset's CURRENT share
+      as a bar fill with the TARGET as a 2 px tick. So the live preview is the
+      TICK, which is literally the drafted target's position, at the same
+      500 ms `ease-soft` the bar beside it already uses (`transition-[left]`
+      rather than `transition-[width]`). No duration is minted. The signed pp
+      delta beside the row re-derives against the DRAFT for the same reason —
+      a delta that lagged its own target would be the lie the phase exists to
+      remove. The rebalance plan below still derives from SAVED targets only
+      (§ S2 § 7), and is annotated as such.
+  F6  § S4 gives the new route an empty-list string but no HEADING for the
+      list. `t.transaction.recentTitle` ("Останні транзакції" / "Recent
+      transactions") is now false — the route shows all 18. Drawn with NO
+      microlabel over the list: `ScreenHeader`'s own title already names it,
+      and inventing a heading would be this file writing copy. Flagged rather
+      than solved.
+  F7  TWO SUBTITLES GO STALE THE MOMENT S2/S3 LAND, and the brief supplies no
+      replacement: `/allocation` — "Поточна структура проти цілей із
+      Налаштувань → Портфель" — and `/attributes` — "…редагуються в
+      Налаштуваннях → Портфель". Both point at a card S2/S3 delete. They are
+      drawn AS THEY ARE TODAY with a dashed annotation, because copy is the
+      brief's; new strings are needed before this ships.
+
+  ───────────────────────────────────────────────────────────────────────────
+  RADII — D56 (README §4). EVERY VALUE USED IN THIS FILE, WITH ITS ARITHMETIC
+  ───────────────────────────────────────────────────────────────────────────
+  PROPORTIONAL, r = round(min(w, h) × 0.26), keyed to the RENDERED short side:
+    Button `md`  ≥ md   h 40   round(10.40) = 10    Edit / Cancel / Save / Done
+    Button `md`  < md   h 44   round(11.44) = 11    the same four, one exception
+                                                    G-8 allows to actually grow
+    Button `sm`         h 30   round( 7.80) =  8    record-card row actions
+    target %-input      h 36   round( 9.36) =  9    (h-9; 13 px text, 16 px < md)
+    Σ pill              h 24   round( 6.24) =  6    12 px text, line box 16, py 4+4
+    Tag (yield type)    h 22.5 round( 5.85) =  6    unchanged, Tag.tsx measures it
+    nav pill, analytics h 36   round( 9.36) =  9    py-2 (8+8) + 20 px line box
+    nav pill, entry     h 38   round( 9.88) = 10    py-[9px] (9+9) + 20 px line box
+    sidebar collapse    26     round( 6.76) =  7    unchanged (Sidebar.tsx:194)
+    Scroller rail / thumb      pinned by D65        rail 5, thumb 1, width 12
+  SURFACES keep the reference's own values, never 0.26 of a layout dimension:
+    Card 20 (default) · Card radius={24} · RecordCard 24 · Dialog 24 ·
+    rebalance-plan panel 24.
+  CONCENTRIC, outer = inner + gap:
+    sidebar shell 30 = lockup plate 14 + 16 px padding. Untouched by this phase.
+  THE ONE DELIBERATE EXCEPTION, AND WHY IT IS NOT A CAPSULE:
+    THE GROUP LABEL ROW TAKES 9, BORROWED FROM THE NAV PILL BENEATH IT. The row
+    draws no fill and no border in ANY state — its hover is the nav pill's own
+    `hover:opacity-85`, which paints nothing — so there is no drawn box for the
+    proportional rule to read, and `tap-target.ts` already draws that exact
+    distinction between a control WITH a box and one without. The only thing
+    the radius ever paints here is the focus ring, and a ring that curves
+    differently from the pill 6 px below it reads as a different kind of
+    object. Deriving it instead would give TWO values for one row (18 → 5 at
+    ≥ md, 44 → 11 below it), which is worse than one borrowed value with a
+    reason. Stated here so it is a decision and not a drift.
+
+  ───────────────────────────────────────────────────────────────────────────
+  MEASUREMENT NOTE (G-9). JetBrains Mono's 0.6 em advance does NOT apply to
+  buttons: `buttonVariants` sets `font-display`, i.e. IBM Plex Sans, which is
+  proportional. Button widths below are therefore an UPPER BOUND at 0.62 em per
+  Cyrillic character at weight 600 — labelled as such, never as "measured".
+  Everything set in JetBrains Mono (nav pills, labels, table cells, the panel)
+  uses the real 0.6 em and is labelled "computed".
+  ───────────────────────────────────────────────────────────────────────────
+
+  NO D5-PINNED FIGURE MOVES. Every number drawn is the demo seed as the shipped
+  app renders it in Ukrainian: 149 016,36 ₴ · +4 452,61 ₴ · +3,08 % ·
+  68 702,10 · 60 086,09 · 15 846,30 · 4 374,12 · 7,75 · shares 46,1 / 40,3 /
+  10,6 / 2,9 · targets 40 / 40 / 17 / 3 · 18 transactions · 174 snapshot days.
+
+  IDIOM: master-reference inline styles, every colour/size/spacing literal.
+  DASHED-BORDER CHIPS ARE SPEC ANNOTATIONS, NEVER UI. Motion (D7) is specified
+  in HTML comments beside each surface — soft curve cubic-bezier(0.22,1,0.36,1),
+  220 ms default, hover 150 ms, reveals 300–400 ms, `active:scale-[.97]` on
+  pressables, and the global prefers-reduced-motion kill-switch under all of it.
+  Nothing here runs: no script, no _ds/, no support.js.
+═══════════════════════════════════════════════════════════════════════════ -->
+
+<div style="max-width:1260px;margin:0 auto;padding:28px 20px 20px">
+
+<h1 style="margin:0 0 6px;font-size:26px">Phase 7 — where things live</h1>
+<p style="margin:0 0 4px;font-size:13px;color:#696865">design/extensions/where-things-live.dc.html · reference for T0 and S1–S5 · drawn in Ukrainian, checked in both languages</p>
+<p style="margin:0 0 26px;font-size:12.5px;color:#696865">Brief: docs/design-briefs/phase-7-where-things-live.md · shape: D56 · tokens: src/index.css · dark: D57 · muted: D68 · shells: D66 · scroll: D65</p>
+
+<!-- ── LEGEND — the annotation vocabulary, on real tokens ───────────────── -->
+<div style="border:1px solid #dedcd8;background:#eceae7;border-radius:16px;padding:18px 20px;margin-bottom:34px">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:10px">How to read this file</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px">
+    <span style="display:inline-block;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 8px;color:#696865">dashed chip = spec annotation, never UI</span>
+    <span style="display:inline-block;border:1px solid #dedcd8;background:#ffffff;border-radius:5px;padding:2px 8px">solid box = the drawn surface</span>
+    <span style="display:inline-block;background:#f0e6cb;color:#6b5527;border-radius:5px;padding:2px 8px;font-weight:700">measured</span>
+    <span style="display:inline-block;background:#e3eadf;color:#4c5a48;border-radius:5px;padding:2px 8px;font-weight:700">computed</span>
+    <span style="display:inline-block;background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:5px;padding:2px 8px;font-weight:700">upper bound</span>
+  </div>
+  <p style="margin:12px 0 0;font-size:12.5px;line-height:1.6;color:#26262a">
+    Desktop frames are drawn at <strong>1196</strong> (the measured width of <code style="font-size:11px">main</code> at a 1440 viewport)
+    or cropped to the block under discussion. Phone frames are <strong>360</strong> wide with <strong>336</strong> of content
+    (360 − 2 × 12 px inline padding, README §5). <strong>measured</strong> = read off the shipped app or stated in the brief;
+    <strong>computed</strong> = arithmetic from JetBrains Mono's 0.6 em advance; <strong>upper bound</strong> = IBM Plex Sans is
+    proportional and was not measured, so the figure is a ceiling.
+  </p>
+</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  T0 — THE RULE, DRAWN
+
+  "A page is editable where it displays STORED data. A page that displays only
+  DERIVED data has no edit control at all — not a disabled one."
+
+  Three headers, side by side, so the rule is a picture rather than a table.
+  The disabled state does not appear anywhere in this file because it does not
+  exist: /overview has no control, not a greyed one.
+
+  MOTION (D7) — none. A header at rest does not animate; the mount is the
+  route's own keyed transition.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">T0 · The rule, drawn</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">Three of the eight analytics routes have no edit control at all. Two of the five that do are built this phase.</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+
+  <div style="width:380px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/overview — derived only → NO control</div>
+    <div style="background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px">
+      <h2 style="margin:0 0 4px;font-size:26px">Огляд</h2>
+      <p style="margin:0 0 22px;font-size:13px;color:#696865">Портфель одним поглядом · 27.07.2026 · курс 44,83 ₴/$</p>
+      <div style="height:64px;border:1px dashed #b3b2ae;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#696865">KPI grid — unchanged</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <code style="font-size:11px">ScreenHeader</code> renders its <strong>fragment branch</strong>: no wrapper div, <code style="font-size:11px">&lt;h2 class="mb-1"&gt;</code> exactly as today (F2).
+    </p>
+  </div>
+
+  <div style="width:380px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/allocation — assets.targetPct → BATCH</div>
+    <div style="background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Розподіл</h2>
+        <button style="margin-left:auto;height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Редагувати</button>
+      </div>
+      <p style="margin:0 0 22px;font-size:13px;color:#696865">Поточна структура проти цілей із Налаштувань → Портфель</p>
+      <div style="height:64px;border:1px dashed #b3b2ae;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#696865">donut + current vs target + plan</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">F7</span>
+      the subtitle still says <em>“із Налаштувань → Портфель”</em> and points at a card S2 deletes. Drawn as it is today; the brief supplies no replacement string.
+    </p>
+  </div>
+
+  <div style="width:380px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/portfolio — assets (CRUD) → PER-ENTITY</div>
+    <div style="background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Портфель</h2>
+        <button style="margin-left:auto;height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Редагувати</button>
+      </div>
+      <p style="margin:0 0 22px;font-size:13px;color:#696865">Позиції, собівартість і результат за активом</p>
+      <div style="height:64px;border:1px dashed #b3b2ae;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#696865">positions + Total + 3 highlight cards</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      Same affordance, same size, same place — the <em>variant</em> only becomes visible once it is pressed (S1).
+    </p>
+  </div>
+</div>
+
+<div style="margin-top:18px;border:1px dashed #b3b2ae;border-radius:12px;padding:14px 18px;font-size:11.5px;line-height:1.65;color:#26262a;max-width:1180px">
+  <strong>The other five routes, for the record, and none of them is drawn here.</strong>
+  <code style="font-size:11px">/yield</code> and <code style="font-size:11px">/seasonality</code> join <code style="font-size:11px">/overview</code> in having no control at all.
+  <code style="font-size:11px">/balances</code> (snapshots), <code style="font-size:11px">/payouts</code> (transactions) and <code style="font-size:11px">/attributes</code> (asset attributes) are editable by the rule
+  and are explicitly OUT of this phase — the pattern is designed once here so they need no second invention.
+  <br><strong>And <code style="font-size:11px">/transactions</code> is not in the table at all</strong> (S4): it is not an analytics page, it is the editor. It shows no <code style="font-size:11px">Редагувати</code>, for the same reason <code style="font-size:11px">/settings</code> shows none.
+</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S1 — THE EDIT AFFORDANCE
+
+  ScreenHeader becomes a row (G-1) and hosts one slot. The slot holds one
+  control at rest and the variant's controls in edit mode (G-2).
+
+  MOTION (D7) — soft curve cubic-bezier(0.22, 1, 0.36, 1) throughout
+    press Edit          header controls crossfade      220 ms   reduced: instant swap
+    enter edit mode     revealed inputs / actions
+                        fade-in + slide-in-from-bottom-1 300 ms reduced: instant
+    exit edit mode      symmetric fade-out              220 ms  reduced: instant
+    any press           active:scale-[.97]              220 ms  reduced: no scale
+    ghost hover         opacity -> .85                  150 ms  reduced: instant
+    discard dialog      Dialog's own spec        open 300 / close 220 · global kill-switch
+
+  The exit is symmetric with the entrance and shorter — the same 300-in /
+  220-out relationship `Dialog` already uses, reused rather than a second
+  cadence minted beside it.
+
+  TOKENS  ink · ink-hover · page · muted · panel · panel-border · card ·
+  hairline. Button's existing ghost and primary variants. The `neg` family
+  appears ONLY inside S3's delete confirm, which already owns it.
+
+  STATE MATRIX — the four rows that are not "as today":
+    disabled       ABSENT, not greyed. A page with nothing to edit has no
+                   button; there is no third case.
+    loading        no control until the queries resolve. An editor opened over
+                   an empty list is the one failure that reads as data loss.
+    empty          no assets -> no control (TargetsEditor's existing
+                   `return null`) — EXCEPT /portfolio, where `+ Add asset` is
+                   exactly what an empty portfolio needs (S3).
+    demo-disabled  n/a, deliberately. Editing works in the demo dataset; only
+                   the Inzhur fetch (D19) is demo-gated.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S1 · The edit affordance</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">ScreenHeader from fragment to row · the two variants · hover / focus · 360 in both languages · the discard dialog · the failed-save toast</p>
+
+<!-- ── the component change, drawn as its two branches ──────────────────── -->
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-bottom:30px">
+  <div style="width:560px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">branch A — no actions passed (9 of 10 callers): the DOM does not change</div>
+    <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px;position:relative">
+      <h2 style="margin:0 0 4px;font-size:26px">Баланси</h2>
+      <p style="margin:0;font-size:13px;color:#696865">Загальний капітал за щоденними зрізами</p>
+      <span style="position:absolute;right:12px;top:12px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">h2 39 px · mb-1 · p mb-[22px]</span>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">F2</span>
+      No wrapper element is emitted when the slot is empty. That is what makes the brief's “byte-identically” literally true instead of approximately true.
+    </p>
+  </div>
+
+  <div style="width:560px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">branch B — actions passed: flex flex-wrap items-center gap-3, slot ml-auto</div>
+    <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px;position:relative">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px;outline:1px dashed #b3b2ae;outline-offset:4px">
+        <h2 style="margin:0;font-size:26px">Розподіл</h2>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;outline:1px dashed #b3b2ae;outline-offset:2px">
+          <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Редагувати</button>
+        </div>
+      </div>
+      <p style="margin:0;font-size:13px;color:#696865">Поточна структура проти цілей із Налаштувань → Портфель</p>
+      <span style="position:absolute;right:12px;bottom:10px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">row 40 px (button 40 &gt; h2 39)</span>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      The `text-[26px]` h2 renders <strong>39 px</strong> (brief). A 40 px button makes the row <strong>40</strong> — the title block grows by <strong>1 px</strong> at ≥ md and <strong>5 px</strong> below it, where the button is 44.
+      <code style="font-size:11px">text-[26px]</code>, <code style="font-size:11px">mb-1</code> and the subtitle's <code style="font-size:11px">mb-[22px]</code> do not move, which is what G-1 pins.
+      <br><strong>The slot is one flex box, not two siblings.</strong> With `Cancel` and `Save` as siblings of the h2, `flex-wrap` breaks them <em>one at a time</em>; wrapped together they drop as a pair — the brief's “never one per line”.
+    </p>
+  </div>
+</div>
+
+<!-- ── the three header states, at rest and in each variant ─────────────── -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:10px">The header, three states — light</div>
+<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:12px">
+
+  <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+    <h2 style="margin:0;font-size:26px">Розподіл</h2>
+    <span style="border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">read-only · no filled button anywhere on the page</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Редагувати</button>
+    </div>
+  </div>
+
+  <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+    <h2 style="margin:0;font-size:26px">Розподіл</h2>
+    <span style="border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">BATCH (G-2) · Σ = 100 only means something whole</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Скасувати</button>
+      <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Зберегти</button>
+    </div>
+  </div>
+
+  <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
+    <h2 style="margin:0;font-size:26px">Портфель</h2>
+    <span style="border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">PER-ENTITY (G-2) · NO Save, NO Cancel — every change already committed</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;cursor:pointer">Готово</button>
+    </div>
+  </div>
+</div>
+
+<p style="margin:0 0 24px;font-size:11.5px;line-height:1.6;color:#696865;max-width:1180px">
+  <strong>Why the difference is legible without a label.</strong> Batch shows <em>two</em> controls and one of them undoes; per-entity shows <em>one</em> and it only leaves.
+  A per-entity page must not show a Save because there would be nothing for it to write, and a Cancel that cannot undo the deletion behind it is a worse lie than a Save that saves nothing (G-2).
+  <br><strong>What the two share:</strong> exactly one <code style="font-size:11px">primary</code> fill. At rest there is none. That is D-1(a), and it is the whole page-level signal — <strong>no wash, no border, no banner</strong> (G-5).
+</p>
+
+<!-- ── hover / focus, and the same three states in dark ─────────────────── -->
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-bottom:26px">
+  <div style="width:560px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">hover · focus · press — light</div>
+    <div style="background:#ffffff;border:1px solid #dedcd8;border-radius:12px;padding:18px 20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+      <div style="text-align:center">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;opacity:.85;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Редагувати</button>
+        <div style="font-size:10px;color:#696865;margin-top:4px">hover · opacity .85 · 150 ms</div>
+      </div>
+      <div style="text-align:center">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;outline:2px solid #26262a;outline-offset:2px">Редагувати</button>
+        <div style="font-size:10px;color:#696865;margin-top:4px">focus · 2px ink, offset 2 — never restyled</div>
+      </div>
+      <div style="text-align:center">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#3d3d42;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+        <div style="font-size:10px;color:#696865;margin-top:4px">primary hover · ink-hover #3d3d42</div>
+      </div>
+      <div style="text-align:center">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;transform:scale(.97)">Зберегти</button>
+        <div style="font-size:10px;color:#696865;margin-top:4px">press · scale(.97) · 220 ms</div>
+      </div>
+      <div style="text-align:center">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;opacity:.5;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+        <div style="font-size:10px;color:#696865;margin-top:4px">disabled · unparseable input only (S2)</div>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      The <em>Edit</em> control itself is never disabled — a page with nothing to edit does not draw it. <code style="font-size:11px">disabled</code> here belongs to <strong>Save</strong>, and only while a %-field cannot be parsed.
+    </p>
+  </div>
+
+  <div style="width:560px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">the same three states — DARK (D57)</div>
+    <div style="background:#141416;border:1px solid #33333a;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+      <div style="background:#1c1c1f;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <h2 style="margin:0;font-size:22px;color:#eceae7">Розподіл</h2>
+        <button style="margin-left:auto;height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#eceae7;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Редагувати</button>
+      </div>
+      <div style="background:#1c1c1f;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:8px">
+        <h2 style="margin:0;font-size:22px;color:#eceae7">Розподіл</h2>
+        <button style="margin-left:auto;height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#eceae7;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Скасувати</button>
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#eceae7;color:#141416;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+      </div>
+      <div style="background:#1c1c1f;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <h2 style="margin:0;font-size:22px;color:#eceae7">Портфель</h2>
+        <button style="margin-left:auto;height:40px;border-radius:10px;border:1.5px solid transparent;background:#eceae7;color:#141416;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Готово</button>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <strong>The signal survives inversion, and that is the reason it was chosen.</strong> <code style="font-size:11px">primary</code> is <code style="font-size:11px">bg-ink text-page</code>, so it is the darkest object in light and the <em>brightest</em> in dark — either way the only filled thing in the title row.
+      A page-wide tint (G-5) would have had to be re-derived here against <code style="font-size:11px">page</code> #141416 and would have collided with <code style="font-size:11px">pos</code>/<code style="font-size:11px">neg</code>/<code style="font-size:11px">warn</code>, which already own meaning.
+    </p>
+  </div>
+</div>
+
+<!-- ── 360, both variants, both languages ──────────────────────────────── -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:10px">360 px — the wrap, in both languages (G-9)</div>
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-bottom:14px">
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/allocation · UK · batch — actions wrap as a PAIR</div>
+    <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px 12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Розподіл</h2>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="height:44px;border-radius:11px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Скасувати</button>
+          <button style="height:44px;border-radius:11px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+        </div>
+      </div>
+      <p style="margin:0;font-size:13px;color:#696865;line-height:1.45">Поточна структура проти цілей із Налаштувань → Портфель</p>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">upper bound</span>
+      IBM Plex Sans 600 at 13.5 px, ≤ 0.62 em/char: <code style="font-size:11px">Скасувати</code> 9 × 8.37 + 40 pad + 3 ring = <strong>118</strong>, <code style="font-size:11px">Зберегти</code> 8 × 8.37 + 43 = <strong>110</strong>.
+      Pair + gap 8 = <strong>236</strong> of <strong>336</strong>. Title <code style="font-size:11px">Розподіл</code> at 26 px ≈ 129, so 129 + 12 + 236 = 377 &gt; 336 → the pair drops to line 2 <em>together</em>. Zero horizontal overflow.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/portfolio · UK · per-entity — Edit fits beside the title</div>
+    <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px 12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Портфель</h2>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="height:44px;border-radius:11px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Редагувати</button>
+        </div>
+      </div>
+      <p style="margin:0;font-size:13px;color:#696865;line-height:1.45">Позиції, собівартість і результат за активом</p>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">upper bound</span>
+      <code style="font-size:11px">Редагувати</code> 10 × 8.37 + 43 = <strong>127</strong>; title <code style="font-size:11px">Портфель</code> ≈ <strong>129</strong>; 129 + 12 + 127 = <strong>268</strong> ≤ 336 — one line, in the longer language.
+      Height <strong>44</strong>, radius <strong>11</strong> = round(44 × 0.26): the G-8 exception, <em>the</em> control that is allowed to grow.
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">EN, the shorter language — same geometry</div>
+    <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px 12px;margin-bottom:10px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Allocation</h2>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button style="height:44px;border-radius:11px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Cancel</button>
+          <button style="height:44px;border-radius:11px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Save</button>
+        </div>
+      </div>
+      <p style="margin:0;font-size:13px;color:#696865;line-height:1.45">Current mix vs targets set in Settings → Portfolio</p>
+    </div>
+    <p style="width:360px;margin:0;font-size:11.5px;line-height:1.55;color:#696865">
+      <code style="font-size:11px">Cancel</code> + <code style="font-size:11px">Save</code> = 93 + 8 + 74 = <strong>175</strong>; title <code style="font-size:11px">Allocation</code> ≈ 161; 161 + 12 + 175 = 348 — still over 336, so English wraps here too and the two languages agree on the shape. A row that fits in English and not in Ukrainian would be a defect (G-9); the reverse never happens.
+    </p>
+  </div>
+</div>
+
+<!-- ── the discard dialog (G-4) ─────────────────────────────────────────── -->
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-top:26px">
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">discard dialog — Dialog, NOT the D17 typed-name AlertDialog</div>
+    <div style="width:520px;background:rgba(38,38,42,.45);border-radius:12px;padding:34px 22px">
+      <div style="background:#ffffff;border-radius:24px;box-shadow:0 12px 40px rgba(38,38,42,.18);overflow:hidden">
+        <div style="padding:22px 22px 0">
+          <h3 style="margin:0;font-size:18px">Відхилити зміни?</h3>
+        </div>
+        <div style="padding:14px 22px 0">
+          <p style="margin:0;font-size:13px;line-height:1.5;color:#696865">Зміни на цій сторінці не збережено. Якщо вийти зараз, їх буде відхилено.</p>
+        </div>
+        <div style="padding:20px 22px 22px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px">
+          <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Відхилити</button>
+          <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;outline:2px solid #26262a;outline-offset:2px">Продовжити редагування</button>
+        </div>
+      </div>
+    </div>
+    <p style="width:520px;margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <strong>No <code style="font-size:11px">neg</code> anywhere, and that is deliberate.</strong> Nothing is being destroyed, only abandoned (G-4), so the destructive family stays where D25 put it — overdue reminders, the import replace banner, the danger zone, and S3's own delete confirm.
+      <br><strong>The SAFE option carries the emphasis</strong> and the initial focus: <code style="font-size:11px">Продовжити редагування</code> is <code style="font-size:11px">primary</code>, <code style="font-size:11px">Відхилити</code> is <code style="font-size:11px">ghost</code>. This is the mirror of the delete dialog's footer, where the emphasised right-hand action is the destructive one — the ordering is “rightmost = emphasised”, not “rightmost = confirm”.
+      <br><strong>Escape trap.</strong> G-4 makes Escape <em>open</em> this dialog from edit mode. Escape <em>inside</em> it must close it and return to edit mode — never discard. Radius 24: a surface, and its corner-adjacent children do not hug all four sides (README §4 overlays).
+    </p>
+  </div>
+
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">failed save — the input never pays for the error</div>
+    <div style="width:420px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:18px">
+      <div style="background:#ffffff;border-radius:13px;box-shadow:0 4px 16px rgba(38,38,42,.12);padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#26262a">
+        Не вдалося зберегти — нічого не змінено.
+      </div>
+      <div style="margin-top:12px;background:#ffffff;border-radius:13px;box-shadow:0 4px 16px rgba(38,38,42,.12);padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#26262a">
+        Could not save — nothing was changed.
+      </div>
+      <div style="margin-top:14px;border:1px dashed #b3b2ae;border-radius:12px;padding:10px 12px;font-size:11px;line-height:1.6;color:#696865">
+        The page STAYS in edit mode with every entered value intact. The toast is the whole report; the header does not change and no field is cleared.
+        <br><strong>sonner overrides (README §4):</strong> radius <strong>13</strong>, <code style="font-size:10.5px">var(--font-body)</code>, shadow <code style="font-size:10.5px">0 4px 16px rgba(38,38,42,.12)</code> — inline through <code style="font-size:10.5px">toastOptions</code>, because sonner styles by attribute and ignores classes.
+      </div>
+    </div>
+    <p style="width:420px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">F4</span>
+      The brief also keeps <code style="font-size:11px">t.targets.saveFailed</code> (“Не вдалося зберегти цілі — спробуйте ще раз.”) as moved-unchanged copy. Two strings, one save. This file draws the S1 one and does not choose for the engineering session.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S1) — optional actions slot; the 9 action-less callers emit no
+     extra node · no D5 figure moves · edit state resets on reload and on
+     navigation and never enters quirenote-settings (G-3) · a dirty batch page
+     cannot be left without the discard dialog (Cancel, Escape, sidebar nav) ·
+     a failed save leaves every entered value on screen · 44 x 44 pressable on
+     every new control with the radius unchanged (G-8) · zero horizontal
+     overflow at 360 in both languages and both themes. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S2 — /allocation IN EDIT MODE: THE TARGETS (the BATCH variant)
+
+  TargetsEditor moves out of Settings and into the card that already draws what
+  it edits. Its anatomy is NOT redesigned — the %-input, the Σ pill and the
+  live preview are settings.dc.html S4's, rehoused.
+
+  ONE COPY CHANGE: the card's own `Save targets` button is REMOVED. The
+  header's `Save` does what it did. Two saves on one page, one of which saves a
+  subset, is the ambiguity this phase exists to remove.
+
+  MOTION (D7)
+    enter edit mode   target figure -> %-input     fade-in 300 ms soft · instant
+    keystroke         target TICK moves            transition-[left] 500 ms soft
+                                                   — the bar's OWN existing
+                                                   duration, not a new one (F5)
+    keystroke         signed pp delta re-derives   no transition (it is text)
+    keystroke         Sigma pill tint pos <-> warn 220 ms soft · instant
+    keystroke         Sigma pill re-keyed          fade + zoom-in-95 150 ms
+    exit              symmetric fade-out           220 ms · instant
+
+  TOKENS  pos-tint / pos-tint-text and warn-tint / warn-tint-text for the Σ
+  pill (both already minted) · the per-asset BAR_BG map for the bars · neg for
+  an invalid field's border and message · card, hairline, muted, ink. Nothing
+  new (G-7).
+
+  RADII  card 24 (surface, unchanged) · %-input h 36 -> round(9.36) = 9 · Σ
+  pill h 24 -> round(6.24) = 6 · bar 3 (round(10 × 0.26) = 3, unchanged).
+  The %-input sits well inside the card, nowhere near its corner, so it is
+  PROPORTIONAL and not concentric.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S2 · /allocation in edit mode — the targets</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">Read-only · editing · Σ off · an invalid row · dark · and the two cards that do not change</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+
+  <!-- read-only -->
+  <div style="width:600px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">read-only — today's card, untouched</div>
+    <div style="background:#ffffff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:14px">Поточне проти цілі</div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span style="font-weight:600">Inzhur REIT</span><span>46,1&nbsp;% / 40&nbsp;% <strong style="color:#a8695a">+6,1</strong></span></div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:46.1%;height:100%;border-radius:3px;background:#8ba283"></div><div style="position:absolute;left:40%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span style="font-weight:600">Inzhur Energy</span><span>40,3&nbsp;% / 40&nbsp;% <strong style="color:#5c7355">+0,3</strong></span></div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:40.3%;height:100%;border-radius:3px;background:#c2a189"></div><div style="position:absolute;left:40%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span style="font-weight:600">OVDP UA4000238976</span><span>10,6&nbsp;% / 17&nbsp;% <strong style="color:#a8695a">−6,4</strong></span></div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:10.6%;height:100%;border-radius:3px;background:#98a3ad"></div><div style="position:absolute;left:17%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px"><span style="font-weight:600">OVDP UA4000236475</span><span>2,9&nbsp;% / 3&nbsp;% <strong style="color:#5c7355">−0,1</strong></span></div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:2.9%;height:100%;border-radius:3px;background:#5f5e5a"></div><div style="position:absolute;left:3%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+      </div>
+    </div>
+    <p style="width:600px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      No hover, no focus, no <code style="font-size:11px">Цілі</code> microlabel, no Σ pill. A read-only page shows nothing about editing.
+    </p>
+  </div>
+
+  <!-- edit mode -->
+  <div style="width:600px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">edit mode — the target FIGURE becomes the target FIELD</div>
+    <div style="background:#ffffff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865">Поточне проти цілі</div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-left:auto">Цілі</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:600;min-width:0;flex:1 1 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</span>
+            <span style="color:#696865;white-space:nowrap">46,1&nbsp;%</span>
+            <span style="color:#696865">/</span>
+            <input value="45" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right">
+            <span style="color:#696865">%</span>
+            <strong style="color:#5c7355;white-space:nowrap;min-width:44px;text-align:right">+1,1</strong>
+          </div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:46.1%;height:100%;border-radius:3px;background:#8ba283"></div><div style="position:absolute;left:45%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:600;min-width:0;flex:1 1 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur Energy</span>
+            <span style="color:#696865;white-space:nowrap">40,3&nbsp;%</span>
+            <span style="color:#696865">/</span>
+            <input value="40" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right">
+            <span style="color:#696865">%</span>
+            <strong style="color:#5c7355;white-space:nowrap;min-width:44px;text-align:right">+0,3</strong>
+          </div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:40.3%;height:100%;border-radius:3px;background:#c2a189"></div><div style="position:absolute;left:40%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:600;min-width:0;flex:1 1 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">OVDP UA4000238976</span>
+            <span style="color:#696865;white-space:nowrap">10,6&nbsp;%</span>
+            <span style="color:#696865">/</span>
+            <input value="12" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #26262a;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right;outline:2px solid #26262a;outline-offset:2px">
+            <span style="color:#696865">%</span>
+            <strong style="color:#a8695a;white-space:nowrap;min-width:44px;text-align:right">−1,4</strong>
+          </div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:10.6%;height:100%;border-radius:3px;background:#98a3ad"></div><div style="position:absolute;left:12%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:6px">
+            <span style="font-weight:600;min-width:0;flex:1 1 120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">OVDP UA4000236475</span>
+            <span style="color:#696865;white-space:nowrap">2,9&nbsp;%</span>
+            <span style="color:#696865">/</span>
+            <input value="3" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right">
+            <span style="color:#696865">%</span>
+            <strong style="color:#5c7355;white-space:nowrap;min-width:44px;text-align:right">−0,1</strong>
+          </div>
+          <div style="height:10px;border-radius:3px;background:#e8e7e4;position:relative"><div style="width:2.9%;height:100%;border-radius:3px;background:#5f5e5a"></div><div style="position:absolute;left:3%;top:-3px;width:2px;height:16px;background:#26262a"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 12px;border-radius:6px;background:#e3eadf;color:#4c5a48;font-weight:600">Σ 100&nbsp;%</span>
+      </div>
+    </div>
+    <p style="width:600px;margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <strong>No <code style="font-size:11px">Зберегти цілі</code> button.</strong> It is the one copy change S2 makes: the header's <code style="font-size:11px">Зберегти</code> does what it did, and the card no longer offers a second save that would write a subset.
+      <br><span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">F5</span>
+      The live preview is the <strong>target TICK</strong>, not a ShareBar — REIT's tick has moved from 40 % to the drafted 45 %, and the pp delta beside it has re-derived to +1,1 (46,1 − 45).
+      The <em>fill</em> is the current share and never moves: an entered target cannot change what you own.
+      <br><strong>Radius:</strong> field h 36 → round(36 × 0.26) = <strong>9</strong>. Σ pill: 12 px text in a 16 px line box + 4 + 4 = h 24 → round(24 × 0.26) = <strong>6</strong>. Card <strong>24</strong>, a surface. Below <code style="font-size:11px">md</code> the field's TEXT goes to 16 px (index.css) and the box does not move, so 9 stands.
+    </p>
+  </div>
+</div>
+
+<!-- Σ off, invalid, and the dark card -->
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-top:26px">
+
+  <div style="width:390px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">Σ ≠ 100 — warns, never blocks</div>
+    <div style="background:#ffffff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;margin-bottom:12px">
+        <span style="font-weight:600;flex:1">Inzhur REIT</span>
+        <span style="color:#696865">46,1&nbsp;%</span><span style="color:#696865">/</span>
+        <input value="55" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right">
+        <span style="color:#696865">%</span>
+      </div>
+      <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 12px;border-radius:6px;background:#f0e6cb;color:#6b5527;font-weight:600">Σ 110&nbsp;% — цілі не дають у сумі 100&nbsp;%</span>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Скасувати</button>
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+      </div>
+      <div style="margin-top:8px;border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">Save is ENABLED. Σ ≠ 100 is a caution, not a gate — the header buttons are repeated here only to show that.</div>
+    </div>
+  </div>
+
+  <div style="width:390px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">unparseable — this one DOES block</div>
+    <div style="background:#ffffff;border-radius:24px;padding:22px;box-shadow:0 1px 3px rgba(38,38,42,.06)">
+      <div style="display:flex;align-items:center;gap:10px;font-size:12.5px">
+        <span style="font-weight:600;flex:1">OVDP UA4000238976</span>
+        <span style="color:#696865">10,6&nbsp;%</span><span style="color:#696865">/</span>
+        <input value="сімнадцять" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #a8695a;background:#f6f5f3;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#26262a;text-align:right">
+        <span style="color:#696865">%</span>
+      </div>
+      <div style="margin:6px 0 0;text-align:right;font-size:11px;color:#a8695a">Введіть відсоток.</div>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:flex-end">
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Скасувати</button>
+        <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;opacity:.5;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Зберегти</button>
+      </div>
+      <div style="margin-top:8px;border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">Border <code style="font-size:10px">neg</code>, message <code style="font-size:10px">neg</code> on <code style="font-size:10px">card</code> — never the <code style="font-size:10px">neg-tint</code> block framing (D25). Save <code style="font-size:10px">disabled:opacity-50</code>.</div>
+    </div>
+  </div>
+
+  <div style="width:390px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">edit mode — DARK</div>
+    <div style="background:#141416;border:1px solid #33333a;border-radius:12px;padding:14px">
+      <div style="background:#1c1c1f;border-radius:24px;padding:20px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96">Поточне проти цілі</div>
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-left:auto">Цілі</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:#eceae7;margin-bottom:6px">
+          <span style="font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</span>
+          <span style="color:#9b9a96">46,1&nbsp;%</span><span style="color:#9b9a96">/</span>
+          <input value="45" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #2a2a2e;background:#141416;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#eceae7;text-align:right">
+          <span style="color:#9b9a96">%</span>
+        </div>
+        <div style="height:10px;border-radius:3px;background:#2a2a2e;position:relative;margin-bottom:14px"><div style="width:46.1%;height:100%;border-radius:3px;background:#9dbb93"></div><div style="position:absolute;left:45%;top:-3px;width:2px;height:16px;background:#eceae7"></div></div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:#eceae7;margin-bottom:6px">
+          <span style="font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">OVDP UA4000238976</span>
+          <span style="color:#9b9a96">10,6&nbsp;%</span><span style="color:#9b9a96">/</span>
+          <input value="12" inputmode="decimal" style="width:72px;height:36px;border-radius:9px;border:1px solid #2a2a2e;background:#141416;padding:0 10px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#eceae7;text-align:right">
+          <span style="color:#9b9a96">%</span>
+        </div>
+        <div style="height:10px;border-radius:3px;background:#2a2a2e;position:relative"><div style="width:10.6%;height:100%;border-radius:3px;background:#a8b6c2"></div><div style="position:absolute;left:12%;top:-3px;width:2px;height:16px;background:#eceae7"></div></div>
+        <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 12px;border-radius:6px;background:#22301f;color:#a9c79f;font-weight:600">Σ 100&nbsp;%</span>
+          <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:4px 12px;border-radius:6px;background:#332714;color:#dcbb80;font-weight:600">Σ 110&nbsp;%</span>
+        </div>
+      </div>
+    </div>
+    <p style="width:390px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      The tick is <code style="font-size:11px">ink</code> and inverts with it (#eceae7 on the dark bar track #2a2a2e). Field fill is <code style="font-size:11px">page</code>, which is the <em>lower</em> plane inside a <code style="font-size:11px">card</code> in both themes — the same relationship the light card has, not a new one.
+    </p>
+  </div>
+</div>
+
+<div style="margin-top:20px;border:1px dashed #b3b2ae;border-radius:12px;padding:14px 18px;font-size:11.5px;line-height:1.65;color:#26262a;max-width:1180px">
+  <strong>The two cards that do NOT change, and why saying so matters.</strong> The donut and its legend are pure derivation — they read current values, not targets, so edit mode has nothing to offer them.
+  The <strong>rebalance plan</strong> is the interesting one: it derives from <em>saved</em> targets, so during editing it keeps showing the plan for 40 / 40 / 17 / 3 while the fields say 45 / 40 / 12 / 3, and it only moves once <code style="font-size:11px">Зберегти</code> lands (S2 acceptance).
+  A plan that tracked drafts would tell the user to buy something on the strength of a number they have not committed to.
+  <br><strong>Below <code style="font-size:11px">lg</code> the page is already one column</strong> (<code style="font-size:11px">grid-cols-[340px_1fr] max-lg:grid-cols-1</code>) and the editor inherits it with no second rule. At 360 the row's <code style="font-size:11px">flex-[1_1_120px]</code> name wraps above the figure + field + delta, exactly as the Settings rows do today — the same wrap discipline, moved with the control.
+</div>
+
+<!-- ACCEPTANCE (S2) — Settings no longer renders TargetsEditor · Save writes
+     ONLY changed rows through the existing per-asset useUpdateAsset patches ·
+     Σ ≠ 100 warns and never blocks; unparseable input blocks · the rebalance
+     plan re-derives from SAVED targets · targets.test.ts passes unchanged. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S3 — /portfolio IN EDIT MODE: THE ASSETS (the PER-ENTITY variant)
+
+  AssetManager moves onto the screen that lists the same assets. `Готово` only:
+  no Save, no Cancel, because AssetForm and the D17 delete dialog already own
+  their own confirms and by the time the user reaches the header there is
+  nothing left to write.
+
+  MOTION (D7)
+    enter edit mode   row actions + `+ Додати актив`
+                      fade-in + slide-in-from-bottom-1  300 ms soft · instant
+    exit              symmetric fade-out                220 ms · instant
+    row action press  active:scale-[.97]                220 ms soft · no scale
+    row hover         background page/60                150 ms · instant
+
+  TOKENS  neg / neg-tint / neg-tint-text for the delete affordance and its
+  dialog — already minted and already used by this exact control in Settings.
+  Nothing new.
+
+  RADII  Button `sm` h 30 -> round(7.80) = 8 · RecordCard 24 (surface) ·
+  Tag 6 (unchanged) · Button `md` for `+ Додати актив` 10 / 11.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S3 · /portfolio in edit mode — the assets</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">The table gains a ninth column · the record card gains a footer band (D-3) · the empty portfolio keeps its control · the delete confirm is reused untouched</p>
+
+<!-- desktop table -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">≥ md — the actions occupy the row's right edge, as they do in Settings today</div>
+<div style="background:#ffffff;border-radius:24px;padding:2.5px 22px;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-bottom:10px;overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:1000px">
+    <thead>
+      <tr style="color:#696865;text-align:left">
+        <th style="padding:8px 0;font-weight:400">Актив</th>
+        <th style="padding:8px 0;font-weight:400">Тип дохідності</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">Вкладено, ₴</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">з них реінвестовано</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">Вартість зараз, ₴</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">Приріст капіталу, ₴</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">Приріст капіталу, %</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right">Частка</th>
+        <th style="padding:8px 0;font-weight:400;text-align:right;width:1px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-top:1px solid #e8e7e4">
+        <td style="padding:8px 0;font-weight:600">Inzhur REIT</td>
+        <td style="padding:8px 0"><span style="display:inline-block;background:#e3eadf;color:#4c5a48;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600">див + кап</span></td>
+        <td style="padding:8px 0;text-align:right">65&nbsp;800,00</td>
+        <td style="padding:8px 0;text-align:right">1&nbsp;171,38</td>
+        <td style="padding:8px 0;text-align:right">68&nbsp;702,10</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+2&nbsp;902,10</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+4,41&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right">46,1&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right;white-space:nowrap;padding-left:18px">
+          <button style="height:30px;border-radius:8px;border:1.5px solid #26262a;background:transparent;color:#26262a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer">Змінити</button>
+          <button style="height:30px;border-radius:8px;border:1.5px solid #a8695a;background:transparent;color:#a8695a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;margin-left:10px">Видалити</button>
+        </td>
+      </tr>
+      <tr style="border-top:1px solid #e8e7e4;background:rgba(246,245,243,.6)">
+        <td style="padding:8px 0;font-weight:600">Inzhur Energy</td>
+        <td style="padding:8px 0"><span style="display:inline-block;background:#efe4e0;color:#6d5a53;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600">кап</span></td>
+        <td style="padding:8px 0;text-align:right">59&nbsp;208,00</td>
+        <td style="padding:8px 0;text-align:right">—</td>
+        <td style="padding:8px 0;text-align:right">60&nbsp;086,09</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+878,09</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+1,48&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right">40,3&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right;white-space:nowrap;padding-left:18px">
+          <button style="height:30px;border-radius:8px;border:1.5px solid #26262a;background:#eceae7;color:#26262a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer">Змінити</button>
+          <button style="height:30px;border-radius:8px;border:1.5px solid #a8695a;background:transparent;color:#a8695a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;margin-left:10px">Видалити</button>
+        </td>
+      </tr>
+      <tr style="border-top:1px solid #e8e7e4">
+        <td style="padding:8px 0;font-weight:600">OVDP UA4000238976</td>
+        <td style="padding:8px 0"><span style="display:inline-block;background:#e4e8eb;color:#525c64;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600">купон</span></td>
+        <td style="padding:8px 0;text-align:right">15&nbsp;390,00</td>
+        <td style="padding:8px 0;text-align:right">—</td>
+        <td style="padding:8px 0;text-align:right">15&nbsp;846,30</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+456,30</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+2,96&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right">10,6&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right;white-space:nowrap;padding-left:18px">
+          <button style="height:30px;border-radius:8px;border:1.5px solid #26262a;background:transparent;color:#26262a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer">Змінити</button>
+          <button style="height:30px;border-radius:8px;border:1.5px solid #a8695a;background:transparent;color:#a8695a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;margin-left:10px">Видалити</button>
+        </td>
+      </tr>
+      <tr style="border-top:2px solid #dedcd8">
+        <td style="padding:8px 0;font-weight:700">Разом + готівка 7,75&nbsp;₴</td>
+        <td style="padding:8px 0"></td>
+        <td style="padding:8px 0;text-align:right;font-weight:700">144&nbsp;556,00</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700">1&nbsp;387,38</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700">149&nbsp;016,36</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+4&nbsp;452,61</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700;color:#5c7355">+3,08&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right;font-weight:700">100&nbsp;%</td>
+        <td style="padding:8px 0;text-align:right"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p style="margin:0 0 8px;font-size:11.5px;line-height:1.65;color:#696865;max-width:1180px">
+  <strong>A ninth column with an empty header, revealed with the mode.</strong> It shifts the eight existing columns left, and that reflow is honest — it rides the 300 ms reveal rather than pretending nothing moved.
+  The <strong>Total row has no actions</strong>: it is a sum, not an entity, and per-entity actions attach to entities.
+  <span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+  <code style="font-size:11px">/allocation</code>'s content column is 1124 at a 1440 viewport, and <code style="font-size:11px">/portfolio</code>'s is the same; the two buttons add ≈ 150, so on a narrow desktop the table crosses its container and the <code style="font-size:11px">Scroller</code> it already owns (D65) draws the rail. No new mechanism.
+  <br>Row 2 shows the <strong>hover</strong> pair: the row at <code style="font-size:11px">page/60</code> and <code style="font-size:11px">Змінити</code> at its outline hover fill <code style="font-size:11px">panel</code>. Row actions join the tab order <em>only</em> in edit mode.
+</p>
+
+<!-- record card, below md -->
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-top:26px">
+
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">&lt; md, read-only — 360</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px">
+      <div style="background:#ffffff;border-radius:24px;padding:22px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">RE</div>
+          <h3 style="margin:0;font-size:17px;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</h3>
+          <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;flex:none">див + кап</span>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">65 800,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">з них реінвестовано</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">1 171,38</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">68 702,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Частка</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">46,1 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Приріст капіталу, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+2 902,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Приріст капіталу, %</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+4,41 %</dd></div>
+        </dl>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">Untouched: header row of avatar + truncating title + Tag, then the two-column <code style="font-size:11px">dl</code>.</p>
+  </div>
+
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">&lt; md, EDIT MODE — the footer band (decision D-3)</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px">
+      <div style="background:#ffffff;border-radius:24px;padding:22px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="width:34px;height:34px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">RE</div>
+          <h3 style="margin:0;font-size:17px;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Inzhur REIT</h3>
+          <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;flex:none">див + кап</span>
+        </div>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">65 800,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">з них реінвестовано</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">1 171,38</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">68 702,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Частка</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">46,1 %</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Приріст капіталу, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+2 902,10</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Приріст капіталу, %</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700;color:#5c7355">+4,41 %</dd></div>
+        </dl>
+        <div style="height:1px;background:#e8e7e4;margin:14px 0"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button style="margin-left:auto;height:30px;border-radius:8px;border:1.5px solid #26262a;background:transparent;color:#26262a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px">Змінити</button>
+          <button style="height:30px;border-radius:8px;border:1.5px solid #a8695a;background:transparent;color:#a8695a;padding:0 14px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px">Видалити</button>
+        </div>
+      </div>
+      <div style="background:#ffffff;border-radius:24px;padding:22px;border-top:2px solid #dedcd8">
+        <h3 style="margin:0 0 14px;font-size:17px">Разом + готівка 7,75&nbsp;₴</h3>
+        <dl style="margin:0;display:grid;grid-template-columns:1fr 1fr;column-gap:18px;row-gap:10px">
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вкладено, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">144 556,00</dd></div>
+          <div><dt style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Вартість зараз, ₴</dt><dd style="margin:2px 0 0;font-size:12.5px;font-weight:700">149 016,36</dd></div>
+        </dl>
+        <div style="margin-top:12px;border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">no footer band — a sum is not an entity</div>
+      </div>
+      <div style="margin-top:12px">
+        <button style="height:44px;border-radius:11px;border:1.5px solid #26262a;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:8px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Додати актив
+        </button>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <span style="background:#e3eadf;color:#4c5a48;border-radius:4px;padding:1px 5px;font-weight:700">computed</span>
+      <code style="font-size:11px">Змінити</code> ≈ 7 × 7.44 + 31 = <strong>83</strong>, <code style="font-size:11px">Видалити</code> ≈ 8 × 7.44 + 31 = <strong>91</strong>; 83 + 10 + 91 = <strong>184</strong> of the card's 268 inner width (312 − 2 × 22). Room to spare in the longer language.
+      <br><strong>Radius 8</strong> = round(30 × 0.26) — <code style="font-size:11px">Button size="sm"</code>, unchanged. <strong>Gap 10</strong> is not cosmetic: TAP_44 reaches (44 − 30) / 2 = <strong>7</strong> past each edge, so 10 keeps the two regions apart and no tap on <em>Змінити</em> can land on <em>Видалити</em>.
+      <br><strong>The header row is not touched.</strong> That row is where A3/E3's 360 px overflow was closed; two more items in it would re-open it.
+    </p>
+  </div>
+
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">empty portfolio — the rule bends toward the user</div>
+    <div style="background:#f6f5f3;padding:12px;border:1px solid #dedcd8;border-radius:12px;margin-bottom:12px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Портфель</h2>
+        <button style="margin-left:auto;height:44px;border-radius:11px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Готово</button>
+      </div>
+      <p style="margin:0 0 14px;font-size:13px;color:#696865;line-height:1.45">Позиції, собівартість і результат за активом</p>
+      <div style="background:#ffffff;border-radius:24px;padding:26px 22px;text-align:center;color:#696865;font-size:13px;line-height:1.5">Активів ще немає — додайте перший, щоб почати облік.</div>
+      <div style="margin-top:12px">
+        <button style="height:44px;border-radius:11px;border:1.5px solid #26262a;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:8px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Додати актив
+        </button>
+      </div>
+    </div>
+    <p style="width:360px;margin:0;font-size:11.5px;line-height:1.6;color:#696865">
+      Everywhere else in this phase, <strong>empty means no control</strong>. Here the control stays, because <code style="font-size:11px">+ Додати актив</code> is exactly what an empty portfolio needs — and it is the <em>only</em> place it bends.
+      <br><strong>Loading is still the strict case:</strong> while the assets query is pending there is no <code style="font-size:11px">Редагувати</code> at all. Showing it early opens an editor over an empty list, which is the one failure a user reads as “my data is gone”.
+    </p>
+  </div>
+</div>
+
+<!-- the delete confirm, reused untouched -->
+<div style="margin-top:26px;display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">delete confirm — reused with NO change to its contracts</div>
+    <div style="width:520px;background:rgba(38,38,42,.45);border-radius:12px;padding:30px 22px">
+      <div style="background:#ffffff;border-radius:24px;box-shadow:0 12px 40px rgba(38,38,42,.18);overflow:hidden">
+        <div style="padding:22px 22px 0"><h3 style="margin:0;font-size:18px">Видалити Inzhur REIT?</h3></div>
+        <div style="padding:14px 22px 0">
+          <p style="margin:0 0 14px;font-size:13px;line-height:1.5;color:#696865">Це видалить актив і все, що для нього записано, — 9 транзакцій і котирування за 174 дні. Це не можна скасувати.</p>
+          <button style="width:100%;height:40px;border-radius:10px;border:1.5px solid #26262a;background:transparent;color:#26262a;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Спершу завантажте копію</button>
+        </div>
+        <div style="padding:20px 22px 22px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px">
+          <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:transparent;color:#26262a;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Скасувати</button>
+          <button style="height:40px;border-radius:10px;border:1.5px solid transparent;background:#a8695a;color:#ffffff;padding:0 20px;font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px">Видалити актив</button>
+        </div>
+      </div>
+    </div>
+    <p style="width:520px;margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      The cascade counts are real seed values, not placeholders: <strong>9</strong> transactions carry <code style="font-size:11px">assetId: 'reit'</code> (1 buy, 6 dividend accruals, 2 reinvests) and REIT has a quote on <strong>174</strong> snapshot days (2026-02-03 → 2026-07-25 daily, plus the partial 27.07).
+      Ukrainian plurals: 9 → <code style="font-size:11px">транзакцій</code> (many), 174 → <code style="font-size:11px">дні</code> (few, since 174 mod 10 = 4).
+      <br><strong>Note the two “edit” words.</strong> The header says <code style="font-size:11px">Редагувати</code> (enter the mode); the row says <code style="font-size:11px">Змінити</code> (edit this asset). English collapses both to <code style="font-size:11px">Edit</code>. Do not “unify” them — they are two different verbs doing two different jobs, and Ukrainian is the language that shows it.
+    </p>
+  </div>
+
+  <div style="flex:1;min-width:380px;max-width:560px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">why per-entity has no Save</div>
+    <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:16px 18px;font-size:12px;line-height:1.7;color:#26262a">
+      Every path out of a row commits on its own:
+      <br>· <code style="font-size:11px">Змінити</code> → <code style="font-size:11px">AssetForm</code> (edit) → <code style="font-size:11px">Зберегти зміни</code> → <code style="font-size:11px">useUpdateAsset</code> → toast <em>Актив оновлено</em>
+      <br>· <code style="font-size:11px">Видалити</code> → the confirm above → <code style="font-size:11px">useDeleteAsset</code> → toast <em>Актив видалено</em>
+      <br>· <code style="font-size:11px">+ Додати актив</code> → <code style="font-size:11px">AssetForm</code> (create) → <code style="font-size:11px">useAddAsset</code> → toast <em>Актив додано</em>
+      <br><br>So by the time the eye returns to the header there is nothing left to write, and nothing a Cancel could take back — a Cancel that cannot undo the deletion behind it is a worse lie than a Save that saves nothing (G-2).
+      <code style="font-size:11px">Готово</code> only leaves the mode. It is <code style="font-size:11px">primary</code> because it is still the one filled button that says the page is not at rest (D-1a).
+      <br><br><strong>The per-entity variant is therefore never dirty</strong>, which is why G-4's discard dialog does not apply to it: navigating away from <code style="font-size:11px">/portfolio</code> in edit mode simply exits.
+    </div>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S3) — Settings' "Portfolio" section is gone entirely (with S2
+     it holds nothing) · AssetForm and the D17 delete dialog are reused with NO
+     contract change · the cascade sentence still counts real transactions and
+     quote days (messages.test.ts plural cases stay green) · the Total row and
+     the three highlight cards are unaffected in both modes · below md the
+     actions are reachable with no horizontal scroll at 360. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S4 — THE `Ввід` GROUP AND THE /transactions ROUTE
+
+  One screen becomes two. `Щоденний ввід` -> `Ввід`, and the group holds two
+  items because TransactionPanel leaves /'s aside for a route of its own.
+
+  MOTION (D7) — the app's existing keyed route animation; the panel keeps its
+  own motion. No new spec.
+
+  TOKENS  none beyond what TransactionPanel already uses.
+
+  DECISION D-2 is drawn below in full: what /'s two columns become with only
+  coupon cards in the aside, and what they become when there are none.
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S4 · The Entry group and the /transactions route</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">/ with an aside · / without one (the open question, closed) · the new route at 1196 and at 360 · the full 18-row ledger in its own Scroller</p>
+
+<!-- / with coupon cards -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/ on a day WITH a coupon due — unchanged geometry, 1196 of main</div>
+<div style="width:1196px;max-width:100%;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+  <div style="flex:1 1 560px;min-width:0">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+      <h2 style="margin:0;font-size:26px">Щоденні котирування</h2>
+      <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600">1 з 4 заповнено</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px"><span>Дата</span><span style="display:inline-block;height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px">27.07.2026</span></div>
+    </div>
+    <p style="margin:0 0 14px;font-size:13px;color:#696865">Щоденний ритуал — ніщо інше з ним не конкурує.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">RE</div>
+        <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">Inzhur REIT</div><div style="font-size:11.5px;color:#696865">68 629,36 ₴ учора</div></div>
+        <input value="68 702,10" style="width:140px;height:36px;border-radius:9px;border:1px solid #c9d4c4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+        <span style="font-size:12px;font-weight:700;color:#5c7355;width:56px;text-align:right">+0,11 %</span>
+      </div>
+      <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="width:48px;height:48px;border-radius:999px;background:#efe4e0;color:#6d5a53;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">EN</div>
+        <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">Inzhur Energy</div><div style="font-size:11.5px;color:#696865">60 086,09 ₴ учора</div></div>
+        <input placeholder="60 086,09" style="width:140px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;color:#b3b2ae">
+        <span style="font-size:12px;color:#b3b2ae;width:56px;text-align:right">—</span>
+      </div>
+      <div style="border:1px dashed #b3b2ae;border-radius:12px;padding:8px 12px;font-size:11px;color:#696865">…two more rows, the action pair, and the yield teaser — all unchanged</div>
+    </div>
+  </div>
+  <aside style="flex:1 1 300px;max-width:360px;min-width:0;display:flex;flex-direction:column;gap:14px">
+    <div style="background:#ffffff;border-radius:20px;border:1px dashed #b3b2ae;padding:18px 20px">
+      <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">Купон до сплати</div>
+      <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — купон 1 240,00 ₴</div>
+      <p style="margin:6px 0 12px;font-size:12px;color:#696865;line-height:1.5">Заплановано на 27.07.2026. Підтвердьте, щоб записати — суму можна змінити, історія не переписується.</p>
+      <div style="border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">card body unchanged — daily-quotes-live.dc.html S5</div>
+    </div>
+    <span style="border:1px dashed #b3b2ae;border-radius:5px;padding:3px 8px;font-size:10px;color:#696865;align-self:flex-start">TransactionPanel HAS LEFT this column</span>
+  </aside>
+</div>
+<p style="margin:0 0 26px;font-size:11.5px;line-height:1.6;color:#696865;max-width:1180px">
+  <span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+  <code style="font-size:11px">main</code> is <strong>1196</strong> at a 1440 viewport, so with the aside capped at 360 the ritual column is <strong>1196 − 24 − 360 = 812</strong>. The <code style="font-size:11px">@container</code>, the two flex bases and the <code style="font-size:11px">@min-[884px]:max-w-[360px]</code> cap are all unchanged — <strong>the coupon-day layout is today's layout minus one card</strong>.
+</p>
+
+<!-- / with no coupon cards -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/ on a day with NONE — the aside is not rendered, and the ritual column is capped (decision D-2)</div>
+<div style="width:1196px;max-width:100%;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px;margin-bottom:8px;position:relative">
+  <div style="max-width:884px">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+      <h2 style="margin:0;font-size:26px">Щоденні котирування</h2>
+      <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600">1 з 4 заповнено</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px"><span>Дата</span><span style="display:inline-block;height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px">27.07.2026</span></div>
+    </div>
+    <p style="margin:0 0 14px;font-size:13px;color:#696865">Щоденний ритуал — ніщо інше з ним не конкурує.</p>
+    <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:14px;padding:0 20px;margin-bottom:10px">
+      <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">RE</div>
+      <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">Inzhur REIT</div><div style="font-size:11.5px;color:#696865">68 629,36 ₴ учора</div></div>
+      <input value="68 702,10" style="width:140px;height:36px;border-radius:9px;border:1px solid #c9d4c4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+      <span style="font-size:12px;font-weight:700;color:#5c7355;width:56px;text-align:right">+0,11 %</span>
+    </div>
+    <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:14px;padding:0 20px">
+      <div style="width:48px;height:48px;border-radius:999px;background:#efe4e0;color:#6d5a53;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">EN</div>
+      <div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:600">Inzhur Energy</div><div style="font-size:11.5px;color:#696865">60 086,09 ₴ учора</div></div>
+      <input placeholder="60 086,09" style="width:140px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;color:#b3b2ae">
+      <span style="font-size:12px;color:#b3b2ae;width:56px;text-align:right">—</span>
+    </div>
+  </div>
+  <span style="position:absolute;right:16px;top:16px;border:1px dashed #b3b2ae;border-radius:5px;padding:3px 8px;font-size:10px;color:#696865;background:#f6f5f3">no aside element at all — an empty flex child would still claim 300–360</span>
+  <div style="position:absolute;left:900px;top:60px;bottom:16px;width:1px;border-left:1px dashed #b3b2ae"></div>
+  <span style="position:absolute;left:908px;top:60px;font-size:10px;color:#696865">max-w-[884px]</span>
+</div>
+<p style="margin:0 0 26px;font-size:11.5px;line-height:1.65;color:#696865;max-width:1180px">
+  <strong>884 is the app's own number</strong> — the <code style="font-size:11px">@min-[884px]</code> container query already in <code style="font-size:11px">DailyQuotes.tsx</code>, which is 560 + 24 + 300, the width at which the two columns stop wrapping. Capping there means the ritual is never wider than the two-column row is <em>designed</em> to be.
+  <br><span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+  Without the cap the rows would go from <strong>812</strong> to <strong>1196</strong> the moment a coupon is recorded — a 47 % stretch that puts ≈ 700 px of nothing between an asset's name and its input, on the screen the app is opened for. With it, the day-to-day difference is <strong>884 − 812 = 72 px</strong>, which is one column's worth of breathing and no reflow anybody notices.
+  <br><strong>Below <code style="font-size:11px">md</code>: nothing changes.</strong> The columns already stack, ritual first, coupon cards after, and a cap of 884 is never reached in a 336 px content column.
+</p>
+
+<!-- /transactions -->
+<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/transactions — the form keeps its 360 column; the ledger takes the rest</div>
+<div style="width:1196px;max-width:100%;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px;margin-bottom:8px">
+  <h2 style="margin:0 0 4px;font-size:26px">Транзакції</h2>
+  <p style="margin:0 0 22px;font-size:13px;color:#696865">Запишіть купівлю, продаж, купон або дивіденд.</p>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+
+    <div style="flex:0 1 360px;min-width:0">
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:20px 22px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+          <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:600">Транзакція</div>
+          <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#696865">Нерегулярно</span>
+        </div>
+        <p style="margin:4px 0 14px;font-size:12px;color:#696865;line-height:1.5">Внески, купівлі, нарахування, реінвестиції — відкривається лише тоді, коли щось сталося.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <label style="font-size:11px;color:#696865;display:flex;flex-direction:column;gap:4px">Дата<span style="height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a">27.07.2026</span></label>
+          <label style="font-size:11px;color:#696865;display:flex;flex-direction:column;gap:4px">Тип<span style="height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a">Купівля</span></label>
+        </div>
+        <label style="font-size:11px;color:#696865;display:flex;flex-direction:column;gap:4px;margin-bottom:10px">Актив<span style="height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a">Inzhur REIT</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <label style="font-size:11px;color:#696865;display:flex;flex-direction:column;gap:4px">Сума, ₴<span style="height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#b3b2ae">10 000,00</span></label>
+          <label style="font-size:11px;color:#696865;display:flex;flex-direction:column;gap:4px">Джерело коштів<span style="height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a">Власні кошти</span></label>
+        </div>
+        <button style="width:100%;height:40px;border-radius:10px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:13.5px">Записати транзакцію</button>
+      </div>
+      <div style="margin-top:10px;border:1px dashed #b3b2ae;border-radius:10px;padding:8px 10px;font-size:10.5px;color:#696865">Panel copy, fields, validation and toasts move UNCHANGED — including the “+ Новий актив…” quick-create sub-form (asset-form.dc.html).</div>
+    </div>
+
+    <div style="flex:1 1 560px;min-width:0">
+      <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:0 0 0 0">
+        <!-- Scroller (D65): the rail lives in the ScrollArea ROOT's padding —
+             gutter 2m + 12 = 28 on the inline sides, margin 8 equal on all
+             four sides, rail 12 = 2+2+4+2+2, rail r5, thumb r1. -->
+        <div style="position:relative;padding:16px 28px;max-height:328px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px">
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Реінвестиція · Inzhur REIT</span><strong style="white-space:nowrap">687,02 ₴</strong><span style="color:#696865;white-space:nowrap">10.07</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Нарахування дивідендів · Inzhur REIT</span><strong style="white-space:nowrap">700,36 ₴</strong><span style="color:#696865;white-space:nowrap">10.07</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Реінвестиція · Inzhur REIT</span><strong style="white-space:nowrap">484,36 ₴</strong><span style="color:#696865;white-space:nowrap">10.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Нарахування дивідендів · Inzhur REIT</span><strong style="white-space:nowrap">680,55 ₴</strong><span style="color:#696865;white-space:nowrap">10.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Реінвестиція · OVDP …6475</span><strong style="white-space:nowrap">216,00 ₴</strong><span style="color:#696865;white-space:nowrap">03.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Купон · OVDP …6475</span><strong style="white-space:nowrap">216,00 ₴</strong><span style="color:#696865;white-space:nowrap">03.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Купівля · OVDP …6475</span><strong style="white-space:nowrap">3 942,00 ₴</strong><span style="color:#696865;white-space:nowrap">02.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Внесок · Портфель</span><strong style="white-space:nowrap">3 942,00 ₴</strong><span style="color:#696865;white-space:nowrap">02.06</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Нарахування дивідендів · Inzhur REIT</span><strong style="white-space:nowrap">472,13 ₴</strong><span style="color:#696865;white-space:nowrap">10.05</span></div>
+            <div style="display:flex;gap:10px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Нарахування дивідендів · Inzhur REIT</span><strong style="white-space:nowrap">612,40 ₴</strong><span style="color:#696865;white-space:nowrap">10.04</span></div>
+            <div style="display:flex;gap:10px;color:#b3b2ae"><span style="flex:1">…8 more, to the 03.02 opening deposit</span></div>
+          </div>
+          <!-- the rail: 8 from the top, 8 from the right, 8 from the bottom -->
+          <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border-radius:5px;background:#eceae7;display:flex;justify-content:center">
+            <div style="width:4px;height:58%;margin-top:4px;border-radius:1px;background:#b3b2ae"></div>
+          </div>
+        </div>
+      </div>
+      <p style="margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+        <span style="background:#eceae7;border:1px dashed #b3b2ae;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700">F6</span>
+        <strong>No microlabel over the list.</strong> <code style="font-size:11px">t.transaction.recentTitle</code> (“Останні транзакції”) is false here — the route shows all <strong>18</strong>, not the last 3 — and the brief supplies no replacement, so the list runs under the screen title that already names it rather than under invented copy.
+        <br>The 3-row cap existed because the panel was a guest on someone else's screen. A dedicated route can afford the history, and it scrolls inside its own <code style="font-size:11px">Scroller</code> (D65): rail <strong>12</strong> = 2+2+4+2+2, rail r <strong>5</strong>, thumb r <strong>1</strong>, margin <strong>8</strong> on all four sides, gutter <strong>2 × 8 + 12 = 28</strong> taken from the ScrollArea ROOT's inline padding — never the scrolling child's, which would slide out from under the rail.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin-top:26px">
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">/transactions at 360 — one column, form first</div>
+    <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px 12px">
+      <h2 style="margin:0 0 4px;font-size:26px">Транзакції</h2>
+      <p style="margin:0 0 18px;font-size:13px;color:#696865;line-height:1.45">Запишіть купівлю, продаж, купон або дивіденд.</p>
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:18px 20px;margin-bottom:12px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:600;margin-bottom:10px">Транзакція</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <span style="height:44px;line-height:44px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:16px">27.07.2026</span>
+          <span style="height:44px;line-height:44px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:16px">Купівля</span>
+        </div>
+        <button style="width:100%;height:44px;border-radius:11px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:13.5px">Записати транзакцію</button>
+      </div>
+      <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:14px 28px 14px 16px;font-size:12.5px;display:flex;flex-direction:column;gap:9px;position:relative">
+        <div style="display:flex;gap:8px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Реінвестиція · Inzhur REIT</span><strong style="white-space:nowrap">687,02 ₴</strong></div>
+        <div style="display:flex;gap:8px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Нарахування · Inzhur REIT</span><strong style="white-space:nowrap">700,36 ₴</strong></div>
+        <div style="display:flex;gap:8px;color:#b3b2ae"><span style="flex:1">…16 more</span></div>
+        <div style="position:absolute;right:8px;top:8px;bottom:8px;width:12px;border-radius:5px;background:#eceae7;display:flex;justify-content:center"><div style="width:4px;height:40%;margin-top:4px;border-radius:1px;background:#b3b2ae"></div></div>
+      </div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      Fields render at <strong>16 px</strong> below the breakpoint (index.css platform rule) inside <strong>unchanged 36 → 44</strong> boxes; radius <strong>9</strong> stands because D56 reads the box, not the text. <strong>No <code style="font-size:11px">Редагувати</code> here</strong> — this route <em>is</em> the editor.
+    </p>
+  </div>
+
+  <div style="width:360px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">empty ledger — the FORM is still shown</div>
+    <div style="width:360px;background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px 12px">
+      <h2 style="margin:0 0 4px;font-size:26px">Транзакції</h2>
+      <p style="margin:0 0 18px;font-size:13px;color:#696865;line-height:1.45">Запишіть купівлю, продаж, купон або дивіденд.</p>
+      <div style="background:#eceae7;border:1px solid #dedcd8;border-radius:24px;padding:18px 20px;margin-bottom:12px">
+        <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:600;margin-bottom:10px">Транзакція</div>
+        <button style="width:100%;height:44px;border-radius:11px;border:1.5px solid transparent;background:#26262a;color:#f6f5f3;opacity:.5;font-family:'IBM Plex Sans',sans-serif;font-weight:700;font-size:13.5px">Записати транзакцію</button>
+        <div style="margin-top:8px;border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">submit disabled until the form validates — the panel's existing rule</div>
+      </div>
+      <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px;font-size:12.5px;color:#696865">Транзакцій ще немає.</div>
+    </div>
+    <p style="width:360px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">An empty ledger is exactly when someone wants the form. The list's empty line sits under it, not instead of it.</p>
+  </div>
+
+  <div style="flex:1;min-width:360px;max-width:420px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">the sidebar side of S4</div>
+    <div style="background:#26262a;border-radius:16px;padding:16px;color:#e9e8e6">
+      <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:0 14px 6px">Ввід</div>
+      <div style="background:#e9e8e6;color:#26262a;border-radius:10px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+      <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px;margin-top:3px">Транзакції</div>
+      <div style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;margin:16px 14px 6px">Аналітика</div>
+      <div style="color:#cfcecb;padding:8px 14px;font-size:13.5px">Огляд</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <span style="background:#e3eadf;color:#4c5a48;border-radius:4px;padding:1px 5px;font-weight:700">computed</span>
+      In the 244 rail the pill's text box is 244 − 2 × 16 − 2 × 14 = <strong>184</strong>; <code style="font-size:11px">Транзакції</code> at 13.5 px JetBrains Mono is 10 × 8.1 = <strong>81</strong>. One line, half the room.
+      <br><strong>Both pill radii are unchanged</strong> and they are not the same number: the entry pill is <code style="font-size:11px">py-[9px]</code> → h 38 → round(9.88) = <strong>10</strong>; the new <em>Транзакції</em> pill takes the analytics geometry, <code style="font-size:11px">py-2</code> → h 36 → round(9.36) = <strong>9</strong>.
+      <br><code style="font-size:11px">/</code> stays the index route. It is the daily ritual and the app opens on it.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S4) — navigation-map.md gains /transactions with per-route
+     expected seed values and /'s row records that the panel has left · the
+     seed's 18 transactions all render on the new route · recording from
+     /transactions invalidates the same queries it does today, so every screen
+     re-renders with no reload · / has no horizontal overflow at 360 with the
+     aside reduced or absent. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  S5 — COLLAPSIBLE SIDEBAR GROUPS
+
+  The three existing groups gain a collapse affordance. This adds an affordance
+  to an existing structure, not the structure.
+
+  MOTION (D7)
+    toggle    group height   reveal 300 ms soft / collapse 220 ms  · instant
+    toggle    chevron rotate 220 ms soft                            · instant
+    hover     row opacity    150 ms                                 · instant
+    press     scale(.97)     220 ms                                 · no scale
+
+  TOKENS  sidebar · sidebar-nav · sidebar-muted · sidebar-inset — the
+  sidebar's own family, all existing. The chevron takes `sidebar-nav`, NOT
+  `sidebar-muted`: measured on the rail, sidebar-nav #cfcecb is 9.55 : 1 and
+  sidebar-muted #96959b is 5.06 : 1, and the brief asks the group chevron to
+  read at the same weight as the D66 collapse control's glyph "and no lighter".
+  That glyph is sidebar-nav. So the chevron is BRIGHTER than the label it sits
+  beside, which is correct: the label is a caption, the chevron is a control.
+  In dark the same pair measures 10.86 : 1 and 5.59 : 1 (index.css).
+
+  RADII  the group row borrows the nav pill's 9 (see the header block for the
+  full argument: no drawn box in any state, so the radius paints only the focus
+  ring, and a ring that curves differently from the pill 6 px below it reads as
+  a different object). The chevron is a glyph and has none. The D66 collapse
+  control keeps its 26 -> round(6.76) = 7.
+
+  HIT AREA (G-8)  the group row draws no fill, so it takes a REAL box —
+  TAP_44_BOX, `max-md:h-11` — and pushes the first pill down instead of
+  overlapping it, exactly as tap-target.ts requires of a box-less control.
+  The 26 px sidebar-collapse control is ≥ md only, where a pointer is the
+  input, so TAP_44 has no business on it (it never did).
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 40px">
+
+<h2 style="font-size:19px;margin:0 0 4px">S5 · Collapsible sidebar groups</h2>
+<p style="margin:0 0 18px;font-size:12.5px;color:#696865">The two controls on ONE panel · expanded · collapsed · collapsed around the active route · the drawer, dark</p>
+
+<div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+
+  <!-- 244 rail, expanded, with BOTH controls visible -->
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">244 rail — both controls, one panel (decision D-4)</div>
+    <div style="width:244px;background:#26262a;color:#e9e8e6;border-radius:0 30px 30px 0;padding:16px;position:relative">
+      <!-- The blob AND the layer that keeps it inside the shell's corner. Sidebar.tsx:93
+           carries both and its comment names the layer's whole job; drawing the blob
+           without it lets a 200px disc escape the panel. -->
+      <div style="position:absolute;inset:0;overflow:hidden;border-radius:0 30px 30px 0;pointer-events:none">
+        <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#333338;opacity:.7"></div>
+      </div>
+      <div style="position:relative">
+        <div style="background:#333338;border-radius:14px;padding:10px 15px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:999px;background:#e9e8e6;display:flex;align-items:flex-end;justify-content:center;gap:2px;padding:9px 7px;flex:none">
+            <div style="width:4px;height:5px;background:#26262a;opacity:.45"></div>
+            <div style="width:4px;height:11px;background:#26262a;opacity:.65"></div>
+            <div style="width:4px;height:7px;background:#26262a;opacity:.8"></div>
+            <div style="width:4px;height:17px;background:#26262a"></div>
+          </div>
+          <div style="min-width:0;font-family:'IBM Plex Sans',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Quirenote<br><span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;font-weight:400">Інвест-трекер</span></div>
+        </div>
+        <!-- THE SHELL CONTROL: boxed, 26x26, border sidebar-muted, r7,
+             ChevronLeft (HORIZONTAL), vertically centred on the plate, inset 6
+             from its right edge. Unchanged from D66. -->
+        <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:1px solid #96959b;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfcecb">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        </div>
+      </div>
+
+      <div style="height:22px"></div>
+
+      <div style="position:relative;display:flex;flex-direction:column;gap:3px">
+        <!-- THE GROUP CONTROL: no box, bare ChevronDown (VERTICAL), whole row
+             is the target, label stays sidebar-muted, chevron sidebar-nav. -->
+        <div style="display:flex;align-items:center;height:18px;margin:0 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Ввід</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="background:#e9e8e6;color:#26262a;border-radius:10px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Транзакції</div>
+
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Аналітика</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Огляд</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Баланси</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Виплати</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Дохідність</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Атрибути</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Сезонність</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Портфель</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Розподіл</div>
+
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Налаштування</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Налаштування</div>
+      </div>
+    </div>
+    <p style="width:244px;margin:8px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      Expanded is the default. Chevron down, three groups, nothing else moved.
+    </p>
+  </div>
+
+  <!-- collapsed -->
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">Аналітика collapsed — the active route is elsewhere</div>
+    <div style="width:244px;background:#26262a;color:#e9e8e6;border-radius:0 30px 30px 0;padding:16px;position:relative">
+      <!-- The blob AND the layer that keeps it inside the shell's corner. Sidebar.tsx:93
+           carries both and its comment names the layer's whole job; drawing the blob
+           without it lets a 200px disc escape the panel. -->
+      <div style="position:absolute;inset:0;overflow:hidden;border-radius:0 30px 30px 0;pointer-events:none">
+        <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#333338;opacity:.7"></div>
+      </div>
+      <div style="position:relative">
+        <div style="background:#333338;border-radius:14px;padding:10px 15px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:999px;background:#e9e8e6;flex:none"></div>
+          <div style="min-width:0;font-family:'IBM Plex Sans',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Quirenote<br><span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;font-weight:400">Інвест-трекер</span></div>
+        </div>
+        <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:1px solid #96959b;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfcecb">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        </div>
+      </div>
+      <div style="height:22px"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:center;height:18px;margin:0 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Ввід</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="background:#e9e8e6;color:#26262a;border-radius:10px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Транзакції</div>
+
+        <!-- collapsed group: chevron rotated to ▸, hover shown on this row -->
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px;opacity:.85">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Аналітика</span>
+          <svg style="margin-left:auto;transform:rotate(-90deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Налаштування</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Налаштування</div>
+      </div>
+      <span style="position:absolute;left:16px;bottom:-28px;border:1px dashed #b3b2ae;border-radius:5px;padding:2px 7px;font-size:10px;color:#696865">row shown at hover: opacity .85, 150 ms — the nav pill's own treatment</span>
+    </div>
+    <p style="width:244px;margin:36px 0 0;font-size:11.5px;line-height:1.55;color:#696865">
+      Eight pills gone, the label kept. The chevron rotates <strong>−90°</strong> in 220 ms; the group's height reveals in 300 and collapses in 220 — the app's standard asymmetry.
+    </p>
+  </div>
+
+  <!-- collapsed around the active route -->
+  <div>
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">collapsed AROUND the active route — the pinned edge case</div>
+    <div style="width:244px;background:#26262a;color:#e9e8e6;border-radius:0 30px 30px 0;padding:16px;position:relative">
+      <!-- The blob AND the layer that keeps it inside the shell's corner. Sidebar.tsx:93
+           carries both and its comment names the layer's whole job; drawing the blob
+           without it lets a 200px disc escape the panel. -->
+      <div style="position:absolute;inset:0;overflow:hidden;border-radius:0 30px 30px 0;pointer-events:none">
+        <div style="position:absolute;right:-70px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:#333338;opacity:.7"></div>
+      </div>
+      <div style="position:relative">
+        <div style="background:#333338;border-radius:14px;padding:10px 15px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:999px;background:#e9e8e6;flex:none"></div>
+          <div style="min-width:0;font-family:'IBM Plex Sans',sans-serif;font-size:16px;line-height:1.15;font-weight:600">Quirenote<br><span style="font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#96959b;font-weight:400">Інвест-трекер</span></div>
+        </div>
+      </div>
+      <div style="height:22px"></div>
+      <div style="position:relative;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:center;height:18px;margin:0 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Ввід</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#cfcecb;border-radius:10px;padding:9px 14px;font-size:13.5px">Щоденні котирування</div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Транзакції</div>
+
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Аналітика</span>
+          <svg style="margin-left:auto;transform:rotate(-90deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="background:#e9e8e6;color:#26262a;border-radius:9px;padding:8px 14px;font-size:13.5px;font-weight:700">Портфель</div>
+
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px;border-radius:9px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#96959b">Налаштування</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#cfcecb;border-radius:9px;padding:8px 14px;font-size:13.5px">Налаштування</div>
+      </div>
+    </div>
+    <p style="width:244px;margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <strong>The active pill stays visible</strong>, in its normal active treatment, directly under the closed label. Chosen over auto-expand because auto-expand makes the control <em>refuse the press</em>, and — since collapsed groups persist — it would rewrite the stored preference on every navigation into the group, so the arrangement would decay on its own.
+      <br>A collapsed group is therefore <strong>zero rows or one</strong>, never a surprise. Navigate away and it closes completely.
+    </p>
+  </div>
+
+  <!-- the two controls compared, and the dark drawer -->
+  <div style="flex:1;min-width:340px;max-width:520px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">the difference, side by side</div>
+    <div style="background:#26262a;border-radius:16px;padding:18px;display:flex;gap:26px;align-items:center;justify-content:center;margin-bottom:12px">
+      <div style="text-align:center">
+        <div style="width:26px;height:26px;border:1px solid #96959b;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#cfcecb;margin:0 auto">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+        </div>
+        <div style="font-size:10px;color:#96959b;margin-top:8px;line-height:1.5">BOXED · HORIZONTAL<br>band 1, on the plate<br>the whole sidebar</div>
+      </div>
+      <div style="width:1px;align-self:stretch;background:#333338"></div>
+      <div style="text-align:center">
+        <div style="height:26px;display:flex;align-items:center;justify-content:center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cfcecb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="font-size:10px;color:#96959b;margin-top:8px;line-height:1.5">BARE · VERTICAL<br>band 2, in the nav<br>one group</div>
+      </div>
+    </div>
+    <p style="margin:0 0 18px;font-size:11.5px;line-height:1.65;color:#696865">
+      One rule with three consequences: <strong>a boxed control acts on the shell, a bare glyph acts on the content it labels.</strong>
+      The axis is the half that needs no learning — the sidebar leaves <em>sideways</em>, a group closes <em>downwards</em>.
+      They also never coexist in the same band, and only one of them exists below <code style="font-size:11px">md</code>.
+      <br><strong>Names differ too, for assistive tech:</strong> <code style="font-size:11px">Згорнути навігацію</code> for the shell (existing), <code style="font-size:11px">Згорнути {group}</code> / <code style="font-size:11px">Розгорнути {group}</code> for the group. The visible labels do not change.
+    </p>
+
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px">the drawer, DARK — same composition, same groups, same state</div>
+    <div style="background:#141416;border:1px solid #33333a;border-radius:12px;padding:14px">
+      <div style="width:280px;background:#0f0f11;border-right:1px solid #8b8a90;border-radius:0 30px 30px 0;padding:16px;color:#eceae7">
+        <div style="background:#1c1c20;border-radius:14px;padding:10px 15px;font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;color:#ffffff">Quirenote</div>
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Ввід</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4c3c0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="background:#eceae7;color:#0f0f11;border-radius:10px;padding:9px 14px;font-size:13.5px;font-weight:700">Щоденні котирування</div>
+        <div style="color:#c4c3c0;border-radius:9px;padding:8px 14px;font-size:13.5px;margin-top:3px">Транзакції</div>
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Аналітика</span>
+          <svg style="margin-left:auto;transform:rotate(-90deg)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4c3c0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="display:flex;align-items:center;height:18px;margin:16px 14px 6px">
+          <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8b8a90">Налаштування</span>
+          <svg style="margin-left:auto" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4c3c0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+        </div>
+        <div style="color:#c4c3c0;border-radius:9px;padding:8px 14px;font-size:13.5px">Налаштування</div>
+      </div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#696865">
+      <span style="background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700">measured</span>
+      Chevron <code style="font-size:11px">sidebar-nav</code> #c4c3c0 = <strong>10.86 : 1</strong> on the drawer; label <code style="font-size:11px">sidebar-muted</code> #8b8a90 = <strong>5.59 : 1</strong> (index.css). The drawer keeps its <code style="font-size:11px">drawer-edge</code> hairline — the dark scrim cannot carry the boundary (1.02 : 1, mobile.dc.html).
+      <br><strong>One state serves both shells</strong>: collapsing in the drawer is collapsed in the rail. The D66 collapse control is absent here, so below <code style="font-size:11px">md</code> there is only ever <em>one</em> kind of chevron on the panel — the ambiguity D-4 answers cannot even arise on a phone.
+      <br><strong>Below <code style="font-size:11px">md</code> the group row is a real 44 px box</strong> (<code style="font-size:11px">TAP_44_BOX</code>, drawn at 18 here for the desktop rail). It pushes the first pill down rather than overlapping it — the rule tap-target.ts states for a control with no drawn box. Three rows at 44 instead of 18 adds 78 px to a nav band that already scrolls (D65), so the three-band grid still holds at 640 px of viewport height with every group expanded.
+    </p>
+  </div>
+</div>
+
+<!-- ACCEPTANCE (S5) — collapsed groups PERSIST: a new field in
+     PersistedSettings, PERSISTED_DEFAULTS, migrateSettings AND partialize, in
+     the same commit (the standing invariant) · one state serves both shells ·
+     the active route is never hidden by a collapsed group · the three-band
+     grid still holds at 640 px of viewport height with every group expanded ·
+     mark.test.ts and the lockup are untouched. -->
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  WHAT THIS FILE DOES NOT DRAW, DELIBERATELY
+
+  · /balances, /payouts and /attributes — editable by the rule, explicitly out
+    of this phase. The pattern above is what they will use; drawing them now
+    would pre-empt three briefs that do not exist.
+  · Whether /settings survives as a screen. With S2 and S3 it loses one of its
+    four cards; three remain (Data, Automation, Appearance) and that is still a
+    settings screen.
+  · AssetForm's own dialog, in either mode — reused with no contract change and
+    already drawn in asset-form.dc.html.
+  · The fetch button, provenance chips, the suggestion language, the coupon
+    card's body — daily-quotes-live.dc.html is still binding for all of them.
+  · The record card's own anatomy and the mobile shell — mobile.dc.html is
+    still binding; this file only adds the footer band (D-3).
+═══════════════════════════════════════════════════════════════════════════ -->
+<div style="max-width:1260px;margin:0 auto;padding:0 20px 60px">
+  <div style="border:1px dashed #b3b2ae;border-radius:16px;padding:18px 20px;font-size:12px;line-height:1.7;color:#26262a">
+    <strong>Precedence (D14).</strong> Once merged, this file wins visual disputes for T0 and S1–S5; its brief wins copy and behaviour disputes.
+    Shape is read from <code style="font-size:11px">README.md</code> §4, never from the master reference's retired capsules.
+    <strong>No token is minted</strong> — every colour above is an existing <code style="font-size:11px">@theme</code> value in one of the two themes, and <code style="font-size:11px">muted</code> is drawn at D68's <strong>#696865</strong>, not the <strong>#8b8a86</strong> the older references still carry.
+    <br><strong>Seven things the brief could not supply</strong> are marked F1–F7 in the file header and annotated in place: the two <code style="font-size:11px">Button md</code> heights, the “byte-identical” header, “right of the subtitle line”, the two save-failure strings, the ShareBar that does not exist on this page, the missing list heading, and the two subtitles that go stale the moment Settings loses its Portfolio card.
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

@@ -964,10 +964,18 @@ re-decide the other two.
       which is the opposite of the call A21 made for the currency glance three
       days earlier — and **a group may not close around the active route**, or
       the user loses the one pill that says where they are.
-- [ ] Output per G7/D14: a merged `design/extensions/where-things-live.dc.html`,
-      and the implementation rows filed back here. **Not done and not this
-      task's** — the design session is a separate Claude session, and until it
-      merges no Phase 7 UI may start.
+- [x] Output per G7/D14: `design/extensions/where-things-live.dc.html`, drawn by
+      a separate session and merged 2026-08-19. **Phase 7 UI is no longer
+      design-blocked**; its implementation rows are still to be filed here.
+      The drawing closed all four delegated decisions and returned **seven
+      places the brief could not be drawn as written (F1–F7)** — see the
+      extension's header. Three matter before any implementation starts: the
+      brief pinned `Button md` at 44/r11, which is the below-`md` value only
+      (shipped it is 40/r10 at ≥ md); it minted two different save-failure
+      strings for one action; and **three dictionary strings name
+      "Settings → Portfolio" and go stale the moment S2/S3 land** — the
+      `/attributes` and `/allocation` subtitles the drawing found, plus the
+      Inzhur empty state it did not.
 
 **Constraint to carry into the session:** the sidebar is ONE composition with two
 layouts (D66) and shape is a system (D56) — a collapsed group's chevron takes
