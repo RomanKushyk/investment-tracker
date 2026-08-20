@@ -16,7 +16,6 @@ import { DatasetSwitch } from './settings/DatasetSwitch';
 import { ImportRow } from './settings/ImportRow';
 import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
-import { TargetsEditor } from './settings/TargetsEditor';
 import { useBackupDownload } from './settings/useBackupDownload';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
@@ -455,10 +454,10 @@ export function Settings() {
       <div className="flex flex-col gap-3.5">
         <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">
           <SectionLabel>{t.settings.sections.portfolio}</SectionLabel>
+          {/* A30 moved the targets editor to /allocation, beside the card that
+              draws what it edits. A31 takes AssetManager to /portfolio and this
+              whole card goes with it. */}
           <AssetManager />
-          {/* S4 targets editor — brings its own divider + microlabel so the
-              sub-section vanishes with the Portfolio empty state */}
-          <TargetsEditor />
         </Card>
 
         <Card

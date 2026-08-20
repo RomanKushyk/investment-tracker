@@ -9,6 +9,18 @@ import type { Asset } from '../../core/types';
 // even if the delta is positive (design lines 524-537, D5 checkpoint).
 const NEAR_TARGET_PP = 0.5;
 
+/**
+ * The one place the threshold is applied (A30 review). `Allocation.tsx` has to
+ * re-derive severity against a DRAFTED target while the editor is open, and the
+ * first draft inlined `Math.abs(deltaPp) > 0.5` there — a second copy of a rule
+ * `allocation.test.ts` only covers through `allocationRows`. Moving
+ * `NEAR_TARGET_PP` would then have changed the rebalance plan and the pill
+ * colour apart while the suite stayed green.
+ */
+export function severityOf(deltaPp: number): 'near' | 'off' {
+  return Math.abs(deltaPp) <= NEAR_TARGET_PP ? 'near' : 'off';
+}
+
 export interface AllocationRow {
   asset: Asset;
   share: number; // pct 0-100
@@ -30,7 +42,7 @@ export function allocationRows(
       share,
       target: asset.targetPct,
       deltaPp,
-      severity: Math.abs(deltaPp) <= NEAR_TARGET_PP ? 'near' : 'off',
+      severity: severityOf(deltaPp),
     };
   });
 }

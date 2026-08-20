@@ -54,6 +54,34 @@ export function useEditMode(dirty = false): EditMode {
   const blocker = useBlocker(editing && dirty);
   const blocked = blocker.state === 'blocked';
 
+  /**
+   * A BLOCKED BLOCKER WITH NO REASON LEFT TO BLOCK IS RELEASED — declaratively,
+   * because the imperative version was wrong twice (A30 review, then again in
+   * the browser).
+   *
+   * react-router does NOT release a blocked blocker when its predicate goes
+   * false: `getBlocker` only swaps the predicate, and `state.blockers` keeps
+   * `state === 'blocked'`. So a save that completed while a navigation was
+   * blocked left the discard dialog open over a page that was already saved and
+   * out of edit mode.
+   *
+   * The obvious fix — calling `blocker.reset()` inside `exit()` — does not
+   * work, and it is worth saying why. `exit` runs from a promise callback, so
+   * whatever version of `blocker` it captured came from the render where Save
+   * was PRESSED; the navigation blocks after that and produces a NEW blocker
+   * object. The captured one was still `unblocked`, its `reset` was
+   * `undefined`, and `reset?.()` silently did nothing. That fix passed lint,
+   * typecheck and 679 tests and was reproduced as broken in the browser.
+   *
+   * Stated as a condition instead, there is no stale closure to be wrong about:
+   * whenever the blocker is blocked and the page is no longer dirty-and-editing,
+   * it is released. Not `setState` in an effect — this synchronises an external
+   * system (the router) with React state, which is what effects are for.
+   */
+  useEffect(() => {
+    if (blocked && !(editing && dirty)) blocker.reset();
+  }, [blocked, editing, dirty, blocker]);
+
   const exit = useCallback(() => {
     setEditing(false);
     setAskingExit(false);
@@ -64,21 +92,47 @@ export function useEditMode(dirty = false): EditMode {
     else exit();
   }, [dirty, exit]);
 
-  // Escape is the same act as Cancel, so it goes through the same guard rather
-  // than a second path that could answer differently.
+  const asking = askingExit || blocked;
+
+  /**
+   * Escape is the same act as Cancel, so it goes through the same guard rather
+   * than a second path that could answer differently.
+   *
+   * BUG, found in review: THE DIALOG COULD NOT BE CLOSED WITH ESCAPE. Radix's
+   * `DismissableLayer` listens on `document` in the CAPTURE phase, so it runs
+   * before this bubble listener, closes the dialog and calls
+   * `event.preventDefault()` — but never `stopPropagation()`. This handler then
+   * ran anyway, saw the page still dirty, and re-opened the dialog in the same
+   * React batch. Worse when the dialog came from a blocked navigation:
+   * `keepEditing` had already released the blocker, so the pending navigation
+   * was silently dropped and a later Discard pushed a no-op.
+   *
+   * `defaultPrevented` is the guard that matters — it defers to whatever layer
+   * already handled the key, not only to our own dialog. `asking` beside it
+   * states the same intent locally and covers a layer that forgets to prevent.
+   *
+   * The listener re-binds when `dirty` flips, and that is ACCEPTED rather than
+   * solved: the review proposed a latest-value ref, and
+   * `react-hooks/immutability` rejects writing one that was built from hook
+   * arguments. Adding and removing a keydown listener is not a cost worth a
+   * pattern the linter refuses.
+   */
   useEffect(() => {
     if (!editing) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') requestExit();
+      if (event.key !== 'Escape') return;
+      if (event.defaultPrevented || asking) return;
+      requestExit();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [editing, requestExit]);
+  }, [editing, asking, requestExit]);
 
   const keepEditing = useCallback(() => {
+    // Releasing the blocker is the effect's job (above): clearing this flag
+    // makes the page clean-or-not-editing again only when the user's own exit
+    // was the source, and the effect settles the navigation case on its own.
     setAskingExit(false);
-    // Only a blocked navigation has anything to release; `reset` is undefined
-    // on an unblocked blocker.
     blocker.reset?.();
   }, [blocker]);
 
@@ -93,7 +147,7 @@ export function useEditMode(dirty = false): EditMode {
     start: useCallback(() => setEditing(true), []),
     requestExit,
     exit,
-    asking: askingExit || blocked,
+    asking,
     keepEditing,
     discard,
   };

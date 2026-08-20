@@ -51,7 +51,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A28 | "Next payouts" offers a date in the past | `fix/payout-projection-roll` | S | **done** (2026-08-19) — found by the map walk the same day |
 | **Section J** | **Phase 7 implementation — unblocked 2026-08-19 by `where-things-live.dc.html`** | | | |
 | A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-19) — nothing on screen changes until A30 |
-| A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **todo** — needs A29 |
+| A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **done** (2026-08-19) |
 | A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **todo** — needs A29 and A30 |
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **todo** — independent |
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **todo** — independent |
@@ -1434,24 +1434,91 @@ browser measurement above.
 
 Brief § S2, extension § S2. Batch variant.
 
-- [ ] `TargetsEditor` moves out of Settings into the existing "Current vs
+- [x] `TargetsEditor` moves out of Settings into the existing "Current vs
       target" card. Its anatomy is not redesigned — the %-input, the Σ pill and
       the live preview are rehoused.
-- [ ] **The card's own `Save targets` button is REMOVED**; the header's `Save`
+- [x] **The card's own `Save targets` button is REMOVED**; the header's `Save`
       does its work. Two saves on one page, one of which saves a subset, is the
       ambiguity this phase exists to end.
-- [ ] **F5 — the keystroke preview is the TARGET TICK, not a `ShareBar`.** The
+- [x] **F5 — the keystroke preview is the TARGET TICK, not a `ShareBar`.** The
       brief specified `ShareBar` widths; there is no `ShareBar` on
       `/allocation`. The tick moves on the bar's own existing
       `transition-[width]` 500 ms and the pp delta re-derives against the draft.
       No duration is minted.
-- [ ] Σ ≠ 100 warns and never blocks; unparseable input blocks (both existing
+- [x] Σ ≠ 100 warns and never blocks; unparseable input blocks (both existing
       rules, kept).
-- [ ] Save writes only CHANGED rows through the existing per-asset
+- [x] Save writes only CHANGED rows through the existing per-asset
       `useUpdateAsset` patches.
-- [ ] **F7:** `screen.allocation.subtitle` changes in this commit.
-- [ ] **Verify:** `targets.test.ts` passes unchanged — the pure layer does not
-      move; the rebalance plan re-derives from saved targets, not drafts.
+- [x] **F7:** `screen.allocation.subtitle` is now *"Поточна структура проти ваших цілей — редагуйте їх тут"*.
+- [x] **Verified in the browser, every claim measured.** At rest: one `Редагувати`,
+      zero inputs, tick at 40 %. In edit: `Скасувати` + `Зберегти`, four inputs
+      prefilled 40/40/17/3, `Σ 100 %`.
+      **F5 exactly** — typing 45 moved the tick 40 % → **45 %** while the fill
+      stayed **46,1037 %**, and Σ warned at 105 % with **Save still enabled**.
+      Unparseable input: `aria-invalid`, `border-neg`, *"Введіть відсоток."*,
+      **Save disabled** — and Σ returned to 100 %, because `effective` falls back
+      to the STORED value rather than zeroing.
+      Discard dialog on a dirty Cancel, with the page still in edit mode behind
+      it; Discard dropped the drafts and the tick returned to 40 %.
+      **The rebalance plan re-derives from SAVED targets:** at 45 % the REIT trim
+      read **−1 645 ₴** against −9 096 ₴ at 40 %. Saved, checked, and restored —
+      the D5 figures `+11 429 ₴` / `−9 096 ₴` are back.
+      Zero horizontal overflow at 360 both at rest and in edit mode.
+      **`targets.test.ts` moved with its module and not one assertion changed** —
+      only its import path, which is what "the pure layer does not move" meant.
+
+**A29's branch B and the hook ran for the first time here, and both held** on
+the paths above — the header row, the two-variant swap, the dirty guard and the
+derived `asking`.
+
+**Then `/code-review` (D76) found three real bugs in them, and fixing one of
+them took two attempts.** Recorded because the second attempt is the lesson:
+
+1. **Escape could not close the discard dialog.** Radix's `DismissableLayer`
+   listens on `document` in the CAPTURE phase and calls `preventDefault` but not
+   `stopPropagation`, so the hook's own bubble listener ran afterwards, saw the
+   page still dirty, and re-opened the dialog in the same React batch. Via a
+   blocked navigation it was worse: the release had already happened, so the
+   pending navigation was dropped and a later Discard pushed a no-op. Fixed by
+   deferring to `event.defaultPrevented`.
+2. **A blocked blocker was never released.** react-router's `getBlocker` only
+   swaps the predicate; `state.blockers` keeps `blocked`. A save completing
+   while a navigation was blocked left the dialog open over a page already saved
+   and out of edit mode. **The obvious fix — `blocker.reset()` inside `exit()` —
+   passed lint, typecheck and 679 tests and was still broken**, because `exit`
+   runs from a promise callback and captured the blocker from the render where
+   Save was PRESSED, when it was still `unblocked` and its `reset` was
+   `undefined`. Reproduced in the browser after that "fix" landed. The working
+   version is declarative: *a blocked blocker with no reason left to block is
+   released*, as a condition in an effect, where there is no stale closure to be
+   wrong about.
+3. **Cancel was live during a save**, so discarding mid-save still persisted the
+   values and then congratulated the user on a page they had abandoned. Cancel
+   is disabled while the mutation is in flight — a save cannot be un-issued, so
+   it cannot be abandoned either.
+
+Four more from the same review, all fixed: the screen re-implemented the
+off-target threshold as a bare `0.5` instead of the tested `NEAR_TARGET_PP`
+(now one exported `severityOf`); Save was enabled with nothing changed and
+toasted "Цілі збережено" for zero writes; `EditActions`' `onSave` was optional
+for the batch variant, so a caller could render an enabled Save wired to
+`undefined` (now a discriminated union, which matters because A31 adds the
+second caller); and `core/schemas.ts` pointed at the deleted
+`screens/settings/targets.ts`. Four dead dictionary entries went with the move,
+and **`navigation-map.md` was updated** — the branch had moved a whole editor
+between screens without touching the map, which is the repo's own rule.
+
+**One finding declined, with the reason (D76).** The review asked for a
+latest-value ref so the Escape listener attaches once instead of re-binding when
+`dirty` flips. `react-hooks/immutability` refuses a ref built from hook
+arguments, and adding and removing one keydown listener is not worth a pattern
+the linter rejects. The churn is real and harmless.
+
+**Re-verified after the fixes:** Escape opens the dialog and a second Escape
+CLOSES it; a blocked navigation released by Discard goes through to `/overview`;
+the save-then-navigate race no longer strands the dialog; Save is disabled with
+nothing changed. D5 figures restored and confirmed — `+11 429 ₴` / `−9 096 ₴`,
+targets 40/40/17/3.
 
 ## A31 — `/portfolio` manages its assets — `feat/portfolio-assets`
 

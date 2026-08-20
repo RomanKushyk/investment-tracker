@@ -33,18 +33,23 @@ import { useT } from '../../i18n/useT';
  * object on the page in light and the brightest in dark, where a tint would
  * need re-deriving and would collide with `pos` / `neg` / `warn`.
  */
-export function EditActions({
-  mode,
-  variant,
-  onSave,
-  saveDisabled = false,
-}: {
-  mode: EditMode;
-  variant: 'batch' | 'entity';
-  /** Batch only — the one explicit write. */
-  onSave?: () => void;
-  saveDisabled?: boolean;
-}) {
+/**
+ * A DISCRIMINATED UNION, not a flag bag (A30 review). With `onSave` merely
+ * optional, `<EditActions mode variant="batch" />` typechecked and rendered an
+ * enabled Save wired to `undefined` — a button that silently does nothing while
+ * the page stays dirty and the blocker fires on every navigation. The invariant
+ * this component's own doc comment asserts is now the compiler's, which matters
+ * because A31 is about to add the second caller.
+ */
+type EditActionsProps = { mode: EditMode; busy?: boolean } & (
+  | { variant: 'batch'; onSave: () => void; saveDisabled?: boolean }
+  | { variant: 'entity'; onSave?: never; saveDisabled?: never }
+);
+
+export function EditActions(props: EditActionsProps) {
+  const { mode, variant, busy = false } = props;
+  const onSave = props.variant === 'batch' ? props.onSave : undefined;
+  const saveDisabled = props.variant === 'batch' ? (props.saveDisabled ?? false) : false;
   const t = useT();
 
   return (
@@ -57,7 +62,13 @@ export function EditActions({
 
       {mode.editing && variant === 'batch' && (
         <>
-          <Button variant="ghost" size="md" weight="semibold" onClick={mode.requestExit}>
+          <Button
+            variant="ghost"
+            size="md"
+            weight="semibold"
+            disabled={busy}
+            onClick={mode.requestExit}
+          >
             {t.edit.cancel}
           </Button>
           <Button

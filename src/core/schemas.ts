@@ -51,7 +51,7 @@ export const quoteInputSchema = z
 
 // Same normalization, but 0 is a valid target share (README targets 40/40/17/3
 // admit any 0–100 split). Shared by the AssetForm Target field and the
-// Settings targets editor (screens/settings/targets.ts) so both accept the
+// Settings targets editor (screens/allocation/targets.ts) so both accept the
 // exact same grammar.
 export const percentInputSchema = z
   .string()

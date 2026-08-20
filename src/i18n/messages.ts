@@ -613,13 +613,14 @@ export const en = {
     saveFailed: 'Could not save the asset — please try again.',
     deleteFailed: 'Could not complete — nothing was deleted.',
   },
+  // A30 moved this editor from Settings to /allocation. `save` and `now` went
+  // with it: the card's own Save button is gone (the header's does the write)
+  // and the row shows a bare share instead of a "now …" label.
   targets: {
     title: 'Targets',
-    save: 'Save targets',
     savedToast: 'Targets saved',
     saveFailed: 'Could not save targets — please try again.',
     invalid: 'Enter a percentage.',
-    now: (pct: string) => `now ${pct}`,
     fieldAria: (asset: string) => `${asset} target, %`,
     sumOk: (sum: string) => `Σ ${sum}`,
     sumOff: (sum: string) => `Σ ${sum} — targets don't add up to 100%`,
@@ -912,7 +913,7 @@ export const en = {
     },
     allocation: {
       title: 'Allocation',
-      subtitle: 'Current mix vs targets set in Settings → Portfolio',
+      subtitle: 'Current mix vs your targets — edit them here',
     },
     settings: {
       title: 'Settings',
@@ -1441,11 +1442,9 @@ export const uk: Dict = {
   },
   targets: {
     title: 'Цілі',
-    save: 'Зберегти цілі',
     savedToast: 'Цілі збережено',
     saveFailed: 'Не вдалося зберегти цілі — спробуйте ще раз.',
     invalid: 'Введіть відсоток.',
-    now: (pct: string) => `зараз ${pct}`,
     fieldAria: (asset: string) => `Ціль ${asset}, %`,
     sumOk: (sum: string) => `Σ ${sum}`,
     sumOff: (sum: string) => `Σ ${sum} — цілі не дають у сумі 100 %`,
@@ -1725,7 +1724,7 @@ export const uk: Dict = {
     },
     allocation: {
       title: 'Розподіл',
-      subtitle: 'Поточна структура проти цілей із Налаштувань → Портфель',
+      subtitle: 'Поточна структура проти ваших цілей — редагуйте їх тут',
     },
     settings: {
       title: 'Налаштування',

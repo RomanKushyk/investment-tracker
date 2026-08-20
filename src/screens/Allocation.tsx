@@ -1,9 +1,16 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
+
 import { AllocationDonut } from '../components/charts/AllocationDonut';
 import { Card } from '../components/ui/Card';
 import { ColorDot } from '../components/ui/ColorDot';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useAssets, useSnapshots } from '../hooks/queries';
+import { EditActions } from '../components/ui/EditActions';
+import { useEditMode } from '../hooks/useEditMode';
+import { useAssets, useSnapshots, useUpdateAsset } from '../hooks/queries';
+import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
+import { severityOf } from './allocation/allocation';
 import { headlineTotal, latestQuotes, sharePct } from '../core/derive';
 import type { Asset, ColorKey } from '../core/types';
 import { allocationRows, rebalancePlan } from './allocation/allocation';
@@ -30,6 +37,11 @@ export function Allocation() {
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
 
+  const updateAsset = useUpdateAsset();
+  // A30 — the drafts the editor edits. Keyed by asset id and raw, exactly as
+  // the Settings editor kept them: `targetRowStates` owns the parsing.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
   const values = latestQuotes(snapshots);
   const total = headlineTotal(snapshots);
 
@@ -37,9 +49,76 @@ export function Allocation() {
   const rows = allocationRows(assets, values, total);
   const { actions, withinRange } = rebalancePlan(assets, values, total);
 
+  // ── the targets editor, rehoused from Settings (A30, brief S2) ───────────
+  const targetRows = targetRowStates(assets, drafts);
+  const sum = targetsSum(targetRows);
+  const status = sumStatus(sum);
+  // Σ ≠ 100 warns and never blocks; an unparseable entry is the one thing that
+  // does, because there is no number to write. Both rules are the Settings
+  // editor's, moved unchanged.
+  const invalid = targetRows.some((r) => r.value === null);
+  const pending = changedTargets(targetRows);
+  const dirty = pending.length > 0 || invalid;
+  const mode = useEditMode(dirty);
+  // BUG 3, found in review: Cancel was live while a save was in flight, so
+  // discarding mid-save still persisted the values and then congratulated the
+  // user on a page they had explicitly abandoned. A save cannot be un-issued;
+  // the honest answer is that it cannot be abandoned either.
+  const saving = updateAsset.isPending;
+
+  function saveTargets() {
+    Promise.all(
+      pending.map((patch) =>
+        updateAsset.mutateAsync({ id: patch.id, patch: { targetPct: patch.targetPct } }),
+      ),
+    )
+      .then(() => {
+        setDrafts({});
+        mode.exit();
+        toast.success(t.targets.savedToast);
+      })
+      .catch(() => toast.error(t.targets.saveFailed));
+  }
+
+  // Leaving edit mode by any path drops the drafts — the stored targets are
+  // what the read-only card must show the instant it comes back.
+  const editing = mode.editing;
+  if (!editing && Object.keys(drafts).length > 0) setDrafts({});
+
+  /**
+   * F5 — THE LIVE PREVIEW IS THE TARGET TICK, NOT A ShareBar.
+   *
+   * The brief specified `ShareBar` widths; there is no `ShareBar` on this
+   * screen, and the card already draws the thing the editor changes. So the
+   * TICK moves to the drafted target and the pp delta re-derives against it,
+   * while the FILL — the current share — never moves: an entered target cannot
+   * change what you own. The bar's own `transition-[width]` 500 ms carries it;
+   * no duration is minted.
+   */
+  const shownTarget = (i: number) => (editing ? targetRows[i].effective : rows[i].target);
+
   return (
     <div>
-      <ScreenHeader title={t.screen.allocation.title} subtitle={t.screen.allocation.subtitle} />
+      <ScreenHeader
+        title={t.screen.allocation.title}
+        subtitle={t.screen.allocation.subtitle}
+        // No assets → nothing to edit, so no control at all rather than a
+        // disabled one (brief's rule, and TargetsEditor's own `return null`).
+        actions={
+          assets.length === 0 ? undefined : (
+            <EditActions
+              mode={mode}
+              variant="batch"
+              onSave={saveTargets}
+              // BUG 9: with nothing changed, Save ran an empty `Promise.all`
+              // and reported "Цілі збережено" for zero writes. A confirmation
+              // of nothing is worse than no confirmation.
+              saveDisabled={invalid || saving || pending.length === 0}
+              busy={saving}
+            />
+          )
+        }
+      />
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
         <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">
@@ -65,34 +144,84 @@ export function Allocation() {
 
         <div className="flex flex-col gap-3.5">
           <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
-            <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">
+            <div className="text-muted mb-3.5 flex items-center gap-2.5 text-[10px] tracking-[.12em] uppercase">
               {t.analytics.allocation.currentVsTarget}
+              {editing && <span className="ml-auto">{t.targets.title}</span>}
             </div>
             <div className="flex flex-col gap-3.5">
-              {rows.map((r) => (
+              {rows.map((r, i) => {
+                const target = shownTarget(i);
+                const deltaPp = r.share - target;
+                const off = severityOf(deltaPp) === 'off';
+                const error = editing && targetRows[i].value === null;
+                return (
                 <div key={r.asset.id}>
-                  <div className="mb-1.5 flex justify-between text-[12.5px]">
-                    <span className="font-semibold">{r.asset.name}</span>
-                    <span>
-                      {f.pctPlain(r.share)} / {f.pctPlain(r.target, Number.isInteger(r.target) ? 0 : 1)}{' '}
-                      <strong className={r.severity === 'off' ? 'text-neg' : 'text-pos'}>
-                        {f.pp(r.deltaPp)}
-                      </strong>
+                  <div className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px]">
+                    <span className="min-w-0 flex-[1_1_120px] truncate font-semibold">
+                      {r.asset.name}
                     </span>
+                    {editing ? (
+                      <>
+                        <span className="text-muted whitespace-nowrap">{f.pctPlain(r.share)}</span>
+                        <span className="text-muted">/</span>
+                        <input
+                          id={`target-${r.asset.id}`}
+                          name={`target-${r.asset.id}`}
+                          value={drafts[r.asset.id] ?? String(r.asset.targetPct)}
+                          onChange={(e) =>
+                            setDrafts((d) => ({ ...d, [r.asset.id]: e.target.value }))
+                          }
+                          inputMode="decimal"
+                          aria-label={t.targets.fieldAria(r.asset.name)}
+                          aria-invalid={error}
+                          className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+                        />
+                        <span className="text-muted">%</span>
+                      </>
+                    ) : (
+                      <span className="ml-auto">
+                        {f.pctPlain(r.share)} / {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}{' '}
+                        <strong className={off ? 'text-neg' : 'text-pos'}>{f.pp(deltaPp)}</strong>
+                      </span>
+                    )}
                   </div>
+                  {error && (
+                    <div className="text-neg animate-in fade-in slide-in-from-top-1 mb-1.5 text-right text-[11px] duration-200">
+                      {t.targets.invalid}
+                    </div>
+                  )}
                   <div className="bg-hairline relative h-2.5 rounded-[3px]">
                     <div
                       className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
                       style={{ width: `${r.share}%` }}
                     />
+                    {/* F5: the tick follows the DRAFT, the fill never does. */}
                     <div
-                      className="bg-ink absolute -top-[3px] h-4 w-0.5"
-                      style={{ left: `${r.target}%` }}
+                      className="bg-ink absolute -top-[3px] h-4 w-0.5 transition-[left] duration-500 ease-soft"
+                      style={{ left: `${target}%` }}
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
+
+            {editing && (
+              /* Keyed by Σ so every value change re-runs the entry animation
+                 (D7), exactly as the Settings editor did. */
+              <div className="mt-3.5">
+                <span
+                  key={sum}
+                  className={`animate-in fade-in zoom-in-95 inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-150 ${
+                    status === 'ok' ? 'bg-pos-tint text-pos-tint-text' : 'bg-warn-tint text-warn-tint-text'
+                  }`}
+                >
+                  {status === 'ok'
+                    ? t.targets.sumOk(f.pctPlain(sum, Number.isInteger(sum) ? 0 : 1))
+                    : t.targets.sumOff(f.pctPlain(sum, Number.isInteger(sum) ? 0 : 1))}
+                </span>
+              </div>
+            )}
           </Card>
 
           <div className="animate-in fade-in bg-panel border-panel-border rounded-3xl border px-[22px] py-5 duration-300">

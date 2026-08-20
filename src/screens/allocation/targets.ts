@@ -1,5 +1,9 @@
-// Pure helpers for the Settings→Portfolio targets editor (S4) — per-screen
+// Pure helpers for the targets editor — per-screen
 // glue, imports core only (D8: structured tokens out, no English).
+//
+// MOVED HERE FROM screens/settings/ BY A30, with its test, and not one
+// assertion changed — the editor now lives on /allocation, beside the card that
+// draws what it edits, and per-screen glue belongs under its own route.
 // Covered by targets.test.ts.
 import { percentInputSchema } from '../../core/schemas';
 
