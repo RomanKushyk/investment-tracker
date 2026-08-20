@@ -52,7 +52,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section J** | **Phase 7 implementation — unblocked 2026-08-19 by `where-things-live.dc.html`** | | | |
 | A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-19) — nothing on screen changes until A30 |
 | A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **done** (2026-08-19) |
-| A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **todo** — needs A29 and A30 |
+| A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **done** (2026-08-19) |
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **todo** — independent |
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **todo** — independent |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
@@ -1524,25 +1524,86 @@ targets 40/40/17/3.
 
 Brief § S3, extension § S3. Per-entity variant: `Done` only, no Save, no Cancel.
 
-- [ ] `AssetManager` moves out of Settings onto `/portfolio`.
-- [ ] Desktop: actions on the row's right edge. **Below `md`: a FOOTER BAND
+- [x] `AssetManager` moves out of Settings onto `/portfolio`.
+- [x] Desktop: actions on the row's right edge, in a **ninth column that exists only in edit mode** — an always-present empty column would widen the table's min-width for a control that is not there. **Below `md`: a FOOTER BAND
       inside the `RecordCard`** — a 1 px `hairline` rule after the `<dl>`, 14
       above / 14 below, actions pushed right, both `Button size="sm"` (h 30 →
       r 8), `gap-2.5`. **Not the card header** — that is where A17's 360 px
       overflow was closed. The 10 px gap is load-bearing: `TAP_44` reaches
       (44 − 30) / 2 = 7 px past each edge.
-- [ ] **The Total card gets no band** — a sum is not an entity.
-- [ ] Empty portfolio KEEPS the edit control, because `+ Add asset` is exactly
+- [x] **The Total card gets no band** — a sum is not an entity.
+- [x] Empty portfolio KEEPS the edit control, because `+ Add asset` is exactly
       what an empty portfolio needs. The one place the rule bends, and it bends
       toward the user.
-- [ ] `AssetForm` and the D17 delete dialog are reused with NO contract change.
-- [ ] **Settings' Portfolio card is deleted in this commit** — with A30 done it
+- [x] `AssetForm` and the D17 delete dialog are reused with NO contract change.
+- [x] **Settings' Portfolio card is deleted in this commit** — with A30 done it
       holds nothing. Settings keeps Data, Automation, Appearance.
-- [ ] **F7:** `screen.attributes.subtitle` and `dailyQuotes.fetch.unlinked`
-      change in this commit.
-- [ ] **Verify:** the delete cascade still counts real transactions and quote
-      days (`messages.test.ts` plural cases stay green); `/portfolio`'s Total row
-      and three highlight cards are unaffected in both modes.
+- [x] **F7:** both changed here — *"…редагуються в Портфелі"* and *"…прив'яжіть у Портфелі."*. `settings.sections.portfolio` went dead with the card and was removed.
+- [x] **Verified in the browser.** Desktop at rest: one `Редагувати`, 8 columns.
+      In edit: **`Готово` alone** — no Save, no Cancel — 9 columns, 9 cells in
+      the Total row and **zero buttons in it**. At 360: the record card grows a
+      footer band with one hairline rule and the two actions, the Total card
+      grows none, `+ Додати актив` appears, and horizontal overflow is 0.
+      The delete confirm is untouched: `role="alertdialog"`, cascade reading
+      **"9 транзакцій і котирування за 174 дні"** — the map's pinned counts, with
+      correct Ukrainian plurals.
+      `/settings` now has exactly three sections (Дані · Автоматизація · Вигляд)
+      and no trace of the Portfolio card; **no page carries a stale
+      "Налаштуваннях → Портфель" any more**.
+
+**Two structural notes.**
+
+**`cascadeCounts` moved to `screens/portfolio/portfolio.ts` with its tests**, the
+way `targets.ts` moved in A30 — it is the portfolio's glue now.
+`screens/settings/settings.ts` keeps `parseLeadDays`, which is still the
+reminders field's.
+
+**Then `/code-review` (D76) returned 13 findings. Twelve fixed, one declined.**
+
+**Three were user-visible defects.** The delete confirm recomputed
+`cascadeCounts` from the live queries, so after a successful delete the sentence
+flipped to *"0 транзакцій і котирування за 0 днів"* for the whole 220 ms exit —
+the node stays mounted for its animation while `invalidateQueries` has already
+run. The counts are frozen at open now, and the fix was verified by actually
+deleting …6475 and reading the sentence mid-exit: *"3 транзакції і котирування
+за 54 дні"*, unchanged. **The row actions had no accessible name** — four
+identical "Змінити / Видалити" pairs, on a control where one choice destroys an
+asset and its whole history; they now carry `aria-label` with the asset, the
+first cell is a `<th scope="row">` and the ninth header has an `sr-only` "Дії".
+**And `/portfolio` had no empty state**: deleting Settings' card orphaned
+`t.assets.empty`, so the live dataset showed a table of zeros with no guidance.
+
+**Two places where the code contradicted its own comment.** The `gap-2.5`
+arithmetic was simply wrong — `TAP_44` reaches 7 px past each edge, so two
+neighbours need **≥ 14**, not 10; what actually saves it is `min-w-full` plus
+labels wider than 44 px, and the true rule is now written in both places the
+false one had been copied to. And `useAssetDialogs`' JSDoc still promised a
+`dialogs` node from the pre-split draft, which it has never returned.
+
+**Also fixed:** the card footer nested a second flex box inside a band that is
+already `flex-wrap`, making the pair unwrappable and cancelling the wrap the
+band exists for; `useBackupDownload` moved to `src/hooks/` now that a second
+route uses it; the duplicate `useAssets()` observer went (the screen passes its
+list in); `addAssetButton` was inlined with its two-call-site comment corrected;
+`portfolio.ts`'s header stopped claiming to hold only highlight-card glue;
+`src/README.md` stopped naming the deleted `AssetManager.tsx`; and
+**`navigation-map.md` was updated — I had skipped it here while writing D76,
+which requires it.**
+
+**DECLINED, with the reason:** the review asked to push the dialog state back
+down so opening one does not re-render the whole screen. It is right that the
+state sits above every derivation, and the placement comment claiming otherwise
+is corrected — but pushing it down means either a render prop around the whole
+screen or memoising the row derivations, and neither is worth it for four rows
+that recompute in microseconds. Revisit if the table ever gets long.
+
+**The dialogs split into two files, and the linter is why.** The first draft was
+one `.tsx` exporting a hook that returned JSX;
+`react-refresh/only-export-components` refuses a `.tsx` whose only export is not
+a component. The split it forced — `useAssetDialogs.ts` for the state and the
+writes, `AssetDialogs.tsx` for the rendering — is the separation this project
+makes everywhere else anyway, so the rule improved the shape rather than
+obstructing it.
 
 ## A32 — The `Entry` group and the `/transactions` route — `feat/transactions-route`
 

@@ -1,7 +1,8 @@
-// Pure glue for the Portfolio screen's highlight cards — not in src/lib, that
-// layer stays untouched per this task's scope. Covered by portfolio.test.ts.
+// Pure glue for the Portfolio screen — the highlight cards, and since A31 the
+// delete confirm's cascade counts too. Not in src/lib, that layer stays
+// untouched per this task's scope. Covered by portfolio.test.ts.
 import { yieldSinceStart } from '../../core/derive';
-import type { Asset, Transaction } from '../../core/types';
+import type { Asset, Snapshot, Transaction } from '../../core/types';
 
 export interface PerformanceResult {
   asset: Asset;
@@ -80,4 +81,23 @@ export function incomeEngine(
   if (!asset) return undefined;
   const { dividends, coupons } = byAsset.get(bestId)!;
   return { asset, dividends, coupons };
+}
+
+/**
+ * What deleting an asset cascades over (G2: the asset, its transactions, its
+ * quote key in every snapshot) — structured counts; the confirm dialog owns the
+ * sentence (D8).
+ *
+ * Moved here from `screens/settings/settings.ts` by A31, with the manager it
+ * serves. Not one line of it changed.
+ */
+export function cascadeCounts(
+  assetId: string,
+  transactions: Transaction[],
+  snapshots: Snapshot[],
+): { transactions: number; quoteDays: number } {
+  return {
+    transactions: transactions.filter((t) => t.assetId === assetId).length,
+    quoteDays: snapshots.filter((s) => assetId in s.quotes).length,
+  };
 }

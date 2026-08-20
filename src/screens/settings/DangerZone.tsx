@@ -14,7 +14,7 @@ import {
 import { useClearAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
 import { useDataset } from '../../state/settings';
-import { useBackupDownload } from './useBackupDownload';
+import { useBackupDownload } from '../../hooks/useBackupDownload';
 import type { Dataset } from '../../core/backup/json';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';

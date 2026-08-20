@@ -592,6 +592,12 @@ export const en = {
   assets: {
     edit: 'Edit',
     delete: 'Delete',
+    // A31 review: four rows of identical "Edit / Delete" told a screen reader
+    // nothing about WHICH asset, on a pair where one choice is destructive.
+    // Same shape as `targets.fieldAria`, which A30 got right one commit earlier.
+    editAria: (asset: string) => `Edit ${asset}`,
+    deleteAria: (asset: string) => `Delete ${asset}`,
+    actionsHeader: 'Actions',
     // The leading plus is a <Plus> ICON, not text — it stays out of the string.
     add: 'Add asset',
     empty: 'No assets yet — add your first asset to start tracking.',
@@ -662,7 +668,6 @@ export const en = {
   },
   settings: {
     sections: {
-      portfolio: 'Portfolio',
       data: 'Data',
       automation: 'Automation',
       appearance: 'Appearance',
@@ -808,7 +813,7 @@ export const en = {
       loading: 'Fetching…',
       fetchedAt: (time: string) => `Fetched ${time}`,
       unlinked:
-        'No Inzhur-linked assets yet — link one in Settings → Portfolio.',
+        'No Inzhur-linked assets yet — link one on Portfolio.',
       demo: 'Fetching is disabled in the demo dataset — switch to Live in Settings → Data.',
       feedAsOf: (date: string) => `Inzhur as of ${date}`,
       feedAt: (time: string) => `Inzhur ${time}`,
@@ -901,7 +906,7 @@ export const en = {
     attributes: {
       title: 'Attributes',
       subtitle:
-        'Reference data per asset — created with a transaction, edited in Settings → Portfolio',
+        'Reference data per asset — created with a transaction, edited on Portfolio',
     },
     seasonality: {
       title: 'Seasonality',
@@ -1425,6 +1430,9 @@ export const uk: Dict = {
   assets: {
     edit: 'Змінити',
     delete: 'Видалити',
+    editAria: (asset: string) => `Змінити ${asset}`,
+    deleteAria: (asset: string) => `Видалити ${asset}`,
+    actionsHeader: 'Дії',
     add: 'Додати актив',
     empty: 'Активів ще немає — додайте перший, щоб почати облік.',
     deleteTitle: (name: string) => `Видалити ${name}?`,
@@ -1484,7 +1492,6 @@ export const uk: Dict = {
   },
   settings: {
     sections: {
-      portfolio: 'Портфель',
       data: 'Дані',
       automation: 'Автоматизація',
       appearance: 'Вигляд',
@@ -1619,7 +1626,7 @@ export const uk: Dict = {
       loading: 'Отримання…', // ✎
       fetchedAt: (time: string) => `Отримано ${time}`, // ✎
       unlinked:
-        'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Налаштуваннях → Портфель.',
+        'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
       demo: 'Отримання вимкнено на демонстраційному наборі — перемкніть на Живий у Налаштуваннях → Дані.',
       feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
       feedAt: (time: string) => `Inzhur ${time}`,
@@ -1712,7 +1719,7 @@ export const uk: Dict = {
     attributes: {
       title: 'Атрибути',
       subtitle:
-        'Довідкові дані активу — створюються транзакцією, редагуються в Налаштуваннях → Портфель',
+        'Довідкові дані активу — створюються транзакцією, редагуються в Портфелі',
     },
     seasonality: {
       title: 'Сезонність',

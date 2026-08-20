@@ -37,7 +37,7 @@ import {
   settingsOptInHelper,
   warningSentence,
 } from './import-labels';
-import { useBackupDownload } from './useBackupDownload';
+import { useBackupDownload } from '../../hooks/useBackupDownload';
 import type {
   BackupDiff,
   ImportRejection,

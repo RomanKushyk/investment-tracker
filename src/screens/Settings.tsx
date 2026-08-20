@@ -9,14 +9,13 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
 import { useSettings, type Language, type Theme } from '../state/settings';
-import { AssetManager } from './settings/AssetManager';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
 import { ImportRow } from './settings/ImportRow';
 import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
-import { useBackupDownload } from './settings/useBackupDownload';
+import { useBackupDownload } from '../hooks/useBackupDownload';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
@@ -452,14 +451,13 @@ export function Settings() {
       <ScreenHeader title={t.screen.settings.title} subtitle={t.screen.settings.subtitle} />
 
       <div className="flex flex-col gap-3.5">
-        <Card radius={24} className="animate-in fade-in slide-in-from-bottom-1 p-[22px] duration-300">
-          <SectionLabel>{t.settings.sections.portfolio}</SectionLabel>
-          {/* A30 moved the targets editor to /allocation, beside the card that
-              draws what it edits. A31 takes AssetManager to /portfolio and this
-              whole card goes with it. */}
-          <AssetManager />
-        </Card>
-
+        {/* THE PORTFOLIO CARD IS GONE (A31). Its two halves went to the screens
+            that draw what they edit: the targets to /allocation (A30) and the
+            asset manager to /portfolio. Settings keeps what belongs to the
+            BROWSER — data, automation, appearance — and nothing that belongs to
+            the portfolio. The stagger delays below are left as they are: they
+            are `delay-75`/`delay-150`/`delay-200` on three cards rather than
+            four, which reads as the same cadence starting one step in. */}
         <Card
           radius={24}
           className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-75 duration-300"

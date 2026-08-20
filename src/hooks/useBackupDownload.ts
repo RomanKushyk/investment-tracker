@@ -6,13 +6,13 @@
 // the import can refuse to start when the safety backup could not be created.
 import { toast } from 'sonner';
 
-import { buildBackup } from '../../core/backup/json';
-import { todayIso } from '../../core/dates';
-import { useExportAll } from '../../hooks/queries';
-import { saveTextFile } from '../../lib/download';
-import { dbVersion } from '../../lib/repository';
-import { useSettings } from '../../state/settings';
-import { useT } from '../../i18n/useT';
+import { buildBackup } from '../core/backup/json';
+import { todayIso } from '../core/dates';
+import { useExportAll } from './queries';
+import { saveTextFile } from '../lib/download';
+import { dbVersion } from '../lib/repository';
+import { useSettings } from '../state/settings';
+import { useT } from '../i18n/useT';
 
 export const BACKUP_MIME = 'application/json';
 

@@ -1,21 +1,9 @@
 // Pure helpers for the Settings screen (per-screen glue, imports core only).
 // Covered by settings.test.ts.
+//
+// `cascadeCounts` LEFT for `screens/portfolio/portfolio.ts` with A31, along
+// with the asset manager it serves. What is left here is the reminders field.
 import { isLeadDays } from '../../core/reminders';
-import type { Snapshot, Transaction } from '../../core/types';
-
-// What deleting an asset cascades over (G2: the asset, its transactions, its
-// quote key in every snapshot) — structured counts; the confirm dialog owns
-// the sentence (D8).
-export function cascadeCounts(
-  assetId: string,
-  transactions: Transaction[],
-  snapshots: Snapshot[],
-): { transactions: number; quoteDays: number } {
-  return {
-    transactions: transactions.filter((t) => t.assetId === assetId).length,
-    quoteDays: snapshots.filter((s) => assetId in s.quotes).length,
-  };
-}
 
 /**
  * S8 "Lead time, days": the typed value, or `null` when it is not a whole

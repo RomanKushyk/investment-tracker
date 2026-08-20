@@ -46,6 +46,7 @@ export function RecordCard({
   tag,
   className = '',
   children,
+  footer,
 }: {
   /** Position in the list — drives the stagger only (`60 ms × (i mod 4)`). */
   index?: number;
@@ -56,6 +57,14 @@ export function RecordCard({
   tag?: ReactNode;
   className?: string;
   children: ReactNode;
+  /**
+   * A band BELOW the facts, separated by a hairline (A31, extension § S3).
+   *
+   * Not the header row: that is where A17/D66 closed a 360 px overflow, and
+   * hanging two buttons off it would re-open it. The rule and the 14 px above
+   * and below are the drawing's.
+   */
+  footer?: ReactNode;
 }) {
   return (
     <Card
@@ -78,6 +87,20 @@ export function RecordCard({
         {tag !== undefined && <span className="flex-none">{tag}</span>}
       </div>
       <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">{children}</dl>
+      {footer !== undefined && (
+        <>
+          <div className="bg-hairline mt-3.5 h-px" />
+          {/* `gap-2.5` is the drawing's, and the arithmetic first written here
+              was WRONG (A31 review): `TAP_44` reaches (44 − 30) / 2 = 7 px past
+              each edge, so two neighbours need ≥ 14 px to guarantee no overlap,
+              not 10. What actually saves it is WIDTH — the overlay is
+              `min-w-full`, and both labels render wider than 44 px, so the
+              regions never meet horizontally. An icon-only `sm` action here
+              would need the gap re-derived. Stated so the next caller copies a
+              true rule instead of a comfortable one. */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2.5">{footer}</div>
+        </>
+      )}
     </Card>
   );
 }
