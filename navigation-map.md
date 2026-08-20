@@ -30,7 +30,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1); **TWO SHELLS since A17/D66 — below 768px the sidebar is an off-canvas drawer and a header bar carries the capital; the old 136px rail is gone** |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — **the Transaction panel LEFT for `/transactions` on 2026-08-20 (A32); `/` keeps the quotes, the coupon-due cards and the yield teaser** — quote entry flow live; type select incl. Withdrawal/Redemption (P2 `feat/metrics-exposure`, S10); **"Fetch quotes" button + provenance chips + "Use fetched?" offer (P3 `feat/fetch-quotes`, S1–S3); ghost accrual suggestions + coupon-due card (P3 `feat/fixed-yield`, S4–S5); ReminderStrip above the header (P3 `feat/reminders`, S6)** |
 | `/overview` | Overview | Task 5 | done — 5 KPIs currency-aware (5th "Total return (net)" + "Capital gain" relabel + net-of-tax income line + drift chip, P2 `feat/metrics-exposure`); values tween ~300ms on toggle (Task 7); "Next payouts" projects user-created bonds too (P3 `feat/fixed-yield`); ReminderStrip above the ScreenHeader (P3 `feat/reminders`, S6) |
-| `/transactions` | Transactions | A32 (2026-08-20) | done — the Transaction panel moved here off `/`, and the ledger is the FULL history rather than the last three. The `Entry` group holds this and `/` |
+| `/transactions` | Transactions | A32 (2026-08-20); **two columns A35 (2026-08-20)** | done — the Transaction panel moved here off `/`, and the ledger is the FULL history rather than the last three. The `Entry` group holds this and `/`. **Since A35 the form and the ledger sit SIDE BY SIDE above a 944 container** (form 360, gap 24, ledger to the remainder capped at 884), and the ledger's height is measured from its own position rather than a constant |
 | `/balances` | Balances | Task 6 | done |
 | `/payouts` | Payouts | Task 6 | done |
 | `/yield` | Yield | Task 6 | done — + Total return & XIRR (ann.) columns (P2 `feat/metrics-exposure`, S9b) |
@@ -128,10 +128,13 @@ byte-for-byte. There is no third geometry — the old 136px rail is gone, and a
   flow at the same time. With a field focused they must stay above the keyboard.
 - `+ Новий актив…` in the transaction panel opens its sub-form with no horizontal
   scroll.
-- **The Transaction / Recent-transactions `<aside>` fills the row whenever the two
-  columns are stacked** — 360, 500, 767 and 900 all measure zero dead space to its
-  right. Its `max-w-[360px]` is a container query (`@min-[884px]`) and re-engages
-  only when the two columns actually share a row: 340 at 1280, 360 at 1920.
+- **The `<aside>` fills the row whenever the two columns are stacked** — 360, 500,
+  767 and 900 all measure zero dead space to its right. Its `max-w-[360px]` is a
+  container query (`@min-[884px]`) and re-engages only when the two columns
+  actually share a row: 340 at 1280, 360 at 1920. **The aside is the COUPON-DUE
+  card and nothing else** — the Transaction and Recent-transactions cards this
+  bullet used to name left for `/transactions` at A32, and on a day with no
+  coupon due the aside is not rendered at all.
   A fixed 360-wide panel under a 733-wide column is the regression this replaced.
 
 **The overlays (S5)**
@@ -212,8 +215,11 @@ Interactions to verify:
 
 On seed:
 - Header **"Транзакції"** / "Transactions", subtitle **"Запишіть купівлю, продаж, купон або дивіденд."**
-- The **Transaction panel**, unchanged in substance — same form, same 9 type options, same atomic `recordTransaction(tx, newAsset)` quick-create path with its dashed "New asset details" sub-card. It renders in a **560px column**, not the full 1196: a form stretched that wide reads as a settings page rather than an entry.
-- Below it the **FULL ledger, newest first — 18 rows on the seed**, not the last three. The cap existed only because the panel was a guest on `/`. The list scrolls inside its own `Scroller` (D65) above 420px.
+- **TWO COLUMNS since A35 (2026-08-20), and they were drawn before A32 shipped.** `where-things-live.dc.html` § S4 is captioned "the form keeps its 360 column; the ledger takes the rest"; A32 stacked both cards in one `max-w-[560px]` column instead, which is why the screen read as half empty. Measured at 1440 with the rail out (content box **1124**): form **360**, gap **24**, ledger **740**. **The LEDGER CARD's right edge is now flush with the content box; before A35 the single column ended 564 px short of it.** The ledger's TEXT sits a further **28** in — that is the `Scroller` gutter and it is contractual (D65), so a figure quoted for ink and one quoted for the card are 28 apart on purpose. *(An earlier draft of this bullet said "590", which is the ink measured against `main`'s BORDER box — two bases in one sentence.)*
+- The **Transaction panel**, unchanged in substance — same form, same 9 type options, same atomic `recordTransaction(tx, newAsset)` quick-create path with its dashed "New asset details" sub-card. The form is the NARROW column and never exceeds **360** beside the ledger, **560** when stacked: a form stretched wide reads as a settings page rather than an entry.
+- Beside it the **FULL ledger, newest first — 18 rows on the seed**, not the last three. The cap existed only because the panel was a guest on `/`. It scrolls inside its own `Scroller` (D65), and **its height cap is the viewport's above 944** — `calc(100dvh − 197px − var(--app-header-h))` — so at 1440 × 900 **all 18 rows are visible and neither the page nor the column scrolls**. Below 944 the cap is 420 again.
+- **The wrap point is 944** = 360 + 24 + 560 — the sum of the flex bases plus the column gap, and also the container query. They agreed by coincidence until `src/screens/transactions-layout.test.ts` was written to pin them: change the row to `gap-x-8` and the real wrap point becomes 952 while the queries still fire at 944, which strands the form at 360 on a line of its own. Container **933 → stacked**, **955 → side by side** (360 + 24 + 571), **826 → stacked at 560 each**, **336 → stacked at 336**. Column gap 24, stacking gap **14**.
+- **Collapsing the desktop rail** widens the container by 244 AND draws the 57px `AppHeader`; `--app-header-h` is what keeps the page from scrolling by exactly that height.
 - **NO microlabel above the list (F6).** "Останні транзакції" became false the moment the list stopped being the last three, and the design session declined to invent a replacement for a heading the screen title already gives.
 - Empty ledger → **"Транзакцій ще немає."** with the form still shown — an empty ledger is exactly when someone wants it.
 

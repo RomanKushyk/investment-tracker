@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -58,7 +58,50 @@ const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as con
 const inputClass =
   'h-9 rounded-[9px] border border-hairline bg-card px-3 font-body text-[13px] text-ink transition';
 
+/**
+ * The ledger's distance from the top of the DOCUMENT, published as a custom
+ * property so its scroll box can size itself against the viewport (A35 review).
+ *
+ * MEASURED, NOT MIRRORED — the same answer `useActionBarHeight` gives on `/`,
+ * and for the same reason. A first draft summed the parts by hand:
+ * `main`'s `pt-8`, `ScreenHeader`'s rendered 85, this card's `py-4`, plus a
+ * separate `--app-header-h` published by `Layout` because the desktop header
+ * mounts when the rail collapses. That is four components' internals copied
+ * into one constant, with no test and nothing to notice when any of them moves
+ * — and it was already wrong twice over: `AppHeader` carries
+ * `pt-[env(safe-area-inset-top)]` on top of its `h-14`, which the 57 never
+ * counted, and nothing counted the inset at all when no header is drawn.
+ * Reading the box answers all of it at once, including the cases nobody
+ * enumerated.
+ *
+ * DOCUMENT-RELATIVE, not viewport-relative: `getBoundingClientRect().top` moves
+ * with the scroll position, so a page that scrolls at all would feed its own
+ * offset back into the box's height. Adding `scrollY` pins it to the layout.
+ *
+ * The observer watches `document.body` as well as the card, because everything
+ * that moves this number is ABOVE the card — the header mounting, the header's
+ * title rewrapping in the other language, the window changing width.
+ */
+function useLedgerTop() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const write = () => {
+      const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+      el.style.setProperty('--ledger-top', `${top}px`);
+    };
+    write();
+    const observer = new ResizeObserver(write);
+    observer.observe(document.body);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
 export function TransactionPanel() {
+  const ledgerRef = useLedgerTop();
   const f = useFormat();
   const t = useT();
   const assetsData = useAssets().data;
@@ -157,9 +200,21 @@ export function TransactionPanel() {
 
   return (
     <>
+      {/* THE NARROW COLUMN — 360 beside the ledger, 560 when stacked, never the
+          full width. The drawing says `flex:0 1 360px`; grow-1 plus a cap
+          renders the same 360 beside the ledger AND still fills a wrapped line
+          up to the 560 this screen has always used. `min-w-0` because a flex
+          item without it will not shrink below its content and forces
+          horizontal overflow.
+
+          The `@container` these query lives on `Transactions.tsx`'s row, this
+          component's ONE caller. A container query with no eligible ancestor
+          evaluates false rather than erroring, so if this panel is rendered
+          anywhere else the caps silently stop applying — it sat in `/`'s aside
+          until A32, and that container's breakpoint is 884, not 944. */}
       <Card
         radius={24}
-        className="animate-in border-panel-border bg-panel fade-in border px-[22px] py-5 duration-300"
+        className="animate-in border-panel-border bg-panel fade-in min-w-0 max-w-[560px] flex-[1_1_360px] border px-[22px] py-5 duration-300 @min-[944px]:max-w-[360px]"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
@@ -302,8 +357,53 @@ export function TransactionPanel() {
           padding gone the two agree, and the result is the extension's drawn
           `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
           ImportDialog.tsx carries the same warning; this repeated it. */}
-      <Card className="py-4">
-        <Scroller radius={20} className="max-h-[420px]">
+      {/* THE WIDE COLUMN — `flex:1 1 560px` as drawn; the ledger is what the
+          route is for and it takes the remainder. Its cap is released only
+          above 944, so a wrapped line keeps the 560 this screen shipped with.
+
+          THE HEIGHT CAP IS THE VIEWPORT'S ABOVE 944, not 420. That number was
+          chosen when this card sat UNDER the form and had to leave room for it;
+          side by side it only has to leave the header and the page's own
+          padding, so all 18 seeded rows fit and the PAGE stops scrolling while
+          the column does (D65). Below 944 the cap stays 420 — the card is
+          stacked again there, and 360 must not move.
+
+          `--ledger-top` IS MEASURED, and 80 is this box's own two paddings —
+          `py-4` here (32) plus `main`'s `pb-12` (48). Everything ABOVE the card
+          is read off the layout rather than summed by hand; see `useLedgerTop`.
+          197 survives only as the pre-measurement fallback for the first paint.
+
+          `max()` FLOORS IT AT 200, because a `max-height` calc that resolves
+          negative is clamped to zero, not ignored (A35 review): a wide but very
+          short window — a split screen, a short embedded frame, a dragged
+          desktop window — collapsed the card to an empty box with a scroll rail
+          and eighteen invisible rows.
+
+          THE CAP IS 884 ABOVE 944, not none. An unbounded ledger renders 1860
+          wide on a 2560 monitor, and each row is a `justify-between` with a
+          truncated label at one end and a short amount at the other — the same
+          defect `/` caps its own column at 884 for. Reusing that number rather
+          than inventing one: it is the app's existing answer to "a column that
+          must not stretch". Below container 1268 it never binds.
+
+          THE HEIGHT EASES, because the container query flips DISCRETELY while
+          the rail's width animates over 260 ms (D66/S1), so this box would
+          otherwise snap mid-transition while everything around it glides —
+          against the standing "nothing pops or snaps" rule.
+
+          AND THIS BOUNDS THE LEDGER ONLY. The form is uncapped deliberately —
+          the quick-create reveal makes it tall, and a tall FORM should scroll
+          the page rather than trap its own submit button. "The page stops
+          scrolling" is a claim about the read-only ledger state, which is the
+          state the complaint was about. */}
+      <Card
+        ref={ledgerRef}
+        className="min-w-0 max-w-[560px] flex-[1_1_560px] py-4 @min-[944px]:max-w-[884px]"
+      >
+        <Scroller
+          radius={20}
+          className="ease-soft max-h-[420px] transition-[max-height] duration-[260ms] @min-[944px]:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
+        >
           {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS (A32
               review). Radix wraps a viewport's children in its own
               `min-width:100%; display:table` box, and a table box is sized

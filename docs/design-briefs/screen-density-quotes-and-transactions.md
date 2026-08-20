@@ -111,8 +111,12 @@ serve.
 
 **On a coupon day the same row is narrower and the void is smaller.** The aside
 takes 360, so the ritual column is 1124 − 24 − 360 = 740, the card content box
-is 700, and the void is 700 − 176 − (16 + 160 + 16 + 52) = **280** *(derived,
-not measured — the seed's next coupon is 25.08.2026)*. The screen therefore has
+is 700, so the name block is 700 − 308 = 392 and ends at x = 456; the input
+starts a gap later at 472, and the void is 472 − 176 = **296** *(derived, not
+measured — the seed's next coupon is 25.08.2026)*. **A first draft wrote 280 by
+subtracting the fixed parts from the content box, which lands on the name
+block's right EDGE and drops the trailing gap; the same formula applied to the
+1440 case returns 424 against the measured 440, which is how it was caught.** The screen therefore has
 two different row widths depending on the calendar, which is the second thing
 worth fixing and the reason `max-w-[884px]` exists at all.
 
@@ -123,7 +127,10 @@ worth fixing and the reason `max-w-[884px]` exists at all.
 ### F-1 — `max-w-[884px]` is a patch, and the change that deletes it is the right one
 
 It was added by A32 *because* the aside became conditional: without it the rows
-would jump 812 → 1124 the day a coupon is recorded. A permanent rail removes the
+would jump 740 → 1124 the day a coupon is recorded — **740, not the 812 a
+first draft wrote: that figure is `1196 − 24 − 360`, the BORDER box, carried
+over from the extension's own arithmetic into a paragraph that had already moved
+to the content box.** A permanent rail removes the
 condition, so the patch goes with it. **A change that deletes a branch is more
 likely to be right than one that adds a rule**, and this is the brief's own test
 of S1.

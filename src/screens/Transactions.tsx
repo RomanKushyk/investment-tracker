@@ -24,10 +24,40 @@ export function Transactions() {
         title={t.screen.transactions.title}
         subtitle={t.screen.transactions.subtitle}
       />
-      {/* The panel renders two cards — the form, then the ledger — in a column
-          that is narrower than the screen at desktop widths, because a form
-          stretched to 1196 px reads as a settings page rather than an entry. */}
-      <div className="flex max-w-[560px] flex-col gap-3.5">
+      {/* TWO COLUMNS, AND THEY ARE NOT THIS TASK'S INVENTION (A35).
+          `design/extensions/where-things-live.dc.html` § S4 has drawn them since
+          2026-08-19 — its sheet is captioned "the form keeps its 360 column; the
+          ledger takes the rest" — and A32 shipped a single stacked
+          `max-w-[560px]` column instead, which is the half-empty screen the
+          owner reported.
+
+          THE SAME MECHANISM `/` USES, and the first draft of this reached for a
+          second one (A35 review). `DailyQuotes.tsx` solves the identical problem
+          — two columns that must not strand a fixed-width child on a wrapped
+          line — as `@container flex flex-wrap` with GROW-1 bases and a
+          container-query cap. That shape matches the reference's literal
+          `flex-wrap:wrap` markup, keeps ONE idiom across both screens, and
+          keeps a width cap at every size. A `flex-col` → `flex-row` query
+          looked equivalent and was not: it dropped `max-w-[560px]`, so between
+          a 561 and a 943 container the form stretched to the full width — the
+          exact "a form stretched wide reads as a settings page" failure the
+          comment beside it claimed to prevent.
+
+          GROW 1 WITH A CAP, not the drawing's `flex:0 1 360px`, and the
+          rendered result is identical: above 944 `max-w-[360px]` freezes the
+          form at 360 and flexbox hands its unused space to the ledger. Grow 0
+          would strand a wrapped form at 360 on a line of its own.
+
+          944 = 360 + 24 + 560, read off the drawing rather than chosen, and it
+          is also where `flex-wrap` breaks the line by itself — the bases and
+          the query agree by construction rather than by coincidence.
+
+          `gap-x-6 gap-y-3.5` — 24 BETWEEN the columns as drawn, 14 between them
+          when stacked, which is what ships today. Three numbers exist for the
+          stacked gap (14 today, the row's 24, the reference's 12 at 360); a
+          two-axis gap keeps the drawn one without moving a shipped mobile
+          screen. */}
+      <div className="@container flex flex-wrap items-start gap-x-6 gap-y-3.5">
         <TransactionPanel />
       </div>
     </div>

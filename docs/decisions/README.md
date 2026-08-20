@@ -130,6 +130,7 @@ only for the decision you actually need.
 | D74 | The funds' `nav` history is archived and never shown; the read-time conversion is rejected — closes O21 | 2026-08-18 |
 | D75 | A hand-entered value is marked, an archive one is not — closes O22 by dissolving it into D33 | 2026-08-19 |
 | D76 | Every branch is code-reviewed before it is squash-merged into `dev` — **amends D73's "no gate"** | 2026-08-19 |
+| D77 | A merged reference wins the LAYOUT, not the class list — the reference owns the RESULT, the code owns the mechanism; three divergences on `/transactions` recorded, and the one that was NOT allowed named | 2026-08-20 |
 
 ## A pattern these entries kept finding
 

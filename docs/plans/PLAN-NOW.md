@@ -57,8 +57,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **done** (2026-08-20) — Phase 7 complete |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
-| A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only** |
-| A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **todo — NOT design-blocked.** `where-things-live.dc.html` § S4 has drawn this since 2026-08-19; A32 shipped a stacked column instead |
+| A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
+| A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
 
 ---
 
@@ -1748,7 +1748,7 @@ the layout around it.**
 **1124**, not the 1196 border box. The ritual column is capped at 884 and the
 quote row's content box is 844, carrying a **440 px void — 52 % of the row**
 — between where the subline ends (x 176) and where the input starts (x 616).
-On a coupon day the same row is 700 wide and the void is 280: **the screen has
+On a coupon day the same row is 700 wide and the void is 296: **the screen has
 two row widths depending on the calendar.**
 
 **What it killed.** A per-asset sparkline, withdrawn before any code on 572
@@ -1785,23 +1785,37 @@ form    flex:0 1 360px; min-width:0     <- NARROW, does not grow
 ledger  flex:1 1 560px; min-width:0     <- WIDE, grows
 ```
 
-- [ ] `src/screens/Transactions.tsx` replaces its `flex max-w-[560px] flex-col
-      gap-3.5` wrapper with the row above. `TransactionPanel` has exactly one
-      caller, so the split is free.
-- [ ] **`min-w-0` on both columns** — the reference carries `min-width:0` on
+**What shipped, and where it diverges — D77.** The row is the drawing's
+`flex-wrap` and the same idiom `/` uses. The form takes `flex-[1_1_360px]` with
+`max-w-[560px]` / `@min-[944px]:max-w-[360px]` rather than the drawn grow-0:
+the rendered width is identical beside the ledger, and a wrapped form still
+fills its line up to the 560 this screen shipped with instead of stranding at
+360. Gap is `gap-x-6 gap-y-3.5` — the drawn 24 between columns, today's 14 when
+stacked. The ledger's height cap is the viewport's above 944 rather than the
+drawn `max-height:328px`.
+
+- [x] `src/screens/Transactions.tsx` replaces its `flex max-w-[560px] flex-col
+      gap-3.5` wrapper with the row above, as `@container flex flex-wrap
+      items-start gap-x-6 gap-y-3.5` on ONE element. `TransactionPanel` has
+      exactly one caller, so the split is free.
+- [x] **`min-w-0` on both columns** — the reference carries `min-width:0` on
       both, and `TransactionPanel.tsx` already documents what its absence cost
       the ledger (51 px clipped at 360, silently).
-- [ ] The ledger's `max-h-[420px]` was chosen when the card was stacked BELOW
+- [x] The ledger's `max-h-[420px]` was chosen when the card was stacked BELOW
       the form. In a column it becomes a function of the viewport, so the page
       stops scrolling and the column does (D65).
-- [ ] **Below the wrap point the stacking gap stays 14** (`gap-3.5`), not the
-      row's 24 — the reference draws `margin-bottom:12px` at 360, so this needs
-      a decision recorded, not a silent change.
-- [ ] At 1440 the rightmost ink reaches within 40 px of `main`'s content box.
+- [x] **Below the wrap point the stacking gap stays 14**, not the row's 24 —
+      the reference draws `margin-bottom:12px` at 360, so this needed a decision
+      recorded, not a silent change. **Recorded as D77**, with the other two
+      divergences.
+- [x] At 1440 the rightmost ink reaches within 40 px of `main`'s content box.
       Today it falls **590 short**.
-- [ ] Every seeded row visible without scrolling at 900 px of viewport where the
+- [x] Every seeded row visible without scrolling at 900 px of viewport where the
       column allows it. **The seed has 18 transactions** — any acceptance
       figure above that is untickable.
-- [ ] At 360, pixel-identical to today; horizontal overflow 0 px.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test`, then `/code-review` (D76).
+- [x] At 360, pixel-identical to today; horizontal overflow 0 px.
+- [x] `pnpm lint && pnpm typecheck && pnpm test`, then `/code-review` (D76).
+      **Ticked after the review closed, not inside the commit under review** —
+      the first pass did the latter, claiming an event that had not happened.
+      Two passes ran: 13 findings then 10, all taken. 687 tests.
 
