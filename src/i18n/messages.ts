@@ -630,6 +630,10 @@ export const en = {
     title: 'Targets',
     savedToast: 'Targets saved',
     saveFailed: 'Could not save targets — please try again.',
+    // A partial write is not a failure and not a success; naming the count is
+    // the only way the user knows which rows are still theirs to fix.
+    savePartial: (written: number, total: number) =>
+      `Saved ${written} of ${total} — the rest were not written.`,
     invalid: 'Enter a percentage.',
     fieldAria: (asset: string) => `${asset} target, %`,
     sumOk: (sum: string) => `Σ ${sum}`,
@@ -1466,6 +1470,8 @@ export const uk: Dict = {
     title: 'Цілі',
     savedToast: 'Цілі збережено',
     saveFailed: 'Не вдалося зберегти цілі — спробуйте ще раз.',
+    savePartial: (written: number, total: number) =>
+      `Збережено ${written} з ${total} — решту не записано.`,
     invalid: 'Введіть відсоток.',
     fieldAria: (asset: string) => `Ціль ${asset}, %`,
     sumOk: (sum: string) => `Σ ${sum}`,

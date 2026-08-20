@@ -6,10 +6,11 @@ import type { ReactNode } from 'react';
  *
  * TWO BRANCHES, AND THE EMPTY ONE EMITS NO WRAPPER. This was a fragment — an
  * `<h2>` and a `<p>` with no container — so "a button top right" had nothing to
- * attach to on nine of the ten routes. It could have grown a row unconditionally
+ * attach to on every route but one. It could have grown a row unconditionally
  * and simply not filled it; instead the actionless branch returns exactly the
  * markup it always returned, which is what makes the brief's acceptance item
- * ("the nine callers render byte-identically") literally true rather than
+ * ("every actionless caller renders byte-identically") literally true rather
+ * than
  * approximately true (extension F2).
  *
  * The row's arithmetic, measured on the drawing: `text-[26px]` renders a 39 px

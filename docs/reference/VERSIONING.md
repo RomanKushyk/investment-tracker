@@ -15,7 +15,7 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
 | Part | Bump when |
 |------|-----------|
-| **MAJOR** | Breaking changes to stored data — a Dexie schema `version()` bump, a seed/record shape existing databases can't read, removed screens or behavior. |
+| **MAJOR** | Breaking changes to stored data — a Dexie schema `version()` bump, a seed/record shape existing databases can't read, removed screens or behavior. **RELOCATION IS NOT REMOVAL** (settled at 1.7.0): Phase 7 deleted Settings' Portfolio card and `/`'s Transaction aside, and read literally that is "removed screens or behavior" — but every capability arrived somewhere else in the same release, no stored data changed and no user lost anything they could do before. That is MINOR. The test is whether a capability LEFT THE APP, not whether it left a screen. |
 | **MINOR** | New user-visible capability: a new screen, chart, flow, or setting (backward-compatible). |
 | **PATCH** | Bug fixes, cosmetic/copy tweaks, dependency bumps with no visible behavior change. |
 

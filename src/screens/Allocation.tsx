@@ -64,20 +64,45 @@ export function Allocation() {
   // discarding mid-save still persisted the values and then congratulated the
   // user on a page they had explicitly abandoned. A save cannot be un-issued;
   // the honest answer is that it cannot be abandoned either.
-  const saving = updateAsset.isPending;
+  //
+  // LOCAL STATE, NOT `updateAsset.isPending` (1.7.0 release review): a TanStack
+  // mutation observer holds ONE current mutation, so each `mutateAsync` replaces
+  // the last and `isPending` reports only the most recently STARTED write. With
+  // four targets edited it went false the moment the fourth settled — which is
+  // not the moment the batch is done, because four independent IndexedDB
+  // requests have no ordering guarantee. The lockout lifted mid-batch and BUG 3
+  // was open again through a different door.
+  const [saving, setSaving] = useState(false);
 
+  // `allSettled`, NOT `all`, and the difference is what the user is told. `all`
+  // rejects on the FIRST failure while the other writes are already committed,
+  // so a partial save reported itself as a total failure: the user read "could
+  // not save", left, and three of four targets had silently changed. Nothing
+  // here can be a transaction — `updateAsset` is one row per call — so the
+  // honest move is to count what landed and say so.
   function saveTargets() {
-    Promise.all(
+    setSaving(true);
+    void Promise.allSettled(
       pending.map((patch) =>
         updateAsset.mutateAsync({ id: patch.id, patch: { targetPct: patch.targetPct } }),
       ),
-    )
-      .then(() => {
+    ).then((results) => {
+      setSaving(false);
+      const written = results.filter((r) => r.status === 'fulfilled').length;
+      if (written === results.length) {
         setDrafts({});
         mode.exit();
         toast.success(t.targets.savedToast);
-      })
-      .catch(() => toast.error(t.targets.saveFailed));
+        return;
+      }
+      // EDIT MODE STAYS OPEN and the drafts stay put. The rows that DID land
+      // stop differing from stored once the query invalidates, so they drop out
+      // of `pending` on their own and the editor is left holding exactly the
+      // ones still to write. Nothing to reconcile by hand.
+      toast.error(
+        written === 0 ? t.targets.saveFailed : t.targets.savePartial(written, results.length),
+      );
+    });
   }
 
   // Leaving edit mode by any path drops the drafts — the stored targets are

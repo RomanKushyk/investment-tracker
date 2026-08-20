@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -84,19 +84,55 @@ const inputClass =
  */
 function useLedgerTop() {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  const last = useRef(-1);
+
+  const measure = useCallback(() => {
     const el = ref.current;
     if (el === null) return;
-    const write = () => {
-      const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-      el.style.setProperty('--ledger-top', `${top}px`);
-    };
-    write();
-    const observer = new ResizeObserver(write);
-    observer.observe(document.body);
-    observer.observe(el);
-    return () => observer.disconnect();
+    const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+    // The guard is not an optimisation. Writing unconditionally from inside a
+    // ResizeObserver whose subject this property RESIZES is the textbook
+    // observe → write → resize cycle, and the browser reports it as
+    // "ResizeObserver loop completed with undelivered notifications".
+    if (top === last.current) return;
+    last.current = top;
+    el.style.setProperty('--ledger-top', `${top}px`);
   }, []);
+
+  // Cheap, and it covers a route change or a language switch landing new text
+  // above the card.
+  useLayoutEffect(measure);
+
+  // A ResizeObserver WATCHES SIZE AND THIS PUBLISHES A POSITION, so the subject
+  // has to be an element that actually resizes when the card moves (1.7.0
+  // release review, then corrected again by measuring the fix). Collapsing the
+  // desktop rail mounts `AppHeader` and pushes this card down 57 px, and
+  // neither obvious subject notices: `document.body` is floored at the viewport
+  // by `Layout`'s `min-h-dvh` whenever the content fits, and the card's own box
+  // is content-driven and unchanged while its height is under the cap.
+  //
+  // `main` IS the element that changes — it is `flex-1` under the column the
+  // header joins, so it loses exactly the header's height. Observing it turns a
+  // position problem into the size problem an observer can answer.
+  //
+  // And rendering does NOT catch this on its own: `createBrowserRouter` builds
+  // each route's element ONCE, so `<Outlet/>` hands React the identical element
+  // object and the subtree bails out of re-rendering. The first fix relied on
+  // that render and was measured doing nothing.
+  useEffect(() => {
+    const el = ref.current;
+    const main = el?.closest('main');
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    if (main !== null && main !== undefined) observer.observe(main);
+    if (el !== null) observer.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [measure]);
+
   return ref;
 }
 
