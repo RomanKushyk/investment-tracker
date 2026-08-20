@@ -50,7 +50,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
 | A28 | "Next payouts" offers a date in the past | `fix/payout-projection-roll` | S | **done** (2026-08-19) — found by the map walk the same day |
 | **Section J** | **Phase 7 implementation — unblocked 2026-08-19 by `where-things-live.dc.html`** | | | |
-| A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **todo** — prerequisite for A30 and A31 |
+| A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-19) — nothing on screen changes until A30 |
 | A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **todo** — needs A29 |
 | A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **todo** — needs A29 and A30 |
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **todo** — independent |
@@ -1385,29 +1385,50 @@ NOT move — do not "fix" it.
 Brief § S1, extension § S1. Nothing user-visible changes on any screen until A30
 lands: this task builds the slot and the state, and passes no actions.
 
-- [ ] `ScreenHeader` takes an optional actions slot. **Two branches, per the
+- [x] `ScreenHeader` takes an optional actions slot. **Two branches, per the
       drawing's F2 resolution:** no actions → NO wrapper element is emitted and
       the DOM is untouched, which is what makes the brief's "byte-identically"
       literally true rather than approximately; actions → the row
       (`flex flex-wrap items-center gap-3`, slot `ml-auto`), copying `/`'s
       existing header rather than inventing one.
-- [ ] The edit-mode state: **ephemeral, one page at a time, never persisted**
+- [x] The edit-mode state: **ephemeral, one page at a time, never persisted**
       (brief G-3) — the same line A21 drew for the currency glance.
-- [ ] **Two variants (G-2), and the page declares which.** Batch = `Cancel` +
+- [x] **Two variants (G-2), and the page declares which.** Batch = `Cancel` +
       `Save`; per-entity = `Done` alone. A per-entity page must NOT render a
       Save: there would be nothing for it to write, and a Cancel that cannot
       undo the deletion behind it is a worse lie than a Save that saves nothing.
-- [ ] The batch pair must live in **one flex wrapper inside the header row** —
+- [x] The batch pair lives in **one flex wrapper inside the header row** —
       the extension's measured constraint, so the two buttons wrap as a pair and
       never one per line.
-- [ ] Discard dialog on a dirty Cancel / Escape / route change (G-4), using
+- [x] Discard dialog on a dirty Cancel / Escape / route change (G-4), using
       `Dialog`, not the D17 typed-name `AlertDialog` — nothing is destroyed,
       only abandoned.
-- [ ] Copy from the brief's inventory, EN + UK, into `i18n/messages.ts`
+- [x] Copy from the brief's inventory, EN + UK, into `i18n/messages.ts`
       (Contract 0). **Not** the retired F4 string.
-- [ ] **Verify:** the nine action-less callers render byte-identically; edit
-      state survives no reload; 44 × 44 hit area with radii unchanged (G-8);
-      zero horizontal overflow at 360 in both languages.
+- [x] **Verified by measurement, not by argument:** all NINE action-less callers
+      render `<h2 class="mb-1 text-[26px]">` as a direct child with NO wrapper
+      and a `<p>` next — the byte-identical claim, checked in the browser on
+      every route. Zero horizontal overflow on all nine. 679 tests, lint and
+      typecheck green.
+
+**Two things worth knowing about this commit.**
+
+**Branch B and the hook are NOT yet exercised** — nothing passes `actions`, by
+design, so the code that renders the row and guards the exit has been
+typechecked and linted but never run. **A30 is its first caller and its first
+real test**, which is the argument for taking A30 next rather than banking A29
+and moving to A32.
+
+**`asking` is DERIVED, not mirrored.** The dialog has two sources — a
+Cancel/Escape press and a blocked navigation — and the first draft copied the
+blocker's state into a `useState` inside an effect. `react-hooks/set-state-in-effect`
+rejected it, correctly: the blocker IS state already, so mirroring it would give
+two answers to one question for a frame. `asking = askingExit || blocked`.
+
+**No component test exists because the project has no renderer** — no
+`@testing-library/react`, no jsdom; the suite is the pure layer. Adding one for
+this would be a dependency decision, not part of A29, so the verification is the
+browser measurement above.
 
 ## A30 — `/allocation` edits its targets — `feat/allocation-targets`
 

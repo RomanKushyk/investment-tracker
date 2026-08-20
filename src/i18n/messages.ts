@@ -788,6 +788,19 @@ export const en = {
       reinvest_6475: 'Reinvest (…6475)',
     },
   },
+  // Phase 7 (A29). The screen-level edit control and the one dialog that guards
+  // it. Deliberately NOT a per-page vocabulary: two screens use these words and
+  // a third would too.
+  edit: {
+    edit: 'Edit',
+    cancel: 'Cancel',
+    save: 'Save',
+    done: 'Done',
+    discardTitle: 'Discard changes?',
+    discardBody: 'The changes on this page have not been saved. Leaving now discards them.',
+    keepEditing: 'Keep editing',
+    discard: 'Discard',
+  },
   dailyQuotes: {
     fetch: {
       idle: 'Fetch quotes',
@@ -1590,6 +1603,16 @@ export const uk: Dict = {
       reinvest_reit: 'Реінвестиція (REIT)',
       reinvest_6475: 'Реінвестиція (…6475)',
     },
+  },
+  edit: {
+    edit: 'Редагувати',
+    cancel: 'Скасувати',
+    save: 'Зберегти',
+    done: 'Готово',
+    discardTitle: 'Відхилити зміни?',
+    discardBody: 'Зміни на цій сторінці не збережено. Якщо вийти зараз, їх буде відхилено.',
+    keepEditing: 'Продовжити редагування',
+    discard: 'Відхилити',
   },
   dailyQuotes: {
     fetch: {
