@@ -695,7 +695,7 @@ it concurrently with the i18n sweep.
 
 ## Cross-phase rules
 
-- Branches as named; plain conventional commits; squash-merge to `dev`; no AI attribution in any git artifact.
+- Branches as named; plain conventional commits; **`/code-review` on the branch before every squash-merge — findings fixed, or declined in the merge commit body with the reason (D76)**; squash-merge to `dev`; no AI attribution in any git artifact.
 - `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + tag per section close.
 - `infra/` phases deploy through `.github/workflows/deploy-backend.yml` only. CI drives one named stack and may not touch hosting config (D15).
 - **Standing invariants:** no silent writes — fetched, derived and server-suggested values reach a draft or a prefill only (G5); empty cell ≠ 0; validate-fully-then-one-transaction; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.

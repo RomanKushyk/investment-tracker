@@ -578,3 +578,47 @@ as the collapse control already there (D66), and no lighter.
   phase's question.
 - **`/`'s column layout once the aside is nearly empty** (S4 § 6). Flagged for
   the design session as the one open layout question, rather than guessed here.
+
+---
+
+## Corrections — 2026-08-19, SUPERSEDING three lines above
+
+**A superseding section rather than an edit, because the rule says so.**
+`../design-briefs/README.md`: *"Amend a brief in place, with a dated note, while
+it is still here. Once its extension has merged, never amend — supersede with a
+new brief section."* `design/extensions/where-things-live.dc.html` merged the
+same day, so the three lines below stand as written above and are overruled
+here. All three were found by the design session reading this brief cold, and
+all three would otherwise have been built.
+
+**C1 — supersedes § S1 § 6's button figures.** That section reads *"`Button`
+size `md`: rendered height **44**, radius **11**"*. **That is the below-`md`
+value only.** `src/components/ui/button-variants.ts` ships
+`md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 …'`, so the correct
+pair is **40 / r10 at and above `md`, 44 / r11 below it** — `round(40 × 0.26) =
+10` and `round(44 × 0.26) = 11`. An implementer following the original line
+builds a 44 px header button on the desktop shell.
+
+**C2 — supersedes § S1 § 2's `Could not save — nothing was changed.`** That
+string is **never added**. `t.targets.saveFailed` already ships (*"Could not
+save targets — please try again."*), and `asset.saveFailed` beside it; a generic
+third sentence is less informative than either and would have **no caller at
+all**, since the per-entity variant has no Save to fail.
+
+**C3 — supersedes § S2's and § S3's silence about the strings they invalidate.**
+Three dictionary entries name a home this brief removes, and each must change in
+the commit that moves what it points at:
+
+| Key | After | Moves in |
+|---|---|---|
+| `screen.allocation.subtitle` | *"Current mix vs your targets — edit them here"* | S2 |
+| `screen.attributes.subtitle` | *"…edited on Portfolio"* | S3 |
+| `dailyQuotes.fetch.unlinked` | *"…link one on Portfolio."* | S3 |
+
+The brief found the first two. **The third was found by re-checking**, and its
+neighbour `dailyQuotes.fetch.demo` points at **Settings → Data**, which does not
+move — do not "fix" it.
+
+*(Filed as `PLAN-NOW.md` § Section J's resolution table as well. This section
+exists so the correction reaches an implementer who opens the brief and never
+opens the plan.)*
