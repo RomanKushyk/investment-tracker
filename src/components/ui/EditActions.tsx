@@ -32,8 +32,7 @@ import { useT } from '../../i18n/useT';
  * a fill over a tint because a fill survives inversion: it is the darkest
  * object on the page in light and the brightest in dark, where a tint would
  * need re-deriving and would collide with `pos` / `neg` / `warn`.
- */
-/**
+ *
  * A DISCRIMINATED UNION, not a flag bag (A30 review). With `onSave` merely
  * optional, `<EditActions mode variant="batch" />` typechecked and rendered an
  * enabled Save wired to `undefined` — a button that silently does nothing while

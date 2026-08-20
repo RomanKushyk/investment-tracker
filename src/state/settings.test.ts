@@ -15,6 +15,7 @@ const DEFAULTS: PersistedSettings = {
   remindersEnabled: true,
   reminderLeadDays: 7,
   dismissedReminders: [],
+  collapsedNavGroups: [],
 };
 
 // v0 payloads are what zustand persisted before `version: 1` landed —
@@ -347,5 +348,45 @@ describe('currency: the session value and the persisted default', () => {
     const merged = mergeSettings({ defaultCurrency: 'UAH' }, useSettings.getState());
     expect(merged.currency).toBe('UAH');
     reset();
+  });
+});
+
+// A33 — the collapsed nav groups. PERSISTED, which is the opposite of the call
+// A21 made for the currency glance, so the tests that matter are the ones about
+// surviving a rehydrate.
+describe('collapsedNavGroups', () => {
+  const reset = () => useSettings.setState({ collapsedNavGroups: [] });
+
+  it('toggles a key on and off, idempotently', () => {
+    reset();
+    useSettings.getState().toggleNavGroup('analytics');
+    expect(useSettings.getState().collapsedNavGroups).toEqual(['analytics']);
+    useSettings.getState().toggleNavGroup('analytics');
+    expect(useSettings.getState().collapsedNavGroups).toEqual([]);
+  });
+
+  it('holds several groups at once and removes only the one toggled', () => {
+    reset();
+    useSettings.getState().toggleNavGroup('entry');
+    useSettings.getState().toggleNavGroup('settings');
+    useSettings.getState().toggleNavGroup('entry');
+    expect(useSettings.getState().collapsedNavGroups).toEqual(['settings']);
+    reset();
+  });
+
+  it('survives a rehydrate — a nav arrangement is a preference, unlike the currency glance', () => {
+    const merged = mergeSettings({ collapsedNavGroups: ['analytics'] }, useSettings.getState());
+    expect(merged.collapsedNavGroups).toEqual(['analytics']);
+  });
+
+  it('keeps only strings, and needs no whitelist', () => {
+    // An unknown key would collapse a group that does not exist, which is
+    // harmless — so a fourth group later needs no migration. A non-string is
+    // dropped, like `dismissedReminders`.
+    expect(migrateSettings({ collapsedNavGroups: ['analytics', 7, null, 'ghost'] })).toEqual({
+      ...DEFAULTS,
+      collapsedNavGroups: ['analytics', 'ghost'],
+    });
+    expect(migrateSettings({ collapsedNavGroups: 'analytics' })).toEqual(DEFAULTS);
   });
 });

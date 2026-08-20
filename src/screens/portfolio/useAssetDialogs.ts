@@ -31,8 +31,7 @@ export type DialogState =
  * first draft's doc promised a `dialogs` node, which this has never had —
  * corrected in the A31 review before a second caller destructured it and got
  * `undefined`.
- */
-/**
+ *
  * `assets` is PASSED IN, not read again (A31 review). The calling screen already
  * holds the list; subscribing a second observer only added another re-render on
  * every asset invalidation, for two values — the hue index a new asset takes and

@@ -53,7 +53,7 @@ function fixedCouponFields(v: AssetFormValues) {
     : undefined;
 }
 
-// Create mode (Settings→Portfolio "Add asset" and the TransactionPanel
+// Create mode (/portfolio "Add asset" and the TransactionPanel
 // quick-create): buildNewAsset keeps deriving id/colorKey/createdAt, the
 // form values overlay everything they own (incl. the user-editable code).
 export function assetFromForm(

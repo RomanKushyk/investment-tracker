@@ -11,19 +11,7 @@ describe('parseLeadDays (S8 "Lead time, days")', () => {
   });
 
   it('rejects everything else — the field errors and nothing is written', () => {
-    for (const bad of [
-      '',
-      ' ',
-      '0',
-      '31',
-      '45',
-      '-3',
-      '7.5',
-      '7,5',
-      'abc',
-      '7d',
-      '1e1',
-    ]) {
+    for (const bad of ['', ' ', '0', '31', '45', '-3', '7.5', '7,5', 'abc', '7d', '1e1']) {
       expect(parseLeadDays(bad)).toBeNull();
     }
   });

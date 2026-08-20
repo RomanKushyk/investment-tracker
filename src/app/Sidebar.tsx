@@ -1,6 +1,7 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
-import { NavLink } from 'react-router';
+import { Children, isValidElement, type ReactNode } from 'react';
+import { matchPath, NavLink, useLocation } from 'react-router';
 
 import { useT } from '../i18n/useT';
 import { SIDEBAR_COLLAPSE_ID } from './AppHeader';
@@ -69,13 +70,148 @@ function pillClass(padY: string, radius: string) {
       : 'bg-transparent font-normal text-sidebar-nav');
 }
 
-function GroupLabel({ className = '', children }: { className?: string; children: string }) {
+/**
+ * A nav group and its collapse control (A33, extension § S5).
+ *
+ * TWO CONTROLS ON ONE PANEL, AND THEY MUST NOT BE CONFUSED. The D66 control up
+ * in band 1 is BOXED (26 × 26, r7, a chevron pointing left) and acts on the
+ * SHELL — it takes the whole sidebar away sideways. This one is a BARE glyph in
+ * band 2 with no box of its own, and it acts on the CONTENT IT LABELS, closing
+ * downwards. Boxed = the shell, bare = what it labels; and the axis needs no
+ * learning, because the sidebar leaves sideways and a group closes down.
+ *
+ * THE ACTIVE PILL STAYS VISIBLE UNDER A CLOSED LABEL — the group does NOT
+ * auto-expand. Auto-expanding makes the control refuse the press, and because
+ * the collapsed set is persisted it would rewrite the stored preference on
+ * every navigation into the group, so the arrangement would decay on its own.
+ * A collapsed group is therefore zero rows or one, never a surprise: navigate
+ * away and it closes completely.
+ *
+ * SO THE ACTIVE ROW IS NOT COLLAPSED — it is not COPIED either, and the
+ * difference is the whole of this component's shape. The first draft left the
+ * list whole and rendered a SECOND copy of the active link beneath it. Measured
+ * on `/overview` (the first row of eight): eleven milliseconds after the press
+ * there were two identical pills at full opacity, one at y 248 and one at y
+ * 562, and the second flew 314 px up the rail over the next 200 ms as the list
+ * closed above it. Two `aria-current="page"` links went with it.
+ *
+ * What renders instead is THREE bands — the rows before the active one, the
+ * active one, the rows after — and only the outer two fold. Nothing is
+ * duplicated, so the accessibility tree cannot disagree with itself; and the
+ * pill does not jump or fly, it is carried by the band above it closing, which
+ * is the motion the collapse already had. Expanded, the three bands lay out
+ * exactly as one list did: the gaps between them are the parent column's, the
+ * same 3 px the rows inside them use.
+ *
+ * RADIUS 9, BORROWED FROM THE NAV PILL rather than derived — the extension's
+ * one deliberate D56 exception, argued there. The row draws no fill and no
+ * border in any state (its hover is the pill's own `opacity-85`), so the
+ * proportional rule has no box to read, and deriving it would give two values
+ * for one row (5 at ≥ md, 11 at 44). Do not "fix" it.
+ */
+function NavGroup({
+  groupKey,
+  label,
+  className = '',
+  children,
+}: {
+  groupKey: string;
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const t = useT();
+  const { pathname } = useLocation();
+  const collapsed = useSettings((s) => s.collapsedNavGroups.includes(groupKey));
+  const toggle = useSettings((s) => s.toggleNavGroup);
+
+  const items = Children.toArray(children);
+  // A REAL narrowing and the ROUTER'S OWN MATCHER, both for the same reason
+  // (A33 review): the first draft asserted `isValidElement<{ to?: string }>`,
+  // which is a cast and not a check, then re-implemented path matching by hand.
+  // An object `To` (`{ pathname }`), or a NavLink wrapped in anything, walked
+  // straight through it and built `"[object Object]/"` — the pill silently
+  // vanished on collapse with no type error. `typeof` is the check; `matchPath`
+  // is what NavLink itself resolves with, so the two cannot drift apart.
+  // `end` only for `/`, which is otherwise a prefix of every route.
+  const isActive = (child: ReactNode) => {
+    if (!isValidElement(child)) return false;
+    const to = (child.props as { to?: unknown }).to;
+    return typeof to === 'string' && matchPath({ path: to, end: to === '/' }, pathname) !== null;
+  };
+  const activeIndex = items.findIndex(isActive);
+  const before = activeIndex === -1 ? items : items.slice(0, activeIndex);
+  const after = activeIndex === -1 ? [] : items.slice(activeIndex + 1);
+
+  // A band folds; the active row never does. Empty bands render NOTHING rather
+  // than a zero-height flex item, which would still draw the column's 3 px gap.
+  const fold = (rows: ReactNode[], key: string) =>
+    rows.length === 0 ? null : (
+      <div
+        key={key}
+        // `grid-rows-[1fr]` → `[0fr]` animates a list of unknown height with no
+        // measurement, which is what lets the reveal keep D7's asymmetry (300
+        // in, 220 out) without a ResizeObserver.
+        className={`grid transition-[grid-template-rows] ease-soft ${
+          collapsed ? 'grid-rows-[0fr] duration-220' : 'grid-rows-[1fr] duration-300'
+        }`}
+      >
+        {/* `inert` while collapsed, and it is NOT belt-and-braces (A33 review):
+            `grid-rows-[0fr]` + `overflow-hidden` clips PAINT and nothing else,
+            so every link stayed in the tab order and in the accessibility tree
+            — the focus ring walked off-screen for eight stops under a button
+            announcing `aria-expanded="false"`. The shell collapse two hundred
+            lines below already had this exact fix; the group did not. */}
+        <div
+          inert={collapsed || undefined}
+          className="flex min-h-0 flex-col gap-[3px] overflow-hidden max-md:gap-2"
+        >
+          {rows}
+        </div>
+      </div>
+    );
+
   return (
-    <div
-      className={`mx-3.5 mb-1.5 text-[10px] tracking-[.12em] text-sidebar-muted uppercase ${className}`}
-    >
-      {children}
-    </div>
+    <>
+      <button
+        type="button"
+        onClick={() => toggle(groupKey)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? t.nav.expandGroup(label) : t.nav.collapseGroup(label)}
+        // `h-[18px]` and the chevron on `ml-auto` at the row's far right are
+        // the drawing's, not a choice — S5 pins `height:18px; margin:0 14px 6px`
+        // with `margin-left:auto` on the glyph (A33 review). `max-md:h-11` is
+        // the G-8 hit area the extension names outright: this row draws no fill
+        // in any state, so it takes a REAL box and pushes the first pill down
+        // rather than overlapping it, which is what tap-target.ts requires of a
+        // box-less control. `TAP_44_BOX` itself is wrong here — it squares the
+        // box, and this one has a label to hold.
+        className={`mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[10px] tracking-[.12em] text-sidebar-muted uppercase transition select-none hover:opacity-85 active:scale-[.97] max-md:h-11 ${className}`}
+      >
+        {label}
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          aria-hidden
+          // `text-sidebar-nav`, BRIGHTER than the label it sits beside, and the
+          // extension argues why: the label is a caption, the chevron is a
+          // control, and the brief asks it to read at the same weight as the
+          // D66 glyph "and no lighter" (9.55:1 against 5.06:1 on the rail).
+          //
+          // `transition-[rotate]`, not `transition-transform`: Tailwind v4 compiles
+          // `-rotate-90` to the standalone `rotate` property, which `transform`
+          // does not cover — the first draft rotated instantly while claiming
+          // 220 ms.
+          className={`ml-auto text-sidebar-nav transition-[rotate] duration-220 ease-soft ${collapsed ? '-rotate-90' : ''}`}
+        />
+      </button>
+
+      {fold(before, 'before')}
+      {/* Zero rows or one: the active pill survives the collapse because it was
+          never inside the thing that closes. */}
+      {activeIndex !== -1 && items[activeIndex]}
+      {fold(after, 'after')}
+    </>
   );
 }
 
@@ -210,29 +346,32 @@ function SidebarPanel({
           no dead strip between them either. */}
       <Scroller>
         <div className="flex flex-col gap-[3px] max-md:gap-2">
-          <GroupLabel>{t.nav.groupEntry}</GroupLabel>
-          <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-            {t.nav.dailyQuotes}
-          </NavLink>
-          {/* A32 — the group's second item. `end` is not needed: `/transactions`
-              is not a prefix of any other route. */}
-          <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-            {t.nav.transactions}
-          </NavLink>
-
-          <GroupLabel className="mt-4">{t.nav.groupAnalytics}</GroupLabel>
-          {ANALYTICS.map(({ to, key }) => (
-            <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
-              {t.nav[key]}
+          <NavGroup groupKey="entry" label={t.nav.groupEntry}>
+            <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+              {t.nav.dailyQuotes}
             </NavLink>
-          ))}
+            {/* A32 — the group's second item. `end` is not needed:
+                `/transactions` is not a prefix of any other route. */}
+            <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+              {t.nav.transactions}
+            </NavLink>
+          </NavGroup>
+
+          <NavGroup groupKey="analytics" label={t.nav.groupAnalytics} className="mt-4">
+            {ANALYTICS.map(({ to, key }) => (
+              <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
+                {t.nav[key]}
+              </NavLink>
+            ))}
+          </NavGroup>
 
           {/* Third nav group (P2 S1): exact clone of the existing group-label +
               pill anatomy — same motion, same active treatment. */}
-          <GroupLabel className="mt-4">{t.nav.groupSettings}</GroupLabel>
-          <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
-            {t.nav.settings}
-          </NavLink>
+          <NavGroup groupKey="settings" label={t.nav.groupSettings} className="mt-4">
+            <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
+              {t.nav.settings}
+            </NavLink>
+          </NavGroup>
         </div>
       </Scroller>
 

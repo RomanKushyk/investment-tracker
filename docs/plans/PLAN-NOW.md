@@ -50,11 +50,11 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
 | A28 | "Next payouts" offers a date in the past | `fix/payout-projection-roll` | S | **done** (2026-08-19) — found by the map walk the same day |
 | **Section J** | **Phase 7 implementation — unblocked 2026-08-19 by `where-things-live.dc.html`** | | | |
-| A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-19) — nothing on screen changes until A30 |
-| A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **done** (2026-08-19) |
-| A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **done** (2026-08-19) |
+| A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-20) — nothing on screen changes until A30 |
+| A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **done** (2026-08-20) |
+| A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **done** (2026-08-20) |
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **done** (2026-08-20) |
-| A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **todo** — independent |
+| A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **done** (2026-08-20) — Phase 7 complete |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
@@ -1529,8 +1529,13 @@ Brief § S3, extension § S3. Per-entity variant: `Done` only, no Save, no Cance
       inside the `RecordCard`** — a 1 px `hairline` rule after the `<dl>`, 14
       above / 14 below, actions pushed right, both `Button size="sm"` (h 30 →
       r 8), `gap-2.5`. **Not the card header** — that is where A17's 360 px
-      overflow was closed. The 10 px gap is load-bearing: `TAP_44` reaches
-      (44 − 30) / 2 = 7 px past each edge.
+      overflow was closed. **The arithmetic first written here was WRONG, and
+      `RecordCard.tsx` now carries the correction** (A31 review): `TAP_44`
+      reaches (44 − 30) / 2 = 7 px past each edge, so two neighbours need
+      **≥ 14** to guarantee no overlap, not 10. What actually saves the pair is
+      WIDTH — the overlay is `min-w-full` and both labels render wider than
+      44 px, so the regions never meet. An icon-only `sm` action here would need
+      the gap re-derived.
 - [x] **The Total card gets no band** — a sum is not an entity.
 - [x] Empty portfolio KEEPS the edit control, because `+ Add asset` is exactly
       what an empty portfolio needs. The one place the rule bends, and it bends
@@ -1620,10 +1625,14 @@ Brief § S4, extension § S4. Independent of A29–A31.
       column takes `max-w-[884px]` — **the app's own `@min-[884px]` number**
       (560 + 24 + 300), not a new one. Without it the rows jump 812 → 1196 the
       day a coupon is recorded.
-- [x] **F6 — the new route gets NO microlabel**, and no copy was invented: `t.transaction.recentTitle` is DELETED, while `recentEmpty` already read "Транзакцій ще немає." — exactly the empty-state string this task's own box asked for. One string removed, none added. `t.transaction.recentTitle`
-      ("Останні транзакції") becomes false for a full list, and the drawing
-      declined to invent copy. Either the heading is left off or new copy is
-      minted here, deliberately.
+- [x] **F6 — the new route gets NO microlabel**, and no copy was invented.
+      `t.transaction.recentTitle` ("Останні транзакції") became false the moment
+      the list stopped being the last three, so it is DELETED; `recentEmpty`
+      already read "Транзакцій ще немає." — exactly the empty-state string this
+      task's own box asked for. **One string removed, none added, and the
+      question the box left open ("heading left off, or new copy minted") is
+      answered: left off.** The screen's own title already says what the list
+      is.
 - [x] `/` stays the index route.
 - [x] **Verified in the browser.** `/transactions` renders **all 18** seed rows,
       newest first, with no microlabel; the nav group reads **ВВІД** with
@@ -1646,26 +1655,56 @@ geometry untouched.
 
 Brief § S5, extension § S5. Independent.
 
-- [ ] A bare chevron on each group label; the whole label row is the target.
+- [x] A bare chevron on each group label; the whole label row is the target.
       **Boxed control = the shell, bare glyph = the content it labels** — three
       independent differences from the D66 whole-sidebar control, on an axis
       that needs no learning (the sidebar leaves sideways, a group closes
       downwards).
-- [ ] **The ACTIVE PILL STAYS VISIBLE under a closed label; the group does NOT
+- [x] **The ACTIVE PILL STAYS VISIBLE under a closed label; the group does NOT
       auto-expand.** Auto-expand makes the control refuse the press, and —
       because the collapsed set persists — would rewrite the stored preference
       on every navigation into the group, so the arrangement would decay on its
       own.
-- [ ] **Persisted**, unlike A21's currency glance: a nav arrangement is a
+- [x] **Persisted**, unlike A21's currency glance: a nav arrangement is a
       durable choice. The field enters `PersistedSettings`,
       `PERSISTED_DEFAULTS`, `migrateSettings` **and `partialize`, in the same
       commit** (the standing invariant).
-- [ ] One state serves both shells — the drawer IS the sidebar (D66).
-- [ ] The label row keeps radius **9**, borrowed from the nav pill: it draws no
+- [x] One state serves both shells — the drawer IS the sidebar (D66).
+- [x] The label row keeps radius **9**, borrowed from the nav pill: it draws no
       box in any state, so the proportional rule has nothing to read and
       deriving it would give two values for one row. **This is the extension's
       one deliberate D56 exception and it is argued there** — do not "fix" it.
-- [ ] **Verify:** the sidebar's three-band grid still holds at 640 px of
-      viewport height with every group expanded — collapsing must be a choice,
-      never a requirement for the nav to fit.
+- [x] **Verified in the browser.** Three group buttons with `aria-expanded` and
+      the boxed D66 control still separate beside them. Collapsing Аналітика
+      while ON `/portfolio` leaves the grid at **height 0** and the active pill
+      rendered beside it — "Портфель" appears twice in the DOM, once clipped and
+      once surviving; navigate away and it is once, which is the "zero rows or
+      one" rule. The state survives a reload (`collapsedNavGroups: ["analytics"]`
+      in `quirenote-settings`), and the transition keeps D7's asymmetry —
+      measured **0.3 s** opening and **0.22 s** closing.
+      At a 640 px viewport the three-band grid holds at `78,8 / 352 / 175,3` with
+      every group expanded and the currency toggle on screen, so collapsing is a
+      choice rather than a requirement.
+      **683 tests (+4)** — the store's four transitions, including that a
+      collapsed set survives `mergeSettings` where A21's currency does not.
+
+**Three things the browser caught that the gates could not.**
+
+**A Ukrainian case error in my own string.** `Згорнути ${group}` put a nominative
+noun in an accusative slot: «Ввід» and «Налаштування» survive because their forms
+coincide, «Аналітика» does not. Reworded to «Згорнути групу «Аналітика»», which
+keeps the case on a word the template owns — the same trap `dates.monthIn`
+solves for months.
+
+**The chevron was not animating.** Tailwind v4 compiles `-rotate-90` to the
+standalone `rotate` property, which `transition-transform` does not cover, so the
+first draft rotated instantly while its comment claimed 220 ms.
+`transition-[rotate]` fixes it; measured `rotate / 0.22s`.
+
+**And one thing that looked broken and was not.** My first visibility check
+reported the collapsed group's links as still visible. They were not: an element
+clipped by a zero-height `overflow-hidden` ancestor keeps its own box, so
+`getBoundingClientRect().height > 0` is the wrong question. The container
+measured 0. The measurement was wrong, not the code — worth recording, because
+the tempting next move was to "fix" working markup.
 

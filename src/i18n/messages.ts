@@ -65,6 +65,9 @@ export const en = {
     openNav: 'Open navigation',
     closeNav: 'Close navigation',
     collapseNav: 'Collapse navigation',
+    // A33 — read by assistive tech only; the visible label is the group's own.
+    collapseGroup: (group: string) => `Collapse ${group}`,
+    expandGroup: (group: string) => `Expand ${group}`,
   },
   sidebar: {
     brandTagline: 'Invest tracker',
@@ -926,7 +929,7 @@ export const en = {
     },
     settings: {
       title: 'Settings',
-      subtitle: 'Preferences, data and portfolio configuration',
+      subtitle: 'Preferences, data and automation',
     },
   },
 };
@@ -939,8 +942,8 @@ export const uk: Dict = {
     groupEntry: 'Ввід',
     groupAnalytics: 'Аналітика',
     groupSettings: 'Налаштування',
-    dailyQuotes: 'Щоденні котирування',
-    transactions: 'Транзакції', // ✎
+    dailyQuotes: 'Щоденні котирування', // ✎
+    transactions: 'Транзакції',
     overview: 'Огляд', // ✎
     balances: 'Баланси', // ✎
     payouts: 'Виплати', // ✎
@@ -954,6 +957,12 @@ export const uk: Dict = {
     openNav: 'Відкрити навігацію', // ✎
     closeNav: 'Закрити навігацію', // ✎
     collapseNav: 'Згорнути навігацію', // ✎
+    // «Згорнути Аналітика» is the nominative sitting in an accusative slot.
+    // Naming the GROUP first keeps the case on a word this template owns, so
+    // the splice stays nominative and no per-group form is needed — the same
+    // trap `dates.monthIn` solves for months.
+    collapseGroup: (group: string) => `Згорнути групу «${group}»`,
+    expandGroup: (group: string) => `Розгорнути групу «${group}»`,
   },
   sidebar: {
     brandTagline: 'Інвест-трекер',
@@ -1743,7 +1752,7 @@ export const uk: Dict = {
     },
     settings: {
       title: 'Налаштування',
-      subtitle: 'Уподобання, дані та конфігурація портфеля',
+      subtitle: 'Уподобання, дані та автоматизація',
     },
   },
 };

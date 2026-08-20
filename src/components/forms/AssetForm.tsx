@@ -39,7 +39,7 @@ import { useT } from '../../i18n/useT';
 // The single standalone asset form (NEXT-PHASE-PLAN P2 feat/asset-form,
 // brief S3, design/extensions/asset-form.dc.html) — replaces the
 // transaction-welded NewAssetFields. Hosts:
-//   · Settings→Portfolio renders <AssetForm> in a Dialog (create + edit);
+//   · /portfolio (Settings until A31) renders <AssetForm> in a Dialog (create + edit);
 //   · TransactionPanel renders <AssetFormFields> inline with its OWN form
 //     instance (quick-create keeps the atomic recordTransaction(tx, newAsset)
 //     and derives firstPurchase from the transaction date).
@@ -506,7 +506,7 @@ export function AssetFormFields({
   );
 }
 
-// Dialog body for Settings→Portfolio: heading + fields + Cancel/submit.
+// Dialog body for /portfolio's asset manager: heading + fields + Cancel/submit.
 // Mounted fresh per open (the host keys it), so useForm captures the asset's
 // values as defaults.
 export function AssetForm({

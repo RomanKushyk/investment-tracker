@@ -43,6 +43,16 @@ interface SettingsState {
   remindersEnabled: boolean;
   reminderLeadDays: number;
   dismissedReminders: string[];
+  /**
+   * Which sidebar nav groups are CLOSED, by key (A33). Empty = all open, which
+   * is the default and the state the reference draws.
+   *
+   * PERSISTED, unlike A21's currency glance and unlike `useEditMode` — and the
+   * contrast is the point. A nav arrangement is a durable choice someone makes
+   * about their own tool; a currency flip to read one KPI is not. One rule both
+   * times: keep what was chosen, drop what was passed through.
+   */
+  collapsedNavGroups: string[];
   /** Session only — the sidebar toggle. Gone on reload, by design. */
   setCurrency: (c: 'UAH' | 'USD') => void;
   /**
@@ -61,6 +71,7 @@ interface SettingsState {
   setReminderLeadDays: (days: number) => void;
   dismissReminder: (id: string) => void;
   restoreDismissed: () => void;
+  toggleNavGroup: (key: string) => void;
 }
 
 /** The persisted payload — keep in exact sync with `partialize` below. */
@@ -90,6 +101,9 @@ export interface PersistedSettings {
   // themselves once the occurrence passes out of scope, so this list needs no
   // pruning — "Restore dismissed" (S8) clears it wholesale.
   dismissedReminders: string[];
+  // A33. The standing invariant is that a new persisted field enters
+  // `partialize` in the SAME commit — see the doctrine block below.
+  collapsedNavGroups: string[];
 }
 
 const PERSISTED_DEFAULTS: PersistedSettings = {
@@ -103,6 +117,7 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   remindersEnabled: true,
   reminderLeadDays: DEFAULT_LEAD_DAYS,
   dismissedReminders: [],
+  collapsedNavGroups: [],
 };
 
 /**
@@ -174,6 +189,12 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     dismissedReminders: Array.isArray(p.dismissedReminders)
       ? p.dismissedReminders.filter((id): id is string => typeof id === 'string')
       : [...PERSISTED_DEFAULTS.dismissedReminders],
+    // Same rule as the list above: only strings survive. An unknown key is
+    // harmless — it would collapse a group that does not exist — so there is no
+    // whitelist, and a fourth group later needs no migration.
+    collapsedNavGroups: Array.isArray(p.collapsedNavGroups)
+      ? p.collapsedNavGroups.filter((k): k is string => typeof k === 'string')
+      : [...PERSISTED_DEFAULTS.collapsedNavGroups],
   };
 }
 
@@ -227,6 +248,7 @@ export const useSettings = create<SettingsState>()(
       remindersEnabled: true,
       reminderLeadDays: DEFAULT_LEAD_DAYS,
       dismissedReminders: [],
+      collapsedNavGroups: [],
       setCurrency: (currency) => set({ currency }),
       setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
@@ -267,6 +289,14 @@ export const useSettings = create<SettingsState>()(
             : { dismissedReminders: [...s.dismissedReminders, id] },
         ),
       restoreDismissed: () => set({ dismissedReminders: [] }),
+      // Idempotent per key, like `dismissReminder`: a group is in the list once
+      // or not at all.
+      toggleNavGroup: (key) =>
+        set((s) => ({
+          collapsedNavGroups: s.collapsedNavGroups.includes(key)
+            ? s.collapsedNavGroups.filter((k) => k !== key)
+            : [...s.collapsedNavGroups, key],
+        })),
     }),
     {
       name: SETTINGS_KEY,
@@ -286,6 +316,7 @@ export const useSettings = create<SettingsState>()(
         remindersEnabled: s.remindersEnabled,
         reminderLeadDays: s.reminderLeadDays,
         dismissedReminders: s.dismissedReminders,
+        collapsedNavGroups: s.collapsedNavGroups,
       }),
     },
   ),

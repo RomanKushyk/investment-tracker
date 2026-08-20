@@ -44,7 +44,7 @@ export function useRecordTransaction() {
 // --- Write-surface mutations (G2): per-entity invalidation for row ops,
 // --- invalidate-all for cascade/replace/clear.
 
-// Standalone create (Settings→Portfolio "Add asset", P2 feat/asset-form) —
+// Standalone create (/portfolio "Add asset", P2 feat/asset-form) —
 // the TransactionPanel quick-create keeps the atomic recordTransaction path.
 export function useAddAsset() {
   const qc = useQueryClient();

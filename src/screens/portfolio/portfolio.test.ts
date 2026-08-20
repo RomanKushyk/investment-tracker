@@ -9,18 +9,8 @@ import {
   laggard,
 } from './portfolio';
 
-const VALUES = {
-  reit: 68702.1,
-  energy: 60086.09,
-  ovdp8976: 15846.3,
-  ovdp6475: 4374.12,
-};
-const INVESTED = {
-  reit: 65800,
-  energy: 59208,
-  ovdp8976: 15390,
-  ovdp6475: 4158,
-};
+const VALUES = { reit: 68702.1, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 };
+const INVESTED = { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 };
 
 describe('bestPerformer', () => {
   it('picks the highest yieldSinceStart — OVDP …6475 +5.20% on seed', () => {

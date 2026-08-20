@@ -292,33 +292,54 @@ export function TransactionPanel() {
           list stopped being the last three, and the extension declined to
           invent a replacement for a heading the screen's own title already
           gives. */}
-      <Card className="px-5 py-4">
+      {/* NO `px-5` HERE, and that is the Scroller's contract, not an omission
+          (A32 review). Passing `radius` opens the inline gutter from the
+          ScrollArea ROOT — 28 a side, outside the scroll box — so a Card padding
+          of its own inset the rows a SECOND time (20 + 24 + 4 = 48 a side) and
+          pushed the rail 28 off the card's edge instead of 8. It also made the
+          `radius` wrong on its own terms: a radius is measured at the Scroller's
+          box, and a 20 seen from inside 20 px of padding presents 0. With the
+          padding gone the two agree, and the result is the extension's drawn
+          `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
+          ImportDialog.tsx carries the same warning; this repeated it. */}
+      <Card className="py-4">
         <Scroller radius={20} className="max-h-[420px]">
-        <div className="flex flex-col gap-2 text-[12.5px]">
-          {ledger.length === 0 && (
-            <span className="text-muted">{t.transaction.recentEmpty}</span>
-          )}
-          {ledger.map((tx) => {
-            const asset = assetById.get(tx.assetId);
-            return (
-              <div
-                key={tx.id}
-                className="animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-2 duration-300"
-              >
-                <span className="min-w-0 flex-1 truncate">
-                  {tx.type === 'interest_payout' ? t.transaction.recentCoupon : t.transaction.types[tx.type]} ·{' '}
-                  {asset ? shortLabel(asset) : t.transaction.portfolioRow}
-                </span>
-                <strong className="whitespace-nowrap">
-                  {f.money(tx.amount)}
-                </strong>
-                <span className="text-muted whitespace-nowrap">
-                  {f.dateShort(tx.date)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+          {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS (A32
+              review). Radix wraps a viewport's children in its own
+              `min-width:100%; display:table` box, and a table box is sized
+              shrink-to-fit — so a row whose label is `truncate` (i.e.
+              `white-space: nowrap`) makes min-content equal max-content, the
+              box grows past the viewport, and `orientation="vertical"` clips
+              the excess with NO rail to say so. Measured at 360: the ledger ran
+              51 px wide and the date fell off every row, silently. `w-0` puts
+              the child's preferred width at zero so the table box collapses
+              back onto its own `min-width:100%`, and `min-w-full` fills it —
+              the label then has a definite width to ellipsize against. */}
+          <div className="flex w-0 min-w-full flex-col gap-[9px] text-[12.5px]">
+            {ledger.length === 0 && (
+              <span className="text-muted">{t.transaction.recentEmpty}</span>
+            )}
+            {ledger.map((tx) => {
+              const asset = assetById.get(tx.assetId);
+              return (
+                <div
+                  key={tx.id}
+                  className="animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-2.5 duration-300 max-md:gap-2"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {tx.type === 'interest_payout' ? t.transaction.recentCoupon : t.transaction.types[tx.type]} ·{' '}
+                    {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                  </span>
+                  <strong className="whitespace-nowrap">
+                    {f.money(tx.amount)}
+                  </strong>
+                  <span className="text-muted whitespace-nowrap">
+                    {f.dateShort(tx.date)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </Scroller>
       </Card>
     </>
