@@ -56,6 +56,9 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **done** (2026-08-20) |
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **done** (2026-08-20) — Phase 7 complete |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
+| **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
+| A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only** |
+| A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **todo — NOT design-blocked.** `where-things-live.dc.html` § S4 has drawn this since 2026-08-19; A32 shipped a stacked column instead |
 
 ---
 
@@ -1707,4 +1710,98 @@ clipped by a zero-height `overflow-hidden` ancestor keeps its own box, so
 `getBoundingClientRect().height > 0` is the wrong question. The container
 measured 0. The measurement was wrong, not the code — worth recording, because
 the tempting next move was to "fix" working markup.
+
+---
+
+# Section K — Screen density
+
+The owner reported `/` and `/transactions` looking poor and empty (2026-08-20).
+Measuring the two found **two different problems**, and reviewing the brief that
+described them found a third that outranks both.
+
+---
+
+## A34 — Design brief: screen density — **DONE 2026-08-20** — `docs/design-brief-screen-density`
+
+`docs/design-briefs/screen-density-quotes-and-transactions.md`.
+The first brief here written from a COMPLAINT rather than a feature, which set
+its method: every number measured on the running app. **It was then rewritten
+the same day, because its own `/code-review` returned fifteen findings and all
+fifteen held.**
+
+**The finding that outranks the rest.**
+`design/extensions/where-things-live.dc.html` has drawn `/transactions` as two
+columns since 2026-08-19 — `flex:0 1 360px` for the form, `flex:1 1 560px` for
+the ledger, lines 1203–1226. **A32 shipped neither**; it stacked both cards in
+one `max-w-[560px]` column, which is exactly the 50 % of empty screen the owner
+reported. The screen was never missing a design. The first draft of the brief
+then specified the two columns REVERSED against that merged reference, which
+wins visual disputes by the pinned rule.
+
+Nothing caught it for a day — not the implementation, not the fifteen-finding
+review of A32 + A33, and not the A32 commit message, which quoted
+`padding:16px 28px` out of the very lines carrying `flex:0 1 360px` two rows
+above. **The reference was read for the geometry inside the ledger and never for
+the layout around it.**
+
+**What the measurement found on `/`.** `main` is `px-9`, so its content box is
+**1124**, not the 1196 border box. The ritual column is capped at 884 and the
+quote row's content box is 844, carrying a **440 px void — 52 % of the row**
+— between where the subline ends (x 176) and where the input starts (x 616).
+On a coupon day the same row is 700 wide and the void is 280: **the screen has
+two row widths depending on the calendar.**
+
+**What it killed.** A per-asset sparkline, withdrawn before any code on 572
+quotes: seven-day spread 0,13–0,40 % with **zero down-days on all four assets**,
+and Energy's largest single-day move across 173 days is **0,059 %**. Accrual
+curves, not prices.
+
+**And the method's own limit, worth more than either.**
+`querySelectorAll('*')` returns ancestors before descendants, so two of the
+draft's figures were measurements of a WRAPPER: the yield teaser was reported at
+1124 when the card is 884, and page width was taken from element boxes when
+block elements span full width regardless of their ink. A measurement is only as
+good as the element it lands on.
+
+- [x] Written, every figure measured at 1440 × 900 and 360 × 740, in Ukrainian.
+- [x] Reviewed under D76, fifteen findings, all accepted; brief rewritten.
+- [x] Owner decision recorded: `/transactions` keeps its route.
+- [ ] **Design session** — `/` only, produces `design/extensions/screen-density.dc.html`.
+      Three questions handed to it deliberately: how the leftover width is spent
+      (240 at a 300 rail, 180 at 360), whether `ReminderStrip` moves when it is
+      shared with `/overview`, and whether the optional pending-change block is
+      taken.
+
+---
+
+## A35 — `/transactions` implements the two columns already drawn for it — `feat/transactions-two-column`
+
+**Not design-blocked.** `design/extensions/where-things-live.dc.html` § S4 is the
+contract and it is merged; this task builds what it draws.
+
+```
+row     display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start
+form    flex:0 1 360px; min-width:0     <- NARROW, does not grow
+ledger  flex:1 1 560px; min-width:0     <- WIDE, grows
+```
+
+- [ ] `src/screens/Transactions.tsx` replaces its `flex max-w-[560px] flex-col
+      gap-3.5` wrapper with the row above. `TransactionPanel` has exactly one
+      caller, so the split is free.
+- [ ] **`min-w-0` on both columns** — the reference carries `min-width:0` on
+      both, and `TransactionPanel.tsx` already documents what its absence cost
+      the ledger (51 px clipped at 360, silently).
+- [ ] The ledger's `max-h-[420px]` was chosen when the card was stacked BELOW
+      the form. In a column it becomes a function of the viewport, so the page
+      stops scrolling and the column does (D65).
+- [ ] **Below the wrap point the stacking gap stays 14** (`gap-3.5`), not the
+      row's 24 — the reference draws `margin-bottom:12px` at 360, so this needs
+      a decision recorded, not a silent change.
+- [ ] At 1440 the rightmost ink reaches within 40 px of `main`'s content box.
+      Today it falls **590 short**.
+- [ ] Every seeded row visible without scrolling at 900 px of viewport where the
+      column allows it. **The seed has 18 transactions** — any acceptance
+      figure above that is untickable.
+- [ ] At 360, pixel-identical to today; horizontal overflow 0 px.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test`, then `/code-review` (D76).
 
