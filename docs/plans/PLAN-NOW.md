@@ -49,6 +49,12 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A25 | Portfolio-level XIRR | `feat/portfolio-xirr` | S | **done** (2026-08-18) — computed and tested; **not displayed**, that is A26's question |
 | A27 | The windowing layer in `core/` — the half of Phase 8 that is not design-blocked | `feat/period-window` | S | **done** (2026-08-19) |
 | A28 | "Next payouts" offers a date in the past | `fix/payout-projection-roll` | S | **done** (2026-08-19) — found by the map walk the same day |
+| **Section J** | **Phase 7 implementation — unblocked 2026-08-19 by `where-things-live.dc.html`** | | | |
+| A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **todo** — prerequisite for A30 and A31 |
+| A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **todo** — needs A29 |
+| A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **todo** — needs A29 and A30 |
+| A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **todo** — independent |
+| A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **todo** — independent |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
 ---
@@ -1330,4 +1336,174 @@ different question with its own surface.
 ledger kept current the projection is in the future and nothing shows; the card
 goes wrong exactly when the user stops recording — which is when a reminder is
 worth most. The frozen demo seed simply makes it visible every day.
+
+---
+
+# Section J — Phase 7 implementation
+
+Unblocked 2026-08-19: `design/extensions/where-things-live.dc.html` is merged, so
+G7 no longer holds these. **The extension wins visual disputes; the brief wins
+copy and behaviour disputes** (the pipeline's own rule).
+
+**Order is forced by one dependency, not by taste.** A29 builds the header row
+and the edit-mode primitive that A30 and A31 both consume; A31 follows A30
+because the Settings Portfolio card can only be deleted once BOTH its halves
+have a new home. A32 and A33 touch neither and can go in any order.
+
+## The three brief defects the drawing found, resolved here so no task inherits them
+
+**F1 — `Button` size `md` is 40 / r10 at ≥ `md` and 44 / r11 below it.** The
+brief pinned only the second pair, as though it were one value.
+`button-variants.ts:89` is the truth: `rounded-[10px] max-md:rounded-[11px] h-10
+max-md:h-11`. **No decision needed — the brief was simply wrong and the code is
+right.** Every header control in A29 uses both.
+
+**F4 — two save-failure strings were minted for one action, and the new one is
+retired.** The brief's § S1 introduced `Could not save — nothing was changed.`
+while § S2 kept `t.targets.saveFailed` (*"Could not save targets — please try
+again."*), which already ships. **The existing per-page string wins and the
+generic one is never added.** A generic sentence sitting beside two specific
+ones (`asset.saveFailed`, `targets.saveFailed`) is less informative and would
+have no caller anyway: `/portfolio` is per-entity and has no Save to fail.
+
+**F7 — three dictionary strings name a home that stops existing.** The drawing
+found two; a re-check found the third. All three must change **in the commit
+that moves what they point at**, or the app ships an instruction to a place that
+is gone:
+
+| Key | Today | After | Moves in |
+|---|---|---|---|
+| `screen.attributes.subtitle` | *"…edited in Settings → Portfolio"* | *"…edited on Portfolio"* | **A31** |
+| `screen.allocation.subtitle` | *"Current mix vs targets set in Settings → Portfolio"* | *"Current mix vs your targets — edit them here"* | **A30** |
+| `dailyQuotes.fetch.unlinked` | *"…link one in Settings → Portfolio."* | *"…link one on Portfolio."* | **A31** |
+
+Its neighbour `dailyQuotes.fetch.demo` points at **Settings → Data**, which does
+NOT move — do not "fix" it.
+
+## A29 — `ScreenHeader` becomes a row; the edit-mode primitive — `feat/edit-affordance`
+
+Brief § S1, extension § S1. Nothing user-visible changes on any screen until A30
+lands: this task builds the slot and the state, and passes no actions.
+
+- [ ] `ScreenHeader` takes an optional actions slot. **Two branches, per the
+      drawing's F2 resolution:** no actions → NO wrapper element is emitted and
+      the DOM is untouched, which is what makes the brief's "byte-identically"
+      literally true rather than approximately; actions → the row
+      (`flex flex-wrap items-center gap-3`, slot `ml-auto`), copying `/`'s
+      existing header rather than inventing one.
+- [ ] The edit-mode state: **ephemeral, one page at a time, never persisted**
+      (brief G-3) — the same line A21 drew for the currency glance.
+- [ ] **Two variants (G-2), and the page declares which.** Batch = `Cancel` +
+      `Save`; per-entity = `Done` alone. A per-entity page must NOT render a
+      Save: there would be nothing for it to write, and a Cancel that cannot
+      undo the deletion behind it is a worse lie than a Save that saves nothing.
+- [ ] The batch pair must live in **one flex wrapper inside the header row** —
+      the extension's measured constraint, so the two buttons wrap as a pair and
+      never one per line.
+- [ ] Discard dialog on a dirty Cancel / Escape / route change (G-4), using
+      `Dialog`, not the D17 typed-name `AlertDialog` — nothing is destroyed,
+      only abandoned.
+- [ ] Copy from the brief's inventory, EN + UK, into `i18n/messages.ts`
+      (Contract 0). **Not** the retired F4 string.
+- [ ] **Verify:** the nine action-less callers render byte-identically; edit
+      state survives no reload; 44 × 44 hit area with radii unchanged (G-8);
+      zero horizontal overflow at 360 in both languages.
+
+## A30 — `/allocation` edits its targets — `feat/allocation-targets`
+
+Brief § S2, extension § S2. Batch variant.
+
+- [ ] `TargetsEditor` moves out of Settings into the existing "Current vs
+      target" card. Its anatomy is not redesigned — the %-input, the Σ pill and
+      the live preview are rehoused.
+- [ ] **The card's own `Save targets` button is REMOVED**; the header's `Save`
+      does its work. Two saves on one page, one of which saves a subset, is the
+      ambiguity this phase exists to end.
+- [ ] **F5 — the keystroke preview is the TARGET TICK, not a `ShareBar`.** The
+      brief specified `ShareBar` widths; there is no `ShareBar` on
+      `/allocation`. The tick moves on the bar's own existing
+      `transition-[width]` 500 ms and the pp delta re-derives against the draft.
+      No duration is minted.
+- [ ] Σ ≠ 100 warns and never blocks; unparseable input blocks (both existing
+      rules, kept).
+- [ ] Save writes only CHANGED rows through the existing per-asset
+      `useUpdateAsset` patches.
+- [ ] **F7:** `screen.allocation.subtitle` changes in this commit.
+- [ ] **Verify:** `targets.test.ts` passes unchanged — the pure layer does not
+      move; the rebalance plan re-derives from saved targets, not drafts.
+
+## A31 — `/portfolio` manages its assets — `feat/portfolio-assets`
+
+Brief § S3, extension § S3. Per-entity variant: `Done` only, no Save, no Cancel.
+
+- [ ] `AssetManager` moves out of Settings onto `/portfolio`.
+- [ ] Desktop: actions on the row's right edge. **Below `md`: a FOOTER BAND
+      inside the `RecordCard`** — a 1 px `hairline` rule after the `<dl>`, 14
+      above / 14 below, actions pushed right, both `Button size="sm"` (h 30 →
+      r 8), `gap-2.5`. **Not the card header** — that is where A17's 360 px
+      overflow was closed. The 10 px gap is load-bearing: `TAP_44` reaches
+      (44 − 30) / 2 = 7 px past each edge.
+- [ ] **The Total card gets no band** — a sum is not an entity.
+- [ ] Empty portfolio KEEPS the edit control, because `+ Add asset` is exactly
+      what an empty portfolio needs. The one place the rule bends, and it bends
+      toward the user.
+- [ ] `AssetForm` and the D17 delete dialog are reused with NO contract change.
+- [ ] **Settings' Portfolio card is deleted in this commit** — with A30 done it
+      holds nothing. Settings keeps Data, Automation, Appearance.
+- [ ] **F7:** `screen.attributes.subtitle` and `dailyQuotes.fetch.unlinked`
+      change in this commit.
+- [ ] **Verify:** the delete cascade still counts real transactions and quote
+      days (`messages.test.ts` plural cases stay green); `/portfolio`'s Total row
+      and three highlight cards are unaffected in both modes.
+
+## A32 — The `Entry` group and the `/transactions` route — `feat/transactions-route`
+
+Brief § S4, extension § S4. Independent of A29–A31.
+
+- [ ] Sidebar group `Daily entry` → `Entry` / `Ввід`, holding `Daily quotes`
+      (`/`) and `Transactions` (`/transactions`).
+- [ ] `TransactionPanel` moves off `/` to the new route and shows the **FULL**
+      ledger, not the last three — the cap existed because the panel was a guest
+      on someone else's screen. Long lists scroll inside a `Scroller` (D65).
+- [ ] **`/`'s aside becomes CONDITIONAL, not its layout.** Coupon day → today's
+      geometry, unchanged. No-coupon day → the `<aside>` is **not rendered** (an
+      empty `flex: 1 1 300px` child still claims 300–360 px) and the ritual
+      column takes `max-w-[884px]` — **the app's own `@min-[884px]` number**
+      (560 + 24 + 300), not a new one. Without it the rows jump 812 → 1196 the
+      day a coupon is recorded.
+- [ ] **F6 — the new route gets NO microlabel.** `t.transaction.recentTitle`
+      ("Останні транзакції") becomes false for a full list, and the drawing
+      declined to invent copy. Either the heading is left off or new copy is
+      minted here, deliberately.
+- [ ] `/` stays the index route.
+- [ ] **Verify:** `navigation-map.md` gains `/transactions` with its seed values
+      and `/`'s row records that the panel left; the seed's 18 transactions all
+      render; recording invalidates the same queries it does today.
+
+## A33 — Collapsible sidebar groups — `feat/collapsible-groups`
+
+Brief § S5, extension § S5. Independent.
+
+- [ ] A bare chevron on each group label; the whole label row is the target.
+      **Boxed control = the shell, bare glyph = the content it labels** — three
+      independent differences from the D66 whole-sidebar control, on an axis
+      that needs no learning (the sidebar leaves sideways, a group closes
+      downwards).
+- [ ] **The ACTIVE PILL STAYS VISIBLE under a closed label; the group does NOT
+      auto-expand.** Auto-expand makes the control refuse the press, and —
+      because the collapsed set persists — would rewrite the stored preference
+      on every navigation into the group, so the arrangement would decay on its
+      own.
+- [ ] **Persisted**, unlike A21's currency glance: a nav arrangement is a
+      durable choice. The field enters `PersistedSettings`,
+      `PERSISTED_DEFAULTS`, `migrateSettings` **and `partialize`, in the same
+      commit** (the standing invariant).
+- [ ] One state serves both shells — the drawer IS the sidebar (D66).
+- [ ] The label row keeps radius **9**, borrowed from the nav pill: it draws no
+      box in any state, so the proportional rule has nothing to read and
+      deriving it would give two values for one row. **This is the extension's
+      one deliberate D56 exception and it is argued there** — do not "fix" it.
+- [ ] **Verify:** the sidebar's three-band grid still holds at 640 px of
+      viewport height with every group expanded — collapsing must be a choice,
+      never a requirement for the nav to fit.
 
