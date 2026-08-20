@@ -53,7 +53,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A29 | `ScreenHeader` becomes a row; the edit-mode primitive | `feat/edit-affordance` | M | **done** (2026-08-19) — nothing on screen changes until A30 |
 | A30 | `/allocation` edits its targets | `feat/allocation-targets` | M | **done** (2026-08-19) |
 | A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **done** (2026-08-19) |
-| A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **todo** — independent |
+| A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **done** (2026-08-20) |
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **todo** — independent |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
 
@@ -1609,25 +1609,38 @@ obstructing it.
 
 Brief § S4, extension § S4. Independent of A29–A31.
 
-- [ ] Sidebar group `Daily entry` → `Entry` / `Ввід`, holding `Daily quotes`
+- [x] Sidebar group `Daily entry` → `Entry` / `Ввід`, holding `Daily quotes`
       (`/`) and `Transactions` (`/transactions`).
-- [ ] `TransactionPanel` moves off `/` to the new route and shows the **FULL**
+- [x] `TransactionPanel` moves off `/` to the new route and shows the **FULL**
       ledger, not the last three — the cap existed because the panel was a guest
       on someone else's screen. Long lists scroll inside a `Scroller` (D65).
-- [ ] **`/`'s aside becomes CONDITIONAL, not its layout.** Coupon day → today's
+- [x] **`/`'s aside becomes CONDITIONAL, not its layout.** Coupon day → today's
       geometry, unchanged. No-coupon day → the `<aside>` is **not rendered** (an
       empty `flex: 1 1 300px` child still claims 300–360 px) and the ritual
       column takes `max-w-[884px]` — **the app's own `@min-[884px]` number**
       (560 + 24 + 300), not a new one. Without it the rows jump 812 → 1196 the
       day a coupon is recorded.
-- [ ] **F6 — the new route gets NO microlabel.** `t.transaction.recentTitle`
+- [x] **F6 — the new route gets NO microlabel**, and no copy was invented: `t.transaction.recentTitle` is DELETED, while `recentEmpty` already read "Транзакцій ще немає." — exactly the empty-state string this task's own box asked for. One string removed, none added. `t.transaction.recentTitle`
       ("Останні транзакції") becomes false for a full list, and the drawing
       declined to invent copy. Either the heading is left off or new copy is
       minted here, deliberately.
-- [ ] `/` stays the index route.
-- [ ] **Verify:** `navigation-map.md` gains `/transactions` with its seed values
-      and `/`'s row records that the panel left; the seed's 18 transactions all
-      render; recording invalidates the same queries it does today.
+- [x] `/` stays the index route.
+- [x] **Verified in the browser.** `/transactions` renders **all 18** seed rows,
+      newest first, with no microlabel; the nav group reads **ВВІД** with
+      `Щоденні котирування` and `Транзакції`, and the active pill follows.
+      **D-2 confirmed to the pixel:** on a no-coupon day `/` renders NO `<aside>`
+      at all and the ritual column measures exactly **884 px** of a 1196 px
+      `main`, carrying `max-w-[884px]`. Zero horizontal overflow at 360 on `/`,
+      `/transactions`, `/portfolio` and `/allocation`.
+      `navigation-map.md` gains the route with its seed values, and `/`'s row and
+      section both record the departure.
+
+**The with-coupon case was NOT exercised**, and saying so is the honest report:
+the seed's next coupons are 25.08 and 03.12, so no S5 card is due today, and
+forcing one means editing a bond's `nextCoupon` — a write to pinned demo data.
+The branch is `due.length === 0 ? 'max-w-[884px]' : ''` around an
+`{due.length > 0 && …}`, so the untested path is the one that leaves today's
+geometry untouched.
 
 ## A33 — Collapsible sidebar groups — `feat/collapsible-groups`
 

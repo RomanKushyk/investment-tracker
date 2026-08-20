@@ -32,7 +32,6 @@ import {
 import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
-import { TransactionPanel } from './TransactionPanel';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useT } from '../i18n/useT';
@@ -224,7 +223,7 @@ export function DailyQuotes() {
           the CONTAINER, which is the viewport minus the sidebar minus main's
           padding, and those differ per shell. */}
       <div className="@container flex flex-wrap items-start gap-6">
-        <div className="min-w-0 flex-[1_1_560px]">
+        <div className={`min-w-0 flex-[1_1_560px] ${due.length === 0 ? 'max-w-[884px]' : ''}`}>
           <div className="mb-1 flex flex-wrap items-center gap-3">
             <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
             <span
@@ -308,8 +307,16 @@ export function DailyQuotes() {
           <YieldTeaser assets={assets} values={values} invested={invested} />
         </div>
 
+        {/* D-2, the brief's one open layout question, closed by the extension:
+            THE ASIDE IS CONDITIONAL, NOT THE LAYOUT. An empty `flex: 1 1 300px`
+            child still claims 300–360 px, so on a day with no coupon due the
+            aside is NOT RENDERED at all and the ritual column takes
+            `max-w-[884px]` — the app's own `@min-[884px]` number (560 + 24 +
+            300), not a new one. Without the cap the rows would jump from 812 to
+            1196 the day a coupon is recorded; with it the day-to-day difference
+            is 72 px. */}
+        {due.length > 0 && (
         <aside className="min-w-0 flex flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]">
-          {/* S5 cards first, then Transaction, then Recent transactions. */}
           {due.map((d) => {
             const asset = assets.find((a) => a.id === d.assetId)!;
             return (
@@ -323,8 +330,8 @@ export function DailyQuotes() {
               />
             );
           })}
-          <TransactionPanel />
         </aside>
+        )}
       </div>
 
       {stickyActions && (

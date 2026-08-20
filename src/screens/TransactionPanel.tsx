@@ -8,6 +8,7 @@ import { AssetFormFields } from '../components/forms/AssetForm';
 import { assetFormDefaults } from '../components/forms/asset-form';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
 import {
@@ -147,7 +148,11 @@ export function TransactionPanel() {
     record(values, undefined);
   }
 
-  const recent = [...transactions].slice(-3).reverse();
+  // A32 — THE FULL LEDGER, newest first. The last-three cap existed because
+  // this panel was a guest on `/`, where anything longer would have pushed the
+  // daily ritual off the screen. On a route of its own the history is the
+  // point, so the cap goes and the list scrolls inside its own box (D65).
+  const ledger = [...transactions].reverse();
   const assetById = new Map(assets.map((a) => [a.id, a]));
 
   return (
@@ -283,15 +288,17 @@ export function TransactionPanel() {
         </form>
       </Card>
 
+      {/* F6 — NO MICROLABEL. "Останні транзакції" became false the moment the
+          list stopped being the last three, and the extension declined to
+          invent a replacement for a heading the screen's own title already
+          gives. */}
       <Card className="px-5 py-4">
-        <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">
-          {t.transaction.recentTitle}
-        </div>
+        <Scroller radius={20} className="max-h-[420px]">
         <div className="flex flex-col gap-2 text-[12.5px]">
-          {recent.length === 0 && (
+          {ledger.length === 0 && (
             <span className="text-muted">{t.transaction.recentEmpty}</span>
           )}
-          {recent.map((tx) => {
+          {ledger.map((tx) => {
             const asset = assetById.get(tx.assetId);
             return (
               <div
@@ -312,6 +319,7 @@ export function TransactionPanel() {
             );
           })}
         </div>
+        </Scroller>
       </Card>
     </>
   );

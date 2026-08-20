@@ -210,9 +210,14 @@ function SidebarPanel({
           no dead strip between them either. */}
       <Scroller>
         <div className="flex flex-col gap-[3px] max-md:gap-2">
-          <GroupLabel>{t.nav.groupDailyEntry}</GroupLabel>
+          <GroupLabel>{t.nav.groupEntry}</GroupLabel>
           <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
             {t.nav.dailyQuotes}
+          </NavLink>
+          {/* A32 — the group's second item. `end` is not needed: `/transactions`
+              is not a prefix of any other route. */}
+          <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
+            {t.nav.transactions}
           </NavLink>
 
           <GroupLabel className="mt-4">{t.nav.groupAnalytics}</GroupLabel>

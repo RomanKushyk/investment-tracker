@@ -43,10 +43,11 @@ function plural(n: number, one: string, few: string, many: string): string {
 
 export const en = {
   nav: {
-    groupDailyEntry: 'Daily entry',
+    groupEntry: 'Entry',
     groupAnalytics: 'Analytics',
     groupSettings: 'Settings',
     dailyQuotes: 'Daily quotes',
+    transactions: 'Transactions',
     overview: 'Overview',
     balances: 'Balances',
     payouts: 'Payouts',
@@ -767,7 +768,6 @@ export const en = {
     source: 'Source of funds',
     submit: 'Record transaction',
     invalid: 'Check the highlighted fields and try again.',
-    recentTitle: 'Recent transactions',
     recentEmpty: 'No transactions yet.',
     // The Type select spells out "Interest payout"; the Recent rows say
     // "Coupon" for the same type, per the design copy.
@@ -881,6 +881,10 @@ export const en = {
     },
   },
   screen: {
+    transactions: {
+      title: 'Transactions',
+      subtitle: 'Record a purchase, sale, coupon or dividend.',
+    },
     dailyQuotes: {
       title: 'Daily quotes',
       subtitle: 'The everyday ritual — nothing else competes with it.',
@@ -932,10 +936,11 @@ export type Dict = typeof en;
 
 export const uk: Dict = {
   nav: {
-    groupDailyEntry: 'Щоденний ввід',
+    groupEntry: 'Ввід',
     groupAnalytics: 'Аналітика',
     groupSettings: 'Налаштування',
-    dailyQuotes: 'Щоденні котирування', // ✎
+    dailyQuotes: 'Щоденні котирування',
+    transactions: 'Транзакції', // ✎
     overview: 'Огляд', // ✎
     balances: 'Баланси', // ✎
     payouts: 'Виплати', // ✎
@@ -1586,7 +1591,6 @@ export const uk: Dict = {
     source: 'Джерело коштів',
     submit: 'Записати транзакцію',
     invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
-    recentTitle: 'Останні транзакції',
     recentEmpty: 'Транзакцій ще немає.',
     types: {
       buy: 'Купівля',
@@ -1695,6 +1699,10 @@ export const uk: Dict = {
     },
   },
   screen: {
+    transactions: {
+      title: 'Транзакції',
+      subtitle: 'Запишіть купівлю, продаж, купон або дивіденд.',
+    },
     dailyQuotes: {
       title: 'Щоденні котирування',
       subtitle: 'Щоденний ритуал — ніщо інше з ним не конкурує.',
