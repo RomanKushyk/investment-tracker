@@ -126,6 +126,23 @@ export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction
   return txs.filter((t) => t.date >= w.from && t.date <= w.to);
 }
 
+/**
+ * Every transaction from a window's opening day onward — the BOTTOM-ONLY clip.
+ *
+ * The deliberate variant of `transactionsIn`, and it exists as a named function
+ * for that function's own reason: four screens had hand-written this filter and
+ * four literals are four chances to disagree about the edge (A40 review).
+ *
+ * WHY NO UPPER BOUND. Every window ends at the latest valuation, so an upper
+ * clip can only ever exclude transactions entered SINCE it — which are the most
+ * recent reality and which every screen counts. A39 shipped the two-ended clip
+ * and a buy dated after the last snapshot vanished from `/yield` while
+ * `/portfolio` still showed it.
+ */
+export function transactionsFrom(txs: Transaction[], from: string): Transaction[] {
+  return txs.filter((t) => t.date >= from);
+}
+
 // Balances-only: the most recent snapshot quoting every given asset.
 export function latestCompleteSnapshot(
   snaps: Snapshot[],

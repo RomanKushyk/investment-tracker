@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 import { Link } from 'react-router';
 
 import { buttonVariants } from '../components/ui/button-variants';
@@ -7,22 +9,24 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { usePeriodWindow } from '../hooks/usePeriodWindow';
+import { xirrIsExtrapolatedIn } from './yield/yield';
+import { dayBefore } from '../core/dates';
 import { ShareBar } from '../components/ui/ShareBar';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import {
   depositedTotal,
   headlineTotal,
+  quotesAsOf,
+  transactionsFrom,
   incomeReceived,
   incomeReceivedNet,
   investedByAsset,
   latestCash,
   latestQuotes,
-  netResult,
-  portfolioStart,
   reinvestedTotal,
   sharePct,
-  soldAmount,
   yieldSinceStart,
 } from '../core/derive';
 import { todayIso } from '../core/dates';
@@ -33,7 +37,9 @@ import {
   ledgerDriftChip,
   mostUnderweightAsset,
   nextPayoutRows,
-  totalReturnKpi,
+  netResultIn,
+  totalReturnKpiIn,
+  portfolioXirrIn,
 } from './overview/overview';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -41,34 +47,67 @@ import { Scroller } from '../components/ui/Scroller';
 
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
+// Stable empties, so `?? []` does not hand `useMemo` a new array every render
+// and defeat the memo it depends on — the idiom `DailyQuotes` already uses.
+const NO_ASSETS: Asset[] = [];
+const NO_SNAPSHOTS: Snapshot[] = [];
+const NO_TRANSACTIONS: Transaction[] = [];
+
 export function Overview() {
   const f = useFormat();
   const t = useT();
-  const assets = useAssets().data ?? [];
-  const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const assets = useAssets().data ?? NO_ASSETS;
+  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
+  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
   // NARROWED (A38 review): `useSettings()` with no selector re-renders this
-  // screen on ANY store change, so a period press re-ran `headlineTotal`,
-  // `netResult` and `totalReturnKpi`'s XIRR solve over the whole ledger to
-  // produce a byte-identical screen.
+  // screen on ANY store change. That was written when a period press produced a
+  // byte-identical screen; since A40 it produces a different one, and the
+  // reason to narrow is now the currency toggle and every other unrelated
+  // field. The derivations below are memoized for the rest (A40 review).
   const currency = useSettings((s) => s.currency);
   const usdRate = useSettings((s) => s.usdRate);
   const usd = currency === 'USD';
 
   const values = latestQuotes(snapshots);
-  const invested = investedByAsset(transactions);
   const total = headlineTotal(snapshots);
   const cash = latestCash(snapshots);
-  const net = netResult(values, invested, soldAmount(transactions));
   const deposited = depositedTotal(transactions);
   const reinvested = reinvestedTotal(transactions);
-  const income = incomeReceived(transactions);
-  const incomeNet = incomeReceivedNet(transactions);
-  const totalReturn = totalReturnKpi(snapshots, transactions);
+  // A40 — one call gives the window and the control that sets it (A39 review).
+  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
+  // The per-asset basis the windowed return divides by — what the window
+  // inherited plus what it bought, exactly as `/yield` computes it.
+  const windowedBasis = useMemo(() => {
+    if (win === undefined) return investedByAsset(transactions);
+    const open = quotesAsOf(snapshots, dayBefore(win.from));
+    const bought = investedByAsset(transactionsFrom(transactions, win.from));
+    const out: Record<string, number> = { ...open };
+    for (const [id, amount] of Object.entries(bought)) out[id] = (out[id] ?? 0) + amount;
+    return out;
+  }, [snapshots, transactions, win]);
+
+  const windowed = useMemo(
+    () => (win === undefined ? transactions : transactionsFrom(transactions, win.from)),
+    [transactions, win],
+  );
+  // MEMOIZED, because five `useTweenedNumber`s drive this component from rAF:
+  // one currency toggle or period press re-renders it ~18 times in 300 ms, and
+  // without this each frame re-ran an XIRR solve and a dozen sorts of the
+  // 174-snapshot array to produce the same numbers (A40 review).
+  const { totalReturn, pXirr, net, income, incomeNet } = useMemo(
+    () => ({
+      totalReturn: totalReturnKpiIn(snapshots, transactions, win),
+      pXirr: portfolioXirrIn(snapshots, transactions, win),
+      net: netResultIn(snapshots, transactions, win),
+      // THE ONE FLOW CARD ON THE SCREEN, and a flow that refuses to move is the
+      // "broken control" reading D-6 exists to prevent. Income is the only
+      // figure here measured BETWEEN the two ends rather than at one of them.
+      income: incomeReceived(windowed),
+      incomeNet: incomeReceivedNet(windowed),
+    }),
+    [snapshots, transactions, win, windowed],
+  );
   const drift = ledgerDriftChip(snapshots, transactions);
-  // A24 — derived, so absent on an empty dataset; the sub-line drops rather
-  // than naming a date nothing supports.
-  const start = portfolioStart(assets, snapshots, transactions);
 
   // Currency-aware KPI grid (renderVals ovCap/ovCapSub/ovNet/ovDep/ovDepSub/ovCash) —
   // only these headline cards convert; tables and every other card stay ₴.
@@ -137,6 +176,7 @@ export function Overview() {
       <ScreenHeader
         title={t.screen.overview.title}
         subtitle={t.screen.overview.subtitle(f.date(todayIso()), f.units(usdRate))}
+        actions={control}
       />
 
       {/* min(200px,100%) caps auto-fit's track floor to the container width —
@@ -157,7 +197,13 @@ export function Overview() {
           label={t.analytics.overview.capitalGain}
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
-          sub={start ? t.analytics.prose.sinceDate(f.pct(net.pct), f.dateShort(start)) : undefined}
+          // D-6: a card measured ACROSS the window points at its LEFT end,
+          // which is the end that moves on every press. The sheet proposes the
+          // phrase «проти початку періоду»; the shipped `sinceDate` already
+          // names that end and names it EXACTLY, so it is fed `win.from`
+          // instead of the portfolio's start. No copy is invented, and at
+          // `Від початку` the two are the same date, so the card is unchanged.
+          sub={win ? t.analytics.prose.sinceDate(f.pct(net.pct), f.dateShort(win.from)) : undefined}
           subClassName={`font-semibold ${net.pct < 0 ? 'text-neg' : 'text-pos'}`}
         />
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
@@ -167,9 +213,35 @@ export function Overview() {
           value={totalReturnValue}
           valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
           sub={
-            totalReturn.roi === null
-              ? '—'
-              : t.analytics.prose.onNetDeposits(f.pct(totalReturn.roi))
+            <>
+              {totalReturn.roi === null
+                ? '—'
+                : t.analytics.prose.onNetDeposits(f.pct(totalReturn.roi))}
+              {/* D-6's classifier is that the cards which MOVE point at the
+                  window's left end — the end that moved. The capital-gain card
+                  does it through `sinceDate`; this one carries its denominator
+                  name already, so the date joins it rather than replacing it.
+                  Both are formatted values, not new copy. */}
+              {totalReturn.roi !== null && win !== undefined && ` · ${f.dateShort(win.from)}`}
+              {/* D-8 — THE PORTFOLIO XIRR LANDS HERE, and the argument is about
+                  BOUNDARIES. This card is the one figure in the app already
+                  measured at the portfolio's edge (`globalRoi` over
+                  `netDeposits`), and `portfolioXirr` is defined entirely there
+                  too — A25 calls it "the annualized counterpart of
+                  `globalRoi`". Every column on `/yield` is measured at the
+                  ASSET boundary instead, so this number has no honest cell in
+                  that table in any row: under the XIRR column it reads as the
+                  assets' total, and in a Total row with seven dashes it reads
+                  as a table that broke. Counterparts belong on one card, where
+                  the pairing teaches the difference. */}
+              {pXirr !== null && (
+                <div className="text-muted mt-1 text-xs font-normal">
+                  {xirrIsExtrapolatedIn(win)
+                    ? t.period.portfolioXirrAnn(f.pct(pXirr))
+                    : t.period.portfolioXirr(f.pct(pXirr))}
+                </div>
+              )}
+            </>
           }
           subClassName={
             totalReturn.roi === null
@@ -221,7 +293,11 @@ export function Overview() {
             <div className="flex flex-col gap-3">
               {assets.map((a, i) => {
                 const value = values[a.id] ?? 0;
-                const yield_ = yieldSinceStart(value, invested[a.id] ?? 0);
+                // WINDOWED, so it is the same number `/yield`'s Δ shows under
+                // the same period (A40 review). Value and share are STOCK and
+                // stand still; this column is a RETURN, and two screens
+                // disagreeing about one asset is worse than either being wrong.
+                const yield_ = yieldSinceStart(value, windowedBasis[a.id] ?? 0);
                 return (
                   // A4 — THE FIXED VALUE COLUMNS DROP BELOW THE BREAKPOINT, and
                   // the row folds to two lines instead of losing a field. The

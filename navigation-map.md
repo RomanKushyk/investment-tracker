@@ -29,7 +29,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 |-------|--------|----------|--------|
 | — | Shell + sidebar (all routes) | Task 1 (data: Task 2) | done — capital card + logo + functional ₴/$ toggle (Task 7); third "Settings" nav group (P2); Backup button moved to Settings→Data (P2, was next-phase P1); **TWO SHELLS since A17/D66 — below 768px the sidebar is an off-canvas drawer and a header bar carries the capital; the old 136px rail is gone** |
 | `/` | Daily quotes (landing) | Task 3 (form: Task 4) | done — **the Transaction panel LEFT for `/transactions` on 2026-08-20 (A32); `/` keeps the quotes, the coupon-due cards and the yield teaser** — quote entry flow live; type select incl. Withdrawal/Redemption (P2 `feat/metrics-exposure`, S10); **"Fetch quotes" button + provenance chips + "Use fetched?" offer (P3 `feat/fetch-quotes`, S1–S3); ghost accrual suggestions + coupon-due card (P3 `feat/fixed-yield`, S4–S5); ReminderStrip above the header (P3 `feat/reminders`, S6)** |
-| `/overview` | Overview | Task 5 | done — 5 KPIs currency-aware (5th "Total return (net)" + "Capital gain" relabel + net-of-tax income line + drift chip, P2 `feat/metrics-exposure`); values tween ~300ms on toggle (Task 7); "Next payouts" projects user-created bonds too (P3 `feat/fixed-yield`); ReminderStrip above the ScreenHeader (P3 `feat/reminders`, S6) |
+| `/overview` | Overview | Task 5; **windowed A40 (2026-08-21)** | done — 5 KPIs currency-aware (5th "Total return (net)" + "Capital gain" relabel + net-of-tax income line + drift chip, P2 `feat/metrics-exposure`); values tween ~300ms on toggle (Task 7); "Next payouts" projects user-created bonds too (P3 `feat/fixed-yield`); ReminderStrip above the ScreenHeader (P3 `feat/reminders`, S6) **Since A40 the period control sits in the header and FOUR figures move with it while TWO stand still (D-6)** |
 | `/transactions` | Transactions | A32 (2026-08-20); **two columns A35 (2026-08-20)** | done — the Transaction panel moved here off `/`, and the ledger is the FULL history rather than the last three. The `Entry` group holds this and `/`. **Since A35 the form and the ledger sit SIDE BY SIDE above a 944 container** (form 360, gap 24, ledger to the remainder capped at 884), and the ledger's height is measured from its own position rather than a constant |
 | `/balances` | Balances | Task 6 | done |
 | `/payouts` | Payouts | Task 6 | done |
@@ -237,6 +237,38 @@ On seed:
   - **Free cash 7,75 ₴**, sub **"0,01 % від рахунку"** — **NO ledger-drift chip on untouched demo** (drift 0 by construction, S9d). After recording e.g. an unmatched Withdrawal 100 ₴ the amber warn-tint pill **"Ledger drift +100,00 ₴"** (U+2212 on negatives) appears under the sub with a `title` tooltip; it disappears once |stored − derived| ≤ 0,01 ₴ again.
 - Assets card: 4 rows (color dot, name, meta like "div + cap · 46,1 %", value, green +%) + 12px stacked share bar.
 - Right stack: "Next payouts" (green tint; bond rows from coupon attributes, REIT row estimated "~… ₴" — see D5#7). **Every row is on or after TODAY since A28** — a projection that has fallen behind rolls forward by whole periods, so the card's contents depend on the day it is read: on 2026-08-19 the order was Купон …8976 25.08 → Дивіденд REIT 10.09 → Купон …6475 03.12, "Rebalance hint" (**top up ≈11 429 ₴** — NOT the reference's 11 413, D5#4; "Open Allocation →" navigates), "Income received" **5 040,94 ₴** (dividends 3 641,44 ₴ / coupons 1 399,50 ₴, **plus the P2 second sub line "net of tax 5 040,94 ₴"** — equals gross on demo, no seeded tax rows).
+
+### `/overview` under a period (A40, 2026-08-21)
+
+**Four move, two stand — and that IS the design (D-6).** A card measured AT the
+window's right end cannot change, because the right end never does; a card
+measured ACROSS the two ends must, and points at the left one. Measured on the
+seed at 1440:
+
+| card | Від початку | 3 місяці |
+|---|---|---|
+| Загальний капітал | 149 016,36 ₴ | **149 016,36 ₴ — stands** |
+| Вільні кошти | 7,75 ₴ | **7,75 ₴ — stands** |
+| Приріст капіталу | +4 452,61 ₴ · +3,08 % від 03.02 | +2 746,36 ₴ · +1,88 % **від 27.04** |
+| Загальна дохідність (чиста) | +5 839,99 ₴ · +4,08 % на чисті внески · 03.02 | +4 133,74 ₴ · +2,85 % · **27.04** |
+| XIRR портфеля | **+8,93 %** (річн.) | **+12,08 %** (річн.) |
+| Отриманий дохід | 5 040,94 ₴ (див 3 641,44 · куп 1 399,50) | **2 069,04 ₴** (див 1 853,04 · куп 216,00) |
+| Активи — колонка дохідності | +4,41 / +1,48 / +2,96 / +5,20 % | **+2,80 / +0,78 / +1,24 / +5,20 %** |
+
+- **The XIRR is on the net-return KPI and nowhere else (D-8).** Both figures are
+  measured at the portfolio's external-capital boundary; every `/yield` column
+  is measured at the ASSET boundary, so this number has no honest cell there.
+- **`+8,93 %` is A25's own figure**, computed since 2026-08-18 and displayed
+  nowhere until now.
+- **The `(річн.)` mark follows `/yield`'s rule** — it means "extrapolated from
+  under a year", so it disappears once a window reaches 365 days.
+- **The assets card's yield column equals `/yield`'s Δ for the same asset and
+  window.** Two screens disagreeing about one asset is worse than either being
+  wrong, so they read one basis.
+- **Figures differ from the extension's by one boundary day (D78).** The sheet
+  values the opening position ON `from`; the code values it the day before,
+  which is the only boundary that counts each transaction once. On the seed the
+  gap is the 37,00 ₴ the portfolio moved on 27.04.
 
 ## `/balances`
 

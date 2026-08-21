@@ -131,6 +131,7 @@ only for the decision you actually need.
 | D75 | A hand-entered value is marked, an archive one is not — closes O22 by dissolving it into D33 | 2026-08-19 |
 | D76 | Every branch is code-reviewed before it is squash-merged into `dev` — **amends D73's "no gate"** | 2026-08-19 |
 | D77 | A merged reference wins the LAYOUT, not the class list — the reference owns the RESULT, the code owns the mechanism; three divergences on `/transactions` recorded, and the one that was NOT allowed named | 2026-08-20 |
+| D78 | A window's opening position is valued the DAY BEFORE it opens — the boundary at which each transaction is counted exactly once, and the one that makes the full history reduce exactly; the extension's figures are off by one boundary day (37,00 ₴ on the seed) | 2026-08-21 |
 
 ## A pattern these entries kept finding
 

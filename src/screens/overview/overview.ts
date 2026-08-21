@@ -1,11 +1,16 @@
 // Pure glue for the Overview screen's derived (non-KPI-grid) cards — imports
 // core/ only, returns structured tokens (G1). Covered by overview.test.ts.
+import type { PeriodWindow } from '../../core/period';
 import { couponProjection, rollNextCoupon } from '../../core/accrual';
-import { addMonths } from '../../core/dates';
+import { addMonths, dayBefore, latestSnapshotDate } from '../../core/dates';
 import {
   allocationDeltaPp,
-  globalRoi,
+  quotesAsOf,
+  soldAmountByAsset,
+  transactionsFrom,
   headlineTotal,
+  headlineTotalAsOf,
+  portfolioXirr,
   investedByAsset,
   latestCash,
   ledgerCashDrift,
@@ -44,6 +49,34 @@ export function mostUnderweightAsset(
   return best;
 }
 
+/**
+ * A basis below this renders "—" rather than a ratio. One hryvnia: any smaller
+ * denominator is a rounding artefact, not capital, and dividing by it produces
+ * a percentage with no meaning (A40 review).
+ */
+const ROI_BASIS_FLOOR = 1;
+
+/**
+ * Whether a window has anything to open against.
+ *
+ * TWO CASES LOOK THE SAME AND ARE NOT, which a first cut of this guard missed
+ * and the suite caught immediately: it rejected the FULL history, where an
+ * opening value of 0 is not a missing baseline but the correct one.
+ *
+ * · Nothing was HELD before the window opened → 0 is right, and the full
+ *   history is exactly this case. There is nothing to value.
+ * · Something was held but never VALUED — a ledger starting in February whose
+ *   first snapshot is in June — → there is no "before", and measuring from 0
+ *   reports the entire portfolio as the window's return.
+ *
+ * So the question is about the LEDGER first and the snapshots second.
+ */
+function hasBaseline(snapshots: Snapshot[], transactions: Transaction[], w: PeriodWindow): boolean {
+  const before = dayBefore(w.from);
+  const heldSomething = transactions.some((t) => t.date <= before);
+  return !heldSomething || snapshots.some((s) => s.date <= before);
+}
+
 export interface TotalReturnKpi {
   uah: number; // the audit's NetFinancialResult = totalCapital − netDeposits
   roi: number | null; // globalRoi fraction; null when netDeposits ≤ 0 → UI renders "—"
@@ -57,9 +90,127 @@ export function totalReturnKpi(
   snapshots: Snapshot[],
   transactions: Transaction[],
 ): TotalReturnKpi {
-  const total = headlineTotal(snapshots);
-  const deposits = netDeposits(transactions);
-  return { uah: total - deposits, roi: globalRoi(total, deposits) };
+  return totalReturnKpiIn(snapshots, transactions, undefined);
+}
+
+/**
+ * The net total return over a WINDOW (A40, extension § S3 / D-8).
+ *
+ * It reduces exactly, the way `/yield`'s builder does and for the same reason:
+ * the opening total is measured the DAY BEFORE the window opens, so for the
+ * full history there are no snapshots yet, `open` is 0, and both terms collapse
+ * to today's `headlineTotal − netDeposits`.
+ *
+ * THE BOUNDARY IS WHAT MAKES THIS THE RIGHT CARD FOR THE XIRR (D-8). This
+ * figure is measured at the portfolio's edge — external capital only — and so
+ * is `portfolioXirr`. Every column on `/yield` is measured at the ASSET
+ * boundary instead, which is why the annualized counterpart of THIS number has
+ * no honest cell over there.
+ *
+ * FLOWS ARE CLIPPED AT THE BOTTOM ONLY, as on `/yield`: every window ends at
+ * the latest valuation, so an upper clip could only ever discard deposits
+ * entered since it — which are real, and which every other screen counts
+ * (A39 review).
+ */
+export function totalReturnKpiIn(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  w: PeriodWindow | undefined,
+): TotalReturnKpi {
+  // A WINDOW THAT OPENS BEFORE THE FIRST SNAPSHOT HAS NO BASELINE, and 0 is
+  // not one (A40 review). Without this, a ledger starting in February whose
+  // first valuation is in June reports the ENTIRE portfolio as three months'
+  // return, at several hundred percent. The sheet's S3 matrix names it: the
+  // comparison is absent and the figure is "—", never zero.
+  if (w !== undefined && !hasBaseline(snapshots, transactions, w)) return { uah: 0, roi: null };
+  const close = headlineTotalAsOf(snapshots, w?.to);
+  const open = w === undefined ? 0 : headlineTotalAsOf(snapshots, dayBefore(w.from));
+  const inside = w === undefined ? transactions : transactionsFrom(transactions, w.from);
+  const deposits = netDeposits(inside);
+  const basis = open + deposits;
+  // COMPUTED HERE RATHER THAN THROUGH `globalRoi`, and a first draft got this
+  // wrong in a way only a WINDOW could show: `globalRoi(total, deposits)` is
+  // `(total − deposits) / deposits`, so feeding it the windowed gain and the
+  // windowed basis subtracted the basis a second time and produced −94 % on a
+  // portfolio up 4 133 ₴. The reduction test could not catch it — at the full
+  // history `open` is 0, and the two expressions agree exactly there.
+  const uah = close - open - deposits;
+  // `basis <= 0` IS NOT THE WHOLE GUARD, and `globalRoi`'s doc says why: a
+  // denominator near zero flips the figure into nonsense as surely as a
+  // negative one. A window that opens with 100 000 and sees 99 900 withdrawn
+  // leaves a basis of 100 and would render hundreds of percent on the headline
+  // card. `null` renders "—", which is the honest answer to "return on what?"
+  // (A40 review).
+  return { uah, roi: basis < ROI_BASIS_FLOOR ? null : uah / basis };
+}
+
+/**
+ * The portfolio's CAPITAL gain over a window — value moved, payouts excluded.
+ *
+ * The same shape as `/yield`'s per-asset column, summed: what the window closed
+ * at plus what it sold, against what it inherited plus what it bought. At the
+ * full history the inherited position is 0 and this is `netResult` exactly,
+ * which is what lets the KPI keep its D5-pinned +4 452,61 / +3,08 %.
+ *
+ * It had to be windowed at all because the card is measured ACROSS the two ends
+ * (D-6). A first cut left it on the full history while its own sub-line pointed
+ * at the window's left end — a figure since February under a label saying
+ * "since April", which is the defect A38's review rejected one level up.
+ */
+export function netResultIn(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  w: PeriodWindow | undefined,
+): { uah: number; pct: number } {
+  const sum = (r: Record<string, number>) => Object.values(r).reduce((a, b) => a + b, 0);
+  if (w !== undefined && !hasBaseline(snapshots, transactions, w)) return { uah: 0, pct: 0 };
+  const closeQuotes = quotesAsOf(snapshots, w?.to);
+  const open = w === undefined ? 0 : sum(quotesAsOf(snapshots, dayBefore(w.from)));
+  const inside = w === undefined ? transactions : transactionsFrom(transactions, w.from);
+
+  // A SOLD POSITION KEEPS ITS LAST QUOTE, so the disposal term double-counts it
+  // unless the quote is dropped (A40 review). `quotesAsOf` merges snapshots —
+  // `Object.assign(out, s.quotes)` over the sorted list — which its own doc
+  // calls deliberate, so an asset absent from every snapshot after its sale
+  // keeps its last value forever. `netResult`'s doc claims "a closed position
+  // has no quote, so it leaves `values` entirely"; that is false against the
+  // merge, and the windowed twin would have inherited a ~15 800 ₴ gain that
+  // never happened. An asset with a disposal inside the window contributes its
+  // proceeds, not its stale quote.
+  const soldByAsset = soldAmountByAsset(inside);
+  const close = Object.entries(closeQuotes).reduce(
+    (acc, [id, v]) => acc + (soldByAsset[id] === undefined ? v : 0),
+    0,
+  );
+  const basis = open + sum(investedByAsset(inside));
+  const uah = close + sum(soldByAsset) - basis;
+  return { uah, pct: basis === 0 ? 0 : uah / basis };
+}
+
+/**
+ * The money-weighted counterpart of the net-return figure, over the same window.
+ *
+ * The opening position enters as an outflow dated at `from` — money already
+ * committed when the window began — exactly as `/yield` treats an asset's
+ * inherited position. 0 for the full history, so this reduces to A25's
+ * unwindowed rate: +8,93 % on the seed.
+ */
+export function portfolioXirrIn(
+  snapshots: Snapshot[],
+  transactions: Transaction[],
+  w: PeriodWindow | undefined,
+): number | null {
+  if (w === undefined) {
+    return portfolioXirr(transactions, headlineTotal(snapshots), latestSnapshotDate(snapshots));
+  }
+  if (!hasBaseline(snapshots, transactions, w)) return null;
+  const open = headlineTotalAsOf(snapshots, dayBefore(w.from));
+  const inside = transactionsFrom(transactions, w.from);
+  const opening: Transaction[] =
+    open > 0
+      ? [{ id: '__window-open', date: w.from, type: 'deposit', assetId: '', amount: open, source: 'own' }]
+      : [];
+  return portfolioXirr([...opening, ...inside], headlineTotalAsOf(snapshots, w.to), w.to);
 }
 
 // S9d chip threshold: |stored − derived| must EXCEED this to surface (₴).

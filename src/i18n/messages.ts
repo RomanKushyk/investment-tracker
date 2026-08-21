@@ -439,6 +439,18 @@ export const en = {
    */
   period: {
     ariaLabel: 'Period',
+    /**
+     * The portfolio XIRR's own label, pinned by the brief's S5 inventory.
+     *
+     * TWO FORMS, because the mark means "extrapolated from under a year" and
+     * not "annualized" — that is what `/yield`'s header has always meant by it,
+     * and a first cut hardcoded it here (A40 review). Three characters meaning
+     * opposite things on two adjacent screens is worse than no mark: `/yield`
+     * drops it once a window reaches 365 days, so this must too.
+     */
+    portfolioXirr: (rate: string) => `Portfolio XIRR ${rate}`,
+    /** Same figure, marked as an extrapolation — the `/yield` header's rule. */
+    portfolioXirrAnn: (rate: string) => `Portfolio XIRR ${rate} (ann.)`,
     all: 'Since start',
     '1m': '1 month',
     '3m': '3 months',
@@ -1327,6 +1339,8 @@ export const uk: Dict = {
   },
   period: {
     ariaLabel: 'Період',
+    portfolioXirr: (rate: string) => `XIRR портфеля ${rate}`,
+    portfolioXirrAnn: (rate: string) => `XIRR портфеля ${rate} (річн.)`,
     all: 'Від початку',
     '1m': '1 місяць',
     '3m': '3 місяці',

@@ -8,6 +8,9 @@ import {
   mostUnderweightAsset,
   nextPayoutRows,
   totalReturnKpi,
+  totalReturnKpiIn,
+  portfolioXirrIn,
+  netResultIn,
 } from './overview';
 
 const TOTAL = 149016.36;
@@ -278,5 +281,126 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
         expect(row.date >= on).toBe(true);
       }
     }
+  });
+});
+
+describe('the windowed KPI (A40) — and the XIRR beside it (D-8)', () => {
+  const snaps = buildSeedSnapshots();
+  const full = { from: '2026-02-03', to: '2026-07-27', clamped: false };
+
+  it('reduces exactly at the full history — the property the design hangs on', () => {
+    expect(totalReturnKpiIn(snaps, SEED_TRANSACTIONS, full)).toEqual(
+      totalReturnKpi(snaps, SEED_TRANSACTIONS),
+    );
+    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, full)).toBeCloseTo(
+      portfolioXirrIn(snaps, SEED_TRANSACTIONS, undefined)!,
+      10,
+    );
+  });
+
+  it('reproduces A25’s +8,93 % unwindowed, and moves under a window', () => {
+    // The seed figure the brief and the extension both quote. A shorter window
+    // measures the same portfolio over less time, so the money-weighted rate
+    // rises — the same shape F-2 records for `Річна`, on a different figure.
+    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, full)! * 100).toBeCloseTo(8.93, 1);
+    const m3 = { from: '2026-04-27', to: '2026-07-27', clamped: false };
+    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, m3)! * 100).toBeGreaterThan(8.93);
+  });
+
+  it('a deposit entered since the last snapshot still counts (the A39 regression, not repeated)', () => {
+    const later: Transaction = {
+      id: 'late-dep',
+      date: '2026-08-05',
+      type: 'deposit',
+      assetId: '',
+      amount: 10_000,
+      source: 'own',
+    };
+    const withDep = totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, later], full);
+    const without = totalReturnKpiIn(snaps, SEED_TRANSACTIONS, full);
+    // Capital did not move (no new snapshot), so 10 000 of fresh deposits must
+    // reduce the net return by exactly that much.
+    expect(without.uah - withDep.uah).toBeCloseTo(10_000, 6);
+  });
+});
+
+describe('the windowed KPIs move — the half a reduction test cannot see', () => {
+  const snaps = buildSeedSnapshots();
+  const full = { from: '2026-02-03', to: '2026-07-27', clamped: false };
+  const m3 = { from: '2026-04-27', to: '2026-07-27', clamped: false };
+
+  it('netResultIn reduces, and then actually changes under a window', () => {
+    expect(netResultIn(snaps, SEED_TRANSACTIONS, full).uah).toBeCloseTo(4452.61, 2);
+    expect(netResultIn(snaps, SEED_TRANSACTIONS, full).pct * 100).toBeCloseTo(3.08, 2);
+    // The point of the test: a first cut left this card on the full history
+    // while its sub-line pointed at the window's left end.
+    expect(netResultIn(snaps, SEED_TRANSACTIONS, m3).uah).not.toBeCloseTo(4452.61, 2);
+  });
+
+  it('the windowed ROI is a RATIO, not globalRoi fed the wrong shape', () => {
+    // `globalRoi(total, deposits)` is `(total − deposits) / deposits`. Handing
+    // it the windowed gain and the windowed basis subtracted the basis twice
+    // and rendered −94,43 % on a portfolio that was up. Only a window shows it:
+    // at the full history `open` is 0 and the two expressions agree.
+    const k = totalReturnKpiIn(snaps, SEED_TRANSACTIONS, m3);
+    expect(k.uah).toBeGreaterThan(0);
+    expect(k.roi).toBeGreaterThan(0);
+    expect(k.roi).toBeLessThan(0.2);
+  });
+});
+
+describe('the windowed edge cases the seed cannot show (A40 review)', () => {
+  const snaps = buildSeedSnapshots();
+  const m3 = { from: '2026-04-27', to: '2026-07-27', clamped: false };
+
+  it('a window opening before the first VALUATION has no baseline, and says so', () => {
+    // Held since February, first valued in June. Measuring from 0 would report
+    // the entire portfolio as three months' return, at several hundred percent.
+    const lateSnaps = snaps.filter((s) => s.date >= '2026-06-01');
+    expect(totalReturnKpiIn(lateSnaps, SEED_TRANSACTIONS, m3).roi).toBeNull();
+    expect(portfolioXirrIn(lateSnaps, SEED_TRANSACTIONS, m3)).toBeNull();
+    // …but the FULL history opens against nothing HELD, which is not the same
+    // thing: 0 is the right opening value there, and the figures must survive.
+    expect(totalReturnKpiIn(snaps, SEED_TRANSACTIONS, undefined).roi).not.toBeNull();
+  });
+
+  it('a basis withdrawn down to dust renders "—", not a division by it', () => {
+    // The window opens at 140 940,62 and takes 3 942 of deposits, so a
+    // withdrawal past 144 882 leaves under a hryvnia of capital to measure
+    // against. `basis <= 0` alone would not catch it — the sign is fine and the
+    // magnitude is the problem.
+    const out: Transaction = {
+      id: 'big-withdrawal',
+      date: '2026-05-01',
+      type: 'withdrawal',
+      assetId: '',
+      amount: 144_882,
+      source: 'own',
+    };
+    expect(totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, out], m3).roi).toBeNull();
+
+    // A withdrawal that leaves REAL capital behind is not the same case and
+    // must still report: a large percentage on a small remaining basis is a
+    // fact about the portfolio, not an artefact of the formula.
+    const smaller: Transaction = { ...out, id: 'w2', amount: 50_000 };
+    expect(totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, smaller], m3).roi).not.toBeNull();
+  });
+
+  it('a SELL does not count twice, though the sold asset keeps its last quote', () => {
+    // `quotesAsOf` merges snapshots, so an asset absent after its sale keeps
+    // its final value forever. Counting that AND the proceeds invents a gain.
+    const sell: Transaction = {
+      id: 'sell-8976',
+      date: '2026-06-01',
+      type: 'sell',
+      assetId: 'ovdp8976',
+      amount: 15_800,
+      source: 'own',
+    };
+    const withSell = netResultIn(snaps, [...SEED_TRANSACTIONS, sell], m3);
+    const without = netResultIn(snaps, SEED_TRANSACTIONS, m3);
+    // Selling near market is close to return-neutral; a double count would add
+    // the whole ~15 800 to the gain.
+    expect(Math.abs(withSell.uah - without.uah)).toBeLessThan(1_000);
   });
 });
