@@ -29,6 +29,9 @@ export function Select({
   onOpenChange,
   status,
   scrollList = false,
+  id,
+  ariaLabelledBy,
+  ariaDescribedBy,
 }: {
   value: string;
   onValueChange: (v: string) => void;
@@ -46,6 +49,21 @@ export function Select({
   // className override) so the existing short selects keep their exact
   // unbounded height; the S7 picker lists a whole feed and needs the cap.
   scrollList?: boolean;
+  /**
+   * Accessible naming for a Select whose only visible label is the value it
+   * displays — a picker in a header row has no `<label>` to point at (A38).
+   *
+   * `aria-labelledby`, NEVER `aria-label`, and the difference is the whole
+   * point (A38 review). A trigger's accessible name is computed from its
+   * CONTENTS, which here is the selected value; `aria-label` replaces that, so
+   * the control announces its purpose and never what it is set to. Pass BOTH
+   * ids — the hidden label's and the trigger's own — and the name is the
+   * concatenation: "Період Від початку".
+   */
+  id?: string;
+  ariaLabelledBy?: string;
+  /** The element that explains the current selection — e.g. a resolved window. */
+  ariaDescribedBy?: string;
 }) {
   const borderClass = borderColor === 'faint' ? 'border-faint' : 'border-hairline';
   // `card`, not the literal white it replaces: a control surface has to invert
@@ -54,6 +72,9 @@ export function Select({
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>
       <RadixSelect.Trigger
+        id={id}
+        aria-labelledby={ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
         // `max-md:text-base` for the same reason the fields take 16 (G-4): this
         // trigger DISPLAYS a value, and a select reading 13px beside an input
         // reading 16 is the pair looking mismatched on the one screen where the

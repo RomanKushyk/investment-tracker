@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { mergeSettings, migrateSettings, useSettings, type PersistedSettings } from './settings';
 
@@ -16,6 +19,7 @@ const DEFAULTS: PersistedSettings = {
   reminderLeadDays: 7,
   dismissedReminders: [],
   collapsedNavGroups: [],
+  period: 'all',
 };
 
 // v0 payloads are what zustand persisted before `version: 1` landed —
@@ -388,5 +392,88 @@ describe('collapsedNavGroups', () => {
       collapsedNavGroups: ['analytics', 'ghost'],
     });
     expect(migrateSettings({ collapsedNavGroups: 'analytics' })).toEqual(DEFAULTS);
+  });
+});
+
+describe('period (A38) — the window every analytics screen reads', () => {
+  // Reset at the START of each mutating test, the convention `currency` and
+  // `collapsedNavGroups` already follow — restoring at the end only works on
+  // the happy path, and a failure would leak into every test after it.
+  const reset = () => useSettings.setState({ period: 'all' });
+
+  it('defaults to the widest option, which is also the app today', () => {
+    reset();
+    expect(DEFAULTS.period).toBe('all');
+    expect(useSettings.getState().period).toBe('all');
+  });
+
+  it('validates a stored value against the union, unlike collapsedNavGroups', () => {
+    // The contrast is the point, and it is written beside the code: an unknown
+    // GROUP key collapses a group that does not exist and is harmless, so that
+    // field takes anything string-shaped. An unknown PERIOD reaches
+    // `resolveWindow`, which switches on six literals and would fall through to
+    // a window nobody chose — so it is whitelisted and falls back to the widest.
+    expect(migrateSettings({ period: '3m' }).period).toBe('3m');
+    for (const bad of ['1y', '', 'ALL', 0, null, {}, ['3m']]) {
+      expect(migrateSettings({ period: bad }).period).toBe('all');
+    }
+  });
+
+  it('survives the REHYDRATE path, which is what D-1 actually depends on', () => {
+    // A first draft of this called `migrateSettings` again and named it a round
+    // trip (A38 review). It was the same assertion as the test above with a
+    // different literal, so `partialize` could have dropped `period` entirely
+    // and the suite would have stayed green while every reload reset the user's
+    // window. `mergeSettings` is the rehydrate path the two describes above
+    // test for the same reason.
+    useSettings.setState({ period: 'all' });
+    useSettings.getState().setPeriod('6m');
+    expect(useSettings.getState().period).toBe('6m');
+
+    // What a reload does — `mergeSettings(persisted, current)`, in that order:
+    // the stored slice comes back over the live state.
+    expect(mergeSettings({ ...DEFAULTS, period: '6m' }, useSettings.getState()).period).toBe('6m');
+    // A slice with no period at all falls back rather than carrying the live one
+    // forward, which is what makes the default reachable after a bad write.
+    expect(mergeSettings({}, useSettings.getState()).period).toBe('all');
+
+  });
+});
+
+describe('the persist invariant itself — every field, not just the newest', () => {
+  // `state/settings.ts` calls `partialize` "the one that gets forgotten", and
+  // three tasks in a row (A21, A33, A38) have had to be told so in a comment.
+  // A comment is not a guard. This reads the SOURCE and pins the whole set, the
+  // way `app/mark.test.ts` pins the logo across files — so the next field is
+  // covered by a test nobody has to remember to write.
+  //
+  // The runtime alternative was tried and is not available: `useSettings.persist`
+  // is undefined under vitest, so the option object cannot be inspected.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const SOURCE = readFileSync(join(here, 'settings.ts'), 'utf8');
+
+  const block = (start: string) => {
+    const from = SOURCE.indexOf(start);
+    expect(from).toBeGreaterThan(-1);
+    let depth = 0;
+    for (let i = SOURCE.indexOf('{', from); i < SOURCE.length; i++) {
+      if (SOURCE[i] === '{') depth++;
+      else if (SOURCE[i] === '}' && --depth === 0)
+        return SOURCE.slice(SOURCE.indexOf('{', from), i);
+    }
+    throw new Error(`unterminated block: ${start}`);
+  };
+
+  const keysOf = (text: string, re: RegExp) =>
+    [...text.matchAll(re)].map((m) => m[1]).sort();
+
+  it('PersistedSettings, PERSISTED_DEFAULTS and partialize name the same fields', () => {
+    const declared = keysOf(block('export interface PersistedSettings'), /^\s{2}'?([\w]+)'?[?]?:/gm);
+    const defaults = keysOf(block('const PERSISTED_DEFAULTS: PersistedSettings ='), /^\s{2}'?([\w]+)'?:/gm);
+    const written = keysOf(block('partialize: (s) => ('), /^\s{8}([\w]+):/gm);
+
+    expect(declared.length).toBeGreaterThan(8);
+    expect(defaults).toEqual(declared);
+    expect(written).toEqual(declared);
   });
 });

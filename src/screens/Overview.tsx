@@ -47,7 +47,12 @@ export function Overview() {
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
-  const { currency, usdRate } = useSettings();
+  // NARROWED (A38 review): `useSettings()` with no selector re-renders this
+  // screen on ANY store change, so a period press re-ran `headlineTotal`,
+  // `netResult` and `totalReturnKpi`'s XIRR solve over the whole ledger to
+  // produce a byte-identical screen.
+  const currency = useSettings((s) => s.currency);
+  const usdRate = useSettings((s) => s.usdRate);
   const usd = currency === 'USD';
 
   const values = latestQuotes(snapshots);

@@ -14,6 +14,33 @@ import { addMonths } from './dates';
  */
 export type PeriodOption = 'all' | '1m' | '3m' | '6m' | '12m' | 'ytd';
 
+/**
+ * The six, in the order they are offered. Exported because two callers need the
+ * SAME list and must not keep their own: the control renders it, and
+ * `migrateSettings` validates a persisted value against it (A38). A union type
+ * vanishes at runtime, so a stored `"1y"` would otherwise reach `resolveWindow`
+ * and fall through its switch to a window nobody chose.
+ */
+export const PERIOD_OPTIONS = ['all', '1m', '3m', '6m', '12m', 'ytd'] as const;
+
+/**
+ * The witness that keeps the list COMPLETE (A38 review). `readonly
+ * PeriodOption[]` only promised every entry was a member — adding a seventh
+ * option to the union above would have compiled with the array untouched, and
+ * the failure is silent and nasty: the option never renders, and
+ * `migrateSettings` then rejects it and resets a user's saved period to `'all'`
+ * on every reload. This line makes that a type error instead.
+ */
+const _PERIOD_OPTIONS_EXHAUSTIVE: Record<PeriodOption, true> = {
+  all: true,
+  '1m': true,
+  '3m': true,
+  '6m': true,
+  '12m': true,
+  ytd: true,
+};
+void _PERIOD_OPTIONS_EXHAUSTIVE;
+
 export interface PeriodWindow {
   /** Inclusive, ISO `yyyy-MM-dd`. */
   from: string;

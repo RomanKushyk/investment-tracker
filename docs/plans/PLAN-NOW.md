@@ -57,8 +57,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **done** (2026-08-20) — Phase 7 complete |
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`, **amended 2026-08-20** for what Phase 7 changed under it; **extension DRAWN 2026-08-21** → `design/extensions/period-and-analytics.dc.html`. **Phase 8 UI is no longer design-blocked** |
 | **Section L** | **Phase 8 implementation — unblocked 2026-08-21 by `period-and-analytics.dc.html`** | | | |
-| A38 | The period control in `ScreenHeader`'s action slot (D-1), ephemeral axis toggle (D-11) | `feat/period-control` | M | **todo** — read the sheet's MERGE STATUS box first: its drawings bind, its arithmetic does not |
-| A39 | `/yield`, `/overview`, `/seasonality` under a window; the portfolio XIRR lands (D-8) | `feat/analytics-period` | L | **todo** — needs A38 |
+| A38 | The period control in `ScreenHeader`'s action slot (D-1) | `feat/period-control` | M | **done** (2026-08-21) — the control, its persisted state and its tests. **It is NOT rendered on any screen**: review found that shipping a window every figure contradicts is not A29's pattern, so A39 renders it in the change that makes it mean something |
+| A39 | `/yield`, `/overview`, `/seasonality` under a window; the portfolio XIRR lands (D-8); the month axis and its ephemeral toggle (D-11) | `feat/analytics-period` | L | **todo** — needs A38 (done). **D-5 is an OPEN QUESTION, not a rule** — see the sheet's MERGE STATUS item 5 |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
 | A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
@@ -1824,3 +1824,56 @@ drawn `max-height:328px`.
       the first pass did the latter, claiming an event that had not happened.
       Two passes ran: 13 findings then 10, all taken. 687 tests.
 
+---
+
+## A38 — The period control — **DONE 2026-08-21** — `feat/period-control`
+
+The control, its state and the line that names the window. **Nothing on any
+screen reads the window yet** — that is A39, and the split is A29 -> A30's
+shape: land the affordance, then let a screen consume it.
+
+**The axis toggle moved to A39.** D-11 settled that it is ephemeral, but a
+toggle with nothing to toggle is worse than no toggle: the month axis is S4 and
+belongs to the task that draws it.
+
+**Where it lives is D-1's argument, and the second shell decides it.** Below
+`md` the sidebar is a Radix `Dialog` behind a scrim, so a control that reframes
+what you are looking at sits on top of what you are looking at. The currency
+toggle survives that only because the drawer carries its own readout ten pixels
+below; a period has none, because the figures it moves are three routes away.
+
+**F-1 IS NOW VISIBLE IN THE PRODUCT, not explained in a document.** The option
+hint is the resolved start date, derived through `f.dateShort(window.from)`, so
+the list reads: `Від початку · 03.02` · `1 місяць · 27.06` · `3 місяці · 27.04`
+· `6 місяців · 03.02` · `12 місяців · 03.02` · `Від початку року · 03.02`.
+**Four rows carry the same date** — six labels, three behaviours, seen rather
+than argued, and it stays true as the history grows with no rule to update.
+
+**Two divergences from the drawing, both taken under its own MERGE STATUS box.**
+The cluster is a fixed 222 at every width, not `w-full` at 360: item 2 records
+that a percentage width cannot work inside `ScreenHeader`'s shrink-to-fit
+`ml-auto flex` wrapper. And the clamp's measured cost is **+33 px**, not the
+drawn +30 — item 1 predicted exactly that, because `text-[11px]` renders 16,5
+under preflight. **The browser agreed with the errata against the drawing**,
+which is the first evidence that closing the sheet under D77 was right.
+
+- [x] `period: PeriodOption` through all four touchpoints in one commit —
+      `PersistedSettings`, `PERSISTED_DEFAULTS` (`'all'`), `migrateSettings`
+      and `partialize`.
+- [x] **A whitelist in `migrateSettings`, unlike `collapsedNavGroups`** — an
+      unknown group key collapses a group that does not exist; an unknown
+      period reaches `resolveWindow` and falls through its switch.
+- [x] `PERIOD_OPTIONS` exported from `core/period.ts` so the control and the
+      migration read one list.
+- [x] `latestSnapshotDate` added to `core/derive.ts` — the name was already in
+      that file's prose (`portfolioXirr`'s doc) before the function existed,
+      and three screens were about to derive the window's right end three ways.
+- [x] Verified in the browser: aria «Період»; popover 222 = the trigger, all six
+      rows on one line (F-15's failure mode absent); the window line
+      `03.02.2026 – 27.07.2026` in `muted`, clamped it re-colours to
+      `warn-tint-text` and gains the brief's sentence; the period survives
+      navigation across all three screens and a reload; `/portfolio` has no
+      control; 360 gives 222 flush right, 16 px trigger text, overflow 0.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` — 690, +3.
+- [x] `/code-review` (D76) — 15 findings, 14 taken, 1 declined in writing.
+      Ticked after it closed, not inside the commit under review.

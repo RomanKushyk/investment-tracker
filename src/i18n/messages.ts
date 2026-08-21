@@ -422,6 +422,39 @@ export const en = {
       }
     },
   },
+  /**
+   * The period control (A38, brief § S1 § 2 — the brief owns copy, D14).
+   *
+   * UKRAINIAN PLURALS ARE THE RULE, NOT THE ENGLISH PATTERN — `1 місяць`,
+   * `3 місяці`, `12 місяців` are three forms, and the brief calls a fixed
+   * `місяців` on every option a defect. They are written out rather than
+   * generated because there are exactly six and the set is closed; the
+   * generated form is what `deleteCascade` needs and this does not.
+   *
+   * The option HINT is not here. It is the resolved start date, formatted at
+   * render through `f.dateShort(window.from)` — derived, so it needs no string
+   * and stays correct as the history grows (extension F-1 is drawn BY it:
+   * three rows all reading the same date is "four labels, one window" seen
+   * rather than explained).
+   */
+  period: {
+    ariaLabel: 'Period',
+    all: 'Since start',
+    '1m': '1 month',
+    '3m': '3 months',
+    '6m': '6 months',
+    '12m': '12 months',
+    ytd: 'Year to date',
+    /** G-3: shown after the dates when `resolveWindow` reports `clamped`. */
+    clamped: 'Full history — shorter than the period you picked.',
+    /**
+     * The same mark, in the OPTION ROW, where the choice is actually made. The
+     * brief pins it as "absent, or present with the mark — never silently
+     * short", and a mark that only appears after the press marks nothing.
+     * Short because it shares a 222 px row with a label and a date.
+     */
+    clampedHint: 'all of it',
+  },
   analytics: {
     // Column and field terms shared by several screens — one place, so the
     // same concept cannot end up with two words on two tables.
@@ -1285,6 +1318,17 @@ export const uk: Dict = {
       'грудня',
     ],
     dayOfMonth: (n: number) => `${n}-го`,
+  },
+  period: {
+    ariaLabel: 'Період',
+    all: 'Від початку',
+    '1m': '1 місяць',
+    '3m': '3 місяці',
+    '6m': '6 місяців',
+    '12m': '12 місяців',
+    ytd: 'Від початку року',
+    clamped: 'Уся історія — коротша за обраний період.',
+    clampedHint: 'уся історія',
   },
   analytics: {
     asset: 'Актив',

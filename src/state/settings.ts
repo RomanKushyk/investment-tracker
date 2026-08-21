@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { PERIOD_OPTIONS, type PeriodOption } from '../core/period';
 import { persist } from 'zustand/middleware';
 
 import type { Dataset } from '../core/backup/json';
@@ -53,6 +54,14 @@ interface SettingsState {
    * times: keep what was chosen, drop what was passed through.
    */
   collapsedNavGroups: string[];
+  /**
+   * The window every analytics screen reads (A38, extension D-2). PERSISTED,
+   * and it is not a free-standing preference — D-1 DEPENDS on it. Splitting one
+   * control across `/overview`, `/yield` and `/seasonality` is only safe
+   * because the selection survives the navigation between them; the two
+   * decisions are one decision.
+   */
+  period: PeriodOption;
   /** Session only — the sidebar toggle. Gone on reload, by design. */
   setCurrency: (c: 'UAH' | 'USD') => void;
   /**
@@ -72,6 +81,7 @@ interface SettingsState {
   dismissReminder: (id: string) => void;
   restoreDismissed: () => void;
   toggleNavGroup: (key: string) => void;
+  setPeriod: (p: PeriodOption) => void;
 }
 
 /** The persisted payload — keep in exact sync with `partialize` below. */
@@ -104,6 +114,10 @@ export interface PersistedSettings {
   // A33. The standing invariant is that a new persisted field enters
   // `partialize` in the SAME commit — see the doctrine block below.
   collapsedNavGroups: string[];
+  // A38, and the same invariant. `state/settings.ts` names `partialize` as the
+  // one that gets forgotten, and the extension's D-2 repeats the warning
+  // because splitting the control across three screens depends on it.
+  period: PeriodOption;
 }
 
 const PERSISTED_DEFAULTS: PersistedSettings = {
@@ -118,6 +132,7 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   reminderLeadDays: DEFAULT_LEAD_DAYS,
   dismissedReminders: [],
   collapsedNavGroups: [],
+  period: 'all',
 };
 
 /**
@@ -195,6 +210,15 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     collapsedNavGroups: Array.isArray(p.collapsedNavGroups)
       ? p.collapsedNavGroups.filter((k): k is string => typeof k === 'string')
       : [...PERSISTED_DEFAULTS.collapsedNavGroups],
+    // A WHITELIST HERE, unlike `collapsedNavGroups` three lines above, and the
+    // difference is what the value does. An unknown group key collapses a group
+    // that does not exist — harmless. An unknown period reaches `resolveWindow`,
+    // which switches on the six literals and would fall through to a window
+    // nobody chose. So it is validated against the union and falls back to the
+    // default, which is also the widest.
+    period: PERIOD_OPTIONS.includes(p.period as PeriodOption)
+      ? (p.period as PeriodOption)
+      : PERSISTED_DEFAULTS.period,
   };
 }
 
@@ -249,6 +273,7 @@ export const useSettings = create<SettingsState>()(
       reminderLeadDays: DEFAULT_LEAD_DAYS,
       dismissedReminders: [],
       collapsedNavGroups: [],
+      period: 'all',
       setCurrency: (currency) => set({ currency }),
       setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
@@ -291,6 +316,7 @@ export const useSettings = create<SettingsState>()(
       restoreDismissed: () => set({ dismissedReminders: [] }),
       // Idempotent per key, like `dismissReminder`: a group is in the list once
       // or not at all.
+      setPeriod: (period) => set({ period }),
       toggleNavGroup: (key) =>
         set((s) => ({
           collapsedNavGroups: s.collapsedNavGroups.includes(key)
@@ -317,6 +343,7 @@ export const useSettings = create<SettingsState>()(
         reminderLeadDays: s.reminderLeadDays,
         dismissedReminders: s.dismissedReminders,
         collapsedNavGroups: s.collapsedNavGroups,
+        period: s.period,
       }),
     },
   ),
