@@ -607,8 +607,14 @@ export const en = {
       netOfTax: (amount: string) => `net of tax ${amount}`,
       seasonalityNote:
         "* expected — projected from the asset's next coupon date. Gray stubs = ordinary price-drift days with no income.",
+      /**
+       * WINDOW-AGNOSTIC SINCE A39. It used to say "from first purchase", which is
+       * false under any window other than the widest — the date it names is the
+       * window's start, and at `Від початку` that IS the first purchase. One
+       * sentence, true in both cases, rather than two strings to keep in step.
+       */
       yieldNote: (start: string) =>
-        `Annualized = total Δ scaled to 365 days from first purchase (${start}). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation.`,
+        `Annualized = total Δ scaled to 365 days from ${start}. Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation.`,
       // The hint is assembled around two <strong> spans, so it is two slots
       // rather than one sentence. The slot ORDER happens to match in both
       // languages — asset · connector · delta · phrase(target) · amount.
@@ -1474,7 +1480,7 @@ export const uk: Dict = {
       seasonalityNote:
         '* очікувано — спрогнозовано за датою наступного купона активу. Сірі стовпчики = звичайні дні коливання ціни без доходу.',
       yieldNote: (start: string) =>
-        `Річна = загальна Δ, приведена до 365 днів від першої купівлі (${start}). Купони враховуються в Δ за нарахуванням. Загальна дохідність — чиста від податків і включає виплати. XIRR зважений за грошима та річний — за історії менш ніж рік вважайте його екстраполяцією.`,
+        `Річна = загальна Δ, приведена до 365 днів від ${start}. Купони враховуються в Δ за нарахуванням. Загальна дохідність — чиста від податків і включає виплати. XIRR зважений за грошима та річний — за історії менш ніж рік вважайте його екстраполяцією.`,
       rebalanceIs: 'на',
       underTarget: (target: string) => `нижче за ціль ${target} — поповнити на`,
     },

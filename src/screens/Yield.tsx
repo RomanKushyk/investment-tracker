@@ -6,10 +6,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield/yield';
+import { cumulativeYieldSeriesIn, xirrIsExtrapolatedIn, yieldTableRowsIn } from './yield/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-import { portfolioStart } from '../core/derive';
+import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
@@ -28,22 +28,38 @@ export function Yield() {
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
 
-  const series = cumulativeYieldSeries(snapshots, transactions, assets);
-  const rows = yieldTableRows(assets, snapshots, transactions);
+  // A39 — one call gives the window and the control that sets it, so the two
+  // cannot resolve differently. `all` is the full history, which is why the
+  // default screen is byte-identical to the one before this task.
+  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
+
+  const series = cumulativeYieldSeriesIn(snapshots, transactions, assets, win);
+  const rows = yieldTableRowsIn(assets, snapshots, transactions, win);
   // "(ann.)" clarity suffix while history < 365 days (S9b) — plain "XIRR" after.
-  const xirrHeader = xirrIsExtrapolated(assets, snapshots, transactions)
+  const xirrHeader = xirrIsExtrapolatedIn(win)
     ? t.analytics.yield.xirrAnn
     : t.analytics.yield.xirr;
 
   // A24 — the basis is derived, so it can be absent. An empty dataset has no
   // start to name, and a footnote reading "365 days from —" is worse than no
   // footnote: the table it annotates is empty too.
-  const start = portfolioStart(assets, snapshots, transactions);
-  const note = start ? t.analytics.prose.yieldNote(f.date(start)) : undefined;
+  // The footnote names the basis, so it follows the window rather than the
+  // portfolio: under `3 місяці` a note reading "from 3 Feb" would describe a
+  // table that no longer starts there.
+  const note = win ? t.analytics.prose.yieldNote(f.date(win.from)) : undefined;
 
   return (
     <div>
-      <ScreenHeader title={t.screen.yield.title} subtitle={t.screen.yield.subtitle} />
+      {/* The control is passed only when there IS a window. `ScreenHeader`
+          branches on `actions === undefined`, and an element that renders null
+          is still defined — so handing it one unconditionally would put an
+          empty action row on the empty-dataset screen and break the
+          byte-identity that component's doc pins (A38 review). */}
+      <ScreenHeader
+        title={t.screen.yield.title}
+        subtitle={t.screen.yield.subtitle}
+        actions={control}
+      />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         <div className="text-muted mb-2 flex flex-wrap gap-4 text-[11.5px]">

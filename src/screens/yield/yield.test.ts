@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
 import type { Asset, Snapshot, Transaction } from '../../core/types';
-import { cumulativeYieldSeries, xirrIsExtrapolated, yieldTableRows } from './yield';
+import {
+  cumulativeYieldSeries,
+  cumulativeYieldSeriesIn,
+  xirrIsExtrapolated,
+  yieldTableRows,
+  yieldTableRowsIn,
+} from './yield';
+import { resolveWindow } from '../../core/period';
 
 const snaps = buildSeedSnapshots();
 
@@ -215,5 +222,151 @@ describe('cumulativeYieldSeries', () => {
   it("energy's last defined point (07.25) matches its table Δ +1.48% (unaffected by the partial row)", () => {
     const jul25 = series.find((p) => p.date === '2026-07-25')!;
     expect(jul25.energy).toBeCloseTo(1.48, 1);
+  });
+});
+
+describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
+  const full = resolveWindow('all', '2026-02-03', '2026-07-27')!;
+  const byId = (rows: ReturnType<typeof yieldTableRows>) =>
+    Object.fromEntries(rows.map((r) => [r.asset.id, r]));
+
+  it('THE FULL HISTORY IS NOT A SPECIAL CASE — it reduces exactly', () => {
+    // The property the whole design hangs on, and the reason `yieldTableRows`
+    // is allowed to delegate. If this ever fails, two implementations have
+    // started to disagree and every D5-pinned figure is in play.
+    expect(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, full)).toEqual(
+      yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+    );
+  });
+
+  it('a shorter window keeps Δ almost still while `Річна` triples — F-2, measured', () => {
+    // The finding the extension spent a page on: `annualizedPct` is LINEAR, so
+    // a 30-day window multiplies by 365/30 = 12,17. …6475 is the row that shows
+    // it, because its Δ barely moves between windows.
+    const w = (o: 'all' | '3m' | '1m') => resolveWindow(o, '2026-02-03', '2026-07-27')!;
+    const at = (o: 'all' | '3m' | '1m') =>
+      byId(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w(o))).ovdp6475;
+
+    // `all` and `3m` contain the SAME FLOWS for this asset — bought 02.06, after
+    // 27.04 — so Δ may not move between them. `Річна` must, and by exactly the
+    // ratio of the two spans: 174 / 91 = 1,91. That is the whole of F-2, and a
+    // first draft of this test asserted the two were equal, which is the belief
+    // the finding exists to correct.
+    expect(at('3m').deltaTotal).toBeCloseTo(at('all').deltaTotal!, 10);
+    expect(at('3m').annualized! / at('all').annualized!).toBeCloseTo(174 / 91, 2);
+    expect(at('3m').annualized! * 100).toBeCloseTo(20.8, 1);
+
+    // 1 місяць opens after the purchase, so the basis becomes the position it
+    // inherited and the annualized figure amplifies.
+    expect(at('1m').deltaTotal! * 100).toBeCloseTo(2.77, 1);
+    expect(at('1m').annualized! * 100).toBeGreaterThan(30);
+    expect(at('all').annualized! * 100).toBeCloseTo(10.9, 1);
+  });
+
+  it('a SELL inside the window is not a loss — the case the seed cannot show (F-7)', () => {
+    // The seed has no disposals, which is exactly why the sheet's formula could
+    // omit the term for three review rounds without a single figure moving.
+    //
+    // A FIRST DRAFT OF THIS TEST COULD NOT FAIL (A39 review): it added proceeds
+    // to the numerator and left the quote alone, so `withSell > without` was
+    // true by construction and would have passed for `+ 2 * sold` too. A real
+    // disposal REDUCES THE POSITION, so the fixture drops the quote by the same
+    // 10 000 the sale returned — and the return must then be unchanged, because
+    // selling at market moves no value.
+    const asset = SEED_ASSETS.find((a) => a.id === 'energy')!;
+    const sold: Transaction = {
+      id: 'sell-test',
+      date: '2026-07-01',
+      type: 'sell',
+      assetId: 'energy',
+      amount: 10_000,
+      source: 'own',
+    };
+    const reduced: Snapshot[] = snaps.map((s) =>
+      s.date >= '2026-07-01' && s.quotes.energy !== undefined
+        ? { ...s, quotes: { ...s.quotes, energy: s.quotes.energy - 10_000 } }
+        : s,
+    );
+    const w = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const withSell = yieldTableRowsIn([asset], reduced, [...SEED_TRANSACTIONS, sold], w)[0];
+    const without = yieldTableRowsIn([asset], snaps, SEED_TRANSACTIONS, w)[0];
+
+    // Selling at market is return-neutral. Drop the `+ sold` term and this row
+    // reports a double-digit loss on a position that merely returned cash.
+    expect(withSell.deltaTotal! * 100).toBeCloseTo(without.deltaTotal! * 100, 1);
+    expect(withSell.deltaTotal!).toBeGreaterThan(0);
+  });
+});
+
+describe('the two regressions A39 shipped and its review caught', () => {
+  it('a buy entered AFTER the last snapshot still counts, on every window', () => {
+    // Transactions are entered daily; snapshots are not. Clipping flows at the
+    // window's top dropped them, so `/yield` reported 65 800 for an asset
+    // `/portfolio` reported 115 800 for — on the DEFAULT screen.
+    const later: Transaction = {
+      id: 'late-buy',
+      date: '2026-08-05',
+      type: 'buy',
+      assetId: 'reit',
+      amount: 50_000,
+      source: 'own',
+    };
+    const rows = yieldTableRows(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, later]);
+    expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(115_800);
+  });
+
+  it('no snapshots is no VALUATION, not an empty ledger', () => {
+    // `invested` renders unconditionally, so this read "Вкладено 0,00" beside
+    // "Вартість зараз —" for anyone who had entered buys but saved no snapshot.
+    const rows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
+    expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(65_800);
+    expect(rows.find((r) => r.asset.id === 'reit')!.value).toBeUndefined();
+  });
+
+  it('a zero-length window annualizes NOTHING rather than fabricating a 0', () => {
+    // `ytd` on 1 January resolves from === to. The old 0-guard was written for
+    // an empty dataset where nothing rendered; with data present it produced a
+    // "0,0 %" and a full-expected-rate miss that both read as measurements.
+    const rows = yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, {
+      from: '2026-07-27',
+      to: '2026-07-27',
+      clamped: false,
+    });
+    const reit = rows.find((r) => r.asset.id === 'reit')!;
+    expect(reit.value).toBeDefined();
+    expect(reit.annualized).toBeUndefined();
+    expect(reit.vsExpectedPp).toBeUndefined();
+  });
+});
+
+describe('cumulativeYieldSeriesIn (A39) — the half that had no tests', () => {
+  const full = resolveWindow('all', '2026-02-03', '2026-07-27')!;
+
+  it('reduces exactly, the same claim the table makes', () => {
+    expect(cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, full)).toEqual(
+      cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS),
+    );
+  });
+
+  it('clips its domain to the window', () => {
+    const m1 = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const pts = cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, m1);
+    expect(pts.length).toBeGreaterThan(0);
+    expect(pts[0].date >= m1.from).toBe(true);
+    expect(pts[pts.length - 1].date).toBe(m1.to);
+  });
+
+  it('rebases against the inherited position, so the curve opens near zero', () => {
+    // Not merely clipped: a window's first point measures the window, so it
+    // starts near 0 rather than at the since-inception figure. Dropping the
+    // `dayBefore` basis or the `>= from` clause on the buy filter breaks this
+    // and nothing else in the suite notices.
+    const m1 = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const first = cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, m1)[0];
+    const sinceStart = cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS).find(
+      (p) => p.date === first.date,
+    )!;
+    expect(Math.abs(first.reit as number)).toBeLessThan(1);
+    expect(sinceStart.reit as number).toBeGreaterThan(3);
   });
 });

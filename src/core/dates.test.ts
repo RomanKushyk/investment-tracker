@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   addMonths,
+  dayBefore,
   daysBetween,
   kyivDateIso,
   kyivTimeHm,
@@ -127,5 +128,17 @@ describe('msUntilNextKyivHour (the Inzhur ~13:00 staleTime)', () => {
   it('never returns 0 or a negative span (the boundary instant rolls forward)', () => {
     const atRefresh = new Date('2026-07-15T10:00:00Z'); // exactly 13:00 Kyiv
     expect(msUntilNextKyivHour(atRefresh, 13)).toBe(24 * HOUR);
+  });
+});
+
+describe('dayBefore (A39 — a window opens the day after its opening position)', () => {
+  it('steps back one day, across months and years', () => {
+    expect(dayBefore('2026-07-27')).toBe('2026-07-26');
+    expect(dayBefore('2026-03-01')).toBe('2026-02-28');
+    expect(dayBefore('2026-01-01')).toBe('2025-12-31');
+  });
+
+  it('handles a leap day, because UTC arithmetic is the whole reason it exists', () => {
+    expect(dayBefore('2028-03-01')).toBe('2028-02-29');
   });
 });

@@ -27,6 +27,27 @@ export function latestSnapshotDate(snapshots: Snapshot[]): string | undefined {
   );
 }
 
+/**
+ * The day before an ISO date — the only date arithmetic a WINDOW needs beyond
+ * `addMonths` (A39).
+ *
+ * A window's opening position is what was held the day BEFORE it opens, not on
+ * its first day: `transactionsIn` includes both ends, so a purchase dated on
+ * `from` belongs to the window's flows, and valuing the position on `from`
+ * would count it twice. It also makes the full-history window reduce exactly —
+ * the day before the portfolio's first transaction has no snapshots, so the
+ * opening value is 0 and every column collapses to its unwindowed form.
+ *
+ * UTC throughout, like `addMonths`, so it never crosses a DST boundary.
+ */
+export function dayBefore(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d - 1));
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${mm}-${dd}`;
+}
+
 // Same day-of-month N months later (Next payouts' estimated dividend date),
 // clamped to the target month's last day: 2026-08-31 +6m -> 2027-02-28 (G1).
 export function addMonths(iso: string, months: number): string {

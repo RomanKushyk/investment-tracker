@@ -58,7 +58,9 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`, **amended 2026-08-20** for what Phase 7 changed under it; **extension DRAWN 2026-08-21** → `design/extensions/period-and-analytics.dc.html`. **Phase 8 UI is no longer design-blocked** |
 | **Section L** | **Phase 8 implementation — unblocked 2026-08-21 by `period-and-analytics.dc.html`** | | | |
 | A38 | The period control in `ScreenHeader`'s action slot (D-1) | `feat/period-control` | M | **done** (2026-08-21) — the control, its persisted state and its tests. **It is NOT rendered on any screen**: review found that shipping a window every figure contradicts is not A29's pattern, so A39 renders it in the change that makes it mean something |
-| A39 | `/yield`, `/overview`, `/seasonality` under a window; the portfolio XIRR lands (D-8); the month axis and its ephemeral toggle (D-11) | `feat/analytics-period` | L | **todo** — needs A38 (done). **D-5 is an OPEN QUESTION, not a rule** — see the sheet's MERGE STATUS item 5 |
+| A39 | **`/yield`** under a window — the table, the curve and the control | `feat/analytics-period` | M | **done** (2026-08-21) — every column reduces exactly to its unwindowed form, pinned by a test |
+| A40 | `/overview` gains a time dimension; the portfolio XIRR lands (D-8) | `feat/overview-period` | M | **todo** — needs A39's windowed derivations as the pattern |
+| A41 | `/seasonality`'s month axis and its ephemeral toggle (D-11) | `feat/seasonality-months` | M | **todo** — **owns D-5, which is an OPEN QUESTION and not a rule**: both formulations tried degenerate. See the sheet's MERGE STATUS item 5 |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
 | A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
@@ -1877,3 +1879,72 @@ which is the first evidence that closing the sheet under D77 was right.
 - [x] `pnpm lint && pnpm typecheck && pnpm test` — 690, +3.
 - [x] `/code-review` (D76) — 15 findings, 14 taken, 1 declined in writing.
       Ticked after it closed, not inside the commit under review.
+
+---
+
+## A39 — `/yield` under a window — **DONE 2026-08-21** — `feat/analytics-period`
+
+**A39 was three screens, a chart axis and an unanswered question.** Split, and
+the reason is this week's own evidence: every branch that arrived with a large
+surface came back with 12–15 review findings. A40 and A41 carry the rest.
+
+**THE PROPERTY THE WHOLE DESIGN HANGS ON: every column reduces exactly.** The
+full history is not a special case in the code — it is the widest value of one
+parameter, so `yieldTableRows` DELEGATES to `yieldTableRowsIn`, the way
+`latestQuotes` delegates to `quotesAsOf` (A27). Two implementations would be two
+chances to disagree about D5-pinned figures.
+
+That works because of one choice: **the opening position is valued the day
+BEFORE the window opens.** `transactionsIn` includes both ends, so a purchase
+dated on `from` is one of the window's own flows and valuing on `from` would
+count it twice. The day before the portfolio's first transaction has no
+snapshots, so the full-history opening value is 0 and every term collapses.
+`dayBefore` is the one piece of date arithmetic this needed beyond `addMonths`.
+
+**693 tests passed with no change to any of them** the moment the windowed
+builder replaced the old one — which is the reduction proved on every pinned
+figure at once, including …6475's +99,4 % XIRR that D18 had to defend.
+
+**F-2 IS NOW PRODUCED BY THE APP**, measured in the browser rather than argued:
+
+| window | Δ | `Річна` | XIRR | проти оч. |
+|---|---|---|---|---|
+| Від початку · 174 d | +5,20 % | +10,9 % | +99,4 % | −4,3 в.п. |
+| 3 місяці · 91 d | +5,20 % | **+20,8 %** | +99,4 % | **+5,6** |
+| 1 місяць · 30 d | +2,76 % | **+33,6 %** | **+39,3 %** | **+18,4** |
+
+Δ barely moves, `Річна` triples, and `проти очікуваної` flips sign — on a
+fixed-coupon bond, against its own contract. Rows 1 and 2 carry byte-identical
+flows (the bond was bought 02.06, after both windows open), so the only thing
+that changed is the divisor.
+
+**Two divergences from the sheet's own table, both smaller than a rounding and
+both explained.** Its 1-місяць opening value is 4 256,13 against this
+implementation's 4 256,49, because the sheet valued on `from` and this values
+the day before it — the choice that makes the reduction exact. Everything
+downstream shifts by the same hair: 2,76 against 2,77, 33,6 against 33,7.
+
+- [x] `yieldTableRowsIn` and `cumulativeYieldSeriesIn`, with the unwindowed
+      forms delegating.
+- [x] **The curve is rebased, not merely clipped.** Restricting the x-range
+      while every y stayed measured from inception would put a table answering
+      "since 27.04" beside a curve answering "since 03.02" — the incoherence
+      A38's review caught one level up. Verified: `Від початку` spans
+      08.02 → 27.07, `1 місяць` spans 29.06 → 27.07.
+- [x] **Disposals count.** `close + soldInside` against the windowed basis,
+      because without it a sale inside the window reads as a loss (F-7). Zero on
+      the seed, which is why the sheet's formula could omit it for three review
+      rounds — so it is pinned by a test with a synthetic sell.
+- [x] The footnote follows the window: under `3 місяці` it names 27.04, not the
+      portfolio's 03.02.
+- [x] The control is passed only when a window exists, so `ScreenHeader` keeps
+      its fragment branch on an empty dataset (A38 review).
+- [x] `pnpm lint && pnpm typecheck && pnpm test` — 696, +3.
+- [x] `/code-review` (D76) — 15 findings, 13 taken, 2 declined in writing.
+      **Two were regressions on the DEFAULT screen** that the suite did not
+      catch: flows clipped at the window's top dropped any transaction entered
+      since the last snapshot (65 800 here against `/portfolio`'s 115 800), and
+      no snapshots reported `Вкладено 0,00` where the old code showed the real
+      figure. Both now pinned. The window plumbing became `usePeriodWindow`,
+      which returns the window AND the control from one `resolveWindow` — so
+      A40 and A41 cannot make them disagree.

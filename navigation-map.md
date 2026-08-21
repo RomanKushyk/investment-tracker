@@ -33,7 +33,7 @@ Route-by-route map of the app for manual/agentic verification. Every expected va
 | `/transactions` | Transactions | A32 (2026-08-20); **two columns A35 (2026-08-20)** | done — the Transaction panel moved here off `/`, and the ledger is the FULL history rather than the last three. The `Entry` group holds this and `/`. **Since A35 the form and the ledger sit SIDE BY SIDE above a 944 container** (form 360, gap 24, ledger to the remainder capped at 884), and the ledger's height is measured from its own position rather than a constant |
 | `/balances` | Balances | Task 6 | done |
 | `/payouts` | Payouts | Task 6 | done |
-| `/yield` | Yield | Task 6 | done — + Total return & XIRR (ann.) columns (P2 `feat/metrics-exposure`, S9b) |
+| `/yield` | Yield | Task 6; **windowed A39 (2026-08-21)** | done — + Total return & XIRR (ann.) columns (P2 `feat/metrics-exposure`, S9b). **Every figure is now measured over the selected PERIOD**, set by the control in the header slot; `Від початку` is the full history and is byte-identical to the pre-A39 screen |
 | `/attributes` | Attributes | Task 5 | done |
 | `/seasonality` | Seasonality | Task 6 | done — expected coupon bars project user-created bonds too (P3 `feat/fixed-yield`) |
 | `/portfolio` | Portfolio | Task 5 | done — P&L headers relabeled "Capital gain, ₴/%" + footnote, values unchanged (P2 `feat/metrics-exposure`, S9c) |
@@ -263,6 +263,38 @@ On seed:
 - **XIRR column** (plain ink, 1 dp, money-weighted): REIT **+23,0 %** · Energy **+3,1 %** · …8976 **+25,8 %** · …6475 **+99,4 %** (D18: derived figures, not D5-pinned; the extension mock's +99,5 % was illustrative rounding). Header reads **"XIRR (ann.)"** while portfolio history < 365 days (demo: yes, 174 days); plain "XIRR" after a full year. Null/unquoted metrics render "—" muted.
 - Table min-width grew (780px) — it scrolls INSIDE the card; the page still has no horizontal scroll at 360px.
 - Footnote (extended in P2): "Annualized = total Δ scaled to 365 days from first purchase (03.02.2026). Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation." **The 03.02.2026 in it is derived from the data since A24** (earliest of: any transaction, any snapshot, any asset's first purchase) and reproduces the pinned date exactly on the seed. On an empty dataset the footnote does not render at all.
+
+### `/yield` under a period (A39, 2026-08-21)
+
+- The **period control** sits in the header's action slot — a `Select` at 272 px
+  with the resolved window under it. Three of six options read
+  **«уся історія»** on the seed instead of a date: they are clamped, because the
+  history is 174 days and they ask for more.
+- **`Від початку` is not a special case.** Every column is computed by the same
+  windowed builder with the widest window, so the default screen equals the one
+  before A39 exactly — pinned by a test that compares the two row-for-row.
+- **Measured per window on the seed, …6475 (bought 02.06):**
+
+  | window | Δ загалом | Річна | Загальна дох. | XIRR | проти оч. |
+  |---|---|---|---|---|---|
+  | Від початку · 174 d | +5,20 % | +10,9 % | +10,96 % | +99,4 % | −4,3 в.п. |
+  | 3 місяці · 91 d | +5,20 % | **+20,8 %** | +10,96 % | +99,4 % | **+5,6 в.п.** |
+  | 1 місяць · 30 d | +2,76 % | **+33,6 %** | +2,76 % | **+39,3 %** | **+18,4 в.п.** |
+
+  Rows 1 and 2 carry **byte-identical flows** — both windows open before the
+  02.06 purchase — so the only thing that changed is the divisor. That is the
+  extension's F-2: `annualizedPct` is LINEAR, so `Річна` triples while Δ stands
+  still and **`проти очікуваної` flips sign on a fixed-coupon bond against its
+  own contract**. It is a property of the figure, not a defect of the window.
+- **The curve follows too, rebased and not merely clipped:** `Від початку` spans
+  08.02 → 27.07, `1 місяць` spans 29.06 → 27.07, and a window's first point
+  opens near 0 rather than at the since-inception figure.
+- **The footnote names the window**, not the first purchase: `Від початку` reads
+  «від 03.02.2026», `3 місяці` reads «від 27.04.2026».
+- **Still true of the header:** `Вкладено, ₴` keeps its shipped label while the
+  column now holds *inherited position + bought inside*. The extension's F-6
+  says the header should change and the brief owns the copy, so A40/A41 or an
+  owner ruling closes it — **not** a string invented here.
 
 ## `/attributes`
 
