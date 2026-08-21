@@ -51,6 +51,63 @@ option longer than that is degenerate on it, which is exactly why G-3 exists.
 
 ---
 
+## AMENDMENT, 2026-08-20 — what Phase 7 changed under this brief
+
+Written the day before Phase 7 shipped. **A29–A35 have since landed and v1.7.0
+is in production**, so five statements above are stale in ways that would
+mislead a drawing. Amended in place per the folder rule, because the extension
+has not merged.
+
+**1. `ScreenHeader`'s action slot is REAL, not proposed.** S1 calls it "the slot
+the A22 brief adds"; A29 shipped it, and `/allocation` and `/portfolio` carry
+edit controls in it today. This *strengthens* S1's first candidate in a way the
+brief could not argue: **on all three Phase 8 screens the slot is EMPTY**,
+because the A22 rule gives a page that displays only DERIVED data no edit
+control at all — and `/overview`, `/yield` and `/seasonality` are exactly that.
+A period control there collides with nothing and inherits a row whose geometry
+is already drawn and shipped.
+
+**2. `main` is 1196 as a BORDER box; its content box is 1124.** `main` carries
+`px-9` (36 a side, `src/app/Layout.tsx`). The 1196 above is correct and was
+still misread twice during A34/A35 — every column sum must use **1124**. Two
+figures in this project were wrong for exactly this reason in the last day.
+
+**3. The sidebar S1's second candidate would sit in has changed.** Since A33 the
+three nav groups collapse and persist; the currency toggle lives in band 3 of a
+three-band grid whose middle band is the only part that scrolls (D65). A control
+placed "near the currency toggle" joins a pinned cluster, not a free column.
+
+**4. There are eleven routes, not ten.** `/transactions` (A32) and `/settings`.
+None is a Phase 8 screen, but the nav the sidebar candidate would join is a
+different shape.
+
+**5. D77 now governs how faithfully the extension must be followed.** A merged
+reference wins the RESULT; the code owns the MECHANISM. Draw the geometry, and
+where a static sheet cannot express a case — intermediate widths, viewport
+height, a second language — say so in the header instead of drawing one width
+and leaving the rest to be guessed.
+
+**6. `core/derive.ts` IS DATE-BOUNDED, and the row above saying it is not was
+the stalest line in the brief.** A27 landed 2026-08-19 — the day the brief was
+written — and added `src/core/period.ts` (`PeriodOption`, `PeriodWindow`,
+`resolveWindow`) plus `transactionsIn(txs, w: PeriodWindow)` at `derive.ts:125`,
+`quotesAsOf`, `cashAsOf` and `headlineTotalAsOf`, with `latestQuotes`,
+`latestCash` and `headlineTotal` delegating to them. `derive.ts` imports
+`PeriodWindow` on line 4. **The windowing layer this brief calls missing already
+ships**, and the session must build on it rather than propose it.
+
+This item is here twice over, because the first version of this amendment
+CLOSED by re-asserting the false claim — "everything else was re-checked and
+stands: `core/derive.ts` is still not date-bounded" — in a note whose entire
+purpose is to kill staleness. Caught by review, not by writing. Re-checking a
+list is not the same as checking it.
+
+What genuinely was re-checked and does stand: `portfolioXirr` is computed,
+tested and displayed nowhere; `/yield` is still 8 columns; and the seed still
+spans 2026-02-03 → 2026-07-27.
+
+---
+
 ## The spine: a period means three different things
 
 This is the finding the whole brief rests on. **A window does not mean the same

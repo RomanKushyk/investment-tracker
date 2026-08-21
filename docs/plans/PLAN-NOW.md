@@ -55,7 +55,10 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A31 | `/portfolio` manages its assets; Settings loses its Portfolio card | `feat/portfolio-assets` | M | **done** (2026-08-20) |
 | A32 | The `Entry` group and the `/transactions` route | `feat/transactions-route` | M | **done** (2026-08-20) |
 | A33 | Collapsible sidebar groups | `feat/collapsible-groups` | S | **done** (2026-08-20) — Phase 7 complete |
-| A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`; **extension NOT drawn**, so Phase 8 UI is design-blocked, but its `core/` windowing is not |
+| A26 | Design brief: period selection + the three screens' content and layout | `docs/design-brief-phase-8` | L | **done** (2026-08-19) — `docs/design-briefs/phase-8-period-and-analytics.md`, **amended 2026-08-20** for what Phase 7 changed under it; **extension DRAWN 2026-08-21** → `design/extensions/period-and-analytics.dc.html`. **Phase 8 UI is no longer design-blocked** |
+| **Section L** | **Phase 8 implementation — unblocked 2026-08-21 by `period-and-analytics.dc.html`** | | | |
+| A38 | The period control in `ScreenHeader`'s action slot (D-1), ephemeral axis toggle (D-11) | `feat/period-control` | M | **todo** — read the sheet's MERGE STATUS box first: its drawings bind, its arithmetic does not |
+| A39 | `/yield`, `/overview`, `/seasonality` under a window; the portfolio XIRR lands (D-8) | `feat/analytics-period` | L | **todo** — needs A38 |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
 | A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
