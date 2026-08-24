@@ -84,5 +84,50 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
       expect(parsed.success, JSON.stringify(defaults.inzhur)).toBe(true);
       expect(parsed.success && parsed.data.inzhur?.units).toBe(6164);
     });
+
+    // A36 put the two percent fields on this same formatted path, so they join
+    // the test that exists because of it. A fractional target is the case the
+    // 40/40/17/3 seed cannot show.
+    it(`keeps a fractional percent in ${lang}`, () => {
+      // `fmt`, not `f`: the module binds `f` to Ukrainian for the whole file, and
+      // shadowing it here made the `en` iteration one deletion away from
+      // silently asserting Ukrainian output.
+      const fmt = makeFormat(lang);
+      const asset = { ...linked, expectedPct: 16.4, targetPct: 17.5 };
+      const defaults = assetFormDefaults(fmt, asset as never);
+      expect(defaults.targetPct).toBe(lang === 'uk' ? '17,5' : '17.5');
+      expect(defaults.expectedPct).toBe(lang === 'uk' ? '16,4' : '16.4');
+      const parsed = assetFormSchema('edit').safeParse(defaults);
+      expect(parsed.success, JSON.stringify(defaults)).toBe(true);
+      expect(parsed.success && parsed.data.targetPct).toBe(17.5);
+      expect(parsed.success && parsed.data.expectedPct).toBe(16.4);
+    });
+
+    it(`writes a whole percent without a decimal tail in ${lang}`, () => {
+      // `f.num` would render "40,00" here and `f.pctPlain` "40,0 %" — the first
+      // is noise in an editable field, the second puts a unit inside a field
+      // whose label already carries one.
+      const defaults = assetFormDefaults(makeFormat(lang), linked as never);
+      expect(defaults.targetPct).toBe('40');
+      expect(defaults.expectedPct).toBe('14');
+    });
   }
+
+  it('survives a three-decimal percent, which is where `units` lost a factor of 1000', () => {
+    // uk `f.units(6.164)` is "6,164", which `normalizeNumberInput` reads as a
+    // grouped 6164 — an untouched Save would have stored a 1000x yield.
+    const defaults = assetFormDefaults(makeFormat('uk'), { ...linked, expectedPct: 6.164 } as never);
+    expect(defaults.expectedPct).toBe('6,1640');
+    const parsed = assetFormSchema('edit').safeParse(defaults);
+    expect(parsed.success && parsed.data.expectedPct).toBe(6.164);
+  });
+
+  it('does not round what the user stored', () => {
+    // `pctPlain` rounds to one decimal, so a stored 7,25 would come back as
+    // 7,3 and an untouched Save would silently rewrite it.
+    const defaults = assetFormDefaults(makeFormat('uk'), { ...linked, targetPct: 7.25 } as never);
+    expect(defaults.targetPct).toBe('7,25');
+    const parsed = assetFormSchema('edit').safeParse(defaults);
+    expect(parsed.success && parsed.data.targetPct).toBe(7.25);
+  });
 });

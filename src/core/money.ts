@@ -1,6 +1,12 @@
 // Number/date formatting per README §8. Pure, unit-tested.
 // (v1 lib/format.ts + screens/shared/format.ts, merged in next-phase Phase 1.)
 
+// The one import this file has, and it points at the PARSER: `input()` below
+// guarantees its output survives a round trip, and a guarantee cannot be made
+// by reasoning about a regexp in another file — only by running it. `schemas.ts`
+// imports nothing from here, so the direction is one-way.
+import { normalizeNumberInput } from './schemas';
+
 const SYMBOL = { UAH: '₴', USD: '$' } as const;
 type Currency = keyof typeof SYMBOL;
 
@@ -87,6 +93,27 @@ export interface Format {
   numWhole(n: number): string;
   /** 6 164 / 15,5 — unit counts: no forced decimals, no rounding of what exists. */
   units(n: number): string;
+  /**
+   * The value as it should appear INSIDE AN EDITABLE FIELD — the language's
+   * decimal mark, nothing forced, nothing rounded, and **guaranteed to parse
+   * back to the same number** through `normalizeNumberInput`.
+   *
+   * THAT GUARANTEE IS THE WHOLE REASON THIS EXISTS, and it is not free.
+   * `normalizeNumberInput` is deliberately locale-blind (D58 keeps ONE parser
+   * for both languages), so it resolves `1,234` as a grouped thousand. Its own
+   * doc calls the ambiguity safe because "money carries two decimals, units and
+   * percentages at most one" — and A36 broke that premise the moment a percent
+   * field started showing what was STORED instead of a rounded form. Measured:
+   * uk 6,164 -> 6164, 0,125 -> 125, 99,999 -> 99999. A silent 1000x on a yield,
+   * on an untouched Save.
+   *
+   * So this VERIFIES rather than reasons: it formats, parses its own output
+   * back, and only returns a string that survives the trip. The disambiguation
+   * is one trailing zero — `6,1640` no longer looks like a grouped integer and
+   * still reads as 6,164 — and the dot form is the last resort, a Contract 0
+   * violation accepted only where the alternative is a wrong number.
+   */
+  input(n: number): string;
   /** 68 629,36 ₴ / ₴68,629.36 — symbol placed by language. */
   money(n: number, currency?: Currency): string;
   /** 149 016 ₴ / ₴149,016. */
@@ -137,6 +164,13 @@ export function makeFormat(lang: Lang): Format {
     num,
     numWhole: (n) => nbsp(f.whole.format(n)),
     units: (n) => nbsp(f.free.format(n)),
+    input: (n) => {
+      const shown = nbsp(f.free.format(n));
+      if (Number(normalizeNumberInput(shown)) === n) return shown;
+      const padded = `${shown}0`;
+      if (Number(normalizeNumberInput(padded)) === n) return padded;
+      return String(n);
+    },
     money: (n, currency = 'UAH') => withSymbol(num(n), currency),
     moneyWhole: (n, currency = 'UAH') => withSymbol(nbsp(f.whole.format(n)), currency),
     // The percent sign is glued with NBSP in Ukrainian so a figure never wraps

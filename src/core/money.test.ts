@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { makeFormat, signed, toUsd } from './money';
+import { normalizeNumberInput } from './schemas';
 
 // The legacy exports these covered are gone: each language now owns one
 // coherent set, so "prose vs table" is not a distinction the code can make.
@@ -166,5 +167,47 @@ describe('the two exports Contract 0 left bare', () => {
 
   it('toUsd is arithmetic, not formatting — it stays a bare number', () => {
     expect(toUsd(149016.36, 44.83)).toBeCloseTo(3324.03, 2);
+  });
+});
+
+describe('input — the editable form, and the round trip it guarantees', () => {
+  // THE PROPERTY, not a list of examples: whatever `input` prints, the app's own
+  // parser must read back as the same number, in every language. The first cut
+  // of A36 used `units` and pinned 16,4 / 17,5 / 7,25 — none of which is the
+  // class that fails, so 754 green tests certified a contract that did not hold.
+  const VALUES = [
+    0, 3, 17, 40, 100, 0.1, 7.25, 16.4, 17.5, 44.83, 44.6988,
+    // exactly three decimals: in Ukrainian these collide with the parser's
+    // grouped-thousand rule (`6,164` is also how it would write 6164).
+    1.234, 6.164, 0.125, 99.999,
+    // and the neighbours that must keep working
+    1234.567, 1500, 12.3456,
+  ];
+
+  for (const lang of ['uk', 'en'] as const) {
+    it(`round-trips every value in ${lang}`, () => {
+      const f = makeFormat(lang);
+      for (const v of VALUES) {
+        const shown = f.input(v);
+        expect(Number(normalizeNumberInput(shown)), `${v} rendered "${shown}"`).toBe(v);
+      }
+    });
+  }
+
+  it('prints the language\'s own decimal mark', () => {
+    expect(makeFormat('uk').input(17.5)).toBe('17,5');
+    expect(makeFormat('en').input(17.5)).toBe('17.5');
+  });
+
+  it('adds nothing to a whole number and rounds nothing off a fraction', () => {
+    expect(makeFormat('uk').input(40)).toBe('40');
+    expect(makeFormat('uk').input(7.25)).toBe('7,25');
+  });
+
+  it('disambiguates the three-decimal collision with one trailing zero', () => {
+    // Not a rendering fault: `6,164` would parse as 6164 — a 1000x error on an
+    // untouched Save — and `6,1640` no longer matches the grouped-integer rule.
+    expect(makeFormat('uk').input(6.164)).toBe('6,1640');
+    expect(makeFormat('en').input(6.164)).toBe('6.164');
   });
 });

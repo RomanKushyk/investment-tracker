@@ -192,7 +192,7 @@ export function Allocation() {
                         <input
                           id={`target-${r.asset.id}`}
                           name={`target-${r.asset.id}`}
-                          value={drafts[r.asset.id] ?? String(r.asset.targetPct)}
+                          value={drafts[r.asset.id] ?? f.input(r.asset.targetPct)}
                           onChange={(e) =>
                             setDrafts((d) => ({ ...d, [r.asset.id]: e.target.value }))
                           }

@@ -16,6 +16,7 @@ import { ImportRow } from './settings/ImportRow';
 import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
 import { useBackupDownload } from '../hooks/useBackupDownload';
+import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
@@ -225,7 +226,14 @@ const USD_RATE_ERROR_ID = 'usd-rate-error';
 function UsdRateField() {
   const t = useT();
   const { usdRate, setUsdRate } = useSettings();
-  const [raw, setRaw] = useState(() => String(usdRate));
+  const f = useFormat();
+  // A36's third site, and the one its own commit wrongly called done: this
+  // field sat one component away from an NBU line rendering «44,6988» through
+  // the formatter while showing "44.83" with a dot. `NbuRateFetch`'s comment
+  // says a dot form "makes the same number look like a different one".
+  // `f.input` and not `f.num`: a fetched rate carries four decimals and `num`
+  // would round it to two before the user ever saw it.
+  const [raw, setRaw] = useState(() => f.input(usdRate));
   const [error, setError] = useState(false);
 
   function handleChange(value: string) {
@@ -242,7 +250,7 @@ function UsdRateField() {
   // A5: the fetched rate is applied HERE rather than by the fetch control, so
   // the stored number and the draft string this input shows can never disagree.
   function applyFetched(rate: number) {
-    setRaw(String(rate));
+    setRaw(f.input(rate));
     setError(false);
     setUsdRate(rate);
   }
@@ -297,7 +305,11 @@ const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
 function LeadDaysField() {
   const t = useT();
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
-  const [raw, setRaw] = useState(() => String(reminderLeadDays));
+  const f = useFormat();
+  // Renders identically today — lead days are small integers, so `f.input` and
+  // `String` agree — and it is changed anyway so the rule has no exceptions to
+  // remember. An exception is what A36 was.
+  const [raw, setRaw] = useState(() => f.input(reminderLeadDays));
   const [error, setError] = useState(false);
 
   function handleChange(value: string) {

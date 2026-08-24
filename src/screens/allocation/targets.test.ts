@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { changedTargets, parseTargetPct, sumStatus, targetRowStates, targetsSum } from './targets';
+import { makeFormat } from '../../core/money';
 
 // Seed-shaped fixture — the demo targets 40/40/17/3 (D5, navigation-map).
 const ASSETS = [
@@ -101,5 +102,29 @@ describe('changedTargets (per-asset save patches)', () => {
 
   it('returns an empty list when nothing differs', () => {
     expect(changedTargets(targetRowStates(ASSETS, {}))).toEqual([]);
+  });
+});
+
+describe('A36 — what the editor SHOWS round-trips through what it PARSES', () => {
+  // The screen seeds each input with `f.units(asset.targetPct)` and parses the
+  // edited string with `parseTargetPct`. Before A36 it seeded with `String()`,
+  // so a Ukrainian user was shown "17.5" — a dot this UI uses nowhere else —
+  // for a value it would then have to accept back. The seed's 40/40/17/3 are
+  // all whole, which is why nothing caught it.
+  for (const lang of ['uk', 'en'] as const) {
+    it(`accepts back exactly what it displays in ${lang}`, () => {
+      const f = makeFormat(lang);
+      // 1,234 is the class the first list skipped: in Ukrainian the parser
+      // reads it as a grouped thousand, so `units` round-tripped to 1234 and
+      // the row rejected text the app itself had printed. `input` verifies.
+      for (const v of [0, 3, 17, 17.5, 7.25, 40, 100, 1.234, 6.164]) {
+        expect(parseTargetPct(f.input(v)), `${v} rendered "${f.input(v)}"`).toBe(v);
+      }
+    });
+  }
+
+  it('still accepts the other language\'s separator, so a paste is not punished', () => {
+    expect(parseTargetPct('17.5')).toBe(17.5);
+    expect(parseTargetPct('17,5')).toBe(17.5);
   });
 });

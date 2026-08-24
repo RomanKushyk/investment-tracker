@@ -80,8 +80,9 @@ export function deriveCode(name: string): string {
 // use the pinned input format (navigation-map "Number formats"; the design
 // edit fragment shows Coupon amount `1 240,00` and Units `15`) — the bound
 // formatter's `num` / `units`, which quoteInputSchema parses straight back.
-// Percent fields stay
-// plain dot-decimal strings (the edit fragment pins `16.4`).
+// Percent fields joined them in A36 through `f.input`; they were plain
+// dot-decimal strings until then, which is what the edit fragment's `16.4`
+// pinned and why the Ukrainian UI showed a dot in two fields.
 export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
   if (!asset) {
     return {
@@ -103,8 +104,19 @@ export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
     name: asset.name,
     code: asset.code,
     yieldType: asset.yieldType,
-    expectedPct: String(asset.expectedPct),
-    targetPct: String(asset.targetPct),
+    // `f.input`, NOT `String` — Contract 0 (D58) separates formatting per
+    // language with no exceptions, and these two reached the field as raw JS: a
+    // 17,5 % target rendered "17.5" in the Ukrainian UI, one field away from a
+    // `couponAmount` already reading "1 240,00" through `f.num`.
+    //
+    // `input` and not `num` or `pctPlain`, measured: `num` forces two decimals
+    // ("40,00" for a whole target), and `pctPlain` ROUNDS to one (7,25 → "7,3",
+    // silently editing the user's own value) and appends a " %" the label
+    // already carries. A first cut used `units`, whose shape is right, and
+    // argued the round trip held; it does not — uk 6,164 parses back as 6164.
+    // `input` is `units` that checks (see `money.ts`).
+    expectedPct: f.input(asset.expectedPct),
+    targetPct: f.input(asset.targetPct),
     payoutSchedule: asset.payoutSchedule,
     firstPurchase: asset.firstPurchase,
     maturity: asset.maturity ?? '',
