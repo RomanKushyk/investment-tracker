@@ -5,10 +5,21 @@ only for the decision you actually need.
 
 ## Rules
 
-- **Append-only.** New entries go at the bottom of the **highest-numbered file**,
-  which is now `D61-D80.md`. Note that `D41-D50.md`'s name is a fossil: it holds
-  D41–D60, because the earlier rule said to append until D60 and renaming a file
-  is not worth it. Start the next file when this one passes D80.
+- **Append-only.** New entries go at the bottom of the **highest-numbered file**
+  whose name covers the number you are writing — the range table below is the
+  only place that list lives. **Never write an entry into a file whose name does
+  not cover its number**: D101 opens `D101-D120.md` before D101 is written, not
+  after. `D41-D50.md`'s name is a fossil for a different reason — it holds
+  D41–D60 because the rule then said to append until D60, and renaming is not
+  worth it.
+- **Splitting a file moves entries, and moving is not rewriting.** `D61-D80.md`
+  held D81–D83 for a day before the split of 2026-08-24 — ten entries less
+  overflow than `D41-D50.md`'s, caught because the file no longer matched its
+  name. When you split: entries move **verbatim**, **numbers never change**
+  (~20 citations across `src/` and `docs/` are by bare number), the drained
+  file's header is closed and points at the successor, and the range table here
+  is updated. Tidying or renumbering in transit is the one thing that breaks
+  callers.
 - **Never rewrite a decision — supersede it.** A wrong entry stays, and a newer
   one says what replaced it and why. `D43` is the worked example: the original
   diagnosis is kept directly under its replacement, labelled, because being
@@ -24,7 +35,8 @@ only for the decision you actually need.
 | [`D01-D20.md`](D01-D20.md) | D1–D20 | v1: stack, persistence, formulas, deploy |
 | [`D21-D40.md`](D21-D40.md) | D21–D40 | The cloud direction: prices, auth, the domain |
 | [`D41-D50.md`](D41-D50.md) | D41–**D60** | The rename, alerting, durability, observations, the FX rate, radii, the theme and language contracts, the prod/dev split |
-| [`D61-D80.md`](D61-D80.md) | D61– | Production hardening and the edge |
+| [`D61-D80.md`](D61-D80.md) | D61–D80 | Production hardening and the edge |
+| [`D81-D100.md`](D81-D100.md) | D81–D100 | Open; theme written when the file closes |
 
 ## The ones worth reading before touching anything
 
@@ -89,7 +101,7 @@ only for the decision you actually need.
 | D39 | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
 | D40 | The domain is `quirenote.com` | 2026-08-11 |
 
-## D41–D56 — rename, alerting, durability, observations, FX, radii
+## D41 onward — rename, alerting, durability, observations, FX, radii, the shells, production, the window
 
 | # | Decision | Date |
 |---|---|---|

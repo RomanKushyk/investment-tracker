@@ -32,8 +32,7 @@ other plans exist to keep things *out* of that one.
 ## Why things are the way they are
 
 [`decisions/README.md`](decisions/README.md) indexes **every decision** one line each,
-across four range files (`D01-D20`, `D21-D40`, `D41-D50` — which actually runs
-to D60 — and `D61-D80`). Append-only, and a wrong decision is superseded rather
+across the range files listed in its own table there. Append-only, and a wrong decision is superseded rather
 than rewritten — `D43` keeps its original diagnosis directly under its
 replacement, because being wrong about which explanation held is the reusable
 part.
