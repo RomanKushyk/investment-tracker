@@ -20,6 +20,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **closed — D75**, by DISSOLVING into D33: after B3 there is no write for a toggle to authorise. The ruling left over is that a hand-entered value is marked and an archive one is not |
 | O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
 | O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **closed — D80**, owner's ruling 2026-08-24: the sheet in full. The window changes the basis (superseding Phase 6's pin) AND F-3's grey ships with it, in every window including the default. The threshold the sheet delegated is `basisIsShort`, 10 %, derived against the shipped producers and tested |
+| O25 | May we fetch SMIDA's open-data API, given that its `robots.txt` is a blanket `Disallow: /`? | — | **open, 2026-08-24 — needs АРІФРУ's answer.** Owner's note: unlikely to be pursued. Until answered, the feed is documented and not fetched on a schedule |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -91,6 +92,36 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 ## What must never happen
 
 An item from this file being resolved implicitly, by a commit that assumes an answer without naming it. If you find yourself needing one of these to proceed, that is the signal to stop and ask — not the signal to pick the obvious option quietly.
+
+## O25 — May we fetch SMIDA's open-data API? — opened 2026-08-24
+
+**The two things SMIDA says about itself disagree.** `/db/api/v1/` is published
+as open data under **art. 10¹ of the Law on Access to Public Information**, with
+a documented query grammar (`limit`, `idlast`, `edrpou`, `period`, `date`,
+`sdate`, `fdate`) — i.e. built for programmatic reading. And
+`smida.gov.ua/robots.txt` is `User-agent: *` / `Disallow: /`, with **no carve-out
+for that path**; only Googlebot is let into `/db/prof/`.
+
+The likely reading is that the blanket rule was written for the HTML site and
+never revisited when the API shipped. **That is a guess about intent, and what is
+in play here is not silence but a stated `Disallow`** — which
+`docs/reference/MARKET-DATA-SOURCES.md` rule 6 treats as final. (Rule 6 says
+silence leaves a question *open*; that is the weaker case, and it is not this
+one.) One cannot apply that rule to other people's sites and read past it here.
+
+**What would answer it:** one email to `help@smida.gov.ua` asking whether the
+`robots.txt` `Disallow` is intended to cover `/db/api/v1/`. **Owner's note
+2026-08-24: unlikely to be pursued** — recorded so the reason the feed is not
+being polled stays visible, rather than looking like an oversight later.
+
+**Why it is not urgent.** Nothing in the app or `infra/` needs it. The feed
+carries *filings*, not prices — there is no NAV or unit price in it — so it would
+not shorten W15 or feed `price_observation`. Its value is regulatory metadata
+(which КУА filed what, when) and it stays a documented option, not a dependency.
+
+**Until answered:** documented in `docs/reference/MARKET-DATA-SOURCES.md` §1 with
+the caveat attached, read by hand when a question needs it, never on a schedule.
+D82 records that the feed is alive — a separate fact from whether we may poll it.
 
 ## O20 — Should dev and production have separate databases, and when? — researched 2026-08-14
 

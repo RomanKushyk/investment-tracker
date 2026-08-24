@@ -24,7 +24,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W12 | UA4000236475 matures | the bond | **2028-09-27** | **yes** | second redemption |
 | W13 | Phase 6: chart analytics | W7 — deferred by judgment, not blocked | after W7 | no | doing it twice |
 | W14 | Phase 7: DB browser | W7 — by construction | after W7 | no | building it twice |
-| W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **after 2026-09-02** | no | none — the files are in hand and read up in `docs/reference/INZHUR-FUND-HISTORY.md` |
+| W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **after 2026-09-02** | no | none — read up in `docs/reference/INZHUR-FUND-HISTORY.md`, and **D83 now allows fetching the files rather than holding them by hand** |
 | W16 | User profile page and its settings | W7 — there is no user to have a profile until auth lands | **after W7** | no | none — the page has nothing to show today |
 | W17 | How a hand-entered value is MARKED as the user's (D75) | W7 — the mark only exists once `coalesce(user_price, archive)` does | **after W7** | no | none today — nothing is coalesced yet |
 
@@ -289,6 +289,37 @@ undocumented and verifiable over 75 days against a history reaching back to
 2024-11-14. Drawing the series as its own labelled line is *not* refused — it is
 simply not now, and it needs a design brief (G7) rather than a component. None of
 that changes a single box below; it changes what may be built on top of them.
+
+**Scope added 2026-08-24, from measuring the provider's public surface** (all
+of it in `docs/reference/INZHUR-FUND-HISTORY.md`):
+
+- **D83 supersedes the by-hand rule** — fetch the files from the CDN link on the
+  offer page. Do not poll a known URL: the filename carries a content hash, so a
+  new cut appears at a new address and the old one keeps returning the stale
+  file. Re-read the offer page for the current link; `Last-Modified` confirms the
+  cut.
+- **The offer-page quote payload is devalue-encoded.** The numbers inside
+  `{"buy":…,"sell":…,"nav":…}` are indices into a shared table, not prices. A
+  literal read records `1354` as a unit price and nothing downstream would catch
+  it. Take the rendered DOM or resolve the table.
+- **Quarterly «Довідка ВЧА» PDFs are a free validation** the plan was not using —
+  the provider's own attested quarter-end NAV, four quarters for REIT and eight
+  for Energy. **Assert agreement only on quarters the series covers** — Energy's
+  earliest PDF (30.09.2024) predates its `.xlsx` start (2024-11-14) and has no
+  rows behind it.
+- **A third file exists and is NOT this task's scope**:
+  `Inzhur_REIT_dividendi_28_07_*.xlsx`, dividend history per certificate. It is a
+  payment series, not a price observation, so it does not belong in
+  `price_observation` and W4's natural-key decision does not gate it. Recorded
+  here only so it is not silently imported into the wrong table or silently
+  dropped; it needs its own home and its own gate before anyone loads it.
+- **Do not check NAV by dividing assets by certificates** — for REIT it leaves
+  129 706 541 ₴ unexplained (2.04 % of the stated total, 2.09 % of the derived
+  one) because ВЧА is net and «Вартість активів фонду» is gross. Either figure is
+  close enough to the pinned 0.9 % to be mistaken for a basis error.
+- **No exchange-priced alternative exists**: all ten funds report
+  `UkrainianStockExchange: false`, so ПФТС cannot price them. D72's "exists
+  nowhere else" is confirmed.
 
 **Gate: W4, and the reason is not impatience.** The series lands in
 `price_observation`, whose Inzhur-side natural key `(as_of, ref, basis, source)`

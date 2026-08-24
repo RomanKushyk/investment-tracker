@@ -135,6 +135,8 @@ only for the decision you actually need.
 | D79 | A derived schedule ASKS the walkers (`rollNextCoupon`, `nextUnsettledCoupon`) and never re-derives the grid — A41's first cut broke where the roll clamps at maturity (losing …6475's final травень coupon) and ended by the calendar where the app ends by settlement | 2026-08-24 |
 | D80 | The window DOES change `Річна`'s basis (superseding Phase 6's pinned trap fix, owner's ruling on O24) — and F-3's grey ships with it: a row whose holding falls >10 % short of its basis renders `Річна` and `проти очікуваної` in muted, in every window including the default | 2026-08-24 |
 | D81 | Every `/seasonality` insight card that summarises the bars reads the windowed ledger; only the `nextCoupon` half of «Купонний сезон» is a genuine forecast — a derived statement inherits the classification of the DATA it comes from, not of the sentence it is written as (A42) | 2026-08-24 |
+| D82 | SMIDA's open-data API is alive and always was — D27's "retired 2021-06-30 (verified: 404)" recorded the wrong host: that date is where `stockmarket.gov.ua` stops, and its endpoints still answer `200` over frozen data. D27's ruling is untouched; only the availability sentence changes | 2026-08-24 |
+| D83 | The provider's price files may be fetched automatically, superseding D72's by-hand rule (owner's ruling) — they are linked from the allowed offer pages and served from a CDN origin that publishes no `robots.txt`; `/documents` stays off-limits, and the filename carries a content hash so the link is re-read rather than polled | 2026-08-24 |
 
 ## A pattern these entries kept finding
 

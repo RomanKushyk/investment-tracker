@@ -241,6 +241,13 @@ form quarterly/annually. Daily publication is required only of **open-ended**
 funds. НКЦПФР's 19 open datasets contain no NAV; SMIDA's open-data API was
 retired 2021-06-30 (verified: all paths 404).
 
+> **Corrected 2026-08-24 — D82.** The retirement was `stockmarket.gov.ua`'s,
+> not SMIDA's: that date is exactly where its trader and exchange endpoints
+> stop. SMIDA's feed at `/db/api/v1/feed-index.xml` is live and current
+> (158 268 records, nine-minute freshness). The conclusion below is
+> unaffected — the feed carries filings, not NAV. Whether we may poll it is
+> `PLAN-OPEN.md` O25.
+
 So Inzhur's daily JSON is **voluntary commercial disclosure**, not compliance.
 Contractually it is «Базова ціна» — cl. 1.4 of their services agreement, *"the
 price INZHUR offers to buy and/or sell securities at"* — i.e. a dealer quote on
