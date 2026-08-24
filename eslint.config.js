@@ -52,7 +52,10 @@ export default tseslint.config(
           paths: [
             { name: 'react', message: 'src/core is the pure domain layer — no React (G1).' },
             { name: 'react-dom', message: 'src/core is the pure domain layer — no React (G1).' },
-            { name: 'dexie', message: 'src/core never touches persistence — that is src/lib (G1).' },
+            {
+              name: 'dexie',
+              message: 'src/core never touches persistence — that is src/lib (G1).',
+            },
             { name: 'zustand', message: 'src/core never touches stores — that is src/state (G1).' },
           ],
           patterns: [
@@ -61,7 +64,13 @@ export default tseslint.config(
               message: 'src/core must not import src/lib — core imports only core (G1).',
             },
             {
-              group: ['**/screens/**', '**/components/**', '**/hooks/**', '**/state/**', '**/app/**'],
+              group: [
+                '**/screens/**',
+                '**/components/**',
+                '**/hooks/**',
+                '**/state/**',
+                '**/app/**',
+              ],
               message: 'src/core must not import UI layers — core imports only core (G1).',
             },
           ],

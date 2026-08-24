@@ -56,6 +56,12 @@ jobs:
       # Quality gate — everything below runs before any AWS credential exists,
       # so a failing check can never deploy.
       - run: pnpm lint
+      # A37 — the formatter joins the gate now that it can actually pass. It
+      # could not before: `endOfLine` was unset, so on a Windows checkout with
+      # `core.autocrlf=true` prettier compared LF output against CRLF files and
+      # failed all 245 of them on line endings alone. `.prettierignore` keeps it
+      # off the merged drawings (D14) and the hand-formatted docs.
+      - run: pnpm format:check
       - run: pnpm test
       - run: pnpm build # already runs tsc --noEmit
 

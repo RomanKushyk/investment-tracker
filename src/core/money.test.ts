@@ -47,7 +47,6 @@ describe('pp — a signed percentage-point gap', () => {
   });
 });
 
-
 // ── Contract 0 ─────────────────────────────────────────────────────────────
 // The phase-5 brief's table, asserted rather than described. Every expectation
 // below is the brief's own example where it gives one, so a disagreement here
@@ -88,10 +87,17 @@ describe('makeFormat — Contract 0', () => {
     // codepoint instead catches the case the normaliser exists for: an ICU
     // build that emits the NARROW no-break space U+202F.
     const samples = [
-      uk.num(1234567.89), uk.numWhole(1234567), uk.units(6164),
-      uk.money(1234567.89), uk.moneyWhole(1234567), uk.money(1234.5, 'USD'),
-      uk.pct(0.0308), en.date('2026-08-12'), en.dateShort('2026-08-12'),
-      uk.signedMoney(-4452.61), uk.signedNum(2902.1),
+      uk.num(1234567.89),
+      uk.numWhole(1234567),
+      uk.units(6164),
+      uk.money(1234567.89),
+      uk.moneyWhole(1234567),
+      uk.money(1234.5, 'USD'),
+      uk.pct(0.0308),
+      en.date('2026-08-12'),
+      en.dateShort('2026-08-12'),
+      uk.signedMoney(-4452.61),
+      uk.signedNum(2902.1),
     ];
     for (const s of samples) {
       const gaps = [...s].filter((c) => /\s/.test(c));
@@ -194,7 +200,7 @@ describe('input — the editable form, and the round trip it guarantees', () => 
     });
   }
 
-  it('prints the language\'s own decimal mark', () => {
+  it("prints the language's own decimal mark", () => {
     expect(makeFormat('uk').input(17.5)).toBe('17,5');
     expect(makeFormat('en').input(17.5)).toBe('17.5');
   });

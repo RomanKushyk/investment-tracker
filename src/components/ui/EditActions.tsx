@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogBody,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './Dialog';
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from './Dialog';
 import { Button } from './Button';
 import type { EditMode } from '../../hooks/useEditMode';
 import { useT } from '../../i18n/useT';

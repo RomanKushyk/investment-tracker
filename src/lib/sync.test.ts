@@ -20,7 +20,9 @@ function stubLocks(available: boolean) {
       typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback
     ) as (lock: unknown) => Promise<unknown>;
     const options = (
-      typeof optionsOrCallback === 'function' ? {} : (optionsOrCallback as { ifAvailable?: boolean })
+      typeof optionsOrCallback === 'function'
+        ? {}
+        : (optionsOrCallback as { ifAvailable?: boolean })
     ) as { ifAvailable?: boolean };
     calls.push({ name, ifAvailable: options.ifAvailable === true });
     return callback(options.ifAvailable === true && !available ? null : { name });

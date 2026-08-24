@@ -1,5 +1,13 @@
 import type { ComponentProps } from 'react';
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+} from 'recharts';
 
 import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
 import { useFormat } from '../../hooks/useFormat';
@@ -42,7 +50,14 @@ function makeSegmentLabel(data: PayoutsChartPoint[], alwaysTop: boolean) {
     if (!point) return null;
     if (!alwaysTop && point.coupons > 0) return null;
     return (
-      <text x={x + width / 2} y={y - 6} textAnchor="middle" fontSize={10.5} fontWeight={700} fill={CHART.ink}>
+      <text
+        x={x + width / 2}
+        y={y - 6}
+        textAnchor="middle"
+        fontSize={10.5}
+        fontWeight={700}
+        fill={CHART.ink}
+      >
         {point.totalLabel}
       </text>
     );
@@ -97,7 +112,9 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
           animationDuration={900}
           animationEasing="ease-out"
         >
-          <LabelList content={dividendsLabel as unknown as ComponentProps<typeof LabelList>['content']} />
+          <LabelList
+            content={dividendsLabel as unknown as ComponentProps<typeof LabelList>['content']}
+          />
         </Bar>
         <Bar
           dataKey="coupons"
@@ -108,7 +125,9 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
           animationDuration={900}
           animationEasing="ease-out"
         >
-          <LabelList content={couponsLabel as unknown as ComponentProps<typeof LabelList>['content']} />
+          <LabelList
+            content={couponsLabel as unknown as ComponentProps<typeof LabelList>['content']}
+          />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

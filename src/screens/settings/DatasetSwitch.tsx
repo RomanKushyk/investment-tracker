@@ -38,14 +38,14 @@ export function DatasetSwitch() {
 
   return (
     <div
-      className={`border-panel-border bg-panel relative flex gap-1 rounded-[12px] border p-1 transition ${switching ? 'opacity-50' : ''}`}
+      className={`relative flex gap-1 rounded-[12px] border border-panel-border bg-panel p-1 transition ${switching ? 'opacity-50' : ''}`}
     >
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
         data-owns-motion
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: dataset === 'demo' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('demo', t.datasetSwitch.demo)}

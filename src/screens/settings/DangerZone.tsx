@@ -122,9 +122,9 @@ function ClearDataDialog({
       </DialogHeader>
       <DialogBody>
         <AlertDialogDescription asChild>
-          <p className="text-muted m-0 mb-3.5 text-[13px] leading-normal">{v.body}</p>
+          <p className="m-0 mb-3.5 text-[13px] leading-normal text-muted">{v.body}</p>
         </AlertDialogDescription>
-        <label htmlFor={inputId} className="text-muted mb-1 block text-[11px]">
+        <label htmlFor={inputId} className="mb-1 block text-[11px] text-muted">
           {v.inputLabel}
         </label>
         <input
@@ -134,7 +134,7 @@ function ClearDataDialog({
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
           spellCheck={false}
-          className="border-hairline bg-page hover:border-faint h-9 w-full rounded-[9px] border px-3 text-[13px] transition"
+          className="h-9 w-full rounded-[9px] border border-hairline bg-page px-3 text-[13px] transition hover:border-faint"
         />
         <Button
           variant={backedUp ? 'outlineMuted' : 'outline'}
@@ -147,7 +147,7 @@ function ClearDataDialog({
           }}
         >
           {/* re-keyed label = D7 crossfade on success (enter-only idiom) */}
-          <span key={String(backedUp)} className="animate-in fade-in duration-200">
+          <span key={String(backedUp)} className="animate-in duration-200 fade-in">
             {backedUp ? t.danger.backupDone : t.danger.backupFirst}
           </span>
         </Button>

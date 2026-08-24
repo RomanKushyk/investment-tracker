@@ -12,11 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
-import {
-  classifyImportFiles,
-  diffBackup,
-  validateImport,
-} from '../../core/backup/import';
+import { classifyImportFiles, diffBackup, validateImport } from '../../core/backup/import';
 import { todayIso } from '../../core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { dbVersion } from '../../lib/repository';
@@ -51,9 +47,7 @@ export function ImportRow() {
 
   async function handleFiles(files: File[]) {
     setRejection(null);
-    const classified = classifyImportFiles(
-      files.map((f) => ({ name: f.name, size: f.size })),
-    );
+    const classified = classifyImportFiles(files.map((f) => ({ name: f.name, size: f.size })));
     if (!classified.ok) {
       setRejection(classified.code);
       return;
@@ -106,11 +100,11 @@ export function ImportRow() {
   return (
     <div>
       <div className="text-[13px] font-semibold">{t.importing.row.title}</div>
-      <div className="text-muted mt-[3px] max-w-[520px] text-xs leading-normal">
+      <div className="mt-[3px] max-w-[520px] text-xs leading-normal text-muted">
         {t.importing.row.helper}
       </div>
       {dataset === 'demo' && (
-        <div className="text-muted mt-1.5 max-w-[520px] text-[11px] leading-relaxed">
+        <div className="mt-1.5 max-w-[520px] text-[11px] leading-relaxed text-muted">
           {t.importing.row.demoNote}
         </div>
       )}
@@ -125,8 +119,7 @@ export function ImportRow() {
           if (!busy) setDragOver(true);
         }}
         onDragLeave={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null))
-            setDragOver(false);
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
         }}
         onDrop={(e) => {
           // Without this the browser navigates the tab to the dropped file.
@@ -135,18 +128,12 @@ export function ImportRow() {
           if (!busy) void handleFiles(Array.from(e.dataTransfer.files));
         }}
         className={`mt-3 flex flex-col items-center gap-1.5 rounded-2xl border p-5 text-center transition duration-150 max-sm:p-4 ${
-          dragOver
-            ? 'border-ink bg-hairline'
-            : 'bg-panel border-panel-border hover:border-faint'
+          dragOver ? 'border-ink bg-hairline' : 'border-panel-border bg-panel hover:border-faint'
         }`}
       >
         {busy ? (
           <>
-            <FileText
-              size={16}
-              strokeWidth={2.25}
-              className="text-muted opacity-75"
-            />
+            <FileText size={16} strokeWidth={2.25} className="text-muted opacity-75" />
             {/* Long names truncate in the MIDDLE and the line never wraps. */}
             <div className="max-w-full animate-pulse truncate text-[13px] opacity-70 [animation-duration:1.2s]">
               {t.importing.row.reading(middleTruncate(reading))}
@@ -159,14 +146,10 @@ export function ImportRow() {
               strokeWidth={2.25}
               className={dragOver ? 'text-ink' : 'text-muted'}
             />
-            <div
-              className={`text-[13px] leading-snug ${dragOver ? 'font-semibold' : ''}`}
-            >
+            <div className={`text-[13px] leading-snug ${dragOver ? 'font-semibold' : ''}`}>
               {dragOver ? t.importing.row.dragLine : t.importing.row.dropLine}
             </div>
-            <div className="text-muted text-[11px]">
-              {t.importing.row.dropHint}
-            </div>
+            <div className="text-[11px] text-muted">{t.importing.row.dropHint}</div>
           </>
         )}
         {/* Auto width per the reference; only the 360px drawing caps it at a
@@ -197,7 +180,7 @@ export function ImportRow() {
         // alarming about — and the dataset is untouched.
         <div
           role="status"
-          className="text-warn animate-in fade-in slide-in-from-top-1 mt-2 text-xs leading-normal duration-200"
+          className="mt-2 animate-in text-xs leading-normal text-warn duration-200 fade-in slide-in-from-top-1"
         >
           {fileRejection(rejection, t)}
         </div>

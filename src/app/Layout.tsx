@@ -175,7 +175,7 @@ export function Layout() {
           )}
           <main className="min-w-0 flex-1 px-9 pt-8 pb-12 max-md:px-3 max-md:pt-4">
             {/* keyed by route so every screen change animates in softly (D7) */}
-            <div key={pathname} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div key={pathname} className="animate-in duration-300 fade-in slide-in-from-bottom-2">
               <Outlet />
             </div>
           </main>

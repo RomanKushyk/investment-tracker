@@ -22,7 +22,7 @@ export function YieldTeaser({
   const t = useT();
   return (
     <Card className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 px-[22px] py-4">
-      <LineChart size={20} strokeWidth={2.75} className="text-ink flex-none" />
+      <LineChart size={20} strokeWidth={2.75} className="flex-none text-ink" />
       <div className="min-w-0 flex-1 text-[13px] break-words">
         <strong>{t.dailyQuotes.yieldSinceStart}</strong>{' '}
         {assets

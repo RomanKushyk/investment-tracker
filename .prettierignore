@@ -1,0 +1,30 @@
+# WHAT PRETTIER MAY NOT TOUCH. Every line here decides something — prettier 3
+# already honours .gitignore, so build output and scratch directories need no
+# entry and none is given.
+
+# D14 — A MERGED DRAWING IS IMMUTABLE. These are the design sessions' own
+# output, cited by line number from code comments and decisions. Measured with
+# THIS config: `period-and-analytics.dc.html` goes from 2 729 lines to 7 535,
+# a 7 152-line rewrite of a file the repo has promised not to edit.
+design/
+
+# EVERY Markdown file, at every depth — not just the root, and not just docs/.
+# The plans, decisions, reference notes and the folder READMEs are all
+# hand-formatted prose whose tables carry measured figures, and prettier re-pads
+# every cell to align its pipes: a one-word edit to one row then rewrites the
+# whole block (295 lines on PLAN-NOW.md alone). It also turns `*emphasis*` into
+# `_emphasis_`. On files whose value IS the text, that trade is backwards.
+*.md
+
+# CAPTURED FROM UPSTREAM, so its shape is the provider's and not ours — the same
+# argument design/ wins on. `assets-sample.json` is a trimmed live capture of
+# Inzhur's `/_api/assets` (see src/core/README.md); reformatting it puts a
+# whitespace diff on top of every re-capture and makes the refreshed file fail
+# this very check.
+src/**/__fixtures__/
+
+# Machine-written, never hand-edited. Both lockfiles, because gating one and not
+# the other is how `infra/package-lock.json` waits to fail on an npm version
+# whose JSON prettier disagrees with.
+pnpm-lock.yaml
+infra/package-lock.json

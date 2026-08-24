@@ -24,7 +24,12 @@ export function monthlyPayouts(transactions: Transaction[]): MonthlyPayout[] {
   }
   return [...byMonth.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { dividends, coupons }]) => ({ month, dividends, coupons, total: dividends + coupons }));
+    .map(([month, { dividends, coupons }]) => ({
+      month,
+      dividends,
+      coupons,
+      total: dividends + coupons,
+    }));
 }
 
 // Structured token — the UI renders 'account' / 'reinvested (₴X,XX)'.

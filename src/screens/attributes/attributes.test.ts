@@ -16,8 +16,22 @@ describe('dividendDayOfMonth', () => {
 
   it('picks the max-dated row, not array order', () => {
     const txs: Transaction[] = [
-      { id: 't2', date: '2026-06-10', type: 'dividend_accrual', assetId: 'reit', amount: 1, source: 'accrual' },
-      { id: 't1', date: '2026-02-15', type: 'dividend_accrual', assetId: 'reit', amount: 1, source: 'accrual' },
+      {
+        id: 't2',
+        date: '2026-06-10',
+        type: 'dividend_accrual',
+        assetId: 'reit',
+        amount: 1,
+        source: 'accrual',
+      },
+      {
+        id: 't1',
+        date: '2026-02-15',
+        type: 'dividend_accrual',
+        assetId: 'reit',
+        amount: 1,
+        source: 'accrual',
+      },
     ];
     expect(dividendDayOfMonth(txs, 'reit')).toBe(10);
   });

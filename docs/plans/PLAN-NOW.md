@@ -1,6 +1,6 @@
 # Plan A — Startable now
 
-> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
+> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
 >
 > **Companion plans:** `PLAN-WAITING.md` (dated, gated on evidence or elapsed time) · `PLAN-OPEN.md` (questions with no answer yet). Parent: `NEXT-PHASE-PLAN.md`. Decisions: `DECISIONS.md`.
 
@@ -67,7 +67,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
 | A36 | Target inputs bypass `useFormat` — a non-integer target shows a dot in the Ukrainian UI | `fix/target-input-format` | S | **done** (2026-08-24) — **five** sites, all to a new `f.input`: `asset-form.ts` ×2, `/allocation`'s draft, and Settings' USD rate + lead days, which the first pass wrongly called already done. **`input` and not `units`, and that distinction is the task**: `units` has the right shape but no guarantee, and in Ukrainian `f.units(6.164)` is `6,164`, which the locale-blind parser reads as **6164** — a silent 1000× on an untouched Save. `input` parses its own output back and only returns a string that survives, disambiguating with one trailing zero (`6,1640`). Pinned by a property test over both languages, including the class the first tests skipped. **The typing side is untouched and now [O26]** |
-| A37 | `pnpm format:check` fails on 237 tracked files — wire it into the gate or retire the scripts | `chore/prettier-decision` | M | **todo** — pre-existing; a documented command that rewrites a quarter of the tree is worse than no command |
+| A37 | `pnpm format:check` fails on 237 tracked files (**245 when measured on 2026-08-24** — the row's figure was older; both are the same defect) — wire it into the gate or retire the scripts | `chore/prettier-decision` | M | **done** (2026-08-24) — **wired, after finding the failures were mostly not style** (D84): `endOfLine` unset made every file differ on CRLF alone, and a default 80-char width fought a codebase whose p99 is 104. Config fixed, `.prettierignore` keeps it off `design/` (D14), all Markdown and the captured fixtures; **110 files reformatted**; `format:check` added to BOTH CI gates, since an infra-only push skips the frontend one. Retiring was worse than it looked: `eslint-config-prettier` had already switched eslint's stylistic rules off |
 
 ---
 
@@ -714,7 +714,7 @@ it concurrently with the i18n sweep.
 ## Cross-phase rules
 
 - Branches as named; plain conventional commits; **`/code-review` on the branch before every squash-merge — findings fixed, or declined in the merge commit body with the reason (D76)**; squash-merge to `dev`; no AI attribution in any git artifact.
-- `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + tag per section close.
+- `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` per merge; `pnpm build` + tag per section close.
 - `infra/` phases deploy through `.github/workflows/deploy-backend.yml` only. CI drives one named stack and may not touch hosting config (D15).
 - **Standing invariants:** no silent writes — fetched, derived and server-suggested values reach a draft or a prefill only (G5); empty cell ≠ 0; validate-fully-then-one-transaction; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - Every DDL change on DSQL: one statement per transaction, never mixed with DML, no `DESC` in index keys, retry SQLSTATE 40001, ≤3,000 mutated rows per transaction.

@@ -2,21 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
-import {
-  Controller,
-  useForm,
-  useFormState,
-  useWatch,
-  type UseFormReturn,
-} from 'react-hook-form';
+import { Controller, useForm, useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { COLOR_KEYS } from '../../core/colors';
 import { kyivDateIso } from '../../core/dates';
-import {
-  assetFormSchema,
-  type AssetFormInput,
-  type AssetFormValues,
-} from '../../core/schemas';
+import { assetFormSchema, type AssetFormInput, type AssetFormValues } from '../../core/schemas';
 import type { Asset, ColorKey } from '../../core/types';
 import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
@@ -58,11 +48,11 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="text-muted flex min-w-0 flex-col gap-1 text-[11px]">
+    <label className="flex min-w-0 flex-col gap-1 text-[11px] text-muted">
       {label}
       {children}
       {error && (
-        <span className="text-neg animate-in fade-in slide-in-from-top-1 text-[11px] duration-200">
+        <span className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1">
           {error}
         </span>
       )}
@@ -101,11 +91,11 @@ function KindSegment({
     </button>
   );
   return (
-    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[11px] border p-[3px]">
+    <div className="relative flex gap-1 rounded-[11px] border border-panel-border bg-panel p-[3px]">
       <div
         aria-hidden
         data-owns-motion
-        className="bg-card ease-soft absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300"
+        className="absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: value === 'fund' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('fund', t.asset.picker.fund)}
@@ -152,11 +142,11 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   // about to fetch, so it reads "loading" rather than flashing "nothing here".
   const loading = isFetching || (feed === undefined && !isError);
   const status = loading ? (
-    <div className="text-muted animate-pulse px-3 py-2 text-[13px]">{PICK.loading}</div>
+    <div className="animate-pulse px-3 py-2 text-[13px] text-muted">{PICK.loading}</div>
   ) : options.length === 0 ? (
-    <div className="text-muted px-3 py-2 text-[13px]">{PICK.empty}</div>
+    <div className="px-3 py-2 text-[13px] text-muted">{PICK.empty}</div>
   ) : stale ? (
-    <div className="text-warn px-3 py-1.5 text-[11px]">
+    <div className="px-3 py-1.5 text-[11px] text-warn">
       as of {f.dateShort(kyivDateIso(new Date(lastGood.fetchedAt)))}
     </div>
   ) : undefined;
@@ -181,7 +171,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
         />
       </Field>
       <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
-        <div className="text-muted flex flex-col gap-1 text-[11px]">
+        <div className="flex flex-col gap-1 text-[11px] text-muted">
           {t.asset.field.kind}
           <Controller
             control={form.control}
@@ -192,7 +182,15 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           />
         </div>
         <Field
-          label={showManual ? (kind === 'bond' ? PICK.bondManual : PICK.fundManual) : kind === 'bond' ? PICK.bond : PICK.fund}
+          label={
+            showManual
+              ? kind === 'bond'
+                ? PICK.bondManual
+                : PICK.fundManual
+              : kind === 'bond'
+                ? PICK.bond
+                : PICK.fund
+          }
           error={!!errors.inzhur?.ref && (kind === 'bond' ? MSG.refBond : MSG.refFund)}
         >
           <Controller
@@ -226,7 +224,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
       {/* Note under the row, not inside the field: the Kind segment and the ref
           control stay bottom-aligned exactly as P2 pinned them. */}
       {note !== undefined && (
-        <p className="text-muted animate-in fade-in m-0 text-[11px] duration-200">{note}</p>
+        <p className="m-0 animate-in text-[11px] text-muted duration-200 fade-in">{note}</p>
       )}
       {/* The escape hatch is always one press away — except in demo, where
           there is nothing to pick. */}
@@ -237,12 +235,12 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
             setManual(!showManual);
             if (showManual) ensureFeed(); // going back to the list = a retry
           }}
-          className="text-ink cursor-pointer self-start p-0 text-[11px] transition hover:opacity-85 active:scale-[.97]"
+          className="cursor-pointer self-start p-0 text-[11px] text-ink transition hover:opacity-85 active:scale-[.97]"
         >
           {showManual ? PICK.toPicker : PICK.toManual}
         </button>
       )}
-      <p className="text-muted m-0 text-[11px] leading-normal">{PICK.helper}</p>
+      <p className="m-0 text-[11px] leading-normal text-muted">{PICK.helper}</p>
     </>
   );
 }
@@ -424,66 +422,69 @@ export function AssetFormFields({
         </>
       )}
 
-      <Reveal show={isBond} className="border-hairline flex flex-col gap-2.5 border-t pt-2.5">
-        <div className="text-pos-tint-text text-[11px] font-bold tracking-[.06em] uppercase">
+      <Reveal show={isBond} className="flex flex-col gap-2.5 border-t border-hairline pt-2.5">
+        <div className="text-[11px] font-bold tracking-[.06em] text-pos-tint-text uppercase">
           {t.asset.field.fixedCouponGroup}
         </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Field label={t.asset.field.maturity} error={!!errors.maturity && MSG.maturity}>
-              <Controller
-                control={form.control}
-                name="maturity"
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    bg="page"
-                    className="w-full text-left"
-                    placeholder={t.asset.placeholder.maturity}
-                    invalid={!!errors.maturity}
-                  />
-                )}
-              />
-            </Field>
-            <Field label={t.asset.field.nextCoupon} error={!!errors.nextCoupon && MSG.nextCoupon}>
-              <Controller
-                control={form.control}
-                name="nextCoupon"
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value ?? ''}
-                    onChange={field.onChange}
-                    bg="page"
-                    className="w-full text-left"
-                    placeholder={t.asset.placeholder.nextCoupon}
-                    invalid={!!errors.nextCoupon}
-                  />
-                )}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Field label={t.asset.field.couponAmount} error={!!errors.couponAmount && MSG.couponAmount}>
-              <input
-                className={inputClass(!!errors.couponAmount)}
-                placeholder={t.asset.placeholder.couponAmount}
-                inputMode="decimal"
-                {...form.register('couponAmount')}
-              />
-            </Field>
-            <Field label={t.asset.field.reinvestPolicy}>
-              <input
-                className={inputClass(false)}
-                placeholder={t.asset.placeholder.reinvestPolicy}
-                {...form.register('reinvestPolicy')}
-              />
-            </Field>
-          </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label={t.asset.field.maturity} error={!!errors.maturity && MSG.maturity}>
+            <Controller
+              control={form.control}
+              name="maturity"
+              render={({ field }) => (
+                <DatePicker
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  bg="page"
+                  className="w-full text-left"
+                  placeholder={t.asset.placeholder.maturity}
+                  invalid={!!errors.maturity}
+                />
+              )}
+            />
+          </Field>
+          <Field label={t.asset.field.nextCoupon} error={!!errors.nextCoupon && MSG.nextCoupon}>
+            <Controller
+              control={form.control}
+              name="nextCoupon"
+              render={({ field }) => (
+                <DatePicker
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  bg="page"
+                  className="w-full text-left"
+                  placeholder={t.asset.placeholder.nextCoupon}
+                  invalid={!!errors.nextCoupon}
+                />
+              )}
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field
+            label={t.asset.field.couponAmount}
+            error={!!errors.couponAmount && MSG.couponAmount}
+          >
+            <input
+              className={inputClass(!!errors.couponAmount)}
+              placeholder={t.asset.placeholder.couponAmount}
+              inputMode="decimal"
+              {...form.register('couponAmount')}
+            />
+          </Field>
+          <Field label={t.asset.field.reinvestPolicy}>
+            <input
+              className={inputClass(false)}
+              placeholder={t.asset.placeholder.reinvestPolicy}
+              {...form.register('reinvestPolicy')}
+            />
+          </Field>
+        </div>
       </Reveal>
 
-      <div className="border-hairline border-t pt-2.5">
+      <div className="border-t border-hairline pt-2.5">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-ink text-[13px] font-semibold">{t.asset.field.linkToInzhur}</span>
+          <span className="text-[13px] font-semibold text-ink">{t.asset.field.linkToInzhur}</span>
           <Switch
             label={t.asset.field.linkToInzhur}
             checked={linked}
@@ -545,7 +546,7 @@ export function AssetForm({
     <form onSubmit={form.handleSubmit(onSubmit)} className="contents">
       <DialogHeader>
         <DialogTitle asChild>
-          <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
+          <div className="flex items-center gap-2 text-[11px] font-bold tracking-[.06em] text-pos-tint-text uppercase">
             {mode === 'create' && <Plus size={13} strokeWidth={2.75} />}
             {mode === 'create' ? t.transaction.newAssetDetails : t.assets.editTitle}
           </div>
@@ -573,7 +574,7 @@ export function AssetForm({
             and a summary that scrolled away with the form would be announced
             about a control the reader can no longer see. */}
         {hasErrors && (
-          <p className="text-neg animate-in fade-in slide-in-from-top-1 m-0 mt-2 text-right text-xs duration-200">
+          <p className="m-0 mt-2 animate-in text-right text-xs text-neg duration-200 fade-in slide-in-from-top-1">
             {MSG.summary}
           </p>
         )}

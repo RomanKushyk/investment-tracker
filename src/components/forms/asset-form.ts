@@ -61,7 +61,9 @@ export function inzhurRefOptions(
         : {
             value: entry.ref,
             label: entry.ref,
-            ...(entry.maturity === undefined ? {} : { hint: t.asset.picker.matures(f.date(entry.maturity)) }),
+            ...(entry.maturity === undefined
+              ? {}
+              : { hint: t.asset.picker.matures(f.date(entry.maturity)) }),
           },
     );
   const ref = currentRef.trim();

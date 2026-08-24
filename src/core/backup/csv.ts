@@ -54,7 +54,14 @@ export const ASSET_CSV_COLUMNS = [
   'inzhurUnits',
 ] as const;
 
-export const TRANSACTION_CSV_COLUMNS = ['id', 'date', 'type', 'assetId', 'amount', 'source'] as const;
+export const TRANSACTION_CSV_COLUMNS = [
+  'id',
+  'date',
+  'type',
+  'assetId',
+  'amount',
+  'source',
+] as const;
 
 /** Wide snapshots: these two, then one column per asset. */
 export const SNAPSHOT_WIDE_LEAD_COLUMNS = ['date', 'cash'] as const;
@@ -138,4 +145,3 @@ export function serializeSnapshotsCsv(snapshots: Snapshot[], assets: Asset[]): s
     ]),
   ]);
 }
-

@@ -110,7 +110,14 @@ describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total ret
   };
   const txs: Transaction[] = [
     { id: 'b', date: '2026-02-03', type: 'buy', assetId: 'b6475', amount: 4496.4, source: 'own' },
-    { id: 'c', date: '2026-05-05', type: 'interest_payout', assetId: 'b6475', amount: 355.4, source: 'accrual' },
+    {
+      id: 'c',
+      date: '2026-05-05',
+      type: 'interest_payout',
+      assetId: 'b6475',
+      amount: 355.4,
+      source: 'accrual',
+    },
   ];
   const snapsOne: Snapshot[] = [{ date: '2026-07-27', cash: 0, quotes: { b6475: 4379.52 } }];
   const row = yieldTableRows([bond], snapsOne, txs)[0];
@@ -143,7 +150,12 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
     createdAt: '2026-01-01T10:00:00',
   };
   const buy: Transaction = {
-    id: 'b1', date: '2026-01-01', type: 'buy', assetId: 'a1', amount: 1000, source: 'own',
+    id: 'b1',
+    date: '2026-01-01',
+    type: 'buy',
+    assetId: 'a1',
+    amount: 1000,
+    source: 'own',
   };
   const oneYearLater: Snapshot[] = [{ date: '2027-01-01', cash: 0, quotes: { a1: 1080 } }];
 
@@ -154,7 +166,12 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
 
   it('a tax row is a negative flow: xirr drops below the no-tax rate (net-of-tax wiring)', () => {
     const tax: Transaction = {
-      id: 't1', date: '2026-07-01', type: 'tax', assetId: 'a1', amount: 30, source: 'own',
+      id: 't1',
+      date: '2026-07-01',
+      type: 'tax',
+      assetId: 'a1',
+      amount: 30,
+      source: 'own',
     };
     const noTax = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
     const withTax = yieldTableRows([asset], oneYearLater, [buy, tax])[0].xirr!;
@@ -163,13 +180,24 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
 
   it('deposit/withdrawal rows carrying the assetId are NOT asset flows (portfolio-level cash)', () => {
     const deposit: Transaction = {
-      id: 'd1', date: '2026-06-01', type: 'deposit', assetId: 'a1', amount: 500, source: 'own',
+      id: 'd1',
+      date: '2026-06-01',
+      type: 'deposit',
+      assetId: 'a1',
+      amount: 500,
+      source: 'own',
     };
     const withdrawal: Transaction = {
-      id: 'w1', date: '2026-06-02', type: 'withdrawal', assetId: 'a1', amount: 200, source: 'own',
+      id: 'w1',
+      date: '2026-06-02',
+      type: 'withdrawal',
+      assetId: 'a1',
+      amount: 200,
+      source: 'own',
     };
     const base = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
-    const withCashMoves = yieldTableRows([asset], oneYearLater, [buy, deposit, withdrawal])[0].xirr!;
+    const withCashMoves = yieldTableRows([asset], oneYearLater, [buy, deposit, withdrawal])[0]
+      .xirr!;
     expect(withCashMoves).toBeCloseTo(base, 12);
   });
 });
@@ -413,12 +441,9 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
       portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
       latestSnapshotDate(snaps),
     );
-    const row = yieldTableRowsIn(
-      [...SEED_ASSETS, unquoted],
-      snaps,
-      SEED_TRANSACTIONS,
-      w,
-    ).find((r) => r.asset.id === 'unquoted')!;
+    const row = yieldTableRowsIn([...SEED_ASSETS, unquoted], snaps, SEED_TRANSACTIONS, w).find(
+      (r) => r.asset.id === 'unquoted',
+    )!;
     expect(row.annualized).toBeUndefined();
     expect(row.shortBasis).toBe(false);
   });
@@ -452,5 +477,3 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
     expect(r.annualized! * 100).toBeCloseTo(10.9, 1);
   });
 });
-
-

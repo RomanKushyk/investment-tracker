@@ -10,7 +10,7 @@ import { Card } from './Card';
 export function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <dt className="text-muted text-[10.5px] tracking-[.08em] uppercase">{label}</dt>
+      <dt className="text-[10.5px] tracking-[.08em] text-muted uppercase">{label}</dt>
       <dd className="m-0 text-[12.5px] font-bold">{children}</dd>
     </div>
   );
@@ -69,7 +69,7 @@ export function RecordCard({
   return (
     <Card
       radius={24}
-      className={`animate-in fade-in p-[22px] duration-300 ${className}`}
+      className={`animate-in p-[22px] duration-300 fade-in ${className}`}
       // The stagger `/attributes` already uses, reused rather than a second
       // cadence minted beside it.
       style={{ animationDelay: `${(index % 4) * 60}ms` }}
@@ -77,7 +77,7 @@ export function RecordCard({
       <div className="mb-3.5 flex items-center gap-3">
         {avatar}
         <div className="min-w-0 flex-1">
-          {eyebrow !== undefined && <div className="text-muted text-[10.5px]">{eyebrow}</div>}
+          {eyebrow !== undefined && <div className="text-[10.5px] text-muted">{eyebrow}</div>}
           {/* `max-md:truncate`, not `truncate`. A3/E3 is a 360px overflow, so
               the ellipsis belongs at 360; unconditional `white-space: nowrap`
               would also cut a long name on a 430px-wide desktop card where it
@@ -89,7 +89,7 @@ export function RecordCard({
       <dl className="m-0 grid grid-cols-2 gap-x-4.5 gap-y-2.5">{children}</dl>
       {footer !== undefined && (
         <>
-          <div className="bg-hairline mt-3.5 h-px" />
+          <div className="mt-3.5 h-px bg-hairline" />
           {/* `gap-2.5` is the drawing's, and the arithmetic first written here
               was WRONG (A31 review): `TAP_44` reaches (44 − 30) / 2 = 7 px past
               each edge, so two neighbours need ≥ 14 px to guarantee no overlap,

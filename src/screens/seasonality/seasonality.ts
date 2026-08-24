@@ -124,7 +124,10 @@ export interface SeasonalityMonth {
  * months, not half of it in each — the bar answers "what lands in this month",
  * and what lands is a whole coupon.
  */
-export function seasonalityMonths(transactions: Transaction[], assets: Asset[]): SeasonalityMonth[] {
+export function seasonalityMonths(
+  transactions: Transaction[],
+  assets: Asset[],
+): SeasonalityMonth[] {
   return seasonalityMonthsIn(transactions, assets, undefined);
 }
 
@@ -234,7 +237,10 @@ export interface BondCouponInfo {
 
 // Calendar months a bond has paid/will pay a coupon in, plus its coupon
 // day-of-month — feeds the "Coupon season" card.
-export function bondCouponInfo(asset: Asset, transactions: Transaction[]): BondCouponInfo | undefined {
+export function bondCouponInfo(
+  asset: Asset,
+  transactions: Transaction[],
+): BondCouponInfo | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   const historical = transactions
     .filter((t) => t.type === 'interest_payout' && t.assetId === asset.id)
@@ -242,6 +248,10 @@ export function bondCouponInfo(asset: Asset, transactions: Transaction[]): BondC
   const historicalMonths = historical.map((t) => Number(t.date.slice(5, 7))).sort((a, b) => a - b);
   const months = new Set(historicalMonths);
   if (asset.nextCoupon) months.add(Number(asset.nextCoupon.slice(5, 7)));
-  const day = asset.nextCoupon ? dayOfMonth(asset.nextCoupon) : historical.length ? dayOfMonth(historical[0].date) : 0;
+  const day = asset.nextCoupon
+    ? dayOfMonth(asset.nextCoupon)
+    : historical.length
+      ? dayOfMonth(historical[0].date)
+      : 0;
   return { day, months: [...months].sort((a, b) => a - b), historicalMonths };
 }

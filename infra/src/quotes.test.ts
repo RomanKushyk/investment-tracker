@@ -35,7 +35,12 @@ describe('tallyQuotes', () => {
   it('never throws on a feed with no bonds at all', () => {
     const empty = { entries: [], skipped: [] } as unknown as ReturnType<typeof parseAssetsFeed>;
     expect(tallyQuotes(empty, '2026-08-18')).toEqual({
-      consistent: 0, stale: 0, revised: 0, insensitive: 0, unexplained: [], maxStaleDays: 0,
+      consistent: 0,
+      stale: 0,
+      revised: 0,
+      insensitive: 0,
+      unexplained: [],
+      maxStaleDays: 0,
     });
   });
 });

@@ -66,7 +66,7 @@ function DeleteAssetDialog({
       </DialogHeader>
       <DialogBody>
         <AlertDialogDescription asChild>
-          <p className="text-muted m-0 mb-3.5 text-[13px] leading-normal">
+          <p className="m-0 mb-3.5 text-[13px] leading-normal text-muted">
             {t.assets.deleteBody(counts.transactions, counts.quoteDays)}
           </p>
         </AlertDialogDescription>

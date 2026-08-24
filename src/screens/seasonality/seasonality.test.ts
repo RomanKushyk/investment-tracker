@@ -112,9 +112,9 @@ describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
 
   it('projects the estimated coupon on its day-of-month (16 % of ₴10 000 half-yearly = ₴800)', () => {
     expect(days.find((d) => d.day === 15)!.expected).toBeCloseTo(800, 2);
-    expect(dominantExpectedAssetOnDay([...SEED_ASSETS, userBond], [...SEED_TRANSACTIONS, buy], 15)).toBe(
-      'bond2',
-    );
+    expect(
+      dominantExpectedAssetOnDay([...SEED_ASSETS, userBond], [...SEED_TRANSACTIONS, buy], 15),
+    ).toBe('bond2');
   });
 
   it('leaves the seed bars untouched (additive-only, D5)', () => {
@@ -126,19 +126,30 @@ describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
 
 describe('bondCouponInfo', () => {
   it('…8976: historical Feb + upcoming Aug, day 25', () => {
-    const info = bondCouponInfo(SEED_ASSETS.find((a) => a.id === 'ovdp8976')!, SEED_TRANSACTIONS)!;
+    const info = bondCouponInfo(
+      SEED_ASSETS.find((a) => a.id === 'ovdp8976')!,
+      SEED_TRANSACTIONS,
+    )!;
     expect(info.day).toBe(25);
     expect(info.months).toEqual([2, 8]);
   });
 
   it('…6475: historical June, day 3', () => {
-    const info = bondCouponInfo(SEED_ASSETS.find((a) => a.id === 'ovdp6475')!, SEED_TRANSACTIONS)!;
+    const info = bondCouponInfo(
+      SEED_ASSETS.find((a) => a.id === 'ovdp6475')!,
+      SEED_TRANSACTIONS,
+    )!;
     expect(info.day).toBe(3);
     expect(info.historicalMonths).toEqual([6]);
   });
 
   it('non-bond assets return undefined', () => {
-    expect(bondCouponInfo(SEED_ASSETS.find((a) => a.id === 'reit')!, SEED_TRANSACTIONS)).toBeUndefined();
+    expect(
+      bondCouponInfo(
+        SEED_ASSETS.find((a) => a.id === 'reit')!,
+        SEED_TRANSACTIONS,
+      ),
+    ).toBeUndefined();
   });
 });
 
@@ -237,8 +248,22 @@ describe('A42 — /seasonality under the window: one series moves, the other can
     expect(anchorAssetGrowth(oneMonth, 'reit')).toBeUndefined();
     expect(anchorAssetGrowth(SEED_TRANSACTIONS, 'reit')).toEqual({ first: 580.2, last: 700.36 });
     const falling = [
-      { id: 'a', date: '2026-05-10', type: 'dividend_accrual', assetId: 'reit', amount: 900, source: 'accrual' },
-      { id: 'b', date: '2026-06-10', type: 'dividend_accrual', assetId: 'reit', amount: 100, source: 'accrual' },
+      {
+        id: 'a',
+        date: '2026-05-10',
+        type: 'dividend_accrual',
+        assetId: 'reit',
+        amount: 900,
+        source: 'accrual',
+      },
+      {
+        id: 'b',
+        date: '2026-06-10',
+        type: 'dividend_accrual',
+        assetId: 'reit',
+        amount: 100,
+        source: 'accrual',
+      },
     ] as Transaction[];
     expect(anchorAssetGrowth(falling, 'reit')).toBeUndefined();
   });

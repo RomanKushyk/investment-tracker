@@ -60,8 +60,8 @@ function ReminderBanner({
     <div
       className={`flex items-start gap-2.5 rounded-2xl px-4 py-3 ${SEVERITY_PAINT[reminder.severity]} ${
         exiting
-          ? 'animate-out fade-out slide-out-to-top-1 fill-mode-forwards duration-200'
-          : `animate-in fade-in slide-in-from-top-1 duration-300 ${STAGGER[index % STAGGER.length]}`
+          ? 'animate-out duration-200 fill-mode-forwards fade-out slide-out-to-top-1'
+          : `animate-in duration-300 fade-in slide-in-from-top-1 ${STAGGER[index % STAGGER.length]}`
       }`}
     >
       <Icon size={16} strokeWidth={2.25} className="mt-[2px] flex-none" />
@@ -161,7 +161,7 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
           onClick={() => setExpanded(true)}
           // Text, not an icon, so it keeps its own width and only grows to 44
           // in height — again a real box, because this control draws no fill.
-          className="text-muted animate-in fade-in max-md:min-h-11 cursor-pointer self-start px-1 py-[2px] text-xs transition hover:opacity-85 active:scale-[.97]"
+          className="animate-in cursor-pointer self-start px-1 py-[2px] text-xs text-muted transition fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
         >
           {moreRemindersLabel(hidden, t)}
         </button>

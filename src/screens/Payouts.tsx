@@ -52,14 +52,14 @@ export function Payouts() {
       <ScreenHeader title={t.screen.payouts.title} subtitle={t.screen.payouts.subtitle} />
 
       <div className="mb-3.5 grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
-          <div className="text-muted mb-2 flex gap-4 text-[11.5px]">
+        <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
+          <div className="mb-2 flex gap-4 text-[11.5px] text-muted">
             <span className="flex items-center gap-1.5">
-              <span className="bg-reit inline-block size-2.5 rounded-[3px]" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-reit" />
               {t.analytics.dividends}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="bg-ovdp8976 inline-block size-2.5 rounded-[3px]" />
+              <span className="inline-block size-2.5 rounded-[3px] bg-ovdp8976" />
               {t.analytics.coupons}
             </span>
           </div>
@@ -69,7 +69,7 @@ export function Payouts() {
         <div className="flex flex-col gap-3.5">
           <KpiCard
             tone="dark"
-            className="animate-in fade-in duration-300"
+            className="animate-in duration-300 fade-in"
             label={t.analytics.receivedTotal}
             value={f.money(income.total)}
             subClassName="text-pos-on-dark"
@@ -79,8 +79,10 @@ export function Payouts() {
             )}
           />
 
-          <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
-            <div className="text-pos-tint-text mb-1.5 text-[10px] tracking-[.12em] uppercase">{t.analytics.upcoming}</div>
+          <div className="animate-in rounded-3xl bg-pos-tint px-[22px] py-5 duration-300 fade-in">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
+              {t.analytics.upcoming}
+            </div>
             <div className="flex flex-col gap-2 text-[13px]">
               {payoutRows.length === 0 && <span>{t.analytics.noUpcoming}</span>}
               {payoutRows.map((r) => (
@@ -100,7 +102,7 @@ export function Payouts() {
           </div>
 
           <KpiCard
-            className="animate-in fade-in duration-300"
+            className="animate-in duration-300 fade-in"
             valueSize="md"
             label={t.analytics.reinvested}
             value={f.money(reinvested)}
@@ -116,58 +118,58 @@ export function Payouts() {
           shell, the charts and the DatePicker already switch on, so this mounts
           one branch and only one. */}
       {desktop ? (
-      <Card radius={24} className="animate-in fade-in px-[22px] py-2.5 duration-300">
-        {/* The table keeps its min-width; the Scroller is what clips and draws
+        <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
+          {/* The table keeps its min-width; the Scroller is what clips and draws
             the rail. Card no longer sets overflow — a rounded card clipping its
             own content is where the square platform track came from. */}
-        <Scroller orientation="horizontal">
-          <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
-            <thead>
-              <tr className="text-muted text-left">
-                <th className="py-2 font-normal">{t.analytics.date}</th>
-                <th className="py-2 font-normal">{t.analytics.asset}</th>
-                <th className="py-2 font-normal">{t.analytics.type}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
-                <th className="py-2 font-normal">{t.analytics.destination}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logRows.map((row) => (
-                <tr
-                  key={`${row.date}-${row.assetId}-${row.amount}`}
-                  className="border-hairline hover:bg-page/60 border-t transition-colors"
-                >
-                  <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
-                  <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
-                  <td className="py-2">
-                    <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
-                  </td>
-                  <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
-                  <td className="py-2">{destination(row)}</td>
+          <Scroller orientation="horizontal">
+            <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
+              <thead>
+                <tr className="text-left text-muted">
+                  <th className="py-2 font-normal">{t.analytics.date}</th>
+                  <th className="py-2 font-normal">{t.analytics.asset}</th>
+                  <th className="py-2 font-normal">{t.analytics.type}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
+                  <th className="py-2 font-normal">{t.analytics.destination}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Scroller>
-      </Card>
+              </thead>
+              <tbody>
+                {logRows.map((row) => (
+                  <tr
+                    key={`${row.date}-${row.assetId}-${row.amount}`}
+                    className="border-t border-hairline transition-colors hover:bg-page/60"
+                  >
+                    <td className="py-2 whitespace-nowrap">{f.date(row.date)}</td>
+                    <td className="py-2 font-semibold">{assetName(row.assetId)}</td>
+                    <td className="py-2">
+                      <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
+                    </td>
+                    <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
+                    <td className="py-2">{destination(row)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Scroller>
+        </Card>
       ) : (
-      /* Below the breakpoint the log becomes one card per payout: the DATE and
+        /* Below the breakpoint the log becomes one card per payout: the DATE and
          the asset are the record's identity, so they go in the header, and the
          type keeps its Tag there. Two facts remain. */
-      <div className="flex flex-col gap-2.5">
-        {logRows.map((row, i) => (
-          <RecordCard
-            key={`${row.date}-${row.assetId}-${row.amount}`}
-            index={i}
-            eyebrow={f.date(row.date)}
-            title={assetName(row.assetId)}
-            tag={<Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>}
-          >
-            <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
-            <Fact label={t.analytics.destination}>{destination(row)}</Fact>
-          </RecordCard>
-        ))}
-      </div>
+        <div className="flex flex-col gap-2.5">
+          {logRows.map((row, i) => (
+            <RecordCard
+              key={`${row.date}-${row.assetId}-${row.amount}`}
+              index={i}
+              eyebrow={f.date(row.date)}
+              title={assetName(row.assetId)}
+              tag={<Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>}
+            >
+              <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
+              <Fact label={t.analytics.destination}>{destination(row)}</Fact>
+            </RecordCard>
+          ))}
+        </div>
       )}
     </div>
   );

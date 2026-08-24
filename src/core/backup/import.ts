@@ -66,9 +66,7 @@ export type FileClassification =
   | { ok: true; kind: ImportFileKind; name: string; size: number }
   | { ok: false; code: FileRejectionCode };
 
-export function classifyImportFiles(
-  files: { name: string; size: number }[],
-): FileClassification {
+export function classifyImportFiles(files: { name: string; size: number }[]): FileClassification {
   // A drag that carried no file at all (a text selection, a link) reads as the
   // same mistake as a wrong type: there is nothing importable in it.
   if (files.length !== 1) return { ok: false, code: files.length > 1 ? 'count' : 'type' };
@@ -88,10 +86,7 @@ export function classifyImportFiles(
 export const ISSUE_LIST_CAP = 10;
 
 export type FormatRejectionCode =
-  | 'not-json'
-  | 'not-a-backup'
-  | 'newer-format'
-  | 'unsupported-format';
+  'not-json' | 'not-a-backup' | 'newer-format' | 'unsupported-format';
 
 /** A format-level rejection is ONE sentence + one mono detail, never a list. */
 export interface FormatRejection {
@@ -114,8 +109,7 @@ export interface RowsRejection {
 export type ImportRejection = FormatRejection | RowsRejection;
 
 export type ImportValidation =
-  | { ok: true; envelope: BackupEnvelope }
-  | { ok: false; rejection: ImportRejection };
+  { ok: true; envelope: BackupEnvelope } | { ok: false; rejection: ImportRejection };
 
 /**
  * Full validation of a JSON backup: format marker → version → row schemas →
@@ -148,7 +142,10 @@ function formatRejection(
       // A file from a FUTURE app is the case the copy is written for; any
       // other unreadable version (a hand-edited 0, a string) gets its own
       // honest sentence rather than a claim about a newer app.
-      code: found !== undefined && found > BACKUP_FORMAT_VERSION ? 'newer-format' : 'unsupported-format',
+      code:
+        found !== undefined && found > BACKUP_FORMAT_VERSION
+          ? 'newer-format'
+          : 'unsupported-format',
       ...(found !== undefined ? { version: found } : {}),
       detail,
     };
@@ -185,7 +182,9 @@ function schemaIssues(issues: ZodIssueLike[], raw: Record<string, unknown>): Row
   return issues.map((issue) => {
     const path = issue.path.map(String);
     const [first, second, ...rest] = path;
-    const table = (ROW_TABLES.has(first as IssueTable) ? first : first === 'settings' ? 'settings' : 'envelope') as IssueTable;
+    const table = (
+      ROW_TABLES.has(first as IssueTable) ? first : first === 'settings' ? 'settings' : 'envelope'
+    ) as IssueTable;
 
     if (table === 'envelope' || table === 'settings') {
       return {
@@ -236,7 +235,9 @@ function rowAddress(
   const keyField = table === 'snapshots' ? 'date' : 'id';
   if (table === 'assets' || field === keyField || field === undefined) return index;
   const rows = raw[table];
-  const row = Array.isArray(rows) ? (rows[Number(index)] as Record<string, unknown> | undefined) : undefined;
+  const row = Array.isArray(rows)
+    ? (rows[Number(index)] as Record<string, unknown> | undefined)
+    : undefined;
   const key = row?.[keyField];
   return typeof key === 'string' && key !== '' ? key : index;
 }

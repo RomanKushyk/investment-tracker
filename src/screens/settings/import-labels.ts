@@ -7,11 +7,7 @@
 // `RowIssue` discriminant onto a message is app logic, not copy, and it is the
 // same mapping in both languages. What DOES differ per language — plural forms,
 // list joiners, verb agreement — is on the dictionary side.
-import type {
-  DiffWarning,
-  FileRejectionCode,
-  FormatRejectionCode,
-} from '../../core/backup/import';
+import type { DiffWarning, FileRejectionCode, FormatRejectionCode } from '../../core/backup/import';
 import type { Dataset, RowIssue } from '../../core/backup/json';
 import type { Format } from '../../core/money';
 import type { Dict } from '../../i18n/messages';
@@ -43,11 +39,7 @@ export function formatReasonSentence(
 // Location first, then the reason — the S4 items verbatim
 // (`transactions.tx-0007 — unknown asset id "a-9"`).
 export function issueLine(issue: RowIssue, t: Dict): string {
-  const location = [
-    issue.table,
-    issue.at,
-    issue.code === 'duplicate-key' ? undefined : issue.field,
-  ]
+  const location = [issue.table, issue.at, issue.code === 'duplicate-key' ? undefined : issue.field]
     .filter(Boolean)
     .join('.');
   return `${location} — ${issueReason(issue, t)}`;
@@ -62,9 +54,7 @@ function issueReason(issue: RowIssue, t: Dict): string {
     case 'unknown-quote-asset':
       return m.unknownQuoteAsset(String(value));
     case 'duplicate-key':
-      return issue.field === 'date'
-        ? m.duplicateDate(String(value))
-        : m.duplicateId(String(value));
+      return issue.field === 'date' ? m.duplicateDate(String(value)) : m.duplicateId(String(value));
     case 'unknown-key':
       return m.unknownKey(String(value));
     case 'expected-datetime':
@@ -122,15 +112,8 @@ export function settingsOptInHelper(
   return t.importing.settingsOptInHelper(symbol, f.units(settings.usdRate));
 }
 
-export function safetyBackupLine(
-  dataset: Dataset,
-  name: string,
-  done: boolean,
-  t: Dict,
-): string {
-  return done
-    ? t.importing.safetyBackupDone(name)
-    : t.importing.safetyBackupPending(dataset, name);
+export function safetyBackupLine(dataset: Dataset, name: string, done: boolean, t: Dict): string {
+  return done ? t.importing.safetyBackupDone(name) : t.importing.safetyBackupPending(dataset, name);
 }
 
 export function warningSentence(
@@ -174,11 +157,7 @@ export function warningSentence(
 export function importToasts(t: Dict) {
   const c = t.importing.count;
   return {
-    success: (after: {
-      assets: number;
-      snapshots: number;
-      transactions: number;
-    }) =>
+    success: (after: { assets: number; snapshots: number; transactions: number }) =>
       t.importing.toast.success(
         c.assets(after.assets),
         c.snapshots(after.snapshots),

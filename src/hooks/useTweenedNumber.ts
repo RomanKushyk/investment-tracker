@@ -35,7 +35,12 @@ export function tweenDisplayValue(state: TweenState, now: number, duration = DUR
 // Redirects a (possibly in-flight) tween toward a new target. Continues from
 // wherever the tween is currently displayed at `now`, so an interrupted tween
 // never snaps backward to its original `from`.
-export function retargetTween(state: TweenState, to: number, now: number, duration = DURATION): TweenState {
+export function retargetTween(
+  state: TweenState,
+  to: number,
+  now: number,
+  duration = DURATION,
+): TweenState {
   return { from: tweenDisplayValue(state, now, duration), to, startedAt: now };
 }
 

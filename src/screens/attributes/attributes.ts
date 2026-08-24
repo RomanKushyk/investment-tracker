@@ -5,8 +5,13 @@ import { annualizedPct } from '../../core/derive';
 import type { Asset, PayoutSchedule, Transaction } from '../../core/types';
 
 // Latest dividend_accrual's day-of-month for this asset (drives "Monthly · ~10th").
-export function dividendDayOfMonth(transactions: Transaction[], assetId: string): number | undefined {
-  const matches = transactions.filter((t) => t.type === 'dividend_accrual' && t.assetId === assetId);
+export function dividendDayOfMonth(
+  transactions: Transaction[],
+  assetId: string,
+): number | undefined {
+  const matches = transactions.filter(
+    (t) => t.type === 'dividend_accrual' && t.assetId === assetId,
+  );
   if (matches.length === 0) return undefined;
   const latest = matches.reduce((a, b) => (a.date > b.date ? a : b));
   return Number(latest.date.slice(-2));

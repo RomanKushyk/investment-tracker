@@ -20,10 +20,7 @@ export type Dataset = 'demo' | 'live';
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected yyyy-MM-dd');
 const isoDateTime = z
   .string()
-  .regex(
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/,
-    'expected timezone-less yyyy-MM-ddTHH:mm:ss',
-  );
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, 'expected timezone-less yyyy-MM-ddTHH:mm:ss');
 
 // Rows are strictObject (unknown keys rejected) but FORWARD-COMPATIBLE:
 // optional fields the plan adds later are accepted already, so formatVersion
@@ -37,13 +34,7 @@ const assetRowSchema = z.strictObject({
   expectedPct: z.number(),
   targetPct: z.number(),
   // incl. the seed-only 'none' (Energy "None (price only)").
-  payoutSchedule: z.enum([
-    'maturity',
-    'monthly',
-    'quarterly',
-    'semiannual',
-    'none',
-  ]),
+  payoutSchedule: z.enum(['maturity', 'monthly', 'quarterly', 'semiannual', 'none']),
   firstPurchase: isoDate,
   createdAt: isoDateTime,
   maturity: isoDate.optional(),
@@ -136,9 +127,7 @@ export function buildBackup(
     // without the slice a backup holding any user-created asset would fail
     // this module's own schema.
     assets: assets.map((a) => ({ ...a, createdAt: a.createdAt.slice(0, 19) })),
-    snapshots: snapshots.map((s) =>
-      s.savedAt ? { ...s, savedAt: s.savedAt.slice(0, 19) } : s,
-    ),
+    snapshots: snapshots.map((s) => (s.savedAt ? { ...s, savedAt: s.savedAt.slice(0, 19) } : s)),
     transactions,
     ...(settings ? { settings } : {}),
   };
@@ -154,10 +143,7 @@ export type ParseBackupResult =
 // verbatim sentence it prints as its mono technical-detail line. One
 // implementation, so the two can never drift.
 export type EnvelopeHeadCode =
-  | 'not-json'
-  | 'not-an-object'
-  | 'not-a-backup'
-  | 'unsupported-version';
+  'not-json' | 'not-an-object' | 'not-a-backup' | 'unsupported-version';
 
 export type EnvelopeHead =
   | { ok: true; raw: Record<string, unknown> }
@@ -205,9 +191,7 @@ export function parseBackup(text: string): ParseBackupResult {
   if (!parsed.success) {
     return {
       ok: false,
-      issues: parsed.error.issues.map(
-        (i) => `${i.path.join('.') || '(root)'}: ${i.message}`,
-      ),
+      issues: parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`),
     };
   }
   const issues = integrityIssues(parsed.data);

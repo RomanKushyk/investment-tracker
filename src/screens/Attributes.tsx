@@ -96,12 +96,18 @@ export function Attributes() {
                       ? `${f.moneyWhole(a.couponAmount)} ${t.asset.couponFrequency[a.payoutSchedule]}`
                       : '—'}
                   </Fact>
-                  <Fact label={t.analytics.attributes.maturity}>{a.maturity ? f.date(a.maturity) : '—'}</Fact>
+                  <Fact label={t.analytics.attributes.maturity}>
+                    {a.maturity ? f.date(a.maturity) : '—'}
+                  </Fact>
                   <Fact label={t.analytics.attributes.targetShare}>
                     {f.pctPlain(a.targetPct, Number.isInteger(a.targetPct) ? 0 : 1)}
                   </Fact>
-                  <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
-                  <Fact label={t.analytics.attributes.nextCoupon}>{a.nextCoupon ? f.date(a.nextCoupon) : '—'}</Fact>
+                  <Fact label={t.analytics.attributes.firstPurchase}>
+                    {f.date(a.firstPurchase)}
+                  </Fact>
+                  <Fact label={t.analytics.attributes.nextCoupon}>
+                    {a.nextCoupon ? f.date(a.nextCoupon) : '—'}
+                  </Fact>
                 </>
               ) : (
                 <>
@@ -109,12 +115,18 @@ export function Attributes() {
                     {f.pctPlain(a.expectedPct)} {t.analytics.perYear}
                   </Fact>
                   <Fact label={t.analytics.attributes.actualAnn}>{actualAnnualized(a)}</Fact>
-                  <Fact label={t.analytics.attributes.payoutSchedule}>{payoutScheduleLabel(a, transactions, t)}</Fact>
+                  <Fact label={t.analytics.attributes.payoutSchedule}>
+                    {payoutScheduleLabel(a, transactions, t)}
+                  </Fact>
                   <Fact label={t.analytics.attributes.targetShare}>
                     {f.pctPlain(a.targetPct, Number.isInteger(a.targetPct) ? 0 : 1)}
                   </Fact>
-                  <Fact label={t.analytics.attributes.firstPurchase}>{f.date(a.firstPurchase)}</Fact>
-                  <Fact label={t.analytics.attributes.reinvestPolicy}>{a.reinvestPolicy ?? '—'}</Fact>
+                  <Fact label={t.analytics.attributes.firstPurchase}>
+                    {f.date(a.firstPurchase)}
+                  </Fact>
+                  <Fact label={t.analytics.attributes.reinvestPolicy}>
+                    {a.reinvestPolicy ?? '—'}
+                  </Fact>
                 </>
               )}
             </RecordCard>

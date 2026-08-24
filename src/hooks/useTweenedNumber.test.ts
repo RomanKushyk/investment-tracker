@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { easeProgress, retargetTween, tweenDisplayValue, tweenValue, type TweenState } from './useTweenedNumber';
+import {
+  easeProgress,
+  retargetTween,
+  tweenDisplayValue,
+  tweenValue,
+  type TweenState,
+} from './useTweenedNumber';
 
 describe('easeProgress', () => {
   it('starts at 0 and ends at 1 across the full duration', () => {
@@ -48,7 +54,7 @@ describe('retargetTween', () => {
   // Reproduces the mid-tween retargeting bug: interrupting an in-flight tween
   // (e.g. double-tapping the currency toggle) must continue from wherever the
   // number is currently displayed, not snap backward to the old tween's origin.
-  it('continues from the currently-displayed value, not the interrupted tween\'s original origin', () => {
+  it("continues from the currently-displayed value, not the interrupted tween's original origin", () => {
     const inFlight: TweenState = { from: 0, to: 100, startedAt: 0 };
     const interruptAt = 50; // mid-flight (duration 300ms) — well past 0% progress
 

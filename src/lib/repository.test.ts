@@ -352,7 +352,10 @@ describe('dataset boot binding (G4)', () => {
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
         key === 'quirenote-settings'
-          ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
+          ? JSON.stringify({
+              state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' },
+              version: 1,
+            })
           : null,
       setItem: () => {},
       removeItem: () => {},
@@ -384,7 +387,10 @@ describe('dataset boot binding (G4)', () => {
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
         key === 'quirenote-settings'
-          ? JSON.stringify({ state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' }, version: 1 })
+          ? JSON.stringify({
+              state: { currency: 'UAH', usdRate: 44.83, dataset: 'live' },
+              version: 1,
+            })
           : null,
       setItem: () => {},
       removeItem: () => {},

@@ -11,11 +11,7 @@ import { Card } from '../components/ui/Card';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
-import {
-  useAssets,
-  useRecordTransaction,
-  useTransactions,
-} from '../hooks/queries';
+import { useAssets, useRecordTransaction, useTransactions } from '../hooks/queries';
 import { assetFromForm } from '../core/asset-builder';
 import { COLOR_KEYS } from '../core/colors';
 import { todayIso } from '../core/dates';
@@ -250,23 +246,18 @@ export function TransactionPanel() {
           until A32, and that container's breakpoint is 884, not 944. */}
       <Card
         radius={24}
-        className="animate-in border-panel-border bg-panel fade-in min-w-0 max-w-[560px] flex-[1_1_360px] border px-[22px] py-5 duration-300 @min-[944px]:max-w-[360px]"
+        className="max-w-[560px] min-w-0 flex-[1_1_360px] animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in @min-[944px]:max-w-[360px]"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
-          <span className="text-muted text-[10px] tracking-[.08em] uppercase">
+          <span className="text-[10px] tracking-[.08em] text-muted uppercase">
             {t.transaction.badge}
           </span>
         </div>
-        <p className="text-muted mt-1 mb-3.5 text-xs">
-          {t.transaction.subtitle}
-        </p>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-2.5"
-        >
+        <p className="mt-1 mb-3.5 text-xs text-muted">{t.transaction.subtitle}</p>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-2.5">
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="text-muted flex flex-col gap-1 text-[11px]">
+            <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.date}
               <Controller
                 control={form.control}
@@ -280,7 +271,7 @@ export function TransactionPanel() {
                 )}
               />
             </label>
-            <label className="text-muted flex flex-col gap-1 text-[11px]">
+            <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.type}
               <Controller
                 control={form.control}
@@ -289,14 +280,17 @@ export function TransactionPanel() {
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
-                    options={TYPE_ORDER.map((value) => ({ value, label: t.transaction.types[value] }))}
+                    options={TYPE_ORDER.map((value) => ({
+                      value,
+                      label: t.transaction.types[value],
+                    }))}
                   />
                 )}
               />
             </label>
           </div>
 
-          <label className="text-muted flex flex-col gap-1 text-[11px]">
+          <label className="flex flex-col gap-1 text-[11px] text-muted">
             {t.transaction.asset}
             <Controller
               control={form.control}
@@ -317,12 +311,12 @@ export function TransactionPanel() {
           </label>
 
           {isNewAsset && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="animate-in duration-300 fade-in slide-in-from-top-2">
               {/* Same dashed reveal panel as v1 (design lines 116-124), now
                   hosting the shared AssetFormFields inline: create-mode core
                   fields only — no First purchase (derived from the tx date). */}
-              <div className="border-faint flex flex-col gap-2.5 rounded-2xl border border-dashed bg-card p-3.5">
-                <div className="text-pos-tint-text flex items-center gap-2 text-[11px] font-bold tracking-[.06em] uppercase">
+              <div className="flex flex-col gap-2.5 rounded-2xl border border-dashed border-faint bg-card p-3.5">
+                <div className="flex items-center gap-2 text-[11px] font-bold tracking-[.06em] text-pos-tint-text uppercase">
                   <Plus size={13} strokeWidth={2.75} />
                   {t.transaction.newAssetDetails}
                 </div>
@@ -337,7 +331,7 @@ export function TransactionPanel() {
           )}
 
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="text-muted flex flex-col gap-1 text-[11px]">
+            <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.amount}
               <input
                 className={inputClass}
@@ -346,7 +340,7 @@ export function TransactionPanel() {
                 {...form.register('amount')}
               />
             </label>
-            <label className="text-muted flex flex-col gap-1 text-[11px]">
+            <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.source}
               <Controller
                 control={form.control}
@@ -355,7 +349,10 @@ export function TransactionPanel() {
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
-                    options={SOURCE_ORDER.map((value) => ({ value, label: t.transaction.sources[value] }))}
+                    options={SOURCE_ORDER.map((value) => ({
+                      value,
+                      label: t.transaction.sources[value],
+                    }))}
                   />
                 )}
               />
@@ -372,9 +369,7 @@ export function TransactionPanel() {
           </Button>
           {(Object.keys(form.formState.errors).length > 0 ||
             Object.keys(assetForm.formState.errors).length > 0) && (
-            <p className="text-neg text-xs">
-              {t.transaction.invalid}
-            </p>
+            <p className="text-xs text-neg">{t.transaction.invalid}</p>
           )}
         </form>
       </Card>
@@ -434,11 +429,11 @@ export function TransactionPanel() {
           state the complaint was about. */}
       <Card
         ref={ledgerRef}
-        className="min-w-0 max-w-[560px] flex-[1_1_560px] py-4 @min-[944px]:max-w-[884px]"
+        className="max-w-[560px] min-w-0 flex-[1_1_560px] py-4 @min-[944px]:max-w-[884px]"
       >
         <Scroller
           radius={20}
-          className="ease-soft max-h-[420px] transition-[max-height] duration-[260ms] @min-[944px]:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
+          className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft @min-[944px]:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
         >
           {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS (A32
               review). Radix wraps a viewport's children in its own
@@ -452,26 +447,22 @@ export function TransactionPanel() {
               back onto its own `min-width:100%`, and `min-w-full` fills it —
               the label then has a definite width to ellipsize against. */}
           <div className="flex w-0 min-w-full flex-col gap-[9px] text-[12.5px]">
-            {ledger.length === 0 && (
-              <span className="text-muted">{t.transaction.recentEmpty}</span>
-            )}
+            {ledger.length === 0 && <span className="text-muted">{t.transaction.recentEmpty}</span>}
             {ledger.map((tx) => {
               const asset = assetById.get(tx.assetId);
               return (
                 <div
                   key={tx.id}
-                  className="animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-2.5 duration-300 max-md:gap-2"
+                  className="flex animate-in items-center justify-between gap-2.5 duration-300 fade-in slide-in-from-top-1 max-md:gap-2"
                 >
                   <span className="min-w-0 flex-1 truncate">
-                    {tx.type === 'interest_payout' ? t.transaction.recentCoupon : t.transaction.types[tx.type]} ·{' '}
-                    {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                    {tx.type === 'interest_payout'
+                      ? t.transaction.recentCoupon
+                      : t.transaction.types[tx.type]}{' '}
+                    · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
                   </span>
-                  <strong className="whitespace-nowrap">
-                    {f.money(tx.amount)}
-                  </strong>
-                  <span className="text-muted whitespace-nowrap">
-                    {f.dateShort(tx.date)}
-                  </span>
+                  <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
+                  <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
                 </div>
               );
             })}

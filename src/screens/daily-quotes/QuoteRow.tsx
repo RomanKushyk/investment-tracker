@@ -35,14 +35,14 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
       <span
         key={chip.chip}
         title={accrual ? t.dailyQuotes.provenance.accrual : t.dailyQuotes.provenance[chip.chip]}
-        className={`animate-in fade-in zoom-in-95 rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 ${paint}`}
+        className={`animate-in rounded-[5px] px-2 py-[2px] text-[10px] font-bold tracking-[.08em] uppercase duration-150 zoom-in-95 fade-in ${paint}`}
       >
         {chip.chip === 'stale'
           ? t.dailyQuotes.chip.asOf(f.dateShort(kyivDateIso(new Date(chip.at))))
           : t.dailyQuotes.chip[chip.chip]}
       </span>
       {chip.chip === 'auto' && (
-        <span className="text-muted text-[10px]">
+        <span className="text-[10px] text-muted">
           {accrual
             ? t.dailyQuotes.chip.accrual
             : t.dailyQuotes.chip.fetched(kyivTimeHm(new Date(chip.at)))}
@@ -73,7 +73,7 @@ function OfferLine({
     // The right gutter (delta column 52 + its 16 gap) aligns the pill under the
     // input column; below `sm` the row is already stacked, so the pill gets the
     // full width instead of wrapping inside a 68px-narrower box.
-    <div className="animate-in fade-in slide-in-from-top-1 flex items-center justify-end gap-2 pr-0 duration-300 sm:pr-[68px]">
+    <div className="flex animate-in items-center justify-end gap-2 pr-0 duration-300 fade-in slide-in-from-top-1 sm:pr-[68px]">
       <button
         type="button"
         onClick={onAccept}
@@ -97,7 +97,7 @@ function OfferLine({
         type="button"
         aria-label={dismissLabel}
         onClick={onDismiss}
-        className={`${TAP_44_BOX} text-muted cursor-pointer p-1 opacity-85 transition hover:opacity-100 active:scale-[.97]`}
+        className={`${TAP_44_BOX} cursor-pointer p-1 text-muted opacity-85 transition hover:opacity-100 active:scale-[.97]`}
       >
         <X size={11} strokeWidth={2.75} />
       </button>
@@ -152,7 +152,7 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   if (verdict.state === 'stale') {
     const { daysStale, date, atWindowEdge } = verdict.fit;
     return (
-      <div className="text-muted animate-in fade-in text-[11px] duration-300">
+      <div className="animate-in text-[11px] text-muted duration-300 fade-in">
         {t.dailyQuotes.model.stale(daysStale, atWindowEdge, f.dateShort(date))}
       </div>
     );
@@ -164,7 +164,7 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   // number is offered; the conclusion is left to the reader.
   if (verdict.state === 'revised') {
     return (
-      <div className="text-warn animate-in fade-in text-[11px] duration-300">
+      <div className="animate-in text-[11px] text-warn duration-300 fade-in">
         {t.dailyQuotes.priceDoesNotFit(
           f.pctPlain(verdict.publishedPct, 2),
           f.pctPlain(verdict.impliedPct, 2),
@@ -178,14 +178,14 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   // benign reasons.
   if (verdict.reason === 'unexplained') {
     return (
-      <div className="text-neg animate-in fade-in text-[11px] duration-300">
+      <div className="animate-in text-[11px] text-neg duration-300 fade-in">
         {t.dailyQuotes.model.unexplained}
       </div>
     );
   }
 
   return (
-    <div className="text-faint animate-in fade-in text-[11px] duration-300">
+    <div className="animate-in text-[11px] text-faint duration-300 fade-in">
       {t.dailyQuotes.model.tooCloseToMaturity}
     </div>
   );
@@ -234,7 +234,7 @@ export function QuoteRow({
   const ghostId = `quote-${asset.id}-suggested`;
 
   return (
-    <Card className="animate-in flex flex-col gap-2 fade-in px-5 py-3.5 duration-300 slide-in-from-bottom-1">
+    <Card className="flex animate-in flex-col gap-2 px-5 py-3.5 duration-300 fade-in slide-in-from-bottom-1">
       {/* TWO LINES BELOW THE BREAKPOINT, as S4 draws it: [avatar][name] on the
           first, [input][delta] on the second. The single wrapping row is a
           desktop shape — at 360 it leaves the input about 100px, and a 16px
@@ -249,7 +249,7 @@ export function QuoteRow({
         <AssetAvatar code={asset.code} colorKey={asset.colorKey} size={48} />
         <div className="min-w-[110px] flex-1 break-words max-md:basis-[calc(100%-60px)]">
           <div className="text-sm font-semibold">{asset.name}</div>
-          <div className="text-muted flex flex-wrap items-center gap-1.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
             <span>
               {yesterday !== undefined ? t.dailyQuotes.yesterdayValue(f.money(yesterday)) : '—'}
             </span>
@@ -257,7 +257,7 @@ export function QuoteRow({
           </div>
         </div>
         {ghost !== undefined && (
-          <span className="text-faint animate-in fade-in flex-none text-[9px] tracking-[.12em] uppercase duration-300">
+          <span className="flex-none animate-in text-[9px] tracking-[.12em] text-faint uppercase duration-300 fade-in">
             {t.dailyQuotes.chip.suggested}
           </span>
         )}
@@ -277,11 +277,11 @@ export function QuoteRow({
             // row's height does not shrink.
             // The 16px type comes from the G-4 rule in index.css, not from here.
             className={
-              'bg-card h-9 max-md:h-11 w-full rounded-[9px] max-md:rounded-[11px] border px-3 text-right font-body text-[13px] transition ' +
+              'h-9 w-full rounded-[9px] border bg-card px-3 text-right font-body text-[13px] transition max-md:h-11 max-md:rounded-[11px] ' +
               (filled
                 ? 'border-pos-border'
                 : ghost !== undefined
-                  ? 'border-faint border-dashed hover:border-muted'
+                  ? 'border-dashed border-faint hover:border-muted'
                   : 'border-hairline')
             }
             value={raw ?? ''}
@@ -296,7 +296,7 @@ export function QuoteRow({
           {ghost !== undefined && (
             <span
               id={ghostId}
-              className="text-muted animate-in fade-in pointer-events-none absolute right-3 text-[13px] duration-300"
+              className="pointer-events-none absolute right-3 animate-in text-[13px] text-muted duration-300 fade-in"
             >
               {f.num(ghost)}
             </span>
@@ -305,7 +305,7 @@ export function QuoteRow({
         <span
           key={delta ?? 'empty'}
           className={
-            'w-[52px] animate-in fade-in text-right text-xs font-bold zoom-in-95 duration-150 ' +
+            'w-[52px] animate-in text-right text-xs font-bold duration-150 zoom-in-95 fade-in ' +
             (delta === undefined ? 'text-faint' : delta < 0 ? 'text-neg' : 'text-pos')
           }
         >

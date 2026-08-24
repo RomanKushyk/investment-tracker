@@ -6,12 +6,7 @@ import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
-import {
-  useAssets,
-  useSaveSnapshot,
-  useSnapshots,
-  useTransactions,
-} from '../hooks/queries';
+import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
 import { couponReminderId, dueCoupons } from '../core/accrual';
 import { kyivDateIso, todayIso } from '../core/dates';
 import { investedByAsset, latestCash, latestQuotes } from '../core/derive';
@@ -118,8 +113,7 @@ export function DailyQuotes() {
   useEffect(() => {
     if (!todaySnapshot) return;
     for (const assetId of Object.keys(todaySnapshot.quotes)) {
-      if (!(assetId in quotes))
-        setQuote(assetId, f.num(todaySnapshot.quotes[assetId]));
+      if (!(assetId in quotes)) setQuote(assetId, f.num(todaySnapshot.quotes[assetId]));
     }
   }, [todaySnapshot, quotes, setQuote, f]);
 
@@ -228,7 +222,7 @@ export function DailyQuotes() {
             <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
             <span
               key={filledCount}
-              className="animate-in bg-pos-tint text-pos-tint-text zoom-in-95 rounded-[6px] px-3 py-1 text-xs font-semibold duration-150"
+              className="animate-in rounded-[6px] bg-pos-tint px-3 py-1 text-xs font-semibold text-pos-tint-text duration-150 zoom-in-95"
             >
               {t.dailyQuotes.filled(filledCount, assets.length)}
             </span>
@@ -245,9 +239,7 @@ export function DailyQuotes() {
               <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
             </div>
           </div>
-          <p className="text-muted text-[13px]">
-            {t.screen.dailyQuotes.subtitle}
-          </p>
+          <p className="text-[13px] text-muted">{t.screen.dailyQuotes.subtitle}</p>
           {/* A7 — non-blocking, and silent until something has been fetched. */}
           <ParseSkips className="mt-1 mb-[18px]" />
 
@@ -297,7 +289,7 @@ export function DailyQuotes() {
             {/* "Last saved" stays in flow in both arrangements: it is a fact
                 about the data, not a control, and a fact does not need to
                 follow the thumb. */}
-            <span className="text-muted ml-auto text-xs">
+            <span className="ml-auto text-xs text-muted">
               {lastSavedAt
                 ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
                 : t.dailyQuotes.notSavedYet}
@@ -316,21 +308,21 @@ export function DailyQuotes() {
             1196 the day a coupon is recorded; with it the day-to-day difference
             is 72 px. */}
         {due.length > 0 && (
-        <aside className="min-w-0 flex flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]">
-          {due.map((d) => {
-            const asset = assets.find((a) => a.id === d.assetId)!;
-            return (
-              <CouponDueCard
-                key={couponReminderId(d.assetId, d.date)}
-                asset={asset}
-                due={d}
-                prefill={couponPrefill(asset, d, fetch.feed)}
-                schedule={feedSchedule(asset, fetch.feed)}
-                onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
-              />
-            );
-          })}
-        </aside>
+          <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]">
+            {due.map((d) => {
+              const asset = assets.find((a) => a.id === d.assetId)!;
+              return (
+                <CouponDueCard
+                  key={couponReminderId(d.assetId, d.date)}
+                  asset={asset}
+                  due={d}
+                  prefill={couponPrefill(asset, d, fetch.feed)}
+                  schedule={feedSchedule(asset, fetch.feed)}
+                  onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
+                />
+              );
+            })}
+          </aside>
         )}
       </div>
 
@@ -344,10 +336,7 @@ export function DailyQuotes() {
               flat 76 was right at a 0 inset and 11px short on a home-indicator
               device — exactly where the obstruction it prevents would come back.
               The extra 8 is breathing room, not slack in the arithmetic. */}
-          <div
-            aria-hidden
-            className="h-[calc(61px+max(8px,env(safe-area-inset-bottom)))]"
-          />
+          <div aria-hidden className="h-[calc(61px+max(8px,env(safe-area-inset-bottom)))]" />
           {/* PORTALLED TO THE BODY on purpose. `position: fixed` resolves against
               the nearest ancestor with a transform, and the route wrapper in
               Layout carries `slide-in-from-bottom-2` for 300 ms on every
@@ -369,7 +358,7 @@ export function DailyQuotes() {
               // route re-rendered on every visual-viewport event just to move one
               // fixed box. Two more surfaces need the same number now, and CSS
               // moves all three without React hearing about it.
-              className="border-hairline bg-page animate-in slide-in-from-bottom-2 fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex gap-2 border-t px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220"
+              className="fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-30 flex animate-in gap-2 border-t border-hairline bg-page px-3 pt-2 pb-[max(8px,env(safe-area-inset-bottom))] duration-220 slide-in-from-bottom-2"
             >
               {/* SQUARE CORNERS, hairline top edge — the same reading as the
                   header bar (S2): a full-bleed bar has no designed short side,

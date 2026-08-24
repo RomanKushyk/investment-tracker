@@ -116,7 +116,10 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
   it('survives a three-decimal percent, which is where `units` lost a factor of 1000', () => {
     // uk `f.units(6.164)` is "6,164", which `normalizeNumberInput` reads as a
     // grouped 6164 — an untouched Save would have stored a 1000x yield.
-    const defaults = assetFormDefaults(makeFormat('uk'), { ...linked, expectedPct: 6.164 } as never);
+    const defaults = assetFormDefaults(makeFormat('uk'), {
+      ...linked,
+      expectedPct: 6.164,
+    } as never);
     expect(defaults.expectedPct).toBe('6,1640');
     const parsed = assetFormSchema('edit').safeParse(defaults);
     expect(parsed.success && parsed.data.expectedPct).toBe(6.164);

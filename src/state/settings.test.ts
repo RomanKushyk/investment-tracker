@@ -177,7 +177,10 @@ describe('migrateSettings', () => {
       reminderLeadDays: 14,
     });
     expect(migrateSettings({ reminderLeadDays: 1 })).toEqual({ ...DEFAULTS, reminderLeadDays: 1 });
-    expect(migrateSettings({ reminderLeadDays: 30 })).toEqual({ ...DEFAULTS, reminderLeadDays: 30 });
+    expect(migrateSettings({ reminderLeadDays: 30 })).toEqual({
+      ...DEFAULTS,
+      reminderLeadDays: 30,
+    });
   });
 
   it('falls back to the default lead time for values outside 1–30 integers', () => {
@@ -436,7 +439,6 @@ describe('period (A38) — the window every analytics screen reads', () => {
     // A slice with no period at all falls back rather than carrying the live one
     // forward, which is what makes the default reachable after a bad write.
     expect(mergeSettings({}, useSettings.getState()).period).toBe('all');
-
   });
 });
 
@@ -464,12 +466,17 @@ describe('the persist invariant itself — every field, not just the newest', ()
     throw new Error(`unterminated block: ${start}`);
   };
 
-  const keysOf = (text: string, re: RegExp) =>
-    [...text.matchAll(re)].map((m) => m[1]).sort();
+  const keysOf = (text: string, re: RegExp) => [...text.matchAll(re)].map((m) => m[1]).sort();
 
   it('PersistedSettings, PERSISTED_DEFAULTS and partialize name the same fields', () => {
-    const declared = keysOf(block('export interface PersistedSettings'), /^\s{2}'?([\w]+)'?[?]?:/gm);
-    const defaults = keysOf(block('const PERSISTED_DEFAULTS: PersistedSettings ='), /^\s{2}'?([\w]+)'?:/gm);
+    const declared = keysOf(
+      block('export interface PersistedSettings'),
+      /^\s{2}'?([\w]+)'?[?]?:/gm,
+    );
+    const defaults = keysOf(
+      block('const PERSISTED_DEFAULTS: PersistedSettings ='),
+      /^\s{2}'?([\w]+)'?:/gm,
+    );
     const written = keysOf(block('partialize: (s) => ('), /^\s{8}([\w]+):/gm);
 
     expect(declared.length).toBeGreaterThan(8);

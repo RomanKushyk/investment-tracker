@@ -21,21 +21,21 @@ function seedAsset(id: string): Asset {
 describe('accrualSuggestion', () => {
   it('carries a seed bond forward to the selected date', () => {
     // …6475: 4 374,12 (25.07) + 2 days × 216,00 × 2/365 = 4 376,49.
-    expect(accrualSuggestion(seedAsset('ovdp6475'), snapshots, invested.ovdp6475, '2026-07-27')).toBe(
-      4376.49,
-    );
+    expect(
+      accrualSuggestion(seedAsset('ovdp6475'), snapshots, invested.ovdp6475, '2026-07-27'),
+    ).toBe(4376.49);
     // …8976: 15 846,30 + 2 days × 1 240,00 × 2/365.
-    expect(accrualSuggestion(seedAsset('ovdp8976'), snapshots, invested.ovdp8976, '2026-07-27')).toBe(
-      15859.89,
-    );
+    expect(
+      accrualSuggestion(seedAsset('ovdp8976'), snapshots, invested.ovdp8976, '2026-07-27'),
+    ).toBe(15859.89);
   });
 
   it('subtracts a coupon the gap crossed', () => {
     // …8976's coupon grid hits 25.08, so quoting 26.08 from the 25.07 quote
     // crosses one payment: 15 846,30 + 32 days × 6,7945 − 1 240,00.
-    expect(accrualSuggestion(seedAsset('ovdp8976'), snapshots, invested.ovdp8976, '2026-08-26')).toBe(
-      14823.72,
-    );
+    expect(
+      accrualSuggestion(seedAsset('ovdp8976'), snapshots, invested.ovdp8976, '2026-08-26'),
+    ).toBe(14823.72);
     // Same accrual, coupon grid shifted a month later → nothing to subtract.
     expect(
       accrualSuggestion(
@@ -93,6 +93,8 @@ describe('couponPrefill', () => {
   });
 
   it('has nothing to prefill when the asset states no coupon (an estimate is never offered)', () => {
-    expect(couponPrefill(seedAsset('ovdp8976'), { ...due, amount: undefined }, feed)).toBeUndefined();
+    expect(
+      couponPrefill(seedAsset('ovdp8976'), { ...due, amount: undefined }, feed),
+    ).toBeUndefined();
   });
 });

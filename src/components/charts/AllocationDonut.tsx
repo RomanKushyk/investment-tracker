@@ -58,7 +58,12 @@ export function AllocationDonut({
                 fill: CHART.ink,
               }}
             />
-            <Label value={centerSub} position="center" dy={14} style={{ fontSize: 11, fill: CHART.muted }} />
+            <Label
+              value={centerSub}
+              position="center"
+              dy={14}
+              style={{ fontSize: 11, fill: CHART.muted }}
+            />
           </Pie>
         </PieChart>
       </ResponsiveContainer>

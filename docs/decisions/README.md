@@ -149,6 +149,7 @@ only for the decision you actually need.
 | D81 | Every `/seasonality` insight card that summarises the bars reads the windowed ledger; only the `nextCoupon` half of «Купонний сезон» is a genuine forecast — a derived statement inherits the classification of the DATA it comes from, not of the sentence it is written as (A42) | 2026-08-24 |
 | D82 | SMIDA's open-data API is alive and always was — D27's "retired 2021-06-30 (verified: 404)" recorded the wrong host: that date is where `stockmarket.gov.ua` stops, and its endpoints still answer `200` over frozen data. D27's ruling is untouched; only the availability sentence changes | 2026-08-24 |
 | D83 | The provider's price files may be fetched automatically, superseding D72's by-hand rule (owner's ruling) — they are linked from the allowed offer pages and served from a CDN origin that publishes no `robots.txt`; `/documents` stays off-limits, and the filename carries a content hash so the link is re-read rather than polled | 2026-08-24 |
+| D84 | Prettier is SCOPED, not retired — the 245 failures were an unset `endOfLine` on a CRLF checkout plus a default 80-char width against a 104-char codebase; `design/` (D14), all Markdown and the captured fixtures are ignored, 110 files reformatted, `format:check` joins BOTH CI gates | 2026-08-24 |
 
 ## A pattern these entries kept finding
 

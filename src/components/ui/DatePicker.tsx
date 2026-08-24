@@ -24,7 +24,6 @@ import { useSettings } from '../../state/settings';
 // — a calendar that looks fine and is read wrong.
 const LOCALE = { uk, en: enUS } as const;
 
-
 // ISO 'yyyy-MM-dd' <-> local Date, avoiding UTC-shift surprises.
 function isoToDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
@@ -46,8 +45,7 @@ function dateToIso(d: Date): string {
 const calendarClassNames = {
   months: 'flex flex-col',
   month: 'flex flex-col gap-2',
-  month_caption:
-    'flex items-center justify-center py-1 font-display text-[13px] font-semibold',
+  month_caption: 'flex items-center justify-center py-1 font-display text-[13px] font-semibold',
   nav: 'flex items-center justify-between',
   button_previous:
     'absolute left-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97] max-md:size-11',
@@ -55,7 +53,8 @@ const calendarClassNames = {
     'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97] max-md:size-11',
   month_grid: 'w-full border-collapse',
   weekdays: 'flex',
-  weekday: 'w-8 text-center text-[10px] tracking-[.08em] text-muted uppercase max-md:w-auto max-md:flex-1',
+  weekday:
+    'w-8 text-center text-[10px] tracking-[.08em] text-muted uppercase max-md:w-auto max-md:flex-1',
   week: 'flex',
   // `p-px` below the breakpoint, not `p-0.5`: the cell's own padding is dead
   // space between two day targets, and halving it to the 2px gutter the
@@ -106,7 +105,7 @@ export function DatePicker({
       // 16px below the breakpoint for the same reason as `Select` — it shows
       // a value, and the drawing sets every value-bearing control on the
       // phone at 16.
-      className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} font-body text-ink hover:border-ink h-9 rounded-[9px] border px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+      className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} h-9 rounded-[9px] border px-3 font-body text-[13px] text-ink transition hover:border-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
     >
       {value ? f.date(value) : <span className="text-muted">{placeholder ?? t.dates.pick}</span>}
     </button>
@@ -151,7 +150,7 @@ export function DatePicker({
       <RadixDialog.Root open={open} onOpenChange={setOpen}>
         <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>
         <RadixDialog.Portal>
-          <RadixDialog.Overlay className="bg-sidebar/40 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-200 fixed inset-0 z-50" />
+          <RadixDialog.Overlay className="fixed inset-0 z-50 bg-sidebar/40 data-[state=open]:animate-in data-[state=open]:duration-200 data-[state=open]:fade-in" />
           {/* BOUNDED AND SCROLLABLE, because the sheet is taller than a
               landscape phone. 44px day cells make a six-week month 343.6px
               tall; measured at 568 x 320 (landscape iPhone SE) the sheet was
@@ -166,13 +165,11 @@ export function DatePicker({
               `sr-only` is absolutely positioned, so the title takes no row. */}
           <RadixDialog.Content
             aria-describedby={undefined}
-            className="border-hairline bg-card animate-in fade-in zoom-in-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border p-2 shadow-(--shadow-popover) duration-200"
+            className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-hairline bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           >
             {/* The sheet shows a month caption, not a title, so the accessible
                 name is given to screen readers only rather than drawn twice. */}
-            <RadixDialog.Title className="sr-only">
-              {placeholder ?? t.dates.pick}
-            </RadixDialog.Title>
+            <RadixDialog.Title className="sr-only">{placeholder ?? t.dates.pick}</RadixDialog.Title>
             <div className="min-h-0 min-w-0">
               <Scroller>{calendar}</Scroller>
             </div>
@@ -189,7 +186,7 @@ export function DatePicker({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 rounded-2xl border p-2 shadow-(--shadow-popover) duration-200"
+          className="z-50 animate-in rounded-2xl border border-hairline bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
         >
           {calendar}
         </Popover.Content>

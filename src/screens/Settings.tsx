@@ -22,9 +22,15 @@ import { TAP_44 } from '../components/ui/tap-target';
 
 // Section microlabel — the card-label idiom shared with Overview's cards
 // (design/extensions/settings.dc.html S2, 10px uppercase tracking .12em).
-function SectionLabel({ className = 'mb-3.5', children }: { className?: string; children: string }) {
+function SectionLabel({
+  className = 'mb-3.5',
+  children,
+}: {
+  className?: string;
+  children: string;
+}) {
   return (
-    <div className={`text-muted text-[10px] tracking-[.12em] uppercase ${className}`}>
+    <div className={`text-[10px] tracking-[.12em] text-muted uppercase ${className}`}>
       {children}
     </div>
   );
@@ -49,7 +55,7 @@ function SettingRow({
           grid track floor) */}
       <div className="min-w-[min(200px,100%)] flex-[1_1_260px]">
         <div className="text-[13px] font-semibold">{title}</div>
-        <div className="text-muted mt-[3px] text-xs leading-normal">{helper}</div>
+        <div className="mt-[3px] text-xs leading-normal text-muted">{helper}</div>
       </div>
       {children}
     </div>
@@ -57,7 +63,7 @@ function SettingRow({
 }
 
 function Divider() {
-  return <div className="bg-hairline my-4 h-px" />;
+  return <div className="my-4 h-px bg-hairline" />;
 }
 
 // S7 — the P1 sidebar Backup pill relocated to its designed home. Identical
@@ -105,13 +111,13 @@ function CurrencyControl() {
     </button>
   );
   return (
-    <div className="border-panel-border bg-panel relative flex gap-1 rounded-[12px] border p-1">
+    <div className="relative flex gap-1 rounded-[12px] border border-panel-border bg-panel p-1">
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
         data-owns-motion
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('UAH', '₴ UAH')}
@@ -151,7 +157,7 @@ function ThemeControl() {
       aria-label={t.settings.theme.ariaLabel}
       // Wraps to its own line under `sm` rather than squeezing three segments
       // into the row: at 360px the label and a three-up control cannot share it.
-      className="border-panel-border bg-panel relative grid grid-cols-3 gap-1 rounded-[12px] border p-1 max-sm:w-full"
+      className="relative grid grid-cols-3 gap-1 rounded-[12px] border border-panel-border bg-panel p-1 max-sm:w-full"
     >
       {/* sliding thumb (D7), same as the two-segment control: `100%` in the
           transform is the THUMB's own width, so one step is that width plus the
@@ -160,7 +166,7 @@ function ThemeControl() {
       <div
         aria-hidden
         data-owns-motion
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
         style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
       />
       {THEME_ORDER.map((value) => (
@@ -193,13 +199,15 @@ function LanguageControl() {
     <div
       role="radiogroup"
       aria-label={t.settings.language.ariaLabel}
-      className="border-panel-border bg-panel relative grid grid-cols-2 gap-1 rounded-[12px] border p-1 max-sm:w-full"
+      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-panel-border bg-panel p-1 max-sm:w-full"
     >
       <div
         aria-hidden
         data-owns-motion
-        className="bg-card absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
-        style={{ transform: `translateX(calc(${LANGUAGE_ORDER.indexOf(language)} * (100% + 4px)))` }}
+        className="absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        style={{
+          transform: `translateX(calc(${LANGUAGE_ORDER.indexOf(language)} * (100% + 4px)))`,
+        }}
       />
       {LANGUAGE_ORDER.map((value) => (
         <button
@@ -280,12 +288,12 @@ function UsdRateField() {
             aria-label={t.settings.rate.ariaLabel}
             aria-invalid={error}
             aria-describedby={error ? USD_RATE_ERROR_ID : undefined}
-            className={`bg-page h-9 w-[110px] rounded-[9px] border px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+            className={`h-9 w-[110px] rounded-[9px] border bg-page px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
           />
           {error && (
             <div
               id={USD_RATE_ERROR_ID}
-              className="text-neg animate-in fade-in slide-in-from-top-1 text-right text-[11px] duration-200"
+              className="animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
             >
               {t.settings.rate.invalid}
             </div>
@@ -328,21 +336,21 @@ function LeadDaysField() {
       <input
         id="reminder-lead-days"
         name="reminderLeadDays"
-          value={raw}
-          onChange={(e) => handleChange(e.target.value)}
-          onBlur={() => setError(parseLeadDays(raw) === null)}
-          inputMode="decimal"
-          aria-label={t.settings.reminders.leadAriaLabel}
-          aria-invalid={error}
+        value={raw}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setError(parseLeadDays(raw) === null)}
+        inputMode="decimal"
+        aria-label={t.settings.reminders.leadAriaLabel}
+        aria-invalid={error}
         // The message lives outside the label, so the link has to be explicit —
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
-        className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+        className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
       />
       {error && (
         <div
           id={LEAD_DAYS_ERROR_ID}
-          className="text-neg animate-in fade-in slide-in-from-top-1 mt-1 text-right text-[11px] duration-200"
+          className="mt-1 animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
         >
           {t.settings.reminders.leadInvalid}
         </div>
@@ -368,7 +376,7 @@ function RestoreDismissedButton() {
         toast.success(t.settings.reminders.restoredToast);
       }}
     >
-      <span key={count} className="animate-in fade-in duration-150">
+      <span key={count} className="animate-in duration-150 fade-in">
         {count === 0 ? t.settings.reminders.restore : t.settings.reminders.restoreWithCount(count)}
       </span>
     </Button>
@@ -391,10 +399,7 @@ function AutomationRows() {
   } = useSettings();
   return (
     <>
-      <SettingRow
-        title={t.settings.quoteSuggest.title}
-        helper={t.settings.quoteSuggest.helper}
-      >
+      <SettingRow title={t.settings.quoteSuggest.title} helper={t.settings.quoteSuggest.helper}>
         <Switch
           label={t.settings.quoteSuggest.title}
           checked={autoQuoteSuggest}
@@ -402,17 +407,15 @@ function AutomationRows() {
         />
       </SettingRow>
       <Divider />
-      <SettingRow
-        title={t.settings.couponSuggest.title}
-        helper={t.settings.couponSuggest.helper}
-      >
-        <Switch label={t.settings.couponSuggest.title} checked={couponSuggest} onCheckedChange={setCouponSuggest} />
+      <SettingRow title={t.settings.couponSuggest.title} helper={t.settings.couponSuggest.helper}>
+        <Switch
+          label={t.settings.couponSuggest.title}
+          checked={couponSuggest}
+          onCheckedChange={setCouponSuggest}
+        />
       </SettingRow>
       <Divider />
-      <SettingRow
-        title={t.settings.reminders.title}
-        helper={t.settings.reminders.helper}
-      >
+      <SettingRow title={t.settings.reminders.title} helper={t.settings.reminders.helper}>
         <Switch
           label={t.settings.reminders.title}
           checked={remindersEnabled}
@@ -425,7 +428,7 @@ function AutomationRows() {
       <Reveal
         show={remindersEnabled}
         distance={1}
-        className="border-hairline mt-3.5 flex flex-col gap-3.5 border-l pl-3"
+        className="mt-3.5 flex flex-col gap-3.5 border-l border-hairline pl-3"
       >
         <SettingRow title={t.settings.reminders.leadTitle} helper={t.settings.reminders.leadHelper}>
           <LeadDaysField />
@@ -440,10 +443,7 @@ function AutomationRows() {
         {/* A7 — read-only. The controls that let the owner tune parsing need
             the B3 user model (PLAN-OPEN O14); seeing what the parse did needs
             nothing, and that is the half that was missing. */}
-        <SettingRow
-          title={t.settings.parse.title}
-          helper={t.settings.parse.helper}
-        >
+        <SettingRow title={t.settings.parse.title} helper={t.settings.parse.helper}>
           <ParseSkips className="ml-auto text-right" />
         </SettingRow>
       </Reveal>
@@ -472,23 +472,17 @@ export function Settings() {
             four, which reads as the same cadence starting one step in. */}
         <Card
           radius={24}
-          className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-75 duration-300"
+          className="animate-in p-[22px] delay-75 duration-300 fade-in slide-in-from-bottom-1"
         >
           <SectionLabel>{t.settings.sections.data}</SectionLabel>
-          <SettingRow
-            title={t.settings.dataset.title}
-            helper={t.settings.dataset.helper}
-          >
+          <SettingRow title={t.settings.dataset.title} helper={t.settings.dataset.helper}>
             <DatasetSwitch />
           </SettingRow>
           <Divider />
           {/* Helper superseded by P4 S1: the P2 promise ("Restore arrives with
               import in a later release.") is kept, and now points at the row
               that keeps it. */}
-          <SettingRow
-            title={t.settings.backup.title}
-            helper={t.settings.backup.helper}
-          >
+          <SettingRow title={t.settings.backup.title} helper={t.settings.backup.helper}>
             <BackupButton />
           </SettingRow>
           <Divider />
@@ -500,17 +494,14 @@ export function Settings() {
               Spreadsheet export → [file mirror] → Danger zone). */}
           <CsvExportRow />
           <Divider />
-          <SettingRow
-            title={t.settings.dangerZone.title}
-            helper={t.settings.dangerZone.helper}
-          >
+          <SettingRow title={t.settings.dangerZone.title} helper={t.settings.dangerZone.helper}>
             <DangerZone />
           </SettingRow>
         </Card>
 
         <Card
           radius={24}
-          className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-150 duration-300"
+          className="animate-in p-[22px] delay-150 duration-300 fade-in slide-in-from-bottom-1"
         >
           <SectionLabel>{t.settings.sections.automation}</SectionLabel>
           <AutomationRows />
@@ -518,7 +509,7 @@ export function Settings() {
 
         <Card
           radius={24}
-          className="animate-in fade-in slide-in-from-bottom-1 p-[22px] delay-200 duration-300"
+          className="animate-in p-[22px] delay-200 duration-300 fade-in slide-in-from-bottom-1"
         >
           <SectionLabel>{t.settings.sections.appearance}</SectionLabel>
           {/* Theme is the FIRST row, above Currency — the brief places it there
@@ -536,10 +527,7 @@ export function Settings() {
             <CurrencyControl />
           </SettingRow>
           <Divider />
-          <SettingRow
-            title={t.settings.rate.title}
-            helper={t.settings.rate.helper}
-          >
+          <SettingRow title={t.settings.rate.title} helper={t.settings.rate.helper}>
             <UsdRateField />
           </SettingRow>
         </Card>

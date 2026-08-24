@@ -249,9 +249,7 @@ export function yieldTableRowsIn(
         openValue + (investedOwn[asset.id] ?? 0),
         reinvested[asset.id] ?? 0,
       ),
-      xirr: xirr(
-        assetCashFlows(asset.id, flows, value, now, openValue, w?.from),
-      ),
+      xirr: xirr(assetCashFlows(asset.id, flows, value, now, openValue, w?.from)),
     };
   });
 }
@@ -339,7 +337,9 @@ export function cumulativeYieldSeriesIn(
       const quote = s.quotes[asset.id];
       if (quote === undefined) continue;
       const upTo = (t: Transaction) =>
-        t.assetId === asset.id && t.date <= s.date && (openedOn === undefined || t.date >= openedOn);
+        t.assetId === asset.id &&
+        t.date <= s.date &&
+        (openedOn === undefined || t.date >= openedOn);
       const boughtToDate = transactions
         .filter((t) => upTo(t) && (t.type === 'buy' || t.type === 'reinvest'))
         .reduce((sum, t) => sum + t.amount, 0);

@@ -4,8 +4,10 @@ import { nbuRateUrl, parseNbuRate } from './rate';
 
 // Verbatim bodies from the live endpoint, fetched 2026-08-12. The error shapes
 // below are the reason this parser takes text: they all arrive as HTTP 200.
-const OK = '[\n{ \n"r030":840,"txt":"Долар США","rate":44.866,"cc":"USD","exchangedate":"12.08.2026","special":"N"\n }\n]';
-const WEEKEND = '[\n{ \n"r030":840,"txt":"Долар США","rate":44.7626,"cc":"USD","exchangedate":"09.08.2026","special":"N"\n }\n]';
+const OK =
+  '[\n{ \n"r030":840,"txt":"Долар США","rate":44.866,"cc":"USD","exchangedate":"12.08.2026","special":"N"\n }\n]';
+const WEEKEND =
+  '[\n{ \n"r030":840,"txt":"Долар США","rate":44.7626,"cc":"USD","exchangedate":"09.08.2026","special":"N"\n }\n]';
 const EMPTY = '[]';
 const BAD_DATE = '[{ Wrong date format }]';
 

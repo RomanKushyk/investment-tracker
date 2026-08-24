@@ -42,5 +42,5 @@ None of these affect data correctness, derivations, or the §9 behavior checklis
 - One branch `chore/cosmetic-sweep` off `dev`, squash-merged back — same git conventions as the plan (plain conventional commits, no AI attribution).
 - **Item 12 is not part of that sweep.** It touches `.github/workflows/`, not the UI, so it wants its own `infra/` branch — and the local gates prove nothing about it. Its only real verification is a workflow run that goes green **with the Node-version annotation gone**; a green run alone is not evidence, because the runs are green today.
 - Items 3 and 5 are empty-state work: verify with the IndexedDB wipe/manipulation recipe in `navigation-map.md` ("Connecting & resetting"), then reseed.
-- Gates as always: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` green; visual spot-check vs `design/Investment Tracker.dc.html` for items 1, 4, 6.
+- Gates as always: `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build` green; visual spot-check vs `design/Investment Tracker.dc.html` for items 1, 4, 6.
 - Update `navigation-map.md` checkpoints only if visible seed-state copy changes (item 1 does: the Coupon-season card text).

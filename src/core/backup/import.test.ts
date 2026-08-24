@@ -65,7 +65,10 @@ const TRANSACTIONS: Transaction[] = [
 
 const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
 
-function envelope(dataset: 'demo' | 'live' = 'demo', exportedAt = '2026-08-04T12:00:00'): BackupEnvelope {
+function envelope(
+  dataset: 'demo' | 'live' = 'demo',
+  exportedAt = '2026-08-04T12:00:00',
+): BackupEnvelope {
   return buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, dataset, exportedAt, 2);
 }
 
@@ -86,7 +89,9 @@ const CTX = { dataset: 'demo', today: '2026-08-04', dbVersion: 2 } as const;
 
 describe('classifyImportFiles (S2 file gate)', () => {
   it('accepts one .json file of a sane size', () => {
-    expect(classifyImportFiles([{ name: 'kubushka-backup-2026-08-04.json', size: 300_000 }])).toEqual({
+    expect(
+      classifyImportFiles([{ name: 'kubushka-backup-2026-08-04.json', size: 300_000 }]),
+    ).toEqual({
       ok: true,
       kind: 'json',
       name: 'kubushka-backup-2026-08-04.json',
@@ -99,8 +104,14 @@ describe('classifyImportFiles (S2 file gate)', () => {
   });
 
   it('rejects the wrong type, an empty file, an oversized file and a multi-drop', () => {
-    expect(classifyImportFiles([{ name: 'notes.txt', size: 10 }])).toEqual({ ok: false, code: 'type' });
-    expect(classifyImportFiles([{ name: 'a.json', size: 0 }])).toEqual({ ok: false, code: 'empty' });
+    expect(classifyImportFiles([{ name: 'notes.txt', size: 10 }])).toEqual({
+      ok: false,
+      code: 'type',
+    });
+    expect(classifyImportFiles([{ name: 'a.json', size: 0 }])).toEqual({
+      ok: false,
+      code: 'empty',
+    });
     expect(classifyImportFiles([{ name: 'a.json', size: MAX_IMPORT_BYTES + 1 }])).toEqual({
       ok: false,
       code: 'size',
@@ -336,9 +347,7 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
 
   it('flags a non-positive amount as such (the sign lives in the TxType)', () => {
     const result = validateImport(
-      mutated(
-        (env) => void ((env.transactions as Record<string, unknown>[])[1].amount = -500),
-      ),
+      mutated((env) => void ((env.transactions as Record<string, unknown>[])[1].amount = -500)),
     );
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'rows') return;
@@ -374,7 +383,10 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
       mutated((env) => void (env.settings = { currency: 'PLN', usdRate: 44.83 })),
     );
     if (bad.ok || bad.rejection.kind !== 'rows') throw new Error('expected rows');
-    expect(bad.rejection.issues[0]).toMatchObject({ table: 'settings', field: 'settings.currency' });
+    expect(bad.rejection.issues[0]).toMatchObject({
+      table: 'settings',
+      field: 'settings.currency',
+    });
   });
 
   it('caps the list at 10 and still reports the exact total', () => {
@@ -434,7 +446,11 @@ describe('diffBackup', () => {
   });
 
   it('counts rows the file brings as added', () => {
-    const diff = diffBackup(tables({ assets: [ASSETS[0]], snapshots: [], transactions: [] }), envelope(), CTX);
+    const diff = diffBackup(
+      tables({ assets: [ASSETS[0]], snapshots: [], transactions: [] }),
+      envelope(),
+      CTX,
+    );
     expect(diff.assets).toEqual({ added: 1, replaced: 1, removed: 0 });
     expect(diff.snapshots).toEqual({ added: 2, replaced: 0, removed: 0 });
     expect(diff.transactions).toEqual({ added: 3, replaced: 0, removed: 0 });
@@ -481,18 +497,42 @@ describe('diffBackup', () => {
   });
 
   it('warns about a file from a newer database version, never an older one', () => {
-    const newer = buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, 'demo', '2026-08-04T12:00:00', 3);
+    const newer = buildBackup(
+      ASSETS,
+      SNAPSHOTS,
+      TRANSACTIONS,
+      SETTINGS,
+      'demo',
+      '2026-08-04T12:00:00',
+      3,
+    );
     expect(diffBackup(tables(), newer, CTX).warnings).toContainEqual({
       code: 'newer-db-version',
       file: 3,
       app: 2,
     });
-    const older = buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, 'demo', '2026-08-04T12:00:00', 1);
+    const older = buildBackup(
+      ASSETS,
+      SNAPSHOTS,
+      TRANSACTIONS,
+      SETTINGS,
+      'demo',
+      '2026-08-04T12:00:00',
+      1,
+    );
     expect(diffBackup(tables(), older, CTX).warnings).toEqual([]);
   });
 
   it('reports a missing settings block so the opt-in can step aside', () => {
-    const env = buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, undefined, 'demo', '2026-08-04T12:00:00', 2);
+    const env = buildBackup(
+      ASSETS,
+      SNAPSHOTS,
+      TRANSACTIONS,
+      undefined,
+      'demo',
+      '2026-08-04T12:00:00',
+      2,
+    );
     expect(diffBackup(tables(), env, CTX).hasSettings).toBe(false);
   });
 

@@ -33,7 +33,9 @@ const dir = mkdtempSync(join(tmpdir(), 'quirenote-icon-'));
 const page = join(dir, 'icon.html');
 writeFileSync(page, html);
 execFileSync(CHROME, [
-  '--headless', '--disable-gpu', '--hide-scrollbars',
+  '--headless',
+  '--disable-gpu',
+  '--hide-scrollbars',
   '--window-size=180,180',
   `--screenshot=${join(process.cwd(), 'public/apple-touch-icon.png')}`,
   page,

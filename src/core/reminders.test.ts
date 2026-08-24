@@ -127,7 +127,9 @@ describe('coupon lead-day boundaries', () => {
   });
 
   it('defaults to a 7-day lead when no option is given', () => {
-    expect(computeReminders([bond({ nextCoupon: '2026-08-11' })], quoted, [], TODAY)).toHaveLength(1);
+    expect(computeReminders([bond({ nextCoupon: '2026-08-11' })], quoted, [], TODAY)).toHaveLength(
+      1,
+    );
     expect(computeReminders([bond({ nextCoupon: '2026-08-12' })], quoted, [], TODAY)).toEqual([]);
   });
 
@@ -178,13 +180,11 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
   it('drops an overdue coupon whose payout is already recorded', () => {
     const asset = bond({ nextCoupon: '2026-07-25' });
     expect(computeReminders([asset], quoted, [], TODAY)).toHaveLength(1);
-    expect(
-      computeReminders([asset], quoted, [payout({ date: '2026-07-27' })], TODAY),
-    ).toEqual([]);
+    expect(computeReminders([asset], quoted, [payout({ date: '2026-07-27' })], TODAY)).toEqual([]);
     // Outside the ±7-day window the payout belongs to another occurrence.
-    expect(
-      computeReminders([asset], quoted, [payout({ date: '2026-07-10' })], TODAY),
-    ).toHaveLength(1);
+    expect(computeReminders([asset], quoted, [payout({ date: '2026-07-10' })], TODAY)).toHaveLength(
+      1,
+    );
   });
 
   it('drops an upcoming coupon recorded early', () => {
@@ -266,10 +266,20 @@ describe('maturity window', () => {
 
   it('stays silent one day outside the window and after maturity', () => {
     expect(
-      computeReminders([bond({ nextCoupon: undefined, maturity: '2026-09-04' })], quoted, [], TODAY),
+      computeReminders(
+        [bond({ nextCoupon: undefined, maturity: '2026-09-04' })],
+        quoted,
+        [],
+        TODAY,
+      ),
     ).toEqual([]);
     expect(
-      computeReminders([bond({ nextCoupon: undefined, maturity: '2026-08-03' })], quoted, [], TODAY),
+      computeReminders(
+        [bond({ nextCoupon: undefined, maturity: '2026-08-03' })],
+        quoted,
+        [],
+        TODAY,
+      ),
     ).toEqual([]);
   });
 
@@ -290,9 +300,9 @@ describe('dismissal filtering', () => {
     const id = couponReminderId('ovdp8976', '2026-08-06');
     expect(computeReminders(assets, quoted, [], TODAY, { dismissed: [id] })).toEqual([]);
     // …and leaves every other reminder alone.
-    expect(
-      computeReminders(assets, [], [], TODAY, { dismissed: [id] }).map((r) => r.kind),
-    ).toEqual(['quote-missing']);
+    expect(computeReminders(assets, [], [], TODAY, { dismissed: [id] }).map((r) => r.kind)).toEqual(
+      ['quote-missing'],
+    );
   });
 
   it('hides the quote-missing banner for the dismissed DATE only', () => {

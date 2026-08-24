@@ -29,7 +29,7 @@ export function Reveal({
       className={`${className} duration-300 ${
         show
           ? `animate-in fade-in ${distance === 1 ? 'slide-in-from-top-1' : 'slide-in-from-top-2'}`
-          : `animate-out fade-out fill-mode-forwards ${distance === 1 ? 'slide-out-to-top-1' : 'slide-out-to-top-2'}`
+          : `animate-out fill-mode-forwards fade-out ${distance === 1 ? 'slide-out-to-top-1' : 'slide-out-to-top-2'}`
       }`}
       onAnimationEnd={(e) => {
         if (!show && e.target === e.currentTarget) setPresent(false);

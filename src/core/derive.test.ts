@@ -142,11 +142,39 @@ describe('allocation & rebalance', () => {
 
 describe('income aggregation', () => {
   const txs: Transaction[] = [
-    { id: 't1', date: '2026-02-10', type: 'dividend_accrual', assetId: 'reit', amount: 580.2, source: 'accrual' },
-    { id: 't2', date: '2026-02-25', type: 'interest_payout', assetId: 'ovdp8976', amount: 1183.5, source: 'accrual' },
-    { id: 't3', date: '2026-06-10', type: 'reinvest', assetId: 'reit', amount: 484.36, source: 'reinvest_reit' },
+    {
+      id: 't1',
+      date: '2026-02-10',
+      type: 'dividend_accrual',
+      assetId: 'reit',
+      amount: 580.2,
+      source: 'accrual',
+    },
+    {
+      id: 't2',
+      date: '2026-02-25',
+      type: 'interest_payout',
+      assetId: 'ovdp8976',
+      amount: 1183.5,
+      source: 'accrual',
+    },
+    {
+      id: 't3',
+      date: '2026-06-10',
+      type: 'reinvest',
+      assetId: 'reit',
+      amount: 484.36,
+      source: 'reinvest_reit',
+    },
     { id: 't4', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62, source: 'own' },
-    { id: 't5', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
+    {
+      id: 't5',
+      date: '2026-02-03',
+      type: 'deposit',
+      assetId: '',
+      amount: 123844.37,
+      source: 'own',
+    },
   ];
 
   it('dividend accruals → dividends, interest payouts → coupons; other types excluded', () => {
@@ -192,11 +220,7 @@ describe('§2.1 metric family: capital gain vs total return', () => {
   });
 
   it('soldAmount = Σ sell + redemption, per asset and total', () => {
-    const rows = [
-      tx('s1', 'sell', 500),
-      tx('rd', 'redemption', 1000, 'a2'),
-      tx('b', 'buy', 2000),
-    ];
+    const rows = [tx('s1', 'sell', 500), tx('rd', 'redemption', 1000, 'a2'), tx('b', 'buy', 2000)];
     expect(soldAmount(rows)).toBe(1500);
     expect(soldAmountByAsset(rows)).toEqual({ a1: 500, a2: 1000 });
   });
@@ -341,24 +365,24 @@ describe('portfolioStart', () => {
 
   it('takes the EARLIEST of the three signals, not any one of them', () => {
     // Each source is the earliest in turn; the answer follows it every time.
-    expect(portfolioStart([asset('a', '2026-05-01')], [snap('2026-04-01')], [tx('2026-03-01')])).toBe(
-      '2026-03-01',
-    );
-    expect(portfolioStart([asset('a', '2026-05-01')], [snap('2026-02-01')], [tx('2026-03-01')])).toBe(
-      '2026-02-01',
-    );
-    expect(portfolioStart([asset('a', '2026-01-01')], [snap('2026-02-01')], [tx('2026-03-01')])).toBe(
-      '2026-01-01',
-    );
+    expect(
+      portfolioStart([asset('a', '2026-05-01')], [snap('2026-04-01')], [tx('2026-03-01')]),
+    ).toBe('2026-03-01');
+    expect(
+      portfolioStart([asset('a', '2026-05-01')], [snap('2026-02-01')], [tx('2026-03-01')]),
+    ).toBe('2026-02-01');
+    expect(
+      portfolioStart([asset('a', '2026-01-01')], [snap('2026-02-01')], [tx('2026-03-01')]),
+    ).toBe('2026-01-01');
   });
 
   it('trusts a firstPurchase that predates the whole ledger', () => {
     // The case the min() exists for: an asset added without back-filling. The
     // ledger says six months; the user says six years. Believing the ledger
     // would divide a six-year return by six months and print a fantasy.
-    expect(portfolioStart([asset('a', '2020-01-01')], [snap('2026-02-03')], [tx('2026-02-03')])).toBe(
-      '2020-01-01',
-    );
+    expect(
+      portfolioStart([asset('a', '2020-01-01')], [snap('2026-02-03')], [tx('2026-02-03')]),
+    ).toBe('2020-01-01');
   });
 
   it('works from any single source alone', () => {
@@ -433,10 +457,9 @@ describe('portfolioXirr', () => {
     // `assetCashFlows` documents the same trap from the other side: the
     // transaction form attaches the selected asset to every row, so a deposit
     // carries an assetId it has no business having.
-    expect(portfolioXirr([tx('2026-01-01', 'deposit', 100, 'reit')], 110, '2027-01-01')).toBeCloseTo(
-      0.1,
-      6,
-    );
+    expect(
+      portfolioXirr([tx('2026-01-01', 'deposit', 100, 'reit')], 110, '2027-01-01'),
+    ).toBeCloseTo(0.1, 6);
   });
 });
 
@@ -481,17 +504,17 @@ describe('windowed accessors', () => {
   });
 
   it('cashAsOf takes the last snapshot at or before the date, not the last of all', () => {
-    const withCashMove: Snapshot[] = [
-      { date: '2026-07-20', cash: 500, quotes: {} },
-      ...snaps,
-    ];
+    const withCashMove: Snapshot[] = [{ date: '2026-07-20', cash: 500, quotes: {} }, ...snaps];
     expect(cashAsOf(withCashMove, '2026-07-20')).toBe(500);
     expect(cashAsOf(withCashMove, '2026-07-25')).toBe(7.75);
     expect(cashAsOf(withCashMove, '2026-07-19')).toBe(0);
   });
 
   it('headlineTotalAsOf is Σ quotes + cash at the same instant', () => {
-    expect(headlineTotalAsOf(snaps, '2026-07-25')).toBeCloseTo(68629.36 + 60086.09 + 15846.3 + 4374.12 + 7.75, 2);
+    expect(headlineTotalAsOf(snaps, '2026-07-25')).toBeCloseTo(
+      68629.36 + 60086.09 + 15846.3 + 4374.12 + 7.75,
+      2,
+    );
   });
 
   it('transactionsIn is INCLUSIVE at both ends, and that is the whole point of it existing', () => {
@@ -532,7 +555,7 @@ describe('startDateByAsset', () => {
       ...over,
     }) as Asset;
 
-  it('takes the earliest of the stated firstPurchase and the asset\'s own rows', () => {
+  it("takes the earliest of the stated firstPurchase and the asset's own rows", () => {
     const asset = a({ id: 'x', firstPurchase: '2026-05-01' });
     const txs = [
       { id: 't1', date: '2026-03-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
@@ -561,7 +584,9 @@ describe('startDateByAsset', () => {
     const txs = [
       { id: 'd1', date: '2026-01-01', type: 'deposit', assetId: '', amount: 10, source: 'own' },
     ] as Transaction[];
-    expect(startDateByAsset([a({ id: 'x', firstPurchase: '2026-02-05' })], txs)['x']).toBe('2026-02-05');
+    expect(startDateByAsset([a({ id: 'x', firstPurchase: '2026-02-05' })], txs)['x']).toBe(
+      '2026-02-05',
+    );
   });
 });
 

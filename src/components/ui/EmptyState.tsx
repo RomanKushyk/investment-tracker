@@ -3,7 +3,10 @@
 // to nothing, so the screen doesn't look broken.
 export function EmptyState({ message, height = 220 }: { message: string; height?: number }) {
   return (
-    <div className="text-muted grid place-items-center px-6 text-center text-[13px]" style={{ height }}>
+    <div
+      className="grid place-items-center px-6 text-center text-[13px] text-muted"
+      style={{ height }}
+    >
       {message}
     </div>
   );

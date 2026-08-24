@@ -43,9 +43,7 @@ export function maxSavedAt(snapshots: Snapshot[]): string | undefined {
 // last word of their name ("Inzhur REIT" -> "REIT") — matches design copy.
 // Shared by YieldTeaser and TransactionPanel's Recent transactions rows.
 export function shortLabel(a: Asset): string {
-  return a.yieldType === 'fixed_coupon'
-    ? `…${a.name.slice(-4)}`
-    : a.name.split(' ').at(-1)!;
+  return a.yieldType === 'fixed_coupon' ? `…${a.name.slice(-4)}` : a.name.split(' ').at(-1)!;
 }
 
 // Bond highlight/hint label — "OVDP …8976" (first word of the name + the

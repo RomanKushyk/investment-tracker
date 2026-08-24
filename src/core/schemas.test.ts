@@ -191,9 +191,9 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
   });
 
   it('rejects a malformed optional date but accepts its absence', () => {
-    expect(
-      assetFormSchema('create').safeParse({ ...base, maturity: '25.02.2027' }).success,
-    ).toBe(false);
+    expect(assetFormSchema('create').safeParse({ ...base, maturity: '25.02.2027' }).success).toBe(
+      false,
+    );
     expect(assetFormSchema('create').safeParse({ ...base, maturity: '' }).success).toBe(true);
   });
 });

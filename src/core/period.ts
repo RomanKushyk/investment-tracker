@@ -93,7 +93,8 @@ export function resolveWindow(
   // state, which is the state that reproduces every pinned figure.
   if (option === 'all') return { from: start, to, clamped: false };
 
-  const requested = option === 'ytd' ? `${to.slice(0, 4)}-01-01` : addMonths(to, -MONTHS_BACK[option]);
+  const requested =
+    option === 'ytd' ? `${to.slice(0, 4)}-01-01` : addMonths(to, -MONTHS_BACK[option]);
 
   // Clamped means "you asked for more than exists", which is why it is decided
   // by comparing the REQUEST against the start rather than the result.

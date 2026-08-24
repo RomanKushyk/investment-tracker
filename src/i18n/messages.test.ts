@@ -19,8 +19,7 @@ function leaves(node: Node, prefix = ''): Map<string, Node> {
     return out;
   }
   for (const [k, v] of Object.entries(node)) {
-    for (const [key, val] of leaves(v as Node, prefix ? `${prefix}.${k}` : k))
-      out.set(key, val);
+    for (const [key, val] of leaves(v as Node, prefix ? `${prefix}.${k}` : k)) out.set(key, val);
   }
   return out;
 }
@@ -107,10 +106,7 @@ describe('the dictionaries', () => {
         // picks the branch is false. Demanding both markers unconditionally
         // would fail a correct pair.
         if (!enOut.includes(`«${i}»`)) continue;
-        expect(
-          ukOut,
-          `${key} — Ukrainian drops «${i}» that English keeps`,
-        ).toContain(`«${i}»`);
+        expect(ukOut, `${key} — Ukrainian drops «${i}» that English keeps`).toContain(`«${i}»`);
       }
     }
   });
@@ -122,8 +118,7 @@ describe('the dictionaries', () => {
     // without needing a hand-maintained list. Short tokens are not evidence
     // either way, and SHARED covers the ones that are deliberately identical.
     for (const [key, value] of UK) {
-      if (typeof value !== 'string' || SHARED.has(key) || value.length < 8)
-        continue;
+      if (typeof value !== 'string' || SHARED.has(key) || value.length < 8) continue;
       if (!/[A-Za-z]/.test(value)) continue;
       expect(/[а-яіїєґА-ЯІЇЄҐ]/.test(value), `${key}: ${value}`).toBe(true);
     }

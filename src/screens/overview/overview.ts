@@ -86,10 +86,7 @@ export interface TotalReturnKpi {
 // docs/reference/FORMULA-AUDIT.md): performance against EXTERNAL deposits only, shipped
 // ADDITIVELY beside the D5-pinned capital-gain KPI (relabeled, never changed).
 // Demo: +₴5,839.99 / +4.08% (149 016,36 − 143 176,37 over 143 176,37).
-export function totalReturnKpi(
-  snapshots: Snapshot[],
-  transactions: Transaction[],
-): TotalReturnKpi {
+export function totalReturnKpi(snapshots: Snapshot[], transactions: Transaction[]): TotalReturnKpi {
   return totalReturnKpiIn(snapshots, transactions, undefined);
 }
 
@@ -208,7 +205,16 @@ export function portfolioXirrIn(
   const inside = transactionsFrom(transactions, w.from);
   const opening: Transaction[] =
     open > 0
-      ? [{ id: '__window-open', date: w.from, type: 'deposit', assetId: '', amount: open, source: 'own' }]
+      ? [
+          {
+            id: '__window-open',
+            date: w.from,
+            type: 'deposit',
+            assetId: '',
+            amount: open,
+            source: 'own',
+          },
+        ]
       : [];
   return portfolioXirr([...opening, ...inside], headlineTotalAsOf(snapshots, w.to), w.to);
 }
@@ -221,10 +227,7 @@ export const LEDGER_DRIFT_EPSILON = 0.01;
 // null otherwise (chip hidden) — also null with no snapshots (nothing
 // observed to reconcile; covers the loading/empty states). Demo is 0 by
 // construction (deposits 143 176,37 − buys 143 168,62 = 7,75 = stored cash).
-export function ledgerDriftChip(
-  snapshots: Snapshot[],
-  transactions: Transaction[],
-): number | null {
+export function ledgerDriftChip(snapshots: Snapshot[], transactions: Transaction[]): number | null {
   if (snapshots.length === 0) return null;
   const drift = ledgerCashDrift(latestCash(snapshots), transactions);
   return Math.abs(drift) > LEDGER_DRIFT_EPSILON ? drift : null;

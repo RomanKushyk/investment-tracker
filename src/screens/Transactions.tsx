@@ -20,10 +20,7 @@ export function Transactions() {
   const t = useT();
   return (
     <div>
-      <ScreenHeader
-        title={t.screen.transactions.title}
-        subtitle={t.screen.transactions.subtitle}
-      />
+      <ScreenHeader title={t.screen.transactions.title} subtitle={t.screen.transactions.subtitle} />
       {/* TWO COLUMNS, AND THEY ARE NOT THIS TASK'S INVENTION (A35).
           `design/extensions/where-things-live.dc.html` § S4 has drawn them since
           2026-08-19 — its sheet is captioned "the form keeps its 360 column; the

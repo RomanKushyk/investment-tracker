@@ -80,7 +80,7 @@ export function Select({
         // reading 16 is the pair looking mismatched on the one screen where the
         // difference shows. It is a button, so it never triggers the iOS zoom
         // itself — this is the drawing's 16px, not the workaround.
-        className={`${borderClass} font-body text-ink hover:border-ink flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+        className={`${borderClass} flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border font-body text-ink hover:border-ink ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
       >
         {/* THE VALUE TRUNCATES, and it has to. `Дивіденди + капіталізація` is
             25 characters; in the asset form's two-column row at 360 the trigger
@@ -104,7 +104,7 @@ export function Select({
           // the 1px border), so this is the concentric case — 9 + 5. The
           // DatePicker next door keeps 16 because its only corner-adjacent
           // child is an absolutely-placed arrow, not a box that hugs all four.
-          className="border-hairline bg-card animate-in fade-in zoom-in-95 z-50 overflow-hidden rounded-[14px] border shadow-(--shadow-popover) duration-200"
+          className="z-50 animate-in overflow-hidden rounded-[14px] border border-hairline bg-card shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
           <RadixSelect.Viewport className={scrollList ? 'max-h-60 overflow-y-auto p-1' : 'p-1'}>
@@ -118,7 +118,7 @@ export function Select({
                 // adjacent rows fight over 9px of shared area. Its radius is
                 // CONCENTRIC (14 − 5), not proportional, so the height does not
                 // move it.
-                className="data-[highlighted]:bg-page cursor-pointer rounded-[9px] px-3 py-2 max-md:py-3 text-[13px] transition outline-none"
+                className="cursor-pointer rounded-[9px] px-3 py-2 text-[13px] transition outline-none data-[highlighted]:bg-page max-md:py-3"
               >
                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
                 {o.hint !== undefined && <span className="text-muted"> · {o.hint}</span>}

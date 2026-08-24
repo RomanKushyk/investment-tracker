@@ -42,7 +42,12 @@ export interface QuoteTally {
  */
 export function tallyQuotes(feed: ReturnType<typeof parseAssetsFeed>, asOf: string): QuoteTally {
   const t: QuoteTally = {
-    consistent: 0, stale: 0, revised: 0, insensitive: 0, unexplained: [], maxStaleDays: 0,
+    consistent: 0,
+    stale: 0,
+    revised: 0,
+    insensitive: 0,
+    unexplained: [],
+    maxStaleDays: 0,
   };
   for (const e of feed.entries) {
     if (e.kind !== 'bond') continue;

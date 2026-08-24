@@ -41,8 +41,7 @@ export function xirr(flows: CashFlow[]): number | null {
   if (years.some((t) => Number.isNaN(t))) return null;
   if (years.every((t) => t === years[0])) return null; // degenerate: single date
 
-  const npv = (r: number) =>
-    flows.reduce((s, f, i) => s + f.amount / Math.pow(1 + r, years[i]), 0);
+  const npv = (r: number) => flows.reduce((s, f, i) => s + f.amount / Math.pow(1 + r, years[i]), 0);
   const dNpv = (r: number) =>
     flows.reduce((s, f, i) => s - (years[i] * f.amount) / Math.pow(1 + r, years[i] + 1), 0);
 

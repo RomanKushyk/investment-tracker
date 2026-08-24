@@ -145,9 +145,10 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
  * same-version payload would hydrate unvalidated). Exported pure for tests.
  */
 export function migrateSettings(persisted: unknown): PersistedSettings {
-  const p = (
-    typeof persisted === 'object' && persisted !== null ? persisted : {}
-  ) as Record<string, unknown>;
+  const p = (typeof persisted === 'object' && persisted !== null ? persisted : {}) as Record<
+    string,
+    unknown
+  >;
   // TWO KEYS READ, ONE WRITTEN. The field was called `currency` before A21;
   // falling back to it keeps a payload written by any earlier build working,
   // which is why this needed no `version` bump — `merge` routes EVERY hydrate

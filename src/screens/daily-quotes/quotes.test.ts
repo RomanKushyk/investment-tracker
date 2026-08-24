@@ -40,7 +40,12 @@ describe('maxSavedAt', () => {
   });
 
   it('takes the max across multiple saved snapshots', () => {
-    const earlier: Snapshot = { date: '2026-07-20', cash: 0, quotes: {}, savedAt: '2026-07-20T10:00:00' };
+    const earlier: Snapshot = {
+      date: '2026-07-20',
+      cash: 0,
+      quotes: {},
+      savedAt: '2026-07-20T10:00:00',
+    };
     expect(maxSavedAt([earlier, complete2507])).toBe('2026-07-25T21:14:00');
   });
 });

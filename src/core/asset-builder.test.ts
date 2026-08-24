@@ -14,9 +14,7 @@ const values = {
 describe('buildNewAsset (task 4 pinned rules)', () => {
   it('derives code from the first 2 letters of the name, uppercased', () => {
     expect(buildNewAsset(values, '2026-07-27', 0).code).toBe('OV');
-    expect(
-      buildNewAsset({ ...values, name: 'inzhur reit' }, '2026-07-27', 0).code,
-    ).toBe('IN');
+    expect(buildNewAsset({ ...values, name: 'inzhur reit' }, '2026-07-27', 0).code).toBe('IN');
   });
 
   it('cycles colorKey through the pinned 4-key sequence by existing asset count', () => {

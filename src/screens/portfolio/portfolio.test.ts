@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
 import type { Snapshot, Transaction } from '../../core/types';
-import {
-  bestPerformer,
-  cascadeCounts,
-  incomeEngine,
-  laggard,
-} from './portfolio';
+import { bestPerformer, cascadeCounts, incomeEngine, laggard } from './portfolio';
 
 const VALUES = { reit: 68702.1, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 };
 const INVESTED = { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 };

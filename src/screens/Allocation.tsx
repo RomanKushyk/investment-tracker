@@ -146,7 +146,10 @@ export function Allocation() {
       />
 
       <div className="grid grid-cols-[340px_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card radius={24} className="animate-in fade-in flex flex-col items-center p-[22px] duration-300">
+        <Card
+          radius={24}
+          className="flex animate-in flex-col items-center p-[22px] duration-300 fade-in"
+        >
           {total === 0 ? (
             <EmptyState message={t.analytics.empty.allocation} height={220} />
           ) : (
@@ -168,8 +171,8 @@ export function Allocation() {
         </Card>
 
         <div className="flex flex-col gap-3.5">
-          <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
-            <div className="text-muted mb-3.5 flex items-center gap-2.5 text-[10px] tracking-[.12em] uppercase">
+          <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
+            <div className="mb-3.5 flex items-center gap-2.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.allocation.currentVsTarget}
               {editing && <span className="ml-auto">{t.targets.title}</span>}
             </div>
@@ -180,53 +183,56 @@ export function Allocation() {
                 const off = severityOf(deltaPp) === 'off';
                 const error = editing && targetRows[i].value === null;
                 return (
-                <div key={r.asset.id}>
-                  <div className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px]">
-                    <span className="min-w-0 flex-[1_1_120px] truncate font-semibold">
-                      {r.asset.name}
-                    </span>
-                    {editing ? (
-                      <>
-                        <span className="text-muted whitespace-nowrap">{f.pctPlain(r.share)}</span>
-                        <span className="text-muted">/</span>
-                        <input
-                          id={`target-${r.asset.id}`}
-                          name={`target-${r.asset.id}`}
-                          value={drafts[r.asset.id] ?? f.input(r.asset.targetPct)}
-                          onChange={(e) =>
-                            setDrafts((d) => ({ ...d, [r.asset.id]: e.target.value }))
-                          }
-                          inputMode="decimal"
-                          aria-label={t.targets.fieldAria(r.asset.name)}
-                          aria-invalid={error}
-                          className={`bg-page h-9 w-[72px] rounded-[9px] border px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
-                        />
-                        <span className="text-muted">%</span>
-                      </>
-                    ) : (
-                      <span className="ml-auto">
-                        {f.pctPlain(r.share)} / {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}{' '}
-                        <strong className={off ? 'text-neg' : 'text-pos'}>{f.pp(deltaPp)}</strong>
+                  <div key={r.asset.id}>
+                    <div className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px]">
+                      <span className="min-w-0 flex-[1_1_120px] truncate font-semibold">
+                        {r.asset.name}
                       </span>
-                    )}
-                  </div>
-                  {error && (
-                    <div className="text-neg animate-in fade-in slide-in-from-top-1 mb-1.5 text-right text-[11px] duration-200">
-                      {t.targets.invalid}
+                      {editing ? (
+                        <>
+                          <span className="whitespace-nowrap text-muted">
+                            {f.pctPlain(r.share)}
+                          </span>
+                          <span className="text-muted">/</span>
+                          <input
+                            id={`target-${r.asset.id}`}
+                            name={`target-${r.asset.id}`}
+                            value={drafts[r.asset.id] ?? f.input(r.asset.targetPct)}
+                            onChange={(e) =>
+                              setDrafts((d) => ({ ...d, [r.asset.id]: e.target.value }))
+                            }
+                            inputMode="decimal"
+                            aria-label={t.targets.fieldAria(r.asset.name)}
+                            aria-invalid={error}
+                            className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+                          />
+                          <span className="text-muted">%</span>
+                        </>
+                      ) : (
+                        <span className="ml-auto">
+                          {f.pctPlain(r.share)} /{' '}
+                          {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}{' '}
+                          <strong className={off ? 'text-neg' : 'text-pos'}>{f.pp(deltaPp)}</strong>
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <div className="bg-hairline relative h-2.5 rounded-[3px]">
-                    <div
-                      className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
-                      style={{ width: `${r.share}%` }}
-                    />
-                    {/* F5: the tick follows the DRAFT, the fill never does. */}
-                    <div
-                      className="bg-ink absolute -top-[3px] h-4 w-0.5 transition-[left] duration-500 ease-soft"
-                      style={{ left: `${target}%` }}
-                    />
+                    {error && (
+                      <div className="mb-1.5 animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1">
+                        {t.targets.invalid}
+                      </div>
+                    )}
+                    <div className="relative h-2.5 rounded-[3px] bg-hairline">
+                      <div
+                        className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
+                        style={{ width: `${r.share}%` }}
+                      />
+                      {/* F5: the tick follows the DRAFT, the fill never does. */}
+                      <div
+                        className="absolute -top-[3px] h-4 w-0.5 bg-ink transition-[left] duration-500 ease-soft"
+                        style={{ left: `${target}%` }}
+                      />
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -237,8 +243,10 @@ export function Allocation() {
               <div className="mt-3.5">
                 <span
                   key={sum}
-                  className={`animate-in fade-in zoom-in-95 inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-150 ${
-                    status === 'ok' ? 'bg-pos-tint text-pos-tint-text' : 'bg-warn-tint text-warn-tint-text'
+                  className={`inline-block animate-in rounded-[6px] px-3 py-1 text-xs font-semibold duration-150 zoom-in-95 fade-in ${
+                    status === 'ok'
+                      ? 'bg-pos-tint text-pos-tint-text'
+                      : 'bg-warn-tint text-warn-tint-text'
                   }`}
                 >
                   {status === 'ok'
@@ -249,13 +257,16 @@ export function Allocation() {
             )}
           </Card>
 
-          <div className="animate-in fade-in bg-panel border-panel-border rounded-3xl border px-[22px] py-5 duration-300">
-            <div className="text-muted mb-2 text-[10px] tracking-[.12em] uppercase">{t.analytics.allocation.rebalancePlan}</div>
+          <div className="animate-in rounded-3xl border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in">
+            <div className="mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
+              {t.analytics.allocation.rebalancePlan}
+            </div>
             <div className="flex flex-col gap-2 text-[13px]">
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">
                   <span>
-                    {i + 1} · {a.kind === 'buy' ? t.analytics.allocation.buy : t.analytics.allocation.trim}{' '}
+                    {i + 1} ·{' '}
+                    {a.kind === 'buy' ? t.analytics.allocation.buy : t.analytics.allocation.trim}{' '}
                     {planLabel(a.asset)}
                     {a.kind === 'sell' && a.asset.reinvestPolicy
                       ? t.analytics.allocation.orPauseReinvest
@@ -268,7 +279,7 @@ export function Allocation() {
                 </div>
               ))}
               {withinRange.length > 0 && (
-                <div className="text-muted flex justify-between gap-2.5">
+                <div className="flex justify-between gap-2.5 text-muted">
                   <span>{withinRange.map((a) => shortLabel(a)).join(' & ')}</span>
                   <span>{t.analytics.allocation.withinRange}</span>
                 </div>

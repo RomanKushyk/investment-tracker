@@ -34,7 +34,8 @@ export function targetRowStates(
 ): TargetRowState[] {
   return assets.map((a) => {
     const raw = drafts[a.id];
-    if (raw === undefined) return { id: a.id, value: a.targetPct, effective: a.targetPct, changed: false };
+    if (raw === undefined)
+      return { id: a.id, value: a.targetPct, effective: a.targetPct, changed: false };
     const value = parseTargetPct(raw);
     return {
       id: a.id,

@@ -85,12 +85,26 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
     // ledger by ε via a withdrawal of that size → drift = +0.01 → still null.
     const atEps: Transaction[] = [
       ...SEED_TRANSACTIONS,
-      { id: 'w2', date: '2026-07-27', type: 'withdrawal', assetId: '', amount: 0.01, source: 'own' },
+      {
+        id: 'w2',
+        date: '2026-07-27',
+        type: 'withdrawal',
+        assetId: '',
+        amount: 0.01,
+        source: 'own',
+      },
     ];
     expect(ledgerDriftChip(snaps, atEps)).toBeNull();
     const aboveEps: Transaction[] = [
       ...SEED_TRANSACTIONS,
-      { id: 'w3', date: '2026-07-27', type: 'withdrawal', assetId: '', amount: 0.02, source: 'own' },
+      {
+        id: 'w3',
+        date: '2026-07-27',
+        type: 'withdrawal',
+        assetId: '',
+        amount: 0.02,
+        source: 'own',
+      },
     ];
     expect(ledgerDriftChip(snaps, aboveEps)).toBeCloseTo(0.02, 10);
   });
@@ -126,7 +140,12 @@ describe('nextPayoutRows', () => {
     const reit = rows.find((r) => r.assetId === 'reit');
     // latest REIT dividend is 700.36 on 10.07 -> next 10.08 (D5#7: the UI's
     // whole-₴ rendering shows "~₴700", not the reference's ~₴715)
-    expect(reit).toMatchObject({ kind: 'dividend', assetRef: 'REIT', approx: true, date: '2026-08-10' });
+    expect(reit).toMatchObject({
+      kind: 'dividend',
+      assetRef: 'REIT',
+      approx: true,
+      date: '2026-08-10',
+    });
     expect(reit?.amount).toBeCloseTo(700.36, 2);
   });
 
@@ -203,7 +222,11 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
   });
 
   it('dates a stated coupon at maturity when no next coupon is recorded', () => {
-    const rows = nextPayoutRows([userBond({ couponAmount: 500, maturity: '2027-03-01' })], [buy], '2026-07-27');
+    const rows = nextPayoutRows(
+      [userBond({ couponAmount: 500, maturity: '2027-03-01' })],
+      [buy],
+      '2026-07-27',
+    );
     expect(rows).toEqual([
       {
         assetId: 'bond2',

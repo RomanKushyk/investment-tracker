@@ -72,10 +72,7 @@ describe('parseAssetsFeed on the live fixture', () => {
       { slug: 'inzhur-reit', title: '   \n ', assetDetails: { prices: { sellUAH: 11.1389 } } },
       { slug: 'inzhur-energy', assetDetails: { prices: { sellUAH: 1 } } },
     ];
-    expect(parseAssetsFeed(payload).entries.map((e) => e.title)).toEqual([
-      undefined,
-      undefined,
-    ]);
+    expect(parseAssetsFeed(payload).entries.map((e) => e.title)).toEqual([undefined, undefined]);
   });
 
   it('gives funds no maturity and an empty schedule', () => {
@@ -114,12 +111,7 @@ describe('parseAssetsFeed on the live fixture', () => {
     // Every fixture entry is active; the point is that the value survives the
     // parse. A 'completed' bond must still appear as an entry, because the user
     // may hold one — matching never consults this field.
-    expect(feed.entries.map((e) => e.status)).toEqual([
-      'active',
-      'active',
-      'active',
-      'active',
-    ]);
+    expect(feed.entries.map((e) => e.status)).toEqual(['active', 'active', 'active', 'active']);
   });
 
   it('keeps the entry when the yield is unreadable, absent or blank', () => {
@@ -154,10 +146,7 @@ describe('parseAssetsFeed on the live fixture', () => {
       { slug: 'a', status: '  ', assetDetails: { prices: { sellUAH: 1 } } },
       { slug: 'b', assetDetails: { prices: { sellUAH: 1 } } },
     ];
-    expect(parseAssetsFeed(payload).entries.map((e) => e.status)).toEqual([
-      undefined,
-      undefined,
-    ]);
+    expect(parseAssetsFeed(payload).entries.map((e) => e.status)).toEqual([undefined, undefined]);
   });
 });
 

@@ -117,8 +117,8 @@ indexing answer as well. The credentials live in the Amplify console; they are d
 not written down here, because this file is public. Production carries no auth and must not:
 it is the published app.
 
-**What protects production is not a gate but a pipeline.** `pnpm lint`, `pnpm test` and
-`pnpm build` all run *before* the job assumes any AWS credential, so a failing check cannot
+**What protects production is not a gate but a pipeline.** `pnpm lint`, `pnpm format:check`
+(added by A37), `pnpm test` and `pnpm build` all run *before* the job assumes any AWS credential, so a failing check cannot
 deploy; the `prod` environment accepts only `main`; the role can touch nothing but two
 Amplify branches; and the repo ruleset blocks force-pushes and deletions on `main` even for
 the owner. The remaining exposure is egress cost, and that is watched by an existing $5

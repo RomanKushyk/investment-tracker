@@ -8,7 +8,7 @@
 > | **`PLAN-WAITING.md`** | Everything gated on elapsed time or an external event, with earliest dates, which are hard, and the cost of missing each. | **Read its dated table at the start of any session touching `infra/` or the migration.** |
 > | **`PLAN-OPEN.md`** | Questions with no answer. Mostly closed (D30–D35, 2026-08-11); what remains is deferred by design. | **Never implement from it.** Needing an answer is the signal to ask, not to choose quietly. |
 >
-> Branch as named, tick the checkbox in the plan that owns the task, update `navigation-map.md` + folder READMEs, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test`).
+> Branch as named, tick the checkbox in the plan that owns the task, update `navigation-map.md` + folder READMEs, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`).
 
 **Rewritten 2026-08-11.** The original plan (approved 2026-07-28) assumed a permanently local-first app. A planning session on 2026-08-04 redirected the project to a cloud backend with auth, and the first stage of that work is **deployed and running**. This file now carries only what is still live: the shipped record, the retired items with their reasons, and the work that can actually start today. Everything cut is listed under **Retired** rather than deleted silently — the reasoning is the useful part.
 
@@ -100,7 +100,7 @@ The four tracks that used to be listed here, plus everything queued behind the m
 
 ## Cross-phase rules
 
-- **Git/gates:** per-task branches as named; plain conventional commits; **`/code-review` on the branch before every squash-merge, findings fixed or declined in writing (D76)**; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
+- **Git/gates:** per-task branches as named; plain conventional commits; **`/code-review` on the branch before every squash-merge, findings fixed or declined in writing (D76)**; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
 - **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — **D79 is the current tail** (2026-08-24), and it is appended to the highest-numbered range file, never renumbered); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/archive/design-briefs/`, `design/extensions/`, `infra/`).
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.

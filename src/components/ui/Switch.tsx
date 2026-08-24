@@ -36,7 +36,7 @@ export function Switch({
       }`}
     >
       <RadixSwitch.Thumb
-        className={`bg-card block size-4 rounded-[4px] shadow-(--shadow-thumb) transition-transform ${
+        className={`block size-4 rounded-[4px] bg-card shadow-(--shadow-thumb) transition-transform ${
           checked ? 'translate-x-[18px]' : 'translate-x-0'
         }`}
       />

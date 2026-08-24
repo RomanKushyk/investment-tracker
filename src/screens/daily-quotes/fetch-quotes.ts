@@ -68,10 +68,7 @@ export function offerVisible(row: DraftRow, value: number): boolean {
 }
 
 /** S2: the chip of a linked row's current draft (undefined = no chip at all). */
-export function provenanceChip(
-  linked: boolean,
-  row: DraftRow,
-): ProvenanceChip | undefined {
+export function provenanceChip(linked: boolean, row: DraftRow): ProvenanceChip | undefined {
   if (!linked) return undefined; // unlinked rows have no provenance to show
   if (row.raw === undefined || row.raw.trim() === '') return undefined;
   if (row.origin === undefined) return { chip: 'manual' };
@@ -123,10 +120,7 @@ export function latestFetchedAt(...instants: (string | undefined)[]): string | u
  * ("Inzhur 13:05"); anything older is the last-good cache ("Inzhur as of
  * 25.07", warn). Kyiv because the feed's ~13:00 refresh is Kyiv's (D19).
  */
-export function feedFreshness(
-  fetchedAt: string | undefined,
-  now: Date,
-): FeedFreshness | undefined {
+export function feedFreshness(fetchedAt: string | undefined, now: Date): FeedFreshness | undefined {
   if (fetchedAt === undefined) return undefined;
   const fresh = kyivDateIso(new Date(fetchedAt)) === kyivDateIso(now);
   return { state: fresh ? 'fresh' : 'stale', at: fetchedAt };

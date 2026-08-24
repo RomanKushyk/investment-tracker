@@ -65,11 +65,24 @@ const NBSP = ' ';
 
 /** Month abbreviations for the English date form. Ukrainian never needs them. */
 const EN_MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ] as const;
 
-const NUM: Record<Lang, { two: Intl.NumberFormat; whole: Intl.NumberFormat; free: Intl.NumberFormat }> = {
+const NUM: Record<
+  Lang,
+  { two: Intl.NumberFormat; whole: Intl.NumberFormat; free: Intl.NumberFormat }
+> = {
   uk: {
     two: new Intl.NumberFormat('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     whole: new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }),
@@ -186,10 +199,7 @@ export function makeFormat(lang: Lang): Format {
     // apart in the same sentence. The percent sign is therefore spaced here
     // like everywhere else; any other suffix (' pp') is appended as given.
     pp: (n, suffix = '') =>
-      signed(
-        n,
-        decimal(Math.abs(n).toFixed(1), uk) + (suffix === '%' && uk ? `${NBSP}%` : suffix),
-      ),
+      signed(n, decimal(Math.abs(n).toFixed(1), uk) + (suffix === '%' && uk ? `${NBSP}%` : suffix)),
     date,
     dateShort,
     savedAt: (iso) => {

@@ -55,6 +55,13 @@ jobs:
       # before any AWS credential exists — a failing test cannot deploy.
       - run: pnpm vitest run src/core/inzhur
 
+      # A37 — `prettier --check .` covers infra/ too (three sources, their tests
+      # and template.yaml), and deploy-frontend SKIPS an infra-only push through
+      # its `paths-ignore`. Without this step, unformatted infra lands on dev and
+      # the next unrelated FRONTEND commit fails the gate on a file it never
+      # touched. Same block, same reason: before any credential exists.
+      - run: pnpm format:check
+
       # Bundled here rather than by `sam build`: both SAM builders copy the
       # CodeUri directory into a sandbox first, so `../../src/core` — the shared
       # parser the handler deliberately imports rather than duplicates — is not

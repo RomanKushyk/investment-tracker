@@ -34,7 +34,12 @@ export function FetchQuotesButton({
   const gated = state === 'demo' || state === 'unlinked';
   const disabled = gated || state === 'loading';
   const success = state === 'success' && flashAt !== undefined;
-  const title = state === 'demo' ? t.dailyQuotes.fetch.demo : state === 'unlinked' ? t.dailyQuotes.fetch.unlinked : undefined;
+  const title =
+    state === 'demo'
+      ? t.dailyQuotes.fetch.demo
+      : state === 'unlinked'
+        ? t.dailyQuotes.fetch.unlinked
+        : undefined;
 
   const button = (
     <Button
@@ -61,7 +66,7 @@ export function FetchQuotesButton({
         />
       )}
       {/* Re-keyed so every label change crossfades instead of swapping (D7). */}
-      <span key={state} className="animate-in fade-in duration-200">
+      <span key={state} className="animate-in duration-200 fade-in">
         {state === 'loading'
           ? t.dailyQuotes.fetch.loading
           : success
@@ -69,7 +74,7 @@ export function FetchQuotesButton({
             : t.dailyQuotes.fetch.idle}
       </span>
       {state === 'demo' && (
-        <span className="bg-warn-tint text-warn-tint-text rounded-[5px] px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] uppercase">
+        <span className="rounded-[5px] bg-warn-tint px-[7px] py-[2px] font-body text-[10px] font-bold tracking-[.08em] text-warn-tint-text uppercase">
           {t.sidebar.demoBadge}
         </span>
       )}
@@ -93,7 +98,7 @@ export function FetchQuotesButton({
       {freshness !== undefined && (
         <span
           key={freshness.state}
-          className={`animate-in fade-in text-[11px] duration-200 ${
+          className={`animate-in text-[11px] duration-200 fade-in ${
             freshness.state === 'stale' ? 'text-warn' : 'text-muted'
           }`}
         >

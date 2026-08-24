@@ -122,12 +122,12 @@ export function AppHeader({
       // header is always mounted, so an entry there would replay on nothing; at
       // and above it, the header mounts exactly when the rail collapses, which
       // is the moment S2's motion table describes.
-      className="bg-page border-hairline animate-in md:fade-in md:slide-in-from-top-1 sticky top-0 z-30 border-b pt-[env(safe-area-inset-top)] md:duration-220"
+      className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:duration-220 md:fade-in md:slide-in-from-top-1"
     >
       <div className="flex h-14 items-center gap-2.5 px-2.5">
         {trigger}
         <div className="min-w-0">
-          <div className="text-muted text-[9.5px] tracking-[.12em] uppercase">
+          <div className="text-[9.5px] tracking-[.12em] text-muted uppercase">
             {t.sidebar.totalCapital}
           </div>
           <div
@@ -146,9 +146,7 @@ export function AppHeader({
             <span className="text-faint">—</span>
           ) : (
             <>
-              <span
-                className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}
-              >
+              <span className={`font-semibold ${(capital.net ?? 0) < 0 ? 'text-neg' : 'text-pos'}`}>
                 {capital.pct}
               </span>
               <br />

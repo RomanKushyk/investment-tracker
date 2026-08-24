@@ -150,7 +150,10 @@ export function Seasonality() {
   // "Coupon season" card copy — the bond with the biggest coupon drives the
   // headline months; other bonds get a one-line "pays in {descriptor} {month}".
   const bonds = assets
-    .filter((a): a is Asset & { couponAmount: number } => a.yieldType === 'fixed_coupon' && a.couponAmount !== undefined)
+    .filter(
+      (a): a is Asset & { couponAmount: number } =>
+        a.yieldType === 'fixed_coupon' && a.couponAmount !== undefined,
+    )
     .sort((a, b) => b.couponAmount - a.couponAmount);
   const big = bonds[0];
   // HALF OF THIS IS HISTORY, and that half windows. `bondCouponInfo`'s months
@@ -186,7 +189,7 @@ export function Seasonality() {
         actions={control}
       />
 
-      <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
+      <Card radius={24} className="mb-3.5 animate-in p-[22px] duration-300 fade-in">
         {/* D-10 — A CONTROL THAT CHANGES ONE CHART SITS ON THAT CHART, where
             the period control that changes a whole screen sits in its header.
             Same rule, read at two scales. */}
@@ -194,7 +197,7 @@ export function Seasonality() {
           <div
             role="group"
             aria-label={t.analytics.seasonality.axisAriaLabel}
-            className="border-panel-border bg-panel flex gap-1 rounded-[11px] border p-[3px]"
+            className="flex gap-1 rounded-[11px] border border-panel-border bg-panel p-[3px]"
           >
             {(['day', 'month'] as const).map((a) => (
               <button
@@ -206,24 +209,24 @@ export function Seasonality() {
                 // tall (a 16 px `text-xs` line box plus 5 px either side), and the
                 // overlay grows only downward and upward — the segments are ~92 px
                 // wide, so it cannot reach across the 4 px gap into its neighbour.
-                className={`ease-soft cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition duration-220 active:scale-[.97] ${TAP_44} ${
+                className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
                   axis === a ? 'bg-ink text-page' : 'text-muted hover:opacity-85'
                 }`}
               >
-                {a === 'day' ? t.analytics.seasonality.axisByDay : t.analytics.seasonality.axisByMonth}
+                {a === 'day'
+                  ? t.analytics.seasonality.axisByDay
+                  : t.analytics.seasonality.axisByMonth}
               </button>
             ))}
           </div>
         </div>
         <SeasonalityBars data={axis === 'day' ? chartData : monthData} axis={axis} />
-        <div className="text-muted mt-2 text-[11.5px]">
-          {t.analytics.prose.seasonalityNote}
-        </div>
+        <div className="mt-2 text-[11.5px] text-muted">{t.analytics.prose.seasonalityNote}</div>
       </Card>
 
       <div className="grid grid-cols-3 gap-3.5 max-md:grid-cols-1">
-        <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
-          <div className="text-pos-tint-text mb-1 text-[10px] tracking-[.12em] uppercase">
+        <div className="animate-in rounded-3xl bg-pos-tint px-[22px] py-5 duration-300 fade-in">
+          <div className="mb-1 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
             {t.analytics.seasonality.incomeAnchor}
           </div>
           <div className="text-[13.5px] leading-[1.5]">
@@ -243,8 +246,10 @@ export function Seasonality() {
           </div>
         </div>
 
-        <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.seasonality.couponSeason}</div>
+        <Card radius={24} className="animate-in px-[22px] py-5 duration-300 fade-in">
+          <div className="mb-1 text-[10px] tracking-[.12em] text-muted uppercase">
+            {t.analytics.seasonality.couponSeason}
+          </div>
           <div className="text-[13.5px] leading-[1.5]">
             {big && bigInfo ? (
               <>
@@ -276,8 +281,10 @@ export function Seasonality() {
           </div>
         </Card>
 
-        <Card radius={24} className="animate-in fade-in px-[22px] py-5 duration-300">
-          <div className="text-muted mb-1 text-[10px] tracking-[.12em] uppercase">{t.analytics.seasonality.quietStretch}</div>
+        <Card radius={24} className="animate-in px-[22px] py-5 duration-300 fade-in">
+          <div className="mb-1 text-[10px] tracking-[.12em] text-muted uppercase">
+            {t.analytics.seasonality.quietStretch}
+          </div>
           <div className="text-[13.5px] leading-[1.5]">
             {quiet ? (
               <>

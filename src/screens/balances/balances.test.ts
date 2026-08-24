@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSeedSnapshots, SEED_ASSETS } from '../../lib/seed';
-import { balanceChartData, buildBalanceRow, completeSnapshots, paginateSnapshots } from './balances';
+import {
+  balanceChartData,
+  buildBalanceRow,
+  completeSnapshots,
+  paginateSnapshots,
+} from './balances';
 
 const snaps = buildSeedSnapshots();
 

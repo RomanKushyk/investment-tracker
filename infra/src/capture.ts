@@ -444,7 +444,8 @@ async function captureOne(
         // on purpose — they change constantly and would mask a frozen price.
         digest = digestOf(
           feed.entries.map(
-            (e) => `${e.kind}:${e.ref.toLowerCase()}:${e.sellUAH}:${e.buyUAH ?? ''}:${e.navUAH ?? ''}`,
+            (e) =>
+              `${e.kind}:${e.ref.toLowerCase()}:${e.sellUAH}:${e.buyUAH ?? ''}:${e.navUAH ?? ''}`,
           ),
         );
         // SHAPE, NEVER VALUES (A20, owner ruling). What the capture asserts is
@@ -631,7 +632,14 @@ async function reportAlertChannels(): Promise<void> {
     // repository is public.
     const cfg = list.notificationConfigurations?.find((c) => c.name === name);
     if (cfg?.arn === undefined) {
-      console.log(JSON.stringify({ metric: 'alertChannels', configuration: name, status: 'MISSING', value: 0 }));
+      console.log(
+        JSON.stringify({
+          metric: 'alertChannels',
+          configuration: name,
+          status: 'MISSING',
+          value: 0,
+        }),
+      );
       return;
     }
     const channels = await client.send(
@@ -644,9 +652,7 @@ async function reportAlertChannels(): Promise<void> {
   } catch (err) {
     // Reported, not thrown, and not silent: a read that fails is not the same
     // as zero channels, so it must not masquerade as one.
-    console.warn(
-      `alert-channel check failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    console.warn(`alert-channel check failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -989,7 +995,11 @@ async function diagnose(client: Client) {
         WHERE source = 'nbu_fv' AND ok = true AND as_of BETWEEN $1 AND $2`,
       [o.first_as_of, o.last_as_of],
     );
-    reconciled.push({ ...o, publishedDays: rows[0].days, gaps: Number(rows[0].days) - Number(o.dates) });
+    reconciled.push({
+      ...o,
+      publishedDays: rows[0].days,
+      gaps: Number(rows[0].days) - Number(o.dates),
+    });
   }
 
   // Three real rows, prices included, so the archive can be checked against the
@@ -1108,8 +1118,12 @@ export async function handler(event: HandlerEvent = {}) {
     // that reaches this line, so the separation is structural instead of a
     // boolean someone can forget to pass.
     for (const r of results) {
-      console.log(JSON.stringify({ metric: 'entryCount', source: r.source, asOf: r.asOf, value: r.entries }));
-      console.log(JSON.stringify({ metric: 'skippedRefs', source: r.source, asOf: r.asOf, value: r.skipped }));
+      console.log(
+        JSON.stringify({ metric: 'entryCount', source: r.source, asOf: r.asOf, value: r.entries }),
+      );
+      console.log(
+        JSON.stringify({ metric: 'skippedRefs', source: r.source, asOf: r.asOf, value: r.skipped }),
+      );
       if (r.quotes === undefined) continue;
 
       // HOW STALE THE PROVIDER'S OWN QUOTES ARE — graphed, never alarmed, and
@@ -1119,14 +1133,25 @@ export async function handler(event: HandlerEvent = {}) {
       // Staleness here is the steady state of this feed, not an event, so an
       // alarm on it would fire nightly and be muted inside a month (D44). The
       // graph is the signal: a step change in the maximum is the thing to see.
-      console.log(JSON.stringify({
-        metric: 'quoteMaxStaleDays', source: r.source, asOf: r.asOf, value: r.quotes.maxStaleDays,
-      }));
-      console.log(JSON.stringify({
-        metric: 'quoteVerdicts', source: r.source, asOf: r.asOf,
-        consistent: r.quotes.consistent, stale: r.quotes.stale,
-        revised: r.quotes.revised, insensitive: r.quotes.insensitive,
-      }));
+      console.log(
+        JSON.stringify({
+          metric: 'quoteMaxStaleDays',
+          source: r.source,
+          asOf: r.asOf,
+          value: r.quotes.maxStaleDays,
+        }),
+      );
+      console.log(
+        JSON.stringify({
+          metric: 'quoteVerdicts',
+          source: r.source,
+          asOf: r.asOf,
+          consistent: r.quotes.consistent,
+          stale: r.quotes.stale,
+          revised: r.quotes.revised,
+          insensitive: r.quotes.insensitive,
+        }),
+      );
 
       // AND THE ONE VERDICT THAT DOES DESERVE WAKING SOMEONE. `unexplained`
       // means no yield the model can produce explains the quote at all — a

@@ -171,9 +171,7 @@ export function latestCash(snaps: Snapshot[]): number {
 }
 
 export function headlineTotalAsOf(snaps: Snapshot[], asOf?: string): number {
-  return (
-    Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) + cashAsOf(snaps, asOf)
-  );
+  return Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) + cashAsOf(snaps, asOf);
 }
 
 export function headlineTotal(snaps: Snapshot[]): number {

@@ -36,9 +36,7 @@ export function Yield() {
   const series = cumulativeYieldSeriesIn(snapshots, transactions, assets, win);
   const rows = yieldTableRowsIn(assets, snapshots, transactions, win);
   // "(ann.)" clarity suffix while history < 365 days (S9b) — plain "XIRR" after.
-  const xirrHeader = xirrIsExtrapolatedIn(win)
-    ? t.analytics.yield.xirrAnn
-    : t.analytics.yield.xirr;
+  const xirrHeader = xirrIsExtrapolatedIn(win) ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
   // A24 — the basis is derived, so it can be absent. An empty dataset has no
   // start to name, and a footnote reading "365 days from —" is worse than no
@@ -71,8 +69,8 @@ export function Yield() {
         actions={control}
       />
 
-      <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
-        <div className="text-muted mb-2 flex flex-wrap gap-4 text-[11.5px]">
+      <Card radius={24} className="mb-3.5 animate-in p-[22px] duration-300 fade-in">
+        <div className="mb-2 flex flex-wrap gap-4 text-[11.5px] text-muted">
           {assets.map((a) => (
             <span key={a.id} className="flex items-center gap-1.5">
               <ColorDot colorKey={a.colorKey} />
@@ -95,113 +93,122 @@ export function Yield() {
           one branch and only one. Both forms still render from the same `rows`,
           so neither re-derives — only the arrangement differs (S3). */}
       {desktop ? (
-      <Card radius={24} className="animate-in fade-in px-[22px] py-2.5 duration-300">
-        {/* The table keeps its min-width; the Scroller is what clips and draws
+        <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
+          {/* The table keeps its min-width; the Scroller is what clips and draws
             the rail. Card no longer sets overflow — a rounded card clipping its
             own content is where the square platform track came from. */}
-        <Scroller orientation="horizontal">
-          <table className="w-full min-w-[780px] border-collapse text-[12.5px]">
-            <thead>
-              <tr className="text-muted text-left">
-                <th className="py-2 font-normal">{t.analytics.asset}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.deltaTotal}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.annualized}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.totalReturn}</th>
-                <th className="py-2 text-right font-normal">{xirrHeader}</th>
-                <th className="py-2 text-right font-normal">{t.analytics.vsExpected}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.asset.id} className="border-hairline hover:bg-page/60 border-t transition-colors">
-                  <td className="py-2 font-semibold">{r.asset.name}</td>
-                  <td className="py-2 text-right">{f.num(r.invested)}</td>
-                  <td className="py-2 text-right">{r.value === undefined ? '—' : f.num(r.value)}</td>
-                  <td className={`py-2 text-right font-bold ${signClass(r.deltaTotal)}`}>
-                    {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
-                  </td>
-                  {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a
+          <Scroller orientation="horizontal">
+            <table className="w-full min-w-[780px] border-collapse text-[12.5px]">
+              <thead>
+                <tr className="text-left text-muted">
+                  <th className="py-2 font-normal">{t.analytics.asset}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.invested}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.valueNow}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.deltaTotal}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.annualized}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.totalReturn}</th>
+                  <th className="py-2 text-right font-normal">{xirrHeader}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.vsExpected}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr
+                    key={r.asset.id}
+                    className="border-t border-hairline transition-colors hover:bg-page/60"
+                  >
+                    <td className="py-2 font-semibold">{r.asset.name}</td>
+                    <td className="py-2 text-right">{f.num(r.invested)}</td>
+                    <td className="py-2 text-right">
+                      {r.value === undefined ? '—' : f.num(r.value)}
+                    </td>
+                    <td className={`py-2 text-right font-bold ${signClass(r.deltaTotal)}`}>
+                      {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
+                    </td>
+                    {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a
                       reader who cannot separate #696865 from #26262a (WCAG
                       1.4.1). The legend in the footnote explains the grey but
                       nothing in the accessible tree says WHICH cells are grey,
                       so the marked ones name themselves (A41 review). */}
-                  <td
-                    className={`py-2 text-right ${r.shortBasis ? 'text-muted' : ''}`}
-                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-                  >
-                    {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
-                  </td>
-                  <td className={`py-2 text-right font-bold ${signClass(r.totalReturn)}`}>
-                    {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
-                  </td>
-                  <td className={`py-2 text-right ${r.xirr == null ? 'text-muted' : ''}`}>
-                    {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
-                  </td>
-                  <td
-                    className={`py-2 text-right ${r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}`}
-                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-                  >
-                    {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Scroller>
-        {note && <div className="text-muted mt-2.5 text-[11.5px]">{note}</div>}
-      </Card>
+                    <td
+                      className={`py-2 text-right ${r.shortBasis ? 'text-muted' : ''}`}
+                      title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                    >
+                      {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+                    </td>
+                    <td className={`py-2 text-right font-bold ${signClass(r.totalReturn)}`}>
+                      {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
+                    </td>
+                    <td className={`py-2 text-right ${r.xirr == null ? 'text-muted' : ''}`}>
+                      {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
+                    </td>
+                    <td
+                      className={`py-2 text-right ${r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}`}
+                      title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                    >
+                      {r.vsExpectedPp === undefined
+                        ? '—'
+                        : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Scroller>
+          {note && <div className="mt-2.5 text-[11.5px] text-muted">{note}</div>}
+        </Card>
       ) : (
-      /* THE SAME ROWS AS CARDS, below the breakpoint. The `dt` text is the `th`
+        /* THE SAME ROWS AS CARDS, below the breakpoint. The `dt` text is the `th`
          text, character for character. */
-      <div className="flex flex-col gap-2.5">
-        {rows.map((r, i) => (
-          <RecordCard
-            key={r.asset.id}
-            index={i}
-            avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
-            title={r.asset.name}
-          >
-            <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
-            <Fact label={t.analytics.valueNow}>{r.value === undefined ? '—' : f.num(r.value)}</Fact>
-            <Fact label={t.analytics.deltaTotal}>
-              <span className={signClass(r.deltaTotal)}>
-                {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
-              </span>
-            </Fact>
-            <Fact label={t.analytics.annualized}>
-              {/* The same mark in both shells (D66) — a figure that is greyed on
+        <div className="flex flex-col gap-2.5">
+          {rows.map((r, i) => (
+            <RecordCard
+              key={r.asset.id}
+              index={i}
+              avatar={<AssetAvatar code={r.asset.code} colorKey={r.asset.colorKey} />}
+              title={r.asset.name}
+            >
+              <Fact label={t.analytics.invested}>{f.num(r.invested)}</Fact>
+              <Fact label={t.analytics.valueNow}>
+                {r.value === undefined ? '—' : f.num(r.value)}
+              </Fact>
+              <Fact label={t.analytics.deltaTotal}>
+                <span className={signClass(r.deltaTotal)}>
+                  {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
+                </span>
+              </Fact>
+              <Fact label={t.analytics.annualized}>
+                {/* The same mark in both shells (D66) — a figure that is greyed on
                   the rail and black in the drawer is two different claims. */}
-              <span
-                className={r.shortBasis ? 'text-muted' : ''}
-                title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-              >
-                {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
-              </span>
-            </Fact>
-            <Fact label={t.analytics.totalReturn}>
-              <span className={signClass(r.totalReturn)}>
-                {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
-              </span>
-            </Fact>
-            <Fact label={xirrHeader}>
-              <span className={r.xirr == null ? 'text-muted' : ''}>
-                {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
-              </span>
-            </Fact>
-            <Fact label={t.analytics.vsExpected}>
-              <span
-                className={r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}
-                title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
-              >
-                {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
-              </span>
-            </Fact>
-          </RecordCard>
-        ))}
-        {note && <div className="text-muted px-1 text-[11.5px]">{note}</div>}
-      </div>
+                <span
+                  className={r.shortBasis ? 'text-muted' : ''}
+                  title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                >
+                  {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+                </span>
+              </Fact>
+              <Fact label={t.analytics.totalReturn}>
+                <span className={signClass(r.totalReturn)}>
+                  {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
+                </span>
+              </Fact>
+              <Fact label={xirrHeader}>
+                <span className={r.xirr == null ? 'text-muted' : ''}>
+                  {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
+                </span>
+              </Fact>
+              <Fact label={t.analytics.vsExpected}>
+                <span
+                  className={r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}
+                  title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                >
+                  {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
+                </span>
+              </Fact>
+            </RecordCard>
+          ))}
+          {note && <div className="px-1 text-[11.5px] text-muted">{note}</div>}
+        </div>
       )}
     </div>
   );

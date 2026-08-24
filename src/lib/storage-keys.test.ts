@@ -14,7 +14,12 @@ function fakeStorage(seed: Record<string, string> = {}) {
 }
 
 const PROFILE = JSON.stringify({
-  state: { currency: 'USD', usdRate: 41.5, dataset: 'live', dismissedReminders: ['coupon:x:2026-09-23'] },
+  state: {
+    currency: 'USD',
+    usdRate: 41.5,
+    dataset: 'live',
+    dismissedReminders: ['coupon:x:2026-09-23'],
+  },
   version: 1,
 });
 
@@ -22,7 +27,10 @@ describe('pre-Quirenote profile migration', () => {
   beforeEach(() => vi.resetModules());
 
   it('carries settings and draft across, and removes the old keys', async () => {
-    const ls = fakeStorage({ 'kubushka-settings': PROFILE, 'kubushka-draft': '{"state":{"quotes":{}}}' });
+    const ls = fakeStorage({
+      'kubushka-settings': PROFILE,
+      'kubushka-draft': '{"state":{"quotes":{}}}',
+    });
     vi.stubGlobal('localStorage', ls);
 
     const keys = await import('./storage-keys');
@@ -35,7 +43,10 @@ describe('pre-Quirenote profile migration', () => {
   });
 
   it('never clobbers a profile already written under the new key', async () => {
-    const ls = fakeStorage({ 'kubushka-settings': PROFILE, 'quirenote-settings': '{"state":{"currency":"UAH"}}' });
+    const ls = fakeStorage({
+      'kubushka-settings': PROFILE,
+      'quirenote-settings': '{"state":{"currency":"UAH"}}',
+    });
     vi.stubGlobal('localStorage', ls);
 
     const keys = await import('./storage-keys');

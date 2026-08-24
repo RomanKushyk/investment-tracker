@@ -12,9 +12,6 @@ export function Card({
 }: ComponentPropsWithRef<'div'> & { radius?: 20 | 24 }) {
   const radiusClass = radius === 24 ? 'rounded-3xl' : 'rounded-[20px]';
   return (
-    <div
-      className={`${radiusClass} bg-card shadow-(--shadow-card) ${className}`}
-      {...props}
-    />
+    <div className={`${radiusClass} bg-card shadow-(--shadow-card) ${className}`} {...props} />
   );
 }

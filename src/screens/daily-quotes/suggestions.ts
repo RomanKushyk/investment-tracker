@@ -142,7 +142,9 @@ export function couponPrefill(
   if (units !== undefined && feed !== undefined) {
     const [match] = matchAssets([asset], feed).linked;
     const forecast =
-      match === undefined ? undefined : couponForecast(match.quote.paymentSchedule, due.date, units);
+      match === undefined
+        ? undefined
+        : couponForecast(match.quote.paymentSchedule, due.date, units);
     if (forecast !== undefined) return forecast.amount;
   }
   return due.amount;

@@ -108,9 +108,11 @@ describe('saveTextFile', () => {
     vi.stubGlobal('window', {});
     const anchor = stubAnchor();
 
-    await expect(saveTextFile('quirenote-backup-2026-08-04.json', '{}', {
-      mime: 'application/json',
-    })).resolves.toBe('saved');
+    await expect(
+      saveTextFile('quirenote-backup-2026-08-04.json', '{}', {
+        mime: 'application/json',
+      }),
+    ).resolves.toBe('saved');
     expect(anchor.download).toBe('quirenote-backup-2026-08-04.json');
     expect(anchor.href).toBe('blob:fake');
   });

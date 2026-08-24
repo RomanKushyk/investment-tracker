@@ -76,7 +76,9 @@ describe('reminderText', () => {
 
   it('keeps the day count grammatical at its edges', () => {
     expect(reminderText({ ...upcoming, days: 1 }, NAMES.ovdp8976, f, t)).toContain('in 1 day (');
-    expect(reminderText({ ...maturity, days: 1 }, NAMES.ovdp6475, f, t)).toContain('matures in 1 day (');
+    expect(reminderText({ ...maturity, days: 1 }, NAMES.ovdp6475, f, t)).toContain(
+      'matures in 1 day (',
+    );
     expect(reminderText({ ...maturity, days: 0 }, NAMES.ovdp6475, f, t)).toBe(
       'OVDP UA4000236475 matures today (27 Sep 2028).',
     );
@@ -118,8 +120,7 @@ describe('moreRemindersLabel', () => {
 // English has two, with the 11-14 band taking `many` despite ending in 1-4.
 // A shared template with a count spliced in would read "2 днів" here.
 describe('reminderText — Ukrainian plural forms', () => {
-  const say = (days: number) =>
-    reminderText({ ...upcoming, days }, NAMES.ovdp8976, fUk, uk);
+  const say = (days: number) => reminderText({ ...upcoming, days }, NAMES.ovdp8976, fUk, uk);
 
   it('uses the one/few/many forms at their boundaries', () => {
     expect(say(1)).toContain('через 1 день');

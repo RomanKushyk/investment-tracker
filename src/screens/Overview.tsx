@@ -185,7 +185,7 @@ export function Overview() {
       <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
         <KpiCard
           tone="dark"
-          className="animate-in fade-in slide-in-from-bottom-1 duration-300"
+          className="animate-in duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalCapital}
           value={capital.value}
           sub={capital.sub}
@@ -193,7 +193,7 @@ export function Overview() {
         />
         {/* S9a relabel (D13): capital-gain family — value/sub D5-pinned, label only. */}
         <KpiCard
-          className="animate-in fade-in slide-in-from-bottom-1 delay-75 duration-300"
+          className="animate-in delay-75 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.capitalGain}
           value={netValue}
           valueClassName={`whitespace-nowrap ${net.uah < 0 ? 'text-neg' : 'text-pos'}`}
@@ -208,7 +208,7 @@ export function Overview() {
         />
         {/* S9a new 5th KPI: total-return family (globalRoi over net deposits). */}
         <KpiCard
-          className="animate-in fade-in slide-in-from-bottom-1 delay-150 duration-300"
+          className="animate-in delay-150 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalReturnNet}
           value={totalReturnValue}
           valueClassName={`whitespace-nowrap ${totalReturn.uah < 0 ? 'text-neg' : 'text-pos'}`}
@@ -235,7 +235,7 @@ export function Overview() {
                   as a table that broke. Counterparts belong on one card, where
                   the pairing teaches the difference. */}
               {pXirr !== null && (
-                <div className="text-muted mt-1 text-xs font-normal">
+                <div className="mt-1 text-xs font-normal text-muted">
                   {xirrIsExtrapolatedIn(win)
                     ? t.period.portfolioXirrAnn(f.pct(pXirr))
                     : t.period.portfolioXirr(f.pct(pXirr))}
@@ -250,13 +250,13 @@ export function Overview() {
           }
         />
         <KpiCard
-          className="animate-in fade-in slide-in-from-bottom-1 delay-200 duration-300"
+          className="animate-in delay-200 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.depositedReinvested}
           value={deposit.value}
           sub={deposit.sub}
         />
         <KpiCard
-          className="animate-in fade-in slide-in-from-bottom-1 delay-300 duration-300"
+          className="animate-in delay-300 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.freeCash}
           value={cashValue}
           sub={
@@ -271,7 +271,7 @@ export function Overview() {
                   <span
                     key={drift}
                     title={t.analytics.overview.ledgerDrift}
-                    className="animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text inline-block rounded-[6px] px-3 py-1 text-xs font-semibold duration-200"
+                    className="inline-block animate-in rounded-[6px] bg-warn-tint px-3 py-1 text-xs font-semibold text-warn-tint-text duration-200 zoom-in-95 fade-in"
                   >
                     {t.analytics.overview.ledgerDriftLabel(f.signedMoney(drift))}
                   </span>
@@ -283,8 +283,10 @@ export function Overview() {
       </div>
 
       <div className="grid grid-cols-[1.5fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
-        <Card radius={24} className="animate-in fade-in p-[22px] duration-300">
-          <div className="text-muted mb-3.5 text-[10px] tracking-[.12em] uppercase">{t.analytics.overview.assets}</div>
+        <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
+          <div className="mb-3.5 text-[10px] tracking-[.12em] text-muted uppercase">
+            {t.analytics.overview.assets}
+          </div>
           {/* Only the ROWS scroll. They carry `min-w-fit` with fixed value
               columns, so they are the one thing in this card that can outgrow
               it — the divider, the totals and the ShareBar below must stay
@@ -312,7 +314,7 @@ export function Overview() {
                   // not a phone subset). Above the breakpoint nothing moves.
                   <div
                     key={a.id}
-                    className={`animate-in fade-in slide-in-from-bottom-1 flex min-w-fit items-center gap-3.5 duration-300 max-md:min-w-0 max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1 ${STAGGER[i % STAGGER.length]}`}
+                    className={`flex min-w-fit animate-in items-center gap-3.5 duration-300 fade-in slide-in-from-bottom-1 max-md:min-w-0 max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-1 ${STAGGER[i % STAGGER.length]}`}
                   >
                     <ColorDot colorKey={a.colorKey} />
                     {/* `basis-[calc(100%-18px)]` is the dot (10) plus the row's
@@ -321,7 +323,7 @@ export function Overview() {
                     <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold max-md:basis-[calc(100%-18px)]">
                       {a.name}
                     </span>
-                    <span className="text-muted text-xs whitespace-nowrap">
+                    <span className="text-xs whitespace-nowrap text-muted">
                       {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
                     </span>
                     <strong className="w-[110px] text-right text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
@@ -337,13 +339,13 @@ export function Overview() {
               })}
             </div>
           </Scroller>
-          <div className="bg-hairline my-4 h-px" />
+          <div className="my-4 h-px bg-hairline" />
           <ShareBar segments={shareSegments} />
         </Card>
 
         <div className="flex flex-col gap-3.5">
-          <div className="animate-in fade-in bg-pos-tint rounded-3xl px-[22px] py-5 duration-300">
-            <div className="text-pos-tint-text mb-1.5 text-[10px] tracking-[.12em] uppercase">
+          <div className="animate-in rounded-3xl bg-pos-tint px-[22px] py-5 duration-300 fade-in">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-pos-tint-text uppercase">
               {t.analytics.overview.nextPayouts}
             </div>
             <div className="flex flex-col gap-2 text-[13px]">
@@ -364,8 +366,8 @@ export function Overview() {
             </div>
           </div>
 
-          <Card radius={24} className="animate-in fade-in p-5 duration-300">
-            <div className="text-muted mb-1.5 text-[10px] tracking-[.12em] uppercase">
+          <Card radius={24} className="animate-in p-5 duration-300 fade-in">
+            <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.overview.rebalanceHint}
             </div>
             {total === 0 ? (
@@ -383,13 +385,16 @@ export function Overview() {
             ) : (
               <p className="text-[13px]">{t.analytics.overview.onTarget}</p>
             )}
-            <Link to="/allocation" className={buttonVariants({ variant: 'ghost', inset: 'flushLeft' })}>
+            <Link
+              to="/allocation"
+              className={buttonVariants({ variant: 'ghost', inset: 'flushLeft' })}
+            >
               {t.analytics.overview.openAllocation}
             </Link>
           </Card>
 
           <KpiCard
-            className="animate-in fade-in duration-300"
+            className="animate-in duration-300 fade-in"
             label={t.analytics.overview.incomeReceived}
             value={f.money(income.total)}
             valueSize="md"

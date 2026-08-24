@@ -64,6 +64,13 @@ export const SEED_ASSETS: Asset[] = [
 // Deposits = own-funded buys + the ₴7,75 cash residue (D5#6). The 12.05/648,13
 // dividend of the reference log is seeded as 10.05/472,13 (D5#3); reinvests sit
 // on the same date+asset as their source payout so Destination cells derive.
+// prettier-ignore — THE LEDGER IS A TABLE, and it is read as one. README §7
+// pins these eighteen rows figure by figure, and at printWidth 100 the four
+// `buy` rows fit on one line while the eleven payout rows are 101–110 chars and
+// each explode to six, so scanning for a wrong amount would mean reading two
+// layouts in one array (+77 lines in this file alone). The alignment is the
+// point of the fixture (A37).
+// prettier-ignore
 export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
   { id: 'd2', date: '2026-02-05', type: 'deposit', assetId: '', amount: 15390, source: 'own' },
@@ -108,15 +115,27 @@ const PATHS: {
   phase: number;
   bumps: { date: string; amount: number }[];
 }[] = [
-  { id: 'reit', from: '2026-02-03', start: 64628.62, end: 67278.74, phase: 0.7, bumps: [
-    { date: '2026-06-10', amount: 484.36 },
-    { date: '2026-07-10', amount: 687.02 },
-  ] },
+  {
+    id: 'reit',
+    from: '2026-02-03',
+    start: 64628.62,
+    end: 67278.74,
+    phase: 0.7,
+    bumps: [
+      { date: '2026-06-10', amount: 484.36 },
+      { date: '2026-07-10', amount: 687.02 },
+    ],
+  },
   { id: 'energy', from: '2026-02-03', start: 59208, end: 59980.44, phase: 2.1, bumps: [] },
   { id: 'ovdp8976', from: '2026-02-05', start: 15390, end: 15830.1, phase: 3.6, bumps: [] },
-  { id: 'ovdp6475', from: '2026-06-02', start: 3942, end: 4152.9, phase: 5.0, bumps: [
-    { date: '2026-06-03', amount: 216 },
-  ] },
+  {
+    id: 'ovdp6475',
+    from: '2026-06-02',
+    start: 3942,
+    end: 4152.9,
+    phase: 5.0,
+    bumps: [{ date: '2026-06-03', amount: 216 }],
+  },
 ];
 
 const utc = (iso: string) => Date.parse(`${iso}T00:00:00Z`);

@@ -56,13 +56,7 @@ import { Select } from './Select';
  * — which Radix locks to the trigger, so getting it wrong wraps every hinted
  * row onto two lines.
  */
-export function PeriodControl({
-  from,
-  to,
-}: {
-  from: string | undefined;
-  to: string | undefined;
-}) {
+export function PeriodControl({ from, to }: { from: string | undefined; to: string | undefined }) {
   const t = useT();
   const f = useFormat();
   const id = useId();
@@ -112,7 +106,8 @@ export function PeriodControl({
           // words say the same thing; appending both made the three clamped
           // rows 63 px against 44 and wrapped every one of them, which is the
           // exact defect F-15 exists to prevent. Measured before and after.
-          const hint = w === undefined ? undefined : w.clamped ? t.period.clampedHint : f.dateShort(w.from);
+          const hint =
+            w === undefined ? undefined : w.clamped ? t.period.clampedHint : f.dateShort(w.from);
           return { value: o, label: t.period[o], hint };
         })}
       />

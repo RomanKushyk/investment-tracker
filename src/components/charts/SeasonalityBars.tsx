@@ -1,5 +1,13 @@
 import type { ComponentProps } from 'react';
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+} from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
 import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
@@ -27,7 +35,14 @@ function ActualBarShape(props: BarShapeProps) {
   if (point.actual === 0) {
     const stubWidth = Math.min(15, width);
     return (
-      <rect x={x + width / 2 - stubWidth / 2} y={y - 4} width={stubWidth} height={4} rx={2} fill={CHART.faint} />
+      <rect
+        x={x + width / 2 - stubWidth / 2}
+        y={y - 4}
+        width={stubWidth}
+        height={4}
+        rx={2}
+        fill={CHART.faint}
+      />
     );
   }
   const fill = point.colorKey ? SERIES[point.colorKey].main : CHART.muted;
@@ -86,7 +101,13 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
     index,
     parentViewBox,
   }: Partial<BarLabelEntry>) {
-    if (x === undefined || y === undefined || width === undefined || height === undefined || index === undefined) {
+    if (
+      x === undefined ||
+      y === undefined ||
+      width === undefined ||
+      height === undefined ||
+      index === undefined
+    ) {
       return null;
     }
     const point = data[index];
@@ -108,7 +129,9 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
       const pxPerUnit = height / point.actual;
       const expectedY = y - (point.expected - point.actual) * pxPerUnit;
       topY = Math.min(y, expectedY);
-      text = point.actualLabel ? `${point.actualLabel} · ${point.expectedLabel}` : point.expectedLabel;
+      text = point.actualLabel
+        ? `${point.actualLabel} · ${point.expectedLabel}`
+        : point.expectedLabel;
     }
     if (!text) return null;
 
@@ -133,14 +156,9 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
  * question and not an obvious one — see it for why `index` is not a data index.
  */
 function makeExpectedOnlyLabel(data: SeasonalityChartPoint[]) {
-  return function ExpectedOnlyLabel({
-    x,
-    y,
-    width,
-    index,
-    parentViewBox,
-  }: Partial<BarLabelEntry>) {
-    if (x === undefined || y === undefined || width === undefined || index === undefined) return null;
+  return function ExpectedOnlyLabel({ x, y, width, index, parentViewBox }: Partial<BarLabelEntry>) {
+    if (x === undefined || y === undefined || width === undefined || index === undefined)
+      return null;
     const text = expectedOnlyLabel(data, index);
     if (text === null) return null;
     return (
@@ -190,9 +208,7 @@ export function SeasonalityBars({
         <XAxis
           dataKey="day"
           ticks={axis === 'month' ? MONTH_TICKS : DAY_TICKS}
-          tickFormatter={
-            axis === 'month' ? (v) => t.dates.monthShort[Number(v) - 1] : undefined
-          }
+          tickFormatter={axis === 'month' ? (v) => t.dates.monthShort[Number(v) - 1] : undefined}
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
@@ -208,8 +224,16 @@ export function SeasonalityBars({
           contentStyle={CHART_TOOLTIP}
           cursor={CHART_CURSOR_FILL}
         />
-        <Bar dataKey="actual" shape={ActualBarShape} isAnimationActive animationDuration={900} animationEasing="ease-out">
-          <LabelList content={incomeLabel as unknown as ComponentProps<typeof LabelList>['content']} />
+        <Bar
+          dataKey="actual"
+          shape={ActualBarShape}
+          isAnimationActive
+          animationDuration={900}
+          animationEasing="ease-out"
+        >
+          <LabelList
+            content={incomeLabel as unknown as ComponentProps<typeof LabelList>['content']}
+          />
         </Bar>
         <Bar
           dataKey="expected"

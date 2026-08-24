@@ -62,7 +62,10 @@ export function KpiCard({
   style?: CSSProperties;
 }) {
   return (
-    <div className={`rounded-3xl px-[22px] py-5 transition ${TONE_BG[tone]} ${className}`} style={style}>
+    <div
+      className={`rounded-3xl px-[22px] py-5 transition ${TONE_BG[tone]} ${className}`}
+      style={style}
+    >
       <div className={`text-[10px] tracking-[.12em] uppercase ${TONE_LABEL[tone]}`}>{label}</div>
       <div className={`font-display font-semibold ${VALUE_SIZE[valueSize]} ${valueClassName}`}>
         {value}

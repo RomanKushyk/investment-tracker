@@ -311,7 +311,7 @@ function SidebarPanel({
           // instead of away from it.
           <span
             title={t.sidebar.demoTitle}
-            className={`font-body animate-in fade-in zoom-in-95 bg-warn-tint text-warn-tint-text absolute top-2.5 origin-top-right scale-75 rounded-[5px] px-2 py-[3px] text-[10px] font-bold tracking-[.08em] uppercase duration-200 ${
+            className={`absolute top-2.5 origin-top-right scale-75 animate-in rounded-[5px] bg-warn-tint px-2 py-[3px] font-body text-[10px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in ${
               rail && onCollapse !== undefined ? 'right-[38px]' : 'right-[15px]'
             }`}
           >
@@ -470,13 +470,7 @@ function CapitalCard() {
  * cut across the header plate's own corner — a full-height panel has no designed
  * short side to scale.
  */
-export function Sidebar({
-  collapsed,
-  onCollapse,
-}: {
-  collapsed: boolean;
-  onCollapse: () => void;
-}) {
+export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onCollapse: () => void }) {
   return (
     <aside
       id="app-sidebar"
@@ -497,7 +491,7 @@ export function Sidebar({
           16 everywhere else, so nothing moves on a desktop. */}
       <div
         data-dark-surface
-        className="border-surface-edge relative h-full w-[244px] rounded-r-[30px] border bg-sidebar p-4 pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
+        className="relative h-full w-[244px] rounded-r-[30px] border border-surface-edge bg-sidebar p-4 pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
       >
         <SidebarDecor />
         <SidebarPanel variant="rail" onCollapse={onCollapse} />
@@ -525,13 +519,13 @@ export function SidebarDrawer() {
   const t = useT();
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="bg-scrim data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-220 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220 fixed inset-0 z-40" />
+      <RadixDialog.Overlay className="fixed inset-0 z-40 bg-scrim data-[state=closed]:animate-out data-[state=closed]:duration-220 data-[state=closed]:fade-out data-[state=open]:animate-in data-[state=open]:duration-220 data-[state=open]:fade-in" />
       {/* z-40, one step under the app's dialogs at z-50: a drawer is chrome and a
           dialog is a question, so if the two ever coexist the question is on top. */}
       <RadixDialog.Content
         data-dark-surface
         aria-describedby={undefined}
-        className="border-drawer-edge data-[state=open]:animate-drawer-in data-[state=closed]:animate-drawer-out fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r bg-sidebar pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
+        className="fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r border-drawer-edge bg-sidebar pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
       >
         {/* Radix needs a title for the dialog's accessible name; the drawer shows
             the wordmark instead, so the name is given to screen readers only

@@ -8,10 +8,7 @@ import { useAddAsset, useUpdateAsset } from '../../hooks/queries';
 import { useT } from '../../i18n/useT';
 
 export type DialogState =
-  | { kind: 'create' }
-  | { kind: 'edit'; asset: Asset }
-  | { kind: 'delete'; asset: Asset }
-  | null;
+  { kind: 'create' } | { kind: 'edit'; asset: Asset } | { kind: 'delete'; asset: Asset } | null;
 
 /**
  * The state and the writes behind the asset create / edit / delete dialogs

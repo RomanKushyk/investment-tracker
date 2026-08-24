@@ -119,11 +119,7 @@ describe('reconcileFetched — the G5 decision', () => {
   });
 
   it('offers instead of overwriting a value the user typed', () => {
-    const { fills, offers } = reconcileFetched(
-      matches,
-      { energy: '60 100,00' },
-      {},
-    );
+    const { fills, offers } = reconcileFetched(matches, { energy: '60 100,00' }, {});
     expect(fills.map((f) => f.assetId)).toEqual(['reit', 'ovdp8976']);
     expect(offers).toEqual([{ assetId: 'energy', value: 60082.96 }]);
   });
@@ -139,11 +135,7 @@ describe('reconcileFetched — the G5 decision', () => {
   });
 
   it('neither fills nor offers when the typed value already equals the fetched one', () => {
-    const { fills, offers } = reconcileFetched(
-      matches,
-      { ovdp8976: '15 865,05' },
-      {},
-    );
+    const { fills, offers } = reconcileFetched(matches, { ovdp8976: '15 865,05' }, {});
     expect(fills.map((f) => f.assetId)).toEqual(['reit', 'energy']);
     expect(offers).toEqual([]);
   });

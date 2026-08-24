@@ -76,15 +76,7 @@ const TRANSACTIONS: Transaction[] = [
 const SETTINGS = { currency: 'UAH', usdRate: 44.83 } as const;
 
 function envelope(): BackupEnvelope {
-  return buildBackup(
-    ASSETS,
-    SNAPSHOTS,
-    TRANSACTIONS,
-    SETTINGS,
-    'demo',
-    '2026-07-28T12:00:00',
-    2,
-  );
+  return buildBackup(ASSETS, SNAPSHOTS, TRANSACTIONS, SETTINGS, 'demo', '2026-07-28T12:00:00', 2);
 }
 
 // Serialize a hand-mutated envelope for the rejection fixtures.
@@ -180,15 +172,7 @@ describe('parseBackup round-trip', () => {
         inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
       },
     ];
-    const env = buildBackup(
-      linked,
-      [],
-      [],
-      SETTINGS,
-      'live',
-      '2026-08-01T12:00:00',
-      2,
-    );
+    const env = buildBackup(linked, [], [], SETTINGS, 'live', '2026-08-01T12:00:00', 2);
     const result = parseBackup(JSON.stringify(env));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -215,9 +199,7 @@ describe('parseBackup rejections', () => {
   });
 
   it('rejects a foreign format with a clear issue', () => {
-    const result = parseBackup(
-      JSON.stringify({ format: 'other', formatVersion: 1 }),
-    );
+    const result = parseBackup(JSON.stringify({ format: 'other', formatVersion: 1 }));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
@@ -234,33 +216,25 @@ describe('parseBackup rejections', () => {
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
     const result = parseBackup(
-      mutated(
-        (env) =>
-          void ((env.assets as Record<string, unknown>[])[0].foo = 'bar'),
-      ),
+      mutated((env) => void ((env.assets as Record<string, unknown>[])[0].foo = 'bar')),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(
-      result.issues.some(
-        (i) => i.startsWith('assets.0') && /nrecognized key/.test(i),
-      ),
-    ).toBe(true);
+    expect(result.issues.some((i) => i.startsWith('assets.0') && /nrecognized key/.test(i))).toBe(
+      true,
+    );
   });
 
   it("rejects a 'Z'-suffixed datetime (plain-regex convention, not z.iso.datetime)", () => {
     const result = parseBackup(
       mutated(
         (env) =>
-          void ((env.assets as Record<string, unknown>[])[0].createdAt =
-            '2026-02-03T10:00:00Z'),
+          void ((env.assets as Record<string, unknown>[])[0].createdAt = '2026-02-03T10:00:00Z'),
       ),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues.some((i) => i.startsWith('assets.0.createdAt'))).toBe(
-      true,
-    );
+    expect(result.issues.some((i) => i.startsWith('assets.0.createdAt'))).toBe(true);
   });
 
   it('rejects a transaction pointing at an unknown asset', () => {
@@ -278,9 +252,7 @@ describe('parseBackup rejections', () => {
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues).toEqual([
-      `transactions.ghost: unknown assetId 'nope'`,
-    ]);
+    expect(result.issues).toEqual([`transactions.ghost: unknown assetId 'nope'`]);
   });
 
   it("accepts the portfolio-level assetId '' (deposits)", () => {
@@ -295,18 +267,13 @@ describe('parseBackup rejections', () => {
       mutated(
         (env) =>
           void ((
-            (env.snapshots as Record<string, unknown>[])[0].quotes as Record<
-              string,
-              number
-            >
+            (env.snapshots as Record<string, unknown>[])[0].quotes as Record<string, number>
           ).ghost = 1),
       ),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
-    expect(result.issues).toEqual([
-      `snapshots.2026-07-24: quote for unknown asset 'ghost'`,
-    ]);
+    expect(result.issues).toEqual([`snapshots.2026-07-24: quote for unknown asset 'ghost'`]);
   });
 
   it('rejects duplicate snapshot dates', () => {
@@ -327,23 +294,14 @@ describe('parseBackup rejections', () => {
     // A hand-edited {type:'withdrawal', amount:-500} would otherwise INCREASE
     // netDeposits/freeCashFromLedger (double sign flip).
     const negative = parseBackup(
-      mutated(
-        (env) =>
-          void ((env.transactions as Record<string, unknown>[])[0].amount =
-            -500),
-      ),
+      mutated((env) => void ((env.transactions as Record<string, unknown>[])[0].amount = -500)),
     );
     expect(negative).toMatchObject({ ok: false });
     if (negative.ok) return;
-    expect(
-      negative.issues.some((i) => i.startsWith('transactions.0.amount')),
-    ).toBe(true);
+    expect(negative.issues.some((i) => i.startsWith('transactions.0.amount'))).toBe(true);
 
     const zero = parseBackup(
-      mutated(
-        (env) =>
-          void ((env.transactions as Record<string, unknown>[])[0].amount = 0),
-      ),
+      mutated((env) => void ((env.transactions as Record<string, unknown>[])[0].amount = 0)),
     );
     expect(zero).toMatchObject({ ok: false });
   });
@@ -380,9 +338,7 @@ describe('parseBackup rejections', () => {
   });
 
   it('rejects an unknown dataset value', () => {
-    const result = parseBackup(
-      mutated((env) => void (env.dataset = 'staging')),
-    );
+    const result = parseBackup(mutated((env) => void (env.dataset = 'staging')));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues.some((i) => i.startsWith('dataset'))).toBe(true);

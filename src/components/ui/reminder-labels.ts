@@ -15,12 +15,7 @@ import type { Dict } from '../../i18n/messages';
  * copy not literal in the reference: the brief pins the "in N days" pattern and
  * these are its unavoidable edges (a same-day maturity, a single day).
  */
-export function reminderText(
-  reminder: Reminder,
-  assetName: string,
-  f: Format,
-  t: Dict,
-): string {
+export function reminderText(reminder: Reminder, assetName: string, f: Format, t: Dict): string {
   const r = t.reminders;
   switch (reminder.kind) {
     case 'quote-missing':

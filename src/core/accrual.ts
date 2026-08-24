@@ -362,9 +362,7 @@ export function rollNextCoupon(
   // clamp below still applies: with a real schedule it becomes expressible from
   // the data rather than asserted, since the schedule ends there too.
   const scheduled =
-    schedule === undefined
-      ? undefined
-      : [...new Set(schedule)].sort().find((d) => d > current);
+    schedule === undefined ? undefined : [...new Set(schedule)].sort().find((d) => d > current);
   const next = scheduled ?? (months === undefined ? maturity : addMonths(current, months));
   if (next === undefined) return { kind: 'matured' }; // no period and no maturity date
   if (maturity !== undefined && next > maturity) return { kind: 'rolled', nextCoupon: maturity };

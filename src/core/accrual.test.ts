@@ -59,10 +59,9 @@ describe('dailyAccrual', () => {
 
   it('falls back to expectedPct × invested / 365 without a stated coupon', () => {
     // 16.4 % of 15 390,00 a year — the plan's pinned fallback basis.
-    expect(dailyAccrual(undefined, 'semiannual', { expectedPct: 16.4, invested: 15390 })).toBeCloseTo(
-      ((16.4 / 100) * 15390) / 365,
-      10,
-    );
+    expect(
+      dailyAccrual(undefined, 'semiannual', { expectedPct: 16.4, invested: 15390 }),
+    ).toBeCloseTo(((16.4 / 100) * 15390) / 365, 10);
     // The fallback is period-independent: it is an annual yield, not a coupon.
     expect(dailyAccrual(undefined, 'monthly', { expectedPct: 16.4, invested: 15390 })).toBeCloseTo(
       ((16.4 / 100) * 15390) / 365,
@@ -319,7 +318,9 @@ describe('dueCoupons', () => {
   });
 
   it('reports the stated amount as undefined when the asset has none', () => {
-    expect(dueCoupons([bond({ couponAmount: undefined })], [], '2026-08-25')[0].amount).toBeUndefined();
+    expect(
+      dueCoupons([bond({ couponAmount: undefined })], [], '2026-08-25')[0].amount,
+    ).toBeUndefined();
   });
 
   it('sorts by date, oldest first', () => {
@@ -351,9 +352,10 @@ describe('nextUnsettledCoupon', () => {
 
   it('walks a long catch-up without inventing dates past maturity', () => {
     const monthly = bond({ payoutSchedule: 'monthly', nextCoupon: '2026-08-25' });
-    expect(
-      nextUnsettledCoupon(monthly, [tx(), tx({ id: 't2', date: '2026-09-25' })]),
-    ).toEqual({ date: '2026-10-25', amount: 1240 });
+    expect(nextUnsettledCoupon(monthly, [tx(), tx({ id: 't2', date: '2026-09-25' })])).toEqual({
+      date: '2026-10-25',
+      amount: 1240,
+    });
   });
 
   it('has nothing to walk without a schedule pointer or the right yield type', () => {
@@ -393,11 +395,13 @@ describe('rollNextCoupon', () => {
       kind: 'rolled',
       nextCoupon: '2027-02-25',
     });
+    expect(rollNextCoupon(bond({ payoutSchedule: 'maturity', nextCoupon: '2027-02-25' }))).toEqual({
+      kind: 'matured',
+    });
     expect(
-      rollNextCoupon(bond({ payoutSchedule: 'maturity', nextCoupon: '2027-02-25' })),
-    ).toEqual({ kind: 'matured' });
-    expect(
-      rollNextCoupon(bond({ payoutSchedule: 'maturity', nextCoupon: '2026-08-25', maturity: undefined })),
+      rollNextCoupon(
+        bond({ payoutSchedule: 'maturity', nextCoupon: '2026-08-25', maturity: undefined }),
+      ),
     ).toEqual({ kind: 'matured' });
   });
 
@@ -446,9 +450,9 @@ describe('couponProjection', () => {
       date: '2026-08-25',
       estimated: true,
     });
-    expect(couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'monthly' }), 15390)).toEqual(
-      { amount: 210.33, date: '2026-08-25', estimated: true },
-    );
+    expect(
+      couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'monthly' }), 15390),
+    ).toEqual({ amount: 210.33, date: '2026-08-25', estimated: true });
   });
 
   it('falls back to the maturity date when no next coupon is stated', () => {
@@ -460,9 +464,13 @@ describe('couponProjection', () => {
   });
 
   it('never invents a date or an amount', () => {
-    expect(couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390)).toBeUndefined();
+    expect(
+      couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390),
+    ).toBeUndefined();
     expect(couponProjection(bond({ couponAmount: undefined }), 0)).toBeUndefined();
-    expect(couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390)).toBeUndefined();
+    expect(
+      couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390),
+    ).toBeUndefined();
     expect(
       couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'none' }), 15390),
     ).toBeUndefined();
@@ -496,7 +504,10 @@ describe('dailyAccrual over a real coupon period', () => {
   });
 
   it('keeps the approximation when no period can be derived', () => {
-    expect(dailyAccrual(1240, 'semiannual', undefined, undefined)).toBeCloseTo((1240 * 2) / 365, 10);
+    expect(dailyAccrual(1240, 'semiannual', undefined, undefined)).toBeCloseTo(
+      (1240 * 2) / 365,
+      10,
+    );
     expect(couponPeriodDays(['2026-03-25'], '2026-05-01')).toBeUndefined();
     expect(couponPeriodDays(schedule, '2030-01-01')).toBeUndefined();
   });
@@ -594,7 +605,10 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
     // maturity and pays a final, short coupon. Two readings of one schedule is
     // the thing that must never happen, so the walk is delegated to it.
     const b6475 = bond({ maturity: '2027-05-27', nextCoupon: '2026-12-03', couponAmount: 216 });
-    expect(rollNextCoupon(b6475, '2026-12-03')).toEqual({ kind: 'rolled', nextCoupon: '2027-05-27' });
+    expect(rollNextCoupon(b6475, '2026-12-03')).toEqual({
+      kind: 'rolled',
+      nextCoupon: '2027-05-27',
+    });
     expect(scheduledCouponMonths(b6475, [])).toEqual([5, 12]);
   });
 
@@ -628,7 +642,11 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
   });
 
   it('a monthly payer names twelve months and stops', () => {
-    const monthly = bond({ payoutSchedule: 'monthly', nextCoupon: '2026-08-25', maturity: '2030-01-01' });
+    const monthly = bond({
+      payoutSchedule: 'monthly',
+      nextCoupon: '2026-08-25',
+      maturity: '2030-01-01',
+    });
     expect(scheduledCouponMonths(monthly, [])).toHaveLength(12);
   });
 

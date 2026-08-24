@@ -111,21 +111,16 @@ export const en = {
     },
     formatRejection: {
       notJson: "That file isn't valid JSON.",
-      notABackup:
-        'This is not a Quirenote backup — it has no "quirenote-backup" marker.',
+      notABackup: 'This is not a Quirenote backup — it has no "quirenote-backup" marker.',
       newerFormat: (version: string) =>
         `This backup was written by a newer version of the app (format ${version}). Update the app, or export again from the version that wrote it.`,
-      unsupportedFormat:
-        "This backup's format version isn't one this app can read.",
+      unsupportedFormat: "This backup's format version isn't one this app can read.",
     },
     issue: {
       unknownAssetId: (value: string) => `unknown asset id "${value}"`,
-      unknownQuoteAsset: (value: string) =>
-        `quote for an unknown asset "${value}"`,
-      duplicateDate: (value: string) =>
-        `duplicate date ${value} (date is the primary key)`,
-      duplicateId: (value: string) =>
-        `duplicate id "${value}" (id is the primary key)`,
+      unknownQuoteAsset: (value: string) => `quote for an unknown asset "${value}"`,
+      duplicateDate: (value: string) => `duplicate date ${value} (date is the primary key)`,
+      duplicateId: (value: string) => `duplicate id "${value}" (id is the primary key)`,
       unknownKey: (value: string) => `unexpected field "${value}"`,
       expectedDatetime: 'expected timezone-less yyyy-MM-ddTHH:mm:ss',
       expectedDate: 'expected a yyyy-MM-dd date',
@@ -147,8 +142,7 @@ export const en = {
       title: (dataset: string) => `Import into ${dataset}`,
       banner: (dataset: string) =>
         `Replaces everything in the ${dataset} dataset. Every asset, snapshot and transaction is deleted and rebuilt from this file. This cannot be undone.`,
-      bannerDemoSuffix:
-        ' "Reset demo data…" restores the reference portfolio afterwards.',
+      bannerDemoSuffix: ' "Reset demo data…" restores the reference portfolio afterwards.',
       diffLabel: 'What changes',
       colTable: 'Table',
       colAdded: 'Added',
@@ -179,8 +173,7 @@ export const en = {
       `After import: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
       `Replaces your default currency and ₴/$ rate (${symbol} · ${rate}). Dataset, automation and reminder preferences are never touched.`,
-    safetyBackupDone: (name: string) =>
-      `Safety backup downloaded — ${name}.json.`,
+    safetyBackupDone: (name: string) => `Safety backup downloaded — ${name}.json.`,
     safetyBackupPending: (dataset: string, name: string) =>
       `A backup of your current ${dataset} data downloads automatically before anything is replaced — ${name}.json.`,
     warning: {
@@ -188,22 +181,17 @@ export const en = {
       // English needs "and" plus is/are, Ukrainian neither.
       rowsRemoved: (parts: string[], dataset: string) => {
         const subject =
-          parts.length > 1
-            ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
-            : parts[0];
+          parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
         const single = parts.length === 1 && parts[0].startsWith('1 ');
         return single
           ? `${subject} in ${dataset} is missing from this file — it will be removed.`
           : `${subject} in ${dataset} are missing from this file — they will be removed.`;
       },
-      noAssets:
-        'This file has no assets — the dataset will be empty after import.',
+      noAssets: 'This file has no assets — the dataset will be empty after import.',
       noSnapshots: (current: number, dataset: string) =>
         `This file has no snapshots — all ${current} saved days in ${dataset} would be removed.`,
-      otherDataset: (dataset: string) =>
-        `This file was exported from the ${dataset} dataset.`,
-      exportedLongAgo: (days: number, date: string) =>
-        `Exported ${days} days ago (${date}).`,
+      otherDataset: (dataset: string) => `This file was exported from the ${dataset} dataset.`,
+      exportedLongAgo: (days: number, date: string) => `Exported ${days} days ago (${date}).`,
       newerDbVersion: (file: string, app: string) =>
         `The file comes from a newer database version (${file} vs ${app}) — fields this app does not know are ignored.`,
     },
@@ -211,8 +199,7 @@ export const en = {
       success: (assets: string, snapshots: string, transactions: string) =>
         `Data imported — ${assets}, ${snapshots}, ${transactions}.`,
       failed: 'Could not import — nothing was changed.',
-      safetyFailed:
-        'Could not create the safety backup — nothing was imported.',
+      safetyFailed: 'Could not create the safety backup — nothing was imported.',
     },
   },
   asset: {
@@ -324,8 +311,7 @@ export const en = {
       shape: 'unreadable fields',
       no_ref: 'no ISIN or slug to identify it',
     },
-    allClean: (entries: number, at: string) =>
-      `All ${entries} feed entries read cleanly · ${at}`,
+    allClean: (entries: number, at: string) => `All ${entries} feed entries read cleanly · ${at}`,
     failed: (count: number) =>
       count === 1 ? '1 feed entry could not be read' : `${count} feed entries could not be read`,
     readFine: (entries: number) => `${entries} read fine`,
@@ -339,15 +325,12 @@ export const en = {
       `${asset} pays a coupon ${when} (${date}).`,
     couponOverdue: (asset: string, date: string) =>
       `${asset} coupon was due ${date} — record it on Daily quotes.`,
-    maturesToday: (asset: string, date: string) =>
-      `${asset} matures today (${date}).`,
-    matures: (asset: string, when: string, date: string) =>
-      `${asset} matures ${when} (${date}).`,
+    maturesToday: (asset: string, date: string) => `${asset} matures today (${date}).`,
+    matures: (asset: string, when: string, date: string) => `${asset} matures ${when} (${date}).`,
     // English has TWO plural forms; Ukrainian has three, which is why this is a
     // function per language rather than a string with a count spliced in.
     inDays: (days: number) => (days === 1 ? 'in 1 day' : `in ${days} days`),
-    moreReminders: (hidden: number) =>
-      `+${hidden} more reminder${hidden === 1 ? '' : 's'}`,
+    moreReminders: (hidden: number) => `+${hidden} more reminder${hidden === 1 ? '' : 's'}`,
     enterQuotes: 'Enter quotes →',
     openDailyQuotes: 'Open Daily quotes →',
     dismiss: 'Dismiss reminder',
@@ -611,8 +594,7 @@ export const en = {
       capitalGainNote:
         'Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen.',
       inWeeks: (pct: string, weeks: number) => `${pct} in ${weeks} weeks`,
-      watchVsExpected: (pct: string, expected: string) =>
-        `${pct} · watch vs ${expected} expected`,
+      watchVsExpected: (pct: string, expected: string) => `${pct} · watch vs ${expected} expected`,
       ofReceivedIncome: (pct: string) => `${pct} of received income`,
       reinvestedInto: (amount: string) => `reinvested (${amount})`,
       toAccount: 'account',
@@ -670,14 +652,10 @@ export const en = {
       underTarget: (target: string) => `under its ${target} target — top up`,
     },
     empty: {
-      chart:
-        'No snapshots yet — save your first daily quote to start this chart.',
-      table:
-        'No snapshots yet — save your first daily quote to fill this table.',
-      rebalance:
-        'No snapshots yet — save your first daily quote to see the rebalance hint.',
-      allocation:
-        'No snapshots yet — save your first daily quote to see the allocation mix.',
+      chart: 'No snapshots yet — save your first daily quote to start this chart.',
+      table: 'No snapshots yet — save your first daily quote to fill this table.',
+      rebalance: 'No snapshots yet — save your first daily quote to see the rebalance hint.',
+      allocation: 'No snapshots yet — save your first daily quote to see the allocation mix.',
     },
   },
   assets: {
@@ -777,12 +755,12 @@ export const en = {
     },
     currency: {
       title: 'Currency',
-      helper: 'The currency the app opens in. The sidebar toggle previews the other one without saving it.',
+      helper:
+        'The currency the app opens in. The sidebar toggle previews the other one without saving it.',
     },
     rate: {
       title: '₴/$ rate',
-      helper:
-        'Used for the $ view of headline figures. Tables always stay in ₴.',
+      helper: 'Used for the $ view of headline figures. Tables always stay in ₴.',
       ariaLabel: '₴/$ rate',
       invalid: 'Enter a rate above 0.',
     },
@@ -810,8 +788,7 @@ export const en = {
     },
     dangerZone: {
       title: 'Danger zone',
-      helper:
-        'Both actions ask for a typed confirmation and offer a backup first.',
+      helper: 'Both actions ask for a typed confirmation and offer a backup first.',
     },
     quoteSuggest: {
       title: 'Quote suggestions',
@@ -846,8 +823,7 @@ export const en = {
   transaction: {
     title: 'Transaction',
     badge: 'Occasional',
-    subtitle:
-      'Deposits, buys, accruals, reinvests — opened only when something happened.',
+    subtitle: 'Deposits, buys, accruals, reinvests — opened only when something happened.',
     date: 'Date',
     type: 'Type',
     asset: 'Asset',
@@ -906,8 +882,7 @@ export const en = {
       idle: 'Fetch quotes',
       loading: 'Fetching…',
       fetchedAt: (time: string) => `Fetched ${time}`,
-      unlinked:
-        'No Inzhur-linked assets yet — link one on Portfolio.',
+      unlinked: 'No Inzhur-linked assets yet — link one on Portfolio.',
       demo: 'Fetching is disabled in the demo dataset — switch to Live in Settings → Data.',
       feedAsOf: (date: string) => `Inzhur as of ${date}`,
       feedAt: (time: string) => `Inzhur ${time}`,
@@ -959,8 +934,7 @@ export const en = {
         `Scheduled for ${date}. Confirm to record it — the amount is editable, history is never rewritten.`,
       amountMissing: 'Enter an amount.',
       reinvest: 'Also record a reinvest of this amount',
-      reinvestHint:
-        'Same date, same asset — the payout then counts as reinvested, not paid out.',
+      reinvestHint: 'Same date, same asset — the payout then counts as reinvested, not paid out.',
       confirm: 'Record coupon',
       skip: 'Skip',
       recordedToast: 'Coupon recorded',
@@ -1003,8 +977,7 @@ export const en = {
     },
     attributes: {
       title: 'Attributes',
-      subtitle:
-        'Reference data per asset — created with a transaction, edited on Portfolio',
+      subtitle: 'Reference data per asset — created with a transaction, edited on Portfolio',
     },
     seasonality: {
       title: 'Seasonality',
@@ -1061,8 +1034,7 @@ export const uk: Dict = {
     // A dataset marker, not prose: it stays readable as the same token in both
     // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
-    demoTitle:
-      'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
+    demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
   },
   csv: {
     title: 'Експорт для таблиць (CSV)',
@@ -1098,20 +1070,15 @@ export const uk: Dict = {
     },
     formatRejection: {
       notJson: 'Це не коректний JSON.',
-      notABackup:
-        'Це не копія Quirenote — у ній немає позначки «quirenote-backup».',
+      notABackup: 'Це не копія Quirenote — у ній немає позначки «quirenote-backup».',
       newerFormat: (version: string) =>
         `Цю копію створила новіша версія застосунку (формат ${version}). Оновіть застосунок або експортуйте знову з тієї версії, що її створила.`,
-      unsupportedFormat:
-        'Версію формату цієї копії застосунок прочитати не може.',
+      unsupportedFormat: 'Версію формату цієї копії застосунок прочитати не може.',
     },
     issue: {
-      unknownAssetId: (value: string) =>
-        `невідомий ідентифікатор активу «${value}»`,
-      unknownQuoteAsset: (value: string) =>
-        `котирування невідомого активу «${value}»`,
-      duplicateDate: (value: string) =>
-        `дубльована дата ${value} (дата — первинний ключ)`,
+      unknownAssetId: (value: string) => `невідомий ідентифікатор активу «${value}»`,
+      unknownQuoteAsset: (value: string) => `котирування невідомого активу «${value}»`,
+      duplicateDate: (value: string) => `дубльована дата ${value} (дата — первинний ключ)`,
       duplicateId: (value: string) =>
         `дубльований ідентифікатор «${value}» (ідентифікатор — первинний ключ)`,
       unknownKey: (value: string) => `неочікуване поле «${value}»`,
@@ -1135,8 +1102,7 @@ export const uk: Dict = {
       title: (dataset: string) => `Імпорт у набір ${dataset}`,
       banner: (dataset: string) =>
         `Замінює все в наборі ${dataset}. Кожен актив, зріз і транзакцію буде видалено й відтворено з цього файлу. Скасувати це неможливо.`,
-      bannerDemoSuffix:
-        ' «Скинути демонстраційні дані…» згодом поверне еталонний портфель.',
+      bannerDemoSuffix: ' «Скинути демонстраційні дані…» згодом поверне еталонний портфель.',
       diffLabel: 'Що зміниться',
       colTable: 'Таблиця',
       colAdded: 'Додано',
@@ -1156,8 +1122,7 @@ export const uk: Dict = {
     count: {
       assets: (n: number) => `${n} ${plural(n, 'актив', 'активи', 'активів')}`,
       snapshots: (n: number) => `${n} ${plural(n, 'зріз', 'зрізи', 'зрізів')}`,
-      transactions: (n: number) =>
-        `${n} ${plural(n, 'транзакція', 'транзакції', 'транзакцій')}`,
+      transactions: (n: number) => `${n} ${plural(n, 'транзакція', 'транзакції', 'транзакцій')}`,
     },
     fileSubline: (name: string, date: string, time: string, dataset: string) =>
       `${name} · експортовано ${date} ${time} · з набору ${dataset}`,
@@ -1165,8 +1130,7 @@ export const uk: Dict = {
       `Після імпорту: ${assets} · ${snapshots} · ${transactions}.`,
     settingsOptInHelper: (symbol: string, rate: string) =>
       `Замінює вашу валюту за замовчуванням та курс ₴/$ (${symbol} · ${rate}). Набір даних, автоматизація та налаштування нагадувань лишаються недоторканими.`,
-    safetyBackupDone: (name: string) =>
-      `Страхувальну копію завантажено — ${name}.json.`,
+    safetyBackupDone: (name: string) => `Страхувальну копію завантажено — ${name}.json.`,
     safetyBackupPending: (dataset: string, name: string) =>
       `Копія ваших поточних даних набору ${dataset} завантажиться автоматично, перш ніж щось буде замінено — ${name}.json.`,
     warning: {
@@ -1175,9 +1139,7 @@ export const uk: Dict = {
       // sentence carries no singular/plural branch at all.
       rowsRemoved: (parts: string[], dataset: string) => {
         const subject =
-          parts.length > 1
-            ? `${parts.slice(0, -1).join(', ')} і ${parts.at(-1)}`
-            : parts[0];
+          parts.length > 1 ? `${parts.slice(0, -1).join(', ')} і ${parts.at(-1)}` : parts[0];
         return `${subject} у наборі «${dataset}» немає в цьому файлі — їх буде вилучено.`;
       },
       noAssets: 'У файлі немає активів — після імпорту набір буде порожній.',
@@ -1193,8 +1155,7 @@ export const uk: Dict = {
       success: (assets: string, snapshots: string, transactions: string) =>
         `Дані імпортовано — ${assets}, ${snapshots}, ${transactions}.`,
       failed: 'Не вдалося імпортувати — нічого не змінено.',
-      safetyFailed:
-        'Не вдалося створити страхувальну копію — нічого не імпортовано.',
+      safetyFailed: 'Не вдалося створити страхувальну копію — нічого не імпортовано.',
     },
   },
   asset: {
@@ -1309,15 +1270,13 @@ export const uk: Dict = {
       `${asset} платить купон ${when} (${date}).`,
     couponOverdue: (asset: string, date: string) =>
       `Купон ${asset} мав бути ${date} — запишіть його на екрані котирувань.`,
-    maturesToday: (asset: string, date: string) =>
-      `${asset} погашається сьогодні (${date}).`,
+    maturesToday: (asset: string, date: string) => `${asset} погашається сьогодні (${date}).`,
     matures: (asset: string, when: string, date: string) =>
       `${asset} погашається ${when} (${date}).`,
     // Ukrainian has THREE plural forms and English two, so a shared template
     // with a count spliced in would be wrong for 2, 3 and 4 — "2 днів" instead
     // of "2 дні". Each language owns its own rule.
-    inDays: (days: number) =>
-      `через ${days} ${plural(days, 'день', 'дні', 'днів')}`,
+    inDays: (days: number) => `через ${days} ${plural(days, 'день', 'дні', 'днів')}`,
     moreReminders: (hidden: number) =>
       `+${hidden} ${plural(hidden, 'нагадування', 'нагадування', 'нагадувань')}`,
     enterQuotes: 'Ввести котирування →',
@@ -1485,8 +1444,7 @@ export const uk: Dict = {
       orPauseReinvest: ' (або призупинити реінвестицію)',
       withinRange: 'у межах ±0,5 % — без дій',
       centerTotal: (thousands: number) => `${thousands} тис. ₴`,
-      assetsPlusCash: (n: number) =>
-        `${n} ${plural(n, 'актив', 'активи', 'активів')} + готівка`,
+      assetsPlusCash: (n: number) => `${n} ${plural(n, 'актив', 'активи', 'активів')} + готівка`,
     },
     yield: {
       xirr: 'XIRR',
@@ -1510,8 +1468,7 @@ export const uk: Dict = {
       capitalGainNote:
         'Приріст капіталу = вартість − вкладено (з реінвестованими виплатами). Дохід від виплат враховується в загальній дохідності на екрані «Дохідність».',
       inWeeks: (pct: string, weeks: number) => `${pct} за ${weeks} тиж.`,
-      watchVsExpected: (pct: string, expected: string) =>
-        `${pct} · проти очікуваних ${expected}`,
+      watchVsExpected: (pct: string, expected: string) => `${pct} · проти очікуваних ${expected}`,
       ofReceivedIncome: (pct: string) => `${pct} отриманого доходу`,
       reinvestedInto: (amount: string) => `реінвестовано (${amount})`,
       toAccount: 'на рахунок',
@@ -1541,10 +1498,8 @@ export const uk: Dict = {
       underTarget: (target: string) => `нижче за ціль ${target} — поповнити на`,
     },
     empty: {
-      chart:
-        'Зрізів ще немає — збережіть перше щоденне котирування, щоб побудувати графік.',
-      table:
-        'Зрізів ще немає — збережіть перше щоденне котирування, щоб заповнити таблицю.',
+      chart: 'Зрізів ще немає — збережіть перше щоденне котирування, щоб побудувати графік.',
+      table: 'Зрізів ще немає — збережіть перше щоденне котирування, щоб заповнити таблицю.',
       rebalance:
         'Зрізів ще немає — збережіть перше щоденне котирування, щоб побачити підказку ребалансу.',
       allocation:
@@ -1632,12 +1587,12 @@ export const uk: Dict = {
     },
     currency: {
       title: 'Валюта',
-      helper: 'Валюта, з якою відкривається застосунок. Перемикач у бічній панелі лише показує іншу, не зберігаючи вибір.',
+      helper:
+        'Валюта, з якою відкривається застосунок. Перемикач у бічній панелі лише показує іншу, не зберігаючи вибір.',
     },
     rate: {
       title: 'Курс ₴/$',
-      helper:
-        'Використовується для показу підсумків у $. Таблиці завжди лишаються в ₴.',
+      helper: 'Використовується для показу підсумків у $. Таблиці завжди лишаються в ₴.',
       ariaLabel: 'Курс ₴/$',
       invalid: 'Введіть курс, більший за 0.',
     },
@@ -1662,8 +1617,7 @@ export const uk: Dict = {
     },
     dangerZone: {
       title: 'Небезпечна зона',
-      helper:
-        'Обидві дії просять підтвердження вводом і спершу пропонують резервну копію.',
+      helper: 'Обидві дії просять підтвердження вводом і спершу пропонують резервну копію.',
     },
     quoteSuggest: {
       title: 'Пропозиції котирувань',
@@ -1684,8 +1638,7 @@ export const uk: Dict = {
       leadAriaLabel: 'Завчасність нагадувань, днів',
       leadInvalid: 'Введіть від 1 до 30 днів.',
       dismissedTitle: 'Відхилені нагадування',
-      dismissedHelper:
-        'Відхилені банери лишаються прихованими, доки не мине їхня дата.',
+      dismissedHelper: 'Відхилені банери лишаються прихованими, доки не мине їхня дата.',
       restore: 'Повернути відхилені',
       restoreWithCount: (count: number) => `Повернути відхилені (${count})`,
       restoredToast: 'Відхилені нагадування повернуто',
@@ -1750,8 +1703,7 @@ export const uk: Dict = {
       idle: 'Отримати котирування',
       loading: 'Отримання…', // ✎
       fetchedAt: (time: string) => `Отримано ${time}`, // ✎
-      unlinked:
-        'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
+      unlinked: 'Ще немає активів, пов’язаних з Inzhur — прив’яжіть у Портфелі.',
       demo: 'Отримання вимкнено на демонстраційному наборі — перемкніть на Живий у Налаштуваннях → Дані.',
       feedAsOf: (date: string) => `Inzhur станом на ${date}`, // ✎
       feedAt: (time: string) => `Inzhur ${time}`,
@@ -1766,8 +1718,7 @@ export const uk: Dict = {
     },
     yesterdayValue: (amount: string) => `${amount} учора`,
     useFetched: (value: string) => `Взяти отримане ${value}?`,
-    useCached: (value: string, date: string) =>
-      `Взяти ${value} (станом на ${date})?`,
+    useCached: (value: string, date: string) => `Взяти ${value} (станом на ${date})?`,
     useSuggested: (value: string) => `Взяти запропоноване ${value}?`,
     priceDoesNotFit: (published: string, implied: string) =>
       `Ціна не відповідає ${published} у жоден день останніх двох тижнів — за сьогоднішнього розрахунку вона означала б ${implied}.`,
@@ -1789,8 +1740,7 @@ export const uk: Dict = {
         `Ціна постачальника застаріла ${atLeast ? 'щонайменше ' : ''}на ${days} ${plural(days, 'день', 'дні', 'днів')} — вона досі відповідає ${date}.`,
       unexplained:
         'Ця ціна не відповідає жодній дохідності, яку може дати графік — помилятися може графік виплат стрічки або сама ціна.',
-      tooCloseToMaturity:
-        'Занадто близько до погашення, щоб перевіряти дохідність за ціною.',
+      tooCloseToMaturity: 'Занадто близько до погашення, щоб перевіряти дохідність за ціною.',
     },
     fetchFailed: 'Не вдалося зв’язатися з Inzhur — перевірте з’єднання.',
     useValuesFrom: (date: string) => `Взяти значення від ${date}`,
@@ -1815,8 +1765,7 @@ export const uk: Dict = {
       manual: 'Введено вручну — отримання цього не перезаписує.',
       stale: 'З останнього вдалого отримання — Inzhur був недоступний.',
       accrual: 'Заповнено з нарахування купона — прийнята пропозиція.',
-      ghost:
-        'Запропоновано з нарахування купона — прийміть або введіть власне.',
+      ghost: 'Запропоновано з нарахування купона — прийміть або введіть власне.',
     },
   },
   screen: {
@@ -1847,8 +1796,7 @@ export const uk: Dict = {
     },
     attributes: {
       title: 'Атрибути',
-      subtitle:
-        'Довідкові дані активу — створюються транзакцією, редагуються в Портфелі',
+      subtitle: 'Довідкові дані активу — створюються транзакцією, редагуються в Портфелі',
     },
     seasonality: {
       title: 'Сезонність',

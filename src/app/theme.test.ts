@@ -30,12 +30,11 @@ function bootScript(): string {
 /** Runs the real script with fakes, and reports the attribute it stamped. */
 function runBoot(stored: string | null, osPrefersDark: boolean): string {
   const root = { dataset: {} as { theme?: string } };
-  const fn = new Function(
-    'localStorage',
-    'matchMedia',
-    'document',
-    bootScript(),
-  ) as (ls: unknown, mm: unknown, doc: unknown) => void;
+  const fn = new Function('localStorage', 'matchMedia', 'document', bootScript()) as (
+    ls: unknown,
+    mm: unknown,
+    doc: unknown,
+  ) => void;
   fn(
     { getItem: () => stored },
     (q: string) => ({ matches: q.includes('dark') ? osPrefersDark : !osPrefersDark }),
@@ -46,7 +45,8 @@ function runBoot(stored: string | null, osPrefersDark: boolean): string {
 
 /** What the app decides for the same payload, through its own code path. */
 function appDecides(stored: string | null, osPrefersDark: boolean): string {
-  const parsed: unknown = stored === null ? null : (JSON.parse(stored) as { state?: unknown }).state;
+  const parsed: unknown =
+    stored === null ? null : (JSON.parse(stored) as { state?: unknown }).state;
   const original = globalThis.matchMedia;
   (globalThis as { matchMedia?: unknown }).matchMedia = (q: string) => ({
     matches: q.includes('dark') ? osPrefersDark : !osPrefersDark,
@@ -124,7 +124,7 @@ describe('the boot script and the app resolve the theme identically', () => {
 });
 
 describe('resolveTheme', () => {
-  const withOs = <T,>(prefersDark: boolean, fn: () => T): T => {
+  const withOs = <T>(prefersDark: boolean, fn: () => T): T => {
     const original = globalThis.matchMedia;
     (globalThis as { matchMedia?: unknown }).matchMedia = () => ({ matches: prefersDark });
     try {

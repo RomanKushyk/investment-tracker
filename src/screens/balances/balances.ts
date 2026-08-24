@@ -8,7 +8,9 @@ import type { Asset, Snapshot } from '../../core/types';
 // <= date) has a quote — an asset not yet purchased doesn't need one. Only the
 // seeded 27.07 row (missing quotes for already-purchased assets) is incomplete.
 export function isCompleteSnapshot(snapshot: Snapshot, assets: Asset[]): boolean {
-  return assets.every((a) => a.firstPurchase > snapshot.date || snapshot.quotes[a.id] !== undefined);
+  return assets.every(
+    (a) => a.firstPurchase > snapshot.date || snapshot.quotes[a.id] !== undefined,
+  );
 }
 
 // Ascending, complete-only — the Area chart's data (excludes the partial row).
@@ -24,13 +26,14 @@ export interface BalanceChartPoint {
 }
 
 export function balanceChartData(snapshots: Snapshot[], assets: Asset[]): BalanceChartPoint[] {
-  return completeSnapshots(snapshots, assets).map((s) => ({ date: s.date, total: totalCapital(s) }));
+  return completeSnapshots(snapshots, assets).map((s) => ({
+    date: s.date,
+    total: totalCapital(s),
+  }));
 }
 
 export type BalanceCell =
-  | { status: 'value'; amount: number }
-  | { status: 'pending' }
-  | { status: 'none' }; // asset didn't exist yet on this date
+  { status: 'value'; amount: number } | { status: 'pending' } | { status: 'none' }; // asset didn't exist yet on this date
 
 export interface BalanceRow {
   date: string;
@@ -46,7 +49,12 @@ export function buildBalanceRow(snapshot: Snapshot, assets: Asset[]): BalanceRow
     return amount === undefined ? { status: 'pending' } : { status: 'value', amount };
   });
   const complete = cells.every((c) => c.status !== 'pending');
-  return { date: snapshot.date, cells, cash: snapshot.cash, total: complete ? totalCapital(snapshot) : null };
+  return {
+    date: snapshot.date,
+    cells,
+    cash: snapshot.cash,
+    total: complete ? totalCapital(snapshot) : null,
+  };
 }
 
 export interface SnapshotPage {

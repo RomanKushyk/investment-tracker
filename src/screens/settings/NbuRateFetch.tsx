@@ -76,12 +76,10 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
         </Button>
       </div>
 
-      {disabled && (
-        <span className="text-muted text-[11px]">{t.nbu.demoDisabled}</span>
-      )}
+      {disabled && <span className="text-[11px] text-muted">{t.nbu.demoDisabled}</span>}
 
       {!disabled && shown !== undefined && (
-        <div className="animate-in fade-in slide-in-from-top-1 flex items-center gap-2 text-[11px] duration-200">
+        <div className="flex animate-in items-center gap-2 text-[11px] duration-200 fade-in slide-in-from-top-1">
           <span className={isStale ? 'text-muted' : 'text-pos-tint-text'}>
             {t.nbu.shown(f.units(shown.rate), f.date(shown.date))}
             {isStale && t.nbu.stale}
@@ -96,7 +94,7 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
                 // same number look like a different one (Contract 0).
                 toast.success(t.nbu.applied(f.units(shown.rate)));
               }}
-              className="text-pos hover:text-pos-tint-text underline underline-offset-2 transition duration-200"
+              className="text-pos underline underline-offset-2 transition duration-200 hover:text-pos-tint-text"
             >
               {t.nbu.useIt}
             </button>
@@ -105,7 +103,7 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
       )}
 
       {!disabled && tried && isError && shown === undefined && (
-        <span className="text-neg animate-in fade-in text-[11px] duration-200">
+        <span className="animate-in text-[11px] text-neg duration-200 fade-in">
           {t.nbu.none(f.units(usdRate))}
         </span>
       )}

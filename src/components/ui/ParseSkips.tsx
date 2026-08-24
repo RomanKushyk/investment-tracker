@@ -18,13 +18,13 @@ import { useT } from '../../i18n/useT';
 function SkipLine({ skip }: { skip: SkippedEntry }) {
   const t = useT();
   return (
-    <li className="text-muted flex flex-wrap items-baseline gap-x-1.5 text-[11px]">
-      <span className="text-ink font-semibold">{skip.ref}</span>
+    <li className="flex flex-wrap items-baseline gap-x-1.5 text-[11px] text-muted">
+      <span className="font-semibold text-ink">{skip.ref}</span>
       <span>— {t.parse.reason[skip.reason]}</span>
       {skip.fields !== undefined && (
         // The load-bearing detail: WHICH field. A rename is the likeliest way
         // this feed breaks, and the path is the whole diagnosis.
-        <span className="text-faint font-body">{skip.fields.join(', ')}</span>
+        <span className="font-body text-faint">{skip.fields.join(', ')}</span>
       )}
     </li>
   );
@@ -46,26 +46,26 @@ export function ParseSkips({ className = '' }: { className?: string }) {
   // that the feed still parses (D53).
   if (count === 0) {
     return (
-      <p className={`text-faint text-[11px] ${className}`}>
+      <p className={`text-[11px] text-faint ${className}`}>
         {t.parse.allClean(parse.entries, f.savedAt(parse.at))}
       </p>
     );
   }
 
   return (
-    <div className={`animate-in fade-in duration-300 ${className}`}>
+    <div className={`animate-in duration-300 fade-in ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="text-warn hover:text-warn-tint-text text-[11px] underline underline-offset-2 transition duration-200"
+        className="text-[11px] text-warn underline underline-offset-2 transition duration-200 hover:text-warn-tint-text"
       >
         {t.parse.failed(count)}
         {' · '}
         {t.parse.readFine(parse.entries)} · {open ? t.parse.hide : t.parse.show}
       </button>
       {open && (
-        <ul className="animate-in fade-in slide-in-from-top-1 mt-1.5 flex flex-col gap-1 duration-200">
+        <ul className="mt-1.5 flex animate-in flex-col gap-1 duration-200 fade-in slide-in-from-top-1">
           {parse.skipped.map((s) => (
             <SkipLine key={`${s.ref}:${s.reason}`} skip={s} />
           ))}

@@ -12,11 +12,7 @@ import { toast } from 'sonner';
 import { kyivDateIso } from '../../core/dates';
 import { matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
 import type { Asset, QuoteSource } from '../../core/types';
-import {
-  INZHUR_REFRESH_HOUR,
-  useInzhurAssets,
-  type InzhurFeed,
-} from '../../hooks/useInzhurAssets';
+import { INZHUR_REFRESH_HOUR, useInzhurAssets, type InzhurFeed } from '../../hooks/useInzhurAssets';
 import { useDraft } from '../../state/draft';
 import {
   feedFreshness,
@@ -118,7 +114,10 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
   const fetchQuotes = useCallback(() => {
     void (async () => {
       // Still fresh (same feed day) → re-serve it; no second roundtrip (S1).
-      if (data !== undefined && payloadStillFresh(data.fetchedAt, new Date(), INZHUR_REFRESH_HOUR)) {
+      if (
+        data !== undefined &&
+        payloadStillFresh(data.fetchedAt, new Date(), INZHUR_REFRESH_HOUR)
+      ) {
         apply(data, 'fetch');
         return;
       }
@@ -196,10 +195,7 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       loading: isFetching,
       flash: flashAt !== undefined,
     }),
-    freshness: feedFreshness(
-      latestFetchedAt(data?.fetchedAt, lastGood?.fetchedAt),
-      new Date(),
-    ),
+    freshness: feedFreshness(latestFetchedAt(data?.fetchedAt, lastGood?.fetchedAt), new Date()),
     flashAt,
     feed: data?.feed ?? lastGood?.feed,
     feedFetchedAt: data?.fetchedAt ?? lastGood?.fetchedAt,

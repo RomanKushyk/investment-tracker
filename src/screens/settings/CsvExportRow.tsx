@@ -60,13 +60,9 @@ export function CsvExportRow() {
       // Read fresh at click time (a mutation, not a cached query) — an export
       // must reflect the DB now, exactly like the JSON backup.
       const tables = await exportAll.mutateAsync();
-      await saveTextFile(
-        `quirenote-${table.key}-${todayIso()}.csv`,
-        table.build(tables),
-        {
-          mime: CSV_MIME,
-        },
-      );
+      await saveTextFile(`quirenote-${table.key}-${todayIso()}.csv`, table.build(tables), {
+        mime: CSV_MIME,
+      });
     } catch {
       toast.error(t.csv.failed);
     } finally {
@@ -79,9 +75,7 @@ export function CsvExportRow() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-[min(200px,100%)] flex-[1_1_260px]">
           <div className="text-[13px] font-semibold">{t.csv.title}</div>
-          <div className="text-muted mt-[3px] text-xs leading-normal">
-            {t.csv.helper}
-          </div>
+          <div className="mt-[3px] text-xs leading-normal text-muted">{t.csv.helper}</div>
         </div>
         {/* Wraps to its own line under the label block when the row narrows,
             and stacks full width at 360px. */}
@@ -100,12 +94,8 @@ export function CsvExportRow() {
           ))}
         </div>
       </div>
-      <div className="text-muted mt-2.5 text-[11px] leading-relaxed">
-        {t.csv.formatNote}
-      </div>
-      <div className="text-muted mt-0.5 text-[11px] leading-relaxed">
-        {t.csv.columnNote}
-      </div>
+      <div className="mt-2.5 text-[11px] leading-relaxed text-muted">{t.csv.formatNote}</div>
+      <div className="mt-0.5 text-[11px] leading-relaxed text-muted">{t.csv.columnNote}</div>
     </div>
   );
 }

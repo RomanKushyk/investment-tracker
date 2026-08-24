@@ -71,7 +71,9 @@ describe('parseNbuFairValue', () => {
   });
 
   it('rejects a date that has the right shape but does not exist', () => {
-    const [row] = parseNbuFairValue('31.02.2026;UA4000187348;UAH;1001.64;14.5;96.2;0.79;12.10.2029');
+    const [row] = parseNbuFairValue(
+      '31.02.2026;UA4000187348;UAH;1001.64;14.5;96.2;0.79;12.10.2029',
+    );
     expect(row).toBeUndefined();
   });
 
@@ -79,7 +81,13 @@ describe('parseNbuFairValue', () => {
   // single bad line must not cost the other 184 instruments of that day.
   it('skips an unusable line and keeps the rest of the day', () => {
     const rows = parseNbuFairValue(
-      [HEADER_2026, ROW_2026, ';;;;;;;', '10.08.2026;UA4000190441;UAH;;15.2;99.4;0.92;14.10.2026', ROW_2022].join('\n'),
+      [
+        HEADER_2026,
+        ROW_2026,
+        ';;;;;;;',
+        '10.08.2026;UA4000190441;UAH;;15.2;99.4;0.92;14.10.2026',
+        ROW_2022,
+      ].join('\n'),
     );
     expect(rows.map((r) => r.isin)).toEqual(['UA4000187348', 'UA4000063143']);
   });

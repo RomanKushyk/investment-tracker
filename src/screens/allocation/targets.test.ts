@@ -123,7 +123,7 @@ describe('A36 — what the editor SHOWS round-trips through what it PARSES', () 
     });
   }
 
-  it('still accepts the other language\'s separator, so a paste is not punished', () => {
+  it("still accepts the other language's separator, so a paste is not punished", () => {
     expect(parseTargetPct('17.5')).toBe(17.5);
     expect(parseTargetPct('17,5')).toBe(17.5);
   });
