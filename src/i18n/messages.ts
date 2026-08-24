@@ -552,7 +552,14 @@ export const en = {
         ` is the paycheck: ${asset} dividends land ${frequency}, ${first} → ${last} and growing.`,
       anchorEmpty: 'No recurring income yet.',
       couponMonths: (months: string, day: number) => `${months} (day ${day})`,
-      couponRest: (asset: string) => ` carry the big ${asset} coupons`,
+      /**
+       * AGREES WITH THE SUBJECT, which used to be safe to assume. The months
+       * list was always two on the seed, so a fixed plural verb worked — until
+       * A42 windowed the historical half and `3 місяці` left exactly one month,
+       * rendering «Серпень … несуть». The window can produce a list of one.
+       */
+      couponRest: (asset: string, count: number) =>
+        `${count === 1 ? ' carries' : ' carry'} the big ${asset} coupons`,
       couponOther: (asset: string, when: string, month: string) =>
         `; ${asset} pays in ${when} ${month}`,
       couponEmpty: 'No bond coupons yet.',
@@ -627,7 +634,14 @@ export const en = {
         `Showing last ${shown} snapshots · ${total} total since ${since}`,
       netOfTax: (amount: string) => `net of tax ${amount}`,
       seasonalityNote:
-        "* expected — projected from the asset's next coupon date. Gray stubs = ordinary price-drift days with no income.",
+        // WINDOW-AGNOSTIC (A42 review), the correction A39 already made to
+        // `yieldNote`. "Days with no income" was true when the chart always
+        // showed the whole ledger; under a window a day can carry income and
+        // still draw a grey stub because the income fell outside — seed day 25
+        // holds 1 183,50 ₴ from 25.02 and is a stub under `3 місяці`. The
+        // footnote has to name the period, or it misreads a windowed-out day as
+        // a quiet one.
+        "* expected — projected from the asset's next coupon date. Gray stubs = days with no income IN THE SELECTED PERIOD.",
       /**
        * WINDOW-AGNOSTIC SINCE A39. It used to say "from first purchase", which is
        * false under any window other than the widest — the date it names is the
@@ -1444,7 +1458,8 @@ export const uk: Dict = {
       // second, capitalised month list.
       couponMonths: (months: string, day: number) =>
         `${months.charAt(0).toUpperCase()}${months.slice(1)} (день ${day})`,
-      couponRest: (asset: string) => ` несуть великі купони ${asset}`,
+      couponRest: (asset: string, count: number) =>
+        `${count === 1 ? ' несе' : ' несуть'} великі купони ${asset}`,
       couponOther: (asset: string, when: string, month: string) =>
         `; ${asset} платить ${when} ${month}`,
       couponEmpty: 'Купонів по ОВДП ще немає.',
@@ -1517,7 +1532,7 @@ export const uk: Dict = {
         `Показано останні ${shown} ${plural(shown, 'зріз', 'зрізи', 'зрізів')} · усього ${total} від ${since}`,
       netOfTax: (amount: string) => `після податку ${amount}`,
       seasonalityNote:
-        '* очікувано — спрогнозовано за датою наступного купона активу. Сірі стовпчики = звичайні дні коливання ціни без доходу.',
+        '* очікувано — спрогнозовано за датою наступного купона активу. Сірі стовпчики — дні без доходу У ВИБРАНОМУ ПЕРІОДІ.',
       yieldNote: (start: string) =>
         `Річна = загальна Δ, приведена до 365 днів від ${start}. Купони враховуються в Δ за нарахуванням. Загальна дохідність — чиста від податків і включає виплати. XIRR зважений за грошима та річний — за історії менш ніж рік вважайте його екстраполяцією.`,
       shortBasisNote:

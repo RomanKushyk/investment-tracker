@@ -2,7 +2,8 @@
 // cards) — not in src/lib, that layer stays untouched per this task's scope.
 // Covered by seasonality.test.ts.
 import { couponProjection, scheduledCouponMonths } from '../../core/accrual';
-import { investedByAsset } from '../../core/derive';
+import { investedByAsset, transactionsFromWindow } from '../../core/derive';
+import type { PeriodWindow } from '../../core/period';
 import type { Asset, Transaction } from '../../core/types';
 
 export interface SeasonalityDay {
@@ -44,7 +45,31 @@ function expectedByDayOfMonth(
 }
 
 export function seasonalityDays(transactions: Transaction[], assets: Asset[]): SeasonalityDay[] {
-  const actual = incomeByDayOfMonth(transactions);
+  return seasonalityDaysIn(transactions, assets, undefined);
+}
+
+/**
+ * ONE SERIES WINDOWS AND THE OTHER CANNOT, and the spine says which (A42).
+ * `/seasonality actual bars` are **FLOW** — "sum over the window, bucketed by
+ * day or by month" — while `/seasonality expected bars` are **FORECAST**:
+ * *"nothing — a projection has no window"*. A coupon due in September is due in
+ * September whichever three months you are looking at, so the expected series
+ * reads the whole ledger in every window, including the `investedByAsset` that
+ * sizes an estimated coupon.
+ *
+ * THE CLIP IS BOTTOM-ONLY, matching `/overview`'s `Отриманий дохід` — the same
+ * FLOW row of the same table, and the same reason `yieldTableRowsIn` gives: a
+ * payout entered since the last saved quote is the most recent reality, and
+ * clipping the top end makes it vanish from this screen while every other
+ * screen counts it. On the seed the two readings agree to the kopeck.
+ */
+export function seasonalityDaysIn(
+  transactions: Transaction[],
+  assets: Asset[],
+  w: PeriodWindow | undefined,
+): SeasonalityDay[] {
+  const inside = transactionsFromWindow(transactions, w);
+  const actual = incomeByDayOfMonth(inside);
   const expected = expectedByDayOfMonth(assets, transactions);
   const days: SeasonalityDay[] = [];
   for (let day = 1; day <= 31; day++) {
@@ -100,7 +125,17 @@ export interface SeasonalityMonth {
  * and what lands is a whole coupon.
  */
 export function seasonalityMonths(transactions: Transaction[], assets: Asset[]): SeasonalityMonth[] {
-  const actual = incomeByMonth(transactions);
+  return seasonalityMonthsIn(transactions, assets, undefined);
+}
+
+/** The month axis under the same window, and the same split (A42). */
+export function seasonalityMonthsIn(
+  transactions: Transaction[],
+  assets: Asset[],
+  w: PeriodWindow | undefined,
+): SeasonalityMonth[] {
+  const inside = transactionsFromWindow(transactions, w);
+  const actual = incomeByMonth(inside);
   const expected = expectedByMonth(assets, transactions);
   const months: SeasonalityMonth[] = [];
   for (let month = 1; month <= 12; month++) {
@@ -166,8 +201,17 @@ export function anchorAssetGrowth(
   const matches = transactions
     .filter((t) => t.type === 'dividend_accrual' && t.assetId === assetId)
     .sort((a, b) => a.date.localeCompare(b.date));
-  if (matches.length === 0) return undefined;
-  return { first: matches[0].amount, last: matches[matches.length - 1].amount };
+  // ONE PAYOUT IS NOT A TREND, and windowing this made that reachable (A42
+  // review). The card's copy hardcodes «і зростають», so a window holding a
+  // single REIT dividend rendered «700 ₴ → 700 ₴ і зростають» — and a window
+  // whose first payout exceeds its last would render a DECLINE as growth. Two
+  // points in the growing direction or the card falls back to its own
+  // "no regular income yet" branch, which is the honest answer for a window
+  // that cannot show a trend.
+  if (matches.length < 2) return undefined;
+  const first = matches[0].amount;
+  const last = matches[matches.length - 1].amount;
+  return last > first ? { first, last } : undefined;
 }
 
 // Longest trailing run of zero-income, zero-expected days ("Quiet stretch").

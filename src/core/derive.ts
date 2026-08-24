@@ -209,6 +209,24 @@ export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction
  * and a buy dated after the last snapshot vanished from `/yield` while
  * `/portfolio` still showed it.
  */
+/**
+ * The same bottom-only clip, taking the WINDOW rather than a date — because the
+ * `w === undefined ? txs : transactionsFrom(txs, w.from)` guard had been written
+ * out six times by A42, and `transactionsFrom` exists in the first place because
+ * "four screens had hand-written this filter and four literals are four chances
+ * to disagree about the edge". The undefined-guard had quietly become that same
+ * literal one layer up.
+ *
+ * `/overview` still writes it by hand in three places; converting them is not
+ * A42's to do.
+ */
+export function transactionsFromWindow(
+  txs: Transaction[],
+  w: { from: string } | undefined,
+): Transaction[] {
+  return w === undefined ? txs : transactionsFrom(txs, w.from);
+}
+
 export function transactionsFrom(txs: Transaction[], from: string): Transaction[] {
   return txs.filter((t) => t.date >= from);
 }

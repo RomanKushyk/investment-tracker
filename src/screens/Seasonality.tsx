@@ -5,8 +5,10 @@ import type { SeasonalityChartPoint } from '../components/charts/SeasonalityBars
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
-import { useAssets, useTransactions } from '../hooks/queries';
-import type { Asset, Transaction } from '../core/types';
+import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
+import { usePeriodWindow } from '../hooks/usePeriodWindow';
+import { transactionsFromWindow } from '../core/derive';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import {
   anchorAssetGrowth,
@@ -15,8 +17,8 @@ import {
   dominantExpectedAssetOnDay,
   incomeAnchorDay,
   quietStretch,
-  seasonalityDays,
-  seasonalityMonths,
+  seasonalityDaysIn,
+  seasonalityMonthsIn,
 } from './seasonality/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
@@ -38,14 +40,33 @@ function dayPart(day: number): 'early' | 'mid' | 'late' {
 // already use.
 const NO_ASSETS: Asset[] = [];
 const NO_TRANSACTIONS: Transaction[] = [];
+const NO_SNAPSHOTS: Snapshot[] = [];
 
 export function Seasonality() {
   const f = useFormat();
   const t = useT();
   const assets = useAssets().data ?? NO_ASSETS;
   const transactions = useTransactions().data ?? NO_TRANSACTIONS;
+  const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
 
-  const days = useMemo(() => seasonalityDays(transactions, assets), [transactions, assets]);
+  // A42 — the third reader of the one window (D-1). The spine classifies the
+  // ACTUAL bars as FLOW and the expected bars as FORECAST, so only the first
+  // moves; `seasonalityDaysIn` owns that split.
+  const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
+
+  // THE LEDGER THIS SCREEN READS FOR EVERY *FLOW* QUESTION. The spine windows
+  // the actual bars and not the expected ones; everything derived FROM those
+  // bars — which day is the anchor, which asset owns a bucket, how that asset's
+  // dividends moved, where the quiet run is — has to be read on the same side
+  // of the boundary, or a windowed height ends up wearing an unwindowed colour
+  // and the card beneath it names an asset that paid nothing inside the window
+  // (A42 review).
+  const windowed = useMemo(() => transactionsFromWindow(transactions, win), [transactions, win]);
+
+  const days = useMemo(
+    () => seasonalityDaysIn(transactions, assets, win),
+    [transactions, assets, win],
+  );
 
   /**
    * D-11 — THE AXIS TOGGLE IS EPHEMERAL, and that is forced rather than
@@ -75,7 +96,7 @@ export function Seasonality() {
   const monthData: SeasonalityChartPoint[] = useMemo(
     () =>
       axis === 'month'
-        ? seasonalityMonths(transactions, assets).map((m): SeasonalityChartPoint => ({
+        ? seasonalityMonthsIn(transactions, assets, win).map((m): SeasonalityChartPoint => ({
             day: m.month,
             actual: m.actual,
             expected: m.expected,
@@ -83,13 +104,13 @@ export function Seasonality() {
             expectedLabel: m.expected !== undefined ? `${f.moneyWhole(m.expected)}*` : undefined,
           }))
         : [],
-    [axis, transactions, assets, f],
+    [axis, transactions, assets, win, f],
   );
 
   const chartData: SeasonalityChartPoint[] = useMemo(
     () =>
       days.map((d): SeasonalityChartPoint => {
-        const dominantId = d.actual > 0 ? dominantAssetOnDay(transactions, d.day) : undefined;
+        const dominantId = d.actual > 0 ? dominantAssetOnDay(windowed, d.day) : undefined;
         const dominantAsset = assets.find((a) => a.id === dominantId);
         const expectedId =
           d.expected !== undefined
@@ -111,13 +132,20 @@ export function Seasonality() {
           expectedLabel: d.expected !== undefined ? `${f.moneyWhole(d.expected)}*` : undefined,
         };
       }),
-    [days, transactions, assets, anchor, f, t],
+    [days, windowed, transactions, assets, anchor, f, t],
   );
 
   // "Income anchor" card copy.
-  const anchorAssetId = anchor && anchor.actual > 0 ? dominantAssetOnDay(transactions, anchor.day) : undefined;
+  const anchorAssetId =
+    anchor && anchor.actual > 0 ? dominantAssetOnDay(windowed, anchor.day) : undefined;
   const anchorAsset = assets.find((a) => a.id === anchorAssetId);
-  const growth = anchorAsset ? anchorAssetGrowth(transactions, anchorAsset.id) : undefined;
+  // WINDOWED, because the DAY this sentence names already is. The card reads
+  // «День 10 … 580 ₴ → 700 ₴ і зростають»; under `3 місяці` the 580 is
+  // February's dividend, outside the window the reader selected, sitting in one
+  // breath with a day derived from inside it. `bondCouponInfo` below stays on
+  // the whole ledger on purpose — it describes a SCHEDULE, which the spine
+  // classifies as FORECAST and does not window.
+  const growth = anchorAsset ? anchorAssetGrowth(windowed, anchorAsset.id) : undefined;
 
   // "Coupon season" card copy — the bond with the biggest coupon drives the
   // headline months; other bonds get a one-line "pays in {descriptor} {month}".
@@ -125,14 +153,38 @@ export function Seasonality() {
     .filter((a): a is Asset & { couponAmount: number } => a.yieldType === 'fixed_coupon' && a.couponAmount !== undefined)
     .sort((a, b) => b.couponAmount - a.couponAmount);
   const big = bonds[0];
-  const bigInfo = big ? bondCouponInfo(big, transactions) : undefined;
+  // HALF OF THIS IS HISTORY, and that half windows. `bondCouponInfo`'s months
+  // are the months a bond HAS PAID in, union the one `nextCoupon` names — so
+  // calling it FORECAST and leaving it whole was too clean by half (A42
+  // review): under `3 місяці` the card headlined «лютий і серпень» while the
+  // chart drew no лютий bar at all, because лютий came from a payout the same
+  // screen had just excluded. The schedule half — `nextCoupon` — is genuinely a
+  // forecast and is unaffected by which ledger it is handed.
+  const bigInfo = big ? bondCouponInfo(big, windowed) : undefined;
   const others = bonds.slice(1);
 
+  // THE THIRD CARD WINDOWS TOO, and stating it is the point — the branch ruled
+  // on the other two and left this one to be inferred (A42 review). It reads
+  // the windowed `days`, so under a narrow window it reports the quiet the
+  // WINDOW made rather than a seasonal shape. That is the right answer for a
+  // FLOW-derived claim and the same one «Якір доходу» gets: every card that
+  // summarises the bars must agree with the bars above it. The risk it carries
+  // is real and belongs in the copy, not in the derivation — a one-month window
+  // has one month's evidence for a claim about the calendar, and D81 records
+  // that this is the reading chosen.
   const quiet = quietStretch(days);
 
   return (
     <div>
-      <ScreenHeader title={t.screen.seasonality.title} subtitle={t.screen.seasonality.subtitle} />
+      {/* Same slot, same control, same reasons as `/yield` and `/overview` — the
+          sheet's "geometrically identical on all three", and `control` is
+          `undefined` rather than an element rendering null so `ScreenHeader`'s
+          empty-dataset branch survives (A38 review). */}
+      <ScreenHeader
+        title={t.screen.seasonality.title}
+        subtitle={t.screen.seasonality.subtitle}
+        actions={control}
+      />
 
       <Card radius={24} className="animate-in fade-in mb-3.5 p-[22px] duration-300">
         {/* D-10 — A CONTROL THAT CHANGES ONE CHART SITS ON THAT CHART, where
@@ -202,9 +254,9 @@ export function Seasonality() {
                     bigInfo.day,
                   )}
                 </strong>
-                {t.analytics.seasonality.couponRest(shortLabel(big))}
+                {t.analytics.seasonality.couponRest(shortLabel(big), bigInfo.months.length)}
                 {others.map((o) => {
-                  const info = bondCouponInfo(o, transactions);
+                  const info = bondCouponInfo(o, windowed);
                   const month = info?.historicalMonths[0] ?? info?.months[0];
                   return info && month ? (
                     <span key={o.id}>

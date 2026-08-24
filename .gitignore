@@ -37,6 +37,13 @@ docs/statements_*.xlsx
 # real fixtures under src/**/__fixtures__/ stay committable. A CSV export of the
 # LIVE dataset is real financial data — this rule is a safety net, not tidiness.
 /*.csv
+# Same net, same reasoning, added after a 650 KB SMIDA feed dump (`smf.xml`) was
+# found sitting unignored at the root of a PUBLIC repo — one `git add -A` from
+# being published. The two backup names the app itself writes are covered by name rather
+# than by extension: a bare `/*.json` would also swallow a new root config.
+/*.xml
+/quirenote-backup-*.json
+/quirenote-before-import-*.json
 
 # Built by the deploy workflow; never committed.
 infra/dist/

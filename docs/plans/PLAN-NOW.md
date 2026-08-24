@@ -61,7 +61,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A39 | **`/yield`** under a window — the table, the curve and the control | `feat/analytics-period` | M | **done** (2026-08-21) — every column reduces exactly to its unwindowed form, pinned by a test |
 | A40 | `/overview` gains a time dimension; the portfolio XIRR lands (D-8) | `feat/overview-period` | M | **done** (2026-08-21) — the two LEVEL cards deliberately stand still (D-6); the two ACROSS cards move and name the window's left end |
 | A41 | `/seasonality`'s month axis and its ephemeral toggle (D-11) | `feat/seasonality-months` | M | **done** (2026-08-24) — **D-5 is answered**: both of the sheet's formulations were set differences against `bondCouponInfo`, which holds no schedule, so both had to degenerate. `scheduledCouponMonths` asks `nextUnsettledCoupon` and `rollNextCoupon` instead of deriving a grid of its own — a first cut did derive one and disagreed with the roll twice (see D79). It draws what the sheet did not: лютий AND травень carry an actual and an expected bar |
-| A42 | **`/seasonality` is the one Phase 8 screen still outside the window** — its actual bars are FLOW by the merged sheet | `feat/seasonality-period` | M | **todo, found by the v1.8.0 release review 2026-08-24.** `period-and-analytics.dc.html:1477` classifies `/seasonality actual bars` as **FLOW — "sum over the window, bucketed by day or by month"** and measures it (day 10: 3 641,44 → **1 853,04** over тра+чер+лип); line 1620 says the control is "geometrically identical on all three" screens, and `state/settings.ts` documents `period` as split across `/overview`, `/yield` and `/seasonality`. A41 shipped the month axis and the toggle only, so today the screen ignores a window its two siblings honour. **The expected bars do NOT window** — the same table calls them FORECAST, "*nothing* — a projection has no window" — so this is the actual series alone. `PLAN-NOW`'s own "Independent of the period window" line under Section L is wrong and goes with this task |
+| A42 | `/seasonality` under the window — the third reader of the one control | `feat/seasonality-period` | M | **done** (2026-08-24). The spine's split is the whole task: **actual bars are FLOW** and window, **expected bars are FORECAST** and cannot — *"a projection has no window"*. Reproduces the sheet's measured cell, day 10: **3 641,44 → 1 853,04** (тра + чер + лип). The clip is bottom-only, matching `/overview`'s `Отриманий дохід`, the same FLOW row of the same table. The «Якір доходу» card's growth figures window too, because the DAY it names already did — 580 ₴ → 700 ₴ becomes 472 ₴ → 700 ₴ under `3 місяці`; `bondCouponInfo` stays on the whole ledger, being a schedule. Phase 8 complete |
 | A43 | F-3's grey — the treatment the windowed basis was supposed to ship with | `feat/yield-short-basis-mark` | S | **done** (2026-08-24) — closes **O24** by **D80** (owner's ruling: the sheet in full). `basisIsShort` marks a holding falling >10 % short of the basis it is divided by; `Річна` and `проти очікуваної` render muted in **every** window including the default, in both shells, with a legend on the footnote and a `title` so the mark is not colour-only. The threshold was the sheet's one delegation — derived against the shipped producers (…8976 1,15 % short and unmarked, …6475 68,39 % and marked) and pinned in `core/derive.test.ts`. **F-2's own half — S6/C1's demotion — has NOT shipped** and is deliberately separable per the sheet |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
 | A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
@@ -1201,12 +1201,11 @@ is how both get done badly.
       axis is the more useful cut for a portfolio holding semiannual bonds, and
       the data is already there. Independent of the period window — it is a
       grouping axis, not a filter — but it lands on the same screen.
-      **Done by A41 (2026-08-24). The independence claim is true OF THE AXIS and
-      was misread as covering the screen:** a grouping axis is indeed not a
-      filter, but the merged sheet windows the bars it groups
-      (`period-and-analytics.dc.html:1477`, FLOW). A41 built the axis and not
-      the window, so `/seasonality` still ignores a selection its two siblings
-      honour — that half is **A42**.
+      **Done — A41 the axis, A42 the window (both 2026-08-24). The independence
+      claim is true OF THE AXIS and was misread as covering the screen:** a
+      grouping axis is indeed not a filter, but the merged sheet windows the
+      bars it groups (`period-and-analytics.dc.html:1477`, FLOW). A41 built the
+      axis; A42 wired the window and ruled on the insight cards (D81).
 - [x] **Readability, last:** brief § S6, written now so the session sees the
       whole shape but drawn after S1–S5 settle. Each of the three carries the
       constraint that stops it being solved destructively — no `/yield` column
