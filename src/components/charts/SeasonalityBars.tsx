@@ -6,6 +6,7 @@ import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colo
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ColorKey } from '../../core/types';
+import { clampLabelX, expectedOnlyLabel } from './seasonality-labels';
 
 export interface SeasonalityChartPoint {
   day: number;
@@ -61,7 +62,14 @@ interface BarLabelEntry {
   width: number;
   height: number;
   index: number;
+  /** The plot rectangle, which is what a label has to stay inside of. */
+  parentViewBox?: { x: number; width: number };
 }
+
+// Which buckets get a tick. Thirty-one day numbers do not fit at 10 px, so the
+// day axis names seven; twelve month words do fit, so the month axis names all.
+const DAY_TICKS = [1, 5, 10, 15, 20, 25, 31];
+const MONTH_TICKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 // One combined label per day, plain <text> (no recharts <Text> auto-wrap,
 // which otherwise breaks long strings like "₴3,641 · day 10" across lines on
@@ -70,17 +78,34 @@ interface BarLabelEntry {
 // taller — two adjacent LabelLists on two narrow side-by-side bars would
 // overlap illegibly.
 function makeIncomeLabel(data: SeasonalityChartPoint[]) {
-  return function IncomeLabel({ x, y, width, height, index }: Partial<BarLabelEntry>) {
+  return function IncomeLabel({
+    x,
+    y,
+    width,
+    height,
+    index,
+    parentViewBox,
+  }: Partial<BarLabelEntry>) {
     if (x === undefined || y === undefined || width === undefined || height === undefined || index === undefined) {
       return null;
     }
     const point = data[index];
     if (!point) return null;
 
+    // EXPECTED-ONLY BUCKETS ARE THE OTHER LIST'S JOB (F-16, A41). This label
+    // rides the ACTUAL bar, so when actual is 0 recharts hands it height 0 and
+    // `y` at the baseline — `pxPerUnit` collapses and the text lands on the
+    // axis instead of above the dashed bar. The day axis never showed it,
+    // because days 3 and 25 both have real income; the month axis is the first
+    // to have a bucket with an expectation and nothing received. A bar that
+    // knows its own geometry places its own label, so the expected series
+    // carries a second `LabelList` for exactly this case.
+    if (point.actual === 0) return null;
+
     let topY = y;
     let text = point.actualLabel;
     if (point.expected !== undefined) {
-      const pxPerUnit = point.actual > 0 ? height / point.actual : 0;
+      const pxPerUnit = height / point.actual;
       const expectedY = y - (point.expected - point.actual) * pxPerUnit;
       topY = Math.min(y, expectedY);
       text = point.actualLabel ? `${point.actualLabel} · ${point.expectedLabel}` : point.expectedLabel;
@@ -88,7 +113,45 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
     if (!text) return null;
 
     return (
-      <text x={x + width / 2} y={topY - 6} textAnchor="middle" fontSize={10} fontWeight={700} fill={CHART.ink}>
+      <text
+        x={clampLabelX(x + width / 2, text, 10, parentViewBox)}
+        y={topY - 6}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight={700}
+        fill={CHART.ink}
+      >
+        {text}
+      </text>
+    );
+  };
+}
+
+/**
+ * The label an EXPECTED-ONLY bucket needs, placed by the bar that knows where
+ * it is (F-16). Which bucket a rectangle belongs to is `expectedOnlyLabel`'s
+ * question and not an obvious one — see it for why `index` is not a data index.
+ */
+function makeExpectedOnlyLabel(data: SeasonalityChartPoint[]) {
+  return function ExpectedOnlyLabel({
+    x,
+    y,
+    width,
+    index,
+    parentViewBox,
+  }: Partial<BarLabelEntry>) {
+    if (x === undefined || y === undefined || width === undefined || index === undefined) return null;
+    const text = expectedOnlyLabel(data, index);
+    if (text === null) return null;
+    return (
+      <text
+        x={clampLabelX(x + width / 2, text, 10, parentViewBox)}
+        y={y - 6}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight={700}
+        fill={CHART.ink}
+      >
         {text}
       </text>
     );
@@ -97,17 +160,39 @@ function makeIncomeLabel(data: SeasonalityChartPoint[]) {
 
 // Design lines 415-437: income-by-day-of-month bars. Motion (D7): bars grow
 // from baseline on mount and animate from previous height on data updates.
-export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
+export function SeasonalityBars({
+  data,
+  axis = 'day',
+}: {
+  data: SeasonalityChartPoint[];
+  /**
+   * Which bucket the points carry (A41). The chart draws the same two series
+   * either way; what changes is how a tick and a tooltip NAME a bucket, and
+   * naming a month "День 8" is the one thing that would be actively wrong.
+   */
+  axis?: 'day' | 'month';
+}) {
   const f = useFormat();
   const t = useT();
   const incomeLabel = makeIncomeLabel(data);
+  // Capitalised because it IS a component, and because the lower-case name is
+  // taken: `expectedOnlyLabel` is the pure helper imported above, and a local
+  // binding of that name shadowed it for this whole body — both are callable,
+  // so calling the wrong one is a silent wrong render rather than a type error.
+  const ExpectedOnlyLabel = makeExpectedOnlyLabel(data);
   return (
     <ResponsiveContainer width="100%" height={230}>
       <BarChart data={data} margin={{ top: 26, right: 12, left: 0, bottom: 0 }}>
         <CartesianGrid stroke={CHART.hairline} vertical={false} />
+        {/* TWELVE TICKS FIT UNTHINNED — the day axis thins to seven because 31
+            labels do not, and twelve month names at 10 px do (F-9). So the
+            month axis names every bucket and the day axis keeps its seven. */}
         <XAxis
           dataKey="day"
-          ticks={[1, 5, 10, 15, 20, 25, 31]}
+          ticks={axis === 'month' ? MONTH_TICKS : DAY_TICKS}
+          tickFormatter={
+            axis === 'month' ? (v) => t.dates.monthShort[Number(v) - 1] : undefined
+          }
           tick={{ fontSize: 10, fill: CHART.muted }}
           axisLine={{ stroke: CHART.hairline }}
           tickLine={false}
@@ -115,7 +200,11 @@ export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
         />
         <Tooltip
           formatter={(v) => f.money(Number(v))}
-          labelFormatter={(label) => t.analytics.seasonality.anchorDay(Number(label))}
+          labelFormatter={(label) =>
+            axis === 'month'
+              ? t.dates.monthFull[Number(label) - 1]
+              : t.analytics.seasonality.anchorDay(Number(label))
+          }
           contentStyle={CHART_TOOLTIP}
           cursor={CHART_CURSOR_FILL}
         />
@@ -128,7 +217,11 @@ export function SeasonalityBars({ data }: { data: SeasonalityChartPoint[] }) {
           isAnimationActive
           animationDuration={900}
           animationEasing="ease-out"
-        />
+        >
+          <LabelList
+            content={ExpectedOnlyLabel as unknown as ComponentProps<typeof LabelList>['content']}
+          />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

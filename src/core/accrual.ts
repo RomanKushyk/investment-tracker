@@ -406,6 +406,64 @@ export function couponProjection(asset: Asset, invested: number): CouponProjecti
   return amount <= 0 ? undefined : { amount, date, estimated: true };
 }
 
+/** A year is every month there is; a schedule cannot name a thirteenth. */
+const MONTHS_IN_YEAR = 12;
+
+/**
+ * Every calendar month a bond still expects to pay in — the answer to D-5,
+ * which the design sheet left open (A41).
+ *
+ * WHY THE SHEET COULD NOT ANSWER IT. Both formulations it tried were set
+ * differences against `bondCouponInfo`, and that function holds no schedule:
+ * its `months` is the months the bond HAS PAID in, plus the one `nextCoupon`
+ * names. Subtracting the historical months leaves at most one, and nothing at
+ * all once that coupon is paid. Per bucket the failure arrived after a year of
+ * a monthly payer filling the calendar; per bond, after its own first cycle.
+ *
+ * THE SCHEDULE IS DERIVABLE, AND IT IS NOT DERIVED HERE. A first cut walked its
+ * own month grid and disagreed with `rollNextCoupon` twice over: it BROKE when
+ * the grid overshot `maturity`, where the roll CLAMPS and pays a final short
+ * coupon (…6475 is 03.12.2026 + 6m = 03.06.2027 against a 27.05.2027 maturity,
+ * so травень vanished — the ordinary case, since real Inzhur bonds pay every
+ * 182 days and drift off the month grid), and it gated on today, where the app
+ * gates on SETTLEMENT. Both are now `rollNextCoupon`'s and
+ * `nextUnsettledCoupon`'s to answer, which is the only way two readings of one
+ * schedule cannot exist.
+ *
+ * THE ANCHOR IS THE OCCURRENCE THE APP STILL OWES, not the stored pointer.
+ * `nextCoupon` only ever moves through the S5 confirm, so the day after a
+ * coupon falls due it still points into the past — a today-based cutoff dropped
+ * серпень for a coupon the reminders were actively raising, while the day axis
+ * kept drawing it because `couponProjection` takes no date at all. It is also
+ * what ends the schedule: the confirm leaves `nextCoupon` on the final date
+ * forever, so settlement, not the calendar, is what makes this go empty.
+ *
+ * A bond with no pointer at all falls back to `maturity`, matching
+ * `couponProjection`'s own fallback (F-18) — the two must never disagree about
+ * whether an asset pays.
+ */
+export function scheduledCouponMonths(asset: Asset, transactions: Transaction[]): number[] {
+  if (asset.yieldType !== 'fixed_coupon') return [];
+  const open = nextUnsettledCoupon(asset, transactions);
+  const anchor = open?.date ?? (asset.nextCoupon === undefined ? asset.maturity : undefined);
+  if (anchor === undefined) return [];
+
+  let date = anchor;
+  const months = new Set<number>();
+  // Bounded by the calendar rather than by MAX_GRID_STEPS: `maturity` is
+  // optional, so a semiannual bond without one never reports 'matured' and only
+  // ever collects two distinct months — the twelve-month exit could not fire
+  // and the walk ran its full 500 steps on every render.
+  for (let i = 0; i < MONTHS_IN_YEAR; i++) {
+    months.add(Number(date.slice(5, 7)));
+    if (months.size === MONTHS_IN_YEAR) break;
+    const roll = rollNextCoupon(asset, date);
+    if (roll === undefined || roll.kind === 'matured') break;
+    date = roll.nextCoupon;
+  }
+  return [...months].sort((a, b) => a - b);
+}
+
 /**
  * Derived id of one coupon occurrence. Shared by the S5 skip and the S6 coupon
  * reminders (`feat/reminders` reuses it), so skipping the card silences the

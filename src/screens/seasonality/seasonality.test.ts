@@ -10,6 +10,7 @@ import {
   incomeAnchorDay,
   quietStretch,
   seasonalityDays,
+  seasonalityMonths,
 } from './seasonality';
 
 describe('seasonalityDays', () => {
@@ -131,5 +132,39 @@ describe('bondCouponInfo', () => {
 
   it('non-bond assets return undefined', () => {
     expect(bondCouponInfo(SEED_ASSETS.find((a) => a.id === 'reit')!, SEED_TRANSACTIONS)).toBeUndefined();
+  });
+});
+
+describe('seasonalityMonths (A41) — the month axis, and D-5 in it', () => {
+  it('buckets actual income by month of year', () => {
+    const m = seasonalityMonths(SEED_TRANSACTIONS, SEED_ASSETS);
+    expect(m).toHaveLength(12);
+    expect(m.find((x) => x.month === 2)!.actual).toBeCloseTo(1763.7, 1);
+    expect(m.find((x) => x.month === 7)!.actual).toBeCloseTo(700.36, 1);
+  });
+
+  it('expects a coupon in EVERY month a bond is scheduled for, not just the next one', () => {
+    // D-5. …8976 pays in August and again at its February maturity, so both
+    // months carry an expectation — and February carries BOTH, because it also
+    // has the 2026 coupon already received. The design sheet drew only August;
+    // the schedule says otherwise, and the schedule is the thing being asked.
+    const m = seasonalityMonths(SEED_TRANSACTIONS, SEED_ASSETS);
+    expect(m.find((x) => x.month === 8)!.expected).toBe(1240);
+    expect(m.find((x) => x.month === 2)!.expected).toBe(1240);
+    expect(m.find((x) => x.month === 2)!.actual).toBeGreaterThan(0);
+    expect(m.find((x) => x.month === 12)!.expected).toBe(216);
+    // …6475's FINAL coupon (review F1): 03.12.2026 + 6m overshoots the
+    // 27.05.2027 maturity, so `rollNextCoupon` clamps to maturity and травень
+    // carries the last 216,00. The first cut broke out of the walk instead and
+    // this month was missing from the screen.
+    expect(m.find((x) => x.month === 5)!.expected).toBe(216);
+    expect(m.find((x) => x.month === 5)!.actual).toBeCloseTo(472.13, 2);
+  });
+
+  it('leaves a month with neither actual nor expected empty', () => {
+    const m = seasonalityMonths(SEED_TRANSACTIONS, SEED_ASSETS);
+    const october = m.find((x) => x.month === 10)!;
+    expect(october.actual).toBe(0);
+    expect(october.expected).toBeUndefined();
   });
 });

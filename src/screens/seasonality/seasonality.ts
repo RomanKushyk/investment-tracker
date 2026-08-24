@@ -1,7 +1,7 @@
 // Pure data-shaping for the Seasonality screen (day-of-month bars + insight
 // cards) — not in src/lib, that layer stays untouched per this task's scope.
 // Covered by seasonality.test.ts.
-import { couponProjection } from '../../core/accrual';
+import { couponProjection, scheduledCouponMonths } from '../../core/accrual';
 import { investedByAsset } from '../../core/derive';
 import type { Asset, Transaction } from '../../core/types';
 
@@ -51,6 +51,62 @@ export function seasonalityDays(transactions: Transaction[], assets: Asset[]): S
     days.push({ day, actual: actual[day] ?? 0, expected: expected[day] });
   }
   return days;
+}
+
+/** Recorded payout income, summed per calendar month. */
+export function incomeByMonth(transactions: Transaction[]): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const t of transactions) {
+    if (t.type !== 'dividend_accrual' && t.type !== 'interest_payout') continue;
+    const month = Number(t.date.slice(5, 7));
+    out[month] = (out[month] ?? 0) + t.amount;
+  }
+  return out;
+}
+
+function expectedByMonth(assets: Asset[], transactions: Transaction[]): Record<number, number> {
+  const out: Record<number, number> = {};
+  const invested = investedByAsset(transactions);
+  for (const a of assets) {
+    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    if (coupon === undefined) continue;
+    for (const month of scheduledCouponMonths(a, transactions)) {
+      out[month] = (out[month] ?? 0) + coupon.amount;
+    }
+  }
+  return out;
+}
+
+export interface SeasonalityMonth {
+  month: number;
+  actual: number;
+  expected?: number;
+}
+
+/**
+ * The same two series bucketed by MONTH OF YEAR (A41, extension § S4).
+ *
+ * THE EXPECTED SERIES IS THE ONE THAT CHANGES, and it is D-5's answer. On a day
+ * axis one bond contributes ONE bar, because `couponProjection` returns one
+ * occurrence; on a month axis it contributes every month it is scheduled to pay
+ * in, which `scheduledCouponMonths` walks forward from the schedule rather than
+ * subtracting from history. The sheet left this open because both of its
+ * formulations degenerated — see that function for why, and for the test that
+ * pins the case they failed.
+ *
+ * The amount is `couponProjection`'s, unchanged: one coupon's worth per month
+ * the bond pays in. A bond that pays twice a year shows its coupon in two
+ * months, not half of it in each — the bar answers "what lands in this month",
+ * and what lands is a whole coupon.
+ */
+export function seasonalityMonths(transactions: Transaction[], assets: Asset[]): SeasonalityMonth[] {
+  const actual = incomeByMonth(transactions);
+  const expected = expectedByMonth(assets, transactions);
+  const months: SeasonalityMonth[] = [];
+  for (let month = 1; month <= 12; month++) {
+    months.push({ month, actual: actual[month] ?? 0, expected: expected[month] });
+  }
+  return months;
 }
 
 // "Income anchor" card: the day-of-month with the most accumulated income.

@@ -536,6 +536,15 @@ export const en = {
       incomeAnchor: 'Income anchor',
       couponSeason: 'Coupon season',
       quietStretch: 'Quiet stretch',
+      /**
+       * Month names for the month-of-year axis (A41). Written out rather than
+       * taken from `Intl`: every other figure and label in this app is
+       * formatted by the language the USER chose, not the one the platform
+       * reports, and `toLocaleString` would answer the second question.
+       */
+      axisByDay: 'By day',
+      axisByMonth: 'By month',
+      axisAriaLabel: 'Chart axis',
       anchorDay: (day: number) => `Day ${day}`,
       // Lowercase: it sits after a figure on the chart's own bar label.
       dayShort: (day: number) => `day ${day}`,
@@ -1409,6 +1418,9 @@ export const uk: Dict = {
       incomeAnchor: 'Якір доходу',
       couponSeason: 'Купонний сезон',
       quietStretch: 'Тиха смуга',
+      axisByDay: 'За днями',
+      axisByMonth: 'За місяцями',
+      axisAriaLabel: 'Вісь графіка',
       anchorDay: (day: number) => `День ${day}`,
       dayShort: (day: number) => `день ${day}`,
       anchorRest: (asset: string, frequency: string, first: string, last: string) =>

@@ -11,6 +11,7 @@ import {
   nextUnsettledCoupon,
   rollNextCoupon,
   suggestedQuote,
+  scheduledCouponMonths,
 } from './accrual';
 import type { Asset, Transaction } from './types';
 
@@ -554,5 +555,102 @@ describe('the published schedule beats the month grid (A1)', () => {
       kind: 'rolled',
       nextCoupon: '2026-09-25',
     });
+  });
+});
+
+describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
+  const bond = (over: Partial<Asset> = {}): Asset =>
+    ({
+      id: 'b',
+      name: 'OVDP',
+      code: 'GB',
+      colorKey: 'bond',
+      yieldType: 'fixed_coupon',
+      payoutSchedule: 'semiannual',
+      expectedPct: 16.4,
+      firstPurchase: '2026-02-05',
+      maturity: '2027-02-25',
+      couponAmount: 1240,
+      nextCoupon: '2026-08-25',
+      ...over,
+    }) as Asset;
+
+  it('names every scheduled month to maturity, not the one the pointer holds', () => {
+    // …8976's shape: August now, February at maturity.
+    expect(scheduledCouponMonths(bond(), [])).toEqual([2, 8]);
+  });
+
+  it('DOES NOT DEGENERATE once the next coupon is paid — the whole of D-5', () => {
+    // The failure both of the sheet's formulations had. A set difference
+    // against `bondCouponInfo` returns nothing here; the schedule still names
+    // February, because February is still a month this bond pays in.
+    expect(scheduledCouponMonths(bond({ nextCoupon: '2027-02-25' }), [])).toEqual([2]);
+  });
+
+  it('KEEPS THE FINAL COUPON WHEN THE GRID OVERSHOOTS MATURITY (review F1)', () => {
+    // …6475's real shape, and the normal case rather than the edge: 03.12.2026
+    // + 6 months is 03.06.2027, which is PAST the 27.05.2027 maturity. Breaking
+    // there dropped травень, and `rollNextCoupon` does not break — it CLAMPS to
+    // maturity and pays a final, short coupon. Two readings of one schedule is
+    // the thing that must never happen, so the walk is delegated to it.
+    const b6475 = bond({ maturity: '2027-05-27', nextCoupon: '2026-12-03', couponAmount: 216 });
+    expect(rollNextCoupon(b6475, '2026-12-03')).toEqual({ kind: 'rolled', nextCoupon: '2027-05-27' });
+    expect(scheduledCouponMonths(b6475, [])).toEqual([5, 12]);
+  });
+
+  it('KEEPS A COUPON WHOSE DATE HAS PASSED AND WHICH NOBODY CONFIRMED (review F8)', () => {
+    // `nextCoupon` only ever moves through the S5 confirm, so the day after a
+    // coupon falls due it still points at a date in the past. Gating on today
+    // dropped серпень for a coupon the app was still actively reminding about —
+    // and the DAY axis kept drawing it, because `couponProjection` takes no
+    // date at all. `nextUnsettledCoupon` is what the reminders read, so it is
+    // what this reads.
+    expect(scheduledCouponMonths(bond(), [])).toContain(8);
+  });
+
+  it('goes empty once every scheduled coupon has actually been recorded', () => {
+    // The genuine "nothing left to expect". It is settlement that ends the
+    // schedule, NOT the calendar: the confirm leaves `nextCoupon` sitting on
+    // the final date forever, so a today-based cutoff either kept a phantom
+    // February bar or dropped a real one, depending on the day it ran.
+    const settled: Transaction[] = [
+      tx({ id: 'c1', date: '2026-08-25', assetId: 'b', amount: 1240 }),
+      tx({ id: 'c2', date: '2027-02-25', assetId: 'b', amount: 1240 }),
+    ];
+    expect(scheduledCouponMonths(bond(), settled)).toEqual([]);
+  });
+
+  it('answers for a bond with a maturity and NO nextCoupon (F-18)', () => {
+    // `couponProjection` falls back to the maturity date and still projects;
+    // `bondCouponInfo` does not, which is why the two axes could disagree about
+    // one bond. This matches the projection.
+    expect(scheduledCouponMonths(bond({ nextCoupon: undefined }), [])).toEqual([2]);
+  });
+
+  it('a monthly payer names twelve months and stops', () => {
+    const monthly = bond({ payoutSchedule: 'monthly', nextCoupon: '2026-08-25', maturity: '2030-01-01' });
+    expect(scheduledCouponMonths(monthly, [])).toHaveLength(12);
+  });
+
+  it('terminates for a periodic bond with NO maturity date (review F9)', () => {
+    // `maturity` is optional, so `rollNextCoupon` never reports 'matured' here
+    // and a semiannual payer only ever collects two distinct months — the
+    // twelve-months exit can never fire. The step bound is what ends it.
+    const endless = bond({ maturity: undefined, payoutSchedule: 'semiannual' });
+    expect(scheduledCouponMonths(endless, [])).toEqual([2, 8]);
+  });
+
+  it('follows rollNextCoupon for a one-payment schedule rather than inventing a rule', () => {
+    // With no period, `rollNextCoupon` says the next payment IS maturity. A
+    // pointer set on top of that is a payment too, so both months are named —
+    // the walk states what the rest of the app already believes, and does not
+    // get a second opinion of its own.
+    expect(scheduledCouponMonths(bond({ payoutSchedule: 'maturity' }), [])).toEqual([2, 8]);
+    expect(
+      scheduledCouponMonths(bond({ payoutSchedule: 'maturity', nextCoupon: undefined }), []),
+    ).toEqual([2]);
+    expect(
+      scheduledCouponMonths(bond({ payoutSchedule: 'none', nextCoupon: undefined }), []),
+    ).toEqual([2]);
   });
 });
