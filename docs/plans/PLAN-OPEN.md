@@ -19,6 +19,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **closed — D75**, by DISSOLVING into D33: after B3 there is no write for a toggle to authorise. The ruling left over is that a hand-entered value is marked and an archive one is not |
 | O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
+| O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **open, 2026-08-24 — ALREADY SHIPPED TO `dev` ONE WAY, found by the v1.8.0 release review.** A pinned v1 contract and the merged Phase 8 sheet say opposite things, and the mitigation the sheet pairs with its answer was not built. Blocks promoting 1.8.0 to production. See below |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -275,3 +276,63 @@ roughly +38 % on its own basis" over "53 days". Both were wrong: the terminal
 date is the last snapshot (2026-07-27), giving **55 days** and **+34,5 %** —
 the figure the map had named all along.
 
+
+
+## O24 — Does the window change `Річна`'s basis, and where is the treatment that was supposed to come with it?
+
+**Found by the v1.8.0 release review (2026-08-24), which is late: A39 shipped
+this into `dev` on 2026-08-21 and the release is what would carry it to
+quirenote.com.** Nothing recorded the conflict at the time — not a decision, not
+a plan row — so this file is where it goes until the owner rules.
+
+**The two sources say opposite things, and both are binding-looking.**
+
+- `NEXT-PHASE-PLAN.md:94`, Phase 6's pinned trap fixes: **"annualized keeps the
+  PORTFOLIO_START `daysHeld` basis regardless of window"**. `PLAN-WAITING.md:265`
+  calls that set "non-negotiable — they were bought with the formula audit" and
+  names this exact one: *"A range filter that changes an annualised figure is a
+  wrong figure, not a filtered one."* `FORMULA-AUDIT` has the basis as D5#5-pinned.
+- `design/extensions/period-and-analytics.dc.html:716` (F-2), merged 2026-08-21:
+  **"What the window changes is the `daysHeld` handed in, and that value is the
+  implementer's to derive from `resolveWindow` and pin."** It measures the
+  consequence on …6475 — one holding, three windows, the same closing value:
+  `Від початку` 174 d → **+10,9 %**, `3 місяці` 91 d → **+20,8 %**, `1 місяць`
+  30 d → **+33,7 %**, while Δ barely moves and `проти очікуваної` flips sign —
+  and concludes that this is why S6/C1 **demotes** `Річна` rather than promoting it.
+
+**What shipped:** `src/screens/yield/yield.ts:169` sets
+`daysHeld = daysBetween(w.from, w.to)`. The sheet's reading, not the plan's.
+
+**And the half that did not ship.** The sheet does not leave the amplification
+bare — F-3's DRAWN RESOLUTION greys the `Річна` and `проти очікуваної` cells of
+a marked row in `muted` #696865, **in every window including `Від початку`**,
+because the same distortion already exists at the default (…6475's pinned
++10,9 % is its +5,20 % scaled over a 174-day basis it did not live through).
+`/yield` has no such marking today: **the amplification arrived without its
+mitigation**, which is the one combination neither source argues for.
+
+The sheet also says, in as many words, **"THE OWNER SHOULD RULE on whether a
+visible change to the DEFAULT /yield screen is acceptable"** — so the grey is
+the owner's call by the sheet's own account, not the implementer's.
+
+**Why an agent must not settle this.** CLAUDE.md: *"v1 pinned contracts stay
+binding until a phase supersedes them."* Whether a merged design sheet IS a
+supersession of a formula-audit contract is precisely the kind of question D14's
+arbitration does not cover — D14 gives the extension visual disputes and the
+brief copy and behaviour; a denominator is neither.
+
+**Interacts with [O23]**, which asks WHICH span a row should annualize over. If
+O23 lands on each asset's own holding period, part of F-2's amplification stops
+being about the window at all. Answer them together or answer O23 first.
+
+**Options, stated so the ruling is a choice and not an essay:**
+
+1. **The plan wins.** `Річна` keeps the PORTFOLIO_START basis in every window;
+   the window changes Δ and the flows, never the denominator. Revert
+   `yield.ts:169`; F-2 becomes a note that the trap was avoided rather than met.
+2. **The sheet wins, in full.** The window changes the basis AND F-3's grey
+   marking ships with it, including on the default screen. Supersede the Phase 6
+   pin by decision, in writing, citing the measurement.
+3. **The sheet wins, deferred.** Keep the windowed basis, ship the grey later —
+   this is the state `dev` is in RIGHT NOW, and it is on this list because
+   nothing chose it.

@@ -27,7 +27,13 @@ export interface YieldTableRow {
   // daysHeld basis; render "—" instead, same guard as Attributes' actualAnnualizedPct).
   value: number | undefined;
   deltaTotal: number | undefined; // fraction, e.g. 0.0441 -> "+4.41%"
-  annualized: number | undefined; // fraction, global PORTFORLIO_START basis (D5#5)
+  // fraction. THE BASIS IS THE WINDOW'S SPAN, not the portfolio's — A39 changed
+  // it and left this line claiming the opposite (see :127 and :169, which agree
+  // with each other and not with what stood here). Whether it SHOULD be the
+  // window's is an open question, not a settled one: a v1 contract pins the
+  // PORTFOLIO_START basis "regardless of window" and the merged Phase 8 sheet
+  // instructs the opposite, with nothing recording a supersession. O24.
+  annualized: number | undefined;
   vsExpectedPp: number | undefined; // annualized(%) - expectedPct, in percentage points
   // S9b total-return family (D13, additive — the columns may DISAGREE with
   // deltaTotal by design: the audit's illusion-of-loss triple). undefined =

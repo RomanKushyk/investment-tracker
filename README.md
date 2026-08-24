@@ -26,7 +26,7 @@ Use the provided `package.json` as-is, with these notes:
 - **State**: `zustand` (persisted) for currency preference + draft quote entry; **all portfolio data** in a local store — recommend IndexedDB (or localStorage JSON to start) behind a small repository module, queried via `@tanstack/react-query`. `socket.io-client` is in deps but unused — omit it.
   > **Since 2026-08-11 this is no longer the whole picture.** A backend exists in `infra/` — a daily job archiving asset prices into Aurora DSQL — but the app does not read it: portfolio data is still local. See `infra/README.md`, and `docs/superpowers/specs/2026-08-04-*` for where it is going.
 - **Forms**: `react-hook-form` + `zod` for the Transaction form (incl. conditional "New asset details" sub-form) and daily quote inputs.
-- **Charts**: `recharts` — area chart (Balances), stacked bar (Payouts), multi-line (Yield), day-of-month bar (Seasonality), donut (Allocation). Match the reference's colors, grid lines (`#e8e7e4`), and rounded bar corners (rx≈6). No legends other than the small inline dot-legends shown.
+- **Charts**: `recharts` — area chart (Balances), stacked bar (Payouts), multi-line (Yield), day-of-month and month-of-year bar (Seasonality), donut (Allocation). Match the reference's colors, grid lines (`#e8e7e4`), and rounded bar corners (rx≈6). No legends other than the small inline dot-legends shown.
 - **UI primitives**: Radix for Select/Dialog; CVA + tailwind-merge for button/tag variants; `sonner` for "Snapshot saved" / "Transaction recorded" toasts; `react-day-picker` for date fields (dd.MM.yyyy display).
 - **Tailwind 4**: define the palette below as `@theme` tokens; prefer utility classes over inline styles.
 
@@ -162,7 +162,7 @@ Stacked monthly bar chart (dividends `#8ba283`, coupons `#98a3ad`, value labels 
 2×2 grid of asset cards: avatar + h3 + yield-type tag; then a 2-col dl of ~6 facts (Expected return, Actual ann., Payout schedule, Target share, First purchase, Reinvest policy — bonds swap in YTM, Coupon amount, Maturity, Next coupon). Read-only; edited via the New-asset flow.
 
 ### 6.7 Seasonality
-Income-by-day-of-month bar chart: gray 3–5px stubs for no-income days, tall colored bars on days 10 (₴3,817, green), 3, 25 (labeled; `*` = expected). Footnote explaining stubs. Below: 3 insight cards — "Income anchor" (day 10, green tint), "Coupon season" (Feb & Aug day 25), "Quiet stretch" (days 26–31).
+Income-by-day-of-month bar chart: gray 3–5px stubs for no-income days, tall colored bars on days 10 (₴3,817, green), 3, 25 (labeled; `*` = expected). Footnote explaining stubs. **A41 added a second axis**: the same recorded income re-bucketed by MONTH of year, beside a per-month coupon FORECAST that is re-projected rather than re-bucketed — a bond contributes one bar to the day axis and one to every month it is scheduled to pay in, so the two axes do not sum alike. A segmented toggle on the chart card chooses between them; it is `useState`, so it returns to days whenever the route is left and re-entered. Below: 3 insight cards — "Income anchor" (day 10, green tint), "Coupon season" (Feb & Aug day 25), "Quiet stretch" (days 26–31).
 
 ### 6.8 Portfolio
 Positions table: Asset | Yield type tag | Invested | of it reinvested | Value now | P&L ₴ | P&L % | Share, plus a bolded Total row ("Total + cash ₴7.75"). Below: 3 cards — Best performer (…6475 +5.20%), Laggard (Energy), Income engine (REIT, green tint).
