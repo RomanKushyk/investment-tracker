@@ -3,6 +3,8 @@
 // by yield.test.ts.
 import {
   annualizedPct,
+  basisIsShort,
+  startDateByAsset,
   investedByAsset,
   investedOwnByAsset,
   payoutsNetByAsset,
@@ -27,14 +29,21 @@ export interface YieldTableRow {
   // daysHeld basis; render "—" instead, same guard as Attributes' actualAnnualizedPct).
   value: number | undefined;
   deltaTotal: number | undefined; // fraction, e.g. 0.0441 -> "+4.41%"
-  // fraction. THE BASIS IS THE WINDOW'S SPAN, not the portfolio's — A39 changed
-  // it and left this line claiming the opposite (see :127 and :169, which agree
-  // with each other and not with what stood here). Whether it SHOULD be the
-  // window's is an open question, not a settled one: a v1 contract pins the
-  // PORTFOLIO_START basis "regardless of window" and the merged Phase 8 sheet
-  // instructs the opposite, with nothing recording a supersession. O24.
+  // fraction. THE BASIS IS THE WINDOW'S SPAN, not the portfolio's — and that is
+  // now settled rather than contested: D80 (owner's ruling on O24) supersedes
+  // the v1 contract that pinned the PORTFOLIO_START basis "regardless of
+  // window". A39 changed the code and left this line claiming the opposite for
+  // three days. `shortBasis` below is the treatment D80 requires with it.
   annualized: number | undefined;
   vsExpectedPp: number | undefined; // annualized(%) - expectedPct, in percentage points
+  /**
+   * true = `annualized` and `vsExpectedPp` are divided by a span this asset did
+   * not materially live through, so `/yield` renders both in `muted` (F-3/D80).
+   * Not a suppression: the figure stays byte-identical and every D5-pinned
+   * number is still reproducible — the mark says trust it less, the same signal
+   * the XIRR column already uses for null.
+   */
+  shortBasis: boolean;
   // S9b total-return family (D13, additive — the columns may DISAGREE with
   // deltaTotal by design: the audit's illusion-of-loss triple). undefined =
   // no quote (same guard as above); null = core zero-denominator guard /
@@ -175,6 +184,23 @@ export function yieldTableRowsIn(
   const daysHeld = w === undefined ? 0 : daysBetween(w.from, w.to);
   const annualizable = daysHeld > 0;
 
+  // F-3/D80 — WHICH ROWS CANNOT SUPPORT THEIR OWN BASIS. `daysHeld` above is one
+  // span for every row (D5#5), so an asset bought partway through is annualized
+  // over time it did not exist for. This says which ones, per row, against the
+  // very basis the row is divided by — including at `Від початку`, where the
+  // distortion has always been present and invisible.
+  // Built as one pass beside `investedByAsset` and its siblings rather than
+  // rescanned per row: `assetStart` walks the whole ledger, and calling it from
+  // inside `assets.map` made this O(assets x transactions) on every render.
+  const startByAsset = startDateByAsset(assets, transactions);
+  const shortBasisOf = (asset: Asset): boolean => {
+    if (w === undefined) return false;
+    const start = startByAsset[asset.id];
+    if (start === undefined) return false;
+    const held = daysBetween(start > w.from ? start : w.from, w.to);
+    return basisIsShort(held, daysHeld);
+  };
+
   return assets.map((asset) => {
     const value = values[asset.id];
     const openValue = open[asset.id] ?? 0;
@@ -189,6 +215,7 @@ export function yieldTableRowsIn(
         vsExpectedPp: undefined,
         totalReturn: undefined,
         xirr: undefined,
+        shortBasis: false,
       };
     }
     // `+ sold` is the disposal term F-7 asked for. It is 0 on the seed, so the
@@ -202,6 +229,7 @@ export function yieldTableRowsIn(
       value,
       deltaTotal,
       annualized,
+      shortBasis: annualized === undefined ? false : shortBasisOf(asset),
       vsExpectedPp: annualized === undefined ? undefined : annualized * 100 - asset.expectedPct,
       // THE DENOMINATOR CHANGES MEANING UNDER A WINDOW, and saying so is the
       // point (A39 review). `totalReturnPct`'s contract is "external capital

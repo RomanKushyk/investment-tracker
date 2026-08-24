@@ -19,7 +19,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **closed — D75**, by DISSOLVING into D33: after B3 there is no write for a toggle to authorise. The ruling left over is that a hand-entered value is marked and an archive one is not |
 | O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
-| O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **open, 2026-08-24 — ALREADY SHIPPED TO `dev` ONE WAY, found by the v1.8.0 release review.** A pinned v1 contract and the merged Phase 8 sheet say opposite things, and the mitigation the sheet pairs with its answer was not built. Blocks promoting 1.8.0 to production. See below |
+| O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **closed — D80**, owner's ruling 2026-08-24: the sheet in full. The window changes the basis (superseding Phase 6's pin) AND F-3's grey ships with it, in every window including the default. The threshold the sheet delegated is `basisIsShort`, 10 %, derived against the shipped producers and tested |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -278,7 +278,9 @@ the figure the map had named all along.
 
 
 
-## O24 — Does the window change `Річна`'s basis, and where is the treatment that was supposed to come with it?
+## O24 — Does the window change `Річна`'s basis, and where is the treatment that was supposed to come with it? — **CLOSED, D80 (2026-08-24)**
+
+> **Ruled: the sheet in full.** Kept below because the evidence is what D80 rests on, and because [O23] still interacts with it.
 
 **Found by the v1.8.0 release review (2026-08-24), which is late: A39 shipped
 this into `dev` on 2026-08-21 and the release is what would carry it to
@@ -300,7 +302,7 @@ a plan row — so this file is where it goes until the owner rules.
   30 d → **+33,7 %**, while Δ barely moves and `проти очікуваної` flips sign —
   and concludes that this is why S6/C1 **demotes** `Річна` rather than promoting it.
 
-**What shipped:** `src/screens/yield/yield.ts:169` sets
+**What shipped:** `yieldTableRowsIn` (`src/screens/yield/yield.ts`) sets
 `daysHeld = daysBetween(w.from, w.to)`. The sheet's reading, not the plan's.
 
 **And the half that did not ship.** The sheet does not leave the amplification

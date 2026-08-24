@@ -53,6 +53,76 @@ export function portfolioStart(
   return earliest;
 }
 
+/**
+ * The date an asset's own history begins — the per-asset counterpart to
+ * `portfolioStart`, and deliberately NOT a replacement for it. `portfolioStart`
+ * stays the annualization basis (D5#5); this only says how much of that basis a
+ * given asset was actually present for.
+ */
+/** Every asset's own start in ONE pass, the shape the other per-asset maps use. */
+export function startDateByAsset(assets: Asset[], txs: Transaction[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const a of assets) if (a.firstPurchase) out[a.id] = a.firstPurchase;
+  for (const t of txs) {
+    if (!t.assetId) continue;
+    const cur = out[t.assetId];
+    if (cur === undefined || t.date < cur) out[t.assetId] = t.date;
+  }
+  return out;
+}
+
+export function assetStart(asset: Asset, txs: Transaction[]): string | undefined {
+  let earliest = asset.firstPurchase;
+  for (const t of txs) {
+    if (t.assetId !== asset.id) continue;
+    if (earliest === undefined || t.date < earliest) earliest = t.date;
+  }
+  return earliest;
+}
+
+/**
+ * How far short of the basis an asset's own holding falls before `Річна` stops
+ * being a rate the holding can support (F-3, D80).
+ *
+ * THE SHEET SET THE REQUIREMENT AND EXPLICITLY DECLINED THE LINE: "mark a row
+ * when its `Річна` is divided by a span the asset MATERIALLY did not live
+ * through — …6475's 55 days against 174 is the case, …8976's 172 against 174 is
+ * not — [...] Where the line between those two falls is a `core/` question
+ * about the metric, not a colour question, and this sheet does not answer it."
+ * So it is answered here, and the two cases it named are pinned by test.
+ *
+ * MEASURED ON THE SHIPPED PRODUCERS, on the seed's own 174-day basis:
+ * REIT and Energy fall 0 % short, …8976 falls **1,15 %** short (2 days — it was
+ * bought 05.02 against a 03.02 start), …6475 falls **68,39 %** short (bought
+ * 02.06). Any threshold between those two satisfies the sheet. 10 % is where it
+ * falls, for a reason that is not the gap's width:
+ *
+ * `annualizedPct` divides by the basis, so an asset present for only `h` of `n`
+ * days has its rate UNDERSTATED by exactly `n / h`. At a 10 % shortfall that is
+ * 11 %, which on this portfolio's 10–11 % rates moves the figure by ~1,2 pp —
+ * and `проти очікуваної` is denominated in percentage points against
+ * `expectedPct`, so one point is the smallest error that changes what that
+ * column claims. Below 10 % the mark would fire on rounding; above it, on
+ * figures already saying the wrong thing.
+ *
+ * The tolerance is what separates "bought at inception" from "bought partway
+ * through", and it is why the predicate the sheet DELETED — "first purchase
+ * after the window's `from`" — could not work: it fires on …8976's two days.
+ */
+export const SHORT_BASIS_TOLERANCE = 0.1;
+
+export function basisIsShort(heldDays: number, basisDays: number): boolean {
+  // ONLY the basis short-circuits. A first cut also bailed on `heldDays <= 0`,
+  // which silently exempted the WORST case there is: an asset bought on the
+  // window's last day holds 0 of its 30, gets its one day of return scaled by
+  // 12.17, and was the one row that could never be marked. Zero holding is not
+  // "nothing to measure", it is the maximum shortfall (A41 review). Negative
+  // held days are the same case — `yield.ts` deliberately counts a buy dated
+  // after the last snapshot.
+  if (basisDays <= 0) return false;
+  return heldDays < basisDays * (1 - SHORT_BASIS_TOLERANCE);
+}
+
 const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCompare(b.date));
 
 /**

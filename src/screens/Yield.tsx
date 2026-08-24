@@ -46,7 +46,17 @@ export function Yield() {
   // The footnote names the basis, so it follows the window rather than the
   // portfolio: under `3 місяці` a note reading "from 3 Feb" would describe a
   // table that no longer starts there.
-  const note = win ? t.analytics.prose.yieldNote(f.date(win.from)) : undefined;
+  // THE GREY OWES A LEGEND WHEREVER IT APPEARS, and A39 already made this one
+  // footnote serve both the default and the windowed screen — so the clause is
+  // appended here rather than to a second string. Conditional on a row actually
+  // being marked: a legend for a mark that is not on screen explains nothing
+  // and is one more sentence to read. On the seed's default window …6475 is
+  // marked, so it IS the default screen's footnote (F-3 insists on that).
+  const marked = rows.some((r) => r.shortBasis);
+  const note = win
+    ? t.analytics.prose.yieldNote(f.date(win.from)) +
+      (marked ? ` ${t.analytics.prose.shortBasisNote}` : '')
+    : undefined;
 
   return (
     <div>
@@ -112,14 +122,27 @@ export function Yield() {
                   <td className={`py-2 text-right font-bold ${signClass(r.deltaTotal)}`}>
                     {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
                   </td>
-                  <td className="py-2 text-right">{r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}</td>
+                  {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a
+                      reader who cannot separate #696865 from #26262a (WCAG
+                      1.4.1). The legend in the footnote explains the grey but
+                      nothing in the accessible tree says WHICH cells are grey,
+                      so the marked ones name themselves (A41 review). */}
+                  <td
+                    className={`py-2 text-right ${r.shortBasis ? 'text-muted' : ''}`}
+                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                  >
+                    {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+                  </td>
                   <td className={`py-2 text-right font-bold ${signClass(r.totalReturn)}`}>
                     {r.totalReturn == null ? '—' : f.pct(r.totalReturn)}
                   </td>
                   <td className={`py-2 text-right ${r.xirr == null ? 'text-muted' : ''}`}>
                     {r.xirr == null ? '—' : f.pct(r.xirr, 1)}
                   </td>
-                  <td className={`py-2 text-right ${signClass(r.vsExpectedPp)}`}>
+                  <td
+                    className={`py-2 text-right ${r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}`}
+                    title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+                  >
                     {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
                   </td>
                 </tr>
@@ -148,7 +171,14 @@ export function Yield() {
               </span>
             </Fact>
             <Fact label={t.analytics.annualized}>
-              {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+              {/* The same mark in both shells (D66) — a figure that is greyed on
+                  the rail and black in the drawer is two different claims. */}
+              <span
+                className={r.shortBasis ? 'text-muted' : ''}
+                title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+              >
+                {r.annualized === undefined ? '—' : f.pct(r.annualized, 1)}
+              </span>
             </Fact>
             <Fact label={t.analytics.totalReturn}>
               <span className={signClass(r.totalReturn)}>
@@ -161,7 +191,10 @@ export function Yield() {
               </span>
             </Fact>
             <Fact label={t.analytics.vsExpected}>
-              <span className={signClass(r.vsExpectedPp)}>
+              <span
+                className={r.shortBasis ? 'text-muted' : signClass(r.vsExpectedPp)}
+                title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
+              >
                 {r.vsExpectedPp === undefined ? '—' : f.pp(r.vsExpectedPp, t.analytics.ppSuffix)}
               </span>
             </Fact>

@@ -262,7 +262,7 @@ These two are **not blocked** — they are deferred on purpose, and the reason i
 
 **Technically startable today.** The logic is pure: `core/dates.filterRange`, `useDateRange` on `useSearchParams`, `core/day-deltas.ts`. Deferred because every *browser* checkpoint would need re-verifying after W7 replaces the persistence layer, and the phase is checkpoint-heavy — five chart screens × presets × themes × 360 px. Doing it twice costs more than waiting.
 
-**If it is pulled forward anyway** (a legitimate call if the migration slips), the pinned trap fixes in `NEXT-PHASE-PLAN.md` are non-negotiable — they were bought with the formula audit. The one that gets broken by accident: **annualized keeps the PORTFOLIO_START `daysHeld` basis regardless of the selected window.** A range filter that changes an annualised figure is a wrong figure, not a filtered one.
+**If it is pulled forward anyway** (a legitimate call if the migration slips), the pinned trap fixes in `NEXT-PHASE-PLAN.md` are non-negotiable — they were bought with the formula audit. The one that gets broken by accident: ~~**annualized keeps the PORTFOLIO_START `daysHeld` basis regardless of the selected window.** A range filter that changes an annualised figure is a wrong figure, not a filtered one.~~ **SUPERSEDED 2026-08-24 by D80** — and it WAS broken by accident, in A39, three days before anyone noticed. The ruling went the other way on measured evidence (F-2), but the accident is the point this sentence was making: the change reached `dev` with no decision and without F-3's grey, which is the combination neither source argued for.
 
 ## W14 — Phase 7: DB browser — **after W7, by construction**
 

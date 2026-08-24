@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   annualizedPct,
+  basisIsShort,
   capitalGain,
   capitalGainPct,
   cashAsOf,
@@ -20,6 +21,7 @@ import {
   ledgerCashDrift,
   netDeposits,
   netResult,
+  startDateByAsset,
   payoutsGross,
   payoutsGrossByAsset,
   payoutsNet,
@@ -510,5 +512,82 @@ describe('windowed accessors', () => {
     const out = transactionsIn(txs, { from: '2026-01-01', to: '2026-12-31', clamped: false });
     expect(out.map((t) => t.amount)).toEqual([3, 1]);
     expect(txs.map((t) => t.amount)).toEqual([3, 1]);
+  });
+});
+
+describe('startDateByAsset', () => {
+  // Self-contained rather than seeded: this is a core test and the only fields
+  // it exercises are `id` and `firstPurchase`.
+  const a = (over: Partial<Asset>): Asset =>
+    ({
+      id: 'x',
+      name: 'X',
+      code: 'X',
+      colorKey: 'reit',
+      yieldType: 'market',
+      expectedPct: 0,
+      targetPct: 0,
+      firstPurchase: '2026-02-05',
+      createdAt: '2026-02-05T10:00:00',
+      ...over,
+    }) as Asset;
+
+  it('takes the earliest of the stated firstPurchase and the asset\'s own rows', () => {
+    const asset = a({ id: 'x', firstPurchase: '2026-05-01' });
+    const txs = [
+      { id: 't1', date: '2026-03-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
+      { id: 't2', date: '2026-06-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
+    ] as Transaction[];
+    // A row earlier than the attribute wins — the same min direction
+    // `portfolioStart` uses, and the reason this is derived rather than read.
+    expect(startDateByAsset([asset], txs)['x']).toBe('2026-03-02');
+  });
+
+  it('keeps firstPurchase when no row is earlier, and ignores other assets', () => {
+    const asset = a({ id: 'x', firstPurchase: '2026-02-05' });
+    const txs = [
+      { id: 't1', date: '2026-01-01', type: 'buy', assetId: 'other', amount: 10, source: 'own' },
+    ] as Transaction[];
+    expect(startDateByAsset([asset], txs)['x']).toBe('2026-02-05');
+  });
+
+  it('says nothing for an asset with neither', () => {
+    const asset = a({ id: 'x', firstPurchase: undefined });
+    expect(startDateByAsset([asset], [])['x']).toBeUndefined();
+  });
+
+  // Cash rows carry no assetId and belong to no asset's start.
+  it('ignores rows with no asset', () => {
+    const txs = [
+      { id: 'd1', date: '2026-01-01', type: 'deposit', assetId: '', amount: 10, source: 'own' },
+    ] as Transaction[];
+    expect(startDateByAsset([a({ id: 'x', firstPurchase: '2026-02-05' })], txs)['x']).toBe('2026-02-05');
+  });
+});
+
+describe('basisIsShort — F-3/D80, and the threshold the sheet delegated', () => {
+  it('tolerates a tenth of the basis and no more', () => {
+    expect(basisIsShort(90, 100)).toBe(false); // exactly the tolerance
+    expect(basisIsShort(89, 100)).toBe(true);
+    expect(basisIsShort(100, 100)).toBe(false);
+  });
+
+  it("separates the sheet's two pinned cases with room on both sides", () => {
+    expect(basisIsShort(172, 174)).toBe(false); // …8976 — 1,15 % short
+    expect(basisIsShort(55, 174)).toBe(true); //  …6475 — 68,39 % short
+  });
+
+  it('MARKS the maximally short holding rather than exempting it', () => {
+    // Bought on the window's last day: 0 of 30, one day of return scaled by
+    // 12.17. A `heldDays <= 0` guard made this the one row that could never be
+    // marked — the opposite of the rule (A41 review). Negative is the same
+    // case: `yield.ts` counts a buy dated after the last snapshot.
+    expect(basisIsShort(0, 30)).toBe(true);
+    expect(basisIsShort(-3, 30)).toBe(true);
+  });
+
+  it('says nothing when there is no basis to be short of', () => {
+    expect(basisIsShort(0, 0)).toBe(false);
+    expect(basisIsShort(10, 0)).toBe(false);
   });
 });

@@ -10,6 +10,9 @@ import {
   yieldTableRowsIn,
 } from './yield';
 import { resolveWindow } from '../../core/period';
+import type { PeriodOption } from '../../core/period';
+import { portfolioStart } from '../../core/derive';
+import { latestSnapshotDate } from '../../core/dates';
 
 const snaps = buildSeedSnapshots();
 
@@ -370,3 +373,84 @@ describe('cumulativeYieldSeriesIn (A39) — the half that had no tests', () => {
     expect(sinceStart.reit as number).toBeGreaterThan(3);
   });
 });
+
+describe('shortBasis — F-3/D80, the rows whose basis their holding cannot support', () => {
+  const rowsAt = (period: PeriodOption) => {
+    const w = resolveWindow(
+      period,
+      portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      latestSnapshotDate(snaps),
+    );
+    return yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w);
+  };
+  const mark = (period: PeriodOption, id: string) =>
+    rowsAt(period).find((r) => r.asset.id === id)!.shortBasis;
+
+  it('marks …6475 at Від початку — 55 days against a 174-day basis', () => {
+    // The sheet's first pinned case. Bought 02.06.2026 into a basis that opens
+    // 03.02.2026, so its +10,9 % is its +5,20 % spread over time it did not exist.
+    expect(mark('all', 'ovdp6475')).toBe(true);
+  });
+
+  it('does NOT mark …8976 at Від початку, though it was bought after the start', () => {
+    // The sheet's second pinned case, and the one that killed the predicate it
+    // deleted: …8976 was bought 05.02.2026 against a 03.02.2026 start — two days
+    // of a 174-day basis. A "first purchase after `from`" test fires here and
+    // would have marked three cells while the drawing shows two.
+    expect(mark('all', 'ovdp8976')).toBe(false);
+    expect(mark('all', 'reit')).toBe(false);
+    expect(mark('all', 'energy')).toBe(false);
+  });
+
+  it('never marks a row whose annualized is absent', () => {
+    // The mark says "trust this figure less"; there is no figure to distrust.
+    // Every seed row HAS an annualized at `all`, so this needs an asset with no
+    // quote to reach the branch at all — a loop over the seed asserted nothing
+    // and stayed green with the flag inverted (A41 review).
+    const unquoted: Asset = { ...SEED_ASSETS[3]!, id: 'unquoted', firstPurchase: '2026-07-20' };
+    const w = resolveWindow(
+      'all',
+      portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      latestSnapshotDate(snaps),
+    );
+    const row = yieldTableRowsIn(
+      [...SEED_ASSETS, unquoted],
+      snaps,
+      SEED_TRANSACTIONS,
+      w,
+    ).find((r) => r.asset.id === 'unquoted')!;
+    expect(row.annualized).toBeUndefined();
+    expect(row.shortBasis).toBe(false);
+  });
+
+  it('marks in EVERY window, which is what D80 claims and only `all` was pinning', () => {
+    // …6475 is bought 02.06.2026. Under `3 місяці` (27.04–27.07, 91 d) it holds
+    // 55 of 91 — 39,6 % short, still marked. Under `1 місяць` (27.06–27.07) it
+    // holds all 30, and the sheet's own errata says NOT to pin it as marked:
+    // "it lived through the whole window and the rule says do NOT mark it".
+    expect(mark('3m', 'ovdp6475')).toBe(true);
+    expect(mark('1m', 'ovdp6475')).toBe(false);
+    // …8976, bought 05.02.2026, lives through both windows entirely.
+    expect(mark('3m', 'ovdp8976')).toBe(false);
+    expect(mark('1m', 'ovdp8976')).toBe(false);
+  });
+
+  it('clamps the holding to the window rather than measuring from purchase', () => {
+    // The `start > w.from ? start : w.from` clamp. Without it an asset bought
+    // before the window opens measures from its purchase, so …8976 under
+    // `1 місяць` would read 172 days against a 30-day basis — held > basis,
+    // never short, right answer for the wrong reason — and REIT, bought at the
+    // portfolio's own start, would too. The clamp is what makes the ratio mean
+    // "of THIS window".
+    expect(mark('1m', 'reit')).toBe(false);
+    expect(mark('ytd', 'ovdp6475')).toBe(true);
+  });
+
+  it('leaves every D5-pinned figure byte-identical — it is a colour, not a suppression', () => {
+    const r = rowsAt('all').find((x) => x.asset.id === 'ovdp6475')!;
+    expect(r.shortBasis).toBe(true);
+    expect(r.annualized! * 100).toBeCloseTo(10.9, 1);
+  });
+});
+
+

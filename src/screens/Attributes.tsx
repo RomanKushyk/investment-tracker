@@ -4,7 +4,13 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { daysBetween, latestSnapshotDate } from '../core/dates';
-import { investedByAsset, latestQuotes, portfolioStart } from '../core/derive';
+import {
+  basisIsShort,
+  investedByAsset,
+  latestQuotes,
+  portfolioStart,
+  startDateByAsset,
+} from '../core/derive';
 import type { Asset, Transaction } from '../core/types';
 import { actualAnnualizedPct, payoutScheduleFact } from './attributes/attributes';
 import { useFormat } from '../hooks/useFormat';
@@ -34,10 +40,33 @@ export function Attributes() {
   // Deriving the date does not make it per-asset; that is O23.
   const daysHeld = now && start ? daysBetween(start, now) : 0;
 
+  // THE SAME FIGURE MUST CARRY THE SAME MARK ON BOTH SCREENS (D80). This is
+  // `annualizedPct` over the same global basis as `/yield`'s `Річна`, so greying
+  // it there and painting it green here would assert one number as trustworthy
+  // and untrustworthy at once, one tab apart.
+  //
+  // ON THE SEED IT MARKS NOTHING, and that is worth stating rather than
+  // discovering: the fact lives in the NON-coupon branch below, so the two
+  // bonds never render it, and …6475 — today's only marked row — is a bond.
+  // REIT and Energy both start at the portfolio's own start. The first market
+  // asset bought mid-basis is where the two screens would have disagreed.
+  const startByAsset = startDateByAsset(assets, transactions);
   function actualAnnualized(a: Asset) {
     const pct = actualAnnualizedPct(values[a.id], invested[a.id] ?? 0, daysHeld);
     if (pct === undefined) return <span className="text-muted">—</span>;
-    return <span className={pct < 0 ? 'text-neg' : 'text-pos'}>{f.pct(pct, 1)}</span>;
+    const from = startByAsset[a.id];
+    const short =
+      start !== undefined &&
+      from !== undefined &&
+      basisIsShort(daysBetween(from > start ? from : start, now ?? start), daysHeld);
+    return (
+      <span
+        className={short ? 'text-muted' : pct < 0 ? 'text-neg' : 'text-pos'}
+        title={short ? t.analytics.prose.shortBasisNote : undefined}
+      >
+        {f.pct(pct, 1)}
+      </span>
+    );
   }
 
   return (

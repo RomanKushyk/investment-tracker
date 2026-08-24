@@ -636,6 +636,19 @@ export const en = {
        */
       yieldNote: (start: string) =>
         `Annualized = total Δ scaled to 365 days from ${start}. Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation.`,
+      /**
+       * The legend the grey owes (F-3/D80). NOT the sheet's drafted clause
+       * «Сірим — активи, придбані після початку періоду.»: that describes the
+       * predicate the sheet DELETED, which fires on …8976's two-day shortfall
+       * and would explain a mark that row does not carry. It names the
+       * MATERIALITY too, and for the same reason: "longer than the asset was
+       * held" is literally true of …8976 (172 of 174) and …8976 is not grey, so
+       * a reader checking the legend against the table would find a row it
+       * describes and does not mark (A41 review). 90 % is `SHORT_BASIS_TOLERANCE`
+       * read aloud; the two move together.
+       */
+      shortBasisNote:
+        'Grey = annualized over a basis this asset was held for less than 90 % of, so the rate reads low.',
       // The hint is assembled around two <strong> spans, so it is two slots
       // rather than one sentence. The slot ORDER happens to match in both
       // languages — asset · connector · delta · phrase(target) · amount.
@@ -1507,6 +1520,8 @@ export const uk: Dict = {
         '* очікувано — спрогнозовано за датою наступного купона активу. Сірі стовпчики = звичайні дні коливання ціни без доходу.',
       yieldNote: (start: string) =>
         `Річна = загальна Δ, приведена до 365 днів від ${start}. Купони враховуються в Δ за нарахуванням. Загальна дохідність — чиста від податків і включає виплати. XIRR зважений за грошима та річний — за історії менш ніж рік вважайте його екстраполяцією.`,
+      shortBasisNote:
+        'Сірим — річна поділена на строк, з якого актив прожив менше за 90 %, тож ставка занижена.',
       rebalanceIs: 'на',
       underTarget: (target: string) => `нижче за ціль ${target} — поповнити на`,
     },

@@ -327,6 +327,8 @@ On seed:
   column now holds *inherited position + bought inside*. The extension's F-6
   says the header should change and the brief owns the copy, so A40/A41 or an
   owner ruling closes it — **not** a string invented here.
+- **GREY PER WINDOW (D80), because "in every window" is the claim and one window cannot verify it:** `Від початку` …6475 **grey** (55 of 174) · `3 місяці` …6475 **grey** (55 of 91, 39,6 % short) · `1 місяць` …6475 **NOT grey** — it lived through all 30 days, and the sheet's own errata forbids pinning that case. …8976 is never grey in any of the three. **The legend appears only when a row is actually marked**, so it is absent under `1 місяць`. Under `1 місяць` …6475 reads **+33,6 %** unmarked — that is F-2's amplification, whose treatment is S6/C1's demotion and has not shipped.
+- **GREY MEANS THE BASIS IS SHORT (D80, from F-3).** On the seed's default window …6475's `Річна` **+10,9 %** and `проти очікуваної` **−4,3 в.п.** render in `muted` #696865 — measured `rgb(105,104,101)` against `rgb(38,38,42)` on the other three rows, which keep their sign colours. It was bought 02.06.2026 into a basis opening 03.02.2026: **55 days of 174**. …8976 is NOT greyed despite being bought two days after the start (**172 of 174**, 1,15 % short) — that pair is what fixes the 10 % threshold, and both are pinned by test. **The figure does not move**; the mark is a colour, never a suppression. The footnote carries the legend on the DEFAULT screen, not only under a window.
 
 ## `/attributes`
 
