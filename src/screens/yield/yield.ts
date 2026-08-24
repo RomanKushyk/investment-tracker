@@ -185,8 +185,9 @@ export function yieldTableRowsIn(
   const annualizable = daysHeld > 0;
 
   // F-3/D80 — WHICH ROWS CANNOT SUPPORT THEIR OWN BASIS. `daysHeld` above is one
-  // span for every row (D5#5), so an asset bought partway through is annualized
-  // over time it did not exist for. This says which ones, per row, against the
+  // span for every row (D5#5, and **D85 kept it that way** — O23 asked whether to
+  // make it per-asset and the answer was no), so an asset bought partway through
+  // is annualized over time it did not exist for. This says which ones, per row, against the
   // very basis the row is divided by — including at `Від початку`, where the
   // distortion has always been present and invisible.
   // Built as one pass beside `investedByAsset` and its siblings rather than

@@ -36,8 +36,8 @@ export function Attributes() {
   const invested = investedByAsset(transactions);
   const now = latestSnapshotDate(snapshots);
   const start = portfolioStart(assets, snapshots, transactions);
-  // Still ONE span for every asset — D5#5's global basis, unchanged by A24.
-  // Deriving the date does not make it per-asset; that is O23.
+  // Still ONE span for every asset — D5#5's basis, unchanged by A24 and kept by
+  // D85, which closed O23. The rest of the argument is on the mark below.
   const daysHeld = now && start ? daysBetween(start, now) : 0;
 
   // THE SAME FIGURE MUST CARRY THE SAME MARK ON BOTH SCREENS (D80). This is

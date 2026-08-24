@@ -35,8 +35,11 @@ import { xirr, type CashFlow } from './xirr';
  * NOT per-asset, deliberately. Callers apply this ONE date to every asset,
  * which is D5#5's pinned v1 simplification ("global PORTFOLIO_START basis")
  * and is why an asset bought in June is still annualized over the portfolio's
- * whole span. Changing that moves D5-pinned figures and is a decision, not a
- * refactor — see `PLAN-OPEN.md` O23.
+ * whole span. That was a question (O23) and is now a ruling: **D85 keeps it**,
+ * on the measurement rather than by inheritance. A per-asset basis would have
+ * …6475 beating its own contractually fixed 15,2 % coupon by 19,3 pp, `xirr`
+ * already IS the per-asset answer and labels itself an extrapolation, and D80's
+ * grey now discloses the short-basis rows that were the case for changing.
  */
 export function portfolioStart(
   assets: Asset[],

@@ -1135,9 +1135,10 @@ own tests keep inline fixtures. The old
 `expect(PORTFOLIO_START).toBe('2026-02-03')` was a literal asserting a literal;
 what replaces it asserts a derivation, in the file allowed to see both halves.
 
-**Out of scope and filed as `PLAN-OPEN.md` O23:** both consumers still apply ONE
+**Out of scope, filed as `PLAN-OPEN.md` O23 and since CLOSED by D85,
+which keeps one shared span:** both consumers still apply ONE
 span to every asset, so a bond bought in June is annualized over the portfolio's
-174 days rather than its own 53. Pinned by D5#5 as a deliberate v1
+174 days rather than its own 55. Pinned by D5#5 as a deliberate v1
 simplification; changing it moves pinned figures and needs a decision.
 
 ## A25 — Portfolio-level XIRR — **DONE 2026-08-18** — `feat/portfolio-xirr`

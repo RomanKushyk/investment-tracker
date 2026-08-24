@@ -245,8 +245,9 @@ retired 2021-06-30 (verified: all paths 404).
 > not SMIDA's: that date is exactly where its trader and exchange endpoints
 > stop. SMIDA's feed at `/db/api/v1/feed-index.xml` is live and current
 > (158 268 records, nine-minute freshness). The conclusion below is
-> unaffected — the feed carries filings, not NAV. Whether we may poll it is
-> `PLAN-OPEN.md` O25.
+> unaffected — the feed carries filings, not NAV. **Whether we may poll it is
+> settled: no, categorically — D86 closed O25 on 2026-08-24.** Our code does not
+> fetch SMIDA.
 
 So Inzhur's daily JSON is **voluntary commercial disclosure**, not compliance.
 Contractually it is «Базова ціна» — cl. 1.4 of their services agreement, *"the

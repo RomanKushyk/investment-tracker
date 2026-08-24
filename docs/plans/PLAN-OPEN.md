@@ -18,9 +18,9 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **closed — D75**, by DISSOLVING into D33: after B3 there is no write for a toggle to authorise. The ruling left over is that a hand-entered value is marked and an archive one is not |
-| O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **open, 2026-08-18 — EVIDENCE COMPUTED 2026-08-19**, see below. One row moves; it flips to beating a fixed coupon by 19,3 pp |
+| O23 | Should annualization use each asset's OWN holding period instead of one portfolio-wide span? | — | **closed — D85**, owner's ruling 2026-08-24: NO, the one portfolio-wide basis stands and D5#5 is re-affirmed. The question rested on a single young position; per-asset would have a fixed-coupon bond beating its own contract by 19,3 pp; XIRR already IS the per-asset column; and **D80's grey removed the silence that was the strongest case for switching**. No figure moves |
 | O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **closed — D80**, owner's ruling 2026-08-24: the sheet in full. The window changes the basis (superseding Phase 6's pin) AND F-3's grey ships with it, in every window including the default. The threshold the sheet delegated is `basisIsShort`, 10 %, derived against the shipped producers and tested |
-| O25 | May we fetch SMIDA's open-data API, given that its `robots.txt` is a blanket `Disallow: /`? | — | **open, 2026-08-24 — needs АРІФРУ's answer.** Owner's note: unlikely to be pursued. Until answered, the feed is documented and not fetched on a schedule |
+| O25 | May we fetch SMIDA's open-data API, given that its `robots.txt` is a blanket `Disallow: /`? | — | **closed — D86**, owner's ruling 2026-08-24: **no, categorically**, and without the email it was filed against. The Wayback history settles intent — the file was rewritten into a targeted `/db/` rule AFTER the API shipped, then tightened back to blanket in mid-2024 — so nothing was waiting on АРІФРУ. The research is preserved in D86 |
 | O26 | Should the number parser stop being locale-blind for values a locale makes ambiguous — or should the ranges disambiguate? | — | **open, 2026-08-24, found by A36's review.** In Ukrainian a typed `6,164` is read as **6164** by `normalizeNumberInput`, so a percent field rejects it: `.max(100)`. The DISPLAY side is now safe (`f.input` verifies its own output), but a user cannot type the natural form. D58 chose one locale-blind parser on purpose, so changing it is a decision |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
@@ -94,7 +94,13 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 
 An item from this file being resolved implicitly, by a commit that assumes an answer without naming it. If you find yourself needing one of these to proceed, that is the signal to stop and ask — not the signal to pick the obvious option quietly.
 
-## O25 — May we fetch SMIDA's open-data API? — opened 2026-08-24
+## O25 — May we fetch SMIDA's open-data API? — **CLOSED, D86 (2026-08-24)**
+
+> **Ruled: no, categorically.** The section below is the question as it was
+> asked; **D86 carries the research that answered it** — the `robots.txt`
+> history, the statutory reading, RFC 9309's scope, the routes that do not
+> exist, and the benefits stated in full so the cost is not re-argued from
+> scratch. Read D86, not this.
 
 **The two things SMIDA says about itself disagree.** `/db/api/v1/` is published
 as open data under **art. 10¹ of the Law on Access to Public Information**, with
@@ -198,7 +204,9 @@ cluster — it is making the stack take the environment as a parameter, so that
 standing one up later is a deploy rather than a fork. That is a small change and
 it is the part that would otherwise be done twice.
 
-## O23 — Should annualization use each asset's own holding period?
+## O23 — Should annualization use each asset's own holding period? — **CLOSED, D85 (2026-08-24)**
+
+> **Ruled: no.** The evidence below stands as the reasoning D85 rests on, and § 6's two loose ends are settled there — the labelling needs no new copy, and `/attributes` keeps the same basis.
 
 **Opened 2026-08-18, found while deriving the portfolio start (A24).** Two
 callers — `screens/yield/yield.ts` and `screens/Attributes.tsx` — compute **one**
@@ -312,7 +320,7 @@ the figure the map had named all along.
 
 ## O24 — Does the window change `Річна`'s basis, and where is the treatment that was supposed to come with it? — **CLOSED, D80 (2026-08-24)**
 
-> **Ruled: the sheet in full.** Kept below because the evidence is what D80 rests on, and because [O23] still interacts with it.
+> **Ruled: the sheet in full.** Kept below because the evidence is what D80 rests on. ([O23] closed the other way — D85 — so the interaction noted further down is settled, not live.)
 
 **Found by the v1.8.0 release review (2026-08-24), which is late: A39 shipped
 this into `dev` on 2026-08-21 and the release is what would carry it to
@@ -355,9 +363,10 @@ supersession of a formula-audit contract is precisely the kind of question D14's
 arbitration does not cover — D14 gives the extension visual disputes and the
 brief copy and behaviour; a denominator is neither.
 
-**Interacts with [O23]**, which asks WHICH span a row should annualize over. If
-O23 lands on each asset's own holding period, part of F-2's amplification stops
-being about the window at all. Answer them together or answer O23 first.
+**Interacted with [O23]**, which asked WHICH span a row should annualize over.
+**O23 closed the other way — D85 keeps the one portfolio-wide basis** — so
+nothing here is revisited, and D80's grey turned out to be part of why: it
+removed the silence that was O23's strongest argument.
 
 **Options, stated so the ruling is a choice and not an essay:**
 

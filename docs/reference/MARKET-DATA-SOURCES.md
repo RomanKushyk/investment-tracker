@@ -75,19 +75,25 @@ entities and **2 478 funds** — 890 125 filings submitted, 158 435 published.
 > Inzhur's daily quote is still voluntary commercial disclosure, still not a NAV.
 > Only the availability sentence changed.
 
-> ### Permission is unresolved — O25, and it is deliberately not closed
+> ### Permission is SETTLED — D86: we do not fetch this. O25 closed 2026-08-24
 >
 > `smida.gov.ua/robots.txt` is `User-agent: *` / `Disallow: /` with **no
 > carve-out for `/db/api/`**, while the same path is published as open data with
-> a documented query grammar. The likely reading is that the blanket rule
-> predates the API — but rule 6 below says a stated `Disallow` is final, and that
-> rule cannot be applied to other people's sites and read past here.
+> a documented query grammar. **The rule does NOT predate the API** — the file
+> was absent (`404`) from 2020-07 to 2021-11-06, the API launched inside that
+> gap, and the file returned carrying a `/db/` rule. Rule 6 below says a stated
+> `Disallow` is final, and it cannot be applied to other people's sites and read
+> past here.
 >
-> **Open as `PLAN-OPEN.md` O25**, answerable by one email to
-> `help@smida.gov.ua`; the owner's note is that it is unlikely to be pursued.
-> Nothing depends on it: the feed carries filings, not prices, so it would not
-> shorten W15. **Until answered — read by hand when a question needs it, never on
-> a schedule.**
+> **RULED: our code does not fetch it, categorically — D86.** The email was
+> never owed: the Wayback history shows the file was rewritten into a targeted
+> `/db/` rule AFTER the API shipped (2022–mid-2024) and then tightened back to
+> blanket, so the "the rule predates the API" reading above is measurably wrong
+> and is left standing only as the question that was asked. D86 carries the whole
+> analysis — the statute licenses USE and not retrieval, RFC 9309's "not access
+> authorization" is a warning to operators, there is no alternative licensed
+> route, and the benefits are listed in full so the cost is not re-argued.
+> **Reading a page by hand is not what this governs; our code fetching it is.**
 
 ## 2. stockmarket.gov.ua — a healthy host serving a frozen archive
 
@@ -224,7 +230,7 @@ own address and phone) that has accumulated ratings.
 | **ЄДРІСІ** — register of collective investment institutions | Extract issued only on written application with proof of payment. **Zero datasets on data.gov.ua.** The fund register is not open data |
 | **csd.ua** — Національний депозитарій | `robots.txt`: `User-agent: *` / `Disallow: /`, no exceptions. Its announced "API для емітентів" is a filing cabinet for issuers describing themselves, not a read channel |
 | **ux.ua** — Українська біржа | Cloudflare bot protection: `403` from outside, and from Kyiv the challenge resolves into an error page. Unusable automatically, and the signal is unambiguous — **do not automate it** |
-| **smida.gov.ua** HTML pages | `Disallow: /`; Googlebot permitted only `/db/prof/`. The API in §1 is a separate question, and an open one |
+| **smida.gov.ua** HTML pages | `Disallow: /`; Googlebot permitted only `/db/prof/`. The API in §1 is a separate question, and CLOSED — D86: we do not fetch it |
 | **api.firekit.space** | No docs, no open endpoint; `robots.txt` disallows `/api/` |
 | **binaryx.com** | `robots.txt` allows GPTBot on content and disallows `/api/` — a deliberate split worth copying |
 
@@ -246,8 +252,8 @@ they state a position at all.**
    CC-BY datasets pair a stated licence with a stable schema, which no company
    site here does. UAIB and Minfin state terms too (rule 5); what they lack is
    the schema stability, being HTML pages rather than a published contract.
-   **SMIDA is not cleared for polling**: O25 has to be answered first. Its being
-   alive (D82) and our being allowed to poll it are two different facts.
+   **SMIDA is not polled, by ruling — D86.** Its being alive (D82) and our
+   fetching it are two different facts, and the second is now settled: no.
 2. **Monitor `time_max`, not the status code.** stockmarket.gov.ua answers `200`
    with data from 2019–2021. Freshness is a field in the payload; assert on it.
 3. **Probe from the network the code runs on.** A `521` from `eu-north-1` was a
