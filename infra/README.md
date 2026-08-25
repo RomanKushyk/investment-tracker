@@ -20,7 +20,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 | `template.yaml` | SAM stack: DSQL cluster, capture Lambda, schedule, DLQ, alarms |
 | `src/capture.ts` | The handler. Imports the parser from `src/core` — never a second copy |
 | `migrations/` | Reference DDL. The handler applies it idempotently on cold start |
-| `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection — deliberately outside the stack |
+| `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
 ## Local rules
 
@@ -41,6 +41,14 @@ substitute (~0.9% same-day divergence, D26/D27).
 - **The backup selection matches on the `app=quirenote` TAG, never an ARN.**
   DSQL cluster IDs are generated, so a recreated cluster gets a new ARN and an
   ARN-pinned selection would back up nothing without saying so.
+- **The vault lock stays GOVERNANCE, and its floor never EXCEEDS the plan's
+  `DeleteAfterDays`.** Equal is fine and is what ships (35/35) — AWS accepts a
+  job whose retention is equal to *or longer than* the floor. What is never safe
+  is a floor **above** live retention, and it can arise from either side: raising
+  the floor before the plan moves, or shortening the plan below a floor already
+  standing. The script derives the floor from the live plan, so the first cannot
+  happen through the script — the second still can, by editing the plan directly,
+  so **lower the floor first**. Why governance, and why no maximum: **D89**.
 
 ## Durability — measured 2026-08-11, not assumed
 
@@ -111,6 +119,65 @@ Two traps met while proving it, both worth an hour to whoever meets them next:
   check was a temporary second inline policy plus an env swap, reverted in the
   same call. Allow ~25 s for IAM propagation — a 3-second wait fails with an
   unhandled error that looks like a code fault, not a permission one.
+
+### Vault Lock, applied 2026-08-25 (D89)
+
+Until this date the vault had no lock: `Locked: false`, and a single
+`delete-recovery-point` was all that stood between the archive and nothing.
+The routine AWS sweep that found it also found the rest of the stack healthy,
+which is the point — this is the same shape as D44/D49, a gap that reads green
+because nothing has been attempted against it.
+
+| Setting | Value | Why |
+|---|---|---|
+| Mode | **GOVERNANCE** | `LockDate: null`. Compliance is unremovable by anyone including AWS, and the schema is still moving (W3/W4) |
+| `MinRetentionDays` | **35** | Read from the live plan, not written as a literal. Equal passes — AWS allows a job retention "equal to or longer" than the floor |
+| `MaxRetentionDays` | **null** | Weakening retention is worth forbidding; lengthening it is not |
+
+**What it actually buys, stated as what it is.** Deleting a recovery point stops
+being one command and becomes two — lift the lock, then delete. It does **not**
+stop this account's human admin, who holds
+`backup:DeleteBackupVaultLockConfiguration`; nothing short of compliance mode
+would, and compliance mode costs more than it buys here. It stops the accident,
+and it stops every principal without that permission — which is every role in
+this account other than the human one.
+
+**Proved by attempting it, 2026-08-25** — for the same reason D48 restored a
+backup rather than trusting one. The vault holds 15 recovery points: 14 nightly
+ones (`CreatedBy` naming the plan) and **exactly one on-demand** at
+2026-08-18 12:47, `CreatedBy: null`. It happens to be the same size as that
+day's scheduled point (36 635 253 B both), so deleting it would have cost a
+duplicate of a day that stays covered — the only safe target in the vault.
+`delete-recovery-point` was pointed at it, as admin:
+
+```
+InvalidRequestException: RecoveryPoint cannot be deleted or updated
+(Backup vault configured with Lock)
+```
+
+Refused, exit 254. Count still 15, the target still `COMPLETED`. A configured
+lock and a lock that refuses are two different claims, and only the second one
+is now on the record.
+
+**Why that on-demand point exists is not recorded anywhere**, and this file will
+not guess: it is not the durability-test backup, which was taken 2026-08-11 at
+34.6 MiB and no longer exists. Worth knowing because it also carries **no
+lifecycle at all** (`Lifecycle: {}`, no `DeleteAt`) where every scheduled point
+carries `DeleteAfterDays: 35` — so unlike the other 14 it never expires, and
+under the lock its lifecycle can no longer be set.
+
+**That last part is the consequence most likely to bite.** Vault Lock does not
+only stop deletion; AWS: it "prevents attempts to update the lifecycle policy
+that controls the retention period of any recovery point currently stored in a
+backup vault." So the existing points keep the retention they were written with
+— the 14 nightly ones expire on schedule, the on-demand one never does — and
+none of it can be changed while the lock stands. In the cluster-rebuild scenario
+D89 names as live, draining the vault by shortening retention is exactly the
+obvious move that now requires lifting the lock first.
+
+The floor does not apply retroactively, which is a narrower statement than it
+looks: AWS does not re-measure points saved before the lock against
+`MinRetentionDays`. That is about enforcement, not about mutability.
 
 ## Deploying
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Create the AWS Backup vault, role, plan and selection that protect the DSQL
-# price archive.
+# Create the AWS Backup vault, role, plan, selection and vault lock that protect
+# the DSQL price archive.
 #
 # One-time bootstrap. Run it in AWS CloudShell, which already has credentials —
 # there are deliberately none on the development machine (see infra/README.md).
@@ -124,11 +124,78 @@ else
   echo "-> selection already exists"
 fi
 
+# --- Vault Lock -------------------------------------------------------------
+#
+# Why governance rather than compliance, and why a minimum with no maximum: D89.
+#
+# The one thing that must not be got wrong from inside this file:
+# --changeable-for-days is ABSENT on purpose. Passing it — any value, minimum 3
+# — makes the lock COMPLIANCE, which nobody can lift afterwards, AWS included.
+# There is no --mode argument to get wrong, so the mistake looks like a harmless
+# extra flag rather than a permanent one.
+#
+# The floor is derived from the live plan rather than written here, because the
+# plan block above only ever CREATES: on a re-run an existing plan is left alone,
+# so a literal here could sit above a retention that never moved. AWS does not
+# warn about floor > retention — it FAILS every nightly job in silence until
+# BackupAgeHours crosses 48 two nights later.
+#
+# Deriving removes the route to that state THROUGH THIS FILE. It does not make
+# the state unreachable, and the difference matters: editing the plan directly to
+# shorten retention below the standing floor still reaches it, and nothing here
+# re-derives afterwards. Shortening retention is exactly the move a cluster
+# rebuild invites, so treat the floor as something to lower FIRST.
+#
+# min() across the rules that actually target this vault: rule order is not
+# contractual, and a plan may feed a vault this script does not lock.
+LOCK_FLOOR="$(aws backup get-backup-plan --backup-plan-id "$PLAN_ID" --region "$REGION" \
+  --query "min(BackupPlan.Rules[?TargetBackupVaultName=='${VAULT}'].Lifecycle.DeleteAfterDays)" \
+  --output text 2>/dev/null || echo None)"
+WAS_LOCKED="$(aws backup describe-backup-vault --backup-vault-name "$VAULT" --region "$REGION" \
+  --query 'Locked' --output text 2>/dev/null || echo None)"
+
+if [[ "$LOCK_FLOOR" == "None" ]]; then
+  echo "!! no rule targets ${VAULT} with a DeleteAfterDays — refusing to set a floor" >&2
+else
+  # Say which of the two this is. Re-locking a vault someone lifted ON PURPOSE —
+  # the two-step act D89 designs for, used to change lifecycles during a rebuild
+  # — is the one re-run that is not harmless, so it never happens silently.
+  if [[ "$WAS_LOCKED" == "True" ]]; then
+    echo "-> vault already locked; re-applying floor ${LOCK_FLOOR}d"
+  else
+    echo "-> vault was UNLOCKED; applying governance lock, floor ${LOCK_FLOOR}d"
+  fi
+  aws backup put-backup-vault-lock-configuration \
+    --backup-vault-name "$VAULT" --region "$REGION" \
+    --min-retention-days "$LOCK_FLOOR" \
+    || echo "!! put-backup-vault-lock-configuration FAILED" >&2
+fi
+
+# Read back rather than announce. D89 exists because a vault everyone believed
+# was protected read Locked: false, so a script that printed "lock applied" on
+# any 2xx would be reproducing the defect it was written for. LockDate is the
+# tell: null is governance, a date is compliance.
+echo
+echo "vault lock:"
+aws backup describe-backup-vault --backup-vault-name "$VAULT" --region "$REGION" \
+  --query '{Locked:Locked,LockDate:LockDate,Min:MinRetentionDays,Max:MaxRetentionDays}' \
+  --output json
+
 echo
 echo "recovery points:"
 aws backup list-recovery-points-by-backup-vault --backup-vault-name "$VAULT" \
   --region "$REGION" \
   --query 'RecoveryPoints[].[Status,BackupSizeInBytes,CreationDate]' --output text
 
+# Assert, do not merely print — printing the state and exiting 0 regardless is
+# the same defect one layer down. Last, so the diagnostics above are always
+# available when this fires.
 echo
+NOW_LOCKED="$(aws backup describe-backup-vault --backup-vault-name "$VAULT" --region "$REGION" \
+  --query 'Locked' --output text 2>/dev/null || echo None)"
+if [[ "$NOW_LOCKED" != "True" ]]; then
+  echo "!! ${VAULT} is NOT locked — the archive is one delete-recovery-point from loss" >&2
+  exit 1
+fi
+
 echo "done"
