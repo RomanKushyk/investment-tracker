@@ -51,8 +51,22 @@ const TYPE_ORDER: TxType[] = [
 // stays total over TxType.
 const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as const;
 
-const inputClass =
-  'h-9 rounded-[9px] border border-hairline bg-card px-3 font-body text-[13px] text-ink transition';
+// The invalid variant is not decoration: without it the form's own summary
+// ("check the highlighted fields") pointed at nothing. The shape follows
+// `AssetForm`'s `inputClass(invalid)` — border `neg` when at fault, and the
+// message under the field (S3's anatomy) — but NOT its surface: this panel's
+// inputs sit on `card`, not `page`, and take the hover border the rest of the
+// form's controls take.
+function inputClass(invalid: boolean): string {
+  return `h-9 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
+    invalid ? 'border-neg' : 'border-hairline hover:border-ink'
+  }`;
+}
+
+// The amount's own ids, so the error can be LINKED to the input rather than
+// folded into its accessible name — see the comment at the field.
+const AMOUNT_ID = 'tx-amount';
+const AMOUNT_ERROR_ID = 'tx-amount-error';
 
 /**
  * The ledger's distance from the top of the DOCUMENT, published as a custom
@@ -182,6 +196,15 @@ export function TransactionPanel() {
     if (!isNewAsset) assetForm.reset(assetFormDefaults(f));
   }, [isNewAsset, assetForm, f]);
 
+  // `handleSubmit` AWAITS the zod resolver, and on the quick-create branch it
+  // awaits a second nested one, so two presses can both land inside that window
+  // — each minting its own `crypto.randomUUID()`, and on quick-create building
+  // the asset twice. `disabled={isPending}` cannot cover it: nothing is pending
+  // yet. Same answer the coupon card already uses for the same hazard: a ref
+  // latch around the whole submit path, released when the write settles or when
+  // the sub-form refuses.
+  const inFlight = useRef(false);
+
   function record(values: TransactionFormValues, newAsset: Asset | undefined) {
     const tx: Transaction = {
       id: crypto.randomUUID(),
@@ -195,29 +218,50 @@ export function TransactionPanel() {
       { tx, newAsset },
       {
         onSuccess: () => {
+          releaseLatch();
           toast.success(t.transaction.recordedToast);
+          // WHAT THE USER CHOSE SURVIVES THE RESET, and only the amount clears.
+          // `assets[0]?.id` was read from the render that submitted: recording
+          // three coupons for the third asset re-picked the first one every
+          // time, and on quick-create the just-made asset was not in that array
+          // at all, so the select snapped to the wrong asset — or to the empty
+          // placeholder when the ledger had none, which is the invisible-error
+          // state this task exists to remove.
           form.reset({
             date: values.date,
-            type: 'buy',
-            assetId: assets[0]?.id ?? '',
+            type: values.type,
+            assetId: newAsset ? newAsset.id : values.assetId,
             amount: '',
-            source: 'own',
+            source: values.source,
           });
           assetForm.reset(assetFormDefaults(f));
         },
-        onError: () => toast.error(t.transaction.failedToast),
+        onError: () => {
+          releaseLatch();
+          toast.error(t.transaction.failedToast);
+        },
       },
     );
   }
+
+  // Released by the write's outcome, or by either form refusing — a latch that
+  // is never lowered disables the form for the rest of the session.
+  const releaseLatch = () => {
+    inFlight.current = false;
+  };
 
   function onSubmit(values: TransactionFormValues) {
     if (isNewAsset) {
       // Both forms must pass; assetForm.handleSubmit surfaces the sub-form's
       // field errors and only calls through when it validates. firstPurchase
       // keeps deriving from the transaction date (quick-create rule).
-      void assetForm.handleSubmit((assetValues) => {
-        record(values, assetFromForm(assetValues, values.date, assets.length));
-      })();
+      void assetForm.handleSubmit(
+        (assetValues) => {
+          record(values, assetFromForm(assetValues, values.date, assets.length));
+        },
+        // The sub-form refused, so nothing will settle to release the latch.
+        releaseLatch,
+      )();
       return;
     }
     record(values, undefined);
@@ -255,17 +299,34 @@ export function TransactionPanel() {
           </span>
         </div>
         <p className="mt-1 mb-3.5 text-xs text-muted">{t.transaction.subtitle}</p>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-2.5">
+        {/* THE LATCH IS CHECKED IN THE DOM EVENT, not inside `onSubmit`, for two
+            reasons that agree: it is the earliest point a second press can be
+            seen — `handleSubmit` has not begun awaiting the resolver yet — and a
+            ref read inside a function handed to `handleSubmit` DURING RENDER is
+            what `react-hooks/refs` refuses, correctly. Same place the coupon
+            card puts its own latch. */}
+        <form
+          onSubmit={(e) => {
+            if (inFlight.current) {
+              e.preventDefault();
+              return;
+            }
+            inFlight.current = true;
+            void form.handleSubmit(onSubmit, releaseLatch)(e);
+          }}
+          className="flex flex-col gap-2.5"
+        >
           <div className="grid grid-cols-2 gap-2.5">
             <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.date}
               <Controller
                 control={form.control}
                 name="date"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <DatePicker
                     value={field.value}
                     onChange={field.onChange}
+                    invalid={fieldState.invalid}
                     className="w-full text-left"
                   />
                 )}
@@ -295,11 +356,16 @@ export function TransactionPanel() {
             <Controller
               control={form.control}
               name="assetId"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
                   placeholder={t.transaction.assetPlaceholder}
+                  // Reachable with no assets at all, or on a press before
+                  // `useAssets()` resolves and the effect above has defaulted
+                  // this: the schema refuses an empty id, and without this the
+                  // summary named highlights that did not exist.
+                  invalid={fieldState.invalid}
                   borderColor={isNewAsset ? 'faint' : 'hairline'}
                   options={[
                     { value: 'new', label: t.transaction.newAssetOption },
@@ -331,15 +397,55 @@ export function TransactionPanel() {
           )}
 
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="flex flex-col gap-1 text-[11px] text-muted">
-              {t.transaction.amount}
-              <input
-                className={inputClass}
-                placeholder={t.transaction.amountPlaceholder}
-                inputMode="decimal"
-                {...form.register('amount')}
+            {/* NOT A `<label>` WRAPPER, unlike its neighbours, and the reason is
+                the error: a message inside the label becomes part of the
+                input's accessible NAME, so submitting an empty field renamed it
+                to «Сума, ₴ Введіть суму.» under a screen reader instead of
+                explaining itself. `htmlFor` + `aria-describedby` is the link
+                that carries it as a description — the idiom `CouponDueCard` and
+                Settings already use, and the one `navigation-map.md` pins.
+                ONE MESSAGE PER FAILURE: `quoteInputSchema` refuses blank, zero,
+                negative and non-numeric, and a single "Введіть суму." told
+                someone who typed `0` to enter the amount they had just typed.
+                The value itself says which of the two it is — no zod internals,
+                and `fieldState` is the single read behind border, flag and
+                message alike. */}
+            <div className="flex min-w-0 flex-col gap-1">
+              <label className="text-[11px] text-muted" htmlFor={AMOUNT_ID}>
+                {t.transaction.amount}
+              </label>
+              <Controller
+                control={form.control}
+                name="amount"
+                render={({ field, fieldState }) => (
+                  <>
+                    <input
+                      id={AMOUNT_ID}
+                      className={inputClass(fieldState.invalid)}
+                      placeholder={t.transaction.amountPlaceholder}
+                      inputMode="decimal"
+                      aria-invalid={fieldState.invalid || undefined}
+                      aria-describedby={fieldState.invalid ? AMOUNT_ERROR_ID : undefined}
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                    {fieldState.error && (
+                      <span
+                        id={AMOUNT_ERROR_ID}
+                        className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+                      >
+                        {field.value.trim() === ''
+                          ? t.transaction.amountMissing
+                          : t.transaction.amountNotPositive}
+                      </span>
+                    )}
+                  </>
+                )}
               />
-            </label>
+            </div>
             <label className="flex flex-col gap-1 text-[11px] text-muted">
               {t.transaction.source}
               <Controller
@@ -363,12 +469,21 @@ export function TransactionPanel() {
             type="submit"
             weight="bold"
             className="w-full"
-            disabled={recordTransaction.isPending}
+            // `isSubmitting` covers the async window the latch also guards:
+            // the resolver runs before anything is pending.
+            disabled={recordTransaction.isPending || form.formState.isSubmitting}
           >
             {t.transaction.submit}
           </Button>
+          {/* `isNewAsset` GATES THE SUB-FORM'S HALF: its fields are unmounted
+              whenever the select holds a real asset, so their errors could put
+              this line on screen with nothing able to carry a highlight. The
+              window is one render frame — the effect above resets the sub-form
+              as soon as the select leaves «+ Новий актив…» — so this closes a
+              flash, not the durable defect. THAT one was every control here
+              lacking an invalid state at all, which is fixed above. */}
           {(Object.keys(form.formState.errors).length > 0 ||
-            Object.keys(assetForm.formState.errors).length > 0) && (
+            (isNewAsset && Object.keys(assetForm.formState.errors).length > 0)) && (
             <p className="text-xs text-neg">{t.transaction.invalid}</p>
           )}
         </form>

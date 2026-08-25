@@ -844,6 +844,12 @@ export const en = {
     amountPlaceholder: '10,000.00',
     source: 'Source of funds',
     submit: 'Record transaction',
+    // The amount's own errors, under the field. The form-level `invalid` line
+    // reports THAT something is wrong; these say what, and there are two
+    // because `quoteInputSchema` refuses four things — a blank field, and a
+    // value that is zero, negative or not a number at all.
+    amountMissing: 'Enter an amount.',
+    amountNotPositive: 'The amount has to be a positive number.',
     invalid: 'Check the highlighted fields and try again.',
     recentEmpty: 'No transactions yet.',
     // The Type select spells out "Interest payout"; the Recent rows say
@@ -1675,6 +1681,8 @@ export const uk: Dict = {
     amountPlaceholder: '10 000,00',
     source: 'Джерело коштів',
     submit: 'Записати транзакцію',
+    amountMissing: 'Введіть суму.',
+    amountNotPositive: 'Сума має бути додатним числом.',
     invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
     recentEmpty: 'Транзакцій ще немає.',
     types: {

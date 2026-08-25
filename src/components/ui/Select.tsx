@@ -25,6 +25,7 @@ export function Select({
   placeholder,
   className = '',
   borderColor = 'hairline',
+  invalid = false,
   bg = 'white',
   onOpenChange,
   status,
@@ -39,6 +40,12 @@ export function Select({
   placeholder?: string;
   className?: string;
   borderColor?: 'hairline' | 'faint';
+  /**
+   * The form-error idiom, the same one the inputs take: border `neg` plus
+   * `aria-invalid`. A select had no way to say it was the field at fault, so a
+   * form-level "check the highlighted fields" could name nothing (A47 review).
+   */
+  invalid?: boolean;
   bg?: 'white' | 'page';
   // Fires on open/close — the P3 Inzhur picker fetches its list on first open.
   onOpenChange?: (open: boolean) => void;
@@ -65,7 +72,11 @@ export function Select({
   /** The element that explains the current selection — e.g. a resolved window. */
   ariaDescribedBy?: string;
 }) {
-  const borderClass = borderColor === 'faint' ? 'border-faint' : 'border-hairline';
+  const borderClass = invalid
+    ? 'border-neg'
+    : borderColor === 'faint'
+      ? 'border-faint'
+      : 'border-hairline';
   // `card`, not the literal white it replaces: a control surface has to invert
   // with the theme, and #ffffff cannot. The two are the same colour in light.
   const bgClass = bg === 'page' ? 'bg-page' : 'bg-card';
@@ -75,6 +86,7 @@ export function Select({
         id={id}
         aria-labelledby={ariaLabelledBy}
         aria-describedby={ariaDescribedBy}
+        aria-invalid={invalid || undefined}
         // `max-md:text-base` for the same reason the fields take 16 (G-4): this
         // trigger DISPLAYS a value, and a select reading 13px beside an input
         // reading 16 is the pair looking mismatched on the one screen where the

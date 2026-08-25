@@ -200,6 +200,7 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
               showManual ? (
                 <input
                   className={inputClass(!!errors.inzhur?.ref)}
+                  aria-invalid={!!errors.inzhur?.ref || undefined}
                   placeholder={kind === 'bond' ? 'UA4000238976' : 'inzhur-reit'}
                   value={field.value ?? ''}
                   onChange={field.onChange}
@@ -283,6 +284,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.expectedPct} error={!!errors.expectedPct && MSG.expectedPct}>
         <input
           className={inputClass(!!errors.expectedPct)}
+          aria-invalid={!!errors.expectedPct || undefined}
           placeholder={t.asset.placeholder.expectedPct}
           inputMode="decimal"
           {...form.register('expectedPct')}
@@ -291,6 +293,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.targetPct} error={!!errors.targetPct && MSG.targetPct}>
         <input
           className={inputClass(!!errors.targetPct)}
+          aria-invalid={!!errors.targetPct || undefined}
           placeholder={t.asset.placeholder.targetPct}
           inputMode="decimal"
           {...form.register('targetPct')}
@@ -368,6 +371,7 @@ export function AssetFormFields({
       <Field label={t.asset.field.name} error={!!errors.name && MSG.name}>
         <input
           className={inputClass(!!errors.name)}
+          aria-invalid={!!errors.name || undefined}
           placeholder={t.asset.placeholder.name}
           {...form.register('name', {
             onChange: (e: ChangeEvent<HTMLInputElement>) => {
@@ -389,6 +393,7 @@ export function AssetFormFields({
           <AssetAvatar code={(code || 'GB').toUpperCase()} colorKey={avatarColorKey} />
           <input
             className={`${inputClass(!!errors.code)} w-20 uppercase`}
+            aria-invalid={!!errors.code || undefined}
             placeholder="GB"
             maxLength={2}
             {...form.register('code')}
@@ -467,6 +472,7 @@ export function AssetFormFields({
           >
             <input
               className={inputClass(!!errors.couponAmount)}
+              aria-invalid={!!errors.couponAmount || undefined}
               placeholder={t.asset.placeholder.couponAmount}
               inputMode="decimal"
               {...form.register('couponAmount')}
