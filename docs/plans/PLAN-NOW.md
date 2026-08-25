@@ -1915,7 +1915,7 @@ IN THE CODE TODAY — `/payouts`' own expression, on `/` and on `/transactions`
 row     grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1
 left    min-w-0            <- the day's inputs, the rows, the action row
 right   min-w-0            <- pending change, yield, last saved (no control)
-caps    the transaction form 560, the ledger 884 — D88 superseded the composition, not these
+caps    the transaction form 560 only — the ledger's 884 came off at D93; inside the grid the track is the bound
 ```
 
 - [x] The composition box wraps `ReminderStrip`, the title block and the row.
@@ -1934,8 +1934,10 @@ caps    the transaction form 560, the ledger 884 — D88 superseded the composit
 - [~] **Both caps are container-scoped** (`@min-[884px]:`) — F-6. **Done, then
       UNDONE by D88**: the container query went with the flex row, and the grid
       collapses on `lg` instead. The finding it protected did not go away —
-      unbounded columns leave holes — so the caps live on the two cards now (form
-      560, ledger 884) rather than on the tracks.
+      unbounded columns leave holes — but its enforcement moved twice: after D88
+      the caps lived on the two cards, and **D93 (2026-08-25) took the ledger's
+      884 off entirely** — inside the grid the `1.6fr` track is the bound the
+      finding asked for, and only the form's 560 remains as a card cap.
 - [x] `min-w-0` on both columns (brief G-7).
 - [x] The yield card is recomposed as two `max-content` columns, label 16 px
       from its figure, and **the 360 rendering is repaired with it** (D-5) —

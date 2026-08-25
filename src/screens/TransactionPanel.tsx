@@ -339,16 +339,19 @@ export function TransactionPanel() {
           padding gone the two agree, and the result is the extension's drawn
           `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
           ImportDialog.tsx carries the same warning; this repeated it. */}
-      {/* THE WIDE COLUMN — `flex:1 1 560px` as drawn; the ledger is what the
-          route is for and it takes the remainder. Its cap is released only
-          above 944, so a wrapped line keeps the 560 this screen shipped with.
+      {/* THE WIDE COLUMN — the `1.6fr` track of D88's grid; the ledger is what
+          the route is for and it takes the wide track. Its width IS the
+          track's since D93 — no cap of its own; the ledger card's comment
+          below carries the ruling. (This paragraph once described the flex
+          row — `flex:1 1 560px`, a cap keyed to a 944 container query — D88
+          retired all of that with the composition.)
 
-          THE HEIGHT CAP IS THE VIEWPORT'S ABOVE 944, not 420. That number was
-          chosen when this card sat UNDER the form and had to leave room for it;
-          side by side it only has to leave the header and the page's own
-          padding, so all 18 seeded rows fit and the PAGE stops scrolling while
-          the column does (D65). Below 944 the cap stays 420 — the card is
-          stacked again there, and 360 must not move.
+          THE HEIGHT CAP IS THE VIEWPORT'S AT `lg` AND UP, not 420. That number
+          was chosen when this card sat UNDER the form and had to leave room
+          for it; side by side it only has to leave the header and the page's
+          own padding, so all 18 seeded rows fit and the PAGE stops scrolling
+          while the column does (D65). Below `lg` the cap stays 420 — the card
+          is stacked again there, and 360 must not move.
 
           `--ledger-top` IS MEASURED, and 80 is this box's own two paddings —
           `py-4` here (32) plus `main`'s `pb-12` (48). Everything ABOVE the card
@@ -361,14 +364,7 @@ export function TransactionPanel() {
           desktop window — collapsed the card to an empty box with a scroll rail
           and eighteen invisible rows.
 
-          THE CAP IS 884 ABOVE 944, not none. An unbounded ledger renders 1860
-          wide on a 2560 monitor, and each row is a `justify-between` with a
-          truncated label at one end and a short amount at the other — the same
-          defect `/` caps its own column at 884 for. Reusing that number rather
-          than inventing one: it is the app's existing answer to "a column that
-          must not stretch". Below container 1268 it never binds.
-
-          THE HEIGHT EASES, because the container query flips DISCRETELY while
+          THE HEIGHT EASES, because the `lg` media query flips DISCRETELY while
           the rail's width animates over 260 ms (D66/S1), so this box would
           otherwise snap mid-transition while everything around it glides —
           against the standing "nothing pops or snaps" rule.
@@ -592,13 +588,15 @@ export function TransactionPanel() {
         </form>
       </Card>
 
-      {/* `max-w-[884px]` IS BACK, and D88 never touched it: it superseded the
-          FLEX composition, not the ledger's own width. Unbounded in a 1.6fr track
-          a 2560 monitor gives the ledger ~1400-1500, and every row is a
-          `justify-between` with a truncated label at one end and the amount and
-          date at the other — about 1200 px of nothing between a transaction's
-          name and its money. 884 is `/`'s own number, not a new one. */}
-      <Card ref={ledgerRef} className="max-w-[884px] min-w-0 py-4 lg:col-start-1 lg:row-start-1">
+      {/* NO WIDTH CAP SINCE D93 (owner ruling, 2026-08-25). Inside D88's
+          `1.6fr` track the TRACK is the bound — the old 884 cap protected
+          nothing and opened a dead strip between the ledger and the form. The
+          cap had been removed and argued back once before; D93 is the number
+          that ends that loop, and `transactions-layout.test.ts` pins the
+          absence on this card's own class string. The wide-monitor row
+          stretch, and the precedents (`/` dropped its own 884, `/payouts`
+          never had one), are priced in D93. */}
+      <Card ref={ledgerRef} className="min-w-0 py-4 lg:col-start-1 lg:row-start-1">
         <Scroller
           radius={20}
           className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft lg:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"

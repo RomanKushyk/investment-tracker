@@ -40,6 +40,20 @@ function gridRow(source: string): string {
   return m[0];
 }
 
+/** The ledger card's own class string, anchored by its ref. */
+function ledgerCard(): string {
+  const m = PANEL.match(/ref=\{ledgerRef\}[^>]*className="([^"]*)"/);
+  if (m === null) throw new Error('no ledger Card (ref={ledgerRef}) in TransactionPanel');
+  return m[1];
+}
+
+/** The form card's own class string, anchored by its `bg-panel` surface. */
+function formCard(): string {
+  const m = PANEL.match(/className="([^"]*\bbg-panel\b[^"]*)"/);
+  if (m === null) throw new Error('no form Card (bg-panel) in TransactionPanel');
+  return m[1];
+}
+
 describe('the three screens are composed by one expression', () => {
   it('takes `/payouts`’ own row, tracks, gap and collapse', () => {
     const reference = gridRow(PAYOUTS);
@@ -79,7 +93,12 @@ describe('the three screens are composed by one expression', () => {
   it('floors both `fr` children, which `/payouts` does not have to', () => {
     // An `fr` track floors at its content, and every child here carries an input
     // or a scroll box with a width of its own — unlike a chart, which shrinks.
-    expect((PANEL.match(/className="min-w-0/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    // Anchored to the two cards themselves: the old prefix count
+    // (`className="min-w-0` >= 2) was satisfied by two truncating spans inside
+    // ledger rows and never matched EITHER card, so removing the class from a
+    // card kept the suite green while the fr track floored at its content.
+    expect(ledgerCard()).toContain('min-w-0');
+    expect(formCard()).toContain('min-w-0');
   });
 
   it('renders the form FIRST and places the ledger left, so both orders agree', () => {
@@ -98,12 +117,16 @@ describe('the three screens are composed by one expression', () => {
     expect(PANEL).not.toContain('order-first');
   });
 
-  it('keeps both width caps D88 never superseded', () => {
-    // D88 replaced the FLEX composition, not these: unbounded, a 2560 monitor
-    // gives the ledger ~1400 with ~1200 px between a name and its amount, and the
-    // form stretches to the full column between 560 and the `lg` collapse.
-    expect(PANEL).toContain('max-w-[884px]');
-    expect(PANEL).toContain('max-w-[560px]');
+  it('keeps the form cap and keeps the ledger uncapped (D93)', () => {
+    // D93 took the ledger's `max-w-[884px]` off: inside D88's `1.6fr` track the
+    // TRACK is the bound, and a cap narrower than it opened a dead strip between
+    // the columns — the wide-monitor row stretch is priced there. The pin is
+    // scoped to the ledger card's OWN class string so a future row-level content
+    // max-width inside the card (the fix D93 itself sanctions) cannot false-fail
+    // it. The form's 560 survives D93 untouched — its reason is the content, not
+    // the track — so it is pinned in both directions.
+    expect(ledgerCard()).not.toMatch(/max-w-/);
+    expect(formCard()).toContain('max-w-[560px]');
   });
 
   it('leaves no trailing margin on a grid that is the last element', () => {
