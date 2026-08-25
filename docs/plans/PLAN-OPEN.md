@@ -4,7 +4,7 @@
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-WAITING.md` (dated). Parent: `NEXT-PHASE-PLAN.md`. Answers land in `DECISIONS.md` and the item leaves this file.
 
-Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and one new item that costs money and is therefore the owner's.
+Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and **O27** — the owner's own question, raised 2026-08-24, about how one ОВДП is told apart from another. Both of the older items are open BY DESIGN; O27 is the one waiting on a ruling.
 
 ## Status
 
@@ -22,6 +22,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O24 | Does the selected window change `Річна`'s `daysHeld` basis — and if it does, must the sheet's grey treatment ship with it? | — | **closed — D80**, owner's ruling 2026-08-24: the sheet in full. The window changes the basis (superseding Phase 6's pin) AND F-3's grey ships with it, in every window including the default. The threshold the sheet delegated is `basisIsShort`, 10 %, derived against the shipped producers and tested |
 | O25 | May we fetch SMIDA's open-data API, given that its `robots.txt` is a blanket `Disallow: /`? | — | **closed — D86**, owner's ruling 2026-08-24: **no, categorically**, and without the email it was filed against. The Wayback history settles intent — the file was rewritten into a targeted `/db/` rule AFTER the API shipped, then tightened back to blanket in mid-2024 — so nothing was waiting on АРІФРУ. The research is preserved in D86 |
 | O26 | Should the number parser stop being locale-blind for values a locale makes ambiguous — or should the ranges disambiguate? | — | **closed — D87**, owner's ruling 2026-08-25: **the grammar follows the language.** uk groups on whitespace and takes BOTH `,` and `.` as the decimal; en keeps the comma as grouping. `GROUPED_INTEGER` is not deleted — it becomes English-only — and the both-marks-present rule is untouched, so pasted `1,234.56` still reads 1234.56. Every editable field groups LIVE through one shared component, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings. **Supersedes D58's one-parser half.** The keyboard layout was rejected as a signal: no browser exposes one — `navigator.keyboard.getLayoutMap()` is Chromium-only and reports key→character, not numeric convention. Implementation is `PLAN-NOW.md` A46 |
+| O27 | How is one ОВДП told apart from another — in «Код», and on screen? | — | **open, 2026-08-24, the owner's.** Widening «Код» to 4–6 characters is PARKED on it: `deriveCode` gives every «ОВДП …» the same «ОВ», and the only separator today is a tint handed out by arrival order. Four candidate answers, three of which cost a decision (D56, the palette) |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -39,6 +40,70 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 ---
 
 # Still open
+
+## O27 — How is one ОВДП told apart from another? — open, 2026-08-24
+
+Raised by the owner while grooming `USER-FEATURES-DRAFT.md`: «Код» could take up
+to 4 (or 6) characters, digits as well as letters — **or** an ОВДП could be
+marked some other way: by colour, by shape (a square), and by printing only the
+last 4 digits of its ISIN. The owner then **parked all of it on this question**,
+because widening a field is pointless until it is settled what the field has to
+distinguish.
+
+**What is true today, measured 2026-08-24 and CORRECTED 2026-08-25 by this
+file's own review — the first draft overstated the constraint.**
+
+- `code` is **editable**. `deriveCode` (`name.trim().slice(0, 2).toUpperCase()`)
+  runs only while the field is untouched (`AssetForm.tsx`), so two bonds can be
+  given two different codes today. The seed proves the field is hand-set and
+  proves the real defect at the same time: both bonds are named
+  `OVDP UA400023xxxx` — Latin, so derivation would yield `OV` — and both are
+  stored as **`code: 'GB'`**, the same two characters twice.
+- So the ceiling is what binds, not the derivation: **1–2 LETTERS**,
+  `/^\p{L}{1,2}$/u`, no digits. Two bonds cannot be told apart by anything
+  shorter than their names unless a human types two distinct pairs of letters
+  and remembers which is which.
+- What separates them on screen is the tint, and the tint is handed out by
+  ARRIVAL ORDER: `COLOR_KEYS[existingAssetCount % COLOR_KEYS.length]` in
+  `core/asset-builder.ts` and `AssetForm.tsx`, plus a THIRD site that cycles on
+  a different count — `TransactionPanel.tsx`'s quick-create avatar preview uses
+  `assets.length`. It repeats from the 5th asset (`ShareBar`'s comment says so)
+  and encodes nothing about the bond. **The `% 4` form quoted in the first draft
+  of this section is a COMMENT in `core/colors.ts`, not the code.**
+- The last four ISIN digits are already this project's informal name for a bond:
+  two of the four palette keys are `ovdp8976` and `ovdp6475`, and O23's evidence
+  table above calls them «OVDP …8976» and «OVDP …6475».
+
+**Why an agent must not settle it.** Two of the four candidates cost a decision
+rather than an edit, and a third costs a data-sourcing choice nobody has made:
+
+1. **A longer code.** At 4 characters this is free: the avatar is a 34 px circle
+   at 12 px, and the mono advance is 0,6em ≈ 7,2 px, so four characters measure
+   28,8 and fit. At **6** they measure 43,2 and do not, and widening the circle
+   into a pill is the one shape D56 forbids outright. **The first draft priced
+   this candidate off the 6 case alone and called it a decision; the 4 case is
+   not one.**
+2. **A square for bonds.** D56 names asset avatars among the four things that
+   stay round, so this is a supersede in writing, not a class change.
+3. **A pickable colour** — the draft's own «a colour selector would not be
+   excessive». The palette is four keys wired to their own Tailwind tint tokens
+   (README §4) and named after assets rather than colours. Renaming them follows
+   through the avatar, `Tag`, `ShareBar`, `ColorDot`, three charts, the three
+   cycling sites above — **and the STORED half the first draft missed**:
+   `colorKey` is a hard `z.enum` in `core/backup/json.ts`, it is a CSV column,
+   and every Dexie row already holds one of the four literals. Renaming without
+   an alias makes every backup taken before the change fail to import.
+4. **The last 4 ISIN digits** — no shape, no palette, and the avatar holds four
+   characters as shown above. But **there is no ISIN to read on most assets**:
+   `Asset.inzhur` is optional (`core/types.ts`), so a bond added without the
+   link carries its ISIN only inside the free-text `name`, and `deriveCode`
+   slices the name, never `ref`. This candidate therefore also decides either
+   parsing an ISIN out of prose or making the Inzhur link mandatory for bonds —
+   plus edits to the three places that pin "2 letters" in writing
+   (`core/types.ts`, README §7's asset shape and README §5's avatar line).
+
+**When it is answered** the two parked draft lines leave
+`USER-FEATURES-DRAFT.md` for `PLAN-NOW.md`.
 
 ## O5 (part) — the archive row's non-key columns — gated on W3
 
@@ -379,3 +444,6 @@ removed the silence that was O23's strongest argument.
 3. **The sheet wins, deferred.** Keep the windowed basis, ship the grey later —
    this is the state `dev` is in RIGHT NOW, and it is on this list because
    nothing chose it.
+
+---
+
