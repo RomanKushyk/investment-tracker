@@ -152,6 +152,7 @@ only for the decision you actually need.
 | D84 | Prettier is SCOPED, not retired — the 245 failures were an unset `endOfLine` on a CRLF checkout plus a default 80-char width against a 104-char codebase; `design/` (D14), all Markdown and the captured fixtures are ignored, 110 files reformatted, `format:check` joins BOTH CI gates | 2026-08-24 |
 | D85 | `Річна` keeps ONE span shared by every asset rather than a per-asset one (the span itself is the window's since D80) — closing O23: the whole question rested on one young position, per-asset would have a fixed-coupon bond beating its own contract by 19,3 pp, XIRR already is the per-asset column, and D80's grey removed the silence that was the case for switching | 2026-08-24 |
 | D86 | SMIDA's open-data API is NOT fetched by our code — categorically, closing O25 without the email: the file was ABSENT for sixteen months and returned in Nov 2021 carrying a `/db/` rule, so the restriction postdates the API and intent is on the record; the statute licenses use with attribution; the current file is an unambiguous blanket `Disallow` | 2026-08-24 |
+| D87 | The number grammar FOLLOWS THE LANGUAGE, closing O26 — uk groups on whitespace and takes both `,` and `.` as the decimal, en keeps the comma as grouping; the both-marks rule is unchanged, `GROUPED_INTEGER` becomes English-only, every field groups live, and every in-flight string is re-formatted on a language switch. **Supersedes D58's one-parser half** | 2026-08-25 |
 
 ## A pattern these entries kept finding
 

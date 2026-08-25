@@ -69,6 +69,8 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A36 | Target inputs bypass `useFormat` — a non-integer target shows a dot in the Ukrainian UI | `fix/target-input-format` | S | **done** (2026-08-24) — **five** sites, all to a new `f.input`: `asset-form.ts` ×2, `/allocation`'s draft, and Settings' USD rate + lead days, which the first pass wrongly called already done. **`input` and not `units`, and that distinction is the task**: `units` has the right shape but no guarantee, and in Ukrainian `f.units(6.164)` is `6,164`, which the locale-blind parser reads as **6164** — a silent 1000× on an untouched Save. `input` parses its own output back and only returns a string that survives, disambiguating with one trailing zero (`6,1640`). Pinned by a property test over both languages, including the class the first tests skipped. **The typing side is untouched and now [O26]** |
 | A37 | `pnpm format:check` fails on 237 tracked files (**245 when measured on 2026-08-24** — the row's figure was older; both are the same defect) — wire it into the gate or retire the scripts | `chore/prettier-decision` | M | **done** (2026-08-24) — **wired, after finding the failures were mostly not style** (D84): `endOfLine` unset made every file differ on CRLF alone, and a default 80-char width fought a codebase whose p99 is 104. Config fixed, `.prettierignore` keeps it off `design/` (D14), all Markdown and the captured fixtures; **110 files reformatted**; `format:check` added to BOTH CI gates, since an infra-only push skips the frontend one. Retiring was worse than it looked: `eslint-config-prettier` had already switched eslint's stylistic rules off |
 | A44 | `/` narrows to 560 and gains a permanent rail — the sheet implemented | `feat/quotes-density` | M | **next** — unblocked 2026-08-24 by `design/extensions/screen-density.dc.html`. Deletes `max-w-[884px]`, hoists the title block out of the ritual column, and repairs the yield card at 360 as well |
+| **Section M** | **Input grammar — from O26, closed by D87 (2026-08-25)** | | | |
+| A46 | The number grammar follows the language, and every field groups as it types (D87) | `feat/number-grammar` | M | **startable** — closes O26 by the owner's ruling 2026-08-25. `GROUPED_INTEGER` becomes **English-only** (not deleted), one shared `NumberField` groups live in both languages, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings |
 
 ---
 
@@ -2070,3 +2072,92 @@ downstream shifts by the same hair: 2,76 against 2,77, 33,6 against 33,7.
       figure. Both now pinned. The window plumbing became `usePeriodWindow`,
       which returns the window AND the control from one `resolveWindow` — so
       A40 and A41 cannot make them disagree.
+
+---
+
+# Section M — Input grammar
+
+The one question A36 could not answer inside itself: A36 made every editable
+number PRINT in a form the app can read back, and the review that closed it
+found the other half — a form the app prints correctly can still be one the user
+cannot TYPE. That became O26, and O26 is now D87.
+
+## A46 — The number grammar follows the language (D87) — `feat/number-grammar`
+
+**Closes O26.** The owner's ruling of 2026-08-25 is `docs/decisions/D81-D100.md`
+D87 and it is the contract; this task re-opens none of it.
+
+```
+uk    grouping = any whitespace          decimal = «,» AND «.»
+en    grouping = any whitespace, and «,» when it groups threes
+                                         decimal = «.»
+both  BOTH marks present -> the LAST is the decimal        (unchanged)
+```
+
+- [ ] `GROUPED_INTEGER` becomes **English-only**. It is not deleted: it is what
+      stops `f.units(6164)` = `6,164` losing three orders of magnitude on an
+      untouched Save in English, and that risk is unchanged there.
+- [ ] The both-marks-present branch stays exactly as it is, in both languages —
+      it is what makes pasted `1,234.56` and `1.234,56` safe, and no ruling
+      touched it.
+- [ ] **How the language reaches the parser is this task's to decide, and D87
+      deliberately does not.** `normalizeNumberInput` takes no language today,
+      and `quoteInputSchema` / `percentInputSchema` are static module-level
+      exports nested inside **three** schemas, not one: `assetFormSchema`
+      (`units`, `expectedPct`, `targetPct`), `transactionSchema` (`amount`) and
+      `optionalAmount` → `couponAmount`. A factory per language and normalising
+      at the component boundary are both open; pick one and say in the commit
+      why. **Converting only the asset form leaves the whole transaction amount
+      path and the coupon amount on the old grammar.**
+- [ ] One shared **`NumberField`** replaces the hand-rolled numeric inputs at
+      the sites that hold a groupable number — `QuoteRow`, `TransactionPanel`
+      (amount), `AssetForm` (units, coupon, expected, target), `Settings`' USD
+      rate, `Allocation` targets, `CouponDueCard`. Grouping is live as the user
+      types, in the language's own mark, and **the caret is restored by counting
+      the DIGITS before it**, never by character offset.
+- [ ] **Settings' lead days is NOT one of them** as things stand: it parses
+      through `parseLeadDays`, a bare `/^\d+$/`, which rejects any grouping mark
+      the shared field would emit. Either it keeps a plain input or
+      `parseLeadDays` moves with it — decide, do not discover.
+- [ ] **The component owns BEHAVIOUR, not geometry.** Grammar, live grouping and
+      caret restoration are its; height, radius, font and alignment stay with
+      each call site. `QuoteRow`'s `max-md:h-11` + `round(44 × 0.26) = 11` is
+      **the deliberate D66 exception** — CLAUDE.md allows exactly the quote
+      input and `Button` size `md` to grow — so baking it into a shared field
+      would grow all seven sites below `md` and regress "44 × 44 is hit area,
+      never geometry". `text-right` is likewise QuoteRow's and not
+      `CouponDueCard`'s, and `AssetForm`'s Units keeps its deliberate
+      `h-11 rounded-[11px] font-display text-[15px] font-semibold` (units-first
+      framing, S3).
+- [ ] `QuoteRow`'s ghost overlay still aligns with the value beneath it, and
+      every site keeps `inputMode="decimal"`.
+- [ ] **Every in-flight numeric STRING is re-formatted on a language switch,
+      not only the quote draft**: parse with the old language, print with the new
+      through `f.input`; a string mid-typing (`6,`) does not parse and is left
+      untouched. `src/state/draft.ts` holds only the quotes — the rest sit in
+      react-hook-form (`AssetForm`, `TransactionPanel`) and in `useState`
+      (Settings' USD rate, through a lazy initialiser that never re-runs;
+      `/allocation`'s targets). **The field that produced O26 is in the missing
+      set**: uk `6,164` in `expectedPct`, switch to English, Save untouched, and
+      `quoteInputSchema` has no upper bound — 6164 % is stored.
+- [ ] **The quote draft's reformat preserves `origins`.** `setQuote` deletes
+      them on purpose (typing claims the row for G5, chip → `manual`), so
+      rewriting machine-filled drafts through it would relabel every fetched row
+      as the user's and make the next `reconcileFetched` treat it as user-owned.
+      Use `fillQuote` or a dedicated action.
+- [ ] `f.input`'s trailing-zero workaround (`6,1640`) goes with the rule that
+      required it; the round-trip guarantee itself stays. `money.test.ts` and
+      `asset-form.test.ts` both pin `6,1640` today and move with it.
+- [ ] **`src/core/schemas.test.ts` moves first.** It pins the locale-blind
+      behaviour D87 replaces — `quoteInputSchema.parse('6,164') === 6164`,
+      `'10,000'`, `'1,000,000'` — beside `'16,5'` → 16.5 in the same block, and
+      those cannot all hold under one language any more. `pnpm test` fails there
+      before anywhere else.
+- [ ] Tests: the uk case that started this (`6,164` → 6.164, and a percent field
+      accepting it), the en case that must NOT regress (`6,164` → 6164), both
+      both-marks paste forms, **the uk paste that D87 accepts as a cost**
+      (`10,000` → 10, pinned so it is a decision and not a surprise), a language
+      switch over a live draft in each of the four holders, and a paste into a
+      live-grouping field that keeps its decimal.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`, then
+      `/code-review` (D76) **before** the merge, ticked after it closes.
