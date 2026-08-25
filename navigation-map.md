@@ -143,6 +143,14 @@ byte-for-byte. There is no third geometry — the old 136px rail is gone, and a
 - The **date picker stops anchoring**: it opens as a centred **328px** sheet at
   radius 16 over the dialog scrim, with day cells 42.3 × 44 and month-nav buttons
   44 × 44. At ≥768 it is an anchored popover again, 269px, with 32px day cells.
+  **Its caption is two buttons** — the month word and the year, 44 tall at 360
+  and 28 above the breakpoint. Pressing either REPLACES the days with a grid:
+  the twelve months in three columns, or a page of years in four. Pressing it
+  again goes back, and the popover measures 269.1 in all three views.
+  **Do not check the year range against a literal**: it is ±20 years around the
+  CURRENT one, never later than 2016 at the near end, and widened to reach the
+  field's own year — so it moves with the clock. The last page is short by
+  design (41 years page as 12, 12, 12 and 5), so a page of five is correct.
 - Every field and both value-showing triggers (`Select`, `DatePicker`) read at
   **16px** — under that iOS Safari zooms on focus and does not zoom back.
 - Toasts sit at the bottom, 12px a side, clear of `env(safe-area-inset-bottom)`,

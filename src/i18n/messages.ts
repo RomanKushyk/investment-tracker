@@ -374,6 +374,13 @@ export const en = {
     listAnd: ' & ',
     pick: 'Pick a date',
     selected: (date: string) => `Date: ${date}`,
+    // The calendar's caption is two buttons, and its year grid pages by twelve.
+    // These four are their accessible names — the only strings the custom
+    // caption needs, because the month words are `monthFull` above.
+    pickMonth: 'Pick a month',
+    pickYear: 'Pick a year',
+    prevYears: 'Previous years',
+    nextYears: 'Next years',
     monthIn: [
       'January',
       'February',
@@ -1316,6 +1323,10 @@ export const uk: Dict = {
     listAnd: ' і ',
     pick: 'Оберіть дату',
     selected: (date: string) => `Дата: ${date}`,
+    pickMonth: 'Виберіть місяць',
+    pickYear: 'Виберіть рік',
+    prevYears: 'Попередні роки',
+    nextYears: 'Наступні роки',
     monthIn: [
       'січня',
       'лютого',
