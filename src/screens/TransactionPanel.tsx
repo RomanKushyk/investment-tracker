@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Plus, X } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
@@ -11,7 +11,15 @@ import { Card } from '../components/ui/Card';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
-import { useAssets, useRecordTransaction, useTransactions } from '../hooks/queries';
+import { TAP_44, TAP_44_BOX } from '../components/ui/tap-target';
+import {
+  useAssets,
+  useDeleteTransaction,
+  useRecordTransaction,
+  useTransactions,
+  useUpdateAsset,
+} from '../hooks/queries';
+import { rollbackNextCoupon } from '../core/accrual';
 import { assetFromForm } from '../core/asset-builder';
 import { COLOR_KEYS } from '../core/colors';
 import { todayIso } from '../core/dates';
@@ -154,6 +162,11 @@ export function TransactionPanel() {
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
   const transactions = useTransactions().data ?? [];
   const recordTransaction = useRecordTransaction();
+  const deleteTransaction = useDeleteTransaction();
+  const updateAsset = useUpdateAsset();
+  // WHICH ROW IS ASKING — one id, because two rows asking at once is a state the
+  // screen has no use for and a reader would have to rule out.
+  const [confirmingId, setConfirmingId] = useState<string | undefined>(undefined);
 
   const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
     resolver: zodResolver(transactionSchema),
@@ -250,6 +263,42 @@ export function TransactionPanel() {
     inFlight.current = false;
   };
 
+  function removeTransaction(tx: Transaction) {
+    deleteTransaction.mutate(tx.id, {
+      onSuccess: () => {
+        // A CONFIRMED COUPON GETS ITS OCCURRENCE BACK. The card's confirm writes
+        // the payout AND rolls `asset.nextCoupon` forward; deleting only the
+        // transaction left the pointer ahead of it, and `nextUnsettledCoupon`
+        // walks the grid FORWARD and never looks behind the pointer — so the
+        // occurrence left the ledger, the due cards, the reminders and income all
+        // at once, with nothing on any screen to say it had. D23: the pointer
+        // moves only through a confirm, and a delete is that confirm taken back
+        // (owner's ruling, 2026-08-25). The arithmetic is `rollbackNextCoupon`.
+        const asset = assetById.get(tx.assetId);
+        const reopened =
+          asset === undefined
+            ? undefined
+            : rollbackNextCoupon(
+                asset,
+                tx,
+                transactions.filter((t) => t.id !== tx.id),
+              );
+        if (asset !== undefined && reopened !== undefined) {
+          updateAsset.mutate({ id: asset.id, patch: { nextCoupon: reopened } });
+        }
+        setConfirmingId(undefined);
+        toast.success(
+          reopened === undefined
+            ? t.transaction.delete.doneToast
+            : t.transaction.delete.couponReopenedToast,
+        );
+      },
+      // The row stays in its asking state on failure, so the answer is still
+      // one press away rather than lost with the toast.
+      onError: () => toast.error(t.transaction.delete.failedToast),
+    });
+  }
+
   function onSubmit(values: TransactionFormValues) {
     if (isNewAsset) {
       // Both forms must pass; assetForm.handleSubmit surfaces the sub-form's
@@ -276,21 +325,75 @@ export function TransactionPanel() {
 
   return (
     <>
-      {/* THE NARROW COLUMN — 360 beside the ledger, 560 when stacked, never the
-          full width. The drawing says `flex:0 1 360px`; grow-1 plus a cap
-          renders the same 360 beside the ledger AND still fills a wrapped line
-          up to the 560 this screen has always used. `min-w-0` because a flex
-          item without it will not shrink below its content and forces
-          horizontal overflow.
+      {/* F6 — NO MICROLABEL. "Останні транзакції" became false the moment the
+          list stopped being the last three, and the extension declined to
+          invent a replacement for a heading the screen's own title already
+          gives. */}
+      {/* NO `px-5` HERE, and that is the Scroller's contract, not an omission
+          (A32 review). Passing `radius` opens the inline gutter from the
+          ScrollArea ROOT — 28 a side, outside the scroll box — so a Card padding
+          of its own inset the rows a SECOND time (20 + 24 + 4 = 48 a side) and
+          pushed the rail 28 off the card's edge instead of 8. It also made the
+          `radius` wrong on its own terms: a radius is measured at the Scroller's
+          box, and a 20 seen from inside 20 px of padding presents 0. With the
+          padding gone the two agree, and the result is the extension's drawn
+          `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
+          ImportDialog.tsx carries the same warning; this repeated it. */}
+      {/* THE WIDE COLUMN — `flex:1 1 560px` as drawn; the ledger is what the
+          route is for and it takes the remainder. Its cap is released only
+          above 944, so a wrapped line keeps the 560 this screen shipped with.
 
-          The `@container` these query lives on `Transactions.tsx`'s row, this
-          component's ONE caller. A container query with no eligible ancestor
-          evaluates false rather than erroring, so if this panel is rendered
-          anywhere else the caps silently stop applying — it sat in `/`'s aside
-          until A32, and that container's breakpoint is 884, not 944. */}
+          THE HEIGHT CAP IS THE VIEWPORT'S ABOVE 944, not 420. That number was
+          chosen when this card sat UNDER the form and had to leave room for it;
+          side by side it only has to leave the header and the page's own
+          padding, so all 18 seeded rows fit and the PAGE stops scrolling while
+          the column does (D65). Below 944 the cap stays 420 — the card is
+          stacked again there, and 360 must not move.
+
+          `--ledger-top` IS MEASURED, and 80 is this box's own two paddings —
+          `py-4` here (32) plus `main`'s `pb-12` (48). Everything ABOVE the card
+          is read off the layout rather than summed by hand; see `useLedgerTop`.
+          197 survives only as the pre-measurement fallback for the first paint.
+
+          `max()` FLOORS IT AT 200, because a `max-height` calc that resolves
+          negative is clamped to zero, not ignored (A35 review): a wide but very
+          short window — a split screen, a short embedded frame, a dragged
+          desktop window — collapsed the card to an empty box with a scroll rail
+          and eighteen invisible rows.
+
+          THE CAP IS 884 ABOVE 944, not none. An unbounded ledger renders 1860
+          wide on a 2560 monitor, and each row is a `justify-between` with a
+          truncated label at one end and a short amount at the other — the same
+          defect `/` caps its own column at 884 for. Reusing that number rather
+          than inventing one: it is the app's existing answer to "a column that
+          must not stretch". Below container 1268 it never binds.
+
+          THE HEIGHT EASES, because the container query flips DISCRETELY while
+          the rail's width animates over 260 ms (D66/S1), so this box would
+          otherwise snap mid-transition while everything around it glides —
+          against the standing "nothing pops or snaps" rule.
+
+          AND THIS BOUNDS THE LEDGER ONLY. The form is uncapped deliberately —
+          the quick-create reveal makes it tall, and a tall FORM should scroll
+          the page rather than trap its own submit button. "The page stops
+          scrolling" is a claim about the read-only ledger state, which is the
+          state the complaint was about. */}
+      {/* THE SIDE BLOCK — the narrow track, on the RIGHT since the owner's
+          2026-08-25 instruction. It keeps every property the drawing gave it
+          except its side: narrow beside the ledger, capped at 560 when the grid
+          collapses, and never stretched into a settings page.
+
+          IT LEADS IN THE DOM, and `lg:col-start-2` puts it on the right anyway.
+          The first cut did the opposite — ledger first, `max-lg:order-first` on
+          the form — and that made the phone's visual order disagree with its
+          reading order: a keyboard or a screen reader went through 18 ledger rows
+          AND 18 delete buttons before the first field of the form it could see at
+          the top (WCAG 2.4.3, 1.3.2). Collapsed, the column IS the sequence, so
+          that is the order the DOM owes. Beside the ledger the two are perceived
+          together and acting before reading is defensible. */}
       <Card
         radius={24}
-        className="max-w-[560px] min-w-0 flex-[1_1_360px] animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in @min-[944px]:max-w-[360px]"
+        className="max-w-[560px] min-w-0 animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in lg:col-start-2 lg:row-start-1"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
@@ -489,66 +592,16 @@ export function TransactionPanel() {
         </form>
       </Card>
 
-      {/* F6 — NO MICROLABEL. "Останні транзакції" became false the moment the
-          list stopped being the last three, and the extension declined to
-          invent a replacement for a heading the screen's own title already
-          gives. */}
-      {/* NO `px-5` HERE, and that is the Scroller's contract, not an omission
-          (A32 review). Passing `radius` opens the inline gutter from the
-          ScrollArea ROOT — 28 a side, outside the scroll box — so a Card padding
-          of its own inset the rows a SECOND time (20 + 24 + 4 = 48 a side) and
-          pushed the rail 28 off the card's edge instead of 8. It also made the
-          `radius` wrong on its own terms: a radius is measured at the Scroller's
-          box, and a 20 seen from inside 20 px of padding presents 0. With the
-          padding gone the two agree, and the result is the extension's drawn
-          `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
-          ImportDialog.tsx carries the same warning; this repeated it. */}
-      {/* THE WIDE COLUMN — `flex:1 1 560px` as drawn; the ledger is what the
-          route is for and it takes the remainder. Its cap is released only
-          above 944, so a wrapped line keeps the 560 this screen shipped with.
-
-          THE HEIGHT CAP IS THE VIEWPORT'S ABOVE 944, not 420. That number was
-          chosen when this card sat UNDER the form and had to leave room for it;
-          side by side it only has to leave the header and the page's own
-          padding, so all 18 seeded rows fit and the PAGE stops scrolling while
-          the column does (D65). Below 944 the cap stays 420 — the card is
-          stacked again there, and 360 must not move.
-
-          `--ledger-top` IS MEASURED, and 80 is this box's own two paddings —
-          `py-4` here (32) plus `main`'s `pb-12` (48). Everything ABOVE the card
-          is read off the layout rather than summed by hand; see `useLedgerTop`.
-          197 survives only as the pre-measurement fallback for the first paint.
-
-          `max()` FLOORS IT AT 200, because a `max-height` calc that resolves
-          negative is clamped to zero, not ignored (A35 review): a wide but very
-          short window — a split screen, a short embedded frame, a dragged
-          desktop window — collapsed the card to an empty box with a scroll rail
-          and eighteen invisible rows.
-
-          THE CAP IS 884 ABOVE 944, not none. An unbounded ledger renders 1860
-          wide on a 2560 monitor, and each row is a `justify-between` with a
-          truncated label at one end and a short amount at the other — the same
-          defect `/` caps its own column at 884 for. Reusing that number rather
-          than inventing one: it is the app's existing answer to "a column that
-          must not stretch". Below container 1268 it never binds.
-
-          THE HEIGHT EASES, because the container query flips DISCRETELY while
-          the rail's width animates over 260 ms (D66/S1), so this box would
-          otherwise snap mid-transition while everything around it glides —
-          against the standing "nothing pops or snaps" rule.
-
-          AND THIS BOUNDS THE LEDGER ONLY. The form is uncapped deliberately —
-          the quick-create reveal makes it tall, and a tall FORM should scroll
-          the page rather than trap its own submit button. "The page stops
-          scrolling" is a claim about the read-only ledger state, which is the
-          state the complaint was about. */}
-      <Card
-        ref={ledgerRef}
-        className="max-w-[560px] min-w-0 flex-[1_1_560px] py-4 @min-[944px]:max-w-[884px]"
-      >
+      {/* `max-w-[884px]` IS BACK, and D88 never touched it: it superseded the
+          FLEX composition, not the ledger's own width. Unbounded in a 1.6fr track
+          a 2560 monitor gives the ledger ~1400-1500, and every row is a
+          `justify-between` with a truncated label at one end and the amount and
+          date at the other — about 1200 px of nothing between a transaction's
+          name and its money. 884 is `/`'s own number, not a new one. */}
+      <Card ref={ledgerRef} className="max-w-[884px] min-w-0 py-4 lg:col-start-1 lg:row-start-1">
         <Scroller
           radius={20}
-          className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft @min-[944px]:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
+          className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft lg:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
         >
           {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS (A32
               review). Radix wraps a viewport's children in its own
@@ -561,23 +614,92 @@ export function TransactionPanel() {
               the child's preferred width at zero so the table box collapses
               back onto its own `min-width:100%`, and `min-w-full` fills it —
               the label then has a definite width to ellipsize against. */}
-          <div className="flex w-0 min-w-full flex-col gap-[9px] text-[12.5px]">
+          {/* A SEPARATOR PER ROW, not the 9 px gap the rows used to sit in: a
+              hairline between them is what makes a ledger read as a ledger, and
+              it is the same line `/payouts`' own table draws between its rows —
+              `border-t border-hairline` on the row, `first:border-t-0` to spare
+              the top one. `divide-y` was the obvious spelling and it produced NO
+              rule in this build (measured: the colour from `divide-hairline`
+              applied, the width stayed 0), so the row carries its own border,
+              which is also the app's existing idiom. */}
+          <div className="flex w-0 min-w-full flex-col text-[12.5px]">
             {ledger.length === 0 && <span className="text-muted">{t.transaction.recentEmpty}</span>}
             {ledger.map((tx) => {
               const asset = assetById.get(tx.assetId);
+              const asking = confirmingId === tx.id;
               return (
                 <div
                   key={tx.id}
-                  className="flex animate-in items-center justify-between gap-2.5 duration-300 fade-in slide-in-from-top-1 max-md:gap-2"
+                  className="group flex animate-in items-center justify-between gap-2.5 border-t border-hairline py-2 duration-300 fade-in slide-in-from-top-1 first:border-t-0 max-md:gap-2"
                 >
-                  <span className="min-w-0 flex-1 truncate">
-                    {tx.type === 'interest_payout'
-                      ? t.transaction.recentCoupon
-                      : t.transaction.types[tx.type]}{' '}
-                    · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
-                  </span>
-                  <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
-                  <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
+                  {asking ? (
+                    <>
+                      {/* THE ROW ITSELF ASKS. The app has no modal for a single
+                          line and should not grow one: a quote row's suggestion
+                          and the coupon card both ask in place, and this is the
+                          same act — a question where the answer will land. */}
+                      {/* IT NAMES THE RECORD, and `role="alert"` announces it.
+                          The question REPLACES the row, so the label, amount and
+                          date it stood on are gone at the moment of confirming
+                          something unrecoverable — two coupons of one amount, or
+                          two rows for one asset days apart, were indistinguishable
+                          there. A reader who never sees the swap was told nothing
+                          at all. */}
+                      <span role="alert" className="min-w-0 flex-1 truncate text-neg">
+                        {t.transaction.delete.ask(f.money(tx.amount), f.dateShort(tx.date))}
+                      </span>
+                      {/* `TAP_44`, NOT `TAP_44_BOX`: both of these draw a box and
+                          hold a label, and the BOX squares a control to 44 × 44
+                          below `md`, where «Видалити» has no wrap opportunity and
+                          spills straight out of its own border. `tap-target.ts`
+                          reserves the real box for a control without one, and
+                          `Sidebar.tsx` says so outright.
+                          `autoFocus` keeps the keyboard on the question it just
+                          asked — the ✕ unmounts in the same commit and React moves
+                          focus nowhere, which means <body>. */}
+                      <button
+                        type="button"
+                        autoFocus
+                        onClick={() => removeTransaction(tx)}
+                        disabled={deleteTransaction.isPending}
+                        className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition hover:bg-neg-tint active:scale-[.97]`}
+                      >
+                        {t.transaction.delete.confirm}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(undefined)}
+                        className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition hover:text-ink active:scale-[.97]`}
+                      >
+                        {t.transaction.delete.cancel}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="min-w-0 flex-1 truncate">
+                        {tx.type === 'interest_payout'
+                          ? t.transaction.recentCoupon
+                          : t.transaction.types[tx.type]}{' '}
+                        · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                      </span>
+                      <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
+                      <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
+                      {/* HOVER REVEALS IT ON A POINTER, AND TOUCH ALWAYS SEES IT.
+                          Eighteen always-on glyphs are noise on a desktop; a
+                          hover-only control does not exist on a phone, where
+                          there is no hover to have. `focus-visible` keeps it
+                          reachable by keyboard, which hover alone never is. */}
+                      <button
+                        type="button"
+                        aria-label={t.transaction.delete.aria}
+                        data-delete-row={tx.id}
+                        onClick={() => setConfirmingId(tx.id)}
+                        className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
+                      >
+                        <X size={12} strokeWidth={2.75} />
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}

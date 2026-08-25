@@ -10,6 +10,7 @@ import {
   dueCoupons,
   nextUnsettledCoupon,
   rollNextCoupon,
+  rollbackNextCoupon,
   suggestedQuote,
   scheduledCouponMonths,
 } from './accrual';
@@ -670,5 +671,51 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
     expect(
       scheduledCouponMonths(bond({ payoutSchedule: 'none', nextCoupon: undefined }), []),
     ).toEqual([2]);
+  });
+});
+
+describe('rollbackNextCoupon — deleting a confirmed coupon gives its occurrence back', () => {
+  // The confirm's own effect, reproduced: the payout is written on the COUPON's
+  // date and the pointer rolls to the next occurrence.
+  const confirmed = bond({ nextCoupon: '2027-02-25' });
+  const payout = tx({ date: '2026-08-25' });
+
+  it('restores the occurrence the deleted payout was settling', () => {
+    expect(rollbackNextCoupon(confirmed, payout, [])).toBe('2026-08-25');
+  });
+
+  it('leaves the pointer alone when a duplicate still settles that occurrence', () => {
+    const duplicate = tx({ id: 't2', date: '2026-08-27' }); // inside the ±7-day window
+    expect(rollbackNextCoupon(confirmed, payout, [duplicate])).toBeUndefined();
+  });
+
+  it('ignores a payout that never moved the pointer', () => {
+    // On or after the pointer: the pointer only ever sits on an OPEN occurrence.
+    expect(rollbackNextCoupon(confirmed, tx({ date: '2027-02-25' }), [])).toBeUndefined();
+    expect(rollbackNextCoupon(confirmed, tx({ date: '2027-08-25' }), [])).toBeUndefined();
+  });
+
+  it('ignores every other kind of row, and every other asset', () => {
+    expect(rollbackNextCoupon(confirmed, tx({ type: 'buy' }), [])).toBeUndefined();
+    expect(rollbackNextCoupon(confirmed, tx({ type: 'reinvest' }), [])).toBeUndefined();
+    expect(rollbackNextCoupon(confirmed, tx({ assetId: 'reit' }), [])).toBeUndefined();
+  });
+
+  it('ignores an asset that has no coupon grid at all', () => {
+    const fund = bond({ yieldType: 'dividends', nextCoupon: undefined });
+    expect(rollbackNextCoupon(fund, payout, [])).toBeUndefined();
+  });
+
+  // THE PROPERTY THAT MAKES ROLLING BACK SAFE, and the reason no backward stepper
+  // is needed: the pointer may land on an occurrence older than the immediate
+  // predecessor, because the forward walk steps over everything still settled.
+  it('hands the walk an older occurrence without stranding the newer ones', () => {
+    const twoAhead = bond({ nextCoupon: '2027-02-25' });
+    const restored = rollbackNextCoupon(twoAhead, payout, [])!;
+    const reopened = bond({ nextCoupon: restored });
+    // Nothing settles 25.08 any more, so that is what the walk offers.
+    expect(nextUnsettledCoupon(reopened, [])).toEqual({ date: '2026-08-25', amount: 1240 });
+    // Record it again and the walk returns to where the pointer had been.
+    expect(nextUnsettledCoupon(reopened, [payout])).toEqual({ date: '2027-02-25', amount: 1240 });
   });
 });

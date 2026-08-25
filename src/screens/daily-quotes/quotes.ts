@@ -1,5 +1,11 @@
 // Pure helpers for the Daily quotes screen (not in src/lib — that layer stays
 // untouched per Task 3 scope). Covered by quotes.test.ts.
+import { quoteInputSchema } from '../../core/schemas';
+
+/** Money, as whole kopiykas — the unit the app displays and the one to compare in. */
+function kopiykas(n: number): number {
+  return Math.round(n * 100);
+}
 import type { Asset, Snapshot } from '../../core/types';
 
 // The latest quote for this asset strictly BEFORE the selected date, WITH its
@@ -27,6 +33,50 @@ export function yesterdayQuote(
   selectedDate: string,
 ): number | undefined {
   return lastQuoteBefore(snapshots, assetId, selectedDate)?.value;
+}
+
+// THE PENDING CHANGE the rail names (sheet D-4). Not a total: the sidebar
+// already shows ЗАГАЛЬНИЙ КАПІТАЛ, and one quantity with two values on one
+// screen is the failure this block exists to avoid. A change is a different
+// quantity, and the only one this screen is in a position to know.
+//
+// THE BASELINE IS `yesterdayQuote(… , selectedDate)`, deliberately, and the trap
+// is worth naming because the wrong function looks right: `latestQuotes` is
+// unbounded, so on any day the date picker is not sitting on today it measures
+// against a snapshot LATER than the one every row's «… ₴ учора» subline compares
+// to. The rail would say one thing and four sublines another.
+//
+// A row can be FILLED without changing anything, so this counts rows whose
+// value DIFFERS from its baseline — never `filled(n, m)`'s count.
+//
+// AN ASSET WITH NO BASELINE IS NOT COUNTED, and that is a decision the sheet
+// left open: its row shows no «учора», so there is nothing for the drafted value
+// to be less than, and treating the missing baseline as 0 would print the
+// asset's whole value as a change the day it gets its first quote.
+//
+// THE COMPARISON IS ROUNDED TO KOPIYKAS, because `===` on floats made "Copy
+// yesterday" — which changes nothing by definition — report a change: a stored
+// quote with more than two decimals can never equal the two-decimal string
+// `f.num` writes back into the draft.
+export function pendingChange(
+  assets: Asset[],
+  drafts: Record<string, string | undefined>,
+  snapshots: Snapshot[],
+  selectedDate: string,
+): { sum: number; changed: number } {
+  let sum = 0;
+  let changed = 0;
+  for (const a of assets) {
+    // The screen's own parser, not a second reading of the same string: a draft
+    // is whatever was typed, and only what `quoteInputSchema` accepts counts.
+    const parsed = quoteInputSchema.safeParse(drafts[a.id] ?? '');
+    if (!parsed.success) continue;
+    const baseline = yesterdayQuote(snapshots, a.id, selectedDate);
+    if (baseline === undefined || kopiykas(parsed.data) === kopiykas(baseline)) continue;
+    sum += parsed.data - baseline;
+    changed += 1;
+  }
+  return { sum, changed };
 }
 
 // Most recent savedAt across all snapshots — feeds "Last saved" (only

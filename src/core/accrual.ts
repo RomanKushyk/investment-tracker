@@ -471,3 +471,46 @@ export function scheduledCouponMonths(asset: Asset, transactions: Transaction[])
 export function couponReminderId(assetId: string, date: string): string {
   return `coupon:${assetId}:${date}`;
 }
+
+/**
+ * THE OCCURRENCE A DELETED PAYOUT WAS SETTLING, when deleting it has to move the
+ * pointer BACK — and `undefined` when it does not.
+ *
+ * A47/A48's review found the hole and it was a real one: `CouponDueCard`'s
+ * confirm writes the payout AND rolls `asset.nextCoupon` forward, while deleting
+ * that row from the ledger only removed the transaction. `nextUnsettledCoupon`
+ * walks the grid FORWARD from the pointer and never looks behind it, so the
+ * occurrence vanished from the ledger, from the due cards, from the reminders and
+ * from income at once — with nothing on any screen to say it had.
+ *
+ * D23 IS WHAT DECIDES THE ANSWER: the stored pointer moves only through a
+ * confirm. A delete is that confirm being taken back, so the pointer goes back
+ * with it — the owner's ruling, 2026-08-25.
+ *
+ * THE PAYOUT'S OWN DATE IS THE RESTORE POINT, and that needs no backward stepper
+ * (there is none): the confirm dates its transaction on the COUPON's date, so a
+ * confirmed payout carries the occurrence it settled. Rolling the pointer to an
+ * OLDER occurrence than the immediate predecessor is safe by construction —
+ * `nextUnsettledCoupon` steps forward over everything still settled, so the walk
+ * surfaces the reopened one and then returns to where it was.
+ *
+ * `remaining` is the ledger AFTER the delete: a duplicate payout still covering
+ * that occurrence leaves the pointer alone, because the occurrence is still
+ * settled.
+ */
+export function rollbackNextCoupon(
+  asset: Asset,
+  deleted: Transaction,
+  remaining: Transaction[],
+  opts: CouponWalkOptions = {},
+): string | undefined {
+  if (asset.yieldType !== 'fixed_coupon') return undefined;
+  if (deleted.type !== 'interest_payout' || deleted.assetId !== asset.id) return undefined;
+  const pointer = asset.nextCoupon;
+  // A payout ON or AFTER the pointer never moved it: the pointer only ever sits
+  // on an occurrence that is still open.
+  if (pointer === undefined || deleted.date >= pointer) return undefined;
+  const windowDays = opts.windowDays ?? COUPON_MATCH_WINDOW_DAYS;
+  if (couponRecorded(remaining, asset.id, deleted.date, windowDays)) return undefined;
+  return deleted.date;
+}

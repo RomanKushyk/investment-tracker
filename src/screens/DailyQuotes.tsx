@@ -26,6 +26,7 @@ import {
 } from './daily-quotes/suggestions';
 import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
+import { PendingChange } from './daily-quotes/PendingChange';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
@@ -201,114 +202,157 @@ export function DailyQuotes() {
 
   return (
     <>
-      {/* S6 — above the header row, full content width; quote-missing is
-          suppressed here (the progress pill already says it). */}
-      <ReminderStrip place="daily-quotes" />
-      {/* A CONTAINER, so the side column can be capped only while it is
-          actually beside something. `max-w-[360px]` exists to stop the
-          transaction panel stretching across a wide desktop — but the moment
-          the two columns wrap onto separate rows it stops being a cap and
-          becomes a hole: measured, the aside sat at 360 while its row was
-          465 wide at a 500px viewport and 733 at 767, leaving 106 to 373px of
-          dead space to its right.
-          884 is not a guess: it is the two flex bases plus the gap between
-          them (560 + 24 + 300), i.e. exactly the width at which flexbox stops
-          wrapping them. A media query cannot ask this — the answer depends on
-          the CONTAINER, which is the viewport minus the sidebar minus main's
-          padding, and those differ per shell. */}
-      <div className="@container flex flex-wrap items-start gap-6">
-        <div className={`min-w-0 flex-[1_1_560px] ${due.length === 0 ? 'max-w-[884px]' : ''}`}>
-          <div className="mb-1 flex flex-wrap items-center gap-3">
-            <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
-            <span
-              key={filledCount}
-              className="animate-in rounded-[6px] bg-pos-tint px-3 py-1 text-xs font-semibold text-pos-tint-text duration-150 zoom-in-95"
-            >
-              {t.dailyQuotes.filled(filledCount, assets.length)}
-            </span>
-            <FetchQuotesButton
-              state={fetch.state}
-              freshness={fetch.freshness}
-              flashAt={fetch.flashAt}
-              onFetch={fetch.fetchQuotes}
-            />
-            <div className="ml-auto flex items-center gap-2">
-              <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
-                {t.dailyQuotes.dateLabel}
-              </label>
-              <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
+      {/* COMPOSED LIKE `/payouts`, and that SUPERSEDES the sheet's centred 944
+          (S1-B) on the owner's instruction of 2026-08-25. His reason is the one
+          that outranks a drawing: the composition was unlike every other page in
+          the app, and a screen that reads as a different product is a worse
+          outcome than a wide row. What the sheet won stays won — the side blocks
+          are permanent, the title block is out of the column, the yield teaser
+          is a card — but the MEASURE is `/payouts`': main's own width, no
+          centring, no cap. */}
+      <div>
+        {/* S6 — above the header row, full composition width; quote-missing is
+            suppressed here (the progress pill already says it). The component
+            itself is untouched, so `/overview` renders identically. */}
+        <ReminderStrip place="daily-quotes" />
+        {/* IDENTITY AND PROGRESS ONLY. The header used to carry four kinds of
+            thing on one line — the title, the draft's progress, a bulk ACTION
+            and the date, which is the CONTEXT every figure below is relative to.
+            The date read as decoration beside a heading while being the most
+            consequential control on the screen: change it and every row's
+            baseline and value change. The owner moved it out on 2026-08-25 and
+            asked for the rest to follow; the progress pill stays because it is a
+            fact about the title's own subject, and because it is what tells you
+            you are not finished while you work down the rows. */}
+        <div className="mb-1 flex flex-wrap items-center gap-3">
+          <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
+          <span
+            key={filledCount}
+            className="animate-in rounded-[6px] bg-pos-tint px-3 py-1 text-xs font-semibold text-pos-tint-text duration-150 zoom-in-95"
+          >
+            {t.dailyQuotes.filled(filledCount, assets.length)}
+          </span>
+        </div>
+        <p className="mb-[18px] text-[13px] text-muted">{t.screen.dailyQuotes.subtitle}</p>
+
+        {/* `/payouts`' OWN EXPRESSION, character for character — `1.6fr 1fr`,
+            `items-start`, `gap-3.5`, one column below `lg`. "Like the other
+            pages" IS the requirement here, so a second idiom that merely looked
+            similar would be the defect rather than the fix. The wide track holds
+            the rows, the narrow one the side blocks.
+            `min-w-0` on both children is the one thing added: `/payouts` does
+            not need it because a chart shrinks, and a quote row does — an `fr`
+            track floors at its content, and these rows carry an input with a
+            width of its own. */}
+        <div className="grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1">
+          <div className="min-w-0">
+            {/* THE DAY'S INPUTS WEAR NOTHING, and that is the screen's own rule
+                rather than a preference: records are cards, controls are bare.
+                The two below — Save snapshot and Copy yesterday — have never had
+                a surface, and these are the same kind of thing.
+                Two dressings were tried and removed on the owner's call: a
+                `Card`, which was byte-for-byte the quote row's own surface and so
+                read as a row someone had emptied, and then the app's panel
+                (`bg-panel` + border, radius 24), which read as finished but as
+                one surface too many on a screen that already has cards on both
+                sides.
+                NO HORIZONTAL PADDING is the part that makes it look deliberate:
+                the fetch button's left edge lines up with the row cards' left
+                edge and the date's right edge with theirs, so the controls sit on
+                the column's own margins instead of inside a box's.
+                `mb-3.5` — more air than the 10 between two rows, because this is
+                not a row; less than the 18 above the action row, which separates
+                a commit from the data it commits. */}
+            <div className="mb-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <FetchQuotesButton
+                    state={fetch.state}
+                    freshness={fetch.freshness}
+                    flashAt={fetch.flashAt}
+                    onFetch={fetch.fetchQuotes}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="daily-quotes-date" className="text-[13px] whitespace-nowrap">
+                    {t.dailyQuotes.dateLabel}
+                  </label>
+                  <DatePicker id="daily-quotes-date" value={selectedDate} onChange={setDate} />
+                </div>
+              </div>
+              <ParseSkips className="mt-2" />
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {assets.map((a) => (
+                <QuoteRow
+                  key={a.id}
+                  asset={a}
+                  raw={quotes[a.id]}
+                  yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
+                  chip={fetch.chipFor(a)}
+                  offer={fetch.offerFor(a)}
+                  verdict={verdicts[a.id]}
+                  suggestion={suggestionFor(a.id)}
+                  onChange={(v) => setQuote(a.id, v)}
+                  onAcceptOffer={() => fetch.acceptOffer(a.id)}
+                  onDismissOffer={() => fetch.dismissOffer(a.id)}
+                  onAcceptSuggestion={() => {
+                    const value = suggestionFor(a.id);
+                    if (value === undefined) return;
+                    fillQuote(a.id, f.num(value), {
+                      source: 'accrual',
+                      at: new Date().toISOString(),
+                    });
+                  }}
+                  onDismissSuggestion={() =>
+                    setDismissed({
+                      date: selectedDate,
+                      ids: dismissedSuggestions.includes(a.id)
+                        ? dismissedSuggestions
+                        : [...dismissedSuggestions, a.id],
+                    })
+                  }
+                />
+              ))}
+            </div>
+
+            <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
+              {!stickyActions && (
+                <>
+                  <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
+                  <Button variant="outline" onClick={handleCopyYesterday}>
+                    {t.dailyQuotes.copyYesterday}
+                  </Button>
+                </>
+              )}
+              {/* ONE COLUMN ONLY. Where the side blocks sit beside the rows this
+                line lives at their foot; where the grid has collapsed it comes
+                back here, because this row must never be left holding only its
+                `mt-[18px]` (brief F-4) — and below `md` the sticky bar has taken
+                its two buttons. CSS cannot move a node between two parents, so
+                it is rendered in both places and each copy is hidden where it
+                does not belong; `hidden` is display:none, so no reader meets it
+                twice. The breakpoint is `lg`, the grid's own. */}
+              <span className="ml-auto text-xs text-muted lg:hidden">
+                {lastSavedAt
+                  ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
+                  : t.dailyQuotes.notSavedYet}
+              </span>
             </div>
           </div>
-          <p className="text-[13px] text-muted">{t.screen.dailyQuotes.subtitle}</p>
-          {/* A7 — non-blocking, and silent until something has been fetched. */}
-          <ParseSkips className="mt-1 mb-[18px]" />
 
-          <div className="flex flex-col gap-2.5">
-            {assets.map((a) => (
-              <QuoteRow
-                key={a.id}
-                asset={a}
-                raw={quotes[a.id]}
-                yesterday={yesterdayQuote(snapshots, a.id, selectedDate)}
-                chip={fetch.chipFor(a)}
-                offer={fetch.offerFor(a)}
-                verdict={verdicts[a.id]}
-                suggestion={suggestionFor(a.id)}
-                onChange={(v) => setQuote(a.id, v)}
-                onAcceptOffer={() => fetch.acceptOffer(a.id)}
-                onDismissOffer={() => fetch.dismissOffer(a.id)}
-                onAcceptSuggestion={() => {
-                  const value = suggestionFor(a.id);
-                  if (value === undefined) return;
-                  fillQuote(a.id, f.num(value), {
-                    source: 'accrual',
-                    at: new Date().toISOString(),
-                  });
-                }}
-                onDismissSuggestion={() =>
-                  setDismissed({
-                    date: selectedDate,
-                    ids: dismissedSuggestions.includes(a.id)
-                      ? dismissedSuggestions
-                      : [...dismissedSuggestions, a.id],
-                  })
-                }
-              />
-            ))}
-          </div>
-
-          <div className="mt-[18px] flex flex-wrap items-center gap-2.5">
-            {!stickyActions && (
-              <>
-                <Button onClick={handleSave}>{t.dailyQuotes.saveSnapshot}</Button>
-                <Button variant="outline" onClick={handleCopyYesterday}>
-                  {t.dailyQuotes.copyYesterday}
-                </Button>
-              </>
-            )}
-            {/* "Last saved" stays in flow in both arrangements: it is a fact
-                about the data, not a control, and a fact does not need to
-                follow the thumb. */}
-            <span className="ml-auto text-xs text-muted">
-              {lastSavedAt
-                ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
-                : t.dailyQuotes.notSavedYet}
-            </span>
-          </div>
-
-          <YieldTeaser assets={assets} values={values} invested={invested} />
-        </div>
-
-        {/* D-2, the brief's one open layout question, closed by the extension:
-            THE ASIDE IS CONDITIONAL, NOT THE LAYOUT. An empty `flex: 1 1 300px`
-            child still claims 300–360 px, so on a day with no coupon due the
-            aside is NOT RENDERED at all and the ritual column takes
-            `max-w-[884px]` — the app's own `@min-[884px]` number (560 + 24 +
-            300), not a new one. Without the cap the rows would jump from 812 to
-            1196 the day a coupon is recorded; with it the day-to-day difference
-            is 72 px. */}
-        {due.length > 0 && (
-          <aside className="flex min-w-0 flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]">
+          {/* WHAT THE DAY AMOUNTS TO — outcome, then analytics, then the last
+              write. Nothing here is a control, which is the whole reason the date
+              and the fetch left: this column answers "so what", and it stays
+              BELOW the rows when the grid collapses, because an outcome read
+              before the work is noise. The coupon card is INSERTED above the
+              rest, never swapped in: the order never changes.
+              These blocks are also what deleted `max-w-[884px]`: the aside used
+              to be conditional, so the rows needed a cap to stop them jumping
+              884 → 740 on a coupon day — a 144 px reflow keyed to the calendar
+              (brief F-1, sheet S1-C). */}
+          <aside className="flex min-w-0 flex-col gap-3.5">
             {due.map((d) => {
               const asset = assets.find((a) => a.id === d.assetId)!;
               return (
@@ -322,8 +366,23 @@ export function DailyQuotes() {
                 />
               );
             })}
+            <PendingChange
+              assets={assets}
+              drafts={quotes}
+              snapshots={snapshots}
+              selectedDate={selectedDate}
+            />
+            <YieldTeaser assets={assets} values={values} invested={invested} />
+            {/* The side column's copy of the same line — see the action row.
+              `px-1` is the drawing's 4 px, so it lines up with the card text
+              above it rather than with the card's edge. */}
+            <span className="hidden px-1 text-xs text-muted lg:block">
+              {lastSavedAt
+                ? t.dailyQuotes.lastSaved(f.savedAt(lastSavedAt))
+                : t.dailyQuotes.notSavedYet}
+            </span>
           </aside>
-        )}
+        </div>
       </div>
 
       {stickyActions && (

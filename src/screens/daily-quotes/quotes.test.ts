@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS } from '../../lib/seed';
 import type { Snapshot } from '../../core/types';
-import { bondAbbrev, maxSavedAt, yesterdayQuote } from './quotes';
+import { bondAbbrev, maxSavedAt, pendingChange, yesterdayQuote } from './quotes';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
@@ -56,5 +56,70 @@ describe('bondAbbrev', () => {
     expect(bondAbbrev(ovdp8976)).toBe('OVDP …8976');
     const ovdp6475 = SEED_ASSETS.find((a) => a.id === 'ovdp6475')!;
     expect(bondAbbrev(ovdp6475)).toBe('OVDP …6475');
+  });
+});
+
+describe('pendingChange — what the rail names', () => {
+  // 25.07 is the complete snapshot above; 27.07 is the day the seed's own
+  // README example works from, and there is no 26.07, so «учора» on the 27th is
+  // the 25th. Every case below drafts against that.
+  const snapshots = [complete2507];
+  const assets = SEED_ASSETS;
+  const on = '2026-07-27';
+
+  it('is silent until a draft differs from its baseline', () => {
+    expect(pendingChange(assets, {}, snapshots, on)).toEqual({ sum: 0, changed: 0 });
+  });
+
+  it('counts a row that is FILLED but unchanged as no change at all', () => {
+    // 68 629,36 is exactly what 25.07 holds for REIT — the row is filled, the
+    // portfolio moves by nothing, and `filled(n, m)` would still say 1.
+    expect(pendingChange(assets, { reit: '68629.36' }, snapshots, on)).toEqual({
+      sum: 0,
+      changed: 0,
+    });
+  });
+
+  it('sums the deltas and counts only the rows that moved', () => {
+    const got = pendingChange(
+      assets,
+      { reit: '68702.10', energy: '60086.09', ovdp8976: '15900' },
+      snapshots,
+      on,
+    );
+    // REIT +72,74 · Energy unchanged · …8976 +53,70
+    expect(got.changed).toBe(2);
+    expect(got.sum).toBeCloseTo(126.44, 2);
+  });
+
+  it('subtracts a NEGATIVE move too — it is a change, not a total', () => {
+    const got = pendingChange(assets, { reit: '68000' }, snapshots, on);
+    expect(got.changed).toBe(1);
+    expect(got.sum).toBeCloseTo(-629.36, 2);
+  });
+
+  it('ignores a draft the schema refuses', () => {
+    for (const bad of ['', 'abc', '-5', '0']) {
+      expect(pendingChange(assets, { reit: bad }, snapshots, on)).toEqual({ sum: 0, changed: 0 });
+    }
+  });
+
+  // THE TRAP THE SHEET NAMES. With the picker off today, an unbounded baseline
+  // (`latestQuotes`) would measure against a LATER snapshot than the sublines
+  // beside it. Drafting for 26.07 must compare against 25.07 and NOT against the
+  // 28.07 row that exists in the store.
+  it('reads the baseline strictly BEFORE the picked date, never the latest', () => {
+    const later: Snapshot = { date: '2026-07-28', cash: 0, quotes: { reit: 70000 } };
+    const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26');
+    expect(got.changed).toBe(1);
+    expect(got.sum).toBeCloseTo(70.64, 2); // 68 700 − 68 629,36, not 68 700 − 70 000
+  });
+
+  it('does not count an asset that has no baseline yet', () => {
+    // Its row shows no «учора», so there is nothing to be less than — and a
+    // first quote is not a change of anything.
+    const fresh: Snapshot = { date: '2026-07-25', cash: 0, quotes: { reit: 68629.36 } };
+    const got = pendingChange(assets, { energy: '60000' }, [fresh], on);
+    expect(got).toEqual({ sum: 0, changed: 0 });
   });
 });

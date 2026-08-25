@@ -870,6 +870,24 @@ export const en = {
     portfolioRow: 'Portfolio',
     recordedToast: 'Transaction recorded',
     failedToast: 'Could not record transaction — please try again.',
+    // A ledger row can be removed, and the row asks before it goes — the same
+    // inline shape the quote rows and the coupon card already use, rather than a
+    // modal for one line.
+    delete: {
+      aria: 'Delete this record',
+      // THE QUESTION NAMES THE RECORD, because the asking state replaces the
+      // row's own label: two coupons of the same amount, or two rows for one
+      // asset days apart, are otherwise indistinguishable at the moment of
+      // confirming something unrecoverable.
+      ask: (amount: string, date: string) => `Delete ${amount} of ${date}?`,
+      confirm: 'Delete',
+      cancel: 'No',
+      doneToast: 'Transaction deleted',
+      // Deleting a confirmed coupon takes its occurrence back too, so the toast
+      // says so — the schedule moved, not only the ledger.
+      couponReopenedToast: 'Transaction deleted — the coupon is due again',
+      failedToast: 'Could not delete transaction — please try again.',
+    },
     sources: {
       own: 'Own funds',
       accrual: 'Accrual',
@@ -921,8 +939,21 @@ export const en = {
     lastSaved: (when: string) => `Last saved ${when}`,
     notSavedYet: 'Not saved yet',
     snapshotSavedToast: 'Snapshot saved',
-    yieldSinceStart: 'Yield since start:',
+    // A HEADING NOW, not an inline prefix — so the trailing colon it shipped
+    // with had to go (A44, sheet S2).
+    yieldSinceStart: 'Yield since start',
     yieldChartLink: 'Yield chart →',
+    // The rail's pending-change block (sheet D-4). The design session's DRAFT
+    // copy (brief G-2). It names the CHANGE, never the total: the sidebar
+    // already carries the saved capital, and one quantity with two values on
+    // one screen is what this block exists to avoid.
+    pendingChange: {
+      label: 'This snapshot changes',
+      none: 'Nothing entered yet',
+      // NOT `filled(n, m)`: that counts rows with a valid value, this counts
+      // rows whose value DIFFERS from its baseline.
+      count: (n: number, total: number) => `${n} of ${total} assets`,
+    },
     keepMyValue: 'Keep my value',
     dismissSuggestion: 'Dismiss suggestion',
     // A6 — what the pricing model makes of the provider's own quote.
@@ -1700,6 +1731,15 @@ export const uk: Dict = {
     portfolioRow: 'Портфель',
     recordedToast: 'Транзакцію записано',
     failedToast: 'Не вдалося записати транзакцію — спробуйте ще раз.',
+    delete: {
+      aria: 'Видалити цей запис',
+      ask: (amount: string, date: string) => `Видалити ${amount} від ${date}?`,
+      confirm: 'Видалити',
+      cancel: 'Ні',
+      doneToast: 'Транзакцію видалено',
+      couponReopenedToast: 'Транзакцію видалено — купон знову очікується',
+      failedToast: 'Не вдалося видалити транзакцію — спробуйте ще раз.',
+    },
     sources: {
       own: 'Власні кошти',
       accrual: 'Нарахування',
@@ -1750,8 +1790,18 @@ export const uk: Dict = {
     lastSaved: (when: string) => `Збережено ${when}`,
     notSavedYet: 'Ще не збережено',
     snapshotSavedToast: 'Зріз збережено',
-    yieldSinceStart: 'Дохідність від початку:',
+    yieldSinceStart: 'Дохідність від початку',
     yieldChartLink: 'Графік дохідності →',
+    pendingChange: {
+      label: 'Цей зріз змінює',
+      none: 'Ще нічого не введено',
+      // The sheet's flat «активів» is RIGHT for every plural count — after «з»
+      // the noun is genitive, so «2 з 4 активів» and «3 з 7 активів» alike. The
+      // three-form rule is here for the ONE case it gets wrong: a single-asset
+      // portfolio reads «1 з 1 активу», not «1 з 1 активів».
+      count: (n: number, total: number) =>
+        `${n} з ${total} ${plural(total, 'активу', 'активів', 'активів')}`,
+    },
     keepMyValue: 'Лишити моє значення',
     dismissSuggestion: 'Відхилити пропозицію',
     model: {

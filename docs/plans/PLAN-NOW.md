@@ -68,13 +68,14 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
 | A36 | Target inputs bypass `useFormat` — a non-integer target shows a dot in the Ukrainian UI | `fix/target-input-format` | S | **done** (2026-08-24) — **five** sites, all to a new `f.input`: `asset-form.ts` ×2, `/allocation`'s draft, and Settings' USD rate + lead days, which the first pass wrongly called already done. **`input` and not `units`, and that distinction is the task**: `units` has the right shape but no guarantee, and in Ukrainian `f.units(6.164)` is `6,164`, which the locale-blind parser reads as **6164** — a silent 1000× on an untouched Save. `input` parses its own output back and only returns a string that survives, disambiguating with one trailing zero (`6,1640`). Pinned by a property test over both languages, including the class the first tests skipped. **The typing side is untouched and now [O26]** |
 | A37 | `pnpm format:check` fails on 237 tracked files (**245 when measured on 2026-08-24** — the row's figure was older; both are the same defect) — wire it into the gate or retire the scripts | `chore/prettier-decision` | M | **done** (2026-08-24) — **wired, after finding the failures were mostly not style** (D84): `endOfLine` unset made every file differ on CRLF alone, and a default 80-char width fought a codebase whose p99 is 104. Config fixed, `.prettierignore` keeps it off `design/` (D14), all Markdown and the captured fixtures; **110 files reformatted**; `format:check` added to BOTH CI gates, since an infra-only push skips the frontend one. Retiring was worse than it looked: `eslint-config-prettier` had already switched eslint's stylistic rules off |
-| A44 | `/` narrows to 560 and gains a permanent rail — the sheet implemented | `feat/quotes-density` | M | **next** — unblocked 2026-08-24 by `design/extensions/screen-density.dc.html`. Deletes `max-w-[884px]`, hoists the title block out of the ritual column, and repairs the yield card at 360 as well |
+| A44 | `/` narrows to 560 and gains a permanent rail — the sheet implemented | `feat/quotes-density` | M | **done** (2026-08-25) — the composition is 944 centred, the title block (with `ParseSkips`) sits at its width, and the rail is unconditional: coupon card → pending-change → yield → «Збережено». `max-w-[884px]` is gone and with it the 144 px reflow it hid. Every figure the sheet predicted was measured at its predicted value — void **115,8** plain and **130,2 / 136,8** on the bond rows, down from 439,8; ritual **560**, gap **24**, rail **360**, margins **90**; at a 773,7 container the row wraps with **0** hole either side, which is what the container-scoped caps are for. The yield card is a redraw, not a move: at 360 the old ribbon was 246,5 over eleven lines with «Дохідніс/ть» broken mid-word, and the card is **182,3**. The pending-change block reads `yesterdayQuote(… , selectedDate)` — the sublines' own baseline, never `latestQuotes` — counts rows that DIFFER rather than rows that are filled, and skips an asset with no baseline at all (a first quote is not a change); 7 tests. Three draft strings in both languages, and `yieldSinceStart` lost the colon it shipped with **THEN RECOMPOSED THE SAME DAY, and that is D88.** The owner looked at it and said the screen read as a different product from every other page — so the centred 944 gave way to `/payouts`' own grid (`1.6fr 1fr`, `gap-3.5`, one column below `lg`, main's width), and `/transactions` was mirrored into the same idiom with the ledger leading. **Every finding of both design sessions stands; only the geometry framing them changed.** Measured after: rows **683,1**, gap **14**, side column **426,9**, overflow 0 — and the void back to **238,9** from 115,8, which D88 prices and accepts. The ledger's tall scroll box had to move from `@min-[944px]` to `lg`: a container query whose `@container` is gone evaluates FALSE in silence, and it had quietly sat at the phone's 420 on a desktop. `transactions-layout.test.ts` was rewritten to pin the new contract — one expression shared with `/payouts`, read FROM `/payouts`, and nothing of the flex row left behind **AND THEN THE CONTROLS WERE RECOMPOSED, same day, same authority.** The owner moved the date out of the header — it read as decoration beside a heading while being the control that changes every baseline and value on the screen — and asked the fetch button and its status to follow, then asked for the best arrangement rather than naming one. The side column became THE DAY'S PANEL: context (date) → action (fetch, its freshness, and `ParseSkips`, which is that button's own report and had been a band away from it) → outcome (pending change) → analytics (yield) → last saved. The header keeps identity and progress only. The grid took a third child with explicit placement, because auto-flow would have dropped it back under the rows; and `max-lg:order-first` lifts the panel ABOVE the rows when the grid collapses, since on a phone the date and the fetch are what you reach for first. Measured: 676,7 / 423 at 1440 with the panel and the outcome in rows 1 and 2 of the narrow track; at 360 controls y 313, rows 469, outcome 1217; overflow 0 **Then the controls moved once more, to the LEFT column** — the owner's second pass the same day, and the reason is the one that settles it: a control whose every effect is in the left column reads as a stranger on the right. The date and the fetch are now ONE card above the rows they drive, with `ParseSkips` under the button that produces it; the side column holds no control at all and answers only «so what» — coupon card, pending change, yield, last saved. The layout got SIMPLER with the move: back to two grid children, so the explicit placement and the `max-lg:order-first` the three-child version needed are both gone, and a collapsed screen meets the controls first by DOM order alone. Measured: card 683,1 × 64 at 1440, 108 tall wrapped at 360; controls y 313, side column 1179; overflow 0 **And the strip was re-dressed on the owner's report that it looked unfinished** — correctly, and the cause was exact: as `Card px-5 py-3.5` it was BYTE-FOR-BYTE the quote row's surface, so it read as a row someone had emptied, while the column's other controls (Save, Copy) wear nothing at all. It takes the app's existing panel dress instead — `bg-panel`, `border-panel-border`, radius 24, no shadow, as `/allocation`'s rebalance block and the transaction form have it — with `py-3.5` rather than the idiom's `py-5`, because those hosts hold a block of content and this holds one row of controls. Its clusters are left-aligned now: `justify-between` had them ~350 px apart inside a 683 px column, which is the same void this task exists to remove. Measured 683,1 × 65,1 **Then the surface came off entirely, and that is where it landed.** Three dressings were tried on the owner's eye: a `Card` (byte-for-byte the quote row's own surface — it read as a row someone had emptied), the app's panel dress (finished, but one surface too many on a screen that already has cards on both sides), and finally NOTHING — which is the screen's own rule stated properly: records are cards, controls are bare, and Save/Copy below never had a surface either. The alignment is what makes bare look deliberate: no horizontal padding, so the fetch button's left edge and the date's right edge land on the row cards' own edges — measured 280 and 963,1, with 14 px down to the first row. The date sits at the RIGHT edge and the row is spread, also his call, overriding my own left-aligned version from an hour earlier |
 | **Section N** | **From the owner's idea list, 2026-08-24 — taken one line at a time on his instruction, not by grooming the whole page** | | | |
 | A45 | The calendar's caption becomes a month grid and a year grid | `feat/calendar-caption-dropdown` | S | **done** (2026-08-25) — **shipped twice, and the second shape is the one that stands.** First `captionLayout="dropdown"`, the library's own affordance; the owner looked at it the same day, refused it on looks, and asked again for what he had asked for first: pressing the month or the year REPLACES the days with a grid — twelve months in three columns, twelve years in four, paged by twelve, and pressing the open one again goes back. **The span did not change and is still the substance**: left out, `react-day-picker`'s year list defaults to the LAST 100 YEARS, so a 2028 maturity is unreachable through the very control added to reach it. It lives in `date-picker-years.ts` now — `yearPage` anchored to the SPAN's start (an anchor on the shown year never returns to the page it left), the 2016 archive floor as an ABSOLUTE bound rather than a relative one that stops holding in 2037, and the span WIDENS to hold the field's own year; 8 tests. **`/code-review` at high effort returned 15 findings; 14 taken** (D76): year paging wrote the shown month, so browsing carried the day grid twelve years forward and a look could save 2038 — the grid pages its own anchor now · `hover:bg-page` outranked `bg-ink`, so the emphasised cell painted page-on-page under the pointer and its label vanished; the states are composed as alternatives, and the same defect on the selected DAY is fixed with a `[&>button:hover]` guard · the `components.MonthCaption` override was a fresh object each render, rebuilding rdp's `DateLib` and remounting the caption on every keystroke elsewhere in the form — the caption is rendered outside rdp's tree now and rdp's own is `hidden` · focus fell to `<body>` on the non-modal desktop popover · the `aria-label` had replaced the visible month and year in the accessible name, `aria-current` was missing, and hiding rdp's caption took its `aria-live` region — all three restored · the weekday header was 224 against 252 of day columns. **The 15th is DECLINED in writing**: D56 asks `round(44 × .26) = 11` below the breakpoint and both the caption and the cells stay at 7 and 8, because `button_previous`, `button_next` and `day_button` beside them already do — a cell that replaces the day cell has to match it, and the deviation is `day_button`'s to answer, not this task's. **Verifying the fixes found a worse defect than the review did**, pre-existing and corrected here: `week` is a flex row and rdp renders the days before the 1st as EMPTY `<td>`s, so with no width they collapsed to 4 px and the whole first week slid left — **1 серпня 2026, a Saturday, was drawn under «вт»**, measured at x=214.6 where its column starts at 374.6. Now 0 drift on all seven columns. Measured after: popover 269.1 in all three views; at 360 sheet 328, caption and cells 44 tall, nav 44 × 44, `scrollWidth` 360 = viewport, console silent; the chevrons take `fill-current` and measure #26262a on light and #c2c0bf on dark, where an unstyled rdp polygon is black on both. **Four strings**, both languages. Taken out of section order on the owner's instruction; the plan's own next task is untouched |
 | **Section M** | **Input grammar — from O26, closed by D87 (2026-08-25)** | | | |
 | A46 | The number grammar follows the language, and every field groups as it types (D87) | `feat/number-grammar` | M | **startable** — closes O26 by the owner's ruling 2026-08-25. `GROUPED_INTEGER` becomes **English-only** (not deleted), one shared `NumberField` groups live in both languages, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings |
 | **Section O** | **From the owner's report while recording a transaction, 2026-08-25** | | | |
 | A47 | The transaction form cannot be submitted twice — the second press reports an error that highlights nothing | `fix/transaction-resubmit` | S | **done** (2026-08-25) — **and the filed diagnosis was wrong on its first half, which is why the instrumentation came before the fix.** `onSuccess` DOES run: the toast fires and `form.reset` runs. What fails is where the reset LANDS. «Сума» was an uncontrolled `register('amount')` input, so the reset clears react-hook-form's state and then writes the empty string into the node the field's ref points at — and that ref was measured as neither the live input nor attached to the document at all (`_f.ref.value === undefined`). State `''`, input still showing `811`; the next press validated the empty state, failed on `amount`, and the input carried no `aria-invalid`, so the form's summary told the reader to check highlights that did not exist. **It was intermittent in the most misleading way possible**: adding one unrelated `useRef` + `useEffect` at the top of the component made it vanish, and removing them brought it back — twice, deterministically. react-compiler is a Babel plugin here, so the hook list changes what it memoises and therefore whether that ref is ever re-attached; a fix resting on favourable memoisation is not a fix. **The field is a `Controller` now**, rendered from state like `source` and `assetId` three lines away, so `reset` repaints it by construction with no imperative DOM write and no ref to go stale. Second half taken after the first, in that order: this panel's own `inputClass` had NO invalid variant, so it gains the `border-neg` + message-under-the-field anatomy `AssetForm` already uses (one string, both languages), and the summary's gate now reads `isNewAsset &&` before the sub-form's errors — those fields are unmounted whenever the select holds a real asset, so they could never carry a highlight. Verified in the browser: three consecutive submits, each recorded (1 011 · 1 022 · 1 033), the field cleared each time, no summary; an empty submit marks the field — `aria-invalid`, `border-neg`, «Введіть суму.» — with **exactly one** highlighted element on the page. **The guard is a SOURCE test** (`transaction-form-reset.test.ts`, 4 assertions, all four fail on the pre-fix file): the suite is `environment: 'node'` with no jsdom, so the panel cannot be mounted here, and adding a DOM test environment is not this fix's to smuggle in — the same reason `transactions-layout.test.ts` pins its contract by reading the file. 771 tests **`/code-review` at high effort returned 13 findings; 11 taken, 2 declined** (D76). **The first was this task's own guard being VACUOUS**, and the reviewer proved it by mutation: the test's regex opened at the file's first `<Controller` and closed at the amount input's `/>`, so it spanned four controllers and the `value={field.value}` assertion was satisfied by the DATE picker — revert the amount field to uncontrolled and all four assertions still passed. It is anchored to `name="amount"` now, reads a comment-stripped copy of the file (writing this rationale into the panel would otherwise have failed the suite), and **its own mutation test is part of the record**: `value`+`onChange` → `defaultValue` turns it red, restoring it green. Then: the reported defect was still fully REACHABLE — the asset select had no invalid state and the date was never given `DatePicker`'s existing `invalid` prop, so with no assets, or on a press before `useAssets()` resolves, the summary named highlights that did not exist; `Select` takes an `invalid` variant now and `AssetForm`'s six inputs carry `aria-invalid`, so the quick-create branch highlights 4 fields where it highlighted 0. One message for four distinct schema failures — typing `0` was told to enter an amount — is now two, chosen by the value. The message moved OUTSIDE the label with `aria-describedby`: inside it, the label's text IS the accessible name, so an error renamed the field under a screen reader instead of describing it (the idiom `CouponDueCard` and Settings already document). A REF LATCH now wraps the submit path, because `handleSubmit` awaits the resolver — and a second one on quick-create — so `disabled={isPending}` covered nothing: three rapid presses measured **one** row. And the reset keeps what the user chose (type, source, asset) instead of snapping to `assets[0]` from a stale closure — on quick-create that stale array could not contain the asset just created. **Declined, with reasons:** consolidating the third copy of «Введіть суму.» touches `CouponDueCard` and `AssetForm`, whose strings are theirs, not this fix's; and reusing `AssetForm`'s private `Field` would UNDO the accessible-name fix, because `Field` is exactly the shape that puts the message inside the label — linking `Field`'s own message is AssetForm's follow-up. 773 tests |
+| A48 | The ledger gets separators, and a row can be deleted | `feat/quotes-density` | S | **done** (2026-08-25) — the owner's ask while looking at the two recomposed screens. **Separators:** `border-t border-hairline` on the row with `first:border-t-0`, replacing the 9 px gap — the same line `/payouts`' own table draws. `divide-y` was the obvious spelling and produced **no rule in this build** (measured: `divide-hairline`'s colour applied, the width stayed 0), which is why the row carries its own border. **Delete:** the ✕ is hover-revealed on a pointer and always visible on touch (`focus-visible` keeps it on the keyboard path), and it only marks WHICH ROW IS ASKING — the row itself then asks «Видалити цей запис?» with [Видалити] [Ні], the inline shape the quote rows and the coupon card already use rather than a modal for one line. `useDeleteTransaction` finally has its first caller; six strings, both languages. A failed delete leaves the row asking, so the answer is one press away instead of lost with the toast. Verified in the browser: 37 rows → ask → confirm → 36, toast «Транзакцію видалено», cancel restores the row untouched. `ledger-delete.test.ts` pins the property that matters — the glyph may never call the mutation, there is exactly one caller, and `onError` does NOT clear the asking state. **Rides on `feat/quotes-density` rather than its own branch** (D73 tension, stated not hidden): it arrived mid-iteration on the same two screens and the work was already in that tree |
 
 ---
 
@@ -1892,67 +1893,105 @@ the contract for every figure below. The brief
 and behaviour disputes — **except the two items the sheet amends with a
 measurement, ACC marks both.**
 
+**THE FENCE BELOW IS SUPERSEDED BY D88 AND KEPT AS THE RECORD OF WHAT WAS BUILT
+FIRST.** It is what the sheet drew and what the first commit shipped, measured to
+the pixel; the owner then replaced the composition with `/payouts`' grid. Do not
+implement from it — `transactions-layout.test.ts` now asserts that `@container`
+and `@min-[Npx]` appear nowhere on these screens, so an implementer following
+these four lines writes code the suite rejects.
+
 ```
+SUPERSEDED (D88) — the sheet's composition, shipped 2026-08-25 and replaced the same day
 composition   mx-auto, max-w-[944px]            <- strip + header + both columns
 row           @container flex flex-wrap items-start gap-6
 ritual        min-w-0 flex-[1_1_560px] @min-[884px]:max-w-[560px]
 rail          min-w-0 flex flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]
 ```
 
-- [ ] The composition box wraps `ReminderStrip`, the title block and the row.
+```
+IN THE CODE TODAY — `/payouts`' own expression, on `/` and on `/transactions`
+row     grid grid-cols-[1.6fr_1fr] items-start gap-3.5 max-lg:grid-cols-1
+left    min-w-0            <- the day's inputs, the rows, the action row
+right   min-w-0            <- pending change, yield, last saved (no control)
+caps    the transaction form 560, the ledger 884 — D88 superseded the composition, not these
+```
+
+- [x] The composition box wraps `ReminderStrip`, the title block and the row.
       **The strip's component is untouched** — `/overview` renders identically.
-- [ ] The **whole title block** moves OUT of the ritual column to the
+- [x] The **whole title block** moves OUT of the ritual column to the
       composition's width and renders on **one line** at 944 in both languages:
       the row (title · progress pill · fetch button · date), the subtitle, **and
       `ParseSkips`** — which is silent until a fetch happens and is the fetch
       button's own report (A7). Left behind, it puts a warning about a fetch
       under a 560 column while its button sits at 944.
-- [ ] `max-w-[884px]` is gone and **no CONDITIONAL patch replaces it** — the
+- [x] `max-w-[884px]` is gone and **no CONDITIONAL patch replaces it** — the
       aside becomes an unconditional rail. The 560 cap the sheet asks for is not
       that replacement: it is permanent and container-scoped, and the brief's
       "no replacement cap" reads as a contradiction of it unless both are stated
       together (sheet ACC).
-- [ ] **Both caps are container-scoped** (`@min-[884px]:`) — F-6. At a **784**
-      container (a 1100 viewport) neither column leaves a hole; unscoped they
-      leave 224 px beside the rows and 424 beside the rail.
-- [ ] `min-w-0` on both columns (brief G-7).
-- [ ] The yield card is recomposed as two `max-content` columns, label 16 px
+- [~] **Both caps are container-scoped** (`@min-[884px]:`) — F-6. **Done, then
+      UNDONE by D88**: the container query went with the flex row, and the grid
+      collapses on `lg` instead. The finding it protected did not go away —
+      unbounded columns leave holes — so the caps live on the two cards now (form
+      560, ledger 884) rather than on the tracks.
+- [x] `min-w-0` on both columns (brief G-7).
+- [x] The yield card is recomposed as two `max-content` columns, label 16 px
       from its figure, and **the 360 rendering is repaired with it** (D-5) —
       246,5 px over eleven lines today.
-- [ ] The pending-change block, in its three states, naming the CHANGE only.
+- [x] The pending-change block, in its three states, naming the CHANGE only.
       **Its baseline is `yesterdayQuote(snapshots, assetId, selectedDate)`, the
       same one the row's «учора» subline reads — NOT `latestQuotes`**, which is
       unbounded and would measure against a later snapshot than the sublines
       beside it whenever the date picker is off today. The baseline is per
       asset, so the sub-line names the count and never a single date. Pin both
       with a test.
-- [ ] **Three** strings enter `src/i18n/messages.ts` in both languages, marked
+- [x] **Three** strings enter `src/i18n/messages.ts` in both languages, marked
       as the design session's draft copy (brief G-2) — label, empty line, count
       line. The count is NOT the existing `filled(n, m)`: a row can be filled
       and change nothing.
-- [ ] **`dailyQuotes.yieldSinceStart` loses its trailing colon** in both
+- [x] **`dailyQuotes.yieldSinceStart` loses its trailing colon** in both
       languages. It was an inline prefix; as a card heading `Дохідність від
       початку:` is wrong, and shipping the drawing without this change ships the
       colon.
-- [ ] Above the wrap point neither the yield card nor the last-saved line sits
+- [x] Above the wrap point neither the yield card nor the last-saved line sits
       in the ritual column; below it, both return to today's positions and the
       action row is never left holding only its `mt-[18px]` (brief F-4).
-- [ ] The void measures **under 140 px on every row** and under 120 on a row
+- [x] The void measures **under 140 px on every row** and under 120 on a row
       without the `ПРОПОЗИЦІЯ` chip (115,8 plain · 130,2 / 136,8 on the two bond
       rows, which carry a fifth flex child — sheet F-7). Today it is 439,8.
-- [ ] Horizontal overflow 0 at 360 and 1440; no `max-sm:` override appears
+- [x] Horizontal overflow 0 at 360 and 1440; no `max-sm:` override appears
       (D66).
-- [ ] **`navigation-map.md`'s `/` route updated** — its rows still describe the
+- [x] **`navigation-map.md`'s `/` route updated** — its rows still describe the
       conditional aside, `max-w-[884px]`, the inline yield-teaser string and
       "Last saved" in the action row, all of which this task invalidates.
       CLAUDE.md requires the map to move with the screen, and this plan already
       records one task that forgot it.
-- [ ] **The two stale 72 px copies corrected** — `DailyQuotes.tsx`'s comment and
+- [x] **The two stale 72 px copies corrected** — `DailyQuotes.tsx`'s comment and
       `navigation-map.md` both say the coupon-day reflow is 812 → 1196, which is
       `main`'s BORDER box. The content box is 1124, so it is 884 → 740 = **144**
       (brief F-1, sheet S1-C). Both are deleted with the cap they describe.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`, then
-      `/code-review` (D76) **before** the merge, ticked after it closes.
+- [x] `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` — green,
+      **780 tests**. `/code-review` (D76) runs before the merge; this box is
+      ticked when it closes, not when it starts.
+
+**MEASURED IN THE BROWSER, 2026-08-25**, and every figure the sheet predicted
+came out at the predicted value:
+
+| | drawn | measured |
+|---|---|---|
+| composition at 1440 | 90 · 944 · 90 | **944**, margins **90** — then D88 replaced it with `/payouts`' grid at main's width |
+| ritual · gap · rail | 560 · 24 · 360 | **560 · 24 · 360** |
+| void, plain row | 115,8 | **115,8** at 560 — **238,9** after D88 widened the track, priced in that decision |
+| void, the two bond rows | 130,2 / 136,8 | **130,2 / 136,8** (was 439,8) |
+| a 773,7 container (1100 vp) | no hole | row wraps, both columns full width, hole **0** |
+| yield card at 360 | repaired | **182,3** tall, heading unbroken (was 246,5 over eleven lines) |
+| horizontal overflow | 0 | **0** at 360 and at 1440 |
+
+The rail's order is the drawing's: coupon card (only when one is due) →
+pending-change → yield → «Збережено». The «Збережено» line exists twice in the
+DOM and each copy is `hidden` where it does not belong — CSS cannot move a node
+between two flex parents, and F-4 needs it inside the action row below the wrap
+point where the sticky bar has taken the buttons.
 
 ---
 
