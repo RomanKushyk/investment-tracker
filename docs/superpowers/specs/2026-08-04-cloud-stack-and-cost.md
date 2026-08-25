@@ -17,10 +17,10 @@ Drafted 2026-08-04. D2 (IndexedDB) and D16 (dual datasets) are retired by the mo
 |---|---|
 | Frontend | **Unchanged** — React 19 + Vite 7 + TS + Tailwind 4. No Next.js (see Rejected) |
 | Hosting | AWS Amplify Hosting, kept as-is (~$0.02/mo — no free tier on this account) |
-| PWA | **vite-plugin-pwa** — installable shell, network-required, no offline |
+| PWA | ~~**vite-plugin-pwa** — installable shell, network-required, no offline~~ **[D92, 2026-08-25: removed from W7 — cross-browser beats offline, and install needs no service worker; installability alone is `PLAN-OPEN.md` O29]** |
 | Client | `src/lib/repository.ts` becomes an HTTP client behind its existing method signatures |
 | API shape | `GET /state` (whole dataset + version) · `POST /mutations` (one op, `If-Match`) |
-| Derivation | 100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates |
+| Derivation | 100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates **[questioned by `PLAN-OPEN.md` O28, 2026-08-25 — this row stays binding until a decision at W7 design rules]** |
 | Raw payloads | Every provider payload kept **forever** (~8 MB/yr gzipped), so any lifecycle question stays retroactively re-derivable |
 
 All three land at **~$0.02/month**, which is Amplify Hosting alone. Cost does not decide this.
@@ -125,7 +125,7 @@ Deliberate: the archive schema is decided **with evidence in hand**, and nothing
 because raw payloads regenerate any schema retroactively.
 
 **Phase 3 (~10–12 days).** User schema, Cognito, API Gateway + API Lambda, `repository.ts` → HTTP
-client, PWA shell, test repair, cutover.
+client, ~~PWA shell~~ **[removed by D92, 2026-08-25]**, test repair, cutover.
 
 Accepted costs, both front-loaded rather than standing: **OCC retry handling** (DSQL uses
 optimistic concurrency, so `If-Match` is `UPDATE … WHERE version = $2` + rowcount, and mutations

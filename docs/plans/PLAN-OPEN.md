@@ -4,7 +4,7 @@
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-WAITING.md` (dated). Parent: `NEXT-PHASE-PLAN.md`. Answers land in `DECISIONS.md` and the item leaves this file.
 
-Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and **O27** — the owner's own question, raised 2026-08-24, about how one ОВДП is told apart from another. Both of the older items are open BY DESIGN; O27 is the one waiting on a ruling.
+Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and three of the owner's own — **O27** (2026-08-24, how one ОВДП is told apart from another), **O28** (2026-08-25, the server-side derivation boundary, decided at W7 design) and **O29** (2026-08-25, installability without a service worker; undated and cheap). The older two are open BY DESIGN; O27 and O28 wait on a ruling.
 
 ## Status
 
@@ -23,6 +23,8 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O25 | May we fetch SMIDA's open-data API, given that its `robots.txt` is a blanket `Disallow: /`? | — | **closed — D86**, owner's ruling 2026-08-24: **no, categorically**, and without the email it was filed against. The Wayback history settles intent — the file was rewritten into a targeted `/db/` rule AFTER the API shipped, then tightened back to blanket in mid-2024 — so nothing was waiting on АРІФРУ. The research is preserved in D86 |
 | O26 | Should the number parser stop being locale-blind for values a locale makes ambiguous — or should the ranges disambiguate? | — | **closed — D87**, owner's ruling 2026-08-25: **the grammar follows the language.** uk groups on whitespace and takes BOTH `,` and `.` as the decimal; en keeps the comma as grouping. `GROUPED_INTEGER` is not deleted — it becomes English-only — and the both-marks-present rule is untouched, so pasted `1,234.56` still reads 1234.56. Every editable field groups LIVE through one shared component, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings. **Supersedes D58's one-parser half.** The keyboard layout was rejected as a signal: no browser exposes one — `navigator.keyboard.getLayoutMap()` is Chromium-only and reports key→character, not numeric convention. Implementation is `PLAN-NOW.md` A46 |
 | O27 | How is one ОВДП told apart from another — in «Код», and on screen? | — | **open, 2026-08-24, the owner's.** Widening «Код» to 4–6 characters is PARKED on it: `deriveCode` gives every «ОВДП …» the same «ОВ», and the only separator today is a tint handed out by arrival order. Four candidate answers, three of which cost a decision (D56, the palette) |
+| O28 | Server-side derivation boundary — what may the backend compute, and when? | — | **open, 2026-08-25, the owner's, raised with D92.** Cross-browser now outranks offline, which removes the offline argument for all-client derivation and QUESTIONS the cloud-stack spec's pinned `Derivation \| 100% client-side` row (annotated in place; still binding). Direction stated, not ruled — see below. **Decide at W7 design, with a decision number** |
+| O29 | Installability without a service worker — wanted at all? | — | **open, 2026-08-25.** D92 removed the PWA shell from W7; a bare manifest still gives install at near-zero cost, no service worker involved. Undated, unblocked, cheap — decide if and when install matters |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -104,6 +106,47 @@ rather than an edit, and a third costs a data-sourcing choice nobody has made:
 
 **When it is answered** the two parked draft lines leave
 `USER-FEATURES-DRAFT.md` for `PLAN-NOW.md`.
+
+## O28 — the server-side derivation boundary — open, 2026-08-25
+
+Raised by the owner while preparing W7, in the same conversation that produced
+D92. Two premises moved: **cross-browser now outranks offline** (D92), which
+removes the offline-PWA argument for keeping every derivation on the client;
+and the capture Lambda already imports `src/core/` modules, so "two derivation
+codebases" was never the strong objection — the same tested code can run on
+either side.
+
+**What it questions:** the cloud-stack spec's pinned row — `Derivation | 100%
+client-side. src/core/ untouched. Server ships raw rows, never aggregates` —
+now carries an in-place annotation pointing here. The row is NOT superseded:
+it stays binding until a decision at W7 design re-affirms or replaces it.
+
+**The direction the owner stated (not yet a ruling):** the backend should
+compute what it reasonably can so the client receives ready data, balanced
+against cost — and the balance axis is WHEN it computes, not how much:
+
+- archive-only derivations, identical for all users → server, once per
+  capture (already the case: `ytm`, `clean_rate`, return rates in
+  `price_observation`);
+- user-data derivations independent of view parameters → MAY materialize
+  server-side on mutation, versioned, ETag-cacheable;
+- view-parameter-dependent derivation (period, currency toggle, date ranges)
+  → stays client-side (combinatorics, and the fluid-motion requirement);
+- per-request aggregation → admin reads only (W8).
+
+**Why an agent must not settle it:** it rewrites a pinned spec contract and
+shapes the W7 API surface (`GET /state` vs materialized reads). Decide at W7
+design, with a decision number.
+
+## O29 — installability without a service worker — open, 2026-08-25
+
+D92 removed the PWA shell (vite-plugin-pwa and its service worker) from W7.
+What it did NOT decide is whether the app wants to be installable at all: a
+bare web-app manifest gives install / add-to-home-screen in today's Chrome
+(the service-worker requirement was dropped) and in Safari (which never had
+one), at the cost of a JSON file and icons. Nothing blocks it and nothing
+dates it — filed so the option survives somewhere other than D92's closing
+paragraph.
 
 ## O5 (part) — the archive row's non-key columns — gated on W3
 

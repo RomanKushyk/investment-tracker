@@ -145,7 +145,7 @@ corroboration rather than the only record.
 
 ## W7 — B3 migration — **earliest 2026-09-02**
 
-**Gate:** W4 complete **and** `PLAN-NOW.md` A3 (durability) passed. ~10–12 days of work per the staging estimate.
+**Gate:** W4 complete **and** `PLAN-NOW.md` A3 (durability) passed. ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound.
 
 **Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 
@@ -207,7 +207,7 @@ corroboration rather than the only record.
 - **Value derivation (D33):** there is no past-date prefill, because there is nothing to prefill — `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`, computed at read time. **The migration must carry the existing 174 snapshots into a per-user `user_price` overlay**; discarding them deletes five months of history no source can regenerate.
 - **Seed (D34):** rewritten to reconcile under the ledger model — withdrawal rows and `tax` rows carrying `settles_payout_id` — so every D5-pinned figure and every `navigation-map.md` checkpoint stays valid. 97 `it()` blocks across 12 files ride on it.
 
-Remaining scope, unchanged: user schema in DSQL, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, PWA shell, test repair, cutover. Front-loaded accepted costs: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop with the schema kept inside the DSQL subset, real DSQL in CI).
+Remaining scope: user schema in DSQL, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, test repair, cutover. **The PWA shell is out (D92)** — cross-browser beats offline by owner ruling, the spec had already renounced offline ("installable shell, network-required, no offline"), and a service worker bought for an offline that was given up is all cost; a bare-manifest install can return later as its own item — filed as `PLAN-OPEN.md` O29. Front-loaded accepted costs: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop with the schema kept inside the DSQL subset, real DSQL in CI).
 
 **`PLAN-OPEN.md` Round 1 is closed** (D30, D32), so the DDL is no longer blocked on a decision. The `basis` vocabulary, the `instrument_ref` scheme and the FX placement are pinned; what remains gated is only the observation row's non-key columns, which are an `ALTER TABLE` away and therefore not a blocker for the user schema.
 
