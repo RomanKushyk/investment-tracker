@@ -64,10 +64,11 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | A42 | `/seasonality` under the window — the third reader of the one control | `feat/seasonality-period` | M | **done** (2026-08-24). The spine's split is the whole task: **actual bars are FLOW** and window, **expected bars are FORECAST** and cannot — *"a projection has no window"*. Reproduces the sheet's measured cell, day 10: **3 641,44 → 1 853,04** (тра + чер + лип). The clip is bottom-only, matching `/overview`'s `Отриманий дохід`, the same FLOW row of the same table. The «Якір доходу» card's growth figures window too, because the DAY it names already did — 580 ₴ → 700 ₴ becomes 472 ₴ → 700 ₴ under `3 місяці`; `bondCouponInfo` stays on the whole ledger, being a schedule. Phase 8 complete |
 | A43 | F-3's grey — the treatment the windowed basis was supposed to ship with | `feat/yield-short-basis-mark` | S | **done** (2026-08-24) — closes **O24** by **D80** (owner's ruling: the sheet in full). `basisIsShort` marks a holding falling >10 % short of the basis it is divided by; `Річна` and `проти очікуваної` render muted in **every** window including the default, in both shells, with a legend on the footnote and a `title` so the mark is not colour-only. The threshold was the sheet's one delegation — derived against the shipped producers (…8976 1,15 % short and unmarked, …6475 68,39 % and marked) and pinned in `core/derive.test.ts`. **F-2's own half — S6/C1's demotion — has NOT shipped** and is deliberately separable per the sheet |
 | **Section K** | **Screen density — from the owner's report that `/` and `/transactions` look empty, 2026-08-20** | | | |
-| A34 | Design brief: screen density | `docs/design-brief-screen-density` | M | **brief done** (2026-08-20) — `docs/design-briefs/screen-density-quotes-and-transactions.md`, rewritten the same day after its own review; **`/` only**. Its design session is still open, so the row is not `done` outright |
+| A34 | Design brief: screen density **+ its design session** | `docs/design-brief-screen-density` · `design/screen-density` | M | **done** (brief 2026-08-20, **sheet 2026-08-24**) — `docs/design-briefs/screen-density-quotes-and-transactions.md` and `design/extensions/screen-density.dc.html`; **`/` only**. The sheet answers the brief's three questions (composition capped at **944 = 560 + 24 + 360** and centred · the strip stays · the pending-change block is taken) and **contradicts the brief twice**, both measured: `< 60 px` is unreachable at its own 560, and its § 6 caps must be container-scoped or they leave 214 / 414 px of hole. **A44 implements it** |
 | A35 | `/transactions` implements the two columns already drawn for it | `feat/transactions-two-column` | S | **done** (2026-08-20) — form 360, gap 24, ledger 740; **two review passes, 23 findings, all taken** |
 | A36 | Target inputs bypass `useFormat` — a non-integer target shows a dot in the Ukrainian UI | `fix/target-input-format` | S | **done** (2026-08-24) — **five** sites, all to a new `f.input`: `asset-form.ts` ×2, `/allocation`'s draft, and Settings' USD rate + lead days, which the first pass wrongly called already done. **`input` and not `units`, and that distinction is the task**: `units` has the right shape but no guarantee, and in Ukrainian `f.units(6.164)` is `6,164`, which the locale-blind parser reads as **6164** — a silent 1000× on an untouched Save. `input` parses its own output back and only returns a string that survives, disambiguating with one trailing zero (`6,1640`). Pinned by a property test over both languages, including the class the first tests skipped. **The typing side is untouched and now [O26]** |
 | A37 | `pnpm format:check` fails on 237 tracked files (**245 when measured on 2026-08-24** — the row's figure was older; both are the same defect) — wire it into the gate or retire the scripts | `chore/prettier-decision` | M | **done** (2026-08-24) — **wired, after finding the failures were mostly not style** (D84): `endOfLine` unset made every file differ on CRLF alone, and a default 80-char width fought a codebase whose p99 is 104. Config fixed, `.prettierignore` keeps it off `design/` (D14), all Markdown and the captured fixtures; **110 files reformatted**; `format:check` added to BOTH CI gates, since an infra-only push skips the frontend one. Retiring was worse than it looked: `eslint-config-prettier` had already switched eslint's stylistic rules off |
+| A44 | `/` narrows to 560 and gains a permanent rail — the sheet implemented | `feat/quotes-density` | M | **next** — unblocked 2026-08-24 by `design/extensions/screen-density.dc.html`. Deletes `max-w-[884px]`, hoists the title block out of the ritual column, and repairs the yield card at 360 as well |
 
 ---
 
@@ -1781,11 +1782,52 @@ good as the element it lands on.
 - [x] Written, every figure measured at 1440 × 900 and 360 × 740, in Ukrainian.
 - [x] Reviewed under D76, fifteen findings, all accepted; brief rewritten.
 - [x] Owner decision recorded: `/transactions` keeps its route.
-- [ ] **Design session** — `/` only, produces `design/extensions/screen-density.dc.html`.
-      Three questions handed to it deliberately: how the leftover width is spent
-      (240 at a 300 rail, 180 at 360), whether `ReminderStrip` moves when it is
-      shared with `/overview`, and whether the optional pending-change block is
-      taken.
+- [x] **Design session** — ran 2026-08-24, `/` only →
+      `design/extensions/screen-density.dc.html`. All three questions answered
+      and two of the brief's own prescriptions overturned; see below.
+
+**What the design session produced, 2026-08-24.**
+`design/extensions/screen-density.dc.html`. Every layout in it was **built in
+the live DOM and measured** before it was drawn — the method the previous
+sheet's merge box asked for, applied from the start rather than after four
+review rounds.
+
+**The three answers.** The composition is capped at **944 = 560 + 24 + 360** and
+**centred**, because that is the one width at which both column caps land
+exactly with zero slack in the row, and because the two rejected spendings
+measure badly: a 540 rail puts **417,5 px** between a label and its figure — the
+440 px void rebuilt one column to the right — and a left-aligned composition
+leaves the header overhanging its own content by 180. `ReminderStrip` **stays**,
+at the composition's width, because it is shared with `/overview` and the
+wrapper belongs to `/` rather than to the component. The pending-change block is
+**taken**, naming the change and never the total (G-8).
+
+**The two contradictions of this brief, and they are the reason to read the
+sheet first.** Its § 7 asks for a void **under 60 px** at a card its § 6 sets to
+560: measured, `void = card − 444,2`, so 560 gives **115,8** and under 60 needs
+a card under **504**. The owner ruled that 560 stands and the target is
+restated — 440 → 116 is a 74 % cut and what is left is one avatar wide. And its
+§ 6 writes both caps unconditionally, which below the wrap point is the
+"cap becomes a hole" failure `DailyQuotes.tsx` already documents for the aside:
+at a 774 container it leaves **214 px** beside the rows and **414** beside the
+rail. Both caps are `@min-[884px]:`.
+
+**Three things the brief could not have known**, all of them found by rendering
+rather than reasoning: narrowing the column to 560 **breaks the header row**
+(871,27 px of content into 560 → 87 px over two lines, with the fetch button
+beside the date) — and that row holds one line TODAY, at 884, by **12,73 px**;
+the yield teaser **cannot be rehoused unchanged** (72 px / 2 lines at 884 →
+246,5 / 11 at 360 → **617 px / 30 lines** at 300, because `min-w-0 flex-1` lets
+the text collapse to 29 px rather than wrap a 174,61 px link); and that same
+teaser is **already broken at 360 in production** — 246,5 px, eleven lines,
+`Дохідніс/ть` split mid-word — which is why the sheet's D-5 amends this brief's
+"pixel-identical at 360" rather than shipping around it.
+
+**A method trap worth more than one drawing.** On Windows a driver cannot resize
+a Chrome window below **500 px**, so a request for 360 silently returns 500 and
+every figure taken in it is wrong by 164 px of content width. Device emulation
+is the only way to the real column. Same shape as this brief's own F-3: a
+measurement is only as good as the box it lands on.
 
 ---
 
@@ -1833,6 +1875,78 @@ drawn `max-height:328px`.
       **Ticked after the review closed, not inside the commit under review** —
       the first pass did the latter, claiming an event that had not happened.
       Two passes ran: 13 findings then 10, all taken. 687 tests.
+
+---
+
+## A44 — `/` narrows to 560 and gains a permanent rail — `feat/quotes-density`
+
+**Unblocked 2026-08-24** by `design/extensions/screen-density.dc.html`, which is
+the contract for every figure below. The brief
+(`docs/design-briefs/screen-density-quotes-and-transactions.md`) still wins copy
+and behaviour disputes — **except the two items the sheet amends with a
+measurement, ACC marks both.**
+
+```
+composition   mx-auto, max-w-[944px]            <- strip + header + both columns
+row           @container flex flex-wrap items-start gap-6
+ritual        min-w-0 flex-[1_1_560px] @min-[884px]:max-w-[560px]
+rail          min-w-0 flex flex-[1_1_300px] flex-col gap-3.5 @min-[884px]:max-w-[360px]
+```
+
+- [ ] The composition box wraps `ReminderStrip`, the title block and the row.
+      **The strip's component is untouched** — `/overview` renders identically.
+- [ ] The **whole title block** moves OUT of the ritual column to the
+      composition's width and renders on **one line** at 944 in both languages:
+      the row (title · progress pill · fetch button · date), the subtitle, **and
+      `ParseSkips`** — which is silent until a fetch happens and is the fetch
+      button's own report (A7). Left behind, it puts a warning about a fetch
+      under a 560 column while its button sits at 944.
+- [ ] `max-w-[884px]` is gone and **no CONDITIONAL patch replaces it** — the
+      aside becomes an unconditional rail. The 560 cap the sheet asks for is not
+      that replacement: it is permanent and container-scoped, and the brief's
+      "no replacement cap" reads as a contradiction of it unless both are stated
+      together (sheet ACC).
+- [ ] **Both caps are container-scoped** (`@min-[884px]:`) — F-6. At a **784**
+      container (a 1100 viewport) neither column leaves a hole; unscoped they
+      leave 224 px beside the rows and 424 beside the rail.
+- [ ] `min-w-0` on both columns (brief G-7).
+- [ ] The yield card is recomposed as two `max-content` columns, label 16 px
+      from its figure, and **the 360 rendering is repaired with it** (D-5) —
+      246,5 px over eleven lines today.
+- [ ] The pending-change block, in its three states, naming the CHANGE only.
+      **Its baseline is `yesterdayQuote(snapshots, assetId, selectedDate)`, the
+      same one the row's «учора» subline reads — NOT `latestQuotes`**, which is
+      unbounded and would measure against a later snapshot than the sublines
+      beside it whenever the date picker is off today. The baseline is per
+      asset, so the sub-line names the count and never a single date. Pin both
+      with a test.
+- [ ] **Three** strings enter `src/i18n/messages.ts` in both languages, marked
+      as the design session's draft copy (brief G-2) — label, empty line, count
+      line. The count is NOT the existing `filled(n, m)`: a row can be filled
+      and change nothing.
+- [ ] **`dailyQuotes.yieldSinceStart` loses its trailing colon** in both
+      languages. It was an inline prefix; as a card heading `Дохідність від
+      початку:` is wrong, and shipping the drawing without this change ships the
+      colon.
+- [ ] Above the wrap point neither the yield card nor the last-saved line sits
+      in the ritual column; below it, both return to today's positions and the
+      action row is never left holding only its `mt-[18px]` (brief F-4).
+- [ ] The void measures **under 140 px on every row** and under 120 on a row
+      without the `ПРОПОЗИЦІЯ` chip (115,8 plain · 130,2 / 136,8 on the two bond
+      rows, which carry a fifth flex child — sheet F-7). Today it is 439,8.
+- [ ] Horizontal overflow 0 at 360 and 1440; no `max-sm:` override appears
+      (D66).
+- [ ] **`navigation-map.md`'s `/` route updated** — its rows still describe the
+      conditional aside, `max-w-[884px]`, the inline yield-teaser string and
+      "Last saved" in the action row, all of which this task invalidates.
+      CLAUDE.md requires the map to move with the screen, and this plan already
+      records one task that forgot it.
+- [ ] **The two stale 72 px copies corrected** — `DailyQuotes.tsx`'s comment and
+      `navigation-map.md` both say the coupon-day reflow is 812 → 1196, which is
+      `main`'s BORDER box. The content box is 1124, so it is 884 → 740 = **144**
+      (brief F-1, sheet S1-C). Both are deleted with the cap they describe.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`, then
+      `/code-review` (D76) **before** the merge, ticked after it closes.
 
 ---
 

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<!-- ══════════════════════════════════════════════════════════════════════════
+  design/extensions/screen-density.dc.html — the `/` screen's density
+  (pipeline G7 / decision D14)
+
+  Brief (copy + behaviour authority):
+    docs/design-briefs/screen-density-quotes-and-transactions.md
+  Scope: `/` ONLY. `/transactions` was already drawn by
+    design/extensions/where-things-live.dc.html § S4 and shipped as A35.
+
+  WHAT THIS SHEET IS FOR. The owner reported `/` looking poor and empty. The
+  brief measured why: a 440 px void inside every quote row, between the asset's
+  name and the field where its price is typed, and 240 px of unused width to the
+  right of the only column on the screen. This sheet spends that width.
+
+  THE METHOD, AND WHY IT IS THE POINT. Every figure below was measured on the
+  RUNNING app, and every layout below was BUILT IN THE LIVE DOM and measured
+  again before it was drawn. That is the previous sheet's merge lesson applied
+  from the start: `period-and-analytics.dc.html` went through four review rounds
+  and its drawn cells were right almost every time — what kept failing was prose
+  predicting what a browser would do. So this sheet predicts nothing about
+  flexbox, wrapping or line boxes. Where a number is a measurement of the
+  SHIPPED app it carries [measured]; where it is a measurement of a PROTOTYPE
+  built for this sheet it carries [prototype]; where it is arithmetic it carries
+  [derived] and states its inputs.
+
+  Seven of the nine findings could not have been reached any other way, and two
+  of them contradict the brief that commissioned this sheet (F-4, F-6).
+
+  Surfaces:
+    T0  the method, and the brief's figures reproduced
+    D-1 the composition: 944, centred      D-2 the header leaves the column
+    D-3 ReminderStrip stays                D-4 the pending-change block is taken
+    D-5 the teaser is repaired at 360 too — amends the brief's acceptance
+    S1  `/` drawn: today, the composition, the coupon day, the wrap band, 360
+    S2  the rail's anatomy at 360
+    S3  the quote row at 560, and the arithmetic of what is left of the void
+    F   findings F-1 … F-9
+    M   motion (D7)   ·   TOK tokens   ·   ACC acceptance, restated
+
+  DECIDED BY THE OWNER, 2026-08-24, on the four questions this sheet put:
+  the composition is capped at 944 and centred; the strip stays; the
+  pending-change block is taken; 560 stands and the "<60 px" target is restated.
+
+  MINTS NO TOKEN. Adds no radius. D56 unchanged, D65/D66 untouched.
+═══════════════════════════════════════════════════════════════════════════ -->
+<helmet>
+<!-- The SHIPPED faces (D54/D55), not the master reference's. Ukrainian is the
+     default and the longer language, so every width here is measured in it. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+table.spec{border-collapse:collapse;font-size:11.5px;width:100%}
+table.spec th{text-align:left;font-weight:600;color:#696865;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 10px 6px 0;border-bottom:1px solid #dedcd8;vertical-align:bottom}
+table.spec td{padding:7px 10px 7px 0;border-bottom:1px solid #e8e7e4;vertical-align:top;line-height:1.55}
+code{font-size:11px;background:#eceae7;padding:1px 4px;border-radius:4px}
+.sheet{max-width:1240px;margin:0 auto;padding:40px 32px 80px}
+.eyebrow{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:8px}
+.note{margin:0 0 26px;font-size:11.5px;line-height:1.65;color:#696865;max-width:1180px}
+.m{background:#e3eadf;color:#4c5a48;border-radius:4px;padding:1px 5px;font-weight:700;font-size:10px}
+.p{background:#f0e6cb;color:#6b5527;border-radius:4px;padding:1px 5px;font-weight:700;font-size:10px}
+.d{background:#eceae7;color:#696865;border-radius:4px;padding:1px 5px;font-weight:700;font-size:10px}
+.frame{background:#f6f5f3;border:1px solid #dedcd8;border-radius:12px;padding:16px;margin-bottom:8px;position:relative;max-width:100%}
+.tag{border:1px dashed #b3b2ae;border-radius:5px;padding:3px 8px;font-size:10px;color:#696865;background:#f6f5f3;display:inline-block}
+.rule{border-top:1px solid #dedcd8;margin:44px 0 28px}
+</style>
+</helmet>
+
+<div class="sheet">
+
+<h1 style="margin:0 0 6px;font-size:30px">Screen density — `/`</h1>
+<p style="margin:0 0 4px;font-size:13px;color:#696865;line-height:1.6">A narrow ritual, a permanent rail, and the 440 px void deleted. Design session for A34, 2026-08-24.</p>
+<p style="margin:0 0 28px;font-size:11.5px;color:#696865;line-height:1.6">
+  <span class="m">measured</span> = read off the shipped app at <code>localhost:3001</code>, demo dataset, dark, Ukrainian.
+  <span class="p">prototype</span> = read off a layout built in the live DOM for this sheet.
+  <span class="d">derived</span> = arithmetic, with its inputs named.
+</p>
+
+<!-- ══════════════════════ WHAT THE PRE-MERGE REVIEW CHANGED ══════════════════════ -->
+<div style="border:1px solid #dedcd8;background:#eceae7;border-radius:12px;padding:18px 20px;margin-bottom:30px">
+  <div class="eyebrow" style="margin-bottom:10px">Corrected before merge — <code>/code-review</code> under D76, eleven findings, all taken</div>
+  <p style="margin:0 0 10px;font-size:11.5px;color:#696865;line-height:1.65">
+    The review ran on the finished sheet and its eleven findings are recorded here rather than quietly folded in, because a merged reference is the record of what was decided and a reader is entitled to know which figures moved. <strong>Nothing in the drawings changed.</strong> What changed was prose: two functions named wrongly, one acceptance threshold its own measurement failed, one viewport arithmetic, and three places where this sheet contradicted either itself or a document it leaves standing.
+  </p>
+  <table class="spec">
+    <tr><th style="width:210px">What was wrong</th><th>What it is now</th></tr>
+    <tr><td><strong>The pending-change baseline named <code>latestQuotes</code></strong></td><td>It is <code>yesterdayQuote(… , selectedDate)</code>. <code>latestQuotes</code> is unbounded, so with the picker off today the rail would have measured against a LATER snapshot than the sublines beside it — D-4's own failure mode, through the baseline. <em>The sheet's D77 discipline is to name the shipped function; naming the wrong one is worse than naming none.</em></td></tr>
+    <tr><td><strong>The block's sub-line named one date</strong></td><td>Both resolvers merge PER ASSET, so one date cannot speak for a sum over four. The sub-line names the count only; the date stays on each row, where it is already right.</td></tr>
+    <tr><td><strong>ACC's void threshold said "under 120"</strong> and then quoted 136,8</td><td>Under 140 on every row, under 120 on rows without the <code>ПРОПОЗИЦІЯ</code> chip. As written, the seed's own two bond rows made the box untickable.</td></tr>
+    <tr><td><strong>"the two new strings"</strong></td><td>Three — and <code>yieldSinceStart</code> ships with a trailing colon it must lose to become a heading. Full inventory in S2.</td></tr>
+    <tr><td><strong>The hoist named only the header row</strong></td><td>The whole title block travels, <code>ParseSkips</code> included — it is the fetch button's own report and would otherwise sit under a 560 column while its button sits at 944.</td></tr>
+    <tr><td><strong>"at a 1100 viewport the container is 774"</strong></td><td>784. The 774 came from a resized window rather than an emulated viewport — <strong>F-9 catching this sheet as well</strong>. The rule <code>hole = container − cap</code> is what binds; the holes at 784 are 224 / 424.</td></tr>
+    <tr><td><strong>Two rules read as contradictions</strong></td><td>"no replacement cap" versus the 560 cap it also asks for; and "omit a block with nothing to say" versus two blocks drawn with empty states. Both are now said plainly instead of left to the implementer.</td></tr>
+    <tr><td><strong>The 144 px reflow stood alone</strong></td><td><code>DailyQuotes.tsx</code> and <code>navigation-map.md</code> still say 72, from the border box. A44 corrects both — and A44 gained the <code>navigation-map.md</code> item it was missing, which CLAUDE.md requires and PLAN-NOW already records having missed once.</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════ T0 — METHOD ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">T0 · The method, and the brief's figures reproduced</h2>
+<p class="note">
+  The brief was written 2026-08-20. Four Phase 8 tasks shipped between then and this session, so nothing in it could be taken on trust. Every figure was re-measured first, at a <strong>1440 × 900</strong> viewport and at <strong>360 × 740</strong>, before one pixel was drawn.
+</p>
+
+<table class="spec" style="margin-bottom:14px">
+  <tr><th style="width:290px">Brief's figure</th><th style="width:120px">Re-measured</th><th>Verdict</th></tr>
+  <tr><td><code>main</code> content box at 1440</td><td><strong>1124</strong></td><td><span class="m">measured</span> exact — border box 1196, <code>px-9</code> either side</td></tr>
+  <tr><td>ritual column, no coupon due</td><td><strong>884</strong></td><td><span class="m">measured</span> exact — the <code>max-w-[884px]</code> patch</td></tr>
+  <tr><td>quote row card / its content box</td><td><strong>884 / 844</strong></td><td><span class="m">measured</span> exact</td></tr>
+  <tr><td>row anatomy</td><td>48 · 16 · <strong>536</strong> · 16 · 160 · 16 · 52</td><td><span class="m">measured</span> exact — sums to 844</td></tr>
+  <tr><td>void, subline ink → input</td><td><strong>439,8</strong></td><td><span class="m">measured</span> the brief said 440</td></tr>
+  <tr><td>yield teaser</td><td><strong>884</strong></td><td><span class="m">measured</span> exact</td></tr>
+  <tr><td><code>Збережено 25.07, 21:14</code></td><td><strong>158,41</strong></td><td><span class="m">measured</span> the brief said 158</td></tr>
+</table>
+
+<p class="note">
+  <strong>The brief's diagnosis stands in full, and its arithmetic reproduces to the decimal.</strong> What did not survive is some of what it prescribed — see F-4 and F-6, both of which contradict its § 6 and § 7, and both of which are drawn here rather than argued.
+  <br><span class="m">measured</span> <strong>A method trap, recorded for the next session.</strong> On Windows, Chrome's window will not go below <strong>500 px</strong>: asking a driver to resize the page to 360 silently yields 500, and every "360" figure taken that way is a lie by 164 px. The 360 column below was measured under device emulation (<code>360 × 740 × 2, mobile, touch</code>), which is the only way to reach it. This is the same shape of error as the brief's own F-3: <em>a measurement is only as good as the box it lands on.</em>
+</p>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ DECISIONS ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">The four decisions the brief handed over</h2>
+<p class="note">All four were put to the owner with the measurements below and ruled on 2026-08-24. D-5 is this session's own, and it amends the brief's acceptance list — it is flagged as such.</p>
+
+<!-- D-1 -->
+<h3 style="margin:0 0 6px;font-size:15px">D-1 · The composition is capped at <strong>944</strong> and centred in <code>main</code>'s content box</h3>
+<p class="note">
+  Brief question 1 — "how the leftover width is spent (240 at a 300 rail, 180 at 360); a drawing answers it".
+  <br><strong>944 = 560 + 24 + 360</strong>, and it is not an arbitrary cap: it is the one width at which BOTH column caps land exactly, with nothing left inside the row.
+  <span class="p">prototype</span> Measured across the whole band, on the built layout:
+</p>
+<table class="spec" style="margin-bottom:14px">
+  <tr><th style="width:130px">Container</th><th style="width:110px">Ritual</th><th style="width:110px">Rail</th><th style="width:130px">Slack in row</th><th>What the reader sees</th></tr>
+  <tr><td>1124 (1440 vp)</td><td>560</td><td>360</td><td><strong>0</strong></td><td>90 px of margin each side — symmetric</td></tr>
+  <tr><td>1000</td><td>560</td><td>360</td><td><strong>0</strong></td><td>28 px each side</td></tr>
+  <tr><td><strong>944</strong></td><td>560</td><td>360</td><td><strong>0</strong></td><td>edge to edge; both caps bind at once</td></tr>
+  <tr><td>920</td><td>560</td><td>336</td><td><strong>0</strong></td><td>the rail gives, the rows never move</td></tr>
+  <tr><td>884</td><td>560</td><td>300</td><td><strong>0</strong></td><td>the rail at its basis; wrap is one pixel away</td></tr>
+  <tr><td><strong>below 884</strong></td><td colspan="3">wrapped — one column, and both caps must stop applying there (F-6)</td><td></td></tr>
+</table>
+<p class="note">
+  <strong>Between 944 and 884 the rail absorbs everything the rows refuse.</strong> The ritual column is frozen at its cap and flexbox redistributes the surplus to the only other item, so the rail slides 360 → 300 while <em>the quote rows hold still</em>. That is the property worth having: the width of the thing being typed into never depends on the width of the window.
+  <br><strong>Above 944 the slack becomes margin, on both sides.</strong> 90 px each at 1440; at a 1920 viewport the content box is 1604 and it is 330 each. <em>Asymmetric leftover reads as a hole; symmetric leftover reads as a margin</em> — which is the whole difference between this and the screen the owner reported.
+</p>
+<p class="note">
+  <strong>The two rejected spendings, and why they died.</strong>
+  <br>① <strong>Give it to the rail</strong> (rail uncapped → 540 at 1440). <span class="p">prototype</span> A rail that wide puts <strong>417,5 px</strong> between an asset's label and its figure — the 440 px defect this task exists to delete, rebuilt one column to the right. Drawn in F-5, because an argument this exact should be visible rather than asserted.
+  <br>② <strong>Leave it trailing</strong> (composition left-aligned, 180 empty at the right). Cheapest to build, and it looks it: the strip and the hoisted header run to 1404 while the columns stop at 1224, so the top-right corner overhangs the content by 180 px. A ragged right edge is a worse hole than a symmetric margin, because it is one the eye can measure against the thing beside it.
+</p>
+
+<!-- D-2 -->
+<h3 style="margin:0 0 6px;font-size:15px">D-2 · The title block leaves the ritual column and takes the composition's width</h3>
+<p class="note">
+  Not a question the brief asked. It is the first thing the prototype broke.
+  <span class="p">prototype</span> <span class="m">measured</span> The header row — title · <code>0 з 4 заповнено</code> · <code>Отримати котирування</code> · <code>Дата</code> — needs <strong>871,27 px</strong> on one line (279,92 + 132 + 254,14 + 169,2, three <code>gap-3</code> gaps).
+</p>
+<table class="spec" style="margin-bottom:14px">
+  <tr><th style="width:250px">Where the header sits</th><th style="width:120px">Available</th><th style="width:130px">Rendered</th><th>Consequence</th></tr>
+  <tr><td>Today, inside the 884 column</td><td>884</td><td><strong>39 px, one line</strong></td><td><span class="m">measured</span> it fits — by <strong>12,73 px</strong>. In the longer language. That is not a margin, it is luck</td></tr>
+  <tr><td>Inside a 560 column (the brief's § 6)</td><td>560</td><td><strong>87 px, two lines</strong></td><td><span class="p">prototype</span> 311,27 short. <code>Отримати котирування</code> — the ritual's own action — drops to a second line and sits beside the date</td></tr>
+  <tr><td><strong>Hoisted to the composition</strong></td><td>944</td><td><strong>39 px, one line</strong></td><td><span class="p">prototype</span> 72,73 spare, and the spare grows with the language rather than the window</td></tr>
+</table>
+<p class="note">
+  <strong>It also settles an inconsistency that predates this task.</strong> <code>/</code> is the only one of eleven routes whose header is not <code>ScreenHeader</code> — and <code>ScreenHeader</code>'s own comment says its row was <em>"`/`'s own header row (`DailyQuotes.tsx`), copied rather than invented"</em>. Every screen that copied it puts the header at the content's full width; only the original had it nested inside a column, which is why only the original breaks when the column narrows. Hoisting restores the shape the rest of the app took from it.
+  <br><strong>What travels is the whole title BLOCK, not the header row alone:</strong> the row (title · progress pill · fetch button · date), the subtitle beneath it, <em>and</em> <code>ParseSkips</code>. The last one matters and is easy to miss — it is silent until a fetch has happened and it is <strong>the fetch button's own report</strong> (<code>DailyQuotes.tsx</code>, A7). Leaving it in the ritual column would put a warning about a fetch under a 560 column while the button that produced it sits at 944. S1-B draws the subtitle at the composition's width for the same reason.
+  <br><strong>This sheet does NOT require <code>/</code> to adopt the <code>ScreenHeader</code> component.</strong> The pill sits beside the title rather than in an action slot, and whether that is worth a component change is an implementation question, not a drawing one (D77).
+</p>
+
+<!-- D-3 -->
+<h3 style="margin:0 0 6px;font-size:15px">D-3 · <code>ReminderStrip</code> stays where it is, at the composition's width</h3>
+<p class="note">
+  Brief question 2, which said "it stays" is a complete answer. It is, and for the brief's own reason: the strip is <strong>shared with <code>/overview</code></strong>, so moving it on one screen makes two screens disagree about what a reminder is — and <code>reminders.dc.html</code> § S6 draws it as a full-width banner, not a card.
+  <br><strong>Taking the composition's width is not moving it.</strong> The wrapper belongs to <code>/</code>; the component is untouched and <code>/overview</code> renders byte-identically.
+  <br><span class="m">measured</span> <strong>The cost, stated rather than discovered later:</strong> this seed's longest reminder — <code>OVDP UA4000238976 платить купон через 1 день (25.08.2026).</code> — needs <strong>912 px</strong> on one line, so at 944 it has <strong>32 px</strong> of slack and at 884 it would already be two lines. A longer asset name wraps it. That is a banner doing what banners do, and it is what already happens at 360; it is recorded so that nobody reads a two-line reminder as a regression.
+</p>
+
+<!-- D-4 -->
+<h3 style="margin:0 0 6px;font-size:15px">D-4 · The pending-change block is taken</h3>
+<p class="note">
+  Brief question 3, with its copy already drafted in § 2. Taken, because it is what makes an ALWAYS-PRESENT rail honest on a day with no coupon: without it the rail holds two rehoused elements, and the reason the rail exists — that the width goes "to the day and the portfolio" (brief F-3) — is never actually spoken.
+  <br><strong>It names the CHANGE and never the total</strong> (G-8). The sidebar already renders <code>ЗАГАЛЬНИЙ КАПІТАЛ 149 016 ₴</code>, the saved figure; a live total in the rail would be one quantity with two values on one screen. A change is a different quantity, and it is the only one this screen is in a position to know.
+  <br><strong>Stated as a requirement, not a formula</strong> (D77, and the last sheet's fourth round): the figure is the sum, over assets the draft has touched, of the drafted value less <strong>the same baseline the row beside it is already showing</strong>. Assets left alone contribute nothing — <code>coalesce</code> (D33) carries them forward unchanged, which is also why "partially filled" is not a state.
+  <br><strong>That baseline is <code>yesterdayQuote(snapshots, assetId, selectedDate)</code></strong> — <code>lastQuoteBefore</code>, the last quote strictly BEFORE the picked date, which is exactly what every row's <code>… ₴ учора</code> subline reads. <strong>It is emphatically NOT <code>latestQuotes</code></strong>, and the trap is worth naming because that function looks right: it is <code>quotesAsOf</code> <em>with no bound</em> (<code>core/derive.ts:163</code>), so on any day the date picker is not sitting on today it measures against a snapshot LATER than the one the rows compare to. The rail would say one thing and four sublines another — the one-quantity-two-values failure this block exists to avoid, let back in through the baseline.
+  <br><strong>And the baseline is per asset, so no single date may be printed beside it.</strong> Both resolvers merge per asset — an asset absent from the newest snapshot keeps its own last known quote, which is a deliberate documented property of <code>quotesAsOf</code> — so two assets can be measured against two different dates inside one sum. The sub-line therefore names the COUNT only. The date belongs to each row's own subline, where it is already per asset and already correct.
+</p>
+
+<!-- D-5 -->
+<h3 style="margin:0 0 6px;font-size:15px">D-5 · The yield teaser is repaired at 360 as well — <span style="color:#a8695a">this amends the brief's acceptance</span></h3>
+<p class="note">
+  The brief's acceptance says <em>"At 360 the screen is pixel-identical to today"</em>. It cannot be, and should not be. <span class="m">measured</span> The teaser at 360 renders <strong>246,5 px tall, eleven lines, with <code>Дохідніс/ть</code> broken mid-word</strong> — in production, today, on the shell the owner uses on a phone. The brief assumed the element merely "stays where it is" (its F-4) and never measured it there.
+  <br>The rail's compact form (S2) is the same redraw that fixes it. Shipping the compact list above 884 and leaving an eleven-line ribbon below it would mean one element with two forms, the broken one reserved for the smaller screen.
+  <br><strong>So the acceptance item becomes:</strong> at 360 the screen is unchanged <em>except</em> the teaser, which is repaired, and the action row keeps its <code>Збережено</code> span (brief F-4 — the row must not be left holding only its <code>mt-[18px]</code>).
+</p>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ S1 — THE SCREEN ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">S1 · <code>/</code>, drawn</h2>
+
+<!-- S1-A today -->
+<div class="eyebrow">S1-A — today, at a 1440 viewport. The complaint, drawn to scale</div>
+<div class="frame" style="width:1156px">
+  <div style="width:1124px;position:relative">
+    <div style="background:#e3eadf;color:#4c5a48;border-radius:16px;padding:12px 16px;font-size:12.5px;margin-bottom:22px">ⓘ &nbsp;OVDP UA4000238976 платить купон через 1 день (25.08.2026).</div>
+    <div style="max-width:884px">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Щоденні котирування</h2>
+        <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600">0 з 4 заповнено</span>
+        <span style="border:1px solid #e8e7e4;background:#ffffff;border-radius:9px;padding:8px 12px;font-size:13px;color:#696865">↻ Отримати котирування</span>
+        <span style="margin-left:auto;font-size:13px;color:#26262a">Дата &nbsp;<span style="display:inline-block;height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px">04.08.2026</span></span>
+      </div>
+      <p style="margin:0 0 18px;font-size:13px;color:#696865">Щоденний ритуал — ніщо інше з ним не конкурує.</p>
+      <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px;padding:0 20px;margin-bottom:10px;position:relative">
+        <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">RE</div>
+        <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">Inzhur REIT</div><div style="font-size:11px;color:#696865">68 702,10 ₴ учора</div></div>
+        <input value="68 702,10" readonly style="width:160px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+        <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+        <!-- The void, drawn where it is. 196,2 from the card's LEFT EDGE, not
+             from its content box: padding 20 + avatar 48 + gap 16 = 84, plus
+             the subline's 112,2 of ink. The input's left edge is
+             884 − 20 − 52 − 16 − 160 = 636, so the span is 636 − 196,2 = 439,8
+             and the right offset is 884 − 636 = 248. -->
+        <div style="position:absolute;left:196px;right:248px;top:56px;height:1px;background:#a8695a"></div>
+        <div style="position:absolute;left:196px;top:52px;width:1px;height:9px;background:#a8695a"></div>
+        <div style="position:absolute;right:248px;top:52px;width:1px;height:9px;background:#a8695a"></div>
+        <span style="position:absolute;left:330px;top:58px;font-size:10px;font-weight:700;color:#a8695a;background:#ffffff;padding:0 6px">439,8 px — 52 % of the row</span>
+      </div>
+      <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px;padding:0 20px">
+        <div style="width:48px;height:48px;border-radius:999px;background:#efe4e0;color:#6d5a53;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">EN</div>
+        <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">Inzhur Energy</div><div style="font-size:11px;color:#696865">60 086,09 ₴ учора</div></div>
+        <input value="60 086,09" readonly style="width:160px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+        <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+      </div>
+    </div>
+    <div style="position:absolute;left:890px;top:0;bottom:0;width:1px;border-left:1px dashed #b3b2ae"></div>
+    <span class="tag" style="position:absolute;left:900px;top:120px">240 px unused — 21 % of the content box</span>
+    <span class="tag" style="position:absolute;left:900px;top:150px">the header holds one line by 12,73 px</span>
+  </div>
+</div>
+<p class="note">
+  <span class="m">measured</span> The name block is the <code>flex-1</code> that stretches, so it grows with the card and the input is pushed to the far edge: at an 884 card the block is <strong>536</strong> wide and its subline's ink stops <strong>112,2</strong> into it. Everything between is nothing at all, on the one screen the app is opened for.
+</p>
+
+<!-- S1-B the composition -->
+<div class="eyebrow">S1-B — the composition. 90 · 944 · 90 at a 1440 viewport</div>
+<div class="frame" style="width:1156px">
+  <div style="width:1124px;position:relative;display:flex;justify-content:center">
+    <div style="width:944px">
+      <div style="background:#e3eadf;color:#4c5a48;border-radius:16px;padding:12px 16px;font-size:12.5px;margin-bottom:22px">ⓘ &nbsp;OVDP UA4000238976 платить купон через 1 день (25.08.2026).</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:4px">
+        <h2 style="margin:0;font-size:26px">Щоденні котирування</h2>
+        <span style="background:#e3eadf;color:#4c5a48;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600">0 з 4 заповнено</span>
+        <span style="border:1px solid #e8e7e4;background:#ffffff;border-radius:9px;padding:8px 12px;font-size:13px;color:#696865">↻ Отримати котирування</span>
+        <span style="margin-left:auto;font-size:13px;color:#26262a">Дата &nbsp;<span style="display:inline-block;height:36px;line-height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px">04.08.2026</span></span>
+      </div>
+      <p style="margin:0 0 18px;font-size:13px;color:#696865">Щоденний ритуал — ніщо інше з ним не конкурує.</p>
+
+      <div style="display:flex;gap:24px;align-items:flex-start">
+        <!-- the ritual column, 560 -->
+        <div style="flex:1 1 560px;max-width:560px;min-width:0">
+          <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px;padding:0 20px;margin-bottom:10px;position:relative">
+            <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">RE</div>
+            <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">Inzhur REIT</div><div style="font-size:11px;color:#696865">68 702,10 ₴ учора</div></div>
+            <input value="68 702,10" readonly style="width:160px;height:36px;border-radius:9px;border:1px solid #c9d4c4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+            <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0,11 %</span>
+            <!-- Same two offsets as S1-A, and that is the point: the fixed
+                 parts do not move, so the left edge of the void is 196,2 and
+                 its right edge is 248 from the card's right, at ANY card
+                 width. What changes is only how much card lies between them —
+                 560 − 444,2 = 115,8. -->
+            <div style="position:absolute;left:196px;right:248px;top:56px;height:1px;background:#5c7355"></div>
+            <div style="position:absolute;left:196px;top:52px;width:1px;height:9px;background:#5c7355"></div>
+            <div style="position:absolute;right:248px;top:52px;width:1px;height:9px;background:#5c7355"></div>
+            <span style="position:absolute;left:216px;top:58px;font-size:10px;font-weight:700;color:#5c7355;background:#ffffff;padding:0 4px">115,8</span>
+          </div>
+          <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px;padding:0 20px;margin-bottom:10px">
+            <div style="width:48px;height:48px;border-radius:999px;background:#efe4e0;color:#6d5a53;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">EN</div>
+            <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">Inzhur Energy</div><div style="font-size:11px;color:#696865">60 086,09 ₴ учора</div></div>
+            <input placeholder="60 086,09" readonly style="width:160px;height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;color:#b3b2ae">
+            <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+          </div>
+          <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:14px 20px;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div style="width:48px;height:48px;border-radius:999px;background:#eceae7;color:#696865;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">GB</div>
+              <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">OVDP UA4000238976</div><div style="font-size:11px;color:#696865">15 846,30 ₴ учора</div></div>
+              <span style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b3b2ae;flex:none">Пропозиція</span>
+              <input value="15 914,25" readonly style="width:145.59px;height:36px;border-radius:9px;border:1px dashed #b3b2ae;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;color:#696865">
+              <span style="font-size:12px;color:#b3b2ae;width:52px;text-align:right">—</span>
+            </div>
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px;padding-right:68px">
+              <span style="border:1px dashed #b3b2ae;border-radius:7px;padding:4px 12px;font-size:11px">Взяти запропоноване 15 914,25?</span>
+              <span style="font-size:11px;color:#696865">✕</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:18px">
+            <span style="background:#26262a;color:#f6f5f3;border-radius:10px;padding:10px 16px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:700">Зберегти зріз</span>
+            <span style="border:1.5px solid #26262a;border-radius:10px;padding:10px 16px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:700">Скопіювати вчорашні</span>
+          </div>
+          <span class="tag" style="margin-top:10px">the action row keeps its two controls and LOSES the Збережено span (F-4 of the brief applies below the wrap point only)</span>
+        </div>
+
+        <!-- the rail, 360 -->
+        <div style="flex:1 1 300px;max-width:360px;min-width:0;display:flex;flex-direction:column;gap:14px">
+          <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">Цей зріз змінює</div>
+            <div style="font-size:12.5px;color:#696865">Ще нічого не введено</div>
+          </div>
+          <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px">Дохідність від початку</div>
+            <div style="display:grid;grid-template-columns:max-content max-content;column-gap:16px;row-gap:5px;font-size:12.5px;color:#696865">
+              <span>REIT</span><span style="text-align:right;color:#5c7355;font-weight:700">+4,41 %</span>
+              <span>Energy</span><span style="text-align:right;color:#5c7355;font-weight:700">+1,48 %</span>
+              <span>…8976</span><span style="text-align:right;color:#5c7355;font-weight:700">+2,96 %</span>
+              <span>…6475</span><span style="text-align:right;color:#5c7355;font-weight:700">+5,20 %</span>
+            </div>
+            <div style="margin-top:12px;font-size:12.5px">Графік дохідності →</div>
+          </div>
+          <div style="font-size:12px;color:#696865;padding:0 4px">Збережено 25.07, 21:14</div>
+        </div>
+      </div>
+    </div>
+    <div style="position:absolute;left:0;top:0;bottom:0;width:90px;background:repeating-linear-gradient(135deg,#eceae7,#eceae7 4px,transparent 4px,transparent 9px)"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:90px;background:repeating-linear-gradient(135deg,#eceae7,#eceae7 4px,transparent 4px,transparent 9px)"></div>
+    <span class="tag" style="position:absolute;left:0;bottom:-4px">90</span>
+    <span class="tag" style="position:absolute;right:0;bottom:-4px">90</span>
+  </div>
+</div>
+<p class="note">
+  <span class="p">prototype</span> Built in the live DOM and measured: ritual <strong>560</strong>, gap <strong>24</strong>, rail <strong>360</strong>, row slack <strong>0</strong>, horizontal overflow <strong>0</strong>, and the void inside a plain row down from 439,8 to <strong>115,8</strong>. The hatched bands are margin, not content — they are what the 180 px of leftover became.
+</p>
+
+<!-- S1-C coupon day -->
+<div class="eyebrow">S1-C — a coupon day. The card joins the rail ABOVE the rest, and the rows do not move</div>
+<div class="frame" style="width:1156px">
+  <div style="width:1124px;display:flex;justify-content:center">
+    <div style="width:944px;display:flex;gap:24px;align-items:flex-start">
+      <div style="flex:1 1 560px;max-width:560px;min-width:0">
+        <div style="background:#ffffff;border-radius:20px;height:76px;box-shadow:0 1px 3px rgba(38,38,42,.06);display:flex;align-items:center;gap:16px;padding:0 20px;margin-bottom:10px">
+          <div style="width:48px;height:48px;border-radius:999px;background:#e3eadf;color:#4c5a48;display:flex;align-items:center;justify-content:center;font-weight:700;flex:none">RE</div>
+          <div style="min-width:0;flex:1"><div style="font-size:14px;font-weight:600">Inzhur REIT</div><div style="font-size:11px;color:#696865">68 702,10 ₴ учора</div></div>
+          <input value="68 702,10" readonly style="width:160px;height:36px;border-radius:9px;border:1px solid #c9d4c4;background:#ffffff;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right">
+          <span style="font-size:12px;font-weight:700;color:#5c7355;width:52px;text-align:right">+0,11 %</span>
+        </div>
+        <span class="tag">card 560 — the SAME 560 as S1-B</span>
+      </div>
+      <div style="flex:1 1 300px;max-width:360px;min-width:0;display:flex;flex-direction:column;gap:14px">
+        <div style="background:#ffffff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="background:#f0e6cb;color:#6b5527;border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Купон</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;line-height:1.4">OVDP UA4000238976 — купон 1 240,00 ₴</div>
+          <p style="margin:6px 0 10px;font-size:12px;color:#696865;line-height:1.5">Заплановано на 25.08.2026. Підтвердьте, щоб записати.</p>
+          <div style="border:1px dashed #b3b2ae;border-radius:8px;padding:6px 8px;font-size:10.5px;color:#696865">card body UNCHANGED — daily-quotes-live.dc.html § S5, drawn for exactly this 300–360 column</div>
+        </div>
+        <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">Цей зріз змінює</div>
+          <div style="font-size:12.5px;color:#696865">Ще нічого не введено</div>
+        </div>
+        <span class="tag">then Дохідність, then Збережено — the order never changes; the coupon card is inserted, not swapped in</span>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note">
+  <span class="m">measured</span> <strong>This is the second defect the brief found, and it closes here.</strong> Today the rows are <strong>884</strong> on a quiet day and <strong>740</strong> on a coupon day — the screen has two row widths depending on the calendar, a 144 px reflow nobody asked for. With the rail permanent there is no condition left to reflow on, and <code>max-w-[884px]</code> — the patch that existed only because the aside was conditional — goes with it. <em>A change that deletes a branch is more likely to be right than one that adds a rule</em> (brief F-1); this is that change.
+  <br><strong>Two shipped documents still put that difference at 72 px, and both are wrong the same way.</strong> <code>DailyQuotes.tsx</code>'s own comment and <code>navigation-map.md</code> say the rows would jump <strong>812 → 1196</strong>, which is <code>main</code>'s BORDER box; the content box is 1124, so a coupon-day column is <code>1124 − 24 − 360 = 740</code> and the difference is 144. The brief caught this in its F-1 and neither copy was corrected. <strong>A44 corrects both</strong>, because an implementer who reads either one first has two documented baselines and no way to choose between them.
+</p>
+
+<!-- S1-D the wrap band -->
+<div class="eyebrow">S1-D — the wrap band, and the hole that appears if the caps are not container-scoped (F-6)</div>
+<div class="frame" style="width:1156px;display:flex;gap:16px;flex-wrap:wrap">
+  <div style="width:400px">
+    <div style="font-size:10.5px;color:#696865;margin-bottom:6px">container 784 (a 1100 viewport) · caps written as the brief's § 6 says</div>
+    <div style="width:387px;background:#ffffff;border:1px solid #e8e7e4;border-radius:12px;padding:10px;position:relative">
+      <div style="width:280px;height:38px;border-radius:10px;background:#eceae7;margin-bottom:8px"></div>
+      <div style="width:280px;height:38px;border-radius:10px;background:#eceae7;margin-bottom:8px"></div>
+      <div style="width:180px;height:38px;border-radius:10px;background:#f0cec7"></div>
+      <div style="position:absolute;left:288px;top:10px;bottom:10px;right:10px;background:repeating-linear-gradient(135deg,#f0cec7,#f0cec7 4px,transparent 4px,transparent 9px);border-radius:8px"></div>
+      <span style="position:absolute;right:16px;top:52px;font-size:10px;font-weight:700;color:#a8695a">224 · 424</span>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:#696865;line-height:1.6"><span class="d">derived</span> Below the wrap point the rule is <code>hole = container − cap</code>. <span class="m">measured</span> At a <strong>1100</strong> viewport the container is <strong>784</strong> — <code>1100 − 244 − 72</code>, the same arithmetic T0 uses at 1440 — so unconditional caps leave <strong>224 px</strong> beside the rows and <strong>424</strong> beside the rail. <span class="p">prototype</span> The layout was first built in a RESIZED WINDOW rather than an emulated viewport, where the same request gives a 774 container and the pair measures 214 / 414: both obey the rule, and the 10 px between them is F-9 catching this sheet too. A cap stops being a cap the moment it has nothing to sit beside.</p>
+  </div>
+  <div style="width:400px">
+    <div style="font-size:10.5px;color:#696865;margin-bottom:6px">container 784 · caps scoped to <code>@min-[884px]</code></div>
+    <div style="width:387px;background:#ffffff;border:1px solid #e8e7e4;border-radius:12px;padding:10px">
+      <div style="height:38px;border-radius:10px;background:#eceae7;margin-bottom:8px"></div>
+      <div style="height:38px;border-radius:10px;background:#eceae7;margin-bottom:8px"></div>
+      <div style="height:38px;border-radius:10px;background:#e3eadf"></div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:#696865;line-height:1.6">One column, full width, exactly as today. <code>DailyQuotes.tsx</code> already documents this failure for the aside — <em>"the moment the two columns wrap onto separate rows it stops being a cap and becomes a hole"</em> — and the aside already carries <code>@min-[884px]:max-w-[360px]</code> for it. The ritual column must carry the same scoping, which the brief's § 6 does not say.</p>
+  </div>
+  <div style="width:290px">
+    <div style="font-size:10.5px;color:#696865;margin-bottom:6px">the band, measured</div>
+    <table class="spec"><tr><th>Container</th><th>Rows</th><th>Rail</th></tr>
+      <tr><td>≥ 944</td><td>560</td><td>360</td></tr>
+      <tr><td>920</td><td>560</td><td>336</td></tr>
+      <tr><td>884</td><td>560</td><td>300</td></tr>
+      <tr><td>&lt; 884</td><td colspan="2">wrapped, full width</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- S1-E 360 -->
+<div class="eyebrow">S1-E — 360. Unchanged, except the element that is broken there today (D-5)</div>
+<div class="frame" style="width:1156px;display:flex;gap:24px;align-items:flex-start">
+  <div>
+    <div style="font-size:10.5px;color:#696865;margin-bottom:6px">today — measured at 360 × 740 under emulation</div>
+    <div style="width:336px;background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 22px;display:flex;flex-wrap:wrap;align-items:center;gap:16px">
+      <span style="flex:none">📈</span>
+      <div style="min-width:0;flex:1;font-size:13px;word-break:break-word;line-height:1.5">Дохідніс<br>ть від<br>початку:<br>REIT<br>+4,41 %<br>· Energy<br>+1,48 %<br>· …8976<br>+2,96 %<br>· …6475<br>+5,20 %</div>
+      <span style="font-size:12.5px">Графік дохідності →</span>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:#a8695a;line-height:1.6;max-width:336px"><span class="m">measured</span> <strong>246,5 px, eleven lines, the word split across two of them.</strong> Shipped. <code>min-w-0 flex-1</code> lets the text collapse to make room for a 174,61 px link rather than push it to its own line.</p>
+  </div>
+  <div>
+    <div style="font-size:10.5px;color:#696865;margin-bottom:6px">drawn — the same card, composed for a narrow column</div>
+    <div style="width:336px;background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">Дохідність від початку</div>
+      <div style="display:grid;grid-template-columns:max-content max-content;column-gap:16px;row-gap:5px;font-size:12.5px;color:#696865">
+        <span>REIT</span><span style="text-align:right;color:#5c7355;font-weight:700">+4,41 %</span>
+        <span>Energy</span><span style="text-align:right;color:#5c7355;font-weight:700">+1,48 %</span>
+        <span>…8976</span><span style="text-align:right;color:#5c7355;font-weight:700">+2,96 %</span>
+        <span>…6475</span><span style="text-align:right;color:#5c7355;font-weight:700">+5,20 %</span>
+      </div>
+      <div style="margin-top:12px;font-size:12.5px">Графік дохідності →</div>
+    </div>
+    <p style="margin:8px 0 0;font-size:11px;color:#696865;line-height:1.6;max-width:336px"><span class="p">prototype</span> <strong>175,25 px at 360</strong>, four figures, no broken word, and the same card that serves the rail above 884. The label sits <strong>16 px</strong> from its figure at every width.</p>
+  </div>
+  <div style="flex:1;min-width:220px">
+    <p style="margin:0;font-size:11.5px;color:#696865;line-height:1.65">
+      <strong>Everything else at 360 is untouched.</strong> The two-line quote row (<span class="m">measured</span> card 336, height 128), the 44 px input and its <code>round(44 × 0.26) = 11</code> radius, the sticky action bar and its spacer, the drawer, the scroll surface — none of them is in this sheet's scope (D65/D66).
+      <br><br><strong>The rail does not exist at 360.</strong> Below the wrap point the screen is one column, and the two rehoused elements return to the positions they hold today: <code>Збережено</code> inside the action row, the yield card after it. The brief's F-4 is the binding requirement here — the action row must never be left holding nothing but its <code>mt-[18px]</code>.
+      <br><br><strong>The mechanism is the implementer's</strong> (D77). Rendering the two elements in one place and moving them with a container query is not possible — a query cannot move a node — so it is either a second render site behind <code>useIsDesktop</code>, or both sites in the markup with one hidden by <code>@min-/@max-[884px]</code>. The first is one node and a hook whose 768 px breakpoint is NOT the 884 wrap point; the second is duplicated markup where <code>display:none</code> keeps the hidden copy out of the a11y tree. Both are legitimate; the requirement is the rendering, not the route to it.
+    </p>
+  </div>
+</div>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ S2 — THE RAIL ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">S2 · The rail's anatomy, drawn at 360</h2>
+<p class="note">
+  Four blocks, always in this order. <strong>A block is omitted when it has no SUBJECT — never merely because its subject is empty.</strong> No coupon due, no coupon card; no assets at all, no rail (brief § 3, and the aside's rule today). But "nothing typed yet" is not an absent subject: it is the state the screen opens in every morning, and <code>Ще нічого не введено</code> is the block saying what it is for before the first keystroke — the same reason the last-saved line renders <code>Ще не збережено</code> rather than vanishing. The opposite reading produces a rail that is emptiest exactly when the screen is first looked at.
+</p>
+
+<div class="frame" style="width:1156px;display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+  <div style="width:360px">
+    <div class="eyebrow">1 · Купон (coupon days only)</div>
+    <div style="background:#ffffff;border:1px dashed #b3b2ae;border-radius:20px;padding:18px 20px;font-size:12px;color:#696865">Unchanged — <code>daily-quotes-live.dc.html</code> § S5. It was drawn for a 300–360 column and it stays in one.</div>
+    <div class="eyebrow" style="margin-top:18px">2 · Цей зріз змінює — the three states</div>
+    <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">Цей зріз змінює</div>
+      <div style="font-size:12.5px;color:#696865">Ще нічого не введено</div>
+    </div>
+    <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">Цей зріз змінює</div>
+      <div style="font-size:20px;font-weight:700;color:#5c7355;font-family:'IBM Plex Sans',sans-serif">+1 240,50 ₴</div>
+      <div style="font-size:11.5px;color:#696865;margin-top:4px">2 з 4 активів</div>
+    </div>
+    <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">Цей зріз змінює</div>
+      <div style="font-size:20px;font-weight:700;color:#a8695a;font-family:'IBM Plex Sans',sans-serif">−318,04 ₴</div>
+      <div style="font-size:11.5px;color:#696865;margin-top:4px">4 з 4 активів</div>
+    </div>
+  </div>
+  <div style="width:360px">
+    <div class="eyebrow">3 · Дохідність від початку</div>
+    <div style="background:#ffffff;border-radius:20px;box-shadow:0 1px 3px rgba(38,38,42,.06);padding:16px 20px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">Дохідність від початку</div>
+      <div style="display:grid;grid-template-columns:max-content max-content;column-gap:16px;row-gap:5px;font-size:12.5px;color:#696865">
+        <span>REIT</span><span style="text-align:right;color:#5c7355;font-weight:700">+4,41 %</span>
+        <span>Energy</span><span style="text-align:right;color:#5c7355;font-weight:700">+1,48 %</span>
+        <span>…8976</span><span style="text-align:right;color:#5c7355;font-weight:700">+2,96 %</span>
+        <span>…6475</span><span style="text-align:right;color:#5c7355;font-weight:700">+5,20 %</span>
+      </div>
+      <div style="margin-top:12px;font-size:12.5px">Графік дохідності →</div>
+    </div>
+    <div class="eyebrow" style="margin-top:18px">4 · Збережено — text, not a card</div>
+    <div style="font-size:12px;color:#696865;padding:0 4px">Збережено 25.07, 21:14</div>
+    <div style="font-size:12px;color:#696865;padding:0 4px;margin-top:6px">Ще не збережено</div>
+    <p style="margin:10px 0 0;font-size:11px;color:#696865;line-height:1.6">It is <strong>a fact about the data, not a control</strong> — <code>DailyQuotes.tsx</code>'s own words. A card would promote it into one.</p>
+  </div>
+  <div style="width:100%">
+    <div class="eyebrow">copy inventory — every string the rail needs</div>
+    <table class="spec" style="margin-bottom:18px">
+      <tr><th style="width:290px">Key</th><th style="width:250px">UK</th><th style="width:230px">EN</th><th>Status</th></tr>
+      <tr><td><code>dailyQuotes.pendingChange.label</code></td><td>Цей зріз змінює</td><td>This snapshot changes</td><td><strong>new</strong> — the session's draft copy (G-2)</td></tr>
+      <tr><td><code>dailyQuotes.pendingChange.none</code></td><td>Ще нічого не введено</td><td>Nothing entered yet</td><td><strong>new</strong> — draft</td></tr>
+      <tr><td><code>dailyQuotes.pendingChange.count</code></td><td>N з M активів</td><td>N of M assets</td><td><strong>new</strong> — draft. A function of two counts. <strong>Not</strong> the existing <code>filled(n, m)</code>: that counts rows with a valid value, this counts rows whose value DIFFERS from its baseline, and a row can be filled without changing anything</td></tr>
+      <tr><td><code>dailyQuotes.yieldSinceStart</code></td><td>Дохідність від початку<span style="color:#a8695a">:</span></td><td>Yield since start<span style="color:#a8695a">:</span></td><td><strong>CHANGED</strong> — the trailing colon goes. It was an inline prefix to a run-on list; as a card heading over a two-column list the colon is wrong in both languages</td></tr>
+      <tr><td><code>dailyQuotes.lastSaved</code> · <code>notSavedYet</code></td><td colspan="2">unchanged</td><td>rehoused, not rewritten</td></tr>
+      <tr><td>the coupon card's strings</td><td colspan="2">unchanged</td><td><code>daily-quotes-live.dc.html</code> § S5 owns them</td></tr>
+    </table>
+    <div class="eyebrow">the rule the rail is built on</div>
+    <p style="margin:0 0 12px;font-size:11.5px;color:#696865;line-height:1.65"><strong>Adjacency, at every width.</strong> A label and its figure are separated by <strong>16 px</strong>, not by whatever the column has spare. Two <code>max-content</code> columns do that; <code>justify-content:space-between</code> does the opposite, and F-5 measures what the opposite costs.</p>
+    <table class="spec">
+      <tr><th>Form</th><th>Rail 360</th><th>Rail 540</th></tr>
+      <tr><td>space-between</td><td>237,5</td><td><strong style="color:#a8695a">417,5</strong></td></tr>
+      <tr><td><strong>two max-content columns</strong></td><td><strong style="color:#5c7355">16</strong></td><td><strong style="color:#5c7355">16</strong></td></tr>
+    </table>
+    <p style="margin:12px 0 0;font-size:11.5px;color:#696865;line-height:1.65"><strong>Nothing in the rail is a control except the existing link and the coupon card's own buttons.</strong> The rail introduces no new focusable element (brief § 3), and tab order follows the visual one: rows, then actions, then rail.</p>
+  </div>
+</div>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ S3 — THE ROW ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">S3 · The quote row at 560, and what is left of the void</h2>
+<p class="note"><strong><code>QuoteRow</code> is not redesigned</strong> — the brief forbids it and the arithmetic says it is not needed. What follows is the same component in a narrower card, measured.</p>
+
+<table class="spec" style="margin-bottom:14px">
+  <tr><th style="width:210px">Row</th><th style="width:110px">Name block</th><th style="width:110px">Input</th><th style="width:130px">Void, subline → input</th><th>Note</th></tr>
+  <tr><td>Inzhur REIT</td><td>212</td><td>160</td><td><strong>115,8</strong></td><td><span class="p">prototype</span> plain row</td></tr>
+  <tr><td>Inzhur Energy</td><td>212</td><td>160</td><td><strong>115,8</strong></td><td>name ink 109,2 — the block still clears it</td></tr>
+  <tr><td>OVDP UA4000238976</td><td>145,59</td><td><strong>145,59</strong></td><td>130,2</td><td>carries the <code>ПРОПОЗИЦІЯ</code> chip — F-7</td></tr>
+  <tr><td>OVDP UA4000236475</td><td>145,59</td><td><strong>145,59</strong></td><td>136,8</td><td>from the widest ink it is 99,59</td></tr>
+</table>
+
+<p class="note">
+  <span class="d">derived</span> <strong>The arithmetic, so that any width can be checked without this sheet.</strong> The card's content box is <code>card − 40</code> (<code>px-5</code>); the fixed parts are avatar 48 + input 160 + delta 52 + three 16 px gaps = <strong>308</strong>; the name block takes the remainder because it is the <code>flex-1</code> that stretches; the subline's ink is <strong>112,2</strong>.
+  <br><code>void = card − 40 − 308 − 112,2 + 16 = <strong>card − 444,2</strong></code> — which returns <strong>439,8 at 884</strong> and <strong>115,8 at 560</strong>, both matching the measurement to the decimal.
+  <br><strong>The brief asked for under 60 px, and 560 cannot give it</strong> — that would need a card under 504. F-4 puts the choice and the owner's ruling; 560 stands, and the criterion is restated in ACC rather than quietly failed.
+</p>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ FINDINGS ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">Findings</h2>
+
+<table class="spec">
+  <tr><th style="width:52px">#</th><th style="width:300px">Finding</th><th>Measurement, and what follows from it</th></tr>
+
+  <tr><td><strong>F-1</strong></td><td>The header row cannot live in a 560 column</td>
+  <td><span class="p">prototype</span> It needs <strong>871,27</strong> px on one line and a 560 column is <strong>311,27 short</strong>, so it renders <strong>87 px over two lines</strong> with <code>Отримати котирування</code> — the ritual's own action — beside the date. <span class="m">measured</span> And it holds one line TODAY, at 884, by <strong>12,73 px</strong>. → D-2 hoists it.</td></tr>
+
+  <tr><td><strong>F-2</strong></td><td>The yield teaser cannot be rehoused unchanged</td>
+  <td><span class="p">prototype</span> <strong>884: 72 px / 2 lines · 360: 246,5 / 11 · 300: 617 px / 30 lines.</strong> The mechanism is exact: the text is <code>min-w-0 flex-1</code> beside a <strong>174,61 px</strong> link, so flexbox shrinks the TEXT to 29 px rather than wrap the link — <code>min-w-0</code> licenses it to shrink to nothing. Rehousing this element is a redraw, not a move. → S2's compact card.</td></tr>
+
+  <tr><td><strong>F-3</strong></td><td>The teaser is already broken at 360, in production</td>
+  <td><span class="m">measured</span> <strong>246,5 px, eleven lines, <code>Дохідніс/ть</code> split mid-word</strong> at a 336 px content column. The brief assumed it merely "stays where it is" and never measured it there. → D-5, which amends the brief's acceptance rather than shipping around it.</td></tr>
+
+  <tr><td><strong>F-4</strong></td><td>The brief's "under 60 px" is unreachable at its own 560</td>
+  <td><span class="d">derived</span> <code>void = card − 444,2</code>, so under 60 needs a card under <strong>504</strong>. <span class="p">prototype</span> At 560 it measures <strong>115,8</strong> on plain rows and <strong>130,2 / 136,8</strong> on chip rows. The <em>&lt; 60</em> came from arithmetic that assumed the name block shrinks to its content; it does not, it is the item that grows. <strong>Owner's ruling: 560 stands</strong> — 440 → 116 is a 74 % cut and the remaining gap is one avatar wide — and the criterion is restated.</td></tr>
+
+  <tr><td><strong>F-5</strong></td><td>Giving the leftover to the rail rebuilds the defect inside the rail</td>
+  <td><span class="p">prototype</span> A 540 rail puts <strong>417,5 px</strong> between each label and its figure; at 360 it is 237,5. Two <code>max-content</code> columns give <strong>16 px at any width</strong>. This is the argument that decided D-1, and it is drawn in S2 rather than asserted.</td></tr>
+
+  <tr><td><strong>F-6</strong></td><td>Both caps must be scoped to the container query; the brief's § 6 writes them unconditionally</td>
+  <td><span class="m">measured</span> At a 1100 viewport the container is <strong>784</strong>, the columns wrap, and unconditional caps leave <strong>224 px</strong> of hole beside the rows and <strong>424</strong> beside the rail — <code>hole = container − cap</code> at any width below 884. <code>DailyQuotes.tsx</code> already documents exactly this failure for the aside, and the aside already carries <code>@min-[884px]:max-w-[360px]</code> against it. The ritual column must carry the same. → S1-D.</td></tr>
+
+  <tr><td><strong>F-7</strong></td><td>At 560 the input's width becomes row-dependent</td>
+  <td><span class="p">prototype</span> <strong>160</strong> on plain rows, <strong>145,59</strong> on rows carrying the <code>ПРОПОЗИЦІЯ</code> chip, which competes for the same shared free space. <strong>No action:</strong> the delta column is fixed, so the right edges align exactly, and the values are <code>text-right</code>, so the digits line up down the column — which is the only alignment a typing ritual needs. Recorded so it is not filed as a bug later.</td></tr>
+
+  <tr><td><strong>F-8</strong></td><td>The strip has 32 px of slack at 944</td>
+  <td><span class="m">measured</span> This seed's longest reminder needs <strong>912 px</strong>. At 944 it fits on one line with 32 px to spare; a longer asset name wraps it to two, as already happens at 360. A consequence of D-3, stated so a two-line banner is not read as a regression.</td></tr>
+
+  <tr><td><strong>F-9</strong></td><td>Method: a driver cannot resize a Chrome window below 500 px on Windows</td>
+  <td><span class="m">measured</span> Asking for 360 silently returns <strong>500</strong>, and every figure taken in that window is wrong by 164 px of content width. Device emulation (<code>360 × 740 × 2, mobile, touch</code>) is the only way to the real column. Same shape as the brief's own F-3: <em>a measurement is only as good as the box it lands on.</em></td></tr>
+</table>
+
+<div class="rule"></div>
+
+<!-- ══════════════════════════ MOTION ══════════════════════════ -->
+<h2 style="margin:0 0 10px;font-size:20px">M · Motion (D7)</h2>
+<table class="spec">
+  <tr><th style="width:280px">Trigger</th><th style="width:190px">Property</th><th style="width:230px">Duration / easing</th><th>Reduced motion</th></tr>
+  <tr><td>Rail mounts on load</td><td>opacity + translateY</td><td>300 ms, <code>cubic-bezier(0.22,1,0.36,1)</code>, staggered per card exactly as the aside does today</td><td>no transform, no fade — final state immediately</td></tr>
+  <tr><td>Coupon card appears in the rail</td><td>opacity + translateY</td><td>300 ms, same curve</td><td>as above</td></tr>
+  <tr><td>Container query crosses 884</td><td>—</td><td><strong>none, deliberately</strong> — animating a breakpoint smears while a window is dragged</td><td>n/a</td></tr>
+  <tr><td>Pending-change figure updates</td><td>the number itself, <code>useTweenedNumber</code></td><td>~300 ms, same curve, like every other headline figure</td><td><strong>the tween is disabled, the update is not</strong></td></tr>
+  <tr><td>Teaser's <code>Графік дохідності →</code> hover</td><td>opacity</td><td>150 ms</td><td>none</td></tr>
+  <tr><td>Any pressable in the rail</td><td><code>scale(.97)</code></td><td>220 ms</td><td>no scale</td></tr>
+  <tr><td>The composition's margins as the window resizes</td><td>—</td><td><strong>none.</strong> Margin is a layout consequence, not an event</td><td>n/a</td></tr>
+</table>
+
+<!-- ══════════════════════════ TOKENS ══════════════════════════ -->
+<h2 style="margin:32px 0 10px;font-size:20px">TOK · Tokens</h2>
+<p class="note">
+  <strong>No token is minted and none is needed.</strong> The rail is the <code>Card</code> stack the aside already uses: <code>card</code> for its cards, <code>panel</code>/<code>panel-border</code> where the teaser already used them, <code>muted</code> for the last-saved line and the sub-lines, <code>pos</code>/<code>neg</code> for the change figure and the yield figures, <code>faint</code> for the dashed coupon border, <code>warn-tint</code>/<code>warn-tint-text</code> for the coupon chip that is already drawn. Radius follows D56 unchanged — surfaces keep 20, and no control in this sheet is new, so no proportional radius is computed here.
+</p>
+
+<!-- ══════════════════════════ ACCEPTANCE ══════════════════════════ -->
+<h2 style="margin:32px 0 10px;font-size:20px">ACC · Acceptance, restated</h2>
+<p class="note">The brief's list, with the two items this sheet changes marked. <strong>The brief wins copy and behaviour disputes; the reference wins visual ones</strong> (D14) — so both amendments below are argued from a measurement, not asserted.</p>
+<table class="spec">
+  <tr><th style="width:40px"></th><th>Item</th></tr>
+  <tr><td>☐</td><td>No quote row card is wider than <strong>560</strong> at any viewport.</td></tr>
+  <tr><td>☐</td><td><span style="color:#a8695a;font-weight:700">AMENDED (F-4)</span> — at 1440 the gap between a row's subline and its input is <strong>under 140 px on every row</strong>, and <strong>under 120 on a row without the <code>ПРОПОЗИЦІЯ</code> chip</strong>. Measured: <strong>115,8</strong> plain, <strong>130,2 / 136,8</strong> on the two chip rows, which carry a fifth flex child (F-7). <em>The brief said under 60, which its own 560 cannot produce — that needs a card under 504 — and a single threshold under 120 would be failed by the seed's own two bond rows.</em> Today it is 439,8.</td></tr>
+  <tr><td>☐</td><td>The row width is <strong>identical on a coupon day and a no-coupon day</strong>. Today they differ by 144 px.</td></tr>
+  <tr><td>☐</td><td><code>max-w-[884px]</code> no longer appears in <code>DailyQuotes.tsx</code>. <strong>The only cap left on the ritual column is <code>@min-[884px]:max-w-[560px]</code></strong> — the brief's "no replacement cap" forbids another CONDITIONAL patch standing in for the aside's absence, not the 560 measure it also asks for; the two read as a contradiction unless this is said plainly.</td></tr>
+  <tr><td>☐</td><td>Both columns carry <code>min-w-0</code> (brief G-7).</td></tr>
+  <tr><td>☐</td><td><strong>NEW (F-6)</strong> — both width caps are scoped to <code>@min-[884px]</code>, and at a container of 774 neither column leaves a hole.</td></tr>
+  <tr><td>☐</td><td><strong>NEW (D-1)</strong> — the composition is capped at <strong>944</strong> and centred; the strip, the header and both columns share that box; slack in the flex row is <strong>0</strong> at every width from 884 up.</td></tr>
+  <tr><td>☐</td><td><strong>NEW (D-2)</strong> — the header row renders on <strong>one line</strong> at 944 in both languages, and no longer sits inside the ritual column.</td></tr>
+  <tr><td>☐</td><td>Above the wrap point, neither the yield card nor the last-saved line renders inside the ritual column.</td></tr>
+  <tr><td>☐</td><td><span style="color:#a8695a;font-weight:700">AMENDED (D-5)</span> — at 360 the screen is unchanged <em>except the yield card, which is repaired</em> (246,5 px → 175,25, no split word). The action row keeps its <code>Збережено</code> span and is never left holding only its <code>mt-[18px]</code>.</td></tr>
+  <tr><td>☐</td><td>Horizontal overflow is <strong>0 px</strong> at 360 and at 1440.</td></tr>
+  <tr><td>☐</td><td>The rail shows no portfolio TOTAL; it names the <strong>change</strong> (G-8).</td></tr>
+  <tr><td>☐</td><td>With <code>prefers-reduced-motion</code>, nothing tweens and everything still updates.</td></tr>
+  <tr><td>☐</td><td><strong>THREE</strong> new strings enter <code>src/i18n/messages.ts</code> in both languages, marked as this session's draft copy (brief G-2) — the block's label, its empty line and its count line. See the copy inventory in S2.</td></tr>
+  <tr><td>☐</td><td><strong>NEW</strong> — <code>dailyQuotes.yieldSinceStart</code> loses its trailing colon in both languages when it stops being an inline prefix and becomes a card heading. Shipping the drawing without this change ships a card title ending in <code>:</code>.</td></tr>
+  <tr><td>☐</td><td>No D5-pinned demo figure changes.</td></tr>
+</table>
+
+<!-- ══════════════════════════ NOT TOUCHED ══════════════════════════ -->
+<h2 style="margin:32px 0 10px;font-size:20px">What this sheet does not touch</h2>
+<p class="note">
+  <code>QuoteRow</code>'s internals — S3 changes the card it sits in, never the component.
+  · <code>/transactions</code>, drawn by <code>where-things-live.dc.html</code> § S4 and shipped as A35.
+  · The write paths: save remains the sole writer of a snapshot, and everything in the rail is a preview (brief G-9).
+  · The mobile shell (D66) and the scroll surface (D65).
+  · <code>/overview</code>'s copy of <code>ReminderStrip</code> — D-3 wraps <code>/</code>'s instance, not the component.
+  · D56: no new radius, no exception, nothing here is a capsule.
+  · The route table, the sidebar, and the currency toggle.
+</p>
+
+<p style="margin:36px 0 0;font-size:11px;color:#b3b2ae;line-height:1.7">
+  Drawn 2026-08-24 for A34's design session · brief <code>docs/design-briefs/screen-density-quotes-and-transactions.md</code> · pipeline G7, decision D14 · light theme only, per the extensions' rule that a sheet draws the theme its surfaces are argued in; nothing here is colour-dependent and the dark values of every token used are already pinned by <code>appearance-language.dc.html</code>.
+  <br>The product is called <strong>Quirenote</strong>. Older sheets in this folder still say <code>Kubushka</code> and that is correct — they were drawn before D42 and a merged reference is immutable.
+</p>
+
+</div>
+</x-dc>
+</body>
+</html>
