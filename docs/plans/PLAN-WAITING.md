@@ -11,12 +11,12 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | # | Item | Gate | Earliest | Hard? | Cost of missing |
 |---|------|------|----------|-------|-----------------|
 | W1 | ~~Frozen-feed detector on real data~~ | — | **done 2026-08-18** | — | reading was 1 on all five business days; see `infra/README.md` |
-| W2 | DPU measured over a real week | 7 days of captures | **2026-08-17** | no | none, but A2's before/after needs it |
+| W2 | ~~DPU measured over a real week~~ | — | **done 2026-08-17** | — | ~1,620 DPU/month — 5× the ~325 projection, **1.6% of DSQL's 100,000 always-free DPU tier**, so the *size* settles nothing. It did correct two figures in D64 and open one question against D48 (**D90**), and it found the number worth knowing before acting: **creating a cluster cost 34,956 DPU in one day**, a third of a month's allowance. Full working in `infra/README.md` |
 | W3 | Inzhur observation window closes | ~3 weeks of captures from **2026-08-11** (restarted by the stack move) | **2026-09-02** | no | schema decided on thin evidence |
 | W4 | Inzhur observation schema | W3 + `PLAN-NOW.md` A4 | **2026-09-02** | no | blocks B3 migration |
 | W5 | **cum/ex boundary on UA4000238976** | the coupon itself | **2026-09-24** | **yes** | **182 days** — next chance 2027-03-24 |
-| W6 | DPU measured over a real month | 30 days of captures | **2026-09-10** | no | none |
-| W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-01** | no | everything downstream — **it owns the dev/prod database split, USER data only (D63)**, and **it is the gate on resubmitting SES production access**: the request describes a sign-up-then-approve flow that will not exist until this lands (A11 audit, 2026-08-14) |
+| W6 | DPU measured over a real month — **and whether a capture's read grows with the archive** | 30 days of captures | **2026-09-10** | no | **not "none" any more (D90).** The year-20 projection of ~6,506 DPU/month and D48's index conclusion both rest on that read staying bounded; W2 could not tell a full scan from a large bounded read |
+| W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-02** | no | everything downstream — **it owns the dev/prod database split, USER data only (D63)**, and **it is the gate on resubmitting SES production access**: the request describes a sign-up-then-approve flow that will not exist until this lands (A11 audit, 2026-08-14) |
 | W8 | Super-admin control surface | W7 | after W7 | no | parse control stays code-only |
 | W9 | First year sealed in the archive | the 01:00 run on 1 Jan writes 31 Dec | **2027-01-01** | no | a year cached wrong is cached forever |
 | W10 | UA4000238976 matures | the bond | **2027-03-24** | **yes** | first production exercise of the `sold` term |
@@ -48,12 +48,12 @@ These need nobody to do anything. They are listed so the *check* is not forgotte
 
 **Note on the threshold: moot.** It was 5 rather than the 2–3 the research suggested because how often ОВДП quotes sit flat was empirical and nobody had the data. Now measured: they never sit flat at all — the accrual moves them daily. **Owner ruling the same day retires the value check entirely** (`PLAN-NOW.md` A20): a price may move or not for reasons that are none of the app's business — maintenance, a weekend, a holiday, a holiday moved to the Monday after — and alarming on that manufactures work. Checks become structural: did the capture run, is the shape right.
 
-## W2 / W6 — DPU measured over a week, then a month — **2026-08-17**, **2026-09-10**
+## W2 / W6 — DPU measured over a week, then a month — W2 **DONE 2026-08-17**, W6 **2026-09-10**
 
 **Gate:** elapsed time only. The cost spec calls this out — the formula is documented (`ReadDPU = max(BytesRead, 2048) × 0.00000183105`) and reproduces a published bill to three significant figures, but **background/system DPU (auto-ANALYZE, index maintenance) is genuinely unmodellable** and only measurement settles it.
 
-- [x] 2026-08-17 — recorded in `infra/README.md` § "W2 — a week of real DPU": **~1,620 DPU/month** extrapolated, **5× the ~325 projection** and 1.6% of the free allowance, so nothing decided by it changes. Two corrections fell out: D64's guard costs ~73 DPU/month, not ~6 (it reads 117 KiB, not the 2 KiB minimum assumed), and a full capture reads 34.2 MiB against 34.9 MiB of total cluster storage — **W6 is now the measurement that decides whether that grows with the archive.**
-- [ ] 2026-09-10 — record the month figure. This is also the honest denominator for `PLAN-NOW.md` A2's before/after, **and it now carries a second question**: whether the 34.2 MiB a capture reads is fixed or grows with the archive (W2, 2026-08-17).
+- [x] 2026-08-17 — recorded in `infra/README.md` § "W2 — a week of real DPU": **~1,620 DPU/month** extrapolated, **5× the ~325 projection** and 1.6% of the free allowance, so nothing decided by its *size* changes. Two corrections fell out, both now carried by **D90**: D64's guard costs ~73 DPU/month, not ~6 (it reads 117 KiB, not the 2 KiB minimum assumed), and a full capture reads 34.2 MiB against 34.9 MiB of total cluster storage — **W6 is now the measurement that decides whether that grows with the archive.**
+- [ ] 2026-09-10 — record the month figure. **Its first job is no longer the figure**: whether the 34.2 MiB a capture reads is fixed or grows with the archive (W2, 2026-08-17; the open half of D90). A2's before/after is NOT waiting on this — A2 closed 2026-08-11 and D48 published the measured pair.
 
 **No design decision differs across the $0–$2/month spread this could move.** Measure it to know it, not to decide anything.
 
@@ -122,9 +122,9 @@ corroboration rather than the only record.
 
 # Phase W-III — Evidence-gated backend
 
-## W3 / W4 — Inzhur observation window and schema — **from 2026-09-01**
+## W3 / W4 — Inzhur observation window and schema — **from 2026-09-02**
 
-**Gate:** ~3 weeks of raw captures from 2026-08-10. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage.
+**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage.
 
 **Why this is a gate and not caution.** The archive schema is decided **with evidence in hand** deliberately, and nothing is lost meanwhile because raw payloads regenerate any schema retroactively. DSQL keys are immutable — a wrong natural key is a DROP/CREATE, not a migration.
 
@@ -143,7 +143,7 @@ corroboration rather than the only record.
 
 **Explicitly not decided by this window** — see `PLAN-OPEN.md`: the fund T-1 dedup rule (O7) rests on one informative observation and conflates the FX conversion date with the NAV strike date; **do not ship it on this evidence**, more weeks do not automatically fix it.
 
-## W7 — B3 migration — **earliest 2026-09-01**
+## W7 — B3 migration — **earliest 2026-09-02**
 
 **Gate:** W4 complete **and** `PLAN-NOW.md` A3 (durability) passed. ~10–12 days of work per the staging estimate.
 

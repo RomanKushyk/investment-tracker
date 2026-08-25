@@ -111,7 +111,7 @@ rather than an edit, and a third costs a data-sourcing choice nobody has made:
 
 What is still open is which **non-key** columns the Inzhur observation row carries, and that is the one place where three more weeks of captures genuinely change the answer — weekend and holiday behaviour, yield stability, fund NAV cadence, and the shape of an outage. Adding a non-key column later is an `ALTER TABLE`, so nothing here is irreversible and nothing is lost by waiting.
 
-**Gate:** `PLAN-WAITING.md` W3, from 2026-09-01.
+**Gate:** `PLAN-WAITING.md` W3, from 2026-09-02.
 
 ## O9 / O10 / O11 — three derivations, deferred on purpose
 

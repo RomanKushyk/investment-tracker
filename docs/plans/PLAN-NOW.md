@@ -13,7 +13,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 | **Section A** | **Time-critical** | | | |
 | A1 | Coupon dates walk the published schedule | `fix/coupon-schedule-grid` | S | **done** (2026-08-11) |
 | **Section B** | **Backend — cheaper before the archive grows** | | | |
-| A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48; last box closed 2026-08-17 by D69, as *not done*) |
+| A2 | ~~Payload split~~ → the index it actually needed | `infra/payload-split` | M | **done** (2026-08-11, D48; last box closed 2026-08-17 by D69, as *not done*) — **one question stays open against D48 (D90)**: a full capture reads 34.2 MiB against 34.9 MiB of cluster, which no index-only path explains. W6 (2026-09-10) settles it; nothing to do before then |
 | A3 | DSQL durability gate: backup + PITR | `infra/verify-durability` | S | **done** (2026-08-11, D49) |
 | A14 | The nightly backup gets a liveness signal | `infra/backup-liveness` | S | **done** (2026-08-11) |
 | A4 | NBU observation schema | `infra/nbu-observation-schema` | M | **done** (2026-08-11, D50) |
