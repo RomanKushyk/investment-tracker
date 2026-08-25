@@ -220,8 +220,8 @@ one nightly Lambda, read by nothing in the app.
 | DSQL DPU | **$9.50 / M DPU** (eu-north-1) | rate card in the cost spec |
 | DSQL storage | **$0.36 / GB-month** | same |
 | Free allowance | **100,000 DPU + 1 GB, always, recurring monthly** | same |
-| Current projection | **~325 DPU/month** at year 1 — 0.3% of the allowance | cost spec |
-| Current storage | **34.6 MiB / 6,630 rows** — 3.4% of the 1 GB | durability measurement |
+| Current projection | **~325 DPU/month** at year 1 — 0.3% of the allowance. **Measured 2026-08-25 at today's 6,664 rows: ~173 DPU/month = 0.17%** (D91) — a smaller archive over seven days, so it does not replace the year-1 projection | cost spec; measurement in D91 |
+| Current storage | **34.6 MiB / 6,630 rows** (2026-08-11) → **~35 MiB / 6,664 rows** (2026-08-25, D91) — 3.4% of the 1 GB | durability measurement, then D91 |
 | DSQL billed this month | **$0.00, usage quantity 0** | Cost Explorer, 2026-08-14 |
 
 AWS free tiers are account-level, so a second cluster shares that allowance rather

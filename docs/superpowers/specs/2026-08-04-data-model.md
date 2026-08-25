@@ -103,8 +103,11 @@ rather than a convention.
 
 **Scale is settled and is a non-event.** ~12,775 rows/year at 35 instruments. Read cost is
 documented (`ReadDPU = max(BytesRead, 2048) × 0.00000183105`, 1.92 DPU/MiB, billed on bytes
-*scanned*): ~6,506 DPU/month at year 20 = 6.5% of the always-free allowance; storage reaches 1 GB
-in ~657 years. No partitioning, hot/cold split, downsampling, materialized aggregate or S3 origin
+*scanned*): ~6,506 DPU/month at year 20 = 6.5% of the always-free allowance **[D91, 2026-08-25:
+row count does not settle read cost — the PLAN does. A table scan bills `payload_gzip`; an index
+path does not (6,664 rows for 1.210 DPU). One capture query scanned only because its `ORDER BY`
+bound to a `to_char()` alias instead of the column. Size with `EXPLAIN (ANALYZE, VERBOSE)`, which
+prints per-statement DPU]**; storage reaches 1 GB in ~657 years. No partitioning, hot/cold split, downsampling, materialized aggregate or S3 origin
 is justified this decade. Archive downsampling is rejected permanently — it destroys the only copy
 that will ever exist.
 

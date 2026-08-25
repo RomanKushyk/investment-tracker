@@ -142,6 +142,14 @@ in CI.
    reproduces a published real bill to three significant figures. For the price archive: ~325
    DPU/month at year 1, ~6,506 at year 20 — **6.5% of the 100,000 always-free allowance**, and
    ~$0.09/month even with the free tier deleted. Storage takes ~657 years to reach 1 GB.
+   **[D91, 2026-08-25: neither figure is refuted, and neither should be reused without a plan.
+   One query was measured at 64.989 DPU because an `ORDER BY` bound to its own `to_char()` alias
+   instead of the indexed column, forcing a table scan; naming the column drops it to 9.508. A
+   table scan bills `payload_gzip`, an index path does not, so cost here depends on the PLAN and
+   not on row count. **The one current datum: the nightly capture measures ~173 DPU/month = 0.17%
+   of the tier at 6,664 rows** — a much smaller archive than either projection models, so it
+   replaces neither. `EXPLAIN (ANALYZE, VERBOSE)` prints `Statement DPU Estimate` per statement —
+   size from that.]**
    Note the earlier "0.5 DPU/s" calibration describes **ComputeDPU only**; read and write DPU have
    no time dimension at all. Still measure in week 1 — background/system DPU (auto-ANALYZE, index
    maintenance) is genuinely unmodellable — but no design decision differs across the $0–$2/month
