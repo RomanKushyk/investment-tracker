@@ -47,10 +47,21 @@ function ledgerCard(): string {
   return m[1];
 }
 
-/** The form card's own class string, anchored by its `bg-panel` surface. */
+/** The form card's own class string, anchored by its `bg-panel` surface.
+ *  The token must stand alone — `hover:bg-panel`, `bg-panel/50` or
+ *  `bg-panel-muted` on some earlier element must not retarget the anchor. */
 function formCard(): string {
-  const m = PANEL.match(/className="([^"]*\bbg-panel\b[^"]*)"/);
+  const m = PANEL.match(/className="([^"]*(?<![-:/\w])bg-panel(?![-/\w])[^"]*)"/);
   if (m === null) throw new Error('no form Card (bg-panel) in TransactionPanel');
+  return m[1];
+}
+
+/** The collapse variant, read from `/payouts`' own row (`max-lg`) — the file's
+ *  charter applied to the breakpoint too: if the collapse is ever retuned, the
+ *  width and height pins below fail instead of drifting. */
+function collapsePrefix(): string {
+  const m = gridRow(PAYOUTS).match(/(max-[a-z0-9]+):grid-cols-1/);
+  if (m === null) throw new Error('no collapse variant on `/payouts`’ grid row');
   return m[1];
 }
 
@@ -117,16 +128,22 @@ describe('the three screens are composed by one expression', () => {
     expect(PANEL).not.toContain('order-first');
   });
 
-  it('keeps the form cap and keeps the ledger uncapped (D93)', () => {
+  it('keeps the ledger uncapped (D93) and the form cap stacked-only (D94)', () => {
     // D93 took the ledger's `max-w-[884px]` off: inside D88's `1.6fr` track the
     // TRACK is the bound, and a cap narrower than it opened a dead strip between
-    // the columns — the wide-monitor row stretch is priced there. The pin is
-    // scoped to the ledger card's OWN class string so a future row-level content
-    // max-width inside the card (the fix D93 itself sanctions) cannot false-fail
-    // it. The form's 560 survives D93 untouched — its reason is the content, not
-    // the track — so it is pinned in both directions.
-    expect(ledgerCard()).not.toMatch(/max-w-/);
-    expect(formCard()).toContain('max-w-[560px]');
+    // the columns — the wide-monitor row stretch is priced there. D94 made the
+    // same call for the form: the 560 guards only the stacked column.
+    //
+    // A width token is anything that keeps a card from filling its track — a
+    // cap, a fixed `w-[…]`, a `basis-[…]`, under any variant; `min-w-*` floors
+    // stay legal (a floor cannot un-fill a track). Token-list equality, so a
+    // failure prints exactly which tokens appeared; scoped to each card's OWN
+    // class string, so a future row-level content max-width inside a card (the
+    // fix D93 itself sanctions) cannot false-fail it.
+    const widthTokens = (card: string) =>
+      card.split(/\s+/).filter((c) => /(^|:)(max-w|w|basis)-\[/.test(c));
+    expect(widthTokens(ledgerCard())).toEqual([]);
+    expect(widthTokens(formCard())).toEqual([`${collapsePrefix()}:max-w-[560px]`]);
   });
 
   it('leaves no trailing margin on a grid that is the last element', () => {
@@ -141,7 +158,11 @@ describe('the three screens are composed by one expression', () => {
 
   it('floors the ledger height so a short viewport cannot collapse it to zero', () => {
     // A `max-height` calc that resolves negative is clamped to 0, not ignored.
-    // Keyed to `lg` now: the container query it used to ask has no container.
-    expect(PANEL).toMatch(/lg:max-h-\[max\(200px,calc\(100dvh-var\(--ledger-top/);
+    // Keyed to the collapse breakpoint (read from `/payouts`, not restated):
+    // the container query it used to ask has no container.
+    const above = collapsePrefix().replace(/^max-/, '');
+    expect(PANEL).toMatch(
+      new RegExp(`(?<![-\\w])${above}:max-h-\\[max\\(200px,calc\\(100dvh-var\\(--ledger-top`),
+    );
   });
 });

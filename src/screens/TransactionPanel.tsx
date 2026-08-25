@@ -377,7 +377,8 @@ export function TransactionPanel() {
       {/* THE SIDE BLOCK — the narrow track, on the RIGHT since the owner's
           2026-08-25 instruction. It keeps every property the drawing gave it
           except its side: narrow beside the ledger, capped at 560 when the grid
-          collapses, and never stretched into a settings page.
+          collapses, and never stretched into a settings page. Since D94 that
+          sentence is literally the code (`max-lg:max-w-[560px]`).
 
           IT LEADS IN THE DOM, and `lg:col-start-2` puts it on the right anyway.
           The first cut did the opposite — ledger first, `max-lg:order-first` on
@@ -389,7 +390,7 @@ export function TransactionPanel() {
           together and acting before reading is defensible. */}
       <Card
         radius={24}
-        className="max-w-[560px] min-w-0 animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in lg:col-start-2 lg:row-start-1"
+        className="min-w-0 animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
       >
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="font-display text-lg font-semibold">{t.transaction.title}</div>
