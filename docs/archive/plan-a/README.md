@@ -28,14 +28,16 @@ task.
 | [`section-k-2.md`](section-k-2.md) | A44 |
 | [`section-k-3.md`](section-k-3.md) | A38, A39 |
 
-**Eleven closed tasks have no body** — A18, A36, A37, A40, A41, A42, A43, A45, A47,
-A48 and A49 were carried by their Status row alone. That row is below, and it is
-the whole record.
+**Twelve closed tasks have no body in this folder** — A18, A36, A37, A40, A41,
+A42, A43, A45, A47, A48, A49 and A50. For eleven of them the Status row below is
+the whole record. **A50 is the exception and its row says so:** the row is a
+summary, and the record is `../../decisions/D97.md` with its working in
+`../../../infra/docs/replan-a50.md`.
 
 ## The ledger
 
 Every Plan A task that closed, one line each, in the order the plan listed them.
-A11, A46 and A50 are **not** here — they are still live, in
+A11 and A46 are **not** here — they are still live, in
 [`../../plans/PLAN-NOW.md`](../../plans/PLAN-NOW.md).
 
 | # | Phase | Branch | Size | Status |
@@ -51,6 +53,7 @@ A11, A46 and A50 are **not** here — they are still live, in
 | A20 | Capture checks become structural — did it run, is the shape right — never "did the value change" | `infra/structural-checks` | S | **done** (2026-08-18, D70) |
 | A19 | **`as_of` is one day early on every Inzhur row** — split the two meanings, then migrate 14 rows | `infra/asof-alignment` | S | **done** (2026-08-18, D71) — two weeks inside the W4 deadline |
 | A49 | **The backup vault gets a lock** | `infra/backup-vault-lock` | S | **done** (2026-08-25, D89) — the successor A3 left open at one more level: A3 proved the archive could be restored, A14 made a stopped backup visible, and neither stopped a recovery point being deleted. Found by a routine AWS sweep that was otherwise green; the vault read `Locked: false`. GOVERNANCE lock, floor **read from the live plan** rather than written as a literal (the script only ever CREATES a plan, so a literal floor above an unmoved plan would reject every nightly job in silence), no `max`. **Proved by attempting a delete** on the vault's one on-demand recovery point — refused, `InvalidRequestException`, 15 points intact. The script no longer prints "applied": it reads the lock state back and **exits 1 if the vault is not locked**. **Known residue, accepted not forgotten:** that on-demand point (2026-08-18 12:47) carries no lifecycle, so it never expires, and the lock now forbids giving it one — draining it means lifting the lock for 36,6 MB at ≈ $0/month, which is not worth doing on its own. Fold it into the next deliberate unlock; nothing else has to happen first |
+| A50 | **Audit the two live queries that still shadow an ORDER BY column** | `infra/alias-order-by-audit` · `infra/a50-replan-record` | S | **done** (2026-08-26, **D97**) — D91's defect was deployed, not historical. Both queries name the table now: `NEWEST_CAPTURE_PER_DATE`, one string shared by `observeNbu` and by `diagnose`'s EXPLAIN so "planned as it actually runs" is true, and the `price_observation` sample. `DISTINCT ON` and `ORDER BY` had to move together — Postgres requires the former to match the leading latter. `price_capture_as_of` **kept**, per D91. **The re-plan is the part worth reading.** Four rounds, three of which inferred: the fix changes a sort node (`Sort` → `Incremental Sort`, `Presorted Key: as_of` — so DSQL does serve a mixed-direction order from an ASC/ASC index) **and no access path at any of the ten widths planned**, both forms holding `Index Scan price_capture_as_of` to 1500d and both falling to `Full Scan` by 2000d. Warm 7-day cost is indistinguishable (0.25594 against 0.25599 DPU; Read is 99.3% of it and identical to five digits in all eight runs). **A defect removed, not a cost.** Round 1's "9.1× compute win" was first-parse warmup; **D91's 0.356 DPU is UNREPRODUCED** (0.26528 warm on its own window, cause unknown, D91 annotated in place) and **64.979 has never been re-measured**. Left behind: `infra/src/order-by-alias.test.ts`, which reads the source because the defect type-checks and returns correct rows — and `deploy-backend.yml` now runs `infra/src` at all, which it did not, while `deploy-frontend.yml` skips `infra/**`. Verified end to end on the deployed function, recorded in `infra/docs/replan-a50.md` § *Post-deploy*. **Follow-up, sized not guessed:** `PLAN-OPEN.md` O32 — a date-range bound holds the index to ~1500 days, but `complete`/`nextFrom` key off the JS limit truncating the fetch, so the statement cannot become the bound without re-deriving them. Reviewed before every merge (D76) on all three branches it took; findings fixed, one declined in writing in a merge commit body. **Known residue, accepted not forgotten:** the Deploy backend run for `2481406` never left `queued` after the 2026-08-26 Actions outage and GitHub refuses to cancel it ("cannot cancel a workflow run that is completed"). If it ever starts it deploys a checkout two commits behind `dev` — docs-only difference, so harmless, but it is not tidy |
 | **Section C** | **App — pure, independent** | | | |
 | A5 | Live NBU ₴/$ rate | `feat/nbu-rate` | S | **done** (2026-08-12, D51) |
 | A6 | Bond price re-derivation (DCF) | `feat/bond-dcf` | M | **done** (2026-08-12, D52; last box closed 2026-08-18 — the check now runs nightly in the capture) |

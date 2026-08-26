@@ -4,7 +4,7 @@
 >
 > | Plan | What is in it | How to use it |
 > |---|---|---|
-> | **`PLAN-NOW.md`** | Everything startable today, in four sections ordered by deadline pressure then irreversibility. Full phase ceremony. | Pick the first non-done task in section order. |
+> | **`PLAN-NOW.md`** | Everything startable today, in sections ordered by deadline pressure then irreversibility. Full phase ceremony. | Pick the first non-done task in section order. |
 > | **`PLAN-WAITING.md`** | Everything gated on elapsed time or an external event, with earliest dates, which are hard, and the cost of missing each. | **Read its dated table at the start of any session touching `infra/` or the migration.** |
 > | **`PLAN-OPEN.md`** | Questions with no answer. Mostly closed (D30–D35, 2026-08-11); what remains is deferred by design. | **Never implement from it.** Needing an answer is the signal to ask, not to choose quietly. |
 >

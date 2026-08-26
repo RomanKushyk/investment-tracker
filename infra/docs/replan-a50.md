@@ -56,8 +56,9 @@ that — see round 4.
 
 ## Round 3 — the widths round 2 declared out of scope
 
-`EXPLAIN (VERBOSE)`, no `ANALYZE`, so shape only and no cost. **Both forms, nine
-ranges:**
+`EXPLAIN (VERBOSE)`, no `ANALYZE`, so shape only and no cost. **Both forms, ten
+ranges** (round 3 swept nine; the table
+below is round 4's ten, and D97's "nine" counted the earlier sweep):
 
 | Range | aliased | qualified |
 |---|---|---|
@@ -125,3 +126,21 @@ fetch look complete and stops the caller early. `PLAN-OPEN.md` **O32**.
 
 **Verified in passing:** DSQL accepts `EXPLAIN (VERBOSE)` without `ANALYZE`, and
 prints no `Statement DPU Estimate` in that form — only `ANALYZE` does.
+
+## Post-deploy — the same plans, read off the deployed function
+
+A50's last deliverable was to read the plans from the shipped Lambda rather than
+from a laptop, so the instrument is proved and not just the SQL. Run
+`32990066258` deployed `773f483`; `{diagnose:true}` then returned all three plan
+keys:
+
+| Key | Node | Scan | Total DPU |
+|---|---|---|---|
+| `observeNbu` | `Incremental Sort` | `Index Scan using price_capture_as_of` | **0.26928** |
+| `observeNbuOpenRange` | `Sort` | `Full Scan (btree-table)` | none — no `ANALYZE` |
+
+0.26928 sits above the 0.25599 warm median measured here, which is expected and
+not a contradiction: a Lambda cold start, and a window that by then included the
+day's own capture. The point of the check was the plan shape and the absence of a
+DPU line on the second key, both as designed — and that the two added `EXPLAIN`
+statements did not break the mode they were added to.

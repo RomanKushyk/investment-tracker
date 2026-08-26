@@ -55,9 +55,10 @@ above stay here pointing at the decision that answered them.
 | [`O05-O29.md`](O05-O29.md) | O27, O28, O29, O5 (part), O9/O10/O11, and the trail from each resolution to the plan it fed |
 
 **O30, O31 and O32 have no bodies and do not need any** — each Status row is
-the whole question, the way `PLAN-NOW.md` treats A50. All three sit outside the
-range file's name for that reason, not by oversight, and all three are filed
-beside O29 so the open rows stay grouped.
+the whole question, and a question that fits in its row does not gain from a
+section of its own. All three sit outside the range file's name for that reason,
+not by oversight, and all three are filed beside O29 so the open rows stay
+grouped.
 
 Question numbers never change. Splitting moves bodies verbatim; no file goes
 over 200 lines.

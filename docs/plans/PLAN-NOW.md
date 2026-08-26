@@ -8,14 +8,14 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 ## Status — what is live
 
-Seven rows, **six startable** — A52 is a withdrawn row kept for its reason,
-the way A11 is kept for its denial. Section order still decides which comes
-first, and it is the order of the rows here.
+Six rows, **four startable** — A51, A53, A54, A46. Section order still decides
+which comes first and it is the order of the rows here, but **the first row is
+not the first task**: A11 heads the table and is denied, and A52 is withdrawn.
+Both are kept for their reasons rather than their work. **The first startable row
+is A51**, under Section P.
 
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
-| **Section B** | **Backend — cheaper before the archive grows** | | | |
-| A50 | **Audit the two live queries that still shadow an ORDER BY column** | — (merged; the remaining step needs no branch) | S | **code merged, re-planned over four rounds, open on the deploy.** Both queries name the table — `NEWEST_CAPTURE_PER_DATE` shared by `observeNbu` and `diagnose`, and the `price_observation` sample; `DISTINCT ON` and `ORDER BY` had to move together. `price_capture_as_of` **kept**, per D91. Guard `infra/src/order-by-alias.test.ts` is **wired into** `deploy-backend.yml`, which ran no infra test before — read off the YAML, not off a green run. **Measured — D97, and the first three answers were wrong.** The fix changes a sort node (`Sort` → `Incremental Sort`, so DSQL does serve the mixed-direction order from an ASC/ASC index) **and no access path at any of nine widths**: both forms hold `Index Scan price_capture_as_of` to 1500d and both fall to `Full Scan` by 2000d. Warm 7-day cost is indistinguishable (0.25594 against 0.25599 DPU, Read 99.3%). **A defect removed, not a cost** — and D91's 0.356 is UNREPRODUCED (0.26528 warm on its own window, cause unknown), with 64.979 never re-measured. O32 carries the bounding question, now sized. **All that is left:** a green `deploy-backend.yml`. It failed twice on GitHub's Actions **major outage** of 2026-08-26 (*"The job was not acquired by Runner of type hosted"*), not on anything in the branch |
 | **Section C** | **App — pure, independent** | | | |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
 | **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's gate opens 2026-09-02 and A46 is undated | | | |
@@ -37,14 +37,10 @@ first, and it is the order of the rows here.
 The range table runs in ID order; **section order is the Status table's**, which
 puts Section P (A51–A54) above Section M (A46).
 
-**A50 has no body and does not need one** — its Status row above is the whole
-specification, measured figures included. When it grows one it goes in
-`A41-A50.md`.
-
 ## Where the closed work is
 
 [`../archive/plan-a/README.md`](../archive/plan-a/README.md) — the ledger of all
-51 closed tasks, and 15 files holding their bodies. **It is a record, not a task
+52 closed tasks, and 15 files holding their bodies. **It is a record, not a task
 list**; work that comes out of reading it becomes a new task here.
 
 ## How this file is split
