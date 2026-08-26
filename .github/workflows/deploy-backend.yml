@@ -9,6 +9,18 @@ on:
     branches: [dev]
     paths:
       - 'infra/**'
+      # NO EXCLUSION FOR THE DRAFT DDL, and that is the second answer to the
+      # question. A51 first excluded `infra/migrations/drafts/**` here with a
+      # negated pattern, to stop draft SQL that nothing applies from firing a
+      # no-op `sam deploy`. Review found the trade was backwards:
+      # `deploy-frontend.yml` already ignores `infra/**`, so a drafts-only push
+      # matched NO workflow and ran no tests, no format:check and no lint —
+      # recreating precisely the green-but-never-executed gap A50 closed in this
+      # same file, and trading a wasted deploy for no gates at all.
+      # The gates are worth more than the deploy slot. A no-op redeploy of an
+      # unchanged bundle is accepted knowingly; suppressing it properly means
+      # gating the Deploy step rather than the workflow, and that is worth doing
+      # only when the wasted runs are actually a cost.
       # The handler bundles the parser from src/core, so a parser change is a
       # backend change even though nothing under infra/ moved.
       - 'src/core/inzhur/**'

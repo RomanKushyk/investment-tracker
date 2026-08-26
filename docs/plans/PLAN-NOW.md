@@ -8,18 +8,17 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 ## Status — what is live
 
-Six rows, **four startable** — A51, A53, A54, A46. Section order still decides
+Five rows, **three startable** — A53, A54, A46. Section order still decides
 which comes first and it is the order of the rows here, but **the first row is
 not the first task**: A11 heads the table and is denied, and A52 is withdrawn.
 Both are kept for their reasons rather than their work. **The first startable row
-is A51**, under Section P.
+is A53**, under Section P.
 
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
 | **Section C** | **App — pure, independent** | | | |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
 | **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's gate opens 2026-09-02 and A46 is undated | | | |
-| A51 | User-schema DDL draft, green on local Postgres | `infra/user-schema-ddl-draft` | M | **startable** — Round 1 closed (D30/D32); draft DDL + the old→new `Transaction` mapping; nothing applies it before W7 |
 | A52 | ~~The seed reconciles under the ledger model (D34)~~ | — | — | **not startable — withdrawn to W7 by the review of 2026-08-26.** Three quantities are pinned at once and there is no free variable left: `navigation-map.md` checkpoint 7 fixes the row COUNT at `4/174/18` (so do D10 and D24), and the same checkpoint plus D5 fix **`Deposited 143 176 ₴`**, which D5 derives from the `deposit` rows themselves. So no added row can be net-zero while `derive.ts` still subtracts `withdrawal` and nets `tax` — D34's invariant is a property of the post-migration model. Back to W7's scope, which already lists it; the ruling it needs first is `PLAN-OPEN.md` **O31** |
 | A53 | The W7 API contract on paper | `docs/w7-api-contract` | M | **startable** — 17 `repo` methods → `GET /state`/`POST /mutations`, the `meta`-key sort, and the endpoint inventory incl. the unplanned W8 admin surface; O28 marked, never decided |
 | A54 | Cognito rehearsal on a throwaway pool | `infra/cognito-pool-rehearsal` | S | **startable, scope corrected** — **`usernameAttributes` is the only immutable parameter** (D36); Essentials tier and token validity are mutable, and token validity is D32's, not D36's. The pool proves what a pool can prove: a duplicate-email sign-up is **refused**, which D36 asserts from AWS's table and nothing here has tested. **The MAU question is not measurable on a free-tier pool — it moved to `PLAN-OPEN.md` O30.** Pool deleted the same day |
@@ -32,15 +31,15 @@ is A51**, under Section P.
 |---|---|
 | [`A01-A20.md`](A01-A20.md) | A11 |
 | [`A41-A50.md`](A41-A50.md) | Section M's preamble, A46 |
-| [`A51-A60.md`](A51-A60.md) | Section P's preamble, A51–A54 |
+| [`A51-A60.md`](A51-A60.md) | Section P's preamble, A52 (withdrawn), A53, A54 |
 
 The range table runs in ID order; **section order is the Status table's**, which
-puts Section P (A51–A54) above Section M (A46).
+puts Section P (A52–A54; A51 closed 2026-08-26) above Section M (A46).
 
 ## Where the closed work is
 
 [`../archive/plan-a/README.md`](../archive/plan-a/README.md) — the ledger of all
-52 closed tasks, and 15 files holding their bodies. **It is a record, not a task
+53 closed tasks, and 16 files holding their bodies. **It is a record, not a task
 list**; work that comes out of reading it becomes a new task here.
 
 ## How this file is split
