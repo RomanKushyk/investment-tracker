@@ -684,6 +684,51 @@ export interface ObserveRequest {
 }
 
 /**
+ * The newest successful capture per date, for one source over one date range.
+ *
+ * ONE string, used by `observeNbu` and by `diagnose`'s `EXPLAIN`, because
+ * "planned as it actually runs" is only true if it is the same query. Two
+ * copies drift, and the copy that drifts is the one nobody plans.
+ *
+ * A50/D91 — BOTH sort clauses name the table, and they had to change together.
+ * A bare `as_of` resolves to this SELECT list's `to_char(...) AS as_of` first,
+ * so the sort key was the TEXT expression, and a sort on a computed value
+ * cannot inherit index order. Postgres also requires the `DISTINCT ON`
+ * expressions to match the leading `ORDER BY` ones, so qualifying one alone is
+ * a syntax error, not a half-fix. Result-identical either way: lexicographic
+ * order over 'YYYY-MM-DD' is chronological, and one text value maps to one
+ * date, so the rows, their order and the groups `DISTINCT ON` picks are
+ * unchanged. Guarded by `order-by-alias.test.ts`.
+ *
+ * WHAT QUALIFYING DOES NOT DO, and A50 must not be read as having done it.
+ * It does not bound what is READ. There is no SQL `LIMIT` here —
+ * `ObserveRequest.limit` is applied in JS after every row is already fetched —
+ * and `DISTINCT ON` has to consider every candidate row in the window anyway.
+ * So the 64.979 DPU a manual `{observe:{}}` costs comes from the OPEN RANGE
+ * (`from` defaults to `NBU_ARCHIVE_START`) with `payload_gzip` projected, not
+ * from the alias, and it is UNCHANGED. D91 said so: "Only the window stands
+ * between it and the same scan." Its 64.989 → 9.508 win was measured on the
+ * streak query, which ends in `LIMIT 60` — there, naming the column let the
+ * planner stop early. There is no early stop to unlock here.
+ *
+ * AND THE NEW ORDER IS MIXED-DIRECTION — `as_of` ASC, `requested_at` DESC —
+ * which neither `price_capture_as_of` nor `price_capture_source_as_of` serves
+ * directly, both being ASC/ASC because DSQL rejects a DESC index key. Whether
+ * the planner now takes an ordered path or still sorts is NOT MEASURED. Read
+ * `plans.observeNbu` from `{diagnose:true}` rather than assuming; inferring a
+ * plan from a diff is what D91's first lesson is about.
+ *
+ * $1 source · $2 from · $3 to.
+ */
+const NEWEST_CAPTURE_PER_DATE = `
+  SELECT DISTINCT ON (price_capture.as_of)
+         to_char(price_capture.as_of, 'YYYY-MM-DD') AS as_of, requested_at,
+         payload_gzip, parser_version
+    FROM price_capture
+   WHERE source = $1 AND ok = true AND as_of BETWEEN $2 AND $3
+   ORDER BY price_capture.as_of, requested_at DESC`;
+
+/**
  * Turn stored raw captures into observations.
  *
  * Reads NOTHING from the network. This is the payoff of storing payloads: the
@@ -709,15 +754,7 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     requested_at: Date;
     payload_gzip: Buffer;
     parser_version: string;
-  }>(
-    `SELECT DISTINCT ON (as_of)
-            to_char(as_of, 'YYYY-MM-DD') AS as_of, requested_at,
-            payload_gzip, parser_version
-       FROM price_capture
-      WHERE source = $1 AND ok = true AND as_of BETWEEN $2 AND $3
-      ORDER BY as_of, requested_at DESC`,
-    [SOURCE.nbuFairValue, from, to],
-  );
+  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.nbuFairValue, from, to]);
 
   let dates = 0;
   let seen = 0;
@@ -962,13 +999,65 @@ async function diagnose(client: Client) {
   // The query that runs in normal operation, planned as it actually runs. The
   // streak query that used to be planned beside it is gone with the check (A20).
   const plans: Record<string, string[]> = {};
+
+  // ONE "today" for every plan below. Computed twice, a `diagnose` call that
+  // straddles the Kyiv date boundary — and the Lambda's own schedule starts at
+  // 01:00 Europe/Kyiv — builds one plan for day D and another for D+1, and the
+  // two are then incomparable with nothing in the output saying why.
+  const today = nbuAsOf(new Date());
+
+  // VERBOSE here too. It is what prints the per-statement `Statement DPU
+  // Estimate` block (D91), and a report carrying one plan you can bill beside
+  // one you cannot makes the operator remember which is which. Costs nothing:
+  // this query projects only `as_of`.
   const completeness = await client.query<{ 'QUERY PLAN': string }>(
-    `EXPLAIN ANALYZE
+    `EXPLAIN (ANALYZE, VERBOSE)
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
        FROM price_capture WHERE source = $1 AND as_of BETWEEN $2 AND $3`,
-    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, nbuAsOf(new Date())],
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today],
   );
   plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
+
+  // A50: the query that actually costs money, which this mode did not plan.
+  // The handler doc has always promised "the plans of the two operational
+  // queries"; after A20 removed the streak query, the one left behind was the
+  // cheap one, which is why D91 had to be measured by hand.
+  //
+  // BOTH BRANCHES, because "a query that runs per source is not verified until
+  // every branch is planned" (D48's lesson, restated in infra/README.md) and
+  // this call has two that differ by three orders of magnitude.
+  //
+  // The trailing window the nightly run uses. ANALYZE, so the figure is real
+  // and comparable to D91's 0.356 DPU — and note it EXECUTES the query,
+  // payloads included, so this belongs in a manual mode and nowhere near a loop.
+  const observeWindow = await client.query<{ 'QUERY PLAN': string }>(
+    `EXPLAIN (ANALYZE, VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
+    [SOURCE.nbuFairValue, addDays(today, -OBSERVE_WINDOW_DAYS), today],
+  );
+  plans.observeNbu = observeWindow.rows.map((r) => r['QUERY PLAN']);
+
+  // The expensive branch — `{observe:{}}` defaults `from` to NBU_ARCHIVE_START
+  // and this query carries no SQL bound, so it is the whole archive with
+  // `payload_gzip` projected: 64.979 DPU when D91 measured it.
+  //
+  // NO ANALYZE, deliberately. Planning it is the point; paying 64.979 DPU every
+  // time somebody asks for a diagnosis is not, and an audit that costs what the
+  // defect costs will not be run.
+  //
+  // TWO THINGS UNVERIFIED HERE, both discovered by the first `{diagnose:true}`
+  // call and neither able to touch the nightly capture — `diagnose` is reached
+  // only by an explicit event, so a failure here breaks a diagnostic, not the
+  // archive. (1) Whether a non-ANALYZE plan carries a `Statement DPU Estimate`
+  // at all; if it does not, the plan SHAPE still answers the question, which is
+  // whether the scan is bounded. (2) Whether DSQL accepts `EXPLAIN (VERBOSE)`
+  // without ANALYZE — it is stock Postgres syntax, but DSQL's planner prints
+  // its own node types (`B-Tree Scan`, `Storage Lookup`) and its EXPLAIN is not
+  // documented as complete.
+  const observeOpen = await client.query<{ 'QUERY PLAN': string }>(
+    `EXPLAIN (VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today],
+  );
+  plans.observeNbuOpenRange = observeOpen.rows.map((r) => r['QUERY PLAN']);
 
   // A4's reconciliation. Per ref: how many observations exist, over what span,
   // and how many DISTINCT dates they cover — the last one is what catches a
@@ -1006,9 +1095,14 @@ async function diagnose(client: Client) {
   // provider's own file by hand. A count that reconciles proves the plumbing;
   // only a value proves the parse.
   const sample = await client.query(
+    // A50/D91 again: the alias shadowed the sort key here too. No
+    // `payload_gzip` on this table, so the bill was never the 64-DPU kind —
+    // but `price_observation` grows per instrument per day, the PRIMARY KEY
+    // leads with `as_of`, and a text sort cannot walk it backwards.
     `SELECT to_char(as_of, 'YYYY-MM-DD') AS as_of, instrument_ref, basis,
             price::text, ytm::text, clean_rate::text
-       FROM price_observation ORDER BY as_of DESC, instrument_ref LIMIT 3`,
+       FROM price_observation
+      ORDER BY price_observation.as_of DESC, instrument_ref LIMIT 3`,
   );
 
   const instruments = await client.query(

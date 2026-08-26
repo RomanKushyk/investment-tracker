@@ -45,9 +45,33 @@ substitute (~0.9% same-day divergence, D26/D27).
   …) AS as_of` plus `ORDER BY as_of` binds the sort to the TEXT output, not the
   indexed date; the sort cannot inherit index order, `LIMIT` stops bounding
   anything and the planner scans the table — measured at **64.989 DPU against
-  9.508** for the same query naming the column (D91). `observeNbu` still has this
-  shape and is bounded only by its `BETWEEN` window: **0.356 DPU over 7 days,
-  64.979 if the range is opened** (a manual `{observe:{}}`).
+  9.508** for the same query naming the column (D91). **A50 (2026-08-26) removed
+  the shape from both remaining queries** — `observeNbu` and the `diagnose`
+  sample on `price_observation` — and the two sort clauses had to move together,
+  because Postgres requires the `DISTINCT ON` expressions to match the leading
+  `ORDER BY` ones. Guarded from here on by `src/order-by-alias.test.ts`.
+- **What A50 did NOT do, and must not be read as having done.** It did not close
+  the **64.979 DPU** exposure of a manual `{observe:{}}`. That figure comes from
+  the OPEN RANGE — `from` defaults to `NBU_ARCHIVE_START` — and
+  `NEWEST_CAPTURE_PER_DATE` carries no SQL `LIMIT`: `ObserveRequest.limit` is
+  applied in JS after every row is already fetched, and `DISTINCT ON` must
+  consider the whole window regardless. D91 said it plainly: *Only the window
+  stands between it and the same scan.* Its 6.8x win was measured on the streak
+  query, which ends in `LIMIT 60` — naming the column let the planner stop
+  early, and there is no early stop to unlock here. **The candidate durable fix
+  is a bound in the STATEMENT**, or refusing an unbounded `from`; it is not
+  decided, and the measurement below should decide it.
+- **The re-plan is OUTSTANDING, so no post-fix figure is recorded anywhere.**
+  Every number in this section is a PRE-fix measurement. The new ordering is
+  also mixed-direction — `as_of` ASC, `requested_at` DESC — which neither
+  `price_capture_as_of` nor `price_capture_source_as_of` serves directly, both
+  being ASC/ASC because DSQL rejects a DESC index key. Whether the planner now
+  takes an ordered path, an incremental sort, or the same full sort is
+  **unmeasured**, and inferring it from the diff is exactly what D91's first
+  lesson forbids. Read it instead: `{diagnose:true}` now returns
+  `plans.observeNbu` (the 7-day branch, with `ANALYZE`, so its DPU is real) and
+  `plans.observeNbuOpenRange` (the expensive branch, **no `ANALYZE`** — an audit
+  that costs what the defect costs does not get run).
 - **A query that runs per source is not verified until every branch is planned.**
   D48 recorded one figure for a two-branch call; the branch it did not plan
   matched 58% of the table instead of 0.3% and scanned nightly for a week.

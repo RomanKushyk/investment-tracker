@@ -51,9 +51,17 @@ jobs:
         working-directory: infra
         run: npm ci
 
-      # The parser is shared code, so its tests gate the backend too. Runs
-      # before any AWS credential exists — a failing test cannot deploy.
-      - run: pnpm vitest run src/core/inzhur
+      # The parser is shared code, so its tests gate the backend too, and
+      # `infra/src` carries the backend's own tests — including A50's
+      # `order-by-alias` guard, which exists to stop a query shape that costs
+      # DPU from reaching the live cluster. It had to be added here explicitly:
+      # deploy-frontend runs `pnpm test` but SKIPS an infra-only push through
+      # its `paths-ignore`, so before this line the infra tests ran in CI only
+      # when an unrelated frontend commit happened to land beside them — green
+      # but never executed on the commit that could break them. Same asymmetry,
+      # same fix, as the `format:check` step below.
+      # Runs before any AWS credential exists — a failing test cannot deploy.
+      - run: pnpm vitest run src/core/inzhur infra/src
 
       # A37 — `prettier --check .` covers infra/ too (three sources, their tests
       # and template.yaml), and deploy-frontend SKIPS an infra-only push through
