@@ -5,7 +5,12 @@ is implemented from this page. Add a line and move on.
 
 Cycle: collect here → groom into `PLAN-NOW.md` / `PLAN-WAITING.md` → wipe this
 list and start collecting again. Last groomed 2026-08-18 (7 → 0); where each
-line went is in `PLAN-NOW.md` § Section H.
+line went is in the ledger at `../archive/plan-a/README.md` § Section H.
+
+**Ideas only — a bug goes in [`USER-BUGS-DRAFT.md`](USER-BUGS-DRAFT.md).** This
+page is what the app does not do yet; that one is what it does wrong. Two lines
+moved there on 2026-08-26. A missing capability is an idea, not a bug: "it will
+not let me edit a transaction" belongs here.
 
 - sections in setting can be better visually separated, or even each can have link in settings sidebar group;
 - instead of demo toggle create a separate route e.g. quirenote.com/demo/... which copies all pages but show demo data only, always public (no need for registration), mimics all the behavior but has no affect on real site/data;
@@ -20,3 +25,4 @@ line went is in `PLAN-NOW.md` § Section H.
 - «Внесок» is a somewhat unclear name;
 - do not allow adding a transaction that goes past the free balance on the broker account, and think about a different way of recording that balance altogether;
 - a universal tracker should split assets by PROVIDER: then the free balance is tracked per provider, the site reads as micro-cabinets, and the whole transaction flow can be reworked around them;
+- для дохідності додати перемикач між "дохідність за активом від першої купівлі" та "повна дохідність" - те саме + усі виплати по активу

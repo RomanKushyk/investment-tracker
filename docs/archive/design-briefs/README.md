@@ -68,3 +68,11 @@ section MUST contain all seven parts:
 - Keep one brief per phase; amend it in place (with a dated note) if scope
   shifts before the design session runs; never amend after the extension
   merged — supersede with a new brief section instead.
+
+## Split 2026-08-26 (D95)
+
+No documentation file exceeds 200 lines. Each of the three phase briefs kept its
+path and became an index — title, global constraints, phase-wide acceptance and
+a table — with its surface sections moved **verbatim** into `phase-2/`,
+`phase-3/` and `phase-4/`. Nothing was rewritten, no `S` number changed, and
+every link into a brief still resolves because the brief file is still there.

@@ -28,3 +28,20 @@ extension reference is merged. Pure-logic tasks are never design-blocked.
 - Figures in a brief illustrate; the app always derives them (D5).
 - When a brief's phase ships, move the file to `../archive/design-briefs/` and
   add its row to that folder's table.
+
+## Split 2026-08-26 (D95)
+
+No documentation file exceeds 200 lines. Every brief here kept its path and its
+name and became an index — title, owner decisions, what the code was when it was
+written, acceptance, and what it does not decide — with its long sections moved
+**verbatim** into a folder of its own (`phase-5/`, `phase-6/`, `phase-7/`,
+`phase-8/`, `asset-create/`, `screen-density/`), each carrying a `README.md`
+that maps every section to its file.
+
+**Read the brief AND its `constraints.md` before a section file.** A surface
+section states pixel values and behaviour under global constraints, and in four
+of the six briefs those constraints were themselves too long to keep inline:
+`phase-6/constraints.md`, `phase-7/constraints.md`, `phase-8/constraints.md` and
+`screen-density/findings-and-constraints.md`. Only `asset-create-provider-first.md`
+still carries them in the brief. **A section read without them is a set of
+numbers with the reasoning missing** — each folder's `README.md` names the file.

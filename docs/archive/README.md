@@ -9,8 +9,12 @@ checkbox ticked here.
 
 | What | Status | Still binding? |
 |---|---|---|
-| [`BUILD-PLAN.md`](BUILD-PLAN.md) | v1, Tasks 1–7, closed 2026-07-28 | **Yes** — its pinned contracts, seed spec and motion standards hold until a decision supersedes them |
+| [`BUILD-PLAN.md`](BUILD-PLAN.md) | v1 index: global constraints, motion standards, status | **The motion standards, yes.** The pinned contracts and the seed spec moved to `build-plan/` on 2026-08-26 and bind from there |
 | [`design-briefs/`](design-briefs/) | Phases 2–4, all shipped | Only as the record of what each surface was meant to be |
+| [`plan-a/`](plan-a/README.md) | Plan A: 51 closed tasks, bodies + the full ledger | No — closed. Its rulings live in `../decisions/` |
+| [`plan-b/`](plan-b/README.md) | Plan B: waiting items whose gate opened and closed | No — closed |
+| [`plan-c/`](plan-c/README.md) | Plan C: the evidence under four answered questions | Only as the working a ruling rests on; the ruling binds, not this |
+| [`build-plan/`](build-plan/) | The long half of `BUILD-PLAN.md` | **Its pinned contracts, yes** — see the index above |
 
 **`NEXT-PHASE-DRAFT.md` left this folder on 2026-08-17.** It was the raw wishlist
 `NEXT-PHASE-PLAN.md` was built from — and it was still being added to, which made
@@ -36,3 +40,12 @@ with the shipped items removed and a table recording where each went. One had
 changed shape rather than shipped as written: "live ₴/$ rate from Google
 finances" became A5, sourced from the NBU statistics API instead, because it is
 public, CORS-open and authoritative for a hryvnia rate.
+
+## The 200-line cap (2026-08-26, D95)
+
+The three live plans and `BUILD-PLAN.md` were split on 2026-08-26 so that no
+documentation file exceeds 200 lines. Every folder here is the closed half of
+that split — the three phase briefs included, each now an index over a
+`phase-N/` folder of its own: bodies moved **verbatim**, IDs unchanged, each folder carrying a
+`README.md` that maps every ID to the file holding it. Nothing was summarised —
+a record that gets tidied stops being a record.
