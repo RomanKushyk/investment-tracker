@@ -711,12 +711,34 @@ export interface ObserveRequest {
  * streak query, which ends in `LIMIT 60` — there, naming the column let the
  * planner stop early. There is no early stop to unlock here.
  *
- * AND THE NEW ORDER IS MIXED-DIRECTION — `as_of` ASC, `requested_at` DESC —
- * which neither `price_capture_as_of` nor `price_capture_source_as_of` serves
- * directly, both being ASC/ASC because DSQL rejects a DESC index key. Whether
- * the planner now takes an ordered path or still sorts is NOT MEASURED. Read
- * `plans.observeNbu` from `{diagnose:true}` rather than assuming; inferring a
- * plan from a diff is what D91's first lesson is about.
+ * MEASURED 2026-08-26 over four rounds — **D97**, working in
+ * `infra/docs/replan-a50.md`. The
+ * order is mixed-direction (`as_of` ASC, `requested_at` DESC) against ASC/ASC
+ * indexes, so whether the index could be used at all was the open question. It
+ * can: this now plans as `Incremental Sort` with
+ * `Presorted Key: price_capture.as_of`, where the aliased form planned a full
+ * `Sort` on the text expression.
+ *
+ * THE PLAN MOVED AND THE COST DID NOT. Warmed and alternated over four runs,
+ * the two forms are indistinguishable — median total 0.25594 aliased against
+ * 0.25599 qualified, the qualified one marginally SLOWER, with per-run ranges
+ * that overlap completely. Read is 99.3% of the total and identical to five
+ * digits in every run, because both scan the same 15 rows. An earlier round
+ * reported a 9.1× compute win; that was first-parse warmup on whichever form ran
+ * first.
+ *
+ * AND THE SAME HOLDS AT EVERY WIDTH TESTED. Planned at nine ranges: both forms
+ * take `Index Scan using price_capture_as_of` out to 1500 days, and both fall to
+ * `Full Scan (btree-table)` from 2000 days. The alias never changed the access
+ * path — only the sort node — so there is no window width at which this starts
+ * paying.
+ *
+ * So this is a defect removed, not a cost removed — worth doing because the
+ * class bit hard once (D91), not because it pays. The open range is untouched
+ * and its remedy is NOT a SQL `LIMIT`: the recorded plan puts a `Sort` above a
+ * `Full Scan`, and a `Sort` consumes its whole input before yielding a row.
+ * Bounding the date range per invocation could, but it breaks how
+ * `complete`/`nextFrom` are derived below — `PLAN-OPEN.md` O32, unanswered.
  *
  * $1 source · $2 from · $3 to.
  */
@@ -1006,10 +1028,11 @@ async function diagnose(client: Client) {
   // two are then incomparable with nothing in the output saying why.
   const today = nbuAsOf(new Date());
 
-  // VERBOSE here too. It is what prints the per-statement `Statement DPU
-  // Estimate` block (D91), and a report carrying one plan you can bill beside
-  // one you cannot makes the operator remember which is which. Costs nothing:
-  // this query projects only `as_of`.
+  // ANALYZE is what yields the per-statement `Statement DPU Estimate` block;
+  // VERBOSE alone does not (measured, D97). Both are here so this plan is
+  // billable like the one below it — a report carrying one plan you can bill
+  // beside one you cannot makes the operator remember which is which. Costs
+  // nothing: this query projects only `as_of`.
   const completeness = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (ANALYZE, VERBOSE)
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
@@ -1028,7 +1051,9 @@ async function diagnose(client: Client) {
   // this call has two that differ by three orders of magnitude.
   //
   // The trailing window the nightly run uses. ANALYZE, so the figure is real
-  // and comparable to D91's 0.356 DPU — and note it EXECUTES the query,
+  // and comparable to the WARM median in D97, 0.256 DPU — not to D91's 0.356,
+  // which D97 records as UNREPRODUCED — 0.26528 warm on D91's own window, cause
+  // unknown. Note it EXECUTES the query,
   // payloads included, so this belongs in a manual mode and nowhere near a loop.
   const observeWindow = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (ANALYZE, VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
@@ -1038,21 +1063,26 @@ async function diagnose(client: Client) {
 
   // The expensive branch — `{observe:{}}` defaults `from` to NBU_ARCHIVE_START
   // and this query carries no SQL bound, so it is the whole archive with
-  // `payload_gzip` projected: 64.979 DPU when D91 measured it.
+  // `payload_gzip` projected. D91 measured 64.979 DPU there — ONE COLD SAMPLE,
+  // from the session whose sibling figure D97 could not reproduce, and not
+  // re-measured here because re-measuring it is what it costs.
   //
   // NO ANALYZE, deliberately. Planning it is the point; paying 64.979 DPU every
   // time somebody asks for a diagnosis is not, and an audit that costs what the
   // defect costs will not be run.
   //
-  // TWO THINGS UNVERIFIED HERE, both discovered by the first `{diagnose:true}`
-  // call and neither able to touch the nightly capture — `diagnose` is reached
-  // only by an explicit event, so a failure here breaks a diagnostic, not the
-  // archive. (1) Whether a non-ANALYZE plan carries a `Statement DPU Estimate`
-  // at all; if it does not, the plan SHAPE still answers the question, which is
-  // whether the scan is bounded. (2) Whether DSQL accepts `EXPLAIN (VERBOSE)`
-  // without ANALYZE — it is stock Postgres syntax, but DSQL's planner prints
-  // its own node types (`B-Tree Scan`, `Storage Lookup`) and its EXPLAIN is not
-  // documented as complete.
+  // BOTH VERIFIED against the cluster 2026-08-26: DSQL accepts
+  // `EXPLAIN (VERBOSE)` without ANALYZE, and prints NO `Statement DPU Estimate`
+  // in that form — only ANALYZE does. So this plan says whether the scan is
+  // bounded and never what it costs, which is the trade that keeps a diagnosis
+  // from costing what the defect costs. What it showed: `Full Scan
+  // (btree-table)` with `payload_gzip` projected, identical in the aliased and
+  // qualified forms, so A50 left this branch exactly where it was.
+  //
+  // Trying unproven EXPLAIN syntax here was safe for a reason worth keeping in
+  // the file: `diagnose` is reached ONLY by an explicit `{diagnose:true}` event,
+  // never by the schedule, so a statement this mode cannot run breaks a
+  // diagnostic and not the archive.
   const observeOpen = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
     [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today],

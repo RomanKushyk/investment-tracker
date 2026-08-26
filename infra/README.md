@@ -58,20 +58,58 @@ substitute (~0.9% same-day divergence, D26/D27).
   consider the whole window regardless. D91 said it plainly: *Only the window
   stands between it and the same scan.* Its 6.8x win was measured on the streak
   query, which ends in `LIMIT 60` — naming the column let the planner stop
-  early, and there is no early stop to unlock here. **The candidate durable fix
-  is a bound in the STATEMENT**, or refusing an unbounded `from`; it is not
-  decided, and the measurement below should decide it.
-- **The re-plan is OUTSTANDING, so no post-fix figure is recorded anywhere.**
-  Every number in this section is a PRE-fix measurement. The new ordering is
-  also mixed-direction — `as_of` ASC, `requested_at` DESC — which neither
-  `price_capture_as_of` nor `price_capture_source_as_of` serves directly, both
-  being ASC/ASC because DSQL rejects a DESC index key. Whether the planner now
-  takes an ordered path, an incremental sort, or the same full sort is
-  **unmeasured**, and inferring it from the diff is exactly what D91's first
-  lesson forbids. Read it instead: `{diagnose:true}` now returns
+  early, and there is no early stop to unlock here. **A plain `LIMIT` is ruled
+  out** — the recorded plan puts a `Sort` above the `Full Scan`, and a `Sort`
+  consumes its whole input before it yields a row. A per-invocation **date-range**
+  cap is still viable and now has a measured ceiling (~1500 days, below);
+  `PLAN-OPEN.md` O32 carries what is undecided.
+- **Re-planned twice on 2026-08-26 — the plan moved, the cost did not (D97).**
+  Full working in [`docs/replan-a50.md`](docs/replan-a50.md). The window branch now plans as
+  **`Incremental Sort` with `Presorted Key: as_of`** where the aliased form
+  planned a full `Sort` on the text expression, so DSQL *can* serve the
+  mixed-direction order (`as_of` ASC, `requested_at` DESC) from an ASC/ASC
+  index — that question is closed. But warmed and alternated over four runs the
+  two forms are **indistinguishable**: median total **0.25594 aliased against
+  0.25599 qualified**, the qualified one marginally slower, per-run ranges fully
+  overlapping. Read is **99.3%** of the total and identical to five digits in
+  every run, because both scan the same 15 rows.
+- **The first round said compute fell 9.1×. That was warmup**, caught in review:
+  planning time fell 10.754 → 0.217 ms between two near-identical statements,
+  which is a first parse, not a sort-key effect. **One `EXPLAIN (ANALYZE)` is
+  not a measurement** — warm both forms, alternate the order, repeat, report the
+  median, or report a plan shape and no numbers. **D91's 0.356 is UNREPRODUCED**
+  — 0.26528 warm on D91's own window, identical for both forms, and neither
+  warmup (0.55% of Read), window content nor query form accounts for the gap. Its
+  cause is unknown, which is weaker than "superseded" and is what the evidence
+  supports. **64.979 has never been re-measured**, being one cold sample from the
+  same session, and it is load-bearing for keeping `price_capture_as_of`.
+- **And the same holds at every width tested.** Planned at nine ranges, both
+  forms take `Index Scan using price_capture_as_of` out to **1500 days** and both
+  fall to `Full Scan (btree-table)` from **2000 days**. **The alias never changed
+  the access path** — only the sort node — so there is no window width at which
+  this fix starts paying. That also sizes O32: a date-range bound up to ~1500
+  days keeps the plan on the index.
+- **The open range is unchanged, and now recorded rather than argued.** Both
+  forms plan identically: `Unique` over `Sort` over `Full Scan (btree-table)`,
+  `payload_gzip` in `Projections`, every predicate a `Filters` entry on the
+  `Storage Scan`, `cost=3077.01..3081.10` in each — two decimals, and planner
+  cost is in arbitrary units — with `rows=6628` on the B-Tree Scan, a planner
+  ESTIMATE matching neither the 6,666 rows in the table nor the 3,867 the filter
+  selects. Nothing measured says why; `ANALYZE`-ing the table would.
+- **A plain SQL `LIMIT` would NOT fix it**, which corrects what A50 first filed.
+  The recorded plan puts a `Sort` above the `Full Scan`, and a `Sort` consumes
+  its whole input before yielding a row; D91's `LIMIT 60` paid off only because
+  its input arrived index-ordered. Bounding the **date range** per invocation
+  could — but `observeNbu` derives `complete`/`nextFrom` from
+  `captures.length > dates`, so capping the range in SQL makes a truncated fetch
+  look complete and stops the caller early. `PLAN-OPEN.md` **O32**, unanswered.
+- **Read a plan, never infer one.** `{diagnose:true}` returns
   `plans.observeNbu` (the 7-day branch, with `ANALYZE`, so its DPU is real) and
-  `plans.observeNbuOpenRange` (the expensive branch, **no `ANALYZE`** — an audit
-  that costs what the defect costs does not get run).
+  `plans.observeNbuOpenRange` (the open range, plan only). Verified while
+  re-planning: DSQL accepts `EXPLAIN (VERBOSE)` without `ANALYZE` and prints no
+  `Statement DPU Estimate` in that form, so the second says whether the scan is
+  bounded and never what it costs — which is what keeps a diagnosis from costing
+  what the defect costs.
 - **A query that runs per source is not verified until every branch is planned.**
   D48 recorded one figure for a two-branch call; the branch it did not plan
   matched 58% of the table instead of 0.3% and scanned nightly for a week.
@@ -99,6 +137,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 | [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — quirenote-backend-cfn-exec · The two traps, restated because they cost eight CI cycles last time |
 | [`docs/field-notes.md`](docs/field-notes.md) | Field notes — things only the first deploy revealed · 2026-08-11 — the rename, and three things it uncovered |
 | [`docs/dpu.md`](docs/dpu.md) | W2 — a week of real DPU, measured 2026-08-17 · Re-measured 2026-08-25 — an aliased ORDER BY was disabling the index (D91) |
+| [`docs/replan-a50.md`](docs/replan-a50.md) | A50's re-plan, 2026-08-26 — the plan moved and the cost did not, why round 1 was warmup, and why a SQL `LIMIT` cannot bound the open range (D97) |
 | [`docs/frozen-feed.md`](docs/frozen-feed.md) | W1 — the frozen-feed detector on real data, measured 2026-08-18 · A20's deploy failed first, and nothing local could have caught it |
 | [`docs/migrations-and-checks.md`](docs/migrations-and-checks.md) | A19 — the as_of migration, run 2026-08-18 · A6 — the DCF check runs nightly now, 2026-08-18 |
 

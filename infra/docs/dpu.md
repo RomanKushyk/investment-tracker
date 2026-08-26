@@ -130,3 +130,11 @@ wrong, and nothing here distinguishes them. Reported `ReadDPU` sits ~0.024 DPU a
 `max(BytesRead, 2048) × 0.00000183105` at that size; that is a small fixed offset
 at ~120 KiB, **not** a multiplier — the large reads here track the formula
 closely, so do not scale anything by 1.11.
+
+**A50's re-plan (2026-08-26) is in [`replan-a50.md`](replan-a50.md)**, moved
+there when this file crossed 200 lines. **It measures a DIFFERENT query** — the
+section above is the streak query, which A20 deleted; A50's is
+`NEWEST_CAPTURE_PER_DATE`, which `observeNbu` still runs. They share the defect
+class and nothing else, and the `LIMIT 60` reasoning above does not carry across:
+that query had a `LIMIT` for the fix to make effective, and A50's has no SQL
+bound at all.
