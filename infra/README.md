@@ -21,7 +21,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 | `src/capture.ts` | The handler. Imports the parser from `src/core` — never a second copy |
 | `schema/user.ts` | Drizzle source for `migrations/drafts/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
 | `migrations/` | **Reference DDL — nothing reads it.** The applied archive DDL is inline in `ensureSchema`; these files are the pinned contracts and are cited from comments in `capture.ts`. Keeping them in step with `ensureSchema` is manual (A51 found the README claiming otherwise) |
-| `migrations/drafts/` | **W7's user schema (`003_user_schema.sql`), applied by nothing.** Its header carries the pinned keys, the OCC contract, the old→new `Transaction` mapping and the six migration translations, and names how it stops being a draft. Executed by `src/user-schema.test.ts` against real Postgres in WASM — 42 tests, every constraint exercised. Folder rules: [`migrations/drafts/README.md`](migrations/drafts/README.md) |
+| `migrations/drafts/` | **W7's user schema (`003_user_schema.sql`), applied by nothing.** Generated from [`schema/user.ts`](schema/user.ts) — the pinned choices live there, beside the code they govern; DSQL facts and the promotion rule (including how this stops being a draft) are [`migrations/drafts/README.md`](migrations/drafts/README.md); the migration data problems are [`../docs/reference/w7-migration-translations.md`](../docs/reference/w7-migration-translations.md). Executed by `src/user-schema.test.ts` against real Postgres in WASM — 42 tests, every constraint exercised |
 | `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
 ## Local rules

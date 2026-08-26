@@ -9,12 +9,12 @@
 // what makes the "local Postgres for the inner loop" the cloud-stack spec
 // committed to actually available here.
 //
-// WHAT THIS CANNOT PROVE, and the file's own header says the same: nothing about
-// Aurora DSQL acceptance. Local Postgres is the SUBSET — `CREATE INDEX ASYNC` is
-// DSQL-only and would fail here, which is why the draft writes plain
-// `CREATE INDEX` and marks each one. A DSQL-only rejection is invisible to this
-// test by construction, so the draft's DSQL DIVERGENCE note is the whole of that
-// safety and this suite is not a substitute for reading it.
+// WHAT THIS CANNOT PROVE: nothing about Aurora DSQL acceptance. Local
+// Postgres is the SUBSET — `CREATE INDEX ASYNC` is DSQL-only and would fail
+// here, which is why the generated SQL uses plain `CREATE INDEX` throughout;
+// promotion is what converts it (`infra/migrations/drafts/README.md`). A
+// DSQL-only rejection is invisible to this test by construction, so this
+// suite is not a substitute for first contact at promotion.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -26,9 +26,9 @@ const SCHEMA = new URL('../migrations/drafts/003_user_schema.sql', import.meta.u
 /**
  * Statements, comment lines stripped FIRST.
  *
- * The header is prose and contains semicolons, so splitting before stripping
- * cuts a statement out of the middle of a sentence — which is exactly how the
- * first run of this check failed.
+ * The generated SQL carries `--> statement-breakpoint` lines between
+ * statements; stripping them before splitting on `;` keeps a breakpoint
+ * marker from landing inside the next statement's text.
  */
 function statements(sql: string): string[] {
   return sql

@@ -1,16 +1,27 @@
 // The Drizzle source for `infra/migrations/drafts/003_user_schema.sql`.
 //
 // This file is the schema; the SQL is generated from it and must never be
-// hand-edited (see `infra/drizzle.config.ts` for the generate procedure). Every
-// column, CHECK and UNIQUE below has a counterpart in the SQL's pinned
-// contracts — read that file's header before changing a table here, and keep
-// this file's constraint names identical to the SQL's so the two stay
-// comparable statement for statement.
+// hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
+// Keep this file's constraint names identical to the generated SQL's so the
+// two stay comparable statement for statement. DSQL environment facts (no
+// foreign keys, index-async promotion, replay behaviour) live in
+// `infra/migrations/drafts/README.md`; W7's data-migration notes live in
+// `docs/reference/w7-migration-translations.md`. The PGlite suite this file's
+// constraints run against (`infra/src/user-schema.test.ts`) proves nothing
+// about those translations — they are data problems, not schema ones.
 //
-// DSQL has no foreign keys (`REFERENCES` is absent from the grammar) — none are
-// declared. Every per-user table leads its primary key with `user_id` (contract
-// 3): DSQL's primary key is index-organized, so the key order is the access
-// path, and it is immutable once applied (D30).
+// EVERY PER-USER TABLE LEADS ITS PRIMARY KEY WITH `user_id` (contract 3).
+// DSQL's primary key is index-organized, so key order IS the access path,
+// and it is immutable once applied (D30). The dominant read is `GET /state`
+// — one user's whole dataset — so `(user_id, id)` makes that a contiguous
+// range scan, while a bare surrogate `(id)` would be a secondary-index scan
+// with a row fetch per row. This resolves the tension the two applied
+// migrations sit on either side of: `001_price_capture.sql` keys on a random
+// UUID to spread writes across the key range, per DSQL's own guidance;
+// `002_price_observation.sql` keys naturally because its read contract
+// serves whole years. Leading with `user_id` gets both — a Cognito `sub` is
+// itself a random UUID, so writes still spread, while one user's rows stay
+// contiguous for the read that matters.
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -27,9 +38,9 @@ import {
   bigint,
 } from 'drizzle-orm/pg-core';
 
-// One row per approved user. Also the OCC anchor (contract 2) and the
-// authorization record: the API Lambda checks `status` and `role` here on
-// every request, never `cognito:groups`.
+// One row per approved user. Also the OCC anchor (see `dataVersion` below)
+// and the authorization record: the API Lambda checks `status` and `role`
+// here on every request, never `cognito:groups`.
 export const appUser = pgTable(
   'app_user',
   {
@@ -37,8 +48,18 @@ export const appUser = pgTable(
     email: text().notNull(),
     status: text().notNull(),
     role: text().notNull(),
-    // The dataset version. Contract 2: one counter for the whole of this
-    // user's data, bumped by every accepted mutation.
+    // One counter for the whole of this user's data, bumped by every
+    // accepted mutation. A per-TABLE version cannot implement a
+    // dataset-level `If-Match`, which is why there is one column here rather
+    // than one per table. It lives here, not in a table of its own, because
+    // the API Lambda already loads this row on every request — to scope by
+    // `user_id` and check `status` — so the read is free. `If-Match` is
+    //   UPDATE app_user SET data_version = data_version + 1
+    //    WHERE user_id = $1 AND data_version = $2
+    // and the CONFLICT DETECTOR IS THE ROWCOUNT: 0 rows means someone else
+    // moved first, which is a 412. Retrying SQLSTATE 40001 at COMMIT is
+    // SERIALIZATION, a different failure — retrying it is safe precisely
+    // because the rowcount check is what makes the mutation conditional.
     dataVersion: bigint('data_version', { mode: 'number' }).notNull().default(0),
     appliedAt: timestamp('applied_at', { withTimezone: true }).notNull(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
@@ -53,10 +74,9 @@ export const appUser = pgTable(
       'app_user_decided_ck',
       sql`(${t.status} = 'pending') = (${t.decidedAt} IS NULL AND ${t.decidedBy} IS NULL)`,
     ),
-    // Inline, per the divergence note. Byte-exact: Cognito's own duplicate
-    // refusal (D36) is what actually holds the "one address, one account"
-    // line; this stops a second DB row for an address Cognito already
-    // considers taken.
+    // Byte-exact: Cognito's own duplicate refusal (D36) is what actually
+    // holds the "one address, one account" line; this stops a second DB row
+    // for an address Cognito already considers taken.
     unique('app_user_email_uq').on(t.email),
     primaryKey({ columns: [t.userId] }),
   ],
@@ -90,7 +110,6 @@ export const asset = pgTable(
     id: uuid().notNull(),
     name: text().notNull(),
     code: text().notNull(), // 2 letters for the avatar
-    // Contract 4: a palette INDEX, not a holding name.
     colorSlot: smallint('color_slot').notNull(),
     yieldType: text('yield_type').notNull(),
     expectedPct: numeric('expected_pct').notNull(),
@@ -108,6 +127,14 @@ export const asset = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (t) => [
+    // NO CHECK IN THIS FILE MAY ENUMERATE A VALUE NAMING A SPECIFIC HOLDING —
+    // the spec's one explicit DDL rule, for any table, not only this one.
+    // `color_slot` is a palette INDEX rather than a `reit | energy | ovdp...`
+    // enum for exactly this reason: a CHECK that names a holding turns "the
+    // user sold it" into a migration. It does not exempt a closed
+    // vocabulary that names no holding — `yield_type` and `payout_schedule`
+    // below are constrained for exactly that reason.
+    //
     // The REAL palette size: `COLOR_KEYS` in `src/core/colors.ts` has four
     // entries and new assets cycle `% 4`.
     check('asset_color_slot_ck', sql`${t.colorSlot} >= 0 AND ${t.colorSlot} < 4`),
@@ -137,8 +164,9 @@ export const asset = pgTable(
   ],
 );
 
-// One signed movement on one provider account. The sign is a function of
-// `type` and is never stored (contract 5).
+// One signed movement on one provider account. The sign of `amount` is a
+// function of `type` and is never stored — it lives in application code,
+// not in this schema.
 export const transaction = pgTable(
   'transaction',
   {
@@ -168,8 +196,8 @@ export const transaction = pgTable(
         'interest_payout', 'tax', 'reinvest', 'redemption')`,
     ),
     check('transaction_amount_ck', sql`${t.amount} > 0`),
-    // Contract 5: a quantity is not redundant with the type, so it is bounded
-    // too.
+    // A negative quantity would flip a position movement independently of
+    // `type`, and nothing else records units.
     check('transaction_quantity_sign_ck', sql`${t.quantity} IS NULL OR ${t.quantity} > 0`),
     check('transaction_unit_price_ck', sql`${t.unitPrice} IS NULL OR ${t.unitPrice} > 0`),
     // ONE WAY ONLY: a row that moves no position must not invent a quantity.
@@ -179,8 +207,11 @@ export const transaction = pgTable(
       'transaction_quantity_absent_ck',
       sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.quantity} IS NULL`,
     ),
-    // TWO ONE-WAY RULES, not a biconditional — see the SQL header for why a
-    // biconditional here rejects every deposit the app actually records.
+    // TWO ONE-WAY RULES, not a biconditional: `(type IN ('deposit',
+    // 'withdrawal')) = (asset_id IS NULL)` would reject every deposit the
+    // app records today (`schemas.ts` fills `assetId` for all nine
+    // transaction types) and force an asset onto every `tax` row, when the
+    // spec requires one only when the tax relates to a payout.
     check(
       'transaction_asset_absent_ck',
       sql`${t.type} NOT IN ('deposit', 'withdrawal') OR ${t.assetId} IS NULL`,
