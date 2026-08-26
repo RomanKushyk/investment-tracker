@@ -9,7 +9,7 @@ and start collecting again. Started 2026-08-26 with the two lines that were
 sitting in the ideas list.
 
 **`PLAN-NOW.md` is an INDEX (D95)** — a groomed `fix/` task gets a Status row
-there and its body in the matching range file (`A41-A60.md` and so on), listed
+there and its body in the matching range file (`A41-A50.md` and so on), listed
 in that file's "Where the detail is" table in the same commit. A bug gated on
 W7 or on the migration goes to `PLAN-WAITING.md` instead.
 

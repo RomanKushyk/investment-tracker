@@ -4,7 +4,7 @@
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-WAITING.md` (dated). Parent: `NEXT-PHASE-PLAN.md`. Answers land in `../decisions/` as a **new `D<n>.md`** (D96 — there are no range files; index at `../decisions/README.md`) and the item leaves this file.
 
-Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and three of the owner's own — **O27** (2026-08-24, how one ОВДП is told apart from another), **O28** (2026-08-25, the server-side derivation boundary, decided at W7 design) and **O29** (2026-08-25, installability without a service worker; undated and cheap). The older two are open BY DESIGN; O27 and O28 wait on a ruling.
+Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 closed the original Rounds 1, 2 and 4; D36–D39 then reworked the auth answers as the design sharpened. What remains: Round 3, which was never a gap (three derivations deferred at zero migration cost), the archive row's non-key columns, and three of the owner's own — **O27** (2026-08-24, how one ОВДП is told apart from another), **O28** (2026-08-25, the server-side derivation boundary, decided at W7 design) and **O29** (2026-08-25, installability without a service worker; undated and cheap). **Two more joined 2026-08-26**, both from the review of Section P: **O30**, a Cognito billing question no instrument available here can answer, and **O31**, whether the seed's pinned row count may move at all. That is five of the owner's own, not three. Disposition: O9/O10/O11 and O5's remainder are open BY DESIGN; **O27, O28 and O31 wait on a ruling**; O29 and O30 are open but cost nothing to leave — O29 is undated and cheap, O30 bites only if open registration is on and abused.
 
 ## Status
 
@@ -25,6 +25,8 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O27 | How is one ОВДП told apart from another — in «Код», and on screen? | — | **open, 2026-08-24, the owner's.** Widening «Код» to 4–6 characters is PARKED on it: `deriveCode` gives every «ОВДП …» the same «ОВ», and the only separator today is a tint handed out by arrival order. Four candidate answers, three of which cost a decision (D56, the palette) |
 | O28 | Server-side derivation boundary — what may the backend compute, and when? | — | **open, 2026-08-25, the owner's, raised with D92.** Cross-browser now outranks offline, which removes the offline argument for all-client derivation and QUESTIONS the cloud-stack spec's pinned `Derivation \| 100% client-side` row (annotated in place; still binding). Direction stated, not ruled — see below. **Decide at W7 design, with a decision number** |
 | O29 | Installability without a service worker — wanted at all? | — | **open, 2026-08-25.** D92 removed the PWA shell from W7; a bare manifest still gives install at near-zero cost, no service worker involved. Undated, unblocked, cheap — decide if and when install matters |
+| O30 | Does a trigger-rejected sign-up cost a Cognito MAU? | — | **open, and not measurable on a free-tier pool** — raised by A54's code review, 2026-08-26. `DescribeUserPool.EstimatedNumberOfUsers` counts users and a rejected sign-up creates none, so the reading is 0 → 0 whatever Cognito bills; `W02-W08.md` records total users as a strict *upper bound* on MAU, not a measure of it; and inside 10,000 free MAU no bill can disagree. AWS documents it in neither direction. **No body — this row is the whole question.** It bites only if open registration is on and abused, and D37's `SignUpSuccesses` chart is the instrument that would show that |
+| O31 | May the seed's pinned row count `4/174/18` move, and what supersedes D10/D24 when it does? | — | **open, 2026-08-26** — raised by A52's withdrawal. D34 rewrites the seed to reconcile by gaining `withdrawal` and `tax` rows; `navigation-map.md` checkpoint 7 pins the count, D10 and D24 pin it as a decision, and D5 pins `Deposited 143 176 ₴` derived from the `deposit` rows — so the rewrite cannot happen without moving a pinned figure, and a decision is superseded, never edited. **No body — this row is the whole question.** W7 needs the answer before its Seed bullet is executable; see `W02-W08.md` |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
 | O8 | The 6 short-dated bonds outside the DCF model | 2 | **closed — D31** they are 7 matured bonds; `status` is the discriminator, no threshold |
 | O9 | `provenance` enum and its assignment rule | 3 | **open by design** — see below |
@@ -50,6 +52,11 @@ above stay here pointing at the decision that answered them.
 | File | Holds |
 |---|---|
 | [`O05-O29.md`](O05-O29.md) | O27, O28, O29, O5 (part), O9/O10/O11, and the trail from each resolution to the plan it fed |
+
+**O30 and O31 have no bodies and do not need any** — each Status row is the
+whole question, the way `PLAN-NOW.md` treats A50. Both sit outside the range
+file's name for that reason, not by oversight, and both are filed beside O29 so
+the open rows stay grouped.
 
 Question numbers never change. Splitting moves bodies verbatim; no file goes
 over 200 lines.

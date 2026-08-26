@@ -8,8 +8,9 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 ## Status — what is live
 
-Three tasks. Section order still decides which comes first, and it is the order
-of the rows here.
+Seven rows, **six startable** — A52 is a withdrawn row kept for its reason,
+the way A11 is kept for its denial. Section order still decides which comes
+first, and it is the order of the rows here.
 
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
@@ -17,6 +18,11 @@ of the rows here.
 | A50 | **Audit the two live queries that still shadow an ORDER BY column** | `infra/alias-order-by-audit` | S | **open** — D91's defect is deployed, not historical. `observeNbu` (`capture.ts:713`) runs on every successful capture with `to_char(as_of,…) AS as_of … ORDER BY as_of` and selects `payload_gzip`: measured **0.356 DPU** inside its 7-day `BETWEEN`, **64.979 DPU** with the range opened, which is what a manual `{observe:{}}` does. The diagnose helper at `capture.ts:1009` repeats the shape on `price_observation`. Fix is to name the column (`ORDER BY price_capture.as_of`) and re-plan; **and do not drop `price_capture_as_of`**, which D48 calls dead weight and is the only thing bounding `observeNbu` |
 | **Section C** | **App — pure, independent** | | | |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
+| **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's gate opens 2026-09-02 and A46 is undated | | | |
+| A51 | User-schema DDL draft, green on local Postgres | `infra/user-schema-ddl-draft` | M | **startable** — Round 1 closed (D30/D32); draft DDL + the old→new `Transaction` mapping; nothing applies it before W7 |
+| A52 | ~~The seed reconciles under the ledger model (D34)~~ | — | — | **not startable — withdrawn to W7 by the review of 2026-08-26.** Three quantities are pinned at once and there is no free variable left: `navigation-map.md` checkpoint 7 fixes the row COUNT at `4/174/18` (so do D10 and D24), and the same checkpoint plus D5 fix **`Deposited 143 176 ₴`**, which D5 derives from the `deposit` rows themselves. So no added row can be net-zero while `derive.ts` still subtracts `withdrawal` and nets `tax` — D34's invariant is a property of the post-migration model. Back to W7's scope, which already lists it; the ruling it needs first is `PLAN-OPEN.md` **O31** |
+| A53 | The W7 API contract on paper | `docs/w7-api-contract` | M | **startable** — 17 `repo` methods → `GET /state`/`POST /mutations`, the `meta`-key sort, and the endpoint inventory incl. the unplanned W8 admin surface; O28 marked, never decided |
+| A54 | Cognito rehearsal on a throwaway pool | `infra/cognito-pool-rehearsal` | S | **startable, scope corrected** — **`usernameAttributes` is the only immutable parameter** (D36); Essentials tier and token validity are mutable, and token validity is D32's, not D36's. The pool proves what a pool can prove: a duplicate-email sign-up is **refused**, which D36 asserts from AWS's table and nothing here has tested. **The MAU question is not measurable on a free-tier pool — it moved to `PLAN-OPEN.md` O30.** Pool deleted the same day |
 | **Section M** | **Input grammar — from O26, closed by D87 (2026-08-25)** | | | |
 | A46 | The number grammar follows the language, and every field groups as it types (D87) | `feat/number-grammar` | M | **startable** — closes O26 by the owner's ruling 2026-08-25. `GROUPED_INTEGER` becomes **English-only** (not deleted), one shared `NumberField` groups live in both languages, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings |
 
@@ -25,11 +31,15 @@ of the rows here.
 | File | Holds |
 |---|---|
 | [`A01-A20.md`](A01-A20.md) | A11 |
-| [`A41-A60.md`](A41-A60.md) | Section M's preamble, A46 |
+| [`A41-A50.md`](A41-A50.md) | Section M's preamble, A46 |
+| [`A51-A60.md`](A51-A60.md) | Section P's preamble, A51–A54 |
+
+The range table runs in ID order; **section order is the Status table's**, which
+puts Section P (A51–A54) above Section M (A46).
 
 **A50 has no body and does not need one** — its Status row above is the whole
 specification, measured figures included. When it grows one it goes in
-`A41-A60.md`.
+`A41-A50.md`.
 
 ## Where the closed work is
 

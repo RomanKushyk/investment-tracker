@@ -26,7 +26,7 @@ overflows on a schedule.
 
 | Plan | Index | Bodies |
 |---|---|---|
-| A | `PLAN-NOW.md` | [`A01-A20.md`](A01-A20.md) · [`A41-A60.md`](A41-A60.md) |
+| A | `PLAN-NOW.md` | [`A01-A20.md`](A01-A20.md) · [`A41-A50.md`](A41-A50.md) · [`A51-A60.md`](A51-A60.md) |
 | B | `PLAN-WAITING.md` | [`W02-W08.md`](W02-W08.md) · [`W09-W17.md`](W09-W17.md) |
 | C | `PLAN-OPEN.md` | [`O05-O29.md`](O05-O29.md) |
 
