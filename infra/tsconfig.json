@@ -24,6 +24,9 @@
     "noFallthroughCasesInSwitch": true
   },
   // src/capture.ts imports the parser from ../../src/core, so those files are
-  // pulled in by resolution and typechecked as part of this project.
-  "include": ["src"]
+  // pulled in by resolution and typechecked as part of this project. `schema`
+  // and `drizzle.config.ts` are included explicitly — nothing imports either,
+  // so resolution alone would never pull them in, and neither tsconfig read
+  // them before this line: the root one covers only `src` + `vite.config.ts`.
+  "include": ["src", "schema", "drizzle.config.ts"]
 }

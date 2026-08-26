@@ -47,6 +47,8 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.3.4",
     "babel-plugin-react-compiler": "1.0.0",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
     "eslint": "^9",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7",

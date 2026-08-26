@@ -20,7 +20,15 @@ import { describe, expect, it } from 'vitest';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Not ours to measure: dependencies, build output, and git's own store. */
-const SKIP = new Set(['node_modules', 'dist', 'coverage', '.git', '.vite', '.turbo']);
+const SKIP = new Set([
+  'node_modules',
+  'dist',
+  'coverage',
+  '.git',
+  '.vite',
+  '.turbo',
+  '.superpowers', // Git-ignored scratch written by tooling; the cap governs the repository's documentation.
+]);
 
 const LIMIT = 200;
 

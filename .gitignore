@@ -33,6 +33,9 @@ docs/statements_*.xlsx
 # Scratch artifacts from manual testing
 .tmp-*
 
+# Superpowers SDD scratch — task briefs, reports and review diffs written by tooling
+.superpowers/
+
 # Exports and throwaway fixtures dropped at the repo root. Root-anchored so that
 # real fixtures under src/**/__fixtures__/ stay committable. A CSV export of the
 # LIVE dataset is real financial data — this rule is a safety net, not tidiness.

@@ -30,6 +30,18 @@ reviewed, and only then promoted.
 - **Local Postgres proves nothing about DSQL.** It is the subset. The header's
   DSQL DIVERGENCE note plus first contact at promotion is the whole of that
   safety, and anything found to diverge belongs in that note.
+- **Open risk: does DSQL accept `USING btree`?** The generated index DDL reads
+  `CREATE INDEX name ON table USING btree (cols)`; DSQL's documented form is
+  `CREATE INDEX ASYNC name ON table (cols)`, with no method clause either way.
+  Nobody has confirmed DSQL accepts `USING btree` — verify before 2026-09-02.
+- **The generated DDL is NOT replayable.** The hand-written file used
+  `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS`; drizzle-kit
+  can emit neither, so every statement here is a bare `CREATE`. DSQL runs one
+  DDL statement per transaction with no cross-statement rollback, so a W7
+  application that fails partway through cannot simply be re-run — the retry
+  dies on the first statement, which already exists. The migration runner
+  must either skip a statement whose object already exists, or track which
+  statements already applied.
 - **Promotion is a move, not a copy.** The file leaves this folder in the commit
   that gives it a handler entitled to run it, and `../../README.md`'s Layout
   table is corrected in the same commit.

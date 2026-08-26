@@ -1,3 +1,7 @@
 # Shell scripts run on the Linux CI runner — CRLF would break the shebang
 # ("bad interpreter: /usr/bin/env bash^M"). Keep them LF regardless of core.autocrlf.
 *.sh text eol=lf
+# drizzle-kit always emits LF; the committed migration must not flip to CRLF
+# on a Windows checkout, or infra/src/schema-generated.test.ts's comparison
+# would be diffing against a file git itself considers unchanged.
+*.sql text eol=lf
