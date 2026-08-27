@@ -34,4 +34,5 @@ it wrong.
 
 - when copy-pasting for example '4 214,24 грн. ' snapshot saves with empty quotes object, no error etc. Add error, add regexp to trim currency symbols or text at the end of value.
 - in balances the 'ОВДП UA4000238976' shows nothing, while the quotes was provided, they stored in the indexed DB and included in the yield. Add additional tests and error messages to indicate when something isn't okay;
+- не видно межі інпутів (напр. котирування) у темній темі;
 - 
