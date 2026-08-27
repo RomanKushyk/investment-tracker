@@ -32,9 +32,118 @@ function matchLine(line: string): string {
   return stripCodeContext(line).replace(/\r$/, '');
 }
 
+export interface CodeRange {
+  start: number;
+  end: number;
+}
+
+/** Every `[start, end)` character range in `text` that is CODE — inside a
+ *  fenced block (``` or ~~~, blockquote/tab context stripped, a
+ *  same-or-longer closer of the same character) or an inline code span (a
+ *  run of N backticks closed by the next run of exactly N backticks on the
+ *  same line). `rewrite` below is built on this — its own inline
+ *  `<!--f:key-->` fences skip whatever this reports as code — and
+ *  src/decisions/render.ts's block-level `<!-- decisions:rows -->` markers
+ *  use it too, for the same reason: one scanner, so the hardening below
+ *  protects both instead of one copy earning it and the other drifting.
+ *
+ *  - A backtick-fenced opener with a backtick in its info string never
+ *    opens at all (CommonMark) — treating it as one is how a false fence
+ *    blinds every real one after it to EOF.
+ *  - A fence that never closes throws `unclosed code fence opened on line
+ *    N` rather than silently marking the rest of the file as code.
+ *  - The blockquote/tab strip applies unconditionally, even to a line that
+ *    is CONTENT inside an already-open fence — so a blockquoted or
+ *    tab-indented fence marker quoted as an example inside an open fence
+ *    reads as a real closer and ends the block early. Declared limit, not a
+ *    bug — see src/facts/README.md's "Rules". */
+export function codeRanges(text: string): CodeRange[] {
+  const ranges: CodeRange[] = [];
+  let i = 0;
+  let lineNo = 1;
+  let fence: { char: string; len: number; openedOnLine: number } | null = null;
+
+  while (i < text.length) {
+    const nl = text.indexOf('\n', i);
+    const lineEnd = nl === -1 ? text.length : nl;
+    const lineAfter = nl === -1 ? text.length : nl + 1;
+    const atLineStart = i === 0 || text[i - 1] === '\n';
+
+    if (fence) {
+      ranges.push({ start: i, end: lineAfter });
+      const closer = FENCE_CLOSE.exec(matchLine(text.slice(i, lineEnd)));
+      if (closer && closer[1][0] === fence.char && closer[1].length >= fence.len) fence = null;
+      i = lineAfter;
+      if (nl !== -1) lineNo += 1;
+      continue;
+    }
+
+    if (atLineStart) {
+      const opener = FENCE_OPEN.exec(matchLine(text.slice(i, lineEnd)));
+      if (opener && (opener[1][0] === '~' || !opener[2].includes('`'))) {
+        fence = { char: opener[1][0], len: opener[1].length, openedOnLine: lineNo };
+        ranges.push({ start: i, end: lineAfter });
+        i = lineAfter;
+        if (nl !== -1) lineNo += 1;
+        continue;
+      }
+    }
+
+    const ch = text[i];
+
+    if (ch === '\n') {
+      i += 1;
+      lineNo += 1;
+      continue;
+    }
+
+    if (ch === '`') {
+      let runEnd = i;
+      while (runEnd < text.length && text[runEnd] === '`') runEnd += 1;
+      const runLen = runEnd - i;
+      let k = runEnd;
+      let closerEnd = -1;
+      while (k < lineEnd) {
+        if (text[k] === '`') {
+          let ce = k;
+          while (ce < lineEnd && text[ce] === '`') ce += 1;
+          if (ce - k === runLen) {
+            closerEnd = ce;
+            break;
+          }
+          k = ce;
+        } else {
+          k += 1;
+        }
+      }
+      // No same-length closer on this line: the run is literal text, not an
+      // open span — an unterminated backtick must not poison the rest of the
+      // scan.
+      const spanEnd = closerEnd === -1 ? runEnd : closerEnd;
+      if (closerEnd !== -1) ranges.push({ start: i, end: spanEnd });
+      i = spanEnd;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  if (fence) {
+    throw new Error(
+      `unclosed code fence opened on line ${fence.openedOnLine} — reached end of file still inside it`,
+    );
+  }
+
+  return ranges;
+}
+
+export function inCode(ranges: CodeRange[], pos: number): boolean {
+  return ranges.some((r) => pos >= r.start && pos < r.end);
+}
+
 /** Find this fence's `<!--/f-->` in `text[from, to)`, skipping over inline
  *  code spans — a run of N backticks closed by the next run of exactly N
- *  backticks within the range, same matching as the main scan. A `CLOSE`
+ *  backticks within the range, same matching as `codeRanges`. A `CLOSE`
  *  occurrence inside such a span does not count: a `<!--/f-->` shown as an
  *  example inside backticks is not a real closer. An unterminated run (no
  *  same-length closer before `to`) is literal text, searched like anything
@@ -81,16 +190,10 @@ function findCloser(text: string, from: number, to: number): number {
 /** Fill every `<!--f:key-->…<!--/f-->` with its fact's current value. Pure, so
  *  the drift test compares without writing.
  *
- *  A single left-to-right scan tracks whether the cursor sits inside a fenced
- *  code block (``` or ~~~, until a same-or-longer closer of the same
- *  character) or an inline code span (a run of N backticks, closed by the
- *  next run of exactly N backticks on the same line) — fence syntax inside
- *  either is markup being DOCUMENTED, not markup being USED, and is copied
- *  through untouched. A backtick run with no same-length closer on its line
- *  is literal text, not an open span: it cannot swallow the rest of the file.
- *  A backtick-fenced opener with a backtick in its info string is likewise
- *  not a real opener (CommonMark) — treating it as one is how a false fence
- *  blinds every real one after it to EOF.
+ *  Built on `codeRanges` above: fence syntax and inline spans are markup
+ *  being DOCUMENTED, not markup being USED, so this scan copies whatever
+ *  `codeRanges` reports as code straight through untouched, and only looks
+ *  for `<!--f:` outside it.
  *
  *  A fact fence must open and close ON THE SAME LINE, OUTSIDE CODE — a fact's
  *  value is a number or a short string, so a multi-line body has no
@@ -113,37 +216,25 @@ export function rewrite(text: string, facts: Record<string, Fact>): string {
   // is a lost opener — the exact corruption this guard exists to catch —
   // has no `<!--f:` left in it at all, only the orphaned `<!--/f-->`; an
   // OPEN-only check would let precisely that file slip past unscanned.
+  // Also why `codeRanges` (which can throw on a genuinely unclosed code
+  // fence) is not called until AFTER this check — a document with neither
+  // tag is untouched regardless of what its code fences do.
   if (!text.includes('<!--f:') && !text.includes(CLOSE)) return text;
+
+  const ranges = codeRanges(text);
 
   let out = '';
   let i = 0;
   let lineNo = 1;
-  let fence: { char: string; len: number; openedOnLine: number } | null = null;
 
   while (i < text.length) {
-    const nl = text.indexOf('\n', i);
-    const lineEnd = nl === -1 ? text.length : nl;
-    const lineAfter = nl === -1 ? text.length : nl + 1;
-    const atLineStart = i === 0 || text[i - 1] === '\n';
-
-    if (fence) {
-      const closer = FENCE_CLOSE.exec(matchLine(text.slice(i, lineEnd)));
-      if (closer && closer[1][0] === fence.char && closer[1].length >= fence.len) fence = null;
-      out += text.slice(i, lineAfter);
-      i = lineAfter;
-      if (nl !== -1) lineNo += 1;
+    const range = ranges.find((r) => i >= r.start && i < r.end);
+    if (range) {
+      const chunk = text.slice(i, range.end);
+      for (const ch of chunk) if (ch === '\n') lineNo += 1;
+      out += chunk;
+      i = range.end;
       continue;
-    }
-
-    if (atLineStart) {
-      const opener = FENCE_OPEN.exec(matchLine(text.slice(i, lineEnd)));
-      if (opener && (opener[1][0] === '~' || !opener[2].includes('`'))) {
-        fence = { char: opener[1][0], len: opener[1].length, openedOnLine: lineNo };
-        out += text.slice(i, lineAfter);
-        i = lineAfter;
-        if (nl !== -1) lineNo += 1;
-        continue;
-      }
     }
 
     const ch = text[i];
@@ -155,33 +246,8 @@ export function rewrite(text: string, facts: Record<string, Fact>): string {
       continue;
     }
 
-    if (ch === '`') {
-      let runEnd = i;
-      while (runEnd < text.length && text[runEnd] === '`') runEnd += 1;
-      const runLen = runEnd - i;
-      let k = runEnd;
-      let closerEnd = -1;
-      while (k < lineEnd) {
-        if (text[k] === '`') {
-          let ce = k;
-          while (ce < lineEnd && text[ce] === '`') ce += 1;
-          if (ce - k === runLen) {
-            closerEnd = ce;
-            break;
-          }
-          k = ce;
-        } else {
-          k += 1;
-        }
-      }
-      // No same-length closer on this line: the run is literal text, not an
-      // open span — an unterminated backtick must not poison the rest of the
-      // scan.
-      const spanEnd = closerEnd === -1 ? runEnd : closerEnd;
-      out += text.slice(i, spanEnd);
-      i = spanEnd;
-      continue;
-    }
+    const nl = text.indexOf('\n', i);
+    const lineEnd = nl === -1 ? text.length : nl;
 
     OPEN.lastIndex = i;
     const m = OPEN.exec(text);
@@ -239,12 +305,6 @@ export function rewrite(text: string, facts: Record<string, Fact>): string {
 
     out += ch;
     i += 1;
-  }
-
-  if (fence) {
-    throw new Error(
-      `unclosed code fence opened on line ${fence.openedOnLine} — reached end of file still inside it`,
-    );
   }
 
   return out;

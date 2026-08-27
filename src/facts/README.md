@@ -17,8 +17,8 @@ suite for a value that was never wrong.
 |--------|----------------|
 | `registry.ts` | The `Fact` type and its two kinds, the `derived`/`measured` constructors, `renderFact` |
 | `facts.ts` | `FACTS: Record<string, Fact>` — the registry's actual contents |
-| `markdown-files.ts` | `markdownFiles(dir)`, the repo walk this scanner and `../docs-line-cap.test.ts` both use, and its `SKIP` list (`node_modules`, `dist`, `.git`, … `.superpowers` — gitignored scratch) |
-| `fences.ts` | `rewrite`/`rewriteFile` — fills every fence; called by the `pnpm facts` CLI and by `fences.test.ts`'s repo-wide drift check |
+| `markdown-files.ts` | `markdownFiles(dir)` and `REPO`, the repo walk and root this scanner, `../docs-line-cap.test.ts` and `../decisions/records.ts` (a third consumer, for `REPO` alone) all use, and its `SKIP` list (`node_modules`, `dist`, `.git`, … `.superpowers` — gitignored scratch) |
+| `fences.ts` | `rewrite`/`rewriteFile` — fills every fence; called by the `pnpm facts` CLI and by `fences.test.ts`'s repo-wide drift check. Also exports `codeRanges`/`inCode`, the code/prose scanner `rewrite` is built on — shared by `../decisions/render.ts`'s block-level markers rather than reimplemented there |
 
 ## The two kinds of fact
 

@@ -110,10 +110,11 @@ ADR practice permits **amendment**. Three actions, none a rewrite:
 1. Each number gains its own date plus a forward link:
    `Measured 2026-08-25: 0.356 DPU (current: `dpu.observeNbu.window`)`. Frozen history stays
    frozen; the live value is a link.
-2. `docs/decisions/README.md` becomes generated from per-file front matter
-   (`id`, `date`, `title`, `supersedes`, `superseded_by`). It is a table about documents —
-   reference about explanation — and hand-maintaining it produced a two-cell row in a
-   three-column table.
+2. `docs/decisions/README.md` becomes generated from per-file front matter — a table about
+   documents, reference about explanation, where hand-maintaining it produced a two-cell
+   row in a three-column table. **Shipped as `id`/`date`/`summary`/`amends`**, not this
+   section's `title`/`supersedes`/`superseded_by`: nothing rendered `title`, and all 19
+   declared relations classified as scoped amendments, zero full supersessions.
 3. Front matter lands across all 97 in ONE pass, not by ratchet: the index cannot be generated
    until every file carries it, so a partial pass buys nothing. Extraction is mechanical but
    per-file (each `supersedes` relation is stated in prose, differently each time), which is

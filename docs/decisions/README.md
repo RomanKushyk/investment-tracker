@@ -5,14 +5,16 @@ the decision you actually need — **`D<n>` is `D<n>.md`**, always.
 
 ## Rules
 
-- **Append-only, and appending now means creating a file.** A new decision is a
-  new `D<n>.md` — nothing to overflow, nothing to keep in step with a filename.
-  **D96 retired the range files** (`D01-D20.md` … `D81-D100.md`) on 2026-08-26
-  for exactly that reason: the old rule sent every entry to the highest-numbered
-  file, and a 200-line cap made that file overflow on its fourth entry. Both
-  historical slips — `D41-D50.md` holding D41–D60, `D61-D80.md` holding D81–D83
-  for a day — were one failure, a filename asserting a range it did not hold,
-  and neither is possible now.
+- **Append-only, and appending now means creating a file — WITH front matter.**
+  A new decision is a new `D<n>.md`, carrying front matter (below) before any
+  prose, then `pnpm decisions` to regenerate its row. Skip the front matter
+  and `readDecisions` throws, naming the file — `pnpm test` fails with it, not
+  silently. **D96 retired the range files** (`D01-D20.md` … `D81-D100.md`) on
+  2026-08-26 for exactly that reason: the old rule sent every entry to the
+  highest-numbered file, and a 200-line cap made that file overflow on its
+  fourth entry. Both historical slips — `D41-D50.md` holding D41–D60,
+  `D61-D80.md` holding D81–D83 for a day — were one failure, a filename
+  asserting a range it did not hold, and neither is possible now.
 - **Moving is not rewriting.** All 95 entries moved verbatim into their own
   files and were verified byte-identical. **Numbers never change** — ~20
   citations across `src/` and `docs/` are by bare number. Tidying or renumbering
@@ -32,6 +34,24 @@ opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
 `D21-D40.md`, `D41-D50.md`, `D61-D80.md` and `D81-D100.md` were retired on
 2026-08-26 — **D96** says why, and their entries moved verbatim.
 
+## How the tables below are generated
+
+**Every decision file carries YAML front matter — `id`, `date`, `summary`, optional
+`amends` — and the rows below are GENERATED from it. Never hand-edit a row: change the
+file's `summary`, then run `pnpm decisions`.** Rows sit between markers, one pair per table:
+
+```
+<!-- decisions:rows range="1-20" -->
+| [D1](D1.md) | Tech stack: use `package.json` as-is | 2026-07-27 |
+<!-- /decisions:rows -->
+```
+
+`date` must be a real ISO calendar date (`YYYY-MM-DD`); a literal `|` inside `summary` or
+`index_extra_row` must be written `\|`, or it silently adds a table column — both are
+validated, and `pnpm decisions` throws naming the file if either is wrong. `amends` is a
+flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why not
+`supersedes`, and why the reciprocal `amended_by` is derived, never stored.
+
 ## The ones worth reading before touching anything
 
 - **D5** — reference-data reconciliation. Read before touching seed data or any
@@ -49,6 +69,7 @@ opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
 
 | # | Decision | Date |
 |---|---|---|
+<!-- decisions:rows range="1-20" -->
 | [D1](D1.md) | Tech stack: use `package.json` as-is | 2026-07-27 |
 | [D2](D2.md) | Persistence: Dexie.js on IndexedDB | 2026-07-27 |
 | [D3](D3.md) | Personal pet project: no Jira | 2026-07-27 |
@@ -69,11 +90,13 @@ opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
 | [D18](D18.md) | Metrics exposure: per-asset XIRR flow model + additive placements | 2026-08-02 |
 | [D19](D19.md) | Inzhur feed policy: public bare GET, tolerant parse, last-good cache | 2026-08-04 |
 | [D20](D20.md) | Fetch quotes: draft-only fill, provenance in the draft, live ref picker | 2026-08-04 |
+<!-- /decisions:rows -->
 
 ## D21–D40 — the cloud direction
 
 | # | Decision | Date |
 |---|---|---|
+<!-- decisions:rows range="21-40" -->
 | [D21](D21.md) | Fixed-yield automation: accrual ghosts, coupon confirm, projection fallback | 2026-08-04 |
 | [D22](D22.md) | Reminders: derived ids, self-expiring dismissals, one toast per open | 2026-08-04 |
 | [D23](D23.md) | Coupon occurrences are derived from the grid, not from the pointer | 2026-08-04 |
@@ -94,11 +117,13 @@ opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
 | [D38](D38.md) | Registration is an application, not an open door | 2026-08-11 |
 | [D39](D39.md) | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
 | [D40](D40.md) | The domain is `quirenote.com` | 2026-08-11 |
+<!-- /decisions:rows -->
 
 ## D41 onward — rename, alerting, durability, observations, FX, radii, the shells, production, the window
 
 | # | Decision | Date |
 |---|---|---|
+<!-- decisions:rows range="41-" -->
 | [D41](D41.md) | ~~The product is Quirenote; the machines stay Kubushka~~ — **superseded by D42** | 2026-08-11 |
 | [D42](D42.md) | The rename goes all the way, and now is when it is cheap | 2026-08-11 |
 | [D43](D43.md) | Backfill fails on every historical date, and it is **not** the layout | 2026-08-11 |
@@ -157,6 +182,7 @@ opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
 | [D95](D95.md) | **No documentation file exceeds 200 lines** — the three plans and `BUILD-PLAN.md` split the way this log did in August: the named file stays put as the index, bodies move verbatim into ID-range files, closed work leaves for `../archive/`, IDs never change. `PLAN-NOW.md` went 2,211 → 58 lines, and `src/docs-line-cap.test.ts` fails the suite if any Markdown file crosses 200 | 2026-08-26 |
 | [D96](D96.md) | **One file per decision; the range files are retired** — the append rule and the 200-line cap could not compose, so the bucket they disagreed about is gone. `D<n>` is `D<n>.md` | 2026-08-26 |
 | [D97](D97.md) | **A50's re-plan: the alias changed a sort node and nothing else** — measured across nine range widths, BOTH forms pick the same access path (`Index Scan price_capture_as_of` to 1500d, `Full Scan` from 2000d), so the fix is `Sort` → `Incremental Sort` and no more. It does settle that DSQL serves a mixed-direction order from an ASC/ASC index. Warm 7-day cost is indistinguishable between forms (0.25594 against 0.25599 DPU, Read 99.3% of it). **D91's 0.356 DPU is UNREPRODUCED** — 0.26528 warm on D91's own window, and neither warmup, window content nor form accounts for the gap; **64.979 is one cold sample from the same session and untested here**. Method: one `EXPLAIN (ANALYZE)` is not a measurement, and a plan you did not run is not evidence — three of the four rounds inferred, and review caught each | 2026-08-26 |
+<!-- /decisions:rows -->
 
 ## A pattern these entries kept finding
 
