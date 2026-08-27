@@ -19,8 +19,11 @@ checkbox ticked here.
 **`NEXT-PHASE-DRAFT.md` left this folder on 2026-08-17.** It was the raw wishlist
 `NEXT-PHASE-PLAN.md` was built from — and it was still being added to, which made
 it a live task list in the one folder whose rule is *never a task list*. It moved
-to [`../plans/USER-FEATURES-DRAFT.md`](../plans/USER-FEATURES-DRAFT.md) and was
+to `../plans/USER-FEATURES-DRAFT.md` and was
 pruned to the seven items that are neither shipped nor already carried by a plan.
+That file was itself retired 2026-08-28 (D103) and the inbox is now
+[GitHub Issues](https://github.com/RomanKushyk/investment-tracker/issues) — the
+name above is kept unlinked because it is what the record said at the time.
 
 ## Why BUILD-PLAN is here rather than in plans/
 
@@ -35,7 +38,8 @@ name. Being binding and being open are different things.
 reorganised, so their links still resolve. Nothing else in them was rewritten —
 the text is the record as it stood.
 
-**The wishlist that used to be here is now `../plans/USER-FEATURES-DRAFT.md`,**
+**The wishlist that used to be here went to `../plans/USER-FEATURES-DRAFT.md`,
+and since D103 lives in [GitHub Issues](https://github.com/RomanKushyk/investment-tracker/issues),**
 with the shipped items removed and a table recording where each went. One had
 changed shape rather than shipped as written: "live ₴/$ rate from Google
 finances" became A5, sourced from the NBU statistics API instead, because it is

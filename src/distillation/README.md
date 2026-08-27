@@ -197,6 +197,7 @@ loads `baseline.docLineCounts` and diffs it directly with `src/claims/baseline.t
 AUTHORED lines (D102) gets an entry at all (`doc-line-counts.ts`'s own doc comment says why: pinning every file's
 exact length, the first cut of this ratchet, baselined the length of the owner's two hand-edited
 draft files — `USER-FEATURES-DRAFT.md`, `USER-BUGS-DRAFT.md` — as committed integers, which is
-private uncommitted state leaking into the repository by another name). A file at or under 200 is
+private uncommitted state leaking into the repository by another name; **both retired 2026-08-28,
+D103, and the exclusion stays** — the leak is structural, not theirs). A file at or under 200 is
 unconstrained; a file already over it may not grow further without `pnpm distillation-baseline`
 being re-run and reviewed. `LIMIT` (`doc-line-counts.ts`) is the one place that number is written.

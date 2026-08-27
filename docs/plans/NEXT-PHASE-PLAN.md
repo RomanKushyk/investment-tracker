@@ -105,25 +105,29 @@ The four tracks that used to be listed here, plus everything queued behind the m
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
-## Ungroomed input — [`USER-FEATURES-DRAFT.md`](USER-FEATURES-DRAFT.md) and [`USER-BUGS-DRAFT.md`](USER-BUGS-DRAFT.md)
+## Ungroomed input — [GitHub Issues](https://github.com/RomanKushyk/investment-tracker/issues)
 
-**Two channels since 2026-08-26, and the split is load-bearing.** The ideas page
-is what the app does not do yet; the bugs page is what it does WRONG. A missing
-capability is an idea; a cosmetic shipped on purpose is `FOLLOW-UPS.md`; a bug
-is the app getting wrong something it already does. **Nothing is fixed off the
-bugs page directly** — a line there is a symptom, not a diagnosis: reproduce,
-write the failing test, then fix. Both pages follow the rules below.
+**Two channels since 2026-08-26, and the split is load-bearing** — it outlived
+the files that first carried it. `enhancement` is what the app does not do yet;
+`bug` is what it does WRONG. A missing capability is an `enhancement`; a
+cosmetic shipped on purpose is `FOLLOW-UPS.md`; a bug is the app getting wrong
+something it already does. **Nothing is fixed off a `bug` issue directly** — a
+line there is a symptom, not a diagnosis: reproduce, write the failing test,
+then fix.
 
-The owner's raw idea list. It is **deliberately unformatted and deliberately
-not copied here** — it is a scratchpad that fills up, gets groomed into
-`PLAN-NOW.md` / `PLAN-WAITING.md`, and is then wiped to fill again. A second
-copy in this file is how the two drift.
+**The inbox left the repository 2026-08-28 (D103).** `USER-FEATURES-DRAFT.md`
+and `USER-BUGS-DRAFT.md` became issues #1–#27, byte for byte, and the reason was
+capture rather than storage: a line typed into a file on a phone is not a line
+that reaches `git`, and four ideas were sitting uncommitted in the working tree
+at the moment the migration was decided. It is still **deliberately not copied
+here** — a second copy in this file is how the two drift.
 
-**Nothing in it is planned**, and nothing is implemented off that page. Moved
-out of `docs/archive/` on 2026-08-17 (the archive rule is *never a task list*)
-and pruned from 23 items to 7 in the same pass.
+**Nothing in it is planned**, and nothing is implemented off an issue directly.
+The list moved out of `docs/archive/` on 2026-08-17 (the archive rule is *never
+a task list*) and was pruned from 23 items to 7 in the same pass.
 
-**Groomed and emptied 2026-08-18 (7 → 0).** The page is now collecting again.
+**Groomed and emptied 2026-08-18 (7 → 0)**, and it filled again — to 24 ideas by
+the time it became issues #4–#27.
 The seven lines became **A21, A22, A23** (`../archive/plan-a/section-h-1.md`,
 which carries the line-by-line mapping — Section H left `PLAN-NOW.md` in D95), **W16** (`PLAN-WAITING.md`, gated on W7) and
 **O22** (`PLAN-OPEN.md`). Three of the seven became design briefs rather than

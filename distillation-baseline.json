@@ -201,7 +201,7 @@
     "src/distillation/baseline.ts": 1968,
     "src/distillation/distillation-lint.test.ts": 1208,
     "src/distillation/doc-line-counts.test.ts": 1591,
-    "src/distillation/doc-line-counts.ts": 6028,
+    "src/distillation/doc-line-counts.ts": 6218,
     "src/distillation/repo-scan.test.ts": 551,
     "src/distillation/repo-scan.ts": 1579,
     "src/distillation/scan.test.ts": 1386,
@@ -328,6 +328,6 @@
   },
   "docLineCounts": {
     "docs/superpowers/plans/2026-08-26-schema-parity-and-knowledge.md": 206,
-    "src/distillation/README.md": 202
+    "src/distillation/README.md": 203
   }
 }

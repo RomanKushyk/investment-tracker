@@ -10,9 +10,33 @@ until it is genuinely startable.
 | [`PLAN-NOW.md`](PLAN-NOW.md) | **Plan A — startable today.** Index + live Status table | Pick the first non-done task in section order. Gates green per merge |
 | [`PLAN-WAITING.md`](PLAN-WAITING.md) | **Plan B — dated.** Index + the dated table | Read the table before any session touching `infra/` or the migration |
 | [`PLAN-OPEN.md`](PLAN-OPEN.md) | **Plan C — open questions.** Index + Status table | **Never implement from it.** Answer → decision → task in Plan A or B |
-| [`USER-FEATURES-DRAFT.md`](USER-FEATURES-DRAFT.md) | The owner's raw idea list, in his words — what the app does not do yet | Never implement from it either; keep it plain — bare bullets, no ceremony |
-| [`USER-BUGS-DRAFT.md`](USER-BUGS-DRAFT.md) | Its pair: what the app does **wrong**, in his words | **Never fix from it — a line there is a symptom, not a diagnosis.** Reproduce, write the failing test, then fix. Keep it plain, and **copy a pasted sample rather than re-keying it** |
 | [`FOLLOW-UPS.md`](FOLLOW-UPS.md) | Cosmetic backlog shipped as-is | Add deferred cosmetics here rather than reopening a closed plan |
+
+## The inbox is GitHub Issues, not a file (D103)
+
+**Raw ideas and bug reports live at
+[github.com/RomanKushyk/investment-tracker/issues](https://github.com/RomanKushyk/investment-tracker/issues)**,
+labelled `enhancement` and `bug`. `USER-FEATURES-DRAFT.md` and
+`USER-BUGS-DRAFT.md` were retired 2026-08-28; their 27 lines became issues
+#1–#27, byte for byte.
+
+- **The rules did not change, only the surface.** Nothing is implemented off an
+  issue directly, and **nothing is fixed off a `bug` issue directly** — a line
+  there is a symptom, not a diagnosis: reproduce, write the failing test, then
+  fix. A missing capability is an `enhancement`, not a `bug`; a cosmetic shipped
+  on purpose is [`FOLLOW-UPS.md`](FOLLOW-UPS.md).
+- **A pasted sample is BYTES — never re-key one.** Issue #1 carries a U+00A0 as
+  its thousands separator, which is plausibly the whole bug. Quote the issue, do
+  not retype it, and write the failing test against the bytes.
+- **Grooming is the handoff.** An issue becomes work by getting a Status row in
+  the right index and its body in the matching section file, in one commit. The
+  issue then closes by `Closes #N` in the squash-merge — `dev` is the default
+  branch, so GitHub does it and leaves the commit↔issue link behind.
+- **Why it left the repo:** the two files were the only ones in this
+  documentation exempt from every mechanism that governs the rest — no claims
+  ratchet, no line cap, no `pnpm facts` — because they held the owner's private,
+  uncommitted state. Groomed once in eleven days while the ideas list grew 7 → 24
+  and an empty bullet sat unnoticed for two days. See [`../decisions/D103.md`](../decisions/D103.md).
 
 ## The section files
 

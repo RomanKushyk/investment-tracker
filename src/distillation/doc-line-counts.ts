@@ -146,6 +146,9 @@ export function lineCount(path: string): number {
  *  Excluding anything at or under 200 lines removes that leak structurally
  *  — those two files sit at a few dozen lines by their own "bare bullets,
  *  no ceremony" rule and are never candidates.
+ *  Both files were retired 2026-08-28 (D103) and **the exclusion stays**: the
+ *  leak is structural, not theirs. Deleting a rule because its example left is
+ *  the regression D103 names.
  *
  *  Takes the file list rather than walking `repoRoot` itself, so a caller
  *  that already has one (`docs-line-cap.test.ts` walks once for its own

@@ -8,7 +8,8 @@ Moved verbatim from `PLAN-OPEN.md` on 2026-08-26 as `O05-O29.md`; renamed by sec
 
 ## O27 — How is one ОВДП told apart from another? — open, 2026-08-24
 
-Raised by the owner while grooming `USER-FEATURES-DRAFT.md`: «Код» could take up
+Raised by the owner while grooming the idea list (then
+`USER-FEATURES-DRAFT.md`, since 2026-08-28 GitHub Issues — D103): «Код» could take up
 to 4 (or 6) characters, digits as well as letters — **or** an ОВДП could be
 marked some other way: by colour, by shape (a square), and by printing only the
 last 4 digits of its ISIN. The owner then **parked all of it on this question**,
@@ -67,8 +68,11 @@ rather than an edit, and a third costs a data-sourcing choice nobody has made:
    plus edits to the three places that pin "2 letters" in writing
    (`core/types.ts`, README §7's asset shape and README §5's avatar line).
 
-**When it is answered** the two parked draft lines leave
-`USER-FEATURES-DRAFT.md` for `PLAN-NOW.md`.
+**When it is answered** the two parked lines — issues
+[#12](https://github.com/RomanKushyk/investment-tracker/issues/12) (the «Код»
+field) and [#13](https://github.com/RomanKushyk/investment-tracker/issues/13)
+(the colour selector) — are groomed into `PLAN-NOW.md` and close by `Closes #N`
+in the squash-merge.
 
 ## O28 — the server-side derivation boundary — open, 2026-08-25
 
