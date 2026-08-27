@@ -14,7 +14,8 @@
 --     enforced, measured on the live cluster. The line was true when this file
 --     was written and shaped it; it is kept because an applied migration is a
 --     record of what was applied, not a live rule. Whether the user schema
---     adopts them is docs/plans/PLAN-OPEN.md O34. The rest of the list is
+--     adopts them was docs/plans/PLAN-OPEN.md O34, ruled 2026-08-28 (D101):
+--     W7 ships none; adoption is now O33's. The rest of the list is
 --     unchecked since — do not read any of it as current.
 --   * the PRIMARY KEY is index-organized, carries every column, and is IMMUTABLE
 --   * secondary indexes are created with CREATE INDEX ASYNC

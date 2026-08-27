@@ -3,8 +3,19 @@
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
-// two stay comparable statement for statement. DSQL environment facts (the
-// two-step index promotion, foreign keys, replay behaviour) live in
+// two stay comparable statement for statement. **This schema declares no
+// FOREIGN KEY, and that is a ruling, not an omission (D101):** DSQL has had
+// them since 2026-08-26 and they can be added later, so W7 ships without and
+// O33 decides whether they are ever adopted. Do not add one here to "fix" a
+// dangling reference — that is the application's job until O33 says otherwise.
+// **Adding one later is not free, and neither is adding one here.** Later: it
+// arrives `NOT VALID` permanently — every subsequent write is guarded, the rows
+// already present never are, and `VALIDATE CONSTRAINT` is refused — so adopt
+// only behind a clean integrity audit. Here: drizzle emits a `references()` as
+// a bare `ALTER TABLE … ADD CONSTRAINT`, which DSQL refuses outright unless
+// promotion appends `NOT VALID` — a third rewrite rule that does not exist yet
+// (D100). DSQL environment facts (the two-step index promotion,
+// what ALTER TABLE can and cannot do, replay behaviour) live in
 // `infra/migrations/drafts/README.md`; W7's data-migration notes live in
 // `docs/reference/w7-migration-translations.md`. The PGlite suite this file's
 // constraints run against (`infra/src/user-schema.test.ts`) proves nothing

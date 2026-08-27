@@ -20,6 +20,22 @@ reviewed, and only then promoted.
   Two files under one number is the ambiguity numbering exists to remove, and a
   tool globbing `migrations/**/*.sql` by filename would have run the user schema
   before the archive tables.
+- **What is create-time-only here is NARROWER than "constraints" (D100,
+  2026-08-28).** `ALTER TABLE … ADD CONSTRAINT` is refused bare and **accepted
+  with `NOT VALID`**, for `FOREIGN KEY` and `CHECK` alike: such a constraint
+  enforces every later write, never checks the rows already present, and can
+  never be validated (`VALIDATE CONSTRAINT` is refused, `convalidated` stays
+  false for life). Genuinely create-time-only, each probed in every spelling:
+  **`NOT NULL`** (droppable, never addable), **a column's TYPE**, **`UNIQUE` as
+  a constraint object**, **`PRIMARY KEY`** — refused plain and refused
+  `NOT VALID`, which is the fact **D30** and this whole folder rest on, measured
+  at last — and a **`GENERATED … STORED`** column. **`DEFAULT` is NOT on that
+  list**, though a first draft of this bullet said it was: `ALTER COLUMN … SET
+  DEFAULT` works and applies to rows inserted after it. `DROP CONSTRAINT`,
+  `DROP COLUMN`, `RENAME COLUMN`, `RENAME TO` and a plain nullable `ADD COLUMN`
+  all work. The list is what was PROBED, not a closed set — `EXCLUDE`,
+  `SET SCHEMA`, `SET STORAGE` and deferrability changes have no answer here.
+  Working: [`../../docs/dsql-alter-limits.md`](../../docs/dsql-alter-limits.md).
 - **DSQL HAS foreign keys, and this schema declares none.** Measured
   2026-08-27 (**D99**, working in [`../../docs/dsql-ddl-first-contact.md`](../../docs/dsql-ddl-first-contact.md)):
   a composite `FOREIGN KEY (…) REFERENCES (…) ON DELETE RESTRICT` is accepted
@@ -29,7 +45,16 @@ reviewed, and only then promoted.
   tables is still application-enforced on write plus a nightly integrity audit,
   and the database will not catch a dangling one. Whether to adopt them is
   [`../../../docs/plans/PLAN-OPEN.md`](../../../docs/plans/PLAN-OPEN.md) O34 —
-  a question, not a plan.
+  **RULED 2026-08-28 (D101): W7 ships none.** Not because it is too late — D100
+  established the opposite, that a key can be added later as `NOT VALID` and
+  that drizzle emits one as a post-hoc `ALTER TABLE … ADD CONSTRAINT` even at
+  W7 — but because AWS prefers `NO ACTION`/`RESTRICT` where child rows are
+  unbounded, `RESTRICT` would force `repository.ts`'s `deleteAsset` to reverse
+  its delete order, and `CASCADE` would answer **O33** as a side effect.
+  Adoption is now O33's to decide. **If they are ever declared, promotion gains
+  a THIRD rewrite rule:** append `NOT VALID` to every generated
+  `ADD CONSTRAINT`, or the cluster refuses it. And adopt only behind a clean
+  integrity audit — a late key never validates the rows already there.
 - **Promotion rewrites every index line TWICE — insert `ASYNC`, strip
   `USING btree` — uniformly or not at all. A RULE over the generated file, not
   a per-line marker.** Measured 2026-08-27 (**D99**): DSQL rejects `USING btree`
@@ -59,13 +84,21 @@ reviewed, and only then promoted.
   dropped by hand; no job was made to fail here, so that `DROP INDEX` works on
   an INVALID async index is untested on this cluster. **D48** found the timing
   half of this from the outside; **D99** has the mechanism.
-- **UNIQUE constraints are declared INLINE in `CREATE TABLE`, never as a
+- ~~**UNIQUE constraints are declared INLINE in `CREATE TABLE`, never as a
   later `CREATE UNIQUE INDEX`** — adding a unique index to an
-  already-created table is not something to assume of DSQL. Drizzle's
+  already-created table is not something to assume of DSQL.~~ **Half of that is
+  now measured false** (D100): a later unique INDEX works. The drafting
+  convention stands for a different reason, below. Drizzle's
   `unique()` table builder, used throughout
   [`../../schema/user.ts`](../../schema/user.ts), emits inline `UNIQUE` this
   way; its sibling `uniqueIndex()` emits a separate `CREATE UNIQUE INDEX`
   instead, and nothing in `infra/` currently warns against reaching for it.
+  **D100 settles it.** The CONSTRAINT form is refused after creation
+  (`ADD CONSTRAINT … UNIQUE`, which cannot even be marked `NOT VALID`), so
+  inline is the only way to get a unique CONSTRAINT. But the ENFORCEMENT is
+  available later: `CREATE UNIQUE INDEX ASYNC` on a populated table builds and
+  refuses duplicates `23505` — and over data that already holds duplicates the
+  job ends `failed`, leaving an invalid definition to drop by hand.
 - **A change here must keep `../../src/user-schema.test.ts` green.** It applies
   this DDL to a real Postgres (PGlite, in WASM) and exercises every constraint
   in both directions. `pnpm test` runs it locally and
@@ -82,8 +115,17 @@ reviewed, and only then promoted.
   connection on the 27th — a day old, so nothing was lost, and the one that
   mattered had a cause the documentation would have got wrong. The foreign-key
   claim is the other half: it came from the cloud-stack spec of **2026-08-04**,
-  was never re-checked, and had become false at some point nobody can now
-  date — filed against the schema for three weeks as a constraint.
+  was never re-checked, and became false on **2026-08-26**, the day DSQL
+  shipped foreign keys — three weeks filed against the schema as a constraint,
+  and two days of it wrong.
+- **Check the DSQL RELEASE NOTES before believing anything on this page**
+  (D100). Twice in two days that page was ahead of everything else: the foreign
+  keys this README recorded as absent, and the `ALTER TABLE … ADD CONSTRAINT …
+  NOT VALID` route a probe here recorded as impossible. It is also ahead of the
+  migration guide's own tone and of AWS blog posts that still show
+  application-level foreign-key workarounds. A measurement settles what the
+  cluster does today; the release notes are how you learn that today is
+  different from last week.
 - **`USING btree`: asked and answered — no** (2026-08-27, D99). It is the
   promotion rule above, and the reason is not the one the grammar suggested.
   `USING` is *not* banned: `USING btree_index` is accepted, and it is what

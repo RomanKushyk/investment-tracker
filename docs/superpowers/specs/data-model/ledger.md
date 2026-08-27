@@ -60,7 +60,7 @@ which is why it goes in now. Validation: a tax may not exceed the payout it sett
 ~~Aurora DSQL has **no foreign keys**~~ — it does, measured 2026-08-27 (**D99**), composite and
 enforced. What still holds is the shipping design: both references are application-enforced on
 write plus a nightly integrity audit, and nothing is ever deleted, so there are no cascades.
-Adopting real ones is `docs/plans/PLAN-OPEN.md` **O34**, answered with **O33**.
+Adopting real ones was `docs/plans/PLAN-OPEN.md` **O34**, **closed 2026-08-28 (D101): W7 ships none**, and the adoption question now sits in **O33**.
 
 ### `account`
 

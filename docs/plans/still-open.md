@@ -115,7 +115,7 @@ paragraph.
 
 **The key is settled** (D30) and that was the irreversible half: `basis` in the natural key, `observed_at` separate from `as_of`, `source` + `parser_version`, `returnRates.{buy,sell}`, `status`, `as_of = capture_date − 1`, corrections in a separate append-only overlay, `observation_kind` never stored.
 
-What is still open is which **non-key** columns the Inzhur observation row carries, and that is the one place where three more weeks of captures genuinely change the answer — weekend and holiday behaviour, yield stability, fund NAV cadence, and the shape of an outage. Adding a non-key column later is an `ALTER TABLE`, so nothing here is irreversible and nothing is lost by waiting.
+What is still open is which **non-key** columns the Inzhur observation row carries, and that is the one place where three more weeks of captures genuinely change the answer — weekend and holiday behaviour, yield stability, fund NAV cadence, and the shape of an outage. Adding a non-key column later is an `ALTER TABLE`, so nothing here is irreversible and nothing is lost by waiting. **Narrowed 2026-08-28 (D100), and it matters for what this question may answer:** on DSQL a plain nullable column can be added; a `CHECK` on it can be added later as `NOT VALID`, enforcing every later write and never validating the rows already there; and a `DEFAULT` can be set later, applying to rows inserted after it. What CANNOT be added afterwards is `NOT NULL` or a change of type. So waiting stays free, unless the answer wants one of those two, which are create-time choices. (D100's first draft also listed `DEFAULT` — one spelling probed; corrected the same day.)
 
 **Gate:** `PLAN-WAITING.md` W3, from 2026-09-02.
 
@@ -152,4 +152,5 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D39 — SES replaces the default mail | Production access requested early so it is off the migration's critical path | `PLAN-NOW.md` A11 |
 | D40 — `quirenote.com` acquired | A11 unblocked; DKIM/SPF/DMARC records specified, DNS kept off Route 53 | `PLAN-NOW.md` A11 |
 | D41 — product renamed, machines not | Shipped in the same commit; no follow-up work | — |
+| D101 — W7 ships no foreign keys | **No task**, and the row is here only so the trail does not stop: the ruling is an absence, and what it produced is a widened question rather than work. The measurements behind it are written up in `infra/docs/dsql-alter-limits.md` | — (the question moved to `PLAN-OPEN.md` O33) |
 

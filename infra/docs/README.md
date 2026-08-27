@@ -17,6 +17,7 @@ nothing was summarised and every measured figure is where it was written.
 | [`frozen-feed.md`](frozen-feed.md) | W1's detector on real data, and A20's deploy failure | The staleness alarms are in question |
 | [`migrations-and-checks.md`](migrations-and-checks.md) | A19's `as_of` migration, A6's nightly DCF check | Running a migration on DSQL |
 | [`dsql-ddl-first-contact.md`](dsql-ddl-first-contact.md) | `003_user_schema.sql` against the real cluster, 2026-08-27 — `USING btree` refused, `ASYNC` mandatory, the constraints enforced, and DSQL's foreign keys (D99). **Written after the move, not part of it** | Before assuming what DSQL accepts, or before promoting the draft |
+| [`dsql-alter-limits.md`](dsql-alter-limits.md) | What `ALTER TABLE` can and cannot do on DSQL, 2026-08-28 — a constraint CAN be added later — as `NOT VALID`, enforcing new rows and never validated; `NOT NULL`, `DEFAULT`, column type and a `UNIQUE` constraint are the create-time-only four (D100). **Includes how two earlier rounds of this page were wrong** | Before deferring anything to a later migration, or before O33 decides whether foreign keys are adopted |
 
 **`console-setup.md`, `role-deploy.md` and `role-cfn-exec.md` are `### ` sections
 of the README's Deploying chapter** and read as part of it, not on their own.

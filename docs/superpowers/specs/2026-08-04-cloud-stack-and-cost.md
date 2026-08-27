@@ -65,7 +65,7 @@ exceeded `TransactWriteItems` (100 actions, no two on the same item).
 | | A1 — Aurora DSQL | A2 — DynamoDB | B — Supabase |
 |---|---|---|---|
 | **SQL** | Postgres wire + syntax | None — key-value access patterns | Full Postgres |
-| **Foreign keys** | ~~**Not supported.** `REFERENCES` is absent from the grammar~~ — **false since some date before 2026-08-27**: measured that day (**D99**), a composite `FOREIGN KEY … REFERENCES … ON DELETE RESTRICT` is accepted and enforced. The row stands as the reason integrity moved to app code, and app-code integrity is still what ships; whether to adopt them is `docs/plans/PLAN-OPEN.md` **O34** | None | Yes |
+| **Foreign keys** | ~~**Not supported.** `REFERENCES` is absent from the grammar~~ — **false since 2026-08-26**, the day DSQL shipped them (D100 dates it from the release notes): measured that day (**D99**), a composite `FOREIGN KEY … REFERENCES … ON DELETE RESTRICT` is accepted and enforced. The row stands as the reason integrity moved to app code, and app-code integrity is still what ships; whether to adopt them is `docs/plans/PLAN-OPEN.md` **O34** | None | Yes |
 | **Other constraints** | `CHECK`, `UNIQUE`, `PRIMARY KEY`, `GENERATED` all supported | None | All |
 | **RLS** | No (IAM-scoped, app-level predicates) | No | **Yes** |
 | **jsonb** | Supported, 1 MiB/value — but **cannot be indexed** | Native maps | Supported + indexable |

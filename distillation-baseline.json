@@ -88,7 +88,7 @@
   },
   "commentChars": {
     "infra/drizzle.config.ts": 1203,
-    "infra/schema/user.ts": 6898,
+    "infra/schema/user.ts": 7733,
     "infra/src/capture.ts": 33823,
     "infra/src/dates.test.ts": 479,
     "infra/src/dates.ts": 2489,
@@ -327,7 +327,7 @@
     "src/screens/portfolio/useAssetDialogs.ts": 1
   },
   "docLineCounts": {
-    "docs/decisions/README.md": 204,
+    "docs/decisions/README.md": 206,
     "docs/superpowers/plans/2026-08-26-schema-parity-and-knowledge.md": 206,
     "src/distillation/README.md": 202
   }

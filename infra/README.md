@@ -129,7 +129,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 
 ## Where the rest of this README is
 
-**Split 2026-08-26 (D95)** — moved **verbatim** into [`docs/`](docs/) so no file exceeds 200 lines. Nothing was summarised, and every measured figure is where it was written. **`docs/console-setup.md`, `docs/role-deploy.md` and `docs/role-cfn-exec.md` are `### ` sections of the Deploying chapter below** and read as part of it. `docs/dsql-ddl-first-contact.md` was **written there on 2026-08-27, not moved** — the folder is where working notes live now, not only where the old README's halves landed.
+**Split 2026-08-26 (D95)** — moved **verbatim** into [`docs/`](docs/) so no file exceeds 200 lines. Nothing was summarised, and every measured figure is where it was written. **`docs/console-setup.md`, `docs/role-deploy.md` and `docs/role-cfn-exec.md` are `### ` sections of the Deploying chapter below** and read as part of it. `docs/dsql-ddl-first-contact.md` and `docs/dsql-alter-limits.md` were **written there on 2026-08-27 and 2026-08-28, not moved** — the folder is where working notes live now, not only where the old README's halves landed.
 
 | File | Holds |
 |---|---|
@@ -141,6 +141,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 | [`docs/dpu.md`](docs/dpu.md) | W2 — a week of real DPU, measured 2026-08-17 · Re-measured 2026-08-25 — an aliased ORDER BY was disabling the index (D91) |
 | [`docs/replan-a50.md`](docs/replan-a50.md) | A50's re-plan, 2026-08-26 — the plan moved and the cost did not, why round 1 was warmup, and why a SQL `LIMIT` cannot bound the open range (D97) |
 | [`docs/dsql-ddl-first-contact.md`](docs/dsql-ddl-first-contact.md) | `003_user_schema.sql` against the real cluster, 2026-08-27 — `USING btree` refused and `ASYNC` mandatory, so promotion rewrites an index line twice; the CHECKs/UNIQUEs/DEFAULT enforced; an accepted async index is not a built one; and DSQL's foreign keys, which this repo said it had none of (D99) |
+| [`docs/dsql-alter-limits.md`](docs/dsql-alter-limits.md) | What `ALTER TABLE` can and cannot do, 2026-08-28 — a constraint can be added later as `NOT VALID` but never validated; only `NOT NULL`, `DEFAULT`, column type and a `UNIQUE` constraint are create-time-only; drizzle emits foreign keys as post-hoc `ALTER TABLE`, so promotion would need a third rewrite rule (D100) |
 | [`docs/frozen-feed.md`](docs/frozen-feed.md) | W1 — the frozen-feed detector on real data, measured 2026-08-18 · A20's deploy failed first, and nothing local could have caught it |
 | [`docs/migrations-and-checks.md`](docs/migrations-and-checks.md) | A19 — the as_of migration, run 2026-08-18 · A6 — the DCF check runs nightly now, 2026-08-18 |
 

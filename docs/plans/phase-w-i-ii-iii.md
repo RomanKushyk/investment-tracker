@@ -112,7 +112,7 @@ rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
 **twice** — insert `ASYNC`, strip `USING btree`. Measured with it: the whole of
 `003_user_schema.sql` applies to the live cluster and its `CHECK`/`UNIQUE`/`DEFAULT`
 are enforced, so **the DDL is no longer this phase's first contact — the
-migration RUNNER is**, and DSQL now has enforced foreign keys, which opens O34.
+migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which opened O34 and **closed it on 2026-08-28 (D101): W7 ships none**, and whether they are ever adopted is O33's to decide.
 Rules in `infra/migrations/drafts/README.md`, working in
 `infra/docs/dsql-ddl-first-contact.md`.
 
@@ -178,7 +178,7 @@ Rules in `infra/migrations/drafts/README.md`, working in
 
 Remaining scope: user schema in DSQL, API Gateway + API Lambda, `repository.ts` rewritten as an HTTP client, test repair, cutover. **The PWA shell is out (D92)** — cross-browser beats offline by owner ruling, the spec had already renounced offline ("installable shell, network-required, no offline"), and a service worker bought for an offline that was given up is all cost; a bare-manifest install can return later as its own item — filed as `PLAN-OPEN.md` O29. Front-loaded accepted costs: **OCC retry handling** (`If-Match` becomes `UPDATE … WHERE version = $2` + rowcount, mutations retry on SQLSTATE 40001) and **no local emulator** (local Postgres for the inner loop with the schema kept inside the DSQL subset, real DSQL in CI).
 
-**`PLAN-OPEN.md` Round 1 is closed** (D30, D32), so the DDL is no longer blocked on a decision. The `basis` vocabulary, the `instrument_ref` scheme and the FX placement are pinned; what remains gated is only the observation row's non-key columns, which are an `ALTER TABLE` away and therefore not a blocker for the user schema.
+**`PLAN-OPEN.md` Round 1 is closed** (D30, D32), so the DDL is no longer blocked on a decision. The `basis` vocabulary, the `instrument_ref` scheme and the FX placement are pinned; what remains gated is only the observation row's non-key columns, which are an `ALTER TABLE` away and therefore not a blocker for the user schema. **Narrowed 2026-08-28 (D100), and by less than that entry's first draft claimed.** Measured on the live cluster: it holds for a plain nullable column, for a `CHECK` added `ALTER TABLE … ADD CONSTRAINT … NOT VALID` (enforcing every later write, never validating the rows already there), and for a `DEFAULT` set later, which applies to rows inserted after it. It does **not** hold for `NOT NULL`, for a type change, or for anything touching the primary key. So what O5 must not assume deferrable is a non-null column or a different type — a default is fine.
 
 **One consequence to carry into the build (D32, sharpened by D38):** threat protection lives in Cognito's **Plus** tier, which has no free tier, and WAF is $15/mo and on the standing "no" list below. The approval gate keeps unapproved sign-ups away from data, but it does **not** keep them off the MAU meter — sign-up itself marks a user active. So the sign-up endpoint is defended by Cognito's built-in request quotas and email verification alone, and D37's `SignUpSuccesses` chart is the thing that would show abuse. If it appears, the honest fallbacks are to gate sign-up in the pre-sign-up trigger (which makes applications impossible to submit) or to start paying — there is no third one.
 

@@ -170,11 +170,12 @@ Accepted, and enforced in both directions: a child row pointing at nothing gave
 `23503`, and deleting a referenced parent gave `23503` naming the child table.
 `pg_get_constraintdef` reads it back unchanged.
 
-**Whether this schema should use them is not decided here** — it removes the
-nightly integrity audit `../../docs/superpowers/specs/data-model/ledger.md`
-specifies, and it adds cascade behaviour that interacts with DSQL's 3,000-row
-transaction limit. Filed as
-`../../docs/plans/PLAN-OPEN.md` O34, answered together with O33.
+**Whether this schema should use them was not decided here** — it was filed as
+`../../docs/plans/PLAN-OPEN.md` O34 and **ruled on 2026-08-28 (D101): W7 ships
+none.** The grounds were that it removes the nightly integrity audit
+`../../docs/superpowers/specs/data-model/ledger.md` specifies, that cascade
+behaviour interacts with DSQL's 3,000-row transaction limit, and that a key can
+be added later anyway (D100). Adoption is now **O33**'s to decide.
 
 ## Reproduce
 
