@@ -149,6 +149,58 @@ export function inCode(ranges: CodeRange[], pos: number): boolean {
   return ranges.some((r) => pos >= r.start && pos < r.end);
 }
 
+// --- Masking ---------------------------------------------------------------
+//
+// `blank`/`keepOnly` were duplicated, byte-identical, as private helpers in
+// both `src/claims/scan.ts` and `src/distillation/scan.ts` — both built on
+// this module's own `codeRanges`. Exported from here, the one place that
+// also owns `CodeRange`, so both callers import instead of each carrying its
+// own copy.
+//
+// PRECONDITION, both functions: `ranges` must be sorted ascending by
+// `start` and non-overlapping — true of every real caller (`codeRanges`'s
+// own forward scan produces ranges strictly in file order; `commentRanges`
+// sorts its own output explicitly; two comments overlapping is not
+// something valid source can produce). NOT VALIDATED: out of order, the
+// `cursor` walks backwards and `text.slice(cursor, r.start)` silently
+// returns an empty string instead of throwing — spans are dropped and
+// duplicated, not rejected. Callers own this contract; neither function
+// checks it.
+
+/** Blanks every character in `ranges` to a space (line endings survive, so
+ *  line numbers stay meaningful); everything outside `ranges` is untouched.
+ *  See the PRECONDITION above. */
+export function blank(text: string, ranges: readonly CodeRange[]): string {
+  if (ranges.length === 0) return text;
+  let out = '';
+  let cursor = 0;
+  for (const r of ranges) {
+    out += text.slice(cursor, r.start);
+    out += text.slice(r.start, r.end).replace(/[^\r\n]/g, ' ');
+    cursor = r.end;
+  }
+  return out + text.slice(cursor);
+}
+
+/** The mirror of `blank`: everything OUTSIDE `ranges` is blanked, `ranges`
+ *  themselves survive untouched. See the PRECONDITION above — here, an
+ *  EMPTY `ranges` is the dangerous case rather than a no-op: it blanks the
+ *  WHOLE text (nothing is "kept"), so if `commentRanges` ever returned `[]`
+ *  for a file that genuinely has comments, `scanFile`'s `.ts` branch would
+ *  read the resulting all-space view as "no comment", `commentChars` would
+ *  report 0, and the ratchet would read a real file as `stale` — "the file
+ *  improved" — when nothing changed. */
+export function keepOnly(text: string, ranges: readonly CodeRange[]): string {
+  let out = '';
+  let cursor = 0;
+  for (const r of ranges) {
+    out += text.slice(cursor, r.start).replace(/[^\r\n]/g, ' ');
+    out += text.slice(r.start, r.end);
+    cursor = r.end;
+  }
+  return out + text.slice(cursor).replace(/[^\r\n]/g, ' ');
+}
+
 /** Find this fence's `<!--/f-->` in `text[from, to)`, skipping over inline
  *  code spans — a run of N backticks closed by the next run of exactly N
  *  backticks within the range, same matching as `codeRanges`. A `CLOSE`

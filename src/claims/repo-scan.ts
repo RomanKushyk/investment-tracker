@@ -25,6 +25,20 @@ export function isDeclaredDamage(message: string): boolean {
   return DECLARED_DAMAGE.some((d) => message.includes(d));
 }
 
+/** The four files `RepoScan.unparseable`'s own doc comment (below) explains
+ *  in full — read that, not this. Exported so `claim-lint.test.ts` and
+ *  `src/distillation/distillation-lint.test.ts` — both walking the same
+ *  `claimTargetFiles()` list through the same `codeRanges` scan, so both
+ *  hit the identical damage — pin the SAME list instead of each carrying
+ *  its own copy. `as const`: a pinned list is not a caller's to mutate, and
+ *  before this both call sites only avoided doing so by convention. */
+export const KNOWN_UNPARSEABLE = [
+  'docs/superpowers/plans/amplify-hybrid-deploy/02-deployment-runbook-as-written.md',
+  'docs/superpowers/plans/amplify-hybrid-deploy/03-d15-as-written.md',
+  'docs/superpowers/plans/amplify-hybrid-deploy/04-deploy-script-and-tests.md',
+  'docs/superpowers/plans/amplify-hybrid-deploy/05-scripts-readme-and-workflow.md',
+] as const;
+
 export interface RepoScan {
   claims: Claim[];
   /** Files this scan could not parse at all — see `DECLARED_DAMAGE` above.
@@ -76,8 +90,8 @@ export function scanRepo(knownFactKeys: ReadonlySet<string>): RepoScan {
   const unparseable: string[] = [];
   const errors: RepoScan['errors'] = [];
   for (const relPath of claimTargetFiles()) {
-    const text = readFileSync(join(REPO, relPath), 'utf8');
     try {
+      const text = readFileSync(join(REPO, relPath), 'utf8');
       claims.push(...scanFile(relPath, text, knownFactKeys));
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

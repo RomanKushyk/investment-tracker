@@ -39,7 +39,7 @@ convention of its own, so "wholesale" there means no masking at all.
 `<!--unchecked: reason-->`, same line as the claim it excuses. Suppresses that line's claims
 from the ratchet's failing count. The count of unchecked claims is itself a derived fact, per
 the spec — `claims.unchecked` in `src/facts/facts.ts`, cited live right here: as of now,
-<!--f:claims.unchecked-->12<!--/f--> lines in the tracked tree carry text matching the marker's
+<!--f:claims.unchecked-->13<!--/f--> lines in the tracked tree carry text matching the marker's
 well-formed shape. A plain per-line regex test, deliberately — it counts every line the pattern
 matches, this section's own worked examples of the syntax included, not "how many claims did
 the rules actually suppress" (a marker on a line with no claim to suppress still carries the
@@ -70,7 +70,7 @@ count). Running `pnpm claim-baseline` twice in a row must change nothing.
 | `scan.ts` | The three rule patterns, `Claim`/`Rule`/`fileKind`, `scanFile` (the masking/dispatch by file kind), `countUnchecked` |
 | `comments.ts` | `commentRanges(text, fileName)` — the `.ts`/`.tsx` comment extractor, built on TypeScript's own parser (`ts.createSourceFile` + `getChildren()`), not a hand-rolled scanner; `PARSE_ERROR_PREFIX` names its declared failure mode |
 | `target-files.ts` | `claimTargetFiles` — the repo walk, reusing `repoFiles`/`SKIP` from `src/facts/markdown-files.ts`, scoped to `git ls-files` |
-| `repo-scan.ts` | `scanRepo` — reads every target file and calls `scanFile`; the one place in this mechanism that touches disk; `isDeclaredDamage` is its `catch`'s classification, exported for its own test |
+| `repo-scan.ts` | `scanRepo` — reads every target file and calls `scanFile`; the one place in this mechanism that touches disk; `isDeclaredDamage` is its `catch`'s classification, exported for its own test; `KNOWN_UNPARSEABLE` is the pinned four-file list both this module's and `src/distillation/`'s own lint tests assert against, shared rather than duplicated |
 | `baseline.ts` | `Baseline`, `loadBaseline`/`serializeBaseline`, `countsFromClaims`, `diffBaseline` |
 | `claim-lint.test.ts` | **Not app code.** The repo-wide ratchet check — the real scan against the real `claim-baseline.json` |
 

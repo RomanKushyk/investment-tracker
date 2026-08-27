@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "facts": "tsx scripts/facts.ts",
     "decisions": "tsx scripts/decisions.ts",
-    "claim-baseline": "tsx scripts/claim-baseline.ts"
+    "claim-baseline": "tsx scripts/claim-baseline.ts",
+    "distillation-baseline": "tsx scripts/distillation-baseline.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.3.0",

@@ -3,9 +3,40 @@ import { describe, expect, it } from 'vitest';
 import { FACTS } from './facts';
 import { markdownFiles, REPO } from './markdown-files';
 import { derived } from './registry';
-import { rewrite, rewriteFile } from './fences';
+import { rewrite, rewriteFile, blank, keepOnly } from './fences';
 
 const TEST_FACTS = { 'a.count': derived(() => 7), k: derived(() => 7) };
+
+describe('blank/keepOnly — shared masking, used by src/claims/scan.ts and src/distillation/scan.ts', () => {
+  it('blank replaces every character in the given ranges with a space, sparing line endings', () => {
+    expect(blank('abcdef', [{ start: 1, end: 4 }])).toBe('a   ef');
+  });
+
+  it('blank leaves a line ending inside a range untouched, so line numbers stay meaningful', () => {
+    expect(blank('ab\ncd', [{ start: 0, end: 5 }])).toBe('  \n  ');
+  });
+
+  it('blank is a no-op with no ranges', () => {
+    expect(blank('abcdef', [])).toBe('abcdef');
+  });
+
+  it('keepOnly is the mirror of blank — everything OUTSIDE the ranges is blanked instead', () => {
+    expect(keepOnly('abcdef', [{ start: 1, end: 4 }])).toBe(' bcd  ');
+  });
+
+  it('keepOnly also spares a line ending outside its kept ranges', () => {
+    expect(keepOnly('ab\ncd', [{ start: 0, end: 2 }])).toBe('ab\n  ');
+  });
+
+  it("PIN: keepOnly with NO ranges blanks the WHOLE text — the dangerous direction, unlike blank's no-op", () => {
+    // If commentRanges ever returned [] for a file that genuinely has
+    // comments, this is the exact shape scanFile's .ts branch would see:
+    // an all-space view, read as "no comment", reporting the file as
+    // improved when nothing changed. blank([]) is a safe no-op; keepOnly([])
+    // is not, and that asymmetry is worth its own pin, not just blank's.
+    expect(keepOnly('ab\ncd', [])).toBe('  \n  ');
+  });
+});
 
 describe('the fence rewriter', () => {
   it('fills a fence with the fact value', () => {
@@ -97,7 +128,7 @@ describe('fence syntax inside Markdown code is documentation, not usage', () => 
   });
 });
 
-describe('fix round 2 — a fence opens and closes on the same line', () => {
+describe('a fence opens and closes on the same line', () => {
   it('CRITICAL: a dropped closer cannot reach past a paragraph and a whole code block to a documented one further down', () => {
     // The exact review reproduction. Before this fix, rewrite() found the
     // `<!--/f-->` inside the ```md illustration and deleted everything
@@ -135,7 +166,7 @@ describe('fix round 2 — a fence opens and closes on the same line', () => {
   });
 });
 
-describe('fix round 2 — a false fence opener cannot blind the rest of the file', () => {
+describe('a false fence opener cannot blind the rest of the file', () => {
   it('a backtick fence with a backtick in its info string is not a real opener (CommonMark), so it cannot swallow what follows', () => {
     const text = ['```sh `x`', 'not actually code', '<!--f:a.count-->3<!--/f-->', 'tail'].join(
       '\n',
@@ -146,11 +177,11 @@ describe('fix round 2 — a false fence opener cannot blind the rest of the file
   });
 
   it('THROWS, naming the opening line, if the scan ends with a fence still open — when the file also carries a fact tag', () => {
-    // Superseded by fix round 3's guard for the fact-tag-free case (see
-    // below): a document that never carries `<!--f:` has nothing for this
-    // function to do, so an unclosed fence in it is never even examined.
-    // This variant keeps the EOF-guard itself covered for the case it
-    // exists for — a file the rewriter actually has to act on.
+    // The no-fact-tag guard (see below) means a document that never carries
+    // `<!--f:` has nothing for this function to do, so an unclosed fence in
+    // it is never even examined. This variant keeps the EOF-guard itself
+    // covered for the case it exists for — a file the rewriter actually has
+    // to act on.
     const text = ['prose', '<!--f:a.count-->3<!--/f-->', '```ts', 'code that never closes'].join(
       '\n',
     );
@@ -158,7 +189,7 @@ describe('fix round 2 — a false fence opener cannot blind the rest of the file
   });
 });
 
-describe('fix round 2 — cheap code contexts: blockquote and tab, not 4-space indent', () => {
+describe('cheap code contexts: blockquote and tab, not 4-space indent', () => {
   it('recognizes a blockquote-prefixed fence opener as code', () => {
     const text = ['> ```ts', '> <!--f:a.count-->3<!--/f-->', '> ```', 'after'].join('\n');
     expect(rewrite(text, TEST_FACTS)).toBe(text);
@@ -170,7 +201,7 @@ describe('fix round 2 — cheap code contexts: blockquote and tab, not 4-space i
   });
 });
 
-describe('fix round 3 — CRLF line endings', () => {
+describe('CRLF line endings', () => {
   // `text.slice(i, lineEnd)` stops before `\n` but keeps a `\r` right before
   // it on a CRLF file. `.` in FENCE_OPEN's `(.*)$` cannot match `\r`, so a
   // CRLF-terminated opener line was silently rejected — while FENCE_CLOSE's
@@ -199,7 +230,7 @@ describe('fix round 3 — CRLF line endings', () => {
   });
 });
 
-describe('fix round 3 — a file with no fact tag has nothing to rewrite', () => {
+describe('a file with no fact tag has nothing to rewrite', () => {
   // A file containing no `<!--f:` at all cannot hold a stale fence, so
   // rewrite() returns it untouched before the scanner ever runs — its
   // code-state (fenced or not, closed or not) is irrelevant. That is what
@@ -222,7 +253,7 @@ describe('fix round 3 — a file with no fact tag has nothing to rewrite', () =>
   });
 });
 
-describe('fix round 4 — a closer inside an inline code span does not count', () => {
+describe('a closer inside an inline code span does not count', () => {
   it('CRITICAL: a `<!--/f-->` shown inside backticks on the same line is not a real closer — the fence is unclosed and throws', () => {
     // The exact review reproduction. Before this fix, the close search was a
     // plain indexOf blind to span state, so it matched the `<!--/f-->`
@@ -241,7 +272,7 @@ describe('fix round 4 — a closer inside an inline code span does not count', (
   });
 });
 
-describe('fix round 4 — pinning what was already correct but untested', () => {
+describe('error messages carry the right file path and line number', () => {
   it('PIN: rewriteFile attaches the path to a thrown error — removing that prefix would leave this red', () => {
     expect(() => rewriteFile('some/path.md', '<!--f:nope-->1<!--/f-->', TEST_FACTS)).toThrow(
       /^some\/path\.md: unknown fact key `nope`/,
@@ -263,7 +294,7 @@ describe('fix round 4 — pinning what was already correct but untested', () => 
   });
 });
 
-describe('fix round 4 — declared limits, pinned rather than merely commented', () => {
+describe('declared limits of the code-context scanner', () => {
   it('DECLARED LIMIT: a 4-space-indented fenced block is NOT recognized as code, so a fence inside it IS rewritten', () => {
     // Deliberate, not a bug — see stripCodeContext's comment above: telling
     // an indented code block apart from list-item continuation is
@@ -314,7 +345,7 @@ describe('fix round 4 — declared limits, pinned rather than merely commented',
   });
 });
 
-describe('fix round 5 — an orphan closer is the mirror of an unclosed opener', () => {
+describe('an orphan closer is the mirror of an unclosed opener', () => {
   it('CRITICAL: a closer with no opener throws, naming the line, instead of being copied through silently', () => {
     // The exact review reproduction. Before this fix, a lone `<!--/f-->`
     // with nothing to close was just ordinary text to the scanner — copied
@@ -343,7 +374,7 @@ describe('fix round 5 — an orphan closer is the mirror of an unclosed opener',
   });
 });
 
-describe('fix round 6 — a second opener on the same line cannot smuggle its closer to the first', () => {
+describe('a second opener on the same line cannot smuggle its closer to the first', () => {
   it('CRITICAL: two openers on one line — the close search stops at the second opener and throws unclosed', () => {
     // The D76 pre-merge review's reproduction. Before this fix, the close
     // search just walked forward for the next `<!--/f-->`, found the
@@ -366,7 +397,7 @@ describe('fix round 6 — a second opener on the same line cannot smuggle its cl
   });
 });
 
-describe('fix round 6 — the unknown-key guard is not defeated by the prototype chain', () => {
+describe('the unknown-key guard is not defeated by the prototype chain', () => {
   it('CRITICAL: <!--f:constructor--> and <!--f:toString--> both throw unknown-key rather than rendering a prototype method', () => {
     // facts[key] alone resolves to Object.prototype's own constructor/
     // toString with no error, rendering "undefined undefined" — verified
@@ -380,7 +411,7 @@ describe('fix round 6 — the unknown-key guard is not defeated by the prototype
   });
 });
 
-describe('fix round 6 — a malformed fact tag is an error, not silent pass-through', () => {
+describe('a malformed fact tag is an error, not silent pass-through', () => {
   it('CRITICAL: a key with a space is not silently ignored — it throws, naming the line', () => {
     // Before this fix, `<!--f:seed assets-->` failed to match OPEN and was
     // just copied through character by character — a fence that looks

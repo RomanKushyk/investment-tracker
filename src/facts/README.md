@@ -18,7 +18,7 @@ suite for a value that was never wrong.
 | `registry.ts` | The `Fact` type and its two kinds, the `derived`/`measured` constructors, `renderFact` |
 | `facts.ts` | `FACTS: Record<string, Fact>` — the registry's actual contents |
 | `markdown-files.ts` | `markdownFiles(dir)` and `REPO`, the repo walk and root this scanner, `../docs-line-cap.test.ts` and `../decisions/records.ts` (a third consumer, for `REPO` alone) all use, and its `SKIP` list (`node_modules`, `dist`, `.git`, … `.superpowers` — gitignored scratch); `repoFiles(dir, extensions)` generalises the same walk for `../claims/target-files.ts`, which needs `.sql`/`.ts`/`.tsx` too — `markdownFiles` is now a thin `repoFiles(dir, ['.md'])` wrapper over it |
-| `fences.ts` | `rewrite`/`rewriteFile` — fills every fence; called by the `pnpm facts` CLI and by `fences.test.ts`'s repo-wide drift check. Also exports `codeRanges`/`inCode`, the code/prose scanner `rewrite` is built on — shared by `../decisions/render.ts`'s block-level markers rather than reimplemented there |
+| `fences.ts` | `rewrite`/`rewriteFile` — fills every fence; called by the `pnpm facts` CLI and by `fences.test.ts`'s repo-wide drift check. Also exports `codeRanges`/`inCode`, the code/prose scanner `rewrite` is built on — shared by `../decisions/render.ts`'s block-level markers rather than reimplemented there; and `blank`/`keepOnly`, the masking glue over a `CodeRange[]` — shared by `../claims/scan.ts` and `../distillation/scan.ts` rather than each carrying its own copy |
 
 ## The two kinds of fact
 

@@ -1,4 +1,4 @@
-import { codeRanges, FACT_KEY_SRC, type CodeRange } from '../facts/fences';
+import { codeRanges, blank, keepOnly, FACT_KEY_SRC, type CodeRange } from '../facts/fences';
 import { commentRanges } from './comments';
 
 export type Rule = 1 | 2 | 3;
@@ -261,45 +261,9 @@ const NO_FACT_KEYS: ReadonlySet<string> = new Set();
 
 // --- Masking -------------------------------------------------------------
 //
-// Both functions below assume `ranges` is sorted ascending by `start` and
-// non-overlapping — true of both real callers: `codeRanges`'s single
-// forward scan produces ranges strictly in file order, and `commentRanges`
-// sorts its own output explicitly; two comments overlapping is not
-// something valid source can produce in the first place. Build the result
-// from `text.slice(...)` segments
-// rather than a per-character array: the previous version's `text.split
-// ('')` turned the WHOLE file into one array entry per character, twice
-// per Markdown file (once for `blank`, again if `keepOnly` also ran), for
-// masking that only ever touches the few short spans in `ranges`.
-
-/** Blanks every character in `ranges` to a space, except a line ending,
- *  which survives so line numbers stay meaningful; everything outside
- *  `ranges` is untouched. */
-function blank(text: string, ranges: readonly CodeRange[]): string {
-  if (ranges.length === 0) return text;
-  let out = '';
-  let cursor = 0;
-  for (const r of ranges) {
-    out += text.slice(cursor, r.start);
-    out += text.slice(r.start, r.end).replace(/[^\r\n]/g, ' ');
-    cursor = r.end;
-  }
-  return out + text.slice(cursor);
-}
-
-/** The mirror of `blank`: everything OUTSIDE `ranges` is blanked to a
- *  space (line endings still spared), and `ranges` themselves survive
- *  untouched. */
-function keepOnly(text: string, ranges: readonly CodeRange[]): string {
-  let out = '';
-  let cursor = 0;
-  for (const r of ranges) {
-    out += text.slice(cursor, r.start).replace(/[^\r\n]/g, ' ');
-    out += text.slice(r.start, r.end);
-    cursor = r.end;
-  }
-  return out + text.slice(cursor).replace(/[^\r\n]/g, ' ');
-}
+// `blank`/`keepOnly` are imported from `../facts/fences` — see their own
+// doc comments there for the sorted/non-overlapping precondition both
+// assume, and what breaks (silently) if a caller violates it.
 
 /** Keeps a fence whose key is in `knownFactKeys`, drops the rest — see
  *  `FACT_FENCE_RE`'s own doc comment for why a syntactically well-formed
