@@ -88,4 +88,27 @@ describe('the first facts', () => {
     // ledger is readable — a regex that stopped matching would return 0 quietly.
     expect(Number(renderFact(FACTS['plan.closedTasks']))).toBeGreaterThan(40);
   });
+
+  it("reads W7's generated DDL — four counts, none of them allowed to be a quiet zero", () => {
+    // Not pinned to today's values: the schema is still a draft and every one
+    // of these moves when it changes — that is why they are derived at all
+    // (D99: three of the four were typed wrong in three files each). What IS
+    // pinned is that the four regexes still match something. Each returns 0
+    // the moment drizzle-kit changes its output shape, or the file moves on
+    // promotion, and 0 is exactly the answer a fenced document would repeat
+    // without complaint.
+    for (const key of [
+      'userSchema.tables',
+      'userSchema.compositeKeys',
+      'userSchema.checks',
+      'userSchema.uniques',
+    ]) {
+      expect(Number(renderFact(FACTS[key]))).toBeGreaterThan(0);
+    }
+    // Every table has a primary key, and at least one is NOT composite
+    // (`app_user`), so these two can never be equal without one being broken.
+    expect(Number(renderFact(FACTS['userSchema.compositeKeys']))).toBeLessThan(
+      Number(renderFact(FACTS['userSchema.tables'])),
+    );
+  });
 });

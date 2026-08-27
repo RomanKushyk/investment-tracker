@@ -1,7 +1,7 @@
 import { relative, sep } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { diffBaseline, type BaselineDiff } from './claims/baseline';
-import { docLineCounts, LIMIT } from './distillation/doc-line-counts';
+import { DIAGNOSTIC_QUESTION, docLineCounts, LIMIT } from './distillation/doc-line-counts';
 import { BASELINE_PATH, loadBaseline } from './distillation/baseline';
 import { markdownFiles, REPO } from './facts/markdown-files';
 
@@ -52,7 +52,7 @@ describe('documentation line-count ratchet (D95, ratcheted by D98)', () => {
       .map(
         (d) =>
           `${d.file}: ${d.actual} lines, baseline allows ${d.baseline} (+${d.actual - d.baseline}) ` +
-          `— over ${LIMIT} lines: a file this long usually holds more than one purpose, and the fix is to find the second one`,
+          `— over ${LIMIT} lines: ${DIAGNOSTIC_QUESTION}`,
       );
     expect(lines).toEqual([]);
   });

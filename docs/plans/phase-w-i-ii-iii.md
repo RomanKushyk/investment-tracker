@@ -107,10 +107,14 @@ corroboration rather than the only record.
 
 **Gate:** W4 complete **and** the A3 durability gate passed — **it did, 2026-08-11 (D49)**; A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A51, A53, A54 — bodies in `section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
 
-**Pre-condition before promoting `003_user_schema.sql`:** confirm DSQL accepts
-`USING btree` on `CREATE INDEX` — the generated DDL emits it, DSQL's
-documented index form omits it, and nobody has confirmed the two are
-compatible (`infra/migrations/drafts/README.md`).
+**Pre-condition, CLEARED 2026-08-27 (D99).** DSQL rejects `USING btree` and
+rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
+**twice** — insert `ASYNC`, strip `USING btree`. Measured with it: the whole of
+`003_user_schema.sql` applies to the live cluster and its `CHECK`/`UNIQUE`/`DEFAULT`
+are enforced, so **the DDL is no longer this phase's first contact — the
+migration RUNNER is**, and DSQL now has enforced foreign keys, which opens O34.
+Rules in `infra/migrations/drafts/README.md`, working in
+`infra/docs/dsql-ddl-first-contact.md`.
 
 **Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 

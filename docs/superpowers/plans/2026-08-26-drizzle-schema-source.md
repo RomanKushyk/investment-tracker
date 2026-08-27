@@ -14,8 +14,8 @@
 
 ## Global Constraints
 
-- **Aurora DSQL has no foreign keys.** `REFERENCES` is absent from the grammar. Never add one.
-- **`CREATE INDEX ASYNC` is DSQL-only** and a syntax error on stock Postgres. Secondary indexes stay plain `CREATE INDEX` in generated output; the `ASYNC` form is hand-authored at promotion, not generated — `--custom` writes stateful `meta/` files this branch keeps out of the repo.
+- ~~**Aurora DSQL has no foreign keys.** `REFERENCES` is absent from the grammar. Never add one.~~ **Wrong since before this plan ran, discovered 2026-08-27 (D99):** DSQL accepts and enforces composite foreign keys. The schema this plan produced still declares none, which is now a choice — `docs/plans/PLAN-OPEN.md` O34.
+- **`CREATE INDEX ASYNC` is DSQL-only** and a syntax error on stock Postgres. Secondary indexes stay plain `CREATE INDEX` in generated output; the `ASYNC` form is hand-authored at promotion, not generated — `--custom` writes stateful `meta/` files this branch keeps out of the repo. **Incomplete as written (D99):** promotion must ALSO strip the `USING btree` drizzle-kit emits, which DSQL rejects outright — inserting `ASYNC` alone still gives a statement the cluster refuses.
 - **One DDL statement per transaction, never mixed with DML.** `breakpoints: true` emits `--> statement-breakpoint` for this.
 - **Every per-user table leads its primary key with `user_id`.** DSQL's key is index-organised; the order is the access path and it is immutable.
 - **UNIQUE constraints are inline** in the table definition, never a later `CREATE UNIQUE INDEX`.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { assertUnderLineCap, README_LINE_CAP, renderRow, spliceGeneratedRows } from './render';
+import { lineCapDiagnostic, renderRow, spliceGeneratedRows } from './render';
+import { LIMIT } from '../distillation/doc-line-counts';
 import type { DecisionRecord } from './records';
 
 function record(over: Partial<DecisionRecord> & { num: number }): DecisionRecord {
@@ -197,16 +198,21 @@ describe('spliceGeneratedRows — the syntax can be documented in the file it ma
   });
 });
 
-describe('assertUnderLineCap', () => {
-  it('does nothing when the text is at or under the cap', () => {
-    const atCap = Array.from({ length: README_LINE_CAP }, () => 'x').join('\n') + '\n';
-    expect(() => assertUnderLineCap(atCap, 'docs/decisions/README.md')).not.toThrow();
+describe('lineCapDiagnostic', () => {
+  it('says nothing when the text is at or under the cap', () => {
+    const atCap = Array.from({ length: LIMIT }, () => 'x').join('\n') + '\n';
+    expect(lineCapDiagnostic(atCap, 'docs/decisions/README.md')).toBeNull();
   });
 
-  it('throws, naming the path and the count, one line over the cap', () => {
-    const overCap = Array.from({ length: README_LINE_CAP + 1 }, () => 'x').join('\n') + '\n';
-    expect(() => assertUnderLineCap(overCap, 'docs/decisions/README.md')).toThrow(
-      /docs\/decisions\/README\.md would be 201 lines, over the 200-line cap/,
+  // This is also the guard against the wall coming back. It RETURNS the
+  // message; reinstating the throw D99 removed would make this line raise
+  // instead of match, and `pnpm decisions` would again refuse to add a
+  // decision. A separate `.not.toThrow()` case was written and dropped —
+  // it asserted nothing this one does not already prove.
+  it('names the path and the count, one line over the cap', () => {
+    const overCap = Array.from({ length: LIMIT + 1 }, () => 'x').join('\n') + '\n';
+    expect(lineCapDiagnostic(overCap, 'docs/decisions/README.md')).toMatch(
+      /docs\/decisions\/README\.md is 201 lines, over 200/,
     );
   });
 });

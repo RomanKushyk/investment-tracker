@@ -3,8 +3,8 @@
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
-// two stay comparable statement for statement. DSQL environment facts (no
-// foreign keys, index-async promotion, replay behaviour) live in
+// two stay comparable statement for statement. DSQL environment facts (the
+// two-step index promotion, foreign keys, replay behaviour) live in
 // `infra/migrations/drafts/README.md`; W7's data-migration notes live in
 // `docs/reference/w7-migration-translations.md`. The PGlite suite this file's
 // constraints run against (`infra/src/user-schema.test.ts`) proves nothing
@@ -12,7 +12,13 @@
 //
 // EVERY PER-USER TABLE LEADS ITS PRIMARY KEY WITH `user_id` (contract 3).
 // DSQL's primary key is index-organized, so key order IS the access path,
-// and it is immutable once applied (D30). The dominant read is `GET /state`
+// and it is immutable once applied (D30). Partly observed 2026-08-27 rather
+// than only documented: the cluster read `account`'s key back as `USING
+// btree_index (user_id, id) INCLUDE (provider, name, created_at)` — its three
+// non-key columns — and a 3-column probe table the same way. TWO tables, so
+// "every table carries every non-key column" stays documentation (D99);
+// `asset`, at 17 columns, was not read back.
+// The dominant read is `GET /state`
 // — one user's whole dataset — so `(user_id, id)` makes that a contiguous
 // range scan, while a bare surrogate `(id)` would be a secondary-index scan
 // with a row fetch per row. This resolves the tension the two applied
@@ -159,7 +165,8 @@ export const asset = pgTable(
     check('asset_provider_pair_ck', sql`(${t.providerKind} IS NULL) = (${t.providerRef} IS NULL)`),
     primaryKey({ columns: [t.userId, t.id] }), // contract 3
     // Display order within one user (`listAssets`). The key already serves
-    // "everything for this user"; this serves it SORTED. ASYNC on DSQL.
+    // "everything for this user"; this serves it SORTED. On DSQL, promotion
+    // adds ASYNC and strips `USING btree` — both, or the statement fails (D99).
     index('asset_user_created').on(t.userId, t.createdAt),
   ],
 );
@@ -226,7 +233,8 @@ export const transaction = pgTable(
     // insert.
     unique('transaction_settles_uq').on(t.userId, t.settlesPayoutId),
     primaryKey({ columns: [t.userId, t.id] }), // contract 3
-    // The ledger in date order for one user. ASYNC on DSQL.
+    // The ledger in date order for one user. On DSQL, promotion adds ASYNC and
+    // strips `USING btree` — both, or the statement fails (D99).
     index('transaction_user_date').on(t.userId, t.date),
   ],
 );

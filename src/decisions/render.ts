@@ -1,4 +1,5 @@
 import { codeRanges, inCode } from '../facts/fences';
+import { countLines, DIAGNOSTIC_QUESTION, LIMIT } from '../distillation/doc-line-counts';
 import type { DecisionRecord } from './records';
 
 /** One or two table row lines for a decision — two only for the D43 case,
@@ -163,28 +164,36 @@ export function spliceGeneratedRows(readme: string, records: DecisionRecord[]): 
   return { text, blocksFilled, rowsRendered };
 }
 
-/** The same 200-line cap src/docs-line-cap.test.ts enforces for every
- *  Markdown file in the repo. `pnpm decisions` checks the file it is about
- *  to write against it directly, so crossing it is a plain thrown message
- *  naming the count, not an unrelated test failure left for a future
- *  author to decode. Splitting the index is deliberately NOT built here —
- *  it is speculative until a table needs it; D95/D96 is the precedent to
- *  follow once one does. */
-export const README_LINE_CAP = 200;
-
-function countLines(text: string): number {
-  let n = 0;
-  for (const ch of text) if (ch === '\n') n += 1;
-  return n;
-}
-
-export function assertUnderLineCap(text: string, path: string): void {
+/** The diagnostic question §6 asks of a long file, or `null` when the text is
+ *  at or under `LIMIT`. Never throws — returning the message leaves the
+ *  caller to decide whether it is fatal, and `scripts/decisions.ts` decides
+ *  it is not, printing it only on the path where it actually wrote.
+ *
+ *  This used to be a WALL: `pnpm decisions` threw and refused to write, so
+ *  the index could not accept another decision once it reached 200 lines.
+ *  **D98 made the cap a diagnostic** — a file at or under it is
+ *  unconstrained, a file over it is pinned at its own length and may not grow
+ *  without a reviewed `pnpm distillation-baseline` — and this generator kept
+ *  enforcing the older, stricter rule against one file, while its own comment
+ *  claimed to mirror a repo-wide cap that no longer existed. D99 hit the wall
+ *  and removed it.
+ *
+ *  What the throw got right is kept: crossing the line is reported HERE,
+ *  naming the count, rather than left to an unrelated test failure a future
+ *  author has to decode. `LIMIT`, `countLines` and the question itself are
+ *  IMPORTED from the ratchet that owns them — a second `200` here could
+ *  disagree with the one that actually holds the length.
+ *
+ *  Splitting the index is deliberately NOT built here. The question it needs
+ *  answered first — this file is the decision log's rules AND a generated
+ *  index that grows one line per decision, and `CLAUDE.md` pins both to it —
+ *  is `docs/plans/PLAN-OPEN.md` O35. */
+export function lineCapDiagnostic(text: string, path: string): string | null {
   const lines = countLines(text);
-  if (lines > README_LINE_CAP) {
-    throw new Error(
-      `${path} would be ${lines} lines, over the ${README_LINE_CAP}-line cap — split the ` +
-        `index (D95/D96's precedent: the named file stays the index, bodies move verbatim, ` +
-        `IDs never change) before adding another decision`,
-    );
-  }
+  if (lines <= LIMIT) return null;
+  return (
+    `${path} is ${lines} lines, over ${LIMIT} — ${DIAGNOSTIC_QUESTION} (see PLAN-OPEN O35). ` +
+    `Written anyway: the cap is a diagnostic, not a wall (D98). Its length is pinned in ` +
+    `distillation-baseline.json — run \`pnpm distillation-baseline\` if this is a new length.`
+  );
 }

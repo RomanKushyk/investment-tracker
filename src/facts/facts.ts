@@ -11,6 +11,8 @@ const countRows = (p: string, re: RegExp) =>
     .split('\n')
     .filter((l) => re.test(l)).length;
 
+const USER_SCHEMA = 'infra/migrations/drafts/003_user_schema.sql';
+
 export const FACTS: Record<string, Fact> = {
   // Cited in three live indexes. It read 51 in one and 53 in two until 2026-08-26.
   'plan.closedTasks': derived(() => countRows('docs/archive/plan-a/README.md', /^\| [A-Z]\d+ \|/)),
@@ -33,6 +35,24 @@ export const FACTS: Record<string, Fact> = {
   // parse, no git subprocess, so `pnpm facts` keeps working without git on
   // PATH and this fence costs nothing worth memoizing.
   'claims.unchecked': derived(() => countUncheckedMarkers()),
+
+  // W7's user schema, counted from the generated DDL rather than typed. D99
+  // is why these exist: its first draft stated "sixteen CHECKs, two UNIQUEs,
+  // five composite primary keys" in three files each, and all three numbers
+  // were wrong — the same drift `plan.closedTasks` above was added for, in a
+  // file that is itself generated and will keep changing until promotion.
+  //
+  // The path is the DRAFT's. Promotion moves the file up one directory, and
+  // these derivations break loudly in the same commit rather than reporting
+  // a stale count — which is the behaviour wanted: `infra/migrations/drafts/README.md`
+  // says promotion is a move, so a fact that survived it silently would be
+  // reading a file nobody promoted.
+  'userSchema.tables': derived(() => countRows(USER_SCHEMA, /^CREATE TABLE /)),
+  // Four of the five: `app_user` keys on `user_id` alone. Matches a key list
+  // with a comma inside it.
+  'userSchema.compositeKeys': derived(() => countRows(USER_SCHEMA, /PRIMARY KEY\("[^)]*","/)),
+  'userSchema.checks': derived(() => countRows(USER_SCHEMA, /CONSTRAINT "[a-z_]+_ck"/)),
+  'userSchema.uniques': derived(() => countRows(USER_SCHEMA, /CONSTRAINT "[a-z_]+_uq"/)),
 
   'dpu.observeNbu.window': measured({
     value: 0.25594,

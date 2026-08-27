@@ -10,11 +10,16 @@
 // committed to actually available here.
 //
 // WHAT THIS CANNOT PROVE: nothing about Aurora DSQL acceptance. Local
-// Postgres is the SUBSET — `CREATE INDEX ASYNC` is DSQL-only and would fail
-// here, which is why the generated SQL uses plain `CREATE INDEX` throughout;
-// promotion is what converts it (`infra/migrations/drafts/README.md`). A
-// DSQL-only rejection is invisible to this test by construction, so this
-// suite is not a substitute for first contact at promotion.
+// Postgres is the SUBSET, and this file is why BOTH halves of the index line
+// stay Postgres-shaped in the generated SQL: `CREATE INDEX ASYNC` is DSQL-only
+// and would fail here, and `USING btree` is what drizzle-kit emits and what
+// this suite needs — DSQL rejects it outright (D99). So promotion rewrites
+// every index line TWICE, inserting `ASYNC` and stripping `USING btree`
+// (`infra/migrations/drafts/README.md`); doing only the first still gives a
+// statement the cluster refuses. A DSQL-only rejection stays invisible to this
+// test by construction, so the suite is not a substitute for first contact —
+// which for the DDL has now happened (`infra/docs/dsql-ddl-first-contact.md`),
+// and for the migration RUNNER has not.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';

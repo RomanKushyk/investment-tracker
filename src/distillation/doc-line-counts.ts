@@ -8,21 +8,32 @@ import type { Baseline } from '../claims/baseline';
  *  below — see that function's own doc comment for why. */
 export const LIMIT = 200;
 
+/** The question §6 says a long file should be asked, in the one wording every
+ *  reporter uses. `src/docs-line-cap.test.ts` asks it of a file over its
+ *  baseline; `src/decisions/render.ts` asks it of the index it just wrote.
+ *  Two copies of a sentence drift into two different rules. */
+export const DIAGNOSTIC_QUESTION =
+  'a file this long usually holds more than one purpose, and the fix is to find the second one';
+
 /** `wc -l` semantics: newline count, so a file with no trailing newline is
- *  not over-counted. Shared by the docs-line-cap ratchet
+ *  not over-counted. Takes TEXT, so a caller holding a string it has not
+ *  written yet counts by the same rule as one reading a file. */
+export function countLines(text: string): number {
+  let n = 0;
+  for (const ch of text) if (ch === '\n') n += 1;
+  return n;
+}
+
+/** `countLines` of a file's contents. Shared by the docs-line-cap ratchet
  *  (`src/docs-line-cap.test.ts`) and `scripts/distillation-baseline.ts`, so
  *  the check and the regenerator can never disagree about what a line is. */
 export function lineCount(path: string): number {
-  let text: string;
   try {
-    text = readFileSync(path, 'utf8');
+    return countLines(readFileSync(path, 'utf8'));
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     throw new Error(`${path}: ${message}`);
   }
-  let n = 0;
-  for (const ch of text) if (ch === '\n') n += 1;
-  return n;
 }
 
 /** File (relative to `repoRoot`, POSIX) → line count, for every path in

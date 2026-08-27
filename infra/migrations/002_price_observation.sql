@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS price_observation (
   -- ISIN for bonds, slug for funds (contract 4). Permanently allocated, never
   -- reused, never renamed. No foreign key protects this — DSQL has none — so
   -- it is protected by never generating it, only copying it from the provider.
+  -- "DSQL has none" is RETRACTED 2026-08-27 (D99): it does, composite and
+  -- enforced. The protection this column actually relies on is unchanged and
+  -- was never the database's — see 001_price_capture.sql's header note.
   instrument_ref    TEXT        NOT NULL,
 
   -- What the number MEANS: 'buy' | 'sell' | 'nav' | 'fair' (contract 3).

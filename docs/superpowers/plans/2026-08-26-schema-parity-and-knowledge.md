@@ -168,6 +168,14 @@ converts a plain `CREATE INDEX` to `ASYNC` at promotion, and the `// … ASYNC o
 above `asset_user_created` and `transaction_user_date` are the only place that conversion is
 still recorded.
 
+> **Incomplete as executed (D99, 2026-08-27).** Promotion rewrites an index line TWICE —
+> `ASYNC` in AND `USING btree` out, which DSQL rejects outright — and the quoted comments
+> were rewritten to name both halves, so the `// … ASYNC on DSQL` text above no longer
+> exists. `infra/src/user-schema.test.ts`'s header is a second place the conversion is
+> recorded. Annotated here and in `2026-08-26-drizzle-schema-source.md` together: both
+> closed plans carried the same half-rule, and annotating one would have made the policy
+> unreadable.
+
 - [ ] **Step 5: Index the new reference doc**
 
 `docs/README.md`'s Reference table gains a row for `w7-migration-translations.md`. An index that

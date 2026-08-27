@@ -7,7 +7,10 @@ the decision you actually need — **`D<n>` is `D<n>.md`**, always.
 
 - **Append-only, and appending now means creating a file — WITH front matter.**
   A new decision is a new `D<n>.md`, carrying front matter (below) before any
-  prose, then `pnpm decisions` to regenerate its row. Skip the front matter
+  prose, then `pnpm decisions` to regenerate its row **and
+  `pnpm distillation-baseline` to record this file's new length** — since D99
+  it is over 200 lines and pinned at its own, so one command is no longer
+  enough and `pnpm test` fails naming it. Skip the front matter
   and `readDecisions` throws, naming the file — `pnpm test` fails with it, not
   silently. **D96 retired the range files** (`D01-D20.md` … `D81-D100.md`) on
   2026-08-26 for exactly that reason: the old rule sent every entry to the
@@ -187,6 +190,7 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D96](D96.md) | **One file per decision; the range files are retired** — the append rule and the 200-line cap could not compose, so the bucket they disagreed about is gone. `D<n>` is `D<n>.md` | 2026-08-26 |
 | [D97](D97.md) | **A50's re-plan: the alias changed a sort node and nothing else** — measured across nine range widths, BOTH forms pick the same access path (`Index Scan price_capture_as_of` to 1500d, `Full Scan` from 2000d), so the fix is `Sort` → `Incremental Sort` and no more. It does settle that DSQL serves a mixed-direction order from an ASC/ASC index. Warm 7-day cost is indistinguishable between forms (0.25594 against 0.25599 DPU, Read 99.3% of it). **D91's 0.356 DPU is UNREPRODUCED** — 0.26528 warm on D91's own window, and neither warmup, window content nor form accounts for the gap; **64.979 is one cold sample from the same session and untested here**. Method: one `EXPLAIN (ANALYZE)` is not a measurement, and a plan you did not run is not evidence — three of the four rounds inferred, and review caught each | 2026-08-26 |
 | [D98](D98.md) | **The cap is a diagnostic, not a wall, and live plans split by section, not ID range** — both from the verifiable-documentation design's §6. `distillation-baseline.json` gains a `docLineCounts` section pinning only a Markdown file already over 200 lines; a file at or under it is unconstrained, and growth past a pinned length is diagnosed, not blocked. `A01-A20.md`/`A41-A50.md`/`A51-A60.md`/`W02-W08.md`/`W09-W17.md`/`O05-O29.md` become `section-c.md`/`section-m.md`/`section-p.md`/`phase-w-i-ii-iii.md`/`phase-w-iv-v.md`/`still-open.md` — D96's argument for decisions, restated for plans | 2026-08-27 |
+| [D99](D99.md) | **W7's pre-condition is answered, and the answer is no** — DSQL rejects `USING btree` (`0A000 USING not supported for CREATE INDEX`) with and without `ASYNC`, and rejects a plain `CREATE INDEX` without `ASYNC` (`0A000 unsupported mode`). So promotion is TWO transformations of every index line, not one: insert `ASYNC`, strip `USING btree`. `USING` itself is not banned — `USING btree_index` is accepted and is what `pg_get_indexdef` prints, so the docs' silent grammar predicted the outcome with the wrong cause. Measured with it: all seven statements of `003_user_schema.sql` apply to the live cluster, its `CHECK`/`UNIQUE`/`DEFAULT` are enforced, `sys.wait_for_job` is a `CALL` and an accepted `CREATE INDEX ASYNC` is not yet a built index, and **DSQL now has enforced composite foreign keys**, which the drafts README stated it does not. Adding this entry also removed a 200-line wall in `pnpm decisions` that D98 had already retired everywhere else — O35 files where the index's growth should go | 2026-08-27 |
 <!-- /decisions:rows -->
 
 ## A pattern these entries kept finding

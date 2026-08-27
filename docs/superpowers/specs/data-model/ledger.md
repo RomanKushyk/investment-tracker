@@ -57,8 +57,10 @@ gap `docs/reference/FORMULA-AUDIT.md` ruling 6 left open.
 payout have its tax?" into a join rather than a date-fuzzy guess. It cannot be backfilled later,
 which is why it goes in now. Validation: a tax may not exceed the payout it settles.
 
-Aurora DSQL has **no foreign keys** — both references are application-enforced on write plus a
-nightly integrity audit. Nothing is ever deleted, so there are no cascades.
+~~Aurora DSQL has **no foreign keys**~~ — it does, measured 2026-08-27 (**D99**), composite and
+enforced. What still holds is the shipping design: both references are application-enforced on
+write plus a nightly integrity audit, and nothing is ever deleted, so there are no cascades.
+Adopting real ones is `docs/plans/PLAN-OPEN.md` **O34**, answered with **O33**.
 
 ### `account`
 

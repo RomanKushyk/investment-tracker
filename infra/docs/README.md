@@ -16,6 +16,7 @@ nothing was summarised and every measured figure is where it was written.
 | [`replan-a50.md`](replan-a50.md) | A50's re-plan of `NEWEST_CAPTURE_PER_DATE`, 2026-08-26 — **a different query from `dpu.md`'s**, same defect class; the alias changed a sort node and no access path, at nine widths (D97) | Before quoting a DPU delta, or before measuring one |
 | [`frozen-feed.md`](frozen-feed.md) | W1's detector on real data, and A20's deploy failure | The staleness alarms are in question |
 | [`migrations-and-checks.md`](migrations-and-checks.md) | A19's `as_of` migration, A6's nightly DCF check | Running a migration on DSQL |
+| [`dsql-ddl-first-contact.md`](dsql-ddl-first-contact.md) | `003_user_schema.sql` against the real cluster, 2026-08-27 — `USING btree` refused, `ASYNC` mandatory, the constraints enforced, and DSQL's foreign keys (D99). **Written after the move, not part of it** | Before assuming what DSQL accepts, or before promoting the draft |
 
 **`console-setup.md`, `role-deploy.md` and `role-cfn-exec.md` are `### ` sections
 of the README's Deploying chapter** and read as part of it, not on their own.
