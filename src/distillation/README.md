@@ -49,7 +49,7 @@ the ratchet the spec actually asked for ("a cap yields worse comments, not fewer
 glue over them, are ALSO `fences.ts` exports now — shared with `src/claims/scan.ts` rather than
 each carrying its own private copy. `commentRanges` (`src/claims/comments.ts`) extracts
 `.ts`/`.tsx` comments. `fileKind` (`src/claims/scan.ts`) and `isDeclaredDamage`/
-`KNOWN_UNPARSEABLE` (`src/claims/repo-scan.ts`) are reused for the same file-kind dispatch and
+`isDeclaredDamage` (`src/claims/repo-scan.ts`) are reused for the same file-kind dispatch and
 the same declared-damage classification the claim lint already makes.
 
 **Fenced vs. inline, `.md` alone:** `codeRanges` conflates fenced-block ranges with single-line
@@ -89,7 +89,7 @@ tracked `.ts`/`.tsx` were CRLF here), and an un-normalised count would differ by
 Three prefixes are excluded from BOTH the repeated-sentence and the history-phrase check
 (`isDistillationExempt` in `scan.ts`), each a DECLARED LIMIT:
 
-- `docs/decisions/` and `docs/archive/` — every one of the 97 `docs/decisions/D<n>.md` files
+- `docs/decisions/` and `docs/archive/` — every `docs/decisions/D<n>.md` files
   shares an identical structural footer BY DESIGN, and so does every
   `docs/archive/plan-a/section-*.md` file's "moved verbatim" line, so a brand-new decision or a
   newly-closed task — created exactly as `CLAUDE.md` instructs — would otherwise be immediately
@@ -132,23 +132,47 @@ codebase worse. That is why this check is a ratchet and not a cap.
   same CommonMark-parsing complexity `src/facts/fences.ts`'s own README already declines, for the
   same reason.
 
-## The five repeated blocks a generator would retire
+## Why the repeated split notices are NOT generated
 
-Not built here — this task's own scope stopped at the three mechanical checks — but named, as
-the honest next task the design spec's own §4 calls for ("boilerplate that must repeat becomes a
-generated block"):
+§4 says boilerplate that must repeat becomes a generated block. The notices the
+2026-08-26 split left on its child files are the biggest repeated group anyone has pointed at, and they
+stay hand-written. The reason is what happened when this section tried to count them.
 
-| Instances | Files | The sentence |
-|---|---|---|
-| 11 | `docs/design-briefs/*.md` | "**Split 2026-08-26 (D95)** — moved **verbatim** so no file exceeds 200 lines." |
-| 11 | `docs/design-briefs/phase-6/*.md` | "The brief keeps its title, its owner decisions and its acceptance; only the long sections moved. **Read the brief first, and [`constraints.md`](constraints.md)** …" |
-| 9 | `docs/design-briefs/{asset-create,phase-5}/*.md` | Same lead sentence, a different tail: "**Read the brief first** — a surface section is written under c[onstraints stated there]…" |
-| 7 | `infra/docs/*.md` | "Moved **verbatim** from [`../README.md`](../README.md) on 2026-08-26 (D95)." |
-| 6 | `docs/superpowers/plans/*.md` | "**For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development …" |
+**Five attempts to count the notices gave five answers** — 57, 51, 58, 65 and 89 — because
+each used a slightly different pattern: whether the parent is a link or a code span,
+whether `(D95)` is present, whether the `from [parent]` clause appears at all. Four of
+the five were written down as fact. None is the right one: the question has no single
+answer, which is what the counting actually established.
 
-All five are D95/D96-era navigation boilerplate. Retiring any of them is real work with its own
-design questions — which files, what marker delimits the generated span, what content stays
-authoritative — deliberately out of this task's scope.
+That is the argument. A generator has to be keyed on an exact sentence, and there is no
+exact sentence here — there is a family of them, and the boundary between "the same
+notice" and "a different one" is a judgement no pattern settles. A generator would either
+rewrite notices it should not touch, or miss the ones it should.
+
+Two things are true regardless of the count. Many of the notices live under
+`docs/archive/`, which is frozen, so neither a pass nor a generator may normalise them.
+And each notice carries a tail saying what THAT file holds — `docs/reference/deployment/`
+alone carries four — which a generator must leave alone. What is left to generate is one
+short sentence whose only variable is the parent reference.
+
+Against that: a marker in every child file, a generator, its tests, and a fifth
+regeneration step whose ordering against `pnpm facts` and `pnpm decisions` would have to
+be remembered. The ratchet above already stops the group growing.
+
+The ratchet's own largest group is the parent-side `Split 2026-08-26 (D95)…`, not the
+child notice: the parent reference is part of the normalised key, so the child sentence
+never forms one group. Any count of "the notices" is a hand measurement, not something
+the mechanism sees — which is the same problem from the other side.
+
+**Revisit** when a second split needs the same notice under different rules, or when the
+sentence can be stated exactly enough that two people counting it agree.
+
+### The other repeated block, still deferred
+
+`REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development…` appears in 6 plan
+documents. Not a split notice, no per-file tail, identical in every copy — the one group
+here that §4's answer fits. Generating it belongs to whatever writes plans, not to this
+module, which only counts.
 
 ## Layout
 

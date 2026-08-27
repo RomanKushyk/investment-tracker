@@ -1,7 +1,8 @@
 # Amplify plan — the verification commands
 
-> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** **One link was re-pointed on the move** — the `DEPLOYMENT.md` reference gained a `../` for the extra folder level; nothing else changed. Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted.
+> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** **One link was re-pointed on the move** — the `DEPLOYMENT.md` reference gained a `../` for the extra folder level; nothing else changed. Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted. A fence the split had cut was closed on 2026-08-27: the commands below regained the `bash` opener the split had left in the previous file. Nothing else was touched.
 
+```bash
 # 1. Root loads
 curl -sS -o /dev/null -w 'root=%{http_code}\n' "$BASE/"
 

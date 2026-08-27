@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { KNOWN_UNPARSEABLE } from '../claims/repo-scan';
 import { BASELINE_PATH, diffBaseline, loadBaseline } from './baseline';
 import { scanRepo } from './repo-scan';
 
@@ -18,10 +17,9 @@ import { scanRepo } from './repo-scan';
 // the growth and running the regenerate script is how a legitimate increase
 // gets accepted.
 //
-// `KNOWN_UNPARSEABLE` (imported) is `src/claims/repo-scan.ts`'s own pinned
-// list — this module walks the identical target list through the identical
-// `codeRanges`/`commentRanges` range-finders as the claim lint, so it hits
-// the same declared damage; shared rather than a second copy.
+// The scan must be able to read every tracked file: one it cannot parse is a
+// document nothing checks. Asserted empty rather than compared against a pinned
+// list, so adding a path to that list cannot buy a green run.
 
 /** Truncates a sentence excerpt for a one-line failure message — the exact
  *  text is not the point, enough of it to recognise by eye is. */
@@ -42,8 +40,8 @@ describe('the distillation ratchets', () => {
     expect(Object.keys(scan.commentChars).length).toBeGreaterThan(0);
   });
 
-  it('the unparseable list is exactly the known, already-out-of-scope set — no more, no fewer', () => {
-    expect([...scan.unparseable].sort()).toEqual([...KNOWN_UNPARSEABLE].sort());
+  it('every tracked file is scannable — the unparseable list is empty and must stay so', () => {
+    expect(scan.unparseable).toEqual([]);
   });
 
   it('has no unexpected scan error — never pinned, because none should exist in a clean tree', () => {

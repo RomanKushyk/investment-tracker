@@ -1,6 +1,6 @@
 # Amplify plan — D15 as first written
 
-> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted.
+> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted. A fence the split had cut was closed on 2026-08-27: the closer at line 33 and the opener at the end were removed, and Step 5's instruction gained a pointer. Nothing else was touched.
 
 ## D15 — Deploy: Amplify Hosting manual-deploy app driven by GitHub Actions (2026-07-29)
 
@@ -30,7 +30,8 @@ spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
 - **Public URL is not a data exposure:** every figure is derived in-browser from IndexedDB
   and nothing is transmitted (there is no backend to transmit to). A visitor gets the demo
   seed; the P2 `kubushka-live` dataset never leaves the owner's browser.
-```
+
+---
 
 - [ ] **Step 4: Add the `docs/README.md` row and conventions line**
 
@@ -105,6 +106,4 @@ In the GitHub UI, Settings → Secrets and variables → Actions shows `AMPLIFY_
 
 - [ ] **Step 5: Record the concrete values in `docs/reference/DEPLOYMENT.md`**
 
-Insert immediately after the intro paragraphs, before `## 1`:
-
-```markdown
+Insert immediately after the intro paragraphs, before `## 1`. The section as written opens [`04-deploy-script-and-tests.md`](04-deploy-script-and-tests.md) and ends with its `- IAM role:` bullet; the `Replace <appId>` line after it is an instruction about the section, not part of it.

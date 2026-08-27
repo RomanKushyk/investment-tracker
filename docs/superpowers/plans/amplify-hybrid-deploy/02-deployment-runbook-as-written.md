@@ -1,6 +1,6 @@
 # Amplify plan — the deployment doc as first written, §2 to §6
 
-> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted.
+> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted. A fence the split had cut was closed on 2026-08-27: the closer at line 60 and the opener at the end were removed, and Step 3's instruction gained a pointer. Nothing else was touched.
 
 ## 2. GitHub repository configuration
 
@@ -57,7 +57,6 @@ Amplify's free tier is **12 months only** for new accounts (1,000 build min/mo, 
 served, 5 GB CDN storage) — there is no always-free tier afterwards. Because builds run in
 GitHub Actions (unlimited-free on public repos), Amplify bills only storage
 (~1.8 MB ≈ $0.00004/mo) and transfer ($0.15/GB). Solo use is effectively $0/mo.
-````
 
 - [ ] **Step 2: Verify the doc renders and has no broken internal links**
 
@@ -71,6 +70,4 @@ Expected: file exists; the fence count is **even** (unbalanced fences break rend
 
 - [ ] **Step 3: Append D15 to `docs/decisions/README.md`**
 
-Append at the very bottom (the file is append-only), matching the existing `## Dn — Title (date)` heading style:
-
-```markdown
+Append at the very bottom (the file is append-only), matching the existing `## Dn — Title (date)` heading style. The entry as written opens [`03-d15-as-written.md`](03-d15-as-written.md), and ends where its next `- [ ] **Step` begins.

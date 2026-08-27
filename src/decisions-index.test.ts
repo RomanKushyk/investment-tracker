@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { renderRow, spliceGeneratedRows } from './decisions/render';
 import { DECISIONS_DIR, readDecisions, validateDecisions } from './decisions/records';
 
-// docs/superpowers/specs/2026-08-26-verifiable-documentation-design.md §3: the 97
+// docs/superpowers/specs/2026-08-26-verifiable-documentation-design.md §3: the
 // decisions' front matter (id/date/summary/amends — see src/decisions/frontMatter.ts for
 // why not the spec's original title/supersedes/superseded_by) is the source of truth for
 // `docs/decisions/README.md`'s three index tables — hand-maintaining a table ABOUT 97

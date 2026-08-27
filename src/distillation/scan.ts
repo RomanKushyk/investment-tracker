@@ -378,7 +378,7 @@ export function historyCountsByFile(hits: readonly HistoryHit[]): Record<string,
  *  - `docs/decisions/` and `docs/archive/` — narrating history is what a
  *    decision record is FOR (§4's "git already holds it" rationale does not
  *    apply to a document whose job is to make that history discoverable as
- *    prose), and every one of the 97 `docs/decisions/D<n>.md` files shares
+ *    prose), and every `docs/decisions/D<n>.md` files shares
  *    an identical structural footer BY DESIGN, as does every
  *    `docs/archive/plan-a/section-*.md` file's "moved verbatim" line — a
  *    new decision or a newly-closed task, created exactly as `CLAUDE.md`
@@ -399,7 +399,16 @@ export function historyCountsByFile(hits: readonly HistoryHit[]): Record<string,
  *  unflagged — accepted, since both are already governed by their own
  *  mechanisms (D96 immutability, the D95 "moved verbatim" archival
  *  convention), not this ratchet. */
-const DISTILLATION_EXEMPT_PREFIXES = ['docs/decisions/', 'docs/archive/', 'src/distillation/'];
+const DISTILLATION_EXEMPT_PREFIXES = [
+  'docs/decisions/',
+  'docs/archive/',
+  'src/distillation/',
+  // Closed plan records that transcribe maintained text verbatim. Counting them
+  // charges the MAINTAINED file for its own copy: unfreezing these to the scanner
+  // raised docs/reference/DEPLOYMENT.md from 2 hits to 7, i.e. five units of slack
+  // on a live runbook sourced from a frozen draft of itself.
+  'docs/superpowers/plans/amplify-hybrid-deploy/',
+];
 
 function isDistillationExempt(relPath: string): boolean {
   return DISTILLATION_EXEMPT_PREFIXES.some((prefix) => relPath.startsWith(prefix));

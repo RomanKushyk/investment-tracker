@@ -70,7 +70,7 @@ count). Running `pnpm claim-baseline` twice in a row must change nothing.
 | `scan.ts` | The three rule patterns, `Claim`/`Rule`/`fileKind`, `scanFile` (the masking/dispatch by file kind), `countUnchecked` |
 | `comments.ts` | `commentRanges(text, fileName)` — the `.ts`/`.tsx` comment extractor, built on TypeScript's own parser (`ts.createSourceFile` + `getChildren()`), not a hand-rolled scanner; `PARSE_ERROR_PREFIX` names its declared failure mode |
 | `target-files.ts` | `claimTargetFiles` — the repo walk, reusing `repoFiles`/`SKIP` from `src/facts/markdown-files.ts`, scoped to `git ls-files` |
-| `repo-scan.ts` | `scanRepo` — reads every target file and calls `scanFile`; the one place in this mechanism that touches disk; `isDeclaredDamage` is its `catch`'s classification, exported for its own test; `KNOWN_UNPARSEABLE` is the pinned four-file list both this module's and `src/distillation/`'s own lint tests assert against, shared rather than duplicated |
+| `repo-scan.ts` | `scanRepo` — reads every target file and calls `scanFile`; the one place in this mechanism that touches disk; `isDeclaredDamage` is its `catch`'s classification, exported for its own test; the unparseable list is asserted EMPTY — both this module's and `src/distillation/`'s own lint tests assert against, shared rather than duplicated |
 | `baseline.ts` | `Baseline`, `loadBaseline`/`serializeBaseline`, `countsFromClaims`, `diffBaseline` |
 | `claim-lint.test.ts` | **Not app code.** The repo-wide ratchet check — the real scan against the real `claim-baseline.json` |
 

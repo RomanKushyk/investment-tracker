@@ -66,7 +66,7 @@ Docs only. No AWS account values exist yet — this task writes the *procedure*,
 
 - [ ] **Step 1: Create `docs/reference/DEPLOYMENT.md`**
 
-Write exactly this content:
+Write exactly the content of [`amplify-hybrid-deploy/01-deployment-setup-as-written.md`](amplify-hybrid-deploy/01-deployment-setup-as-written.md) and then §2 to §6 of [`amplify-hybrid-deploy/02-deployment-runbook-as-written.md`](amplify-hybrid-deploy/02-deployment-runbook-as-written.md), each below its own split banner — one block spanned all three files before the 2026-08-26 split.
 
 ## The rest of it is in `amplify-hybrid-deploy/`
 

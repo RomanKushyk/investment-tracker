@@ -1,6 +1,6 @@
 # Amplify plan — §0 live app, the deploy script and its tests
 
-> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted.
+> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted. A fence the split had cut was closed on 2026-08-27: the closer at line 12 and the opener at the end were removed, and Step 6's instruction gained a pointer. Nothing else was touched.
 
 ## 0. Live app
 
@@ -9,7 +9,6 @@
 - Region: `eu-central-1`
 - IAM role: `kubushka-github-deploy` (ARN held in the `AWS_ROLE_ARN` repo secret; the
   account ID stays out of this file deliberately)
-```
 
 Replace `<appId>` with the real ID in both lines. Leave the account ID out.
 
@@ -150,4 +149,4 @@ Expected: mode `100755`.
 
 - [ ] **Step 6: Create `scripts/README.md`**
 
-```markdown
+The file as written opens [`05-scripts-readme-and-workflow.md`](05-scripts-readme-and-workflow.md), and ends where its next `- [ ] **Step` begins.

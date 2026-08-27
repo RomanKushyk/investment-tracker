@@ -1,6 +1,6 @@
 # Amplify plan — the scripts/ README and the workflow, as written
 
-> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted.
+> Moved **verbatim** from [`../2026-07-29-amplify-hybrid-deploy.md`](../2026-07-29-amplify-hybrid-deploy.md) on 2026-08-26 (D95). **This plan is CLOSED — executed 2026-07-29, do not run it.** Much of it is the text that was written INTO `docs/reference/DEPLOYMENT.md` and D15; those are maintained, this is the record of what was drafted. A fence the split had cut was closed on 2026-08-27: the closer at line 25 was removed, the trailing `bash` block was closed, and a pointer follows it. Nothing else was touched.
 
 # scripts/ — operational shell scripts
 
@@ -22,7 +22,8 @@ imported by `src/`.
   carry it and the Linux runner needs it.
 - No AWS credentials or account IDs in this folder; CI supplies them via OIDC.
 - Operational context belongs in `docs/reference/DEPLOYMENT.md`, not in comments here.
-```
+
+---
 
 - [ ] **Step 7: Verify the repo still lints and typechecks**
 
@@ -176,3 +177,6 @@ Substitute the real app ID:
 
 ```bash
 BASE=https://dev.<appId>.amplifyapp.com
+```
+
+The commands that use it are [`06-verification-commands.md`](06-verification-commands.md).

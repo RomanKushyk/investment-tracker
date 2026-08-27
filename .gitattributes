@@ -5,3 +5,8 @@
 # on a Windows checkout, or infra/src/schema-generated.test.ts's comparison
 # would be diffing against a file git itself considers unchanged.
 *.sql text eol=lf
+# Markdown blobs are LF and a Windows checkout must not flip them: an edit that
+# detects the line ending from the working copy then commits CRLF, and git skips
+# CRLF cleaning for a path whose blob already has it, so the damage is sticky.
+# One branch lost a five-line repair inside a 1,190-line phantom diff that way.
+*.md text eol=lf

@@ -23,6 +23,10 @@ the decision you actually need — **`D<n>` is `D<n>.md`**, always.
   one says what replaced it and why. `D43` is the worked example: the original
   diagnosis is kept directly under its replacement, labelled, because being
   wrong about *which* of five explanations held is the reusable lesson.
+  **The front matter is not the entry.** `id`/`date`/`summary`/`amends` were
+  added on 2026-08-27 to generate the table below; correcting a `summary` that
+  says something the entry does not is a metadata fix, not a rewrite. The prose
+  under the heading is what may never change.
 - **A contract change requires an entry.** Pinned contracts in
   `../archive/BUILD-PLAN.md` and `../plans/NEXT-PHASE-PLAN.md` stay binding
   until a decision here supersedes them.
@@ -100,7 +104,7 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D21](D21.md) | Fixed-yield automation: accrual ghosts, coupon confirm, projection fallback | 2026-08-04 |
 | [D22](D22.md) | Reminders: derived ids, self-expiring dismissals, one toast per open | 2026-08-04 |
 | [D23](D23.md) | Coupon occurrences are derived from the grid, not from the pointer | 2026-08-04 |
-| [D24](D24.md) | Import replaces, never merges: validate → diff → confirm → one transaction | 2026-08-04 |
+| [D24](D24.md) | Import replaces, never merges: validate → diff → confirm → one rw transaction | 2026-08-04 |
 | [D25](D25.md) | `neg-tint` widened to irreversible-harm framing at block scale | 2026-08-04 |
 | [D26](D26.md) | A price archive exists; the app is still local | 2026-08-11 |
 | [D27](D27.md) | No single source of truth for prices; the axis is backfillability | 2026-08-11 |
@@ -115,7 +119,7 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D36](D36.md) | Three sign-in methods, one account per email | 2026-08-11 |
 | [D37](D37.md) | Watching the 10,000 MAU free tier: what exists and what does not | 2026-08-11 |
 | [D38](D38.md) | Registration is an application, not an open door | 2026-08-11 |
-| [D39](D39.md) | Applications never touch Cognito; onboarding is passkey-first; SES with W7 | 2026-08-11 |
+| [D39](D39.md) | Applications never touch Cognito; onboarding is passkey-first; SES lands with W7 | 2026-08-11 |
 | [D40](D40.md) | The domain is `quirenote.com` | 2026-08-11 |
 <!-- /decisions:rows -->
 
@@ -138,7 +142,7 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D51](D51.md) | The NBU rate is fetched on request, and every failure is an HTTP 200 | 2026-08-12 |
 | [D52](D52.md) | A price cannot tell you both when it was struck and at what yield | 2026-08-12 |
 | [D53](D53.md) | What the xhigh review found, and the two fixes that were wrong first | 2026-08-12 |
-| [D54](D54.md) | The brand fonts cannot write the app default language | 2026-08-12 |
+| [D54](D54.md) | The brand fonts cannot write the app's default language | 2026-08-12 |
 | [D55](D55.md) | The display face is chosen on figures, not on cap-height | 2026-08-12 |
 | [D56](D56.md) | Nested radii are concentric, standalone radii are proportional | 2026-08-12 |
 | [D57](D57.md) | The theme is one list of values, stamped as an answer | 2026-08-13 |
@@ -146,7 +150,7 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D59](D59.md) | Production is a branch, and the domain is what makes that real | 2026-08-14 |
 | [D60](D60.md) | The repository is public, writable by one account, and rewritable by none | 2026-08-14 |
 | [D61](D61.md) | Production sits behind Cloudflare's edge; the records that must not be proxied are named | 2026-08-14 |
-| [D62](D62.md) | SMS is not a way around the SES denial; it trades one queue for two at 1,615x the price | 2026-08-14 |
+| [D62](D62.md) | SMS is not a way around the SES denial; it trades one queue for two at 1,615× the price | 2026-08-14 |
 | [D63](D63.md) | The environment split stops at the user's data; the archive has none | 2026-08-14 |
 | [D64](D64.md) | The capture retries by firing again, not by waiting longer — **its guard DPU figure is superseded by D90** (~73/month, not ~6); its 0.3%-of-allowance figure was overtaken by D90, whose 1.6% D91 in turn supersedes. **No current replacement**: 0.3% is a year-1 projection and D91's 0.17% is a measurement of a much smaller archive — not comparable. The ruling stands throughout | 2026-08-14 |
 | [D65](D65.md) | Scrolling is a drawn surface, and its gutter is the parent's padding, not the child's | 2026-08-17 |

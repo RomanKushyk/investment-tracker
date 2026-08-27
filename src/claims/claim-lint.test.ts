@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FACTS } from '../facts/facts';
 import { BASELINE_PATH, countsFromClaims, diffBaseline, loadBaseline } from './baseline';
-import { scanRepo, KNOWN_UNPARSEABLE } from './repo-scan';
+import { scanRepo } from './repo-scan';
 
 // The ratchet (design spec §2, "the ratchet"): claim-baseline.json holds a
 // per-file count. A file whose live claim count exceeds its baseline entry
@@ -11,11 +11,9 @@ import { scanRepo, KNOWN_UNPARSEABLE } from './repo-scan';
 // lowering the baseline is `pnpm claim-baseline`'s job, not a hand edit —
 // see scripts/claim-baseline.ts.
 //
-// `KNOWN_UNPARSEABLE` (imported) is `repo-scan.ts`'s own pinned list of the
-// four pre-existing files the 2026-08-26 D95 split left with a fenced code
-// block cut across a file boundary — shared with
-// `src/distillation/distillation-lint.test.ts` rather than each test
-// carrying its own copy, since both walk the same scan over the same list.
+// The scan must be able to read every tracked file: one it cannot parse is a
+// document nothing checks. Asserted empty rather than compared against a pinned
+// list, so adding a path to such a list cannot buy a green run.
 
 describe('the claim-lint ratchet', () => {
   const { claims, unparseable, errors } = scanRepo(new Set(Object.keys(FACTS)));
@@ -27,8 +25,8 @@ describe('the claim-lint ratchet', () => {
     expect(claims.length).toBeGreaterThan(0);
   });
 
-  it('the unparseable list is exactly the known, already-out-of-scope set — no more, no fewer', () => {
-    expect([...unparseable].sort()).toEqual([...KNOWN_UNPARSEABLE].sort());
+  it('every tracked file is scannable — the unparseable list is empty and must stay so', () => {
+    expect(unparseable).toEqual([]);
   });
 
   it('has no unexpected scan error — never pinned, because none should exist in a clean tree', () => {

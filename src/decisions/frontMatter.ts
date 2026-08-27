@@ -62,7 +62,7 @@ export function unquoteYaml(raw: string): string {
 // CRLF because of core.autocrlf on a Windows checkout, and CI checks out
 // the LF blob directly. A hard-coded `\r\n` here means this regex — and the
 // `block.split` below — match nothing on that checkout, and every one of
-// the 97 decisions throws "no front matter block found".
+// a decision file throws "no front matter block found".
 const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n\r?\n/;
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

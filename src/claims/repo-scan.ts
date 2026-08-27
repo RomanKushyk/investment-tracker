@@ -25,40 +25,15 @@ export function isDeclaredDamage(message: string): boolean {
   return DECLARED_DAMAGE.some((d) => message.includes(d));
 }
 
-/** The four files `RepoScan.unparseable`'s own doc comment (below) explains
- *  in full — read that, not this. Exported so `claim-lint.test.ts` and
- *  `src/distillation/distillation-lint.test.ts` — both walking the same
- *  `claimTargetFiles()` list through the same `codeRanges` scan, so both
- *  hit the identical damage — pin the SAME list instead of each carrying
- *  its own copy. `as const`: a pinned list is not a caller's to mutate, and
- *  before this both call sites only avoided doing so by convention. */
-export const KNOWN_UNPARSEABLE = [
-  'docs/superpowers/plans/amplify-hybrid-deploy/02-deployment-runbook-as-written.md',
-  'docs/superpowers/plans/amplify-hybrid-deploy/03-d15-as-written.md',
-  'docs/superpowers/plans/amplify-hybrid-deploy/04-deploy-script-and-tests.md',
-  'docs/superpowers/plans/amplify-hybrid-deploy/05-scripts-readme-and-workflow.md',
-] as const;
-
 export interface RepoScan {
   claims: Claim[];
   /** Files this scan could not parse at all — see `DECLARED_DAMAGE` above.
-   *  Five instances of the Markdown kind are known: the 2026-08-26 D95
-   *  split cut a single fenced code block across file boundaries in four
-   *  sibling plan documents (`amplify-hybrid-deploy/02` through `05`),
-   *  where the closer now lives in a different file than its opener;
-   *  reconstructing that was already tried and reverted by a prior task,
-   *  which ruled it out of scope, not something to redo here on this
-   *  task's own judgement. The fifth — the parent
-   *  `2026-07-29-amplify-hybrid-deploy.md` — was the SAME split, one level
-   *  up: the fenced block's actual content moved into `amplify-hybrid-
-   *  deploy/`, and the split's own navigation heading landed right where
-   *  that content used to be, leaving an opener with nothing left to
-   *  close. Fixed by deleting the orphan opener (not by adding a closer
-   *  around nothing, which a first attempt at this got wrong), so it was
-   *  never added to this list. The four that remain are skipped rather than
-   *  crashing the whole scan — `claim-lint.test.ts` pins this exact list,
-   *  so a new file joining it (of either damage kind) still fails a test
-   *  instead of silently losing claim-lint coverage. */
+   *  Empty in practice: the 2026-08-26 D95 split had cut five fenced blocks across
+   *  seven documents — the first spanned three, with 01 wholly inside it —
+   *  and the 2026-08-27 repair closed every one, so
+   *  `KNOWN_UNPARSEABLE` holds nothing and every tracked file is scanned. A
+   *  file landing here is skipped rather than crashing the whole scan, and
+   *  `claim-lint.test.ts` pins the list, so one joining still fails a test. */
   unparseable: string[];
   /** Files where `scanFile` threw something OTHER than declared damage — a
    *  real bug in this module, or a genuine authoring mistake (a malformed
