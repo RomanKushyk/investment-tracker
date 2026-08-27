@@ -181,7 +181,7 @@ module, which only counts.
 | `scan.ts` | The three checks' pure logic — `sentenceHits`/`groupRepeated`/`repeatedCountsByFile`, `commentChars`, `historyHits`/`historyHitsInProse`/`wrapOnlyHistoryHits`/`historyCountsByFile`, `HISTORY_PHRASES`, `fencedRanges`, and `scanFile` (the per-file-kind dispatch, mirroring `src/claims/scan.ts`'s own) |
 | `repo-scan.ts` | `scanRepo` — the one place in this mechanism that touches disk: walks `claimTargetFiles()`, calls `scanFile`, aggregates the repo-wide sentence groups, and classifies declared vs. unexpected scan errors |
 | `baseline.ts` | `DistillationBaseline` (I/O shape, all four sections), `loadBaseline`/`serializeBaseline` (all four), `diffBaseline` (the three checks ONLY — three calls into `src/claims/baseline.ts`'s own `diffBaseline`, reused not reimplemented) |
-| `doc-line-counts.ts` | `docLineCounts`/`lineCount`/`LIMIT` — the fourth section's scanner; unrelated to the three checks above, shared by `../docs-line-cap.test.ts` and `scripts/distillation-baseline.ts` |
+| `doc-line-counts.ts` | `docLineCounts`/`lineCount`/`authoredLines`/`LIMIT`/`DIAGNOSTIC_QUESTION`/`GENERATED_OPEN`/`GENERATED_CLOSE` — the fourth section's scanner; unrelated to the three checks above, shared by `../docs-line-cap.test.ts`, `scripts/distillation-baseline.ts` and (for everything but `docLineCounts`) `../decisions/render.ts`. **Since D102 the unit is AUTHORED lines**: rows a block generator wrote between its own markers are subtracted, so an index does not trip a diagnostic about holding two purposes |
 | `distillation-lint.test.ts` | **Not app code.** The repo-wide ratchet check — the real scan against the real `distillation-baseline.json`, same shape as `src/claims/claim-lint.test.ts` |
 
 Every module above ships a colocated `*.test.ts` except `distillation-lint.test.ts` itself,
@@ -194,7 +194,7 @@ machinery (§6 reuses it rather than growing a fifth mechanism), but it is not o
 checks above and `diffBaseline` in `baseline.ts` does not touch it — `../docs-line-cap.test.ts`
 loads `baseline.docLineCounts` and diffs it directly with `src/claims/baseline.ts`'s own
 `diffBaseline`, the identical primitive, one level down. Only a Markdown file already over 200
-lines gets an entry at all (`doc-line-counts.ts`'s own doc comment says why: pinning every file's
+AUTHORED lines (D102) gets an entry at all (`doc-line-counts.ts`'s own doc comment says why: pinning every file's
 exact length, the first cut of this ratchet, baselined the length of the owner's two hand-edited
 draft files — `USER-FEATURES-DRAFT.md`, `USER-BUGS-DRAFT.md` — as committed integers, which is
 private uncommitted state leaking into the repository by another name). A file at or under 200 is

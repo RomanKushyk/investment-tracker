@@ -38,7 +38,7 @@ Section P running ahead of Section M already had.
   `../decisions/`, from `infra/README.md` and from each other. A split or a
   rename moves a body between files; neither renumbers one.
 - **Moving is not rewriting.** Bodies move verbatim. Tidying in transit is the
-  one thing that breaks a caller — the same rule `../decisions/README.md` states
+  one thing that breaks a caller — the same rule `../decisions/RULES.md` states
   for entries, and for the same reason.
 - **The 200-line cap is a ratchet, not a wall (D95, ratcheted by D98).** A file
   may not grow past its own committed length in `distillation-baseline.json`;

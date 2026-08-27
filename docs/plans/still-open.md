@@ -153,4 +153,5 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D40 — `quirenote.com` acquired | A11 unblocked; DKIM/SPF/DMARC records specified, DNS kept off Route 53 | `PLAN-NOW.md` A11 |
 | D41 — product renamed, machines not | Shipped in the same commit; no follow-up work | — |
 | D101 — W7 ships no foreign keys | **No task**, and the row is here only so the trail does not stop: the ruling is an absence, and what it produced is a widened question rather than work. The measurements behind it are written up in `infra/docs/dsql-alter-limits.md` | — (the question moved to `PLAN-OPEN.md` O33) |
+| D102 — the decision index sheds its rules | `docs/decisions/RULES.md` created; the length cap counts authored lines; D99's two-command rule reverted in all three instruction sites | — (shipped in the ruling itself) |
 

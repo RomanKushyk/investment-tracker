@@ -1,5 +1,11 @@
 import { codeRanges, inCode } from '../facts/fences';
-import { countLines, DIAGNOSTIC_QUESTION, LIMIT } from '../distillation/doc-line-counts';
+import {
+  authoredLines,
+  DIAGNOSTIC_QUESTION,
+  GENERATED_CLOSE,
+  GENERATED_OPEN,
+  LIMIT,
+} from '../distillation/doc-line-counts';
 import type { DecisionRecord } from './records';
 
 /** One or two table row lines for a decision — two only for the D43 case,
@@ -21,8 +27,11 @@ function recordsInRange(
   return records.filter((r) => r.num >= from && (to === null || r.num <= to));
 }
 
-const OPEN_PREFIX = '<!-- decisions:rows ';
-const CLOSE_TAG = '<!-- /decisions:rows -->';
+// Imported, not re-declared: `authoredLines` subtracts exactly the regions
+// this fills, and a second copy of the syntax here would let the two drift
+// into disagreement — silently, on the counting side.
+const OPEN_PREFIX = GENERATED_OPEN;
+const CLOSE_TAG = GENERATED_CLOSE;
 
 // `\r?\n` — NOT a hard-coded `\r\n`. See src/decisions/frontMatter.ts for the
 // same fix on the read side: this tree reads CRLF only because of
@@ -180,20 +189,22 @@ export function spliceGeneratedRows(readme: string, records: DecisionRecord[]): 
  *
  *  What the throw got right is kept: crossing the line is reported HERE,
  *  naming the count, rather than left to an unrelated test failure a future
- *  author has to decode. `LIMIT`, `countLines` and the question itself are
+ *  author has to decode. `LIMIT`, `authoredLines` and the question itself are
  *  IMPORTED from the ratchet that owns them — a second `200` here could
  *  disagree with the one that actually holds the length.
  *
- *  Splitting the index is deliberately NOT built here. The question it needs
- *  answered first — this file is the decision log's rules AND a generated
- *  index that grows one line per decision, and `CLAUDE.md` pins both to it —
- *  is `docs/plans/PLAN-OPEN.md` O35. */
+ *  O35 asked which of the index's two purposes should move, and **D102
+ *  answered both**: the log's rules left for `docs/decisions/RULES.md`, and
+ *  the count below became AUTHORED lines. So this diagnostic now fires only
+ *  when a person has written `LIMIT` lines of prose into a file that is
+ *  supposed to be an index — which is the case worth reporting. */
 export function lineCapDiagnostic(text: string, path: string): string | null {
-  const lines = countLines(text);
+  const lines = authoredLines(text);
   if (lines <= LIMIT) return null;
   return (
-    `${path} is ${lines} lines, over ${LIMIT} — ${DIAGNOSTIC_QUESTION} (see PLAN-OPEN O35). ` +
-    `Written anyway: the cap is a diagnostic, not a wall (D98). Its length is pinned in ` +
-    `distillation-baseline.json — run \`pnpm distillation-baseline\` if this is a new length.`
+    `${path} has ${lines} AUTHORED lines (generated rows excluded), over ${LIMIT} — ` +
+    `${DIAGNOSTIC_QUESTION}. Written anyway: the cap is a diagnostic, not a wall (D98, D102). ` +
+    `Its length is pinned in distillation-baseline.json — run \`pnpm distillation-baseline\` ` +
+    `if this is a new length.`
   );
 }

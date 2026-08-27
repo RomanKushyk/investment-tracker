@@ -19,6 +19,15 @@ import { markdownFiles, REPO } from './facts/markdown-files';
 // bumped — reported with the diagnostic question, not an instruction to
 // split.
 //
+// **D102 changed what a line is here:** the count is AUTHORED lines, so
+// whatever a generator wrote between its own markers is subtracted. The
+// diagnostic asks whether a file holds more than one purpose, and a row
+// emitted per decision is data, not a purpose — `docs/decisions/README.md`
+// was tripping a question it could not answer, once per decision. The guard
+// stays live on the authored half, which is the half that can hold a second
+// purpose; exempting the file outright would have switched it off for the
+// prose too.
+//
 // It lives in `src/` because that is where the toolchain runs; it governs the whole
 // repository, which is the one exception to src/README's structure table.
 
@@ -51,8 +60,8 @@ describe('documentation line-count ratchet (D95, ratcheted by D98)', () => {
       .sort((a, b) => b.actual - a.actual)
       .map(
         (d) =>
-          `${d.file}: ${d.actual} lines, baseline allows ${d.baseline} (+${d.actual - d.baseline}) ` +
-          `— over ${LIMIT} lines: ${DIAGNOSTIC_QUESTION}`,
+          `${d.file}: ${d.actual} authored lines, baseline allows ${d.baseline} (+${d.actual - d.baseline}) ` +
+          `— over ${LIMIT} authored lines (generated rows excluded, D102): ${DIAGNOSTIC_QUESTION}`,
       );
     expect(lines).toEqual([]);
   });
@@ -66,9 +75,20 @@ describe('documentation line-count ratchet (D95, ratcheted by D98)', () => {
 });
 
 describe('the decision log is one file per decision (D96)', () => {
-  const decisions = REL_FILES.filter(
-    (f) => f.startsWith('docs/decisions/') && f !== 'docs/decisions/README.md',
-  );
+  // The only two files in the folder that are NOT entries: the generated index
+  // and, since D102, the log's rules. Naming them here is the hazard this
+  // whole suite is about — a list an author can extend to make a red run
+  // green. The first test below is what makes that impossible, and it had to
+  // be written: the earlier claim was that "no gap in the sequence" covered
+  // it, and a code review showed it does not — hiding the HIGHEST decision, or
+  // any suffix of them, leaves [1..n] contiguous and passes.
+  const NOT_ENTRIES = new Set(['docs/decisions/README.md', 'docs/decisions/RULES.md']);
+  const decisions = REL_FILES.filter((f) => f.startsWith('docs/decisions/') && !NOT_ENTRIES.has(f));
+
+  it('cannot be made green by hiding a decision — NOT_ENTRIES holds no `D<n>.md`', () => {
+    // Truncation, not gaps: hiding D102 leaves [1..101] contiguous.
+    expect([...NOT_ENTRIES].filter((f) => /\/D\d+\.md$/.test(f))).toEqual([]);
+  });
 
   it('has no range files left, and none may come back', () => {
     // `D41-D50.md` held D41-D60 and `D61-D80.md` held D81-D83: a filename asserting

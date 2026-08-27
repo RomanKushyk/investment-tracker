@@ -10,3 +10,11 @@
 # CRLF cleaning for a path whose blob already has it, so the damage is sticky.
 # One branch lost a five-line repair inside a 1,190-line phantom diff that way.
 *.md text eol=lf
+
+# Machine-written JSON. With `core.autocrlf=true` and no attribute, CHECKOUT
+# gives the working copy CRLF while the blob stays LF; a regenerator then
+# rewrites the file LF, and the pair reads as MODIFIED with an empty textual
+# diff until git next touches it. Noise after every run, and on 2026-08-28 it
+# blocked a rebase mid-merge. A pattern rather than two names, so the next
+# machine-written JSON does not silently miss it.
+*.json text eol=lf

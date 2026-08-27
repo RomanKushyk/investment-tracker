@@ -3,74 +3,10 @@
 Why the project is the way it is. Read the one-liner here, open the one file for
 the decision you actually need — **`D<n>` is `D<n>.md`**, always.
 
-## Rules
-
-- **Append-only, and appending now means creating a file — WITH front matter.**
-  A new decision is a new `D<n>.md`, carrying front matter (below) before any
-  prose, then `pnpm decisions` to regenerate its row **and
-  `pnpm distillation-baseline` to record this file's new length** — since D99
-  it is over 200 lines and pinned at its own, so one command is no longer
-  enough and `pnpm test` fails naming it. Skip the front matter
-  and `readDecisions` throws, naming the file — `pnpm test` fails with it, not
-  silently. **D96 retired the range files** (`D01-D20.md` … `D81-D100.md`) on
-  2026-08-26 for exactly that reason: the old rule sent every entry to the
-  highest-numbered file, and a 200-line cap made that file overflow on its
-  fourth entry. Both historical slips — `D41-D50.md` holding D41–D60,
-  `D61-D80.md` holding D81–D83 for a day — were one failure, a filename
-  asserting a range it did not hold, and neither is possible now.
-- **Moving is not rewriting.** All 95 entries moved verbatim into their own
-  files and were verified byte-identical. **Numbers never change** — ~20
-  citations across `src/` and `docs/` are by bare number. Tidying or renumbering
-  in transit is the one thing that breaks callers.
-- **Never rewrite a decision — supersede it.** A wrong entry stays, and a newer
-  one says what replaced it and why. `D43` is the worked example: the original
-  diagnosis is kept directly under its replacement, labelled, because being
-  wrong about *which* of five explanations held is the reusable lesson.
-  **The front matter is not the entry.** `id`/`date`/`summary`/`amends` were
-  added on 2026-08-27 to generate the table below; correcting a `summary` that
-  says something the entry does not is a metadata fix, not a rewrite. The prose
-  under the heading is what may never change.
-- **A contract change requires an entry.** Pinned contracts in
-  `../archive/BUILD-PLAN.md` and `../plans/NEXT-PHASE-PLAN.md` stay binding
-  until a decision here supersedes them.
-- Entries are numbered, never renumbered. Code comments cite `D5`, `D30` and so
-  on by bare number — those citations must keep resolving forever.
-
-**One file per decision, named as it is cited.** `D5` is [`D5.md`](D5.md); D96
-opened [`D96.md`](D96.md) by existing. The range files `D01-D20.md`,
-`D21-D40.md`, `D41-D50.md`, `D61-D80.md` and `D81-D100.md` were retired on
-2026-08-26 — **D96** says why, and their entries moved verbatim.
-
-## How the tables below are generated
-
-**Every decision file carries YAML front matter — `id`, `date`, `summary`, optional
-`amends` — and the rows below are GENERATED from it. Never hand-edit a row: change the
-file's `summary`, then run `pnpm decisions`.** Rows sit between markers, one pair per table:
-
-```
-<!-- decisions:rows range="1-20" -->
-| [D1](D1.md) | Tech stack: use `package.json` as-is | 2026-07-27 |
-<!-- /decisions:rows -->
-```
-
-`date` must be a real ISO calendar date (`YYYY-MM-DD`); a literal `|` inside `summary` or
-`index_extra_row` must be written `\|`, or it silently adds a table column — both are
-validated, and `pnpm decisions` throws naming the file if either is wrong. `amends` is a
-flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why not
-`supersedes`, and why the reciprocal `amended_by` is derived, never stored.
-
-## The ones worth reading before touching anything
-
-- **D5** — reference-data reconciliation. Read before touching seed data or any
-  derivation; every figure in the app is derived, none is hard-coded.
-- **D2** — persistence is Dexie on IndexedDB, and the app is still local.
-- **D13 / D18** — the dual metric families. Consult with
-  `../reference/FORMULA-AUDIT.md` before changing `core/derive.ts` or
-  `core/xirr.ts`.
-- **D30** — the observation key. Immutable on DSQL: a wrong key is a
-  DROP/CREATE of a live archive, not a migration.
-- **D45 / D47** — alerts do not go to email, and that is deliberate. Do not
-  "fix" it by adding an SNS topic.
+**The rules of this log live in [`RULES.md`](RULES.md)** — how to append one, why
+a decision is superseded and never rewritten, how these tables are generated, and
+which entries to read before touching anything. This page is the index and nothing
+else (D102).
 
 ## D1–D20 — v1
 
@@ -193,14 +129,5 @@ flat list of ids; see `src/decisions/frontMatter.ts`'s module docstring for why 
 | [D99](D99.md) | **W7's pre-condition is answered, and the answer is no** — DSQL rejects `USING btree` (`0A000 USING not supported for CREATE INDEX`) with and without `ASYNC`, and rejects a plain `CREATE INDEX` without `ASYNC` (`0A000 unsupported mode`). So promotion is TWO transformations of every index line, not one: insert `ASYNC`, strip `USING btree`. `USING` itself is not banned — `USING btree_index` is accepted and is what `pg_get_indexdef` prints, so the docs' silent grammar predicted the outcome with the wrong cause. Measured with it: all seven statements of `003_user_schema.sql` apply to the live cluster, its `CHECK`/`UNIQUE`/`DEFAULT` are enforced, `sys.wait_for_job` is a `CALL` and an accepted `CREATE INDEX ASYNC` is not yet a built index, and **DSQL now has enforced composite foreign keys**, which the drafts README stated it does not. Adding this entry also removed a 200-line wall in `pnpm decisions` that D98 had already retired everywhere else — O35 files where the index's growth should go | 2026-08-27 |
 | [D100](D100.md) | **A constraint CAN be added to an existing DSQL table — as `NOT VALID`**, which enforces every new row, never checks the rows already there, and can never be promoted (`VALIDATE CONSTRAINT` is refused, so `convalidated` stays false for life). Bare `ADD CONSTRAINT` is refused, which is what made an earlier draft of this entry claim no constraint could ever be added — wrong, and corrected before it left the branch. Genuinely create-time-only, each probed in every spelling: `NOT NULL` (droppable, never addable), column TYPE, `UNIQUE` *as a constraint*, `PRIMARY KEY` (refused plain AND `NOT VALID` — the fact D30 rests on, now measured), and a `GENERATED … STORED` column. **`DEFAULT` is NOT among them** — a first draft said it was, from one spelling; `ALTER COLUMN … SET DEFAULT` is supported and applies to rows inserted after it. **So O34 is NOT dated** — and drizzle emits foreign keys as post-hoc `ALTER TABLE ADD CONSTRAINT` anyway, so one would be `NOT VALID` whether declared at W7 or years later. Promotion would need a third rewrite rule: append `NOT VALID` | 2026-08-28 |
 | [D101](D101.md) | **O34 ruled: W7 ships NO foreign keys.** Owner's ruling 2026-08-28 — do not declare them at promotion, defer to O33. Grounds: D100 removed the deadline (a key can be added later as `NOT VALID`) and removed the advantage of earliness too (drizzle emits foreign keys as post-hoc `ALTER TABLE`, so one is `NOT VALID` at W7 as well); AWS's own `CREATE TABLE` guidance prefers `NO ACTION`/`RESTRICT` where child-row cardinality is unbounded, which transactions-per-user are; `RESTRICT` would force `repository.ts`'s `deleteAsset` to reverse its delete order; and `CASCADE` would answer O33 as a side effect instead of on its merits. **Whether they are ever adopted moves into O33**, which now decides cascade-vs-tombstone knowing real keys are on the table. Cost of waiting, stated: rows present when a key is finally added are never validated, so adopt only behind a clean integrity audit | 2026-08-28 |
+| [D102](D102.md) | **O35 ruled: the log's rules move to `docs/decisions/RULES.md`, and the length cap counts AUTHORED lines only.** Owner's ruling 2026-08-28. `README.md` becomes the index and nothing else: a title, a pointer, and three tables that grow one row per decision. Its AUTHORED length is a couple of dozen lines and does not move when a decision is added — no absolute is quoted here, because this entry's own row would have aged it within the hour. `src/distillation/doc-line-counts.ts` gains `authoredLines`, which subtracts everything a generator wrote between its own markers (code-fenced examples excluded via `fences.ts`'s `inCode`), and both the ratchet and `pnpm decisions` ask that question instead. Exempting the FILE was the obvious reading and the wrong one — it turns the guard off for the prose too. Reverts D99's two-command rule: adding a decision is `pnpm decisions`, once | 2026-08-28 |
 <!-- /decisions:rows -->
-
-## A pattern these entries kept finding
-
-D43, D44, D48, D49, D50, D53, D89 and D91 are eight independent instances of one defect:
-**a green indicator that was green because nothing had been attempted.** A dead
-alert channel with zero failed notifications, a backfill whose result nobody
-read, an archive with deletion protection and no backup, an insert counter that
-could not tell a re-run from a re-write, in D53 a failure handler that published no datapoint at all inside the very check written to catch this, in D89 fifteen recovery points that nothing stopped anyone deleting, and in D91 a two-branch query verified on one branch. When adding a check, ask what it reads
-when the thing it watches has stopped entirely — if the answer is "the same as
-healthy", the check is not one.

@@ -56,8 +56,12 @@ const after: DistillationBaseline = {
 // scripts/claim-baseline.ts carries the identical guard for its own single
 // section; this checks all three rather than only the first that happens
 // to be nonzero. `docLineCounts` is deliberately not part of this guard —
-// it has no "unparseable"/"errors" failure mode at all, since it is a plain
-// line count over `markdownFiles`, not a `claimTargetFiles` scan. Refuse to
+// it reports no "unparseable"/"errors" list, because `authoredLines` resolves
+// every uncertain shape to the RAW count instead of failing: an unbalanced
+// code fence, an unclosed marker, a second opener. It is no longer the "plain
+// line count" this comment used to call it — since D102 it parses code fences
+// to tell a documented marker from a live one — but it still cannot leave an
+// entry out by throwing, which is what this guard is for. Refuse to
 // write at all when the three above would silently lose an entry; nothing
 // here is lost by refusing, since the committed file is untouched either
 // way.

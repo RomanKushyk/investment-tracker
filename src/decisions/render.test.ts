@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { lineCapDiagnostic, renderRow, spliceGeneratedRows } from './render';
-import { LIMIT } from '../distillation/doc-line-counts';
+import { GENERATED_CLOSE, GENERATED_OPEN, LIMIT } from '../distillation/doc-line-counts';
 import type { DecisionRecord } from './records';
 
 function record(over: Partial<DecisionRecord> & { num: number }): DecisionRecord {
@@ -212,7 +212,21 @@ describe('lineCapDiagnostic', () => {
   it('names the path and the count, one line over the cap', () => {
     const overCap = Array.from({ length: LIMIT + 1 }, () => 'x').join('\n') + '\n';
     expect(lineCapDiagnostic(overCap, 'docs/decisions/README.md')).toMatch(
-      /docs\/decisions\/README\.md is 201 lines, over 200/,
+      /docs\/decisions\/README\.md has 201 AUTHORED lines \(generated rows excluded\), over 200/,
     );
+  });
+
+  it('counts AUTHORED lines, so a generated table does not trip it (D102)', () => {
+    // The regression this guards is D102 itself: 201 rows inside markers is an
+    // index doing its job, not a file that has grown a second purpose.
+    const rows = Array.from({ length: LIMIT + 1 }, (_, i) => `| row ${i} |`);
+    const index = [
+      '# Index',
+      `${GENERATED_OPEN}range="1-20" -->`,
+      ...rows,
+      GENERATED_CLOSE,
+      '',
+    ].join('\n');
+    expect(lineCapDiagnostic(index, 'docs/decisions/README.md')).toBeNull();
   });
 });

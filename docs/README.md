@@ -34,8 +34,10 @@ other plans exist to keep things *out* of that one.
 
 ## Why things are the way they are
 
-[`decisions/README.md`](decisions/README.md) indexes **every decision** one line each,
-and links each to its own file — `D5` is `decisions/D5.md` (D96). Append-only, and a wrong decision is superseded rather
+[`decisions/README.md`](decisions/README.md) indexes **every decision** one line each
+and links each to its own file — `D5` is `decisions/D5.md` (D96). **Since D102 it is
+ONLY that index**; the log's own rules are [`decisions/RULES.md`](decisions/RULES.md).
+Append-only, and a wrong decision is superseded rather
 than rewritten — `D43` keeps its original diagnosis directly under its
 replacement, because being wrong about which explanation held is the reusable
 part.

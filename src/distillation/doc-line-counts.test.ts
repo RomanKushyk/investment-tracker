@@ -1,8 +1,93 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { docLineCounts, lineCount, LIMIT } from './doc-line-counts';
+import { authoredLines, countLines, docLineCounts, lineCount, LIMIT } from './doc-line-counts';
+import { REPO } from '../facts/markdown-files';
+
+describe('authoredLines', () => {
+  // D102: a generated row is data, not a purpose, so it does not count against
+  // the length diagnostic. The markers do — a person put them there.
+  const OPEN = '<!-- decisions:rows range="1-20" -->';
+  const CLOSE = '<!-- /decisions:rows -->';
+
+  it('equals the raw count when nothing is generated', () => {
+    const text = 'a\nb\nc\n';
+    expect(authoredLines(text)).toBe(countLines(text));
+  });
+
+  it('subtracts the rows between markers and keeps the markers', () => {
+    const text = ['intro', OPEN, 'row 1', 'row 2', 'row 3', CLOSE, 'outro', ''].join('\n');
+    // intro + OPEN + CLOSE + outro
+    expect(authoredLines(text)).toBe(4);
+    expect(countLines(text)).toBe(7);
+  });
+
+  it('does not shrink when the generated block grows — the point of the whole change', () => {
+    const withRows = (n: number) =>
+      ['intro', OPEN, ...Array.from({ length: n }, (_, i) => `row ${i}`), CLOSE, ''].join('\n');
+    expect(authoredLines(withRows(3))).toBe(authoredLines(withRows(3000)));
+  });
+
+  it('reads a marker inside a fenced code block as documentation, not a live region', () => {
+    // `docs/decisions/RULES.md` documents the syntax in prose. Counting that
+    // example as an opener would swallow the rest of the file.
+    const text = ['```', OPEN, 'EXAMPLE', CLOSE, '```', 'still authored', ''].join('\n');
+    expect(authoredLines(text)).toBe(countLines(text));
+  });
+
+  it('falls back to the raw count when an opener is never closed', () => {
+    // A length check that silently under-reports is the failure this module
+    // exists to prevent, so an unbalanced file counts as if nothing were
+    // generated rather than as a short one.
+    const text = ['intro', OPEN, 'row', 'row', ''].join('\n');
+    expect(authoredLines(text)).toBe(countLines(text));
+  });
+
+  it('never throws on an unbalanced code fence, and never under-reports', () => {
+    // This was a real regression: `codeRanges` throws on a stray fence, and
+    // calling it unconditionally took `docLineCounts` — and with it
+    // `pnpm distillation-baseline`, the one command that repairs the ratchet —
+    // down for the WHOLE repo over one stray ``` in one document.
+    const stray = ['intro', '```', 'code', 'more', ''].join('\n');
+    expect(() => authoredLines(stray)).not.toThrow();
+    expect(authoredLines(stray)).toBe(countLines(stray));
+
+    // And with a marker present, so the cheap reject does not hide it.
+    const both = ['```', 'unclosed', OPEN, 'row', CLOSE, ''].join('\n');
+    expect(() => authoredLines(both)).not.toThrow();
+    expect(authoredLines(both)).toBe(countLines(both));
+  });
+
+  it('resolves every malformed shape to the RAW count, never a shorter one', () => {
+    // A length check that under-reports is the failure this module exists to
+    // prevent; loudness is `render.ts`'s job, which throws on these shapes.
+    const unclosed = ['intro', OPEN, 'row', 'row', ''].join('\n');
+    const twoOpens = ['intro', OPEN, 'row', OPEN, 'row', CLOSE, ''].join('\n');
+    for (const text of [unclosed, twoOpens]) {
+      expect(authoredLines(text)).toBe(countLines(text));
+    }
+    // An orphan closer has nothing to subtract, so the raw count IS the
+    // authored count — pinned so the behaviour is chosen rather than incidental.
+    const orphan = ['intro', CLOSE, 'outro', ''].join('\n');
+    expect(authoredLines(orphan)).toBe(countLines(orphan));
+  });
+
+  it('sees a marker exactly where `spliceGeneratedRows` sees one', () => {
+    // The counter and the generator must agree about which regions exist, or
+    // the index quietly re-enters the ratchet. A mid-line opener is one
+    // `spliceGeneratedRows` matches, so it is one this subtracts.
+    const midLine = ['intro', `See ${OPEN}`, 'row', CLOSE, ''].join('\n');
+    expect(authoredLines(midLine)).toBe(countLines(midLine) - 1);
+  });
+
+  it('counts the real decision index as well under the limit', () => {
+    // The file that forced D102: ~130 raw lines, ~30 authored.
+    const readme = readFileSync(join(REPO, 'docs/decisions/README.md'), 'utf8');
+    expect(countLines(readme)).toBeGreaterThan(100);
+    expect(authoredLines(readme)).toBeLessThan(LIMIT);
+  });
+});
 
 describe('lineCount', () => {
   function withScratchFile<T>(content: string, run: (path: string) => T): T {
