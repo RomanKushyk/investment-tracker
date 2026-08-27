@@ -48,7 +48,9 @@ describe('src/README.md cross-references every subdirectory README.md', () => {
   const dirsWithReadme = allDirs.filter((name) => existsSync(join(srcDir, name, 'README.md')));
 
   it('finds the known mechanism folders — a silent empty scan would pass vacuously', () => {
-    expect(dirsWithReadme).toEqual(expect.arrayContaining(['core', 'facts', 'decisions']));
+    expect(dirsWithReadme).toEqual(
+      expect.arrayContaining(['core', 'facts', 'decisions', 'claims']),
+    );
   });
 
   it('every subdirectory with its own README.md is named in src/README.md', () => {

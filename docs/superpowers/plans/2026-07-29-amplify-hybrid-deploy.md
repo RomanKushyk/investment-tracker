@@ -68,7 +68,6 @@ Docs only. No AWS account values exist yet — this task writes the *procedure*,
 
 Write exactly this content:
 
-````markdown
 ## The rest of it is in `amplify-hybrid-deploy/`
 
 **Split 2026-08-26 (D95)** — moved **verbatim** so no file exceeds 200 lines. Nothing was summarised.

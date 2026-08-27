@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { COLOR_KEYS } from '../core/colors';
+import { countUncheckedMarkers } from '../claims/repo-scan';
 import { SEED_ASSETS, SEED_TRANSACTIONS, buildSeedSnapshots } from '../lib/seed';
 import { REPO } from './markdown-files';
 import { derived, measured, type Fact } from './registry';
@@ -21,6 +22,17 @@ export const FACTS: Record<string, Fact> = {
   'seed.transactions': derived(() => SEED_TRANSACTIONS.length),
 
   'app.colorSlots': derived(() => COLOR_KEYS.length),
+
+  // The claim lint's escape hatch (src/claims/README.md) is greppable by
+  // design, which is what lets its own count be a fact instead of a hand
+  // count going stale the way the numbers it replaces did. Counts LINES
+  // carrying a well-formed marker, not claims the rules happened to
+  // suppress — a marker on a line with no claim to suppress still carries
+  // the marker, and the README's own sentence says "lines", not "claims".
+  // A plain per-line regex test (`countUncheckedMarkers`) — no TypeScript
+  // parse, no git subprocess, so `pnpm facts` keeps working without git on
+  // PATH and this fence costs nothing worth memoizing.
+  'claims.unchecked': derived(() => countUncheckedMarkers()),
 
   'dpu.observeNbu.window': measured({
     value: 0.25594,

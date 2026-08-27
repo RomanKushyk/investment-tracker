@@ -17,15 +17,24 @@ const SKIP = new Set([
   '.superpowers', // Git-ignored scratch written by tooling; the cap governs the repository's documentation.
 ]);
 
-export function markdownFiles(dir: string): string[] {
+/** The same repo walk and `SKIP` set as `markdownFiles`, generalised to any
+ *  set of extensions — added for `src/claims/` (`.md`, `.sql`, `.ts`,
+ *  `.tsx`), which needs the identical walk over a wider file set rather
+ *  than a second, drifting copy of it. `markdownFiles` below is now a thin
+ *  wrapper over this. */
+export function repoFiles(dir: string, extensions: readonly string[]): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (SKIP.has(entry.name)) continue;
-      found.push(...markdownFiles(join(dir, entry.name)));
-    } else if (entry.name.endsWith('.md')) {
+      found.push(...repoFiles(join(dir, entry.name), extensions));
+    } else if (extensions.some((ext) => entry.name.endsWith(ext))) {
       found.push(join(dir, entry.name));
     }
   }
   return found;
+}
+
+export function markdownFiles(dir: string): string[] {
+  return repoFiles(dir, ['.md']);
 }

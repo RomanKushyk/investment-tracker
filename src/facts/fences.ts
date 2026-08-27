@@ -1,6 +1,14 @@
 import { renderFact, type Fact } from './registry';
 
-const OPEN = /<!--f:([a-zA-Z0-9._-]+)-->/y;
+/** The fact key's character grammar — exported so other fence-detecting
+ *  code (`src/claims/scan.ts`'s own fact-fence pattern, which resolves a
+ *  citation against the real registry) builds the same key shape from this
+ *  one source, instead of a second, silently driftable copy: widening this
+ *  class here would otherwise change what `pnpm facts` accepts as a key
+ *  without changing what the claim lint masks, with no failing test to
+ *  catch the gap. */
+export const FACT_KEY_SRC = 'a-zA-Z0-9._-';
+const OPEN = new RegExp(`<!--f:([${FACT_KEY_SRC}]+)-->`, 'y');
 const CLOSE = '<!--/f-->';
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
