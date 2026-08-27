@@ -32,18 +32,20 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 
 ## Where the detail is
 
-**Split 2026-08-26 (D95)** — this file is the dated table and the rules; the
-item bodies are in the range files below, and W1 closed to
+**Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98)** — this
+file is the dated table and the rules; the item bodies are in the section
+files below, and W1 closed to
 [`../archive/plan-b/`](../archive/plan-b/README.md).
 
 | File | Holds |
 |---|---|
-| [`W02-W08.md`](W02-W08.md) | Phase W-I's remainder (W2/W6), W5, W3/W4, W7, W8 |
-| [`W09-W17.md`](W09-W17.md) | W9, W10/W12, W11, W13, W14, W15, W16, W17 |
+| [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) | Phase W-I's remainder (W2/W6), W5, W3/W4, W7, W8 |
+| [`phase-w-iv-v.md`](phase-w-iv-v.md) | W9, W10/W12, W11, W13, W14, W15, W16, W17 |
 
 Item numbers never change — they are cited from the other plans, from
 `../decisions/` and from `infra/README.md` by bare number. Splitting moves
-bodies verbatim; no file goes over 200 lines.
+bodies verbatim; the 200-line cap is a ratchet, not a wall (D95, ratcheted by
+D98).
 
 ## Standing "no" list (relevant whenever any phase here provisions something)
 

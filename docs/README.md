@@ -25,9 +25,9 @@ other plans exist to keep things *out* of that one.
 | File | What it is | The rule |
 |---|---|---|
 | [`plans/NEXT-PHASE-PLAN.md`](plans/NEXT-PHASE-PLAN.md) | The plan of record: shipped work, retired items with reasons, governing decisions G1–G8 | Keep the Status table current; a contract change needs a decision entry |
-| [`plans/PLAN-NOW.md`](plans/PLAN-NOW.md) | **Plan A — startable today.** Nothing gates these. Index + live Status table; bodies in `plans/A01-A20.md`, `plans/A41-A50.md`, `plans/A51-A60.md` | Pick the first non-done task in section order. Gates green per merge |
-| [`plans/PLAN-WAITING.md`](plans/PLAN-WAITING.md) | **Plan B — dated.** Gated on elapsed time or an external event. Index + the dated table; bodies in `plans/W02-W08.md`, `plans/W09-W17.md` | **Read its table before any session touching `infra/` or the migration.** Move an item to Plan A the day its gate opens |
-| [`plans/PLAN-OPEN.md`](plans/PLAN-OPEN.md) | **Plan C — open questions**, with the trail from each answer to the task it created. Index + Status table; bodies in `plans/O05-O29.md` | **Never implement from this file.** Answer → decision entry → file the work into Plan A or B |
+| [`plans/PLAN-NOW.md`](plans/PLAN-NOW.md) | **Plan A — startable today.** Nothing gates these. Index + live Status table; bodies in `plans/section-c.md`, `plans/section-m.md`, `plans/section-p.md` | Pick the first non-done task in section order. Gates green per merge |
+| [`plans/PLAN-WAITING.md`](plans/PLAN-WAITING.md) | **Plan B — dated.** Gated on elapsed time or an external event. Index + the dated table; bodies in `plans/phase-w-i-ii-iii.md`, `plans/phase-w-iv-v.md` | **Read its table before any session touching `infra/` or the migration.** Move an item to Plan A the day its gate opens |
+| [`plans/PLAN-OPEN.md`](plans/PLAN-OPEN.md) | **Plan C — open questions**, with the trail from each answer to the task it created. Index + Status table; bodies in `plans/still-open.md` | **Never implement from this file.** Answer → decision entry → file the work into Plan A or B |
 | [`plans/USER-BUGS-DRAFT.md`](plans/USER-BUGS-DRAFT.md) | The owner's raw **bug** list, in the owner's words — the pair to `plans/USER-FEATURES-DRAFT.md` | **Never fix from this file**, and **keep it plain** — bare bullets, no ceremony, same as its pair. A line is a symptom, not a diagnosis: reproduce, write the failing test, then fix. **A pasted sample is bytes — copy it, never re-key it.** A missing capability is an idea, not a bug; a cosmetic shipped on purpose goes to [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) |
 | [`plans/USER-FEATURES-DRAFT.md`](plans/USER-FEATURES-DRAFT.md) | The owner's raw idea list, in the owner's words | **Never implement from this file either**, and **keep it plain** — bare bullets, no ceremony, so it stays fast to add a line to. It fills up, gets groomed into Plan A or B, then gets wiped and fills again |
 | [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) | Cosmetic backlog consciously shipped as-is | Items 1–8 cleared 2026-07-28; **9–11 open**. Add deferred-cosmetic findings here rather than reopening a closed plan |
@@ -97,21 +97,23 @@ folders above, `DECISIONS.md` split into three ranges behind an index, and every
 `PLAN-NOW.md` had reached 2,211 lines and carried 51 closed tasks beside three
 live ones, which is the same failure the decision log hit in August: the file a
 session must read first became the file it cannot afford to read. **No
-documentation file now exceeds 200 lines.**
+documentation file exceeded 200 lines once this split was done** — the
+guarantee is now enforced as a ratchet, not a hard wall (`../decisions/D98.md`).
 
 The three plans and `archive/BUILD-PLAN.md` became indexes; their bodies moved
-**verbatim** into range files named for the IDs they hold, and everything closed
-moved to `archive/plan-a/`, `archive/plan-b/`, `archive/plan-c/` and
-`archive/build-plan/`, each behind its own `README.md`. IDs did not change —
-`A20`, `W7`, `O26`, `D95` all still resolve. `plans/README.md` is new and
-carries the folder's local rules.
+**verbatim** into range files named for the IDs they hold — **renamed by
+section the next day, D98; `plans/README.md` names the current six** — and
+everything closed moved to `archive/plan-a/`, `archive/plan-b/`,
+`archive/plan-c/` and `archive/build-plan/`, each behind its own `README.md`.
+IDs did not change — `A20`, `W7`, `O26`, `D95` all still resolve.
+`plans/README.md` is new and carries the folder's local rules.
 
 **The cap holds everywhere, measured 2026-08-26: zero Markdown files in this
 repository exceed 200 lines.** What each class cost:
 
 | Where | Shape it took |
 |---|---|
-| `plans/` | Three indexes over ID-range files; <!--f:plan.closedTasks-->53<!--/f--> closed tasks to `archive/plan-a/` |
+| `plans/` | Three indexes over range files, renamed by section the next day (D98); <!--f:plan.closedTasks-->53<!--/f--> closed tasks to `archive/plan-a/` |
 | `archive/` | `BUILD-PLAN.md` and the three phase briefs became indexes over folders |
 | `reference/` | `DEPLOYMENT.md` over `deployment/`, `MARKET-DATA-SOURCES.md` over `market-data/`, and `INZHUR-FUND-HISTORY.md` split into the two documents it always was |
 | `design-briefs/` | Every brief an index over `phase-N/` · `asset-create/` · `screen-density/` |

@@ -4,7 +4,7 @@
 >
 > **Companion plans:** `PLAN-WAITING.md` (dated, gated on evidence or elapsed time) · `PLAN-OPEN.md` (questions with no answer yet). Parent: `NEXT-PHASE-PLAN.md`. Decisions: `../decisions/README.md`.
 
-Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95):** this file is the index — live task bodies are in the range files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md).
+Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98):** this file is the index — live task bodies are in the section files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md).
 
 ## Status — what is live
 
@@ -29,12 +29,13 @@ is A53**, under Section P.
 
 | File | Holds |
 |---|---|
-| [`A01-A20.md`](A01-A20.md) | A11 |
-| [`A41-A50.md`](A41-A50.md) | Section M's preamble, A46 |
-| [`A51-A60.md`](A51-A60.md) | Section P's preamble, A52 (withdrawn), A53, A54 |
+| [`section-c.md`](section-c.md) | A11 |
+| [`section-p.md`](section-p.md) | Section P's preamble, A52 (withdrawn), A53, A54 |
+| [`section-m.md`](section-m.md) | Section M's preamble, A46 |
 
-The range table runs in ID order; **section order is the Status table's**, which
-puts Section P (A52–A54; A51 closed 2026-08-26) above Section M (A46).
+**Renamed by section, 2026-08-27 (D98)** — the table above runs in Status-table
+order (C, P, M), the same order the Status table itself uses, so there is
+nothing left for either table to explain about the other.
 
 ## Where the closed work is
 
@@ -44,10 +45,14 @@ list**; work that comes out of reading it becomes a new task here.
 
 ## How this file is split
 
-Range files, which `../decisions/` used until D96 changed it to one file per
-decision. The plans keep ranges deliberately — see `README.md` in this folder.
+Section files — the shape `../decisions/` moved to at D96; **D98 does the same
+for the plans**, retiring the ID-range names (`A01-A20.md` and so on) they
+started with. See `README.md` in this folder.
 
-- **No file over 200 lines.** That is the cap this split exists to hold (D95).
+- **The 200-line cap is a ratchet, not a wall (D95, ratcheted by D98).** A
+  file may not grow past its own committed length; a file whose growth lands
+  it over 200 lines is reported with the diagnostic question, not an
+  instruction to split.
 - **Task numbers never change.** They are cited from commit messages and from
   the other plans by bare number.
 - **Splitting moves bodies verbatim.** Tidying in transit is what breaks a

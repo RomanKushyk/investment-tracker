@@ -1,8 +1,8 @@
-# Plan B — live items W2–W8
+# Plan B — Phases W-I to W-III
 
-> Bodies of the waiting items in this range. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md). W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
+> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md). W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
 
-Moved verbatim from `PLAN-WAITING.md` on 2026-08-26. **W2 is done and W6 is not** — they were written as one section and stay one, because splitting a measurement from its follow-up would lose what W6 is measuring against.
+Moved verbatim from `PLAN-WAITING.md` on 2026-08-26 as `W02-W08.md`; renamed by section, 2026-08-27 (D98). **W2 is done and W6 is not** — they were written as one section and stay one, because splitting a measurement from its follow-up would lose what W6 is measuring against.
 
 # Phase W-I — Self-accruing observations (no action until the date)
 
@@ -105,7 +105,7 @@ corroboration rather than the only record.
 
 ## W7 — B3 migration — **earliest 2026-09-02**
 
-**Gate:** W4 complete **and** the A3 durability gate passed — **it did, 2026-08-11 (D49)**; A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A51, A53, A54 — bodies in `A51-A60.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
+**Gate:** W4 complete **and** the A3 durability gate passed — **it did, 2026-08-11 (D49)**; A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A51, A53, A54 — bodies in `section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
 
 **Pre-condition before promoting `003_user_schema.sql`:** confirm DSQL accepts
 `USING btree` on `CREATE INDEX` — the generated DDL emits it, DSQL's

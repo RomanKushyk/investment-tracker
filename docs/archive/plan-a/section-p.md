@@ -1,7 +1,8 @@
 # Section P — W7 preparation, startable ahead of the gate
 
-> Closed Plan A work, moved **verbatim** from `../../plans/A51-A60.md`. Holds
-> A51, with its boxes ticked as they were closed. Index: [`README.md`](README.md).
+> Closed Plan A work, moved **verbatim** from `../../plans/A51-A60.md` (renamed
+> `../../plans/section-p.md` the next day — D98). Holds A51, with its boxes
+> ticked as they were closed. Index: [`README.md`](README.md).
 > **Not a task list — nothing here is executed.**
 >
 > A51's substance is not in this body. The draft it produced carries its own

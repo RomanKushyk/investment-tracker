@@ -1,54 +1,72 @@
-import { readFileSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { relative, sep } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { diffBaseline, type BaselineDiff } from './claims/baseline';
+import { docLineCounts, LIMIT } from './distillation/doc-line-counts';
+import { BASELINE_PATH, loadBaseline } from './distillation/baseline';
 import { markdownFiles, REPO } from './facts/markdown-files';
 
-// D95 makes "no documentation file exceeds 200 lines" a repo-wide invariant, and
-// D96 removes the range files that made it impossible to hold in the decision log.
-// Neither was enforced by anything: `.prettierignore` excludes Markdown at every
-// depth (hand-formatted tables carrying measured figures), so the gate never reads
-// a documentation file, and the rule lived only as a sentence restated in six
-// places. D95's own measured figures went stale inside three commits, which is the
-// drift this pins — the same reason `app/mark.test.ts` pins the favicon it cannot
-// see rendered.
+// D95 made "no documentation file exceeds 200 lines" a hard rule enforced by
+// this file. The verifiable-documentation design
+// (docs/superpowers/specs/2026-08-26-verifiable-documentation-design.md §6)
+// ruled that a hard wall is the wrong shape — it forced the ID-range
+// splitting D98 later undoes — so the cap becomes a diagnostic instead
+// (D98): a file at or under `LIMIT` is unconstrained; only a file already
+// over it is pinned, in `distillation-baseline.json`'s `docLineCounts`
+// section (`src/distillation/doc-line-counts.ts`), on the same over/stale
+// baseline machinery `distillation-lint.test.ts` uses for its own checks.
+// `pnpm distillation-baseline` regenerates it, and a pinned file may not
+// grow past its own recorded length without that being reviewed and
+// bumped — reported with the diagnostic question, not an instruction to
+// split.
 //
 // It lives in `src/` because that is where the toolchain runs; it governs the whole
 // repository, which is the one exception to src/README's structure table.
 
-const LIMIT = 200;
+const FILES = markdownFiles(REPO);
+const REL_FILES = FILES.map((p) => relative(REPO, p).split(sep).join('/'));
 
-/** `wc -l` semantics: newline count, so a file with no trailing newline is not over-counted. */
-function lineCount(path: string): number {
-  const text = readFileSync(path, 'utf8');
-  let n = 0;
-  for (const ch of text) if (ch === '\n') n += 1;
-  return n;
-}
-
-const FILES = markdownFiles(REPO).map((p) => relative(REPO, p).split(sep).join('/'));
-
-describe('documentation line cap (D95)', () => {
+describe('documentation line-count ratchet (D95, ratcheted by D98)', () => {
   it('finds the documentation to measure', () => {
     // A walk that quietly matches nothing would pass every assertion below.
-    expect(FILES.length).toBeGreaterThan(100);
-    expect(FILES).toContain('CLAUDE.md');
-    expect(FILES).toContain('docs/plans/PLAN-NOW.md');
+    expect(REL_FILES.length).toBeGreaterThan(100);
+    expect(REL_FILES).toContain('CLAUDE.md');
+    expect(REL_FILES).toContain('docs/plans/PLAN-NOW.md');
   });
 
-  it('keeps every Markdown file at 200 lines or fewer', () => {
-    const over = FILES.map((f) => [f, lineCount(join(REPO, f))] as const)
-      .filter(([, n]) => n > LIMIT)
-      .sort((a, b) => b[1] - a[1])
-      .map(([f, n]) => `${n} ${f}`);
+  // Computed in `beforeAll`, not at collection time in the `describe` body:
+  // a corrupt baseline or an unreadable file must fail only the tests in
+  // THIS describe, never abort collection for the whole file and take the
+  // unrelated D96 guard below down with it.
+  let diff: BaselineDiff;
+  beforeAll(() => {
+    const baseline = loadBaseline(BASELINE_PATH).docLineCounts;
+    diff = diffBaseline(baseline, docLineCounts(FILES));
+  });
 
-    // Split it before the next entry lands, not after: the index's range table is
-    // updated in the same commit, bodies move VERBATIM, and IDs never change.
-    expect(over).toEqual([]);
+  it('has no file over its recorded length — run `pnpm distillation-baseline` after review', () => {
+    // Longest-first: a bulk change with one real offender should not bury
+    // it alphabetically among unrelated diffs.
+    const lines = diff.over
+      .slice()
+      .sort((a, b) => b.actual - a.actual)
+      .map(
+        (d) =>
+          `${d.file}: ${d.actual} lines, baseline allows ${d.baseline} (+${d.actual - d.baseline}) ` +
+          `— over ${LIMIT} lines: a file this long usually holds more than one purpose, and the fix is to find the second one`,
+      );
+    expect(lines).toEqual([]);
+  });
+
+  it('has no stale line-count baseline entry — run `pnpm distillation-baseline` to bring it down', () => {
+    const lines = diff.stale.map(
+      (d) => `${d.file}: baseline says ${d.baseline}, actual is ${d.actual}`,
+    );
+    expect(lines).toEqual([]);
   });
 });
 
 describe('the decision log is one file per decision (D96)', () => {
-  const decisions = FILES.filter(
+  const decisions = REL_FILES.filter(
     (f) => f.startsWith('docs/decisions/') && f !== 'docs/decisions/README.md',
   );
 

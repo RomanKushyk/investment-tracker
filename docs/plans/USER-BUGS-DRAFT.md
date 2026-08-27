@@ -9,9 +9,10 @@ and start collecting again. Started 2026-08-26 with the two lines that were
 sitting in the ideas list.
 
 **`PLAN-NOW.md` is an INDEX (D95)** — a groomed `fix/` task gets a Status row
-there and its body in the matching range file (`A41-A50.md` and so on), listed
-in that file's "Where the detail is" table in the same commit. A bug gated on
-W7 or on the migration goes to `PLAN-WAITING.md` instead.
+there and its body in the matching section file (`section-m.md` and so on,
+named by section since D98), listed in that file's "Where the detail is" table
+in the same commit. A bug gated on W7 or on the migration goes to
+`PLAN-WAITING.md` instead.
 
 **A pasted sample is BYTES — never retype one.** The first line below arrived
 with a non-breaking space (U+00A0) as its thousands separator, which is exactly

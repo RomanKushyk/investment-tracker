@@ -6,17 +6,27 @@ import {
   type DistillationBaseline,
 } from '../src/distillation/baseline';
 import { scanRepo } from '../src/distillation/repo-scan';
+import { docLineCounts } from '../src/distillation/doc-line-counts';
+import { markdownFiles, REPO } from '../src/facts/markdown-files';
 
-// Rewrites distillation-baseline.json to the repo's current, honest
-// figures for all three ratchets (repeated sentences, comment volume,
-// history-in-the-artifact phrases) — the same "accept new growth" / "lower
-// it after a fix" role scripts/claim-baseline.ts plays for the claim lint.
-// src/distillation/distillation-lint.test.ts is the read-only check this
-// pairs with; running that immediately after this script must always pass,
-// and running this script again immediately after must produce
-// byte-identical output (serializeBaseline's determinism).
+// Rewrites distillation-baseline.json to the repo's current, honest figures
+// for the three distillation ratchets (repeated sentences, comment volume,
+// history-in-the-artifact phrases) plus the docs-line-cap section (§6, a
+// different check that shares this file — see src/distillation/README.md)
+// — the same "accept new growth" / "lower it after a fix" role
+// scripts/claim-baseline.ts plays for the claim lint.
+// src/distillation/distillation-lint.test.ts and src/docs-line-cap.test.ts
+// are the read-only checks this pairs with; running either immediately
+// after this script must always pass, and running this script again
+// immediately after must produce byte-identical output
+// (serializeBaseline's determinism).
 
-const EMPTY: DistillationBaseline = { repeatedSentences: {}, commentChars: {}, historyPhrases: {} };
+const EMPTY: DistillationBaseline = {
+  repeatedSentences: {},
+  commentChars: {},
+  historyPhrases: {},
+  docLineCounts: {},
+};
 
 // `before` is ONLY for the "N changed" line below and the refuse-to-write
 // guard just below it — never for what gets written, which always comes
@@ -35,6 +45,7 @@ const after: DistillationBaseline = {
   repeatedSentences: scan.repeatedSentences,
   commentChars: scan.commentChars,
   historyPhrases: scan.historyPhrases,
+  docLineCounts: docLineCounts(markdownFiles(REPO)),
 };
 
 // A file that HAD a nonzero entry in ANY section and just went unparseable
@@ -44,7 +55,10 @@ const after: DistillationBaseline = {
 // running in reverse, with only a log line as the signal.
 // scripts/claim-baseline.ts carries the identical guard for its own single
 // section; this checks all three rather than only the first that happens
-// to be nonzero. Refuse to write at all when that would happen; nothing
+// to be nonzero. `docLineCounts` is deliberately not part of this guard —
+// it has no "unparseable"/"errors" failure mode at all, since it is a plain
+// line count over `markdownFiles`, not a `claimTargetFiles` scan. Refuse to
+// write at all when the three above would silently lose an entry; nothing
 // here is lost by refusing, since the committed file is untouched either
 // way.
 const hadEntry = (f: string) =>
@@ -66,7 +80,12 @@ const text = serializeBaseline(after);
 writeFileSync(BASELINE_PATH, text);
 
 let changed = 0;
-for (const section of ['repeatedSentences', 'commentChars', 'historyPhrases'] as const) {
+for (const section of [
+  'repeatedSentences',
+  'commentChars',
+  'historyPhrases',
+  'docLineCounts',
+] as const) {
   const files = new Set([...Object.keys(before[section]), ...Object.keys(after[section])]);
   for (const f of files) {
     if ((before[section][f] ?? 0) !== (after[section][f] ?? 0)) changed += 1;

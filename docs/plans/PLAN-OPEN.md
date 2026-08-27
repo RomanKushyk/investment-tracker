@@ -25,8 +25,8 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O27 | How is one ОВДП told apart from another — in «Код», and on screen? | — | **open, 2026-08-24, the owner's.** Widening «Код» to 4–6 characters is PARKED on it: `deriveCode` gives every «ОВДП …» the same «ОВ», and the only separator today is a tint handed out by arrival order. Four candidate answers, three of which cost a decision (D56, the palette) |
 | O28 | Server-side derivation boundary — what may the backend compute, and when? | — | **open, 2026-08-25, the owner's, raised with D92.** Cross-browser now outranks offline, which removes the offline argument for all-client derivation and QUESTIONS the cloud-stack spec's pinned `Derivation \| 100% client-side` row (annotated in place; still binding). Direction stated, not ruled — see below. **Decide at W7 design, with a decision number** |
 | O29 | Installability without a service worker — wanted at all? | — | **open, 2026-08-25.** D92 removed the PWA shell from W7; a bare manifest still gives install at near-zero cost, no service worker involved. Undated, unblocked, cheap — decide if and when install matters |
-| O30 | Does a trigger-rejected sign-up cost a Cognito MAU? | — | **open, and not measurable on a free-tier pool** — raised by A54's code review, 2026-08-26. `DescribeUserPool.EstimatedNumberOfUsers` counts users and a rejected sign-up creates none, so the reading is 0 → 0 whatever Cognito bills; `W02-W08.md` records total users as a strict *upper bound* on MAU, not a measure of it; and inside 10,000 free MAU no bill can disagree. AWS documents it in neither direction. **No body — this row is the whole question.** It bites only if open registration is on and abused, and D37's `SignUpSuccesses` chart is the instrument that would show that |
-| O31 | May the seed's pinned row count `4/174/18` move, and what supersedes D10/D24 when it does? | — | **open, 2026-08-26** — raised by A52's withdrawal. D34 rewrites the seed to reconcile by gaining `withdrawal` and `tax` rows; `navigation-map.md` checkpoint 7 pins the count, D10 and D24 pin it as a decision, and D5 pins `Deposited 143 176 ₴` derived from the `deposit` rows — so the rewrite cannot happen without moving a pinned figure, and a decision is superseded, never edited. **No body — this row is the whole question.** W7 needs the answer before its Seed bullet is executable; see `W02-W08.md` |
+| O30 | Does a trigger-rejected sign-up cost a Cognito MAU? | — | **open, and not measurable on a free-tier pool** — raised by A54's code review, 2026-08-26. `DescribeUserPool.EstimatedNumberOfUsers` counts users and a rejected sign-up creates none, so the reading is 0 → 0 whatever Cognito bills; `phase-w-i-ii-iii.md` records total users as a strict *upper bound* on MAU, not a measure of it; and inside 10,000 free MAU no bill can disagree. AWS documents it in neither direction. **No body — this row is the whole question.** It bites only if open registration is on and abused, and D37's `SignUpSuccesses` chart is the instrument that would show that |
+| O31 | May the seed's pinned row count `4/174/18` move, and what supersedes D10/D24 when it does? | — | **open, 2026-08-26** — raised by A52's withdrawal. D34 rewrites the seed to reconcile by gaining `withdrawal` and `tax` rows; `navigation-map.md` checkpoint 7 pins the count, D10 and D24 pin it as a decision, and D5 pins `Deposited 143 176 ₴` derived from the `deposit` rows — so the rewrite cannot happen without moving a pinned figure, and a decision is superseded, never edited. **No body — this row is the whole question.** W7 needs the answer before its Seed bullet is executable; see `phase-w-i-ii-iii.md` |
 | O32 | How is `{observe:{}}` bounded, now that a `LIMIT` is known not to bound it? | — | **open, 2026-08-26** — from A50's re-plan (**D97**). A plain SQL `LIMIT` is ruled out: the recorded open-range plan puts a `Sort` above a `Full Scan (btree-table)`, and a `Sort` consumes its whole input before yielding a row — D91's `LIMIT 60` worked only because its input arrived index-ordered. A per-invocation **date-range** cap is viable and **measured**: planned at nine widths, the query keeps `Index Scan using price_capture_as_of` out to **1500 days** and falls to a full scan by **2000**. **But it is not a drop-in.** `observeNbu` derives `complete: !remaining` and `nextFrom` from `captures.length > dates`, i.e. from the JS limit having TRUNCATED the fetch; cap the range in SQL and a partial run reports `complete: true, nextFrom: null`, so the caller stops early believing the archive is derived. **So the questions are two:** how `complete`/`nextFrom` are re-derived once the statement is the bound, and whether a manual full re-derive stays possible at all. **No body — this row is the whole question.** |
 | O33 | Deletion has no schema support — does W7 keep the hand-written cascade, or add tombstones? | — | **open, 2026-08-27** — surfaced relocating A51's schema-draft header (2026-08-26), which recorded it and had nowhere else for it to land. `repository.ts` already hand-cascades: `deleteAsset` deletes the asset, then its transactions, then strips it out of every snapshot's quotes, and `deleteTransaction`, `deleteSnapshot`, `replaceAll` and `clearAll` are all live too. `infra/schema/user.ts` has no foreign keys and no `deleted_at` column — deliberately: inventing a column for an undecided question is how a schema acquires a field nobody can explain. So W7's API Lambda inherits the choice unmade — keep the hand-written cascade, or add tombstones. Phase 7's DB browser already assumes delete-impact hints, so the question has a consumer. **No body — this row is the whole question.** |
 | O7 | Fund T-1 dedup rule | 2 | **closed — D31, rejected permanently.** The FX channel is proven non-informative |
@@ -46,23 +46,24 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 ---
 ## Where the detail is
 
-**Split 2026-08-26 (D95)** — this file is the Status table and the rules. The
-open questions' bodies are in the range file below; the closed ones' evidence
-moved to [`../archive/plan-c/`](../archive/plan-c/README.md), and their rows
-above stay here pointing at the decision that answered them.
+**Split 2026-08-26 (D95), file renamed by section 2026-08-27 (D98)** — this
+file is the Status table and the rules. The open questions' bodies are in the
+section file below; the closed ones' evidence moved to
+[`../archive/plan-c/`](../archive/plan-c/README.md), and their rows above stay
+here pointing at the decision that answered them.
 
 | File | Holds |
 |---|---|
-| [`O05-O29.md`](O05-O29.md) | O27, O28, O29, O5 (part), O9/O10/O11, and the trail from each resolution to the plan it fed |
+| [`still-open.md`](still-open.md) | O27, O28, O29, O5 (part), O9/O10/O11, and the trail from each resolution to the plan it fed |
 
 **O30, O31, O32 and O33 have no bodies and do not need any** — each Status row
 is the whole question, and a question that fits in its row does not gain from a
-section of its own. All four sit outside the range file's name for that reason,
-not by oversight, and all four are filed beside O29 so the open rows stay
-grouped.
+section of its own. All four sit outside the section file's name for that
+reason, not by oversight, and all four are filed beside O29 so the open rows
+stay grouped.
 
-Question numbers never change. Splitting moves bodies verbatim; no file goes
-over 200 lines.
+Question numbers never change. Splitting moves bodies verbatim; the 200-line
+cap is a ratchet, not a wall (D95, ratcheted by D98).
 
 ## How an item leaves this file
 

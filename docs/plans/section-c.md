@@ -1,8 +1,8 @@
-# Plan A — live tasks A1–A20
+# Plan A — Section C
 
-> Bodies of the Plan A tasks in this range that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed tasks in this range are in [`../archive/plan-a/`](../archive/plan-a/README.md).
+> Bodies of Section C's Plan A tasks that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed Section C tasks are in [`../archive/plan-a/`](../archive/plan-a/README.md).
 
-Moved verbatim from `PLAN-NOW.md` on 2026-08-26. A11 was written under Section C — App, pure and independent.
+Moved verbatim from `PLAN-NOW.md` on 2026-08-26 as `A01-A20.md`; renamed by section, 2026-08-27 (D98). A11 is Section C — App, pure and independent.
 
 ## A11 — SES production access, requested early — `infra/ses-identity`
 

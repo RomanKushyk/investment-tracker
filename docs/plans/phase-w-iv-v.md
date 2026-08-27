@@ -1,8 +1,8 @@
-# Plan B — live items W9–W17
+# Plan B — Phases W-IV and W-V
 
-> Bodies of the waiting items in this range. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md).
+> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md).
 
-Moved verbatim from `PLAN-WAITING.md` on 2026-08-26.
+Moved verbatim from `PLAN-WAITING.md` on 2026-08-26 as `W09-W17.md`; renamed by section, 2026-08-27 (D98).
 
 # Phase W-IV — Calendar events
 

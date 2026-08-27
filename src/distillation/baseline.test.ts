@@ -27,6 +27,7 @@ const EMPTY: DistillationBaseline = {
   repeatedSentences: {},
   commentChars: {},
   historyPhrases: {},
+  docLineCounts: {},
 };
 
 describe('loadBaseline', () => {
@@ -36,12 +37,13 @@ describe('loadBaseline', () => {
 
   it('loads a well-formed baseline as-is', () => {
     withScratchFile(
-      '{"repeatedSentences": {"a.md": 3}, "commentChars": {"b.ts": 40}, "historyPhrases": {}}',
+      '{"repeatedSentences": {"a.md": 3}, "commentChars": {"b.ts": 40}, "historyPhrases": {}, "docLineCounts": {"c.md": 12}}',
       (path) => {
         expect(loadBaseline(path)).toEqual({
           repeatedSentences: { 'a.md': 3 },
           commentChars: { 'b.ts': 40 },
           historyPhrases: {},
+          docLineCounts: { 'c.md': 12 },
         });
       },
     );
@@ -53,6 +55,7 @@ describe('loadBaseline', () => {
         repeatedSentences: {},
         commentChars: { 'b.ts': 40 },
         historyPhrases: {},
+        docLineCounts: {},
       });
     });
   });
@@ -88,18 +91,21 @@ describe('serializeBaseline', () => {
       repeatedSentences: { 'z.md': 1, 'a.md': 2 },
       commentChars: {},
       historyPhrases: {},
+      docLineCounts: {},
     });
     expect(out.indexOf('"a.md"')).toBeLessThan(out.indexOf('"z.md"'));
   });
 
-  it('orders the three sections consistently regardless of input key order', () => {
+  it('orders the four sections consistently regardless of input key order', () => {
     const out = serializeBaseline({
       historyPhrases: { 'h.md': 1 },
       commentChars: { 'd.ts': 1 },
       repeatedSentences: { 'r.md': 1 },
+      docLineCounts: { 'l.md': 1 },
     } as DistillationBaseline);
     expect(out.indexOf('"repeatedSentences"')).toBeLessThan(out.indexOf('"commentChars"'));
     expect(out.indexOf('"commentChars"')).toBeLessThan(out.indexOf('"historyPhrases"'));
+    expect(out.indexOf('"historyPhrases"')).toBeLessThan(out.indexOf('"docLineCounts"'));
   });
 
   it('is deterministic: same input, byte-identical output, twice', () => {
@@ -107,6 +113,7 @@ describe('serializeBaseline', () => {
       repeatedSentences: { 'b.md': 3 },
       commentChars: { 'a.ts': 40 },
       historyPhrases: {},
+      docLineCounts: { 'c.md': 5 },
     };
     expect(serializeBaseline(b)).toBe(serializeBaseline({ ...b }));
   });
@@ -116,27 +123,30 @@ describe('serializeBaseline', () => {
       repeatedSentences: { 'a.md': 1 },
       commentChars: {},
       historyPhrases: {},
+      docLineCounts: {},
     });
     expect(out).toBe(
-      '{\n  "repeatedSentences": {\n    "a.md": 1\n  },\n  "commentChars": {},\n  "historyPhrases": {}\n}\n',
+      '{\n  "repeatedSentences": {\n    "a.md": 1\n  },\n  "commentChars": {},\n  "historyPhrases": {},\n  "docLineCounts": {}\n}\n',
     );
   });
 });
 
 describe('diffBaseline', () => {
-  it('is silent when all three sections agree', () => {
+  it('is silent when all three sections agree — `docLineCounts` is not part of this diff at all (§6 owns it directly)', () => {
     const b: DistillationBaseline = {
       repeatedSentences: { 'a.md': 2 },
       commentChars: { 'b.ts': 40 },
       historyPhrases: {},
+      docLineCounts: { 'c.md': 12 },
     };
     const diff = diffBaseline(b, b);
     expect(diff.repeatedSentences).toEqual({ over: [], stale: [] });
     expect(diff.commentChars).toEqual({ over: [], stale: [] });
     expect(diff.historyPhrases).toEqual({ over: [], stale: [] });
+    expect(diff).not.toHaveProperty('docLineCounts');
   });
 
-  it('flags a file over its comment-volume baseline as `over`, independent of the other two sections', () => {
+  it('flags a file over its comment-volume baseline as `over`, independent of the other sections', () => {
     const diff = diffBaseline(
       { ...EMPTY, commentChars: { 'a.ts': 40 } },
       { ...EMPTY, commentChars: { 'a.ts': 55 } },
@@ -156,5 +166,14 @@ describe('diffBaseline', () => {
   it('flags a new history-phrase file with no prior baseline entry as `over`', () => {
     const diff = diffBaseline(EMPTY, { ...EMPTY, historyPhrases: { 'new.ts': 1 } });
     expect(diff.historyPhrases.over).toEqual([{ file: 'new.ts', baseline: 0, actual: 1 }]);
+  });
+
+  it('accepts an `actual` with no `docLineCounts` at all — a live scan never produces one', () => {
+    const diff = diffBaseline(EMPTY, {
+      repeatedSentences: {},
+      commentChars: { 'a.ts': 1 },
+      historyPhrases: {},
+    });
+    expect(diff.commentChars.over).toEqual([{ file: 'a.ts', baseline: 0, actual: 1 }]);
   });
 });

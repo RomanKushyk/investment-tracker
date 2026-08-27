@@ -2,7 +2,7 @@
 
 > Bodies of the open questions. Status table and rules: [`PLAN-OPEN.md`](PLAN-OPEN.md). **Never implement from this file** — an answer becomes a decision entry first, then a task in Plan A or Plan B.
 
-Moved verbatim from `PLAN-OPEN.md` on 2026-08-26.
+Moved verbatim from `PLAN-OPEN.md` on 2026-08-26 as `O05-O29.md`; renamed by section, 2026-08-27 (D98).
 
 # Still open
 

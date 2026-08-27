@@ -5,8 +5,9 @@ The mechanical half of the design spec's step 4
 what a reader has to wade through to find the one true fact — repeated sentences, comment
 volume, and history narrated inside the artifact instead of left to git. `pnpm vitest run
 src/distillation` scans the repo and fails naming the file, the line and which check;
-`distillation-baseline.json` (repo root) is the ratchet — one file, three sections, not three
-baselines.
+`distillation-baseline.json` (repo root) is the ratchet — one file, three sections for these
+checks, not three baselines. (A fourth section, `docLineCounts`, rides the same file for an
+unrelated check — see "A fourth section, not a fourth check" near the bottom.)
 
 **All three are diagnostics, never a verdict.** Exceeding a baseline number means "this grew and
 nobody looked at it yet", not "this file is broken" — high comment volume in particular can be
@@ -71,11 +72,12 @@ every hit.
 
 ## The ratchet
 
-`distillation-baseline.json` holds `{ repeatedSentences, commentChars, historyPhrases }`, each a
+`distillation-baseline.json` holds `{ repeatedSentences, commentChars, historyPhrases }` for the
+three checks here (plus `docLineCounts`, a fourth, unrelated section — see below), each a
 `{ "path/to/file": count }` map — sorted keys, 2-space indent, matching prettier. `pnpm
 distillation-baseline` (`scripts/distillation-baseline.ts`) rewrites it from a fresh scan, and
 refuses to write at all if a file that HAD a baseline entry just went unparseable or erroring —
-the same guard `scripts/claim-baseline.ts` carries, checked across all three sections here.
+the same guard `scripts/claim-baseline.ts` carries, checked across the three sections here.
 `distillation-lint.test.ts` is the read-only check, and — same as the claim lint — it fails two
 ways per section: a file **over** its baseline (new, un-ratcheted growth) and a file **under** it
 (stale — the file improved, lost its instances, or was deleted, and nobody lowered the number).
@@ -154,8 +156,23 @@ authoritative — deliberately out of this task's scope.
 |--------|----------------|
 | `scan.ts` | The three checks' pure logic — `sentenceHits`/`groupRepeated`/`repeatedCountsByFile`, `commentChars`, `historyHits`/`historyHitsInProse`/`wrapOnlyHistoryHits`/`historyCountsByFile`, `HISTORY_PHRASES`, `fencedRanges`, and `scanFile` (the per-file-kind dispatch, mirroring `src/claims/scan.ts`'s own) |
 | `repo-scan.ts` | `scanRepo` — the one place in this mechanism that touches disk: walks `claimTargetFiles()`, calls `scanFile`, aggregates the repo-wide sentence groups, and classifies declared vs. unexpected scan errors |
-| `baseline.ts` | `DistillationBaseline`, `loadBaseline`/`serializeBaseline`, `diffBaseline` (three calls into `src/claims/baseline.ts`'s own `diffBaseline`, one per section — reused, not reimplemented) |
+| `baseline.ts` | `DistillationBaseline` (I/O shape, all four sections), `loadBaseline`/`serializeBaseline` (all four), `diffBaseline` (the three checks ONLY — three calls into `src/claims/baseline.ts`'s own `diffBaseline`, reused not reimplemented) |
+| `doc-line-counts.ts` | `docLineCounts`/`lineCount`/`LIMIT` — the fourth section's scanner; unrelated to the three checks above, shared by `../docs-line-cap.test.ts` and `scripts/distillation-baseline.ts` |
 | `distillation-lint.test.ts` | **Not app code.** The repo-wide ratchet check — the real scan against the real `distillation-baseline.json`, same shape as `src/claims/claim-lint.test.ts` |
 
 Every module above ships a colocated `*.test.ts` except `distillation-lint.test.ts` itself,
 which *is* the repo-wide check.
+
+## A fourth section, not a fourth check
+
+`docLineCounts` lives in `distillation-baseline.json` because that is the existing baseline
+machinery (§6 reuses it rather than growing a fifth mechanism), but it is not one of the three
+checks above and `diffBaseline` in `baseline.ts` does not touch it — `../docs-line-cap.test.ts`
+loads `baseline.docLineCounts` and diffs it directly with `src/claims/baseline.ts`'s own
+`diffBaseline`, the identical primitive, one level down. Only a Markdown file already over 200
+lines gets an entry at all (`doc-line-counts.ts`'s own doc comment says why: pinning every file's
+exact length, the first cut of this ratchet, baselined the length of the owner's two hand-edited
+draft files — `USER-FEATURES-DRAFT.md`, `USER-BUGS-DRAFT.md` — as committed integers, which is
+private uncommitted state leaking into the repository by another name). A file at or under 200 is
+unconstrained; a file already over it may not grow further without `pnpm distillation-baseline`
+being re-run and reviewed. `LIMIT` (`doc-line-counts.ts`) is the one place that number is written.

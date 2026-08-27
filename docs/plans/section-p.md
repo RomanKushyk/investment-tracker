@@ -1,8 +1,8 @@
-# Plan A — live tasks A51–A60
+# Plan A — Section P
 
-> Bodies of the Plan A tasks in this range that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed tasks in this range are in [`../archive/plan-a/`](../archive/plan-a/README.md).
+> Bodies of Section P's Plan A tasks that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed Section P tasks are in [`../archive/plan-a/`](../archive/plan-a/README.md).
 
-Created 2026-08-26 by splitting `A41-A60.md`, which Section P pushed past the 200-line cap. Bodies moved verbatim; A46 and Section M stayed behind in [`A41-A50.md`](A41-A50.md).
+Created 2026-08-26 by splitting `A41-A60.md`, which Section P pushed past the 200-line cap, as `A51-A60.md`; renamed by section, 2026-08-27 (D98). Bodies moved verbatim; A46 and Section M stayed behind in [`section-m.md`](section-m.md).
 
 # Section P — W7 preparation, startable ahead of the gate
 
@@ -45,7 +45,7 @@ the **post-migration** model, where the sum reconciles by construction with no
 exclusion rules. Before that, it is unsatisfiable.
 
 **Where the work goes:** back to W7, whose scope already lists it
-(`W02-W08.md`, the Seed bullet). The seed rewrite and the `derive.ts` change
+(`phase-w-i-ii-iii.md`, the Seed bullet). The seed rewrite and the `derive.ts` change
 land together or neither lands.
 
 **What W7 needs answered first — `PLAN-OPEN.md` O31.** Moving `4/174/18` means
@@ -113,7 +113,7 @@ worth one question, not four — three of them cost nothing to get wrong later.
 - [ ] **The MAU question is out, and why is the deliverable.** "Does a
       trigger-rejected sign-up cost an MAU" cannot be answered here:
       `EstimatedNumberOfUsers` counts users and a rejected sign-up creates
-      none, so the reading is 0 → 0 whatever Cognito bills; `W02-W08.md`
+      none, so the reading is 0 → 0 whatever Cognito bills; `phase-w-i-ii-iii.md`
       already records total users as a strict *upper bound* on MAU, not a
       measure of it; and inside 10,000 free MAU no bill can disagree. Filed as
       `PLAN-OPEN.md` O30. Testing the trigger path at all would need a

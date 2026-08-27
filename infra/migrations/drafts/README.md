@@ -54,7 +54,7 @@ reviewed, and only then promoted.
   `CREATE INDEX ASYNC name ON table (cols)`, with no method clause either way.
   Nobody has confirmed DSQL accepts `USING btree` — tracked as a
   pre-condition on W7's row in
-  [`../../../docs/plans/W02-W08.md`](../../../docs/plans/W02-W08.md), verify
+  [`../../../docs/plans/phase-w-i-ii-iii.md`](../../../docs/plans/phase-w-i-ii-iii.md), verify
   before promotion.
 - **And that list is not known to be complete.** Neither
   `001_price_capture.sql`/`002_price_observation.sql` nor `ensureSchema` uses
@@ -63,7 +63,7 @@ reviewed, and only then promoted.
   precedent against the real cluster; the cloud-stack spec's line that
   `CHECK`, `UNIQUE`, `PRIMARY KEY` and `GENERATED` are all supported is the
   only basis for using them. First contact is this schema's promotion — see
-  W7's row in [`../../../docs/plans/W02-W08.md`](../../../docs/plans/W02-W08.md)
+  W7's row in [`../../../docs/plans/phase-w-i-ii-iii.md`](../../../docs/plans/phase-w-i-ii-iii.md)
   for the gate date. Contract 3's key-order argument is reasoning about DSQL's
   index-organized primary key, not evidence — a query plan over a two-row
   table was not taken as one.

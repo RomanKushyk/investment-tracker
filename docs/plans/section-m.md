@@ -1,8 +1,8 @@
-# Plan A — live tasks A41–A50
+# Plan A — Section M
 
-> Bodies of the Plan A tasks in this range that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed tasks in this range are in [`../archive/plan-a/`](../archive/plan-a/README.md).
+> Bodies of Section M's Plan A tasks that are **not closed**. Index and status table: [`PLAN-NOW.md`](PLAN-NOW.md). Closed Section M tasks are in [`../archive/plan-a/`](../archive/plan-a/README.md).
 
-Moved verbatim from `PLAN-NOW.md` on 2026-08-26; split again on the same day when Section P pushed the file past the 200-line cap. **A51-A54 are in [`A51-A60.md`](A51-A60.md)** — this file keeps the pointer, not a stub.
+Moved verbatim from `PLAN-NOW.md` on 2026-08-26 as `A41-A50.md`, split again the same day when Section P pushed it past the 200-line cap; renamed by section, 2026-08-27 (D98). **A51-A54 are in [`section-p.md`](section-p.md)** — this file keeps the pointer, not a stub.
 
 # Section M — Input grammar
 
