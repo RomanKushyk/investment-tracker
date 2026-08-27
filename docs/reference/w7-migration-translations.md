@@ -9,10 +9,10 @@ something real if skipped.
 ## 1. IDs are slugs today; the schema says UUID
 
 `seed.ts` assigns `'reit'`, `'energy'`, `'ovdp8976'`, `'ovdp6475'` and
-transaction ids `'d1'`…`'r3'`; every one of the 174 snapshots keys its
+transaction ids `'d1'`…`'r3'`; every one of the <!--f:seed.snapshots-->174<!--/f--> snapshots keys its
 `quotes` map by those same asset slugs. A slug→UUID remap is needed across
 `asset.id`, `transaction.id`, `transaction.asset_id`, `user_price.asset_id`
-AND every snapshot quote key. Skipping this loses the 174 snapshots — D33
+AND every snapshot quote key. Skipping this loses the <!--f:seed.snapshots-->174<!--/f--> snapshots — D33
 says they cannot be regenerated.
 
 ## 2. `assetId` is `''` on the seed's portfolio-level rows
@@ -39,11 +39,11 @@ in the CSV today (`csv.ts`), so it also exists outside the database.
 
 ## 5. `Snapshot.cash` has no column, and no home is decided
 
-All 174 snapshots store a cash balance (`types.ts`: `Snapshot.cash: number`),
+All <!--f:seed.snapshots-->174<!--/f--> snapshots store a cash balance (`types.ts`: `Snapshot.cash: number`),
 and the model's answer is derivation — `free_cash(D) = Σ signed amount up to
 D` across `account`. But the withdrawal that produced A52 measured that
 today's ledger does not reproduce today's figures, and D5 pins the ₴7.75
-residue that every one of those snapshots records. So the 174 recorded
+residue that every one of those snapshots records. So the <!--f:seed.snapshots-->174<!--/f--> recorded
 balances are either dropped or need somewhere to live, and that is not this
 document's call — it is the same ruling `docs/plans/PLAN-OPEN.md` O31 is
 waiting on.

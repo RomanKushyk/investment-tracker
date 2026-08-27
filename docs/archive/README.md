@@ -11,7 +11,7 @@ checkbox ticked here.
 |---|---|---|
 | [`BUILD-PLAN.md`](BUILD-PLAN.md) | v1 index: global constraints, motion standards, status | **The motion standards, yes.** The pinned contracts and the seed spec moved to `build-plan/` on 2026-08-26 and bind from there |
 | [`design-briefs/`](design-briefs/) | Phases 2–4, all shipped | Only as the record of what each surface was meant to be |
-| [`plan-a/`](plan-a/README.md) | Plan A: 53 closed tasks, bodies + the full ledger | No — closed. Its rulings live in `../decisions/` |
+| [`plan-a/`](plan-a/README.md) | Plan A: <!--f:plan.closedTasks-->53<!--/f--> closed tasks, bodies + the full ledger | No — closed. Its rulings live in `../decisions/` |
 | [`plan-b/`](plan-b/README.md) | Plan B: waiting items whose gate opened and closed | No — closed |
 | [`plan-c/`](plan-c/README.md) | Plan C: the evidence under four answered questions | Only as the working a ruling rests on; the ruling binds, not this |
 | [`build-plan/`](build-plan/) | The long half of `BUILD-PLAN.md` | **Its pinned contracts, yes** — see the index above |

@@ -111,7 +111,7 @@ repository exceed 200 lines.** What each class cost:
 
 | Where | Shape it took |
 |---|---|
-| `plans/` | Three indexes over ID-range files; 53 closed tasks to `archive/plan-a/` |
+| `plans/` | Three indexes over ID-range files; <!--f:plan.closedTasks-->53<!--/f--> closed tasks to `archive/plan-a/` |
 | `archive/` | `BUILD-PLAN.md` and the three phase briefs became indexes over folders |
 | `reference/` | `DEPLOYMENT.md` over `deployment/`, `MARKET-DATA-SOURCES.md` over `market-data/`, and `INZHUR-FUND-HISTORY.md` split into the two documents it always was |
 | `design-briefs/` | Every brief an index over `phase-N/` · `asset-create/` · `screen-density/` |

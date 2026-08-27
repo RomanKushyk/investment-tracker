@@ -28,6 +28,7 @@ Read README.md first — it is the full implementation spec (design tokens, scre
 - Tailwind theme tokens for the palette (README §4) — no ad-hoc hex in components.
 - **Fluid, soft motion on every interaction** (user requirement) — follow "Motion & interaction standards" in docs/archive/BUILD-PLAN.md; nothing pops or snaps instantly; respect prefers-reduced-motion.
 - `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm format:check` must pass before considering a task done. **`format:check` joined the gate in A37** and is enforced in `.github/workflows/deploy-frontend.yml`; `pnpm format` fixes what it reports. It does not read `design/` (D14 makes a merged drawing immutable), **any Markdown at any depth** (hand-formatted tables carrying measured figures — the folder READMEs included), or the captured upstream fixtures — see `.prettierignore`, which says why on every line.
+- **A number inside a `<!--f:app.colorSlots-->4<!--/f-->` fence is machine-maintained — never hand-edit it.** Change what derives it, then run `pnpm facts`; a stale fence fails the suite (`src/facts/README.md`).
 
 ## Git conventions (this repo)
 - Personal pet project — **no Jira, never ask for a ticket key**.

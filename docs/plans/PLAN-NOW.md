@@ -39,7 +39,7 @@ puts Section P (A52–A54; A51 closed 2026-08-26) above Section M (A46).
 ## Where the closed work is
 
 [`../archive/plan-a/README.md`](../archive/plan-a/README.md) — the ledger of all
-53 closed tasks, and 16 files holding their bodies. **It is a record, not a task
+<!--f:plan.closedTasks-->53<!--/f--> closed tasks, and 16 files holding their bodies. **It is a record, not a task
 list**; work that comes out of reading it becomes a new task here.
 
 ## How this file is split

@@ -1,7 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { markdownFiles, REPO } from './facts/markdown-files';
 
 // D95 makes "no documentation file exceeds 200 lines" a repo-wide invariant, and
 // D96 removes the range files that made it impossible to hold in the decision log.
@@ -14,36 +14,8 @@ import { describe, expect, it } from 'vitest';
 //
 // It lives in `src/` because that is where the toolchain runs; it governs the whole
 // repository, which is the one exception to src/README's structure table.
-//
-// Paths resolve from THIS file, never from `process.cwd()` — a cwd-relative walk
-// silently checks nothing when vitest is given a different root.
-const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
-
-/** Not ours to measure: dependencies, build output, and git's own store. */
-const SKIP = new Set([
-  'node_modules',
-  'dist',
-  'coverage',
-  '.git',
-  '.vite',
-  '.turbo',
-  '.superpowers', // Git-ignored scratch written by tooling; the cap governs the repository's documentation.
-]);
 
 const LIMIT = 200;
-
-function markdownFiles(dir: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isDirectory()) {
-      if (SKIP.has(entry.name)) continue;
-      found.push(...markdownFiles(join(dir, entry.name)));
-    } else if (entry.name.endsWith('.md')) {
-      found.push(join(dir, entry.name));
-    }
-  }
-  return found;
-}
 
 /** `wc -l` semantics: newline count, so a file with no trailing newline is not over-counted. */
 function lineCount(path: string): number {
