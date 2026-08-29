@@ -38,7 +38,7 @@ chart analytics — two different bodies of work under one number. The mobile wo
 gets a letter here until one of the two numbering schemes is retired; do not
 merge the rows.
 
-Current version: **<!--f:app.version-->v1.8.0<!--/f-->** — machine-maintained from `package.json`, never hand-edited. It is fenced because the hand-written form said `v1.6.1` through six releases (1.6.2 → 1.8.0) before a review caught it. Per-phase tags continue per `docs/reference/VERSIONING.md`.
+Current version: **<!--f:app.version-->v1.9.0<!--/f-->** — machine-maintained from `package.json`, never hand-edited. It is fenced because the hand-written form said `v1.6.1` through six releases (1.6.2 → 1.8.0) before a review caught it. Per-phase tags continue per `docs/reference/VERSIONING.md`.
 
 ## What shipped (compressed record — detail lives in git + DECISIONS)
 
