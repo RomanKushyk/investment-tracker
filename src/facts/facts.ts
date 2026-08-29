@@ -17,6 +17,19 @@ export const FACTS: Record<string, Fact> = {
   // Cited in three live indexes. It read 51 in one and 53 in two until 2026-08-26.
   'plan.closedTasks': derived(() => countRows('docs/archive/plan-a/README.md', /^\| [A-Z]\d+ \|/)),
 
+  // Hand-copied, it drifts: `NEXT-PHASE-PLAN.md` said v1.6.1 through six releases.
+  // Validated, because `derived` does not: an absent field would fence the string
+  // "vundefined" into the plan of record and the fence test would agree with it.
+  'app.version': derived(() => {
+    const { version } = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as {
+      version?: unknown;
+    };
+    if (typeof version !== 'string' || version === '') {
+      throw new Error('package.json has no usable "version"');
+    }
+    return `v${version}`;
+  }),
+
   // `4/174/18`, cited in six live files.
   'seed.assets': derived(() => SEED_ASSETS.length),
   // A function, not an array — so the count follows the builder.

@@ -38,7 +38,7 @@ chart analytics — two different bodies of work under one number. The mobile wo
 gets a letter here until one of the two numbering schemes is retired; do not
 merge the rows.
 
-Current version: **v1.6.1**. Per-phase tags continue per `docs/reference/VERSIONING.md`.
+Current version: **<!--f:app.version-->v1.8.0<!--/f-->** — machine-maintained from `package.json`, never hand-edited. It is fenced because the hand-written form said `v1.6.1` through six releases (1.6.2 → 1.8.0) before a review caught it. Per-phase tags continue per `docs/reference/VERSIONING.md`.
 
 ## What shipped (compressed record — detail lives in git + DECISIONS)
 
@@ -101,7 +101,7 @@ The four tracks that used to be listed here, plus everything queued behind the m
 ## Cross-phase rules
 
 - **Git/gates:** per-task branches as named; plain conventional commits; **`/code-review` on the branch before every squash-merge, findings fixed or declined in writing (D76)**; squash-merge to `dev`; `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check` per merge; `pnpm build` + version tag per phase close; no AI attribution in any git artifact.
-- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — **D96 is the current tail** (2026-08-26); **appending means CREATING `docs/decisions/D<n>.md`**, because D96 retired the range files, and a number is never reused or renumbered); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/plans/`, `docs/archive/design-briefs/`, `docs/archive/plan-a|b|c/`, `docs/archive/build-plan/`, `docs/reference/deployment/`, `design/extensions/`, `infra/`) — **and the range tables inside the plan indexes, which is where a new body becomes unreachable if it is missed (D95)**.
+- **Docs upkeep per phase:** this file's checkboxes and Status table; DECISIONS entries (numbering assigned sequentially at append time — **the tail is the last row of `../decisions/README.md`**, not a number repeated here; **appending means CREATING `docs/decisions/D<n>.md`**, because D96 retired the range files, and a number is never reused or renumbered); `navigation-map.md` route rows and checkpoints (in demo mode until B3); folder READMEs (`src/core/`, `src/i18n/`, `docs/plans/`, `docs/archive/design-briefs/`, `docs/archive/plan-a|b|c/`, `docs/archive/build-plan/`, `docs/reference/deployment/`, `design/extensions/`, `infra/`) — **and the range tables inside the plan indexes, which is where a new body becomes unreachable if it is missed (D95)**.
 - **Standing integrity invariants (review checklist):** validate-fully-then-one-transaction for multi-row writes; **no silent writes** — fetched, accrued and server-suggested values reach a draft or prefill only; empty cell ≠ 0; no orphan rows persisted; destructive confirms always offer a one-click backup; every new persisted settings field enters `partialize` in the same commit; D7 motion + reduced-motion on every new control.
 - **Design pipeline (G7):** brief → design session → `design/extensions/*.dc.html` merged → UI implementation. Pure-logic tasks are never design-blocked.
 
@@ -111,9 +111,9 @@ The four tracks that used to be listed here, plus everything queued behind the m
 the files that first carried it. `enhancement` is what the app does not do yet;
 `bug` is what it does WRONG. A missing capability is an `enhancement`; a
 cosmetic shipped on purpose is `FOLLOW-UPS.md`; a bug is the app getting wrong
-something it already does. **Nothing is fixed off a `bug` issue directly** — a
-line there is a symptom, not a diagnosis: reproduce, write the failing test,
-then fix.
+something it already does. **Nothing is fixed from a `bug` issue without
+reproducing it first** — a line there is a symptom, not a diagnosis: reproduce,
+write the failing test, then fix.
 
 **The inbox left the repository 2026-08-28 (D103).** `USER-FEATURES-DRAFT.md`
 and `USER-BUGS-DRAFT.md` became issues #1–#27, byte for byte, and the reason was
@@ -122,9 +122,10 @@ that reaches `git`, and four ideas were sitting uncommitted in the working tree
 at the moment the migration was decided. It is still **deliberately not copied
 here** — a second copy in this file is how the two drift.
 
-**Nothing in it is planned**, and nothing is implemented off an issue directly.
-The list moved out of `docs/archive/` on 2026-08-17 (the archive rule is *never
-a task list*) and was pruned from 23 items to 7 in the same pass.
+**Nothing in it is planned.** The rules for working an issue — diagnosis first,
+and D105's routing — are in [`README.md`](README.md) and deliberately not copied
+here. The list moved out of `docs/archive/` on 2026-08-17 (the archive
+rule is *never a task list*) and was pruned from 23 items to 7 in the same pass.
 
 **Groomed and emptied 2026-08-18 (7 → 0)**, and it filled again — to 24 ideas by
 the time it became issues #4–#27.

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FACTS } from './facts';
 import { derived, measured, renderFact } from './registry';
@@ -110,5 +112,20 @@ describe('the first facts', () => {
     expect(Number(renderFact(FACTS['userSchema.compositeKeys']))).toBeLessThan(
       Number(renderFact(FACTS['userSchema.tables'])),
     );
+  });
+
+  it("renders package.json's version with a `v` prefix, and rejects `vundefined`", () => {
+    // What each assertion is worth, stated honestly. The equality pins the
+    // FORMAT — that the fact renders the raw field with a `v` prefix and nothing
+    // else — and it is NOT an independence check: this file and the fact's `REPO`
+    // both resolve two levels up from `src/facts/`, so relocating the folder moves
+    // them together. The shape assertion is what has teeth: it rejects
+    // `vundefined`, an empty version, and anything non-semver.
+    const root = fileURLToPath(new URL('../../package.json', import.meta.url));
+    const { version } = JSON.parse(readFileSync(root, 'utf8')) as {
+      version: string;
+    };
+    expect(renderFact(FACTS['app.version'])).toBe(`v${version}`);
+    expect(renderFact(FACTS['app.version'])).toMatch(/^v\d+\.\d+\.\d+/);
   });
 });

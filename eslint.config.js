@@ -6,7 +6,11 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // Generated bundles, matched at any depth. `'dist'` alone is root-anchored and
+  // did not cover infra's, so a local lint after the bundle step parsed a
+  // multi-hundred-KB file; enumerating the two paths would leak the same way for
+  // the third. `**/dist` is also how `src/facts/markdown-files.ts`'s SKIP treats it.
+  { ignores: ['**/dist'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

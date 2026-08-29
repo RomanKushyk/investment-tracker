@@ -4,6 +4,23 @@ Root `README.md` is the product spec. Everything the spec does not carry lives
 here, in the folders below — one per question, and `spec/` for the half of the
 product spec that did not fit in the root README.
 
+**And nowhere else: the GitHub wiki is deliberately OFF**
+([D104](decisions/D104.md), 2026-08-28, never initialised, so nothing was lost).
+**Two mechanisms hold this documentation honest and a wiki has neither:**
+`pnpm test` reads this tree — claim ratchet, line cap, decisions index, fact
+fences — and **D76 reviews documentation before it lands**. A wiki keeps
+per-page revision history, so *a* diff exists, but nothing can test it and
+nothing reviews it. **D104 carries the CI measurement** behind that sentence
+(which workflow fires on what, and why the suite is the author's to run before a
+change lands) — it is a dated entry, so it can hold a figure; this index cannot,
+and a copy here would go quietly false the next time a workflow is edited. Turn
+the wiki back on only by superseding those two reasons, not by finding it
+convenient.
+
+Two things a wiki also lacks are **deliberately not claimed**, because neither
+tells it apart from this tree: pull requests (D73 requires none here either) and
+`format:check` (`.prettierignore` excludes `*.md`). D104 records both.
+
 | Folder | Answers | Read it when |
 |---|---|---|
 | [`plans/`](plans/README.md) | **What to do next** | Starting a session |
@@ -28,8 +45,8 @@ other plans exist to keep things *out* of that one.
 | [`plans/PLAN-NOW.md`](plans/PLAN-NOW.md) | **Plan A — startable today.** Nothing gates these. Index + live Status table; bodies in `plans/section-c.md`, `plans/section-m.md`, `plans/section-p.md` | Pick the first non-done task in section order. Gates green per merge |
 | [`plans/PLAN-WAITING.md`](plans/PLAN-WAITING.md) | **Plan B — dated.** Gated on elapsed time or an external event. Index + the dated table; bodies in `plans/phase-w-i-ii-iii.md`, `plans/phase-w-iv-v.md` | **Read its table before any session touching `infra/` or the migration.** Move an item to Plan A the day its gate opens |
 | [`plans/PLAN-OPEN.md`](plans/PLAN-OPEN.md) | **Plan C — open questions**, with the trail from each answer to the task it created. Index + Status table; bodies in `plans/still-open.md` | **Never implement from this file.** Answer → decision entry → file the work into Plan A or B |
-| [GitHub Issues](https://github.com/RomanKushyk/investment-tracker/issues) | **The inbox — the owner's raw ideas and bug reports, in his words.** Labelled `enhancement` and `bug`. Not a file since 2026-08-28 (D103) | **Never implement from an issue directly, and never fix off a `bug` issue directly** — a line there is a symptom, not a diagnosis: reproduce, write the failing test, then fix. **A pasted sample is bytes — quote it, never re-key it.** A missing capability is an `enhancement`, not a `bug`; a cosmetic shipped on purpose goes to [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md). Grooming files the work into Plan A or B; `Closes #N` in the squash-merge closes the issue |
-| [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) | Cosmetic backlog consciously shipped as-is | Items 1–8 cleared 2026-07-28; **9–11 open**. Add deferred-cosmetic findings here rather than reopening a closed plan |
+| [GitHub Issues](https://github.com/RomanKushyk/investment-tracker/issues) | **The inbox — the owner's raw ideas and bug reports, in his words.** Labelled `enhancement` and `bug`. Not a file since 2026-08-28 (D103) | **The rules live in [`plans/README.md`](plans/README.md) and are not restated here** — diagnosis before work, `bug` vs `enhancement`, and D105's routing (branch → work → `Closes #N`, nothing added to `plans/`). One line that must travel with the link: **a pasted sample is bytes — quote it, never re-key it** |
+| [`plans/FOLLOW-UPS.md`](plans/FOLLOW-UPS.md) | Cosmetic backlog consciously shipped as-is | Every row states its own status — **read them, no count here**; the previous count in this cell was false for weeks. Add deferred-cosmetic findings here rather than reopening a closed plan |
 
 ## Why things are the way they are
 
@@ -48,9 +65,11 @@ Cited from code by bare number (`D5`, `D30`), so numbers never change.
 | File | What it is | The rule |
 |---|---|---|
 | [`reference/DEPLOYMENT.md`](reference/DEPLOYMENT.md) | Frontend deploy runbook: deploying, verifying, rollback, failure playbook, cost. **One-time setup — domain, Amplify app, IAM role, GitHub config — is [`reference/deployment/`](reference/deployment/README.md)** | Hosting config is console-managed by design — CI has no `UpdateApp`. **The backend is a separate stack**; see [`../infra/README.md`](../infra/README.md) |
+| [`../.github/WORKFLOWS.md`](../.github/WORKFLOWS.md) | What the two workflows fire on, what `paths-ignore` really skips, and the standing prohibition on `dependabot.yml` | **Named `WORKFLOWS.md`, not `README.md`** — GitHub would render a `.github/README.md` as the repo landing page instead of the product spec |
+| [`reference/DEPENDABOT.md`](reference/DEPENDABOT.md) | Security-advisory runbook: the alert query, and the checkout→fetch→rebase→install→gates→review→squash sequence for a Dependabot PR | **The ALERT is the unit, not the PR** — draining the PR list is not draining the advisories. Some steps fail SILENTLY if skipped; the file marks which and why (D104 §2) |
 | [`reference/FORMULA-AUDIT.md`](reference/FORMULA-AUDIT.md) | Per challenge → app formula → validation figures → verdict, plus the pinned fintech rulings | Consult before touching any `core/derive.ts` / `core/xirr.ts` formula |
 | [`reference/WEALTH-MANAGEMENT-ARCHITECTURE.md`](reference/WEALTH-MANAGEMENT-ARCHITECTURE.md) | The spreadsheet-era business-logic spec this app was migrated from | Source of truth for the formula audit. Every deviation from it is pinned there, with D13 |
-| [`reference/VERSIONING.md`](reference/VERSIONING.md) | App version and the sidebar badge | `package.json` is the single source; the badge derives from it at build time. Tag `vX.Y.Z` must agree |
+| [`reference/VERSIONING.md`](reference/VERSIONING.md) | App version, the sidebar badge, **and the whole release procedure** — bump, annotate, promote, push the tag, publish the GitHub Release | `package.json` is the single source; the badge derives from it at build time. Tag `vX.Y.Z` must agree, and **the tag's annotation IS the release note** — subject becomes the title, body becomes the notes, and a body-less tag ships an empty release |
 | [`reference/INZHUR-FUND-HISTORY.md`](reference/INZHUR-FUND-HISTORY.md) | The provider's published fund price files: what they cover, and the proof that they are `nav` and not `sell` | Read before planning or writing the import (W15). The files are `.xlsx` in `~/.quirenote` and never committed; **D83 supersedes D72 — they may now be fetched, but the link is re-read, never polled**. **The offer-page payload is devalue-encoded — its quote numbers are table indices, not prices** |
 | [`reference/INZHUR-PUBLIC-SURFACE.md`](reference/INZHUR-PUBLIC-SURFACE.md) | What the provider serves publicly, measured 2026-08-24: the offer-page payload, the free cross-checks, `robots.txt` | **The payload is devalue-encoded — its quote numbers are table indices, not prices.** D83 supersedes D72: the files may be fetched, but the link is re-read, never polled |
 | [`reference/MARKET-DATA-SOURCES.md`](reference/MARKET-DATA-SOURCES.md) | The external source map: the summary, the closed list and **the rules it leaves us with**. Per-source detail is [`reference/market-data/`](reference/market-data/README.md) | Read before adding any external data source. SMIDA's feed is the live one (D82) but **we do NOT fetch it — D86 closed O25 categorically**; stockmarket.gov.ua answers `200` with data stopping 2019–2021 and is unreachable from a non-Ukrainian network |
@@ -79,9 +98,15 @@ moving it would split new specs from old ones. It is surfaced here instead.
 - If a session must always see a document, link it from `CLAUDE.md` as well.
   That file is the only one loaded unconditionally, so it stays a pointer list
   rather than a copy.
-- **Every top-level folder has its own `README.md`** with its local rules —
-  `design/`, `docs/`, `src/`, `infra/`. Read it before working there; create one
-  for any new folder.
+- **Every top-level folder documents its local rules** — `design/`, `docs/`,
+  `src/`, `infra/`, `scripts/`, `public/` as `README.md`. Read it before working
+  there; create one for any new folder. **The one exception is `.github/`, which
+  uses [`WORKFLOWS.md`](../.github/WORKFLOWS.md)**: GitHub renders a
+  `.github/README.md` as the repository landing page IN PLACE OF the root product
+  spec. `src/github-landing-page.test.ts` fails the suite if one appears under any
+  spelling, but a test catches it after the commit, not before — which is why the
+  exception is stated here, in the file a session opens when it does not know
+  which file it needs.
 - Dates in documentation are absolute (`2026-08-11`), never relative. A doc that
   says "last week" is unreadable three sessions later.
 

@@ -18,14 +18,38 @@ on:
       # recreating precisely the green-but-never-executed gap A50 closed in this
       # same file, and trading a wasted deploy for no gates at all.
       # The gates are worth more than the deploy slot. A no-op redeploy of an
-      # unchanged bundle is accepted knowingly; suppressing it properly means
-      # gating the Deploy step rather than the workflow, and that is worth doing
-      # only when the wasted runs are actually a cost.
+      # unchanged bundle is accepted knowingly — including from a docs-only push,
+      # now that `.github/**` and the root manifests are on this list. Suppressing
+      # it properly means gating the Deploy step; that was tried and removed, and
+      # the comment above that step says what each attempt got wrong.
       # The handler bundles the parser from src/core, so a parser change is a
       # backend change even though nothing under infra/ moved.
       - 'src/core/inzhur/**'
+      - 'src/core/nbu/**'
       - 'src/core/dates.ts'
-      - '.github/workflows/deploy-backend.yml'
+      # In the handler's TypeScript program via `import type` from dates.ts and
+      # parse.ts — confirmed with `tsc -p infra --listFiles`. It matters because the
+      # two tsconfigs disagree: the root has DOM + vite/client, infra has neither, so
+      # a DOM type added here compiles green under `pnpm build` and breaks only the
+      # infra program, which without this line no run would ever typecheck.
+      - 'src/core/types.ts'
+      # The bundle INLINES root dependencies — `parse.ts` imports `zod` and esbuild
+      # embeds it — so a root bump changes the deployed Lambda's code. Without these
+      # two, a Dependabot security bump of `zod` would deploy the frontend only and
+      # leave the capture Lambda on the vulnerable version until some unrelated
+      # infra/ push happened to redeploy it. The cost is a backend deploy on every
+      # dependency change, most of which never reach the bundle; a silently stale
+      # Lambda is the worse of the two.
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      # `.github/**`, not just this file: a push adding `.github/README.md` is
+      # skipped by deploy-frontend (`**/*.md`), so without this trigger NO workflow
+      # would run on the one commit that replaces the repository's landing page.
+      # The trigger is necessary and not sufficient — the guards also had to be
+      # COVERED by a test step below, which is why that step runs the whole suite
+      # rather than a path-filtered selection. Do not narrow it back to a list:
+      # two earlier versions kept one by hand and both leaked (see there).
+      - '.github/**'
   workflow_dispatch:
 
 concurrency:
@@ -73,14 +97,55 @@ jobs:
       # but never executed on the commit that could break them. Same asymmetry,
       # same fix, as the `format:check` step below.
       # Runs before any AWS credential exists — a failing test cannot deploy.
-      - run: pnpm vitest run src/core/inzhur infra/src
+      #
+      # THE WHOLE SUITE, not a path-filtered selection. Two earlier versions of
+      # this step named files by hand and both leaked: `src/core/nbu/**` triggered
+      # the workflow with its tests unlisted, and the repository guards
+      # (`github-landing-page`, `dependabot-config`) were unlisted too — so a push
+      # adding `.github/README.md` fired this workflow, passed every step, and
+      # replaced the repo's landing page. Reproduced, both times.
+      # A hand-kept list is a rule someone has to remember; the full run is 6.1s
+      # against 3.2s for the filtered one, and it also covers the doc ratchets
+      # (claim-lint, distillation-lint, docs-line-cap, fences), which never ran on
+      # an infra-only push before. deploy-frontend SKIPS such a push through its
+      # `paths-ignore`, which is why this workflow needs a suite at all.
+      #
+      # THIS WIDENS THE BLAST RADIUS, and the file's header is about the other
+      # direction: the two workflows are separate so a broken SPA BUILD never blocks
+      # the price capture. That still holds — `vite build` is not run here. What the
+      # whole suite adds is that a documentation ratchet (a stale `claim-baseline`
+      # count, a doc over its line cap) can now block a capture deploy. Accepted:
+      # the alternative is a hand-kept file list, which leaked twice, and a stale
+      # ratchet is a real defect rather than an unrelated one. Named here so the two
+      # rationales do not quietly disagree.
+      - run: pnpm test
 
-      # A37 — `prettier --check .` covers infra/ too (three sources, their tests
-      # and template.yaml), and deploy-frontend SKIPS an infra-only push through
-      # its `paths-ignore`. Without this step, unformatted infra lands on dev and
-      # the next unrelated FRONTEND commit fails the gate on a file it never
-      # touched. Same block, same reason: before any credential exists.
+      # A37 — `prettier --check .` covers infra/ too (its sources, their tests and
+      # template.yaml), and deploy-frontend SKIPS an infra-only push through its
+      # `paths-ignore`. Without this step unformatted infra lands on dev and the next
+      # unrelated FRONTEND commit fails the gate on a file it never touched. Same
+      # block, same reason: before any credential exists.
       - run: pnpm format:check
+
+      # THE THIRD AND FOURTH INSTANCES OF THE SAME ASYMMETRY, closed together.
+      # TYPECHECK: root `tsconfig.json` includes only `src`, `vite.config.ts` and
+      # `scripts`, so `pnpm typecheck` never read infra/ and deploy-frontend skips
+      # an infra-only push anyway — measured, a deliberate `const x: number = "s"`
+      # in infra/src survived `pnpm typecheck` cleanly, esbuild stripped it, and it
+      # would have deployed. `infra/tsconfig.json` existed the whole time and
+      # nothing ran it.
+      # LINT: `eslint .` does cover infra/ (10 source files), but only deploy-frontend runs
+      # it and its `paths-ignore` contains `infra/**` — so an infra-only push was
+      # never linted, and the next unrelated FRONTEND commit failed on a file it had
+      # not touched. Exactly what the format:check step above was added for.
+      # `pnpm exec`, not `npx`: infra/package.json declares neither `typescript` nor
+      # `@types/node` (tsconfig asks for `types: ["node"]`), both resolving from the
+      # ROOT pnpm tree. Bare `npx` outside that tree downloads whatever TypeScript is
+      # latest and then fails on the missing node types — a failure that reads as
+      # the caller's fault. The neighbouring bundle step pins for the same reason.
+      # Both run before any credential exists, like the two above.
+      - run: pnpm exec tsc --noEmit -p infra
+      - run: pnpm lint
 
       # Bundled here rather than by `sam build`: both SAM builders copy the
       # CodeUri directory into a sandbox first, so `../../src/core` — the shared
@@ -128,6 +193,26 @@ jobs:
             }
             console.log('bundle loads, handler present, both as_of rules correct');
           "
+
+      # NO DEPLOY GATE HERE, AND THAT IS A DECISION RATHER THAN AN OMISSION.
+      # `paths` now includes `.github/**` and the root manifests so the gates run on
+      # those pushes, which means a prose edit under `.github/` assumes the deploy role
+      # and runs `sam deploy`. A 79-line `changed` step was written to suppress that and
+      # then removed, because every review round found another way for it to skip a
+      # REAL deploy while reporting green:
+      #   * it was inert — checkout is depth-1, so its range never resolved;
+      #   * `^infra/` matched Markdown, so `infra/README.md` deployed anyway;
+      #   * the workflow file itself, a bundle input, fell outside its matcher;
+      #   * `|| true` swallowed grep's error exit as well as its no-match exit;
+      #   * and finally: `concurrency` cancels PENDING runs, so a real infra push can be
+      #     cancelled in the queue while the next run's push range no longer contains it
+      #     — stack never updated, nothing red, a cancelled run reads as neutral.
+      # The last one cannot be closed by a range at all; it needs a watermark of the
+      # last SHA actually deployed. That is real state to keep, for a cost this file
+      # already priced: `--no-fail-on-empty-changeset` makes an unchanged deploy a no-op.
+      # **A silently skipped deploy is worse than a wasted one**, so the wasted one wins
+      # until the wasted runs are actually a cost — the same sentence this file has
+      # carried above `paths` since A50, now with the experiment behind it.
 
       - uses: aws-actions/setup-sam@v3
         with:

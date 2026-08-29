@@ -20,23 +20,81 @@ labelled `enhancement` and `bug`. `USER-FEATURES-DRAFT.md` and
 `USER-BUGS-DRAFT.md` were retired 2026-08-28; their 27 lines became issues
 #1–#27, byte for byte.
 
-- **The rules did not change, only the surface.** Nothing is implemented off an
-  issue directly, and **nothing is fixed off a `bug` issue directly** — a line
-  there is a symptom, not a diagnosis: reproduce, write the failing test, then
-  fix. A missing capability is an `enhancement`, not a `bug`; a cosmetic shipped
+- **The DIAGNOSIS rules did not change, only the surface — the routing rule did
+  (D105, below). Nothing is built from an issue without understanding it first,
+  and nothing is fixed from a `bug` issue without reproducing it first** — a
+  line there is a symptom, not a diagnosis: reproduce, write the failing test,
+  then fix. That is about diagnosis, never paperwork: since
+  [D105](../decisions/D105.md) the work needs no plan body. A missing capability is an `enhancement`, not a `bug`; a cosmetic shipped
   on purpose is [`FOLLOW-UPS.md`](FOLLOW-UPS.md).
 - **A pasted sample is BYTES — never re-key one.** Issue #1 carries a U+00A0 as
   its thousands separator, which is plausibly the whole bug. Quote the issue, do
   not retype it, and write the failing test against the bytes.
-- **Grooming is the handoff.** An issue becomes work by getting a Status row in
-  the right index and its body in the matching section file, in one commit. The
-  issue then closes by `Closes #N` in the squash-merge — `dev` is the default
-  branch, so GitHub does it and leaves the commit↔issue link behind.
+- **The default is: branch, do the work, `Closes #N`, and add NOTHING to this
+  folder ([D105](../decisions/D105.md)).** `dev` is the default branch, so
+  GitHub closes the issue on the squash-merge and leaves the commit↔issue link
+  behind. Draining the inbox must not silt up the repository it was moved out
+  of.
+- **Grooming is the exception, not the handoff.** D103 made an issue into work
+  by giving it a Status row in the right index and its body in the matching
+  section file, in one commit; **D105 narrowed that to the cases that need it** —
+  an issue big enough to want a plan body, or one that turns out to be gated on
+  something. Reach for it deliberately, not by default.
+- **Sequenced issues sit in the `after-current-plans` milestone**, and that is
+  the whole progress view: it counts open against closed on one page. **The
+  count is deliberately not repeated here** — triage adds issues to the
+  milestone and `Closes #N` moves them from its open half to its closed half
+  (they stay in it, which is what makes the progress bar work), so any number
+  written down is wrong by the next session. (An issue filed from the app arrives with no milestone at
+  all; that one shows up in `Needs sequencing`, not in this count.)
+- **[D105](../decisions/D105.md)** finishes the live plans first — everything
+  live in the three indexes minus three kinds of row: **the four far-gated W items
+  D105 names (W9–W12); a task an index marks denied or withdrawn; a question that
+  is open by design or costs nothing to leave.** For that last one read
+  `PLAN-OPEN.md`'s **disposition sentence**, not the row's status cell — O30's cell
+  says "not measurable on a free-tier pool" while the disposition puts it under
+  "cost nothing to leave", and applying the rule to the cell yields six questions
+  where D105 names five. Phase 6 and Phase 7 are IN. Only
+  then are issues worked, one at a time. **No task IDs here on purpose** — they
+  close, and a list in a rules file outlives the work it names. The indexes are
+  the live authority; D105 is the authority on the rule. The milestone says
+  *sequenced*, not *done first*, and `PLAN-WAITING.md`'s table — not any date
+  repeated here — says which gates have actually opened.
+- **Two saved views sit in the Issues sidebar (D108).** **`Needs sequencing`** is
+  the one that matters: an issue filed from the GitHub app arrives with **no
+  milestone**, so without this view a new issue lands invisibly among the ones
+  already sequenced. Check it before assuming the inbox is drained.
+  **`Bugs`** is the `bug` label — small, but that is the class allowed to
+  preempt the plan order.
+- **A GitHub Project exists, and it holds ISSUES ONLY.** It was created ahead of
+  need on purpose (D108): until the plans are finished nothing is in progress, so
+  the board draws one column, and the point is to have it configured before
+  issues start moving rather than during. **Never put a plan task (`A`, `W`, `O`)
+  on it** — that makes a second source of truth for state that lives in `git`,
+  which is the thing D103 declined to do in the first place.
+- **The two surfaces differ in how checkable they are.** Saved views have **no
+  API at all** — UI-only, and nothing can detect one being deleted. The
+  **Project is reachable** (`gh project list --owner RomanKushyk`; the token
+  carries the `project` scope since 2026-08-28), so a check that the board
+  still exists and holds only issues could be written. None is written yet.
+  Either way their CONFIGURATION is hand-made in the UI, which is why it is
+  described here — the board's CONTENTS are not: `Auto-add to project` is on,
+  so a new issue reaches the board by itself. Its milestone still does not get
+  set, which is why `Needs sequencing` stays the check that matters — **and it
+  is deliberately manual (D108)**: the milestone means "read, and decided it
+  waits", so a workflow setting it would empty this view for good and delete the
+  one place a `bug` gets recognised as able to preempt the queue.
+- **`Auto-close issue` is deliberately OFF (D108).** It would close an issue
+  when its card is dragged to Done — closing the work with **no commit pointing
+  at it**. Here an issue closes by `Closes #N` in the squash-merge, and that
+  two-way link is one of the reasons D103 chose GitHub Issues at all. The board
+  reflects state; it does not decide it. Turning this on quietly undoes that.
 - **Why it left the repo:** the two files were the only ones in this
   documentation exempt from every mechanism that governs the rest — no claims
   ratchet, no line cap, no `pnpm facts` — because they held the owner's private,
   uncommitted state. Groomed once in eleven days while the ideas list grew 7 → 24
-  and an empty bullet sat unnoticed for two days. See [`../decisions/D103.md`](../decisions/D103.md).
+  and an empty bullet sat unnoticed for two days. See
+  [`../decisions/D103.md`](../decisions/D103.md) and [`D108.md`](../decisions/D108.md).
 
 ## The section files
 

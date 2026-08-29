@@ -26,6 +26,24 @@ substitute (~0.9% same-day divergence, D26/D27).
 
 ## Local rules
 
+- **`pnpm typecheck` does NOT read this folder — run `pnpm exec tsc --noEmit -p infra`**
+  (from the repository root, after `npm ci` here — see below). **Run it for a
+  change to the six SHARED files this program compiles as well** —
+  `src/core/types.ts`, `dates.ts`, `inzhur/{parse,dcf}.ts`,
+  `nbu/{date,fair-value}.ts` (`--listFiles` names them). The two tsconfigs
+  differ, so a DOM type added there passes every root gate and reddens CI after
+  the merge, on work that never touched this folder.
+  Root `tsconfig.json` includes only `src`, `vite.config.ts` and `scripts`, so a
+  type error here passes all four local gates and esbuild strips it on the way
+  out. **CI now catches it** — `deploy-backend.yml` runs `pnpm exec tsc --noEmit -p
+  infra` and `pnpm lint` before any credential exists (issue #30) — but CI runs
+  after the merge, so locally it is still yours. **Two prerequisites, both easy to
+  miss:** `pnpm exec`, never bare `npx`, because this folder declares neither
+  `typescript` nor `@types/node` and both come from the root tree; and
+  **`npm ci` in this folder first**, because `capture.ts` imports `pg` and three
+  `@aws-sdk/*` packages that live in `infra/node_modules`, which a root
+  `pnpm install` never creates. On a fresh clone, skipping it fails with TS2307
+  on four modules and reads as a broken instruction rather than a missing step.
 - **Never add a VPC.** A NAT Gateway is ~$33/month — roughly 1600× the rest of
   the stack. DSQL is a public IAM-authenticated endpoint and Lambda has internet
   egress by default, so nothing here needs one.

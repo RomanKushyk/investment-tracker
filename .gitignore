@@ -51,3 +51,11 @@ docs/statements_*.xlsx
 # Built by the deploy workflow; never committed.
 infra/dist/
 infra/.aws-sam/
+
+# `nul` is a reserved Windows DEVICE name, and a tool that redirects to it the
+# Windows way (`> nul`) while running under Git Bash creates a real file instead
+# of discarding output. Git then cannot mmap it and `git add` dies with
+# `fatal: mmap failed: Invalid argument` — a message that names nothing useful.
+# Happened twice in one session from tooling output. Ignoring it keeps the
+# failure from reaching git at all.
+nul
