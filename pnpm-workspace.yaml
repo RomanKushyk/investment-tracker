@@ -1,2 +1,37 @@
 allowBuilds:
   esbuild: false
+
+# pnpm 11 no longer reads the `pnpm` field in package.json, so overrides live here.
+# GHSA-67mh-4wv8-2f99 rides on esbuild's DEV SERVER, and this copy cannot reach it:
+# `@esbuild-kit/core-utils@3.3.2` pins `~0.18.20` and calls only `transform` /
+# `transformSync` — grep of its dist finds zero `build(`, `serve(`, `context(`. It is
+# deprecated, so no release of it will ever carry the fix. Surgical rather than a
+# blanket `esbuild` override: core-utils DEDUPES onto the 0.28.1 vite and tsx already
+# pull, so the tree gets smaller, and vite/vitest/drizzle-kit keep their tested ranges.
+# BOUNDED to the range the rest of the tree floats in — not `>=0.25.0`, and not a
+# literal `0.28.1` either. An unbounded range re-resolves to the newest match on every
+# lockfile-regenerating install, so the first esbuild past vite's range would hand
+# core-utils a copy nobody else has: three copies again, on a transform path nothing
+# tests. A literal would strand it the moment vite moves to 0.28.2. `^0.28.1` still
+# re-resolves — within 0.28.x, which is exactly where vite (`^0.27.0 || ^0.28.0`) and
+# tsx (`~0.28.0`) float — so the dedupe tracks them rather than racing ahead. Any
+# 0.28.x satisfies the advisory (>= 0.25.0).
+#
+# AND NOTHING THIS REPOSITORY RUNS LOADS THE OVERRIDDEN PACKAGE AT ALL. That is the
+# real safety argument, stronger than the transform-only grep: measured by moving
+# `@esbuild-kit/esm-loader` out of the virtual store entirely and re-running
+# `infra/src/schema-generated.test.ts`, which shells out to `drizzle-kit` — still
+# green. drizzle-kit loads its TypeScript config through its OWN bundled esbuild
+# (0.25.12), never through the esm-loader. So the 0.18 -> 0.28 jump, ten minors past
+# core-utils' declared `~0.18.20`, cannot break anything here — and by the same fact
+# no gate can cover it, which is worth knowing before treating a green suite as
+# evidence about this line.
+#
+# THIS BUYS ONE MINOR, NOT FOREVER, AND NOTHING DETECTS THE END OF IT. `^0.28.1` on a
+# 0.x version means `>=0.28.1 <0.29.0`, so when vite and tsx widen to 0.29 this
+# override holds core-utils on 0.28.x and the tree is back to three copies — the same
+# stranding the sentence above rejects a literal for, one release later. No test
+# asserts the copy count, so the regression is silent. REVISIT THIS LINE whenever
+# vite's esbuild range moves; `pnpm why esbuild` should report two versions, not three.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': '^0.28.1'
