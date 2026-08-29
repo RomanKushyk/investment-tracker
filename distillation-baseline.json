@@ -212,7 +212,7 @@
     "src/facts/fences.test.ts": 7208,
     "src/facts/fences.ts": 9534,
     "src/facts/markdown-files.test.ts": 214,
-    "src/facts/markdown-files.ts": 1030,
+    "src/facts/markdown-files.ts": 1320,
     "src/facts/registry.test.ts": 1467,
     "src/facts/registry.ts": 492,
     "src/github-landing-page.test.ts": 1811,
@@ -246,8 +246,10 @@
     "src/lib/sync.test.ts": 270,
     "src/lib/sync.ts": 1756,
     "src/main.tsx": 4259,
+    "src/nested-checkouts.test.ts": 7382,
     "src/readme-coverage.test.ts": 2156,
     "src/routes.tsx": 142,
+    "src/scratch-dirs.ts": 1859,
     "src/screens/Allocation.tsx": 3152,
     "src/screens/Attributes.tsx": 1129,
     "src/screens/Balances.tsx": 1343,
@@ -304,8 +306,9 @@
     "src/state/draft.ts": 552,
     "src/state/settings.test.ts": 6126,
     "src/state/settings.ts": 10101,
-    "src/vitest-scope.test.ts": 1246,
-    "vite.config.ts": 91
+    "src/vitest-scope.test.ts": 2643,
+    "vite.config.ts": 91,
+    "vitest.config.ts": 1045
   },
   "historyPhrases": {
     "docs/design-briefs/README.md": 1,

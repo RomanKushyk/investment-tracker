@@ -28,3 +28,14 @@ src/**/__fixtures__/
 # whose JSON prettier disagrees with.
 pnpm-lock.yaml
 infra/package-lock.json
+
+# COMMITTED, BUT NOT OURS TO FORMAT. Git tracks four entries under `.claude/` —
+# `settings.json`, `agents/`, `commands/`, `skills/` — and they are configuration
+# this repository carries rather than source it writes. eslint and vitest already
+# exclude the directory whole for the same reason (D109), which leaves prettier as
+# the ONLY gate that reads them, failing on files nobody edited: `/update-config`
+# writes `settings.json` with `JSON.stringify(obj, null, 2)` and no trailing
+# newline, and a skill ships `scripts/*.js`, `references/*.json` and `*.yaml` beside
+# its Markdown. Measured: four files, `format:check` RED. Narrowing this to
+# `settings.json` was tried and covered only the first of them.
+.claude/

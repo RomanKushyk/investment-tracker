@@ -6,11 +6,33 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  // Generated bundles, matched at any depth. `'dist'` alone is root-anchored and
-  // did not cover infra's, so a local lint after the bundle step parsed a
-  // multi-hundred-KB file; enumerating the two paths would leak the same way for
-  // the third. `**/dist` is also how `src/facts/markdown-files.ts`'s SKIP treats it.
-  { ignores: ['**/dist'] },
+  // `src/scratch-dirs.ts`'s PARITY: the directories this file, `.gitignore` and
+  // `vitest.config.ts` must ALL name, because flat config does NOT read `.gitignore`
+  // and neither does vitest. `src/nested-checkouts.test.ts` fails if any of the three
+  // drifts from that list, and D109 records why each entry is on it.
+  //
+  // `**/dist`, matched at any depth: `'dist'` alone is root-anchored and did not cover
+  // infra's, so a local lint after the bundle step parsed a multi-hundred-KB file.
+  //
+  // `**/.claude` WHOLE, including the half git commits: a vendored skill or agent is
+  // configuration, not this repository's source, and a `*.test.ts` shipped under
+  // `.claude/skills/` was measured being collected into `pnpm test`. Without any
+  // `.claude` entry, eslint linted 456 files of 685 inside a background agent's
+  // worktrees — two thirds of the run, and a lint error there reddens this tree's gate.
+  {
+    ignores: [
+      '**/dist',
+      '**/coverage',
+      '**/.claude',
+      '**/.superpowers',
+      '**/.vite',
+      '**/.turbo',
+      '**/.idea',
+      '**/.playwright-mcp',
+      '**/.vscode',
+      '**/.tmp-*',
+    ],
+  },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

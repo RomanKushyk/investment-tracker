@@ -23,9 +23,6 @@ Thumbs.db
 # Browser-automation artifacts (Playwright MCP)
 .playwright-mcp/
 
-# Claude Code personal settings
-.claude/settings.local.json
-
 # Real financial statements — NEVER commit. This repo is public.
 docs/statements_*.xlsx
 *.xlsx
@@ -59,3 +56,67 @@ infra/.aws-sam/
 # Happened twice in one session from tooling output. Ignoring it keeps the
 # failure from reaching git at all.
 nul
+
+# EXCLUDE THE CONTENTS, THEN NEGATE THE SHARED FOUR. `.claude/` holds two kinds of
+# thing and they need opposite treatment.
+#
+# Scratch, the larger part: `worktrees/<name>/` is a SECOND CHECKOUT of this repository
+# nested inside it, and every tool that walks the tree followed it in — `git add -A`
+# staged two embedded repositories, eslint linted 456 files of 685, vitest collected
+# 225 test files against a real 75, prettier reddened `format:check`. Beside it sit
+# `settings.local.json` (personal, and this repo is PUBLIC), `todos/`, and whatever
+# `/loop` and `/schedule` keep. None of it is ours to track, and because prettier
+# rides on this file, anything left unignored also reddens `format:check` on a file
+# nobody edited.
+#
+# Shared, and committed: `settings.json`, `agents/`, `commands/`, `skills/`. An
+# intermediate rule hid these too, so `/update-config` would write a permission
+# allowlist and `git add -A` would skip it in silence. `src/nested-checkouts.test.ts`
+# asserts both directions — the four stay VISIBLE, the rest stay hidden.
+#
+# THE FORM IS THREE DECISIONS, each measured:
+#   `/*` not `/`  — git cannot re-include a file whose parent DIRECTORY is excluded,
+#                   so a bare `.claude/` defeats every negation below it in silence.
+#   `**/`         — a pattern containing a slash is ROOT-ANCHORED, so `.claude/*`
+#                   alone leaks `infra/.claude/…` while eslint and vitest match at
+#                   any depth.
+#   `!/…`         — the negations ARE root-anchored, deliberately: a nested `.claude/`
+#                   is pure session state with no shared half to rescue.
+#
+# AND THE TOOLS ARE DELIBERATELY ASYMMETRIC HERE. Git commits the shared four;
+# eslint and vitest exclude `.claude` WHOLE, because a vendored skill or agent is
+# configuration, not this repository's source. Measured: a `*.test.ts` shipped
+# under `.claude/skills/` was collected into `pnpm test`. Prettier follows git, so
+# `.claude/` needs a `.prettierignore` line of its own — `/update-config`
+# writes it with `JSON.stringify(obj, null, 2)`, which emits no trailing newline and
+# reddens `format:check` on a file nobody edited — and a skill ships `scripts/*.js`,
+# `references/*.json` and `*.yaml` beside its Markdown, four RED in all. Measured.
+**/.claude/*
+!/.claude/settings.json
+!/.claude/agents/
+!/.claude/commands/
+!/.claude/skills/
+
+# `.prettierignore` carries `.claude/` for the same reason eslint and vitest do: the
+# negated entries are NOT ignored here, so prettier reads them and would be the only
+# gate that does — failing on files nobody edited.
+#
+# THE NEGATION LIST IS AN ALLOWLIST, and that is a knowing tradeoff: anything Claude
+# Code adds beside those four — `hooks/`, `plugins/`, `output-styles/`,
+# `statusline.sh` — is untracked without a word. The concrete case is a project hook
+# script committed by reference from `settings.json` while `git add -A` skips the
+# script itself. Extend the list deliberately when that happens; do NOT assume
+# `.claude/` is fully handled. The same shape means a skill vendored by `git clone`
+# into `.claude/skills/<name>` puts a nested `.git` back in reach of `git add -A`. Vitest and eslint do NOT honour it, so
+# they are handled in their own configs; `src/nested-checkouts.test.ts` holds all four
+# together and probes each directory at DEPTH as well as at the root.
+
+# Build caches and coverage output. Named here because `SKIP` in
+# src/facts/markdown-files.ts holds them and `src/nested-checkouts.test.ts` requires
+# all three tools to agree with that list. `coverage/` is not hypothetical: one
+# `vitest --coverage` run leaves an untracked directory and a red `format:check` on
+# generated HTML — the exact failure D109 exists to stop, and it was covered by
+# nothing at all until this line.
+.vite/
+.turbo/
+coverage/
