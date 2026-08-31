@@ -16,6 +16,14 @@ datapoints, which is exactly the gate — as_of 08-11, 08-12, 08-13, 08-14, 08-1
 for `inzhur` and `nbu_fv` alike, all `1`. Nothing is stale and no alarm is due.
 The as_of 08-15/08-16 gap is correct: the streak is skipped on weekend dates.
 
+> **THE FUND ROWS OF THE TABLE BELOW ARE SUPERSEDED — the day labels are one day
+> early.** This was written 2026-08-18 before that day's D71 `+1` migration, so its
+> `as_of` labels predate the correction; the counts are right and attached to the
+> wrong days. It reads `Sun→Mon 3/5`, and the corrected reading over 18 clean
+> transitions is **0 of 5 into Monday and 0 into Sunday, 3 on every other day, with
+> no exception** — see [`w3-window.md`](w3-window.md) §1. Read that file for fund
+> cadence; this one remains correct about the DETECTOR, which is its subject.
+
 **But `1` turns out to be structural for `inzhur`, not evidence of health.**
 Reading the stored payloads day by day:
 

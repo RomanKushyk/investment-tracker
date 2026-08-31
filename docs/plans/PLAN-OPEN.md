@@ -14,7 +14,7 @@ Written 2026-08-11. **Resolved the same day, 18 of 19 items** — D30–D35 clos
 | O2 | `basis` vocabulary from row one | 1 | **closed — D30** `buy \| sell \| nav \| fair`; currency is not a basis |
 | O3 | `instrument_ref` allocation scheme | 1 | **closed — D30** `isin` for bonds, `slug` for funds; the feed's `id` rejected |
 | O4 | Account bootstrap and registration policy | 1 | **closed — D38/D39** an application creates a DB row, not a Cognito user; super-admin approves; toggle opens it fully |
-| O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; the non-key columns stay gated on `PLAN-WAITING.md` W3 |
+| O5 | Archive row schema, Inzhur half | 2 | **key closed — D30**; **W3 IS READ (2026-08-31)** — the four things it was waiting on are answered or declared unanswerable in [`../../infra/docs/w3-window.md`](../../infra/docs/w3-window.md). What is left for W4 is a real choice, not a wait: write-every-day against write-on-change |
 | O6 | Fund valuation basis | 2 | **closed — D31** `sell`; `nav` is 0 for two of four funds |
 | O21 | Does the funds' `nav` history ever reach the app, and as what? | — | **closed — D74** archived as published, never shown; the read-time `sell` conversion is rejected permanently |
 | O22 | May a settings toggle make G5 opt-out — the app writing daily quotes with no Save press? | — | **closed — D75**, by DISSOLVING into D33: after B3 there is no write for a toggle to authorise. The ruling left over is that a hand-entered value is marked and an archive one is not |

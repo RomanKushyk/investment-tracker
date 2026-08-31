@@ -2,8 +2,11 @@
 
 **Read [`../README.md`](../README.md) first.** It keeps what a session must see
 before touching this folder: the layout, the local rules, the Deploying chapter
-and the Phase 2 gate. These eight files moved **verbatim** on 2026-08-26 (D95);
-nothing was summarised and every measured figure is where it was written.
+and the Phase 2 gate. **Eight of the files below moved verbatim** on 2026-08-26 (D95); nothing was
+summarised and every measured figure is where it was written. The rest were written here afterwards; two of them say so in their own rows and two
+do not, so trust the banner on a row rather than its absence. The sentence is scoped
+rather than counted, because a count in prose beside a table that carries it is a second copy to
+keep in step, and "these eight files" was already false by the time this was read.
 
 | File | Holds | Read it when |
 |---|---|---|
@@ -11,6 +14,7 @@ nothing was summarised and every measured figure is where it was written.
 | [`console-setup.md`](console-setup.md) | One-time console setup, SES by hand, the artifacts bucket, and whether reading the Inzhur feed is sanctioned | Rebuilding the account, or the sanction question comes up again |
 | [`role-deploy.md`](role-deploy.md) | Role 1 — `quirenote-backend-deploy` | CI cannot assume its role |
 | [`role-cfn-exec.md`](role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, **and the two traps that cost eight CI cycles** | Before touching either role |
+| [`w3-window.md`](w3-window.md) | **Written 2026-08-31, not part of the move. W3 — the observation window, read**: 21 days per source with no gaps, five of six questions answered and one left open on purpose, and the `pg` DATE/timezone trap that invented an off-by-one | Before W4 fixes the Inzhur key, or whenever a date in the archive looks wrong |
 | [`field-notes.md`](field-notes.md) | What only a real deploy revealed, and what the rename uncovered | A deploy behaves in a way the template does not explain |
 | [`dpu.md`](dpu.md) | W2's week of real DPU, and the 2026-08-25 re-measurement | Cost, or before believing any DPU figure |
 | [`replan-a50.md`](replan-a50.md) | A50's re-plan of `NEWEST_CAPTURE_PER_DATE`, 2026-08-26 — **a different query from `dpu.md`'s**, same defect class; the alias changed a sort node and no access path, at nine widths (D97) | Before quoting a DPU delta, or before measuring one |

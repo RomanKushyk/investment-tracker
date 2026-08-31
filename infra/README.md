@@ -155,6 +155,7 @@ substitute (~0.9% same-day divergence, D26/D27).
 | [`docs/console-setup.md`](docs/console-setup.md) | Is reading the Inzhur feed sanctioned? — checked 2026-08-14 · SES, created by hand and outside the stack (2026-08-14) · One-time console setup · The artifacts bucket, if the account is ever rebuilt |
 | [`docs/role-deploy.md`](docs/role-deploy.md) | Role 1 — quirenote-backend-deploy |
 | [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — quirenote-backend-cfn-exec · The two traps, restated because they cost eight CI cycles last time |
+| [`docs/w3-window.md`](docs/w3-window.md) | **W3 — the Inzhur observation window, read** — 21 consecutive days per source, no gaps · the six questions answered with measurements, one left open on purpose · the `pg` DATE/timezone trap that invented an off-by-one, and the payload `calc_date` check that caught it |
 | [`docs/field-notes.md`](docs/field-notes.md) | Field notes — things only the first deploy revealed · 2026-08-11 — the rename, and three things it uncovered |
 | [`docs/dpu.md`](docs/dpu.md) | W2 — a week of real DPU, measured 2026-08-17 · Re-measured 2026-08-25 — an aliased ORDER BY was disabling the index (D91) |
 | [`docs/replan-a50.md`](docs/replan-a50.md) | A50's re-plan, 2026-08-26 — the plan moved and the cost did not, why round 1 was warmup, and why a SQL `LIMIT` cannot bound the open range (D97) |

@@ -82,19 +82,19 @@ corroboration rather than the only record.
 
 # Phase W-III — Evidence-gated backend
 
-## W3 / W4 — Inzhur observation window and schema — **from 2026-09-02**
+## W3 / W4 — Inzhur observation window and schema — **W3 READ 2026-08-31; W4 OPEN NOW**
 
-**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage.
+**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage. **That gate is now MET and the window is read** — five of the six answered below, the outage shape left open because a healthy 21-day window cannot close it. **W4 has no date of its own and never did**: its gate is W3 + `PLAN-NOW.md` A4, A4 closed 2026-08-11 (D50), so W4 is open the moment this reading lands. The 2026-09-02 that stood in its Earliest cell was W3's window-close date, inherited.
 
 **Why this is a gate and not caution.** The archive schema is decided **with evidence in hand** deliberately, and nothing is lost meanwhile because raw payloads regenerate any schema retroactively. DSQL keys are immutable — a wrong natural key is a DROP/CREATE, not a migration.
 
-**What the window is expected to answer:**
-- [ ] Does the feed refresh on Saturdays and Sundays?
-- [ ] How does a public holiday read — same as a weekend, or different?
-- [ ] Is `returnRates.sell` stable day to day, and does it ever move without the price moving?
-- [ ] What cadence do fund NAVs follow relative to bond prices?
-- [ ] Are payload bytes stable enough that `payload_sha256` means anything, or is only `quotes_sha256` informative? (The frozen-feed detector already assumes the latter — D28.)
-- [ ] What does an outage actually look like: 5xx, timeout, truncated body, or a stale-but-valid payload?
+**What the window is expected to answer** — read 2026-08-31 over 21 consecutive days with no gap in either source, compared pairwise over **18 clean transitions** (both manual-invoke days excluded); **full working, method and one false alarm in [`../../infra/docs/w3-window.md`](../../infra/docs/w3-window.md)**:
+- [x] Does the feed refresh on Saturdays and Sundays? — **split by class.** Bonds move every calendar day, weekends included; **fund NAV never moves into Sunday or Monday.** Each of the three active funds moved on exactly **12 of 18** transitions, and 18 − 6 = 12 with no residue. (A first pass reported one Thursday at 2 of 5; that was an artefact of keeping a manual-invoke day as a term.)
+- [x] How does a public holiday read — same as a weekend, or different? — **CLOSED AS MOOT, [`../decisions/D111.md`](../decisions/D111.md).** NBU published normally on 24 August (200, 185 entries, byte size between its neighbours). For Inzhur the window CANNOT answer it: 2026-08-24 was a Monday, when fund NAV is already static, so the two effects are inseparable. **And the question is largely moot — public holidays are suspended under martial law** (owner, 2026-08-31).
+- [x] Is `returnRates.sell` stable day to day, and does it ever move without the price moving? — **the question asks about the wrong half.** `sell` moved once in 18 transitions; **`buy` moved three times**. The price moved on all three, so no rate moved alone. And one of the three is not a rate change at all: UA4000239016's two-sided quote COLLAPSED — buy and sell rates equal, buy and sell prices equal — and stayed collapsed. 5–6 of 32 bonds carry a zero spread on any day, so single-priced is an existing class it joined.
+- [x] What cadence do fund NAVs follow relative to bond prices? — **different clocks**: bonds seven days a week, funds five. **This does not decide itself:** the funds ARE in every Sunday payload with an unchanged NAV, so W4 must choose write-every-day (≈260 redundant fund rows a year) against write-on-change (every completeness check must then know five funds are legitimately absent two days a week). The key supports both.
+- [x] Are payload bytes stable enough that `payload_sha256` means anything, or is only `quotes_sha256` informative? (The frozen-feed detector already assumes the latter — D28.) — **the two sources are opposites.** The proof is the SAME-DAY repeat runs, where the quotes cannot have changed: `inzhur`'s 5 and 3 same-`as_of` runs produced 5 and 3 distinct hashes, `nbu_fv`'s 6 and 3 produced 1 and 1. So `payload_sha256` moves for `inzhur` when nothing has — D28 confirmed by measurement rather than assumed. `nbu_fv`'s repeats are same-day reruns only.
+- [ ] What does an outage actually look like: 5xx, timeout, truncated body, or a stale-but-valid payload? — **STILL OPEN, and the window cannot close it.** The only failure shape observed is NBU's scheduled **404 on Saturday and Sunday** (`ok=false`, 0 bytes, `payload_sha256` = the empty-string hash), which is a publication calendar rather than a failure; `inzhur` had no failure of any kind in 21 days.
 
 **Then, as W4:**
 - [ ] Extend `price_observation` to the Inzhur source, reusing the key `PLAN-NOW.md` A4 pinned for NBU.

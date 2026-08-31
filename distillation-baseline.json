@@ -335,6 +335,7 @@
   "docLineCounts": {
     "docs/reference/DEPENDABOT.md": 344,
     "docs/superpowers/plans/2026-08-26-schema-parity-and-knowledge.md": 206,
+    "infra/docs/w3-window.md": 216,
     "src/distillation/README.md": 203
   }
 }
