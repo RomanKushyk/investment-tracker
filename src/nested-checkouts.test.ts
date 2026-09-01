@@ -73,12 +73,23 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
     }
   };
 
+  // A TIMEOUT OF ITS OWN, because this case's cost is a process count rather
+  // than any work in the assertion: `ignoredByGit` spawns one `git check-ignore`
+  // per probe, and `PARITY.flatMap(probesFor)` is two probes for each entry.
+  // Measured on this machine — 2.97s of test time when the suite was smaller,
+  // 4.37s now, against vitest's 5s default — so it began failing roughly every
+  // other full run while passing every time in isolation. Nothing about the
+  // guard changed; the suite grew around it and process spawning does not get
+  // faster under load. 20s is not a fix for a slow test, it is the right cap for
+  // a test whose duration is the OS's to decide: if this ever genuinely hangs,
+  // 20s still catches it, and a machine four times slower than this one still
+  // passes.
   it('git hides every scratch directory, at the root and nested', () => {
     expect(PARITY.flatMap(probesFor).filter((p) => !ignoredByGit(p))).toEqual([]);
     // The anchor: a guard that only asserts "ignored" passes just as well when git
     // is answering about the wrong repository, or ignoring everything.
     expect(ignoredByGit('package.json')).toBe(false);
-  });
+  }, 20_000);
 
   it('git keeps the SHARED Claude config committable, and hides the rest', () => {
     expect(SHARED.filter(ignoredByGit)).toEqual([]);
