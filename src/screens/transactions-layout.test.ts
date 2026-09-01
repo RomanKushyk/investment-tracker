@@ -53,9 +53,13 @@ function ledgerCard(): string {
  *
  *  `<Card` IS PART OF THE ANCHOR, and it was added after a standalone
  *  `bg-panel` on a plain `<div>` earlier in the file — the price-mode segment
- *  of #31, which takes the segmented-control surface every such control in this
- *  app has taken — captured the match and reported the segment's classes as
- *  the card's.
+ *  of #31 — captured the match and reported the segment's classes as the
+ *  card's. That segment no longer takes `bg-panel`: the filled idiom of
+ *  2026-09-01 moved every segmented track to `bg-ink`, so the collision this
+ *  anchor was hardened against cannot happen today. The anchor STAYS, because
+ *  what it pins is that the subject is the CARD rather than whatever else
+ *  happens to share a surface token — and the next control to reach for
+ *  `bg-panel` would recreate it.
  *  Anchoring on the element, the way `ledgerCard` anchors on its ref, is what
  *  makes this specific; matching a bare class string means any later element
  *  that legitimately shares the surface silently becomes the subject. */
@@ -126,14 +130,20 @@ describe('the three screens are composed by one expression', () => {
     // first cut had the ledger first with `max-lg:order-first` on the form, which
     // sent a keyboard through 18 ledger rows and 18 delete buttons before the
     // field the user could see at the top (WCAG 2.4.3, 1.3.2).
-    const formAt = PANEL.indexOf('bg-panel');
+    // ANCHORED THROUGH `formCard()`, not `indexOf('bg-panel')`. The bare index
+    // is the idiom `formCard`'s own docblock calls out — and it was in fact
+    // resolving to the price-mode segment rather than the Card, so this
+    // assertion passed for years without ever looking at the form. D114 moved
+    // that segment to `bg-ink`, which fixed the match by accident; using the
+    // hardened anchor makes it deliberate.
+    const formAt = PANEL.indexOf(formCard());
     const ledgerAt = PANEL.indexOf('ref={ledgerRef}');
     expect(formAt).toBeGreaterThan(-1);
     expect(ledgerAt).toBeGreaterThan(formAt);
     // Beside each other the visual order is still ledger-left, placed rather than
     // ordered — `order` on a grid item moves it without moving its track.
     expect(PANEL).toMatch(/ref=\{ledgerRef\}[\s\S]*?lg:col-start-1/);
-    expect(PANEL).toMatch(/bg-panel[^"]*lg:col-start-2/);
+    expect(formCard()).toContain('lg:col-start-2');
     expect(PANEL).not.toContain('order-first');
   });
 

@@ -377,6 +377,19 @@ function SidebarPanel({
 
       {/* ── band 3 — the cluster, pinned ────────────────────────────────── */}
       <div className="pt-2.5">
+        {/* THE ONE CONTROL THAT KEEPS THE OLD ORIENTATION, and it is a ruling
+            rather than an oversight (owner, 2026-09-01). Everywhere else D114
+            fills the track — `ink` — and slides a `card` chip. Here the rail's
+            NAV language wins instead: `pillClass` paints the ACTIVE route
+            `bg-sidebar-text` with `text-sidebar`, so a filled track made the
+            UNSELECTED currency read exactly like a selected route, twenty pixels
+            under a list of them, while the selected one took the rail's own fill
+            — an inactive pill's treatment. Light means SELECTED in this plane,
+            and one control cannot say otherwise.
+
+            No `data-filled-track` with it: on a dark track the ring wants to
+            stay light, which is what `[data-dark-surface] :focus-visible`
+            already gives it. */}
         <div className="relative mb-2.5 flex gap-1 rounded-[13px] bg-sidebar-inset p-1.5">
           {/* sliding thumb (D7): shares the two buttons' geometry (p-1.5 + gap-1)
               so translateX(100% + gap) lands it exactly under the other segment.

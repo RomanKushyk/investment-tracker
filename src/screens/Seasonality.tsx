@@ -197,7 +197,8 @@ export function Seasonality() {
           <div
             role="group"
             aria-label={t.analytics.seasonality.axisAriaLabel}
-            className="flex gap-1 rounded-[11px] border border-panel-border bg-panel p-[3px]"
+            data-filled-track
+            className="flex gap-1 rounded-[11px] border border-ink bg-ink p-[3px]"
           >
             {(['day', 'month'] as const).map((a) => (
               <button
@@ -210,7 +211,7 @@ export function Seasonality() {
                 // overlay grows only downward and upward — the segments are ~92 px
                 // wide, so it cannot reach across the 4 px gap into its neighbour.
                 className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
-                  axis === a ? 'bg-ink text-page' : 'text-muted hover:opacity-85'
+                  axis === a ? 'bg-card text-ink' : 'text-page hover:opacity-85'
                 }`}
               >
                 {a === 'day'

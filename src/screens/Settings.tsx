@@ -87,8 +87,10 @@ function BackupButton() {
   );
 }
 
-// Light-surface twin of the sidebar currency toggle (S2/S8): track `panel`,
-// thumb `card` with the card shadow, sliding-thumb motion cloned from the
+// FILLED segmented control (D114): track `ink`, `card` sliding chip, no thumb
+// shadow — the surface step no longer needs one. It was `panel`/`card` and a
+// twin of the sidebar toggle; D114 makes the RAIL the one exception, so the
+// kinship now runs the other way. Sliding-thumb motion still cloned from the
 // sidebar control (D7: transform 300ms soft; press scale; reduced-motion
 // collapses via the global kill-switch).
 //
@@ -105,19 +107,29 @@ function CurrencyControl() {
       type="button"
       aria-pressed={currency === c}
       onClick={() => setCurrency(c)}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+      className={`relative z-10 cursor-pointer rounded-[7px] px-[18px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === c ? 'text-ink' : 'text-page hover:opacity-85'}`}
     >
       {label}
     </button>
   );
+  /* A GRID, like the theme and language controls beside it. A flex track
+  shrink-wraps, so a fixed `calc(50% − N)` chip only lands when both
+  labels happen to be the same width — «₴ UAH» and «$ USD» are, which is
+  the only reason this one never drifted. That is a bet on the font
+  resolving U+20B4 at the mono advance and on nobody relabelling it; the
+  dataset switch lost the same bet with «Демо» / «Живий». Two `1fr`
+  columns take the widest content, so the chip fits by construction. */
   return (
-    <div className="relative flex gap-1 rounded-[12px] border border-panel-border bg-panel p-1">
+    <div
+      data-filled-track
+      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1"
+    >
       {/* sliding thumb (D7): both segments share the same mono-font width, so
           translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
         data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc(50%-6px)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
         style={{ transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('UAH', '₴ UAH')}
@@ -157,7 +169,8 @@ function ThemeControl() {
       aria-label={t.settings.theme.ariaLabel}
       // Wraps to its own line under `sm` rather than squeezing three segments
       // into the row: at 360px the label and a three-up control cannot share it.
-      className="relative grid grid-cols-3 gap-1 rounded-[12px] border border-panel-border bg-panel p-1 max-sm:w-full"
+      data-filled-track
+      className="relative grid grid-cols-3 gap-1 rounded-[12px] border border-ink bg-ink p-1 max-sm:w-full"
     >
       {/* sliding thumb (D7), same as the two-segment control: `100%` in the
           transform is the THUMB's own width, so one step is that width plus the
@@ -166,7 +179,7 @@ function ThemeControl() {
       <div
         aria-hidden
         data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc((100%-16px)/3)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
         style={{ transform: `translateX(calc(${index} * (100% + 4px)))` }}
       />
       {THEME_ORDER.map((value) => (
@@ -176,7 +189,7 @@ function ThemeControl() {
           role="radio"
           aria-checked={theme === value}
           onClick={() => setTheme(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${theme === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.settings.theme[value]}
         </button>
@@ -199,12 +212,13 @@ function LanguageControl() {
     <div
       role="radiogroup"
       aria-label={t.settings.language.ariaLabel}
-      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-panel-border bg-panel p-1 max-sm:w-full"
+      data-filled-track
+      className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1 max-sm:w-full"
     >
       <div
         aria-hidden
         data-owns-motion
-        className="absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-1 bottom-1 left-1 w-[calc((100%-12px)/2)] rounded-[7px] bg-card transition-transform duration-300 ease-soft"
         style={{
           transform: `translateX(calc(${LANGUAGE_ORDER.indexOf(language)} * (100% + 4px)))`,
         }}
@@ -216,7 +230,7 @@ function LanguageControl() {
           role="radio"
           aria-checked={language === value}
           onClick={() => setLanguage(value)}
-          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-muted hover:opacity-85'}`}
+          className={`relative z-10 cursor-pointer rounded-[7px] px-3 py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${language === value ? 'text-ink' : 'text-page hover:opacity-85'}`}
         >
           {t.settings.language[value]}
         </button>

@@ -42,13 +42,31 @@
  * the same z-index, it won. A tap on the last 4.5 px of "Use 68 702,10" DISCARDED
  * the fetched quote. Overlapping hit areas are worse than small ones: they hand
  * the tap to the wrong control, and the wrong control is often the destructive
- * one. So a caller must guarantee `gap ≥ (44 − w) / 2` against its neighbour, or
- * use a real box instead. The sidebar nav is the worked example: 36 drawn + 8 gap
- * = 44, so the regions tile the column edge to edge with no overlap and no dead
- * strip.
+ * one. So a caller must guarantee the gap, and WHICH gap depends on whether the
+ * neighbour has an overlay of its own — the file stated only one of the two for a
+ * long time, with a worked example from the other:
  *
- * WCAG 2.5.8 (AA) asks 24 × 24 and today's 36 px controls already pass it. 44 is
- * the platform guidance, and it is satisfiable without redrawing anything.
+ *   neighbour has NO overlay   `gap >= (44 − w) / 2`   one reach to clear
+ *   neighbour ALSO has one     `gap >= 44 − w`         two reaches, i.e. w + gap >= 44
+ *
+ * The sidebar nav is the worked example and it is the SECOND case: 36 drawn + 8
+ * gap = 44, so two overlays tile the column edge to edge with no overlap and no
+ * dead strip. Read against the first formula that gap looks twice as generous as
+ * it needs to be, which is how the two got asserted fifteen lines apart as if
+ * they were one rule. A caller that cannot make either number uses a real box.
+ *
+ * WCAG 2.5.8 (AA) asks 24 × 24, and the 36 px controls this helper is for pass
+ * it on their own. 44 is the platform guidance, and it is satisfiable without
+ * redrawing anything.
+ *
+ * ONE CONTROL DOES NOT PASS, and it is named here because this file is where
+ * someone auditing the rule will look: `PriceModeSegment`'s segments render
+ * 15 × 16 on a 19 px pitch (D114, owner's ruling — the Settings switch's
+ * footprint). `TAP_44` cannot rescue it, and that is this helper's own
+ * arithmetic rather than an exemption — the two-overlay case above, since both
+ * segments would carry one: `w + gap >= 44` needs a 29 px gap at w = 15, and the
+ * pitch is 19. The overlays would hand each other taps, which is measurably
+ * worse than a small target.
  */
 export const TAP_44 =
   'relative max-md:after:absolute max-md:after:top-1/2 max-md:after:left-1/2 ' +

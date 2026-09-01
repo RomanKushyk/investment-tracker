@@ -68,8 +68,15 @@ const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as con
 // message under the field (S3's anatomy) — but NOT its surface: this panel's
 // inputs sit on `card`, not `page`, and take the hover border the rest of the
 // form's controls take.
+// `min-w-0` IS LOAD-BEARING SINCE THE ROW BECAME A SUBGRID. An `<input>` has an
+// intrinsic min-content width — roughly its default 20-character size — and a
+// GRID item's `min-width` is `auto`, so the cell's own column sizes to that
+// instead of to the cell. Measured at a 578px viewport: cell 244.4, input 246.9,
+// and everything else in the cell stretched to the wider column and hung 2.5px
+// past its box, the toggle included. A `flex flex-col` cell never had this: the
+// floor applies to the MAIN axis, and there the main axis was vertical.
 function inputClass(invalid: boolean): string {
-  return `h-9 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
+  return `h-9 min-w-0 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
     invalid ? 'border-neg' : 'border-hairline hover:border-ink'
   }`;
 }
@@ -84,26 +91,35 @@ const QUANTITY_ERROR_ID = 'tx-quantity-error';
 /**
  * ISSUE #31 — what the amount field holds: the whole transaction, or one unit.
  *
+ * SIZED TO THE SETTINGS SWITCH (owner's ruling, 2026-09-01) — the track is
+ * `h-[22px] w-10 p-[2px]`, the switch's own 40 × 22 box, and the two segments
+ * split it. Measured in Chrome: segments **15 × 16** against the switch's 16 × 16
+ * knob. (An earlier figure of 15.4 × 16.9 came from a headless Chromium that
+ * renders a 1px border at 0.571px — every border-derived number it gave was
+ * short. Real Chrome renders `border: 1px` as 1px, and `(40 − 2 − 4 − 4) / 2` = 15 — the
+ * halving is the whole point of the figure and an earlier version of this line
+ * dropped it, stating 30's arithmetic as 15's answer.)
+ *
  * D56 IS TWO RULES AND A SEGMENTED CONTROL NEEDS BOTH. The segment is
  * PROPORTIONAL to its own rendered box; the track is CONCENTRIC around it.
- * AS SHIPPED, measured in the browser: `px-2.5 py-1 text-[11px]` renders each
- * segment **26.6 × 24.5** — `text-[11px]` sets no line height, so the number
- * cannot be read off the classes — giving round(24.5 × 0.26) = **6** for the
- * segment, and 6 + 4 = **10** for the track, which renders 65.2 × 32.5. A
- * radius is never portable between two sizes: the same classes at `py-[3px]`
- * render 22.5 (what `Tag` records), and `px-4 py-[5px] text-xs` renders 26 and
- * takes 7.
+ * round(min(15, 16) × 0.26) = **4** for the segment — the knob's radius,
+ * arrived at independently — and 4 + 3 = **7** for the track. The switch's own
+ * track is **6**, and the one-pixel difference is the system working rather
+ * than failing: a switch derives both radii from their own boxes because it is
+ * not segmented, which its component says outright. A radius is never portable
+ * between two sizes; `text-[11px]` sets no line height, so none of these
+ * numbers can be read off the classes.
  *
  * `flex-1` ON BOTH SEGMENTS IS LOAD-BEARING, not tidiness: the thumb is a fixed
- * `calc(50% - 5px)`, which lands correctly only while the two are equal width.
+ * `calc(50% - 4px)`, which lands correctly only while the two are equal width.
  * Content-sized labels are not — `Σ` is wider than `1`, and any word pair is
  * worse — so the thumb overhangs one state and falls short of the other.
  *
  * NO `TAP_44` HERE, AND THAT IS THE HELPER'S OWN RULE, not an omission. A centred
  * 44px overlay reaches `(44 − w) / 2` past each edge, so two neighbours only tile
  * when `w + gap ≥ 44` — the sidebar's worked example is 36 drawn + 8 gap = 44.
- * These segments are ~27 wide with `gap-1`, a pitch of 31, and satisfying 44
- * would need either a 17px gap or a 40px segment: the first breaks the track's
+ * These segments are 15 wide with `gap-1`, a pitch of 19, and satisfying 44
+ * would need either a 29px gap (44 − 15) or a 40px segment: the first breaks the track's
  * concentric spacing, the second is geometry, which D66 forbids growing.
  *
  * Overlapping hit areas are WORSE than small ones — `tap-target.ts` measured the
@@ -111,9 +127,19 @@ const QUANTITY_ERROR_ID = 'tx-quantity-error';
  * wrong control silently re-reads the amount as a price per unit, which the label
  * comment below calls a worse defect than #31.
  *
- * So the pressable box is REAL instead — that is where the `py-1` above comes
- * from. 24.5px tall clears WCAG 2.5.8 AA's 24 × 24 with no overlay at all, and
- * the radii do not move with it.
+ * WHICH LEAVES A KNOWN GAP, and it is the price of the size. At 15 × 16 the
+ * segments are under WCAG 2.5.8 AA's 24 × 24, where the previous 26.6 × 24.5
+ * cleared it with no overlay at all. The spacing exception does not rescue it
+ * either: the pitch is 19. Accepted deliberately — the owner asked for the
+ * switch's footprint, and the switch itself is 22 tall for the same reason —
+ * but it is a REGRESSION, not a thing this control never had.
+ *
+ * UNDOING IT IS SIX EDITS, NOT ONE NUMBER, and an earlier version of this line
+ * claimed otherwise. The track must lose `w-10` as well as return to
+ * `h-[32px] p-[3px]`; the segments need `px-2.5 py-1` back; and the radii are
+ * literals that do NOT follow — segment and thumb go 4 → 6, the track 7 → 10,
+ * and the thumb's `w-[calc(50%-4px)]` and `top/bottom/left-[2px]` go back to
+ * `-5px` and `[3px]`.
  *
  * `aria-pressed` and not a radio group: it toggles the MEANING of a neighbouring
  * input rather than submitting a value of its own, and it is announced beside
@@ -154,19 +180,22 @@ function PriceModeSegment({
       onClick={() => {
         if (mode !== value) onChange(mode);
       }}
-      className={`relative z-10 flex-1 cursor-pointer rounded-[6px] px-2.5 py-1 text-[11px] font-bold transition active:scale-[.97] ${
-        value === mode ? 'text-ink' : 'text-muted hover:opacity-85'
+      className={`relative z-10 flex-1 cursor-pointer rounded-[4px] text-[11px] font-bold transition active:scale-[.97] ${
+        value === mode ? 'text-ink' : 'text-page hover:opacity-85'
       }`}
     >
       {glyph}
     </button>
   );
   return (
-    <div className="relative flex gap-1 rounded-[10px] border border-panel-border bg-panel p-[3px]">
+    <div
+      data-filled-track
+      className="relative flex h-[22px] w-10 gap-1 rounded-[7px] border border-ink bg-ink p-[2px]"
+    >
       <div
         aria-hidden
         data-owns-motion
-        className="absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[6px] bg-segment-thumb shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        className="absolute top-[2px] bottom-[2px] left-[2px] w-[calc(50%-4px)] rounded-[4px] bg-card transition-transform duration-300 ease-soft"
         style={{ transform: value === 'total' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
       />
       {segment('total', 'Σ', t.transaction.priceTotal)}
@@ -884,7 +913,7 @@ export function TransactionPanel() {
                 And it never shares a line with a «Сума» carrying the Σ/1
                 track, because the track is gated on the same condition the
                 span is. */}
-            <label className="row-span-3 grid grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2">
+            <label className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2">
               {t.transaction.source}
               <Controller
                 control={form.control}

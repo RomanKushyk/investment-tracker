@@ -69,13 +69,16 @@ function inputClass(invalid: boolean): string {
   }`;
 }
 
-// Fund/Bond segmented control — sliding-thumb clone of the currency toggle
+// Fund/Bond segmented control — FILLED like every other one (D114): track
+// `ink`, `card` sliding chip, no thumb shadow. The sliding-thumb mechanics are
+// still the currency toggle's, but not its surface — the rail keeps the old
+// orientation and this does not.
 // (D7: transform 300ms soft; both labels are 4 mono chars, so 50% works).
 function KindSegment({
   value,
   onChange,
 }: {
-  value: 'fund' | 'bond';
+  value: 'fund' | 'bond' | undefined;
   onChange: (kind: 'fund' | 'bond') => void;
 }) {
   const t = useT();
@@ -83,21 +86,40 @@ function KindSegment({
     <button
       type="button"
       aria-pressed={value === kind}
-      onClick={() => onChange(kind)}
+      // Only on an actual change — see `PriceModeSegment`.
+      onClick={() => {
+        if (value !== kind) onChange(kind);
+      }}
       className={`relative z-10 cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition active:scale-[.97] ${
-        value === kind ? 'text-ink' : 'text-muted hover:opacity-85'
+        value === kind ? 'text-ink' : 'text-page hover:opacity-85'
       }`}
     >
       {label}
     </button>
   );
+  /* A GRID for the same reason the dataset switch needed one: a flex track
+  shrink-wraps and the chip is a fixed `calc(50% − 5px)`, so it lands only
+  while both labels are the same width. `Fund`/`Bond` and «Фонд»/«ОВДП»
+  all happen to be four characters — one relabel or one new locale and the
+  chip drifts, now at 14:1 where it used to hide at 1.09:1. */
   return (
-    <div className="relative flex gap-1 rounded-[11px] border border-panel-border bg-panel p-[3px]">
+    <div
+      data-filled-track
+      className="relative grid grid-cols-2 gap-1 rounded-[11px] border border-ink bg-ink p-[3px]"
+    >
       <div
         aria-hidden
         data-owns-motion
-        className="absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] bg-card shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
-        style={{ transform: value === 'fund' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+        // HIDDEN WHEN NOTHING IS CHOSEN, because the position is a binary and
+        // `undefined` is not one of its two states: the ternary below sends it
+        // to the Bond slot, so the chip claimed a selection that `aria-pressed`
+        // denied on both segments — and the idle `text-page` label then sat on
+        // the white chip at ~1.05:1 in light. Reachable while `Reveal` keeps the
+        // group mounted for its 300ms exit after the Inzhur link is switched off.
+        className={`absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] bg-card transition-transform duration-300 ease-soft ${
+          value === undefined ? 'opacity-0' : ''
+        }`}
+        style={{ transform: value === 'bond' ? 'translateX(calc(100% + 4px))' : 'translateX(0)' }}
       />
       {segment('fund', t.asset.picker.fund)}
       {segment('bond', t.asset.picker.bond)}
@@ -174,12 +196,18 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
       <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
         <div className="flex flex-col gap-1 text-[11px] text-muted">
           {t.asset.field.kind}
+          {/* NO `?? 'fund'` FALLBACK ON THE VALUE BELOW, and its absence is the
+              point. It painted Fund as pressed while the field held nothing —
+              and once the segment only emits on a real CHANGE, pressing the
+              segment that already looked pressed became a no-op, so the one
+              press that would have repaired the empty field did nothing. What
+              the control shows and what it can write have to be the same value.
+              Both writers set `kind`, so this was a latent trap rather than a
+              live bug; it goes because it can only ever lie. */}
           <Controller
             control={form.control}
             name="inzhur.kind"
-            render={({ field }) => (
-              <KindSegment value={field.value ?? 'fund'} onChange={field.onChange} />
-            )}
+            render={({ field }) => <KindSegment value={field.value} onChange={field.onChange} />}
           />
         </div>
         <Field

@@ -84,12 +84,21 @@
      forgotten on a fourth. Identical to --shadow-card in light, so nothing
      there moves; box-shadow also costs no layout, which a real border would.
 
+     ONLY THE SWITCH USES IT SINCE 2026-09-01. The segmented thumbs took it
+     while their track was `panel` and the step inverted; on an `ink` track a
+     `card` chip is ~14:1 either way, so the cue is redundant — and on the
+     price-mode track, whose padding is 2px, a 1px outward spread filled half
+     the gap it was meant to sit in. The Switch keeps it: its OFF knob is the
+     one case still resting on a near neighbour.
+
      Named for the THUMB rather than the segment, because the Switch knob has
      the same defect and the reference does not mention it: measured, the knob
      sits at 1.19:1 on its off track in dark. That is barely worse than the
      1.24:1 it has in LIGHT — which is the point. The light theme was already
      leaning on the shadow to separate them, so removing the shadow is what
-     breaks it, and the same edge is the same fix. Four call sites, one token. */
+     breaks it, and the same edge is the same fix. ONE call site since 2026-09-01 (D114) — it read four
+     while the segmented thumbs shared it, and the paragraph above is what
+     changed that. */
   --shadow-thumb: 0 1px 3px rgba(38, 38, 42, 0.06);
 
   --color-page: #f6f5f3;
@@ -116,20 +125,13 @@
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
   --color-panel-border: #dedcd8;
-  /* THE SEGMENTED THUMB'S OWN SURFACE, and it exists because `card` cannot be
-     it in both themes. `card` is LIGHTER than `panel` in light (#ffffff on
-     #eceae7) and DARKER than it in dark (#1c1c1f on #232327) — the inversion
-     --shadow-thumb's comment already names — so a thumb painted `card` reads as
-     raised in one theme and as a hole in the other. Measured on the shipped
-     control: 1.20:1 against its track in light, 1.09:1 in dark and the wrong
-     way round, which is why the owner reported the slide as "no animation" —
-     there was motion, and nothing visible moving.
-     Identical to `card` here, so the light theme does not move. */
-  --color-segment-thumb: #ffffff;
   /* THE SWITCH'S OFF STATE, which `--shadow-thumb`'s comment admits it never
      fixed: measured in dark, the knob sat at 1.19:1 on its own track AND the
      track at 1.19:1 on the card behind it, so the whole control was a rumour.
-     Owner's ruling, 2026-09-01: lighter grey track, and the knob may go white.
+     Owner's ruling, 2026-09-01: lighter grey track — and the knob STAYS
+     `card`. A white knob was tried the same day and reverted, because a knob
+     that changes colour with the state makes one control look like two; the
+     dark block below carries the measured figures.
      Both values here are what the light theme already renders, so light — which
      the reference draws — does not move; only dark does. */
   --color-switch-track: #e8e7e4;
@@ -243,11 +245,11 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 42 values instead of two that
+   CSS never has to express "system". One list of 41 values instead of two that
    can drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 42 PALETTE tokens are here, and they are the SAME 42 that @theme
+   Only the 41 PALETTE tokens are here, and they are the SAME 41 that @theme
    declares outside the chart aliases — one for one, neither set holding a name
    the other lacks. That equality is the real invariant; the number is just how
    it is counted, and the number is what rots. It read 38 from A9 until
@@ -277,17 +279,10 @@
   --color-hairline: #2a2a2e;
   --color-panel: #232327;
   --color-panel-border: #33333a;
-  /* LIGHTER THAN THE TRACK, and by more than light's step rather than the same:
-     1.66:1 against `panel` where light gets 1.20:1. Dark needs the bigger
-     number to read as the same elevation, and 1.25 — the value that matches
-     light arithmetically — is `panel-border` itself, which would erase the
-     thumb's ring. This keeps the ring at 1.33:1 against the fill, the step it
-     has today, and the active glyph at 7.88:1 on it. Continues the
-     panel → panel-border ramp rather than starting a new hue. */
-  --color-segment-thumb: #454550;
-  /* The OFF track goes from `hairline` to a real mid-grey and the knob to
-     white: knob 8.74:1 on the track, and the track itself 1.94:1 on the card
-     where it was 1.19:1 — the control now has a visible shape, not just a
+  /* The OFF track goes from `hairline` to a real mid-grey, which takes the
+     TRACK from 1.19:1 to 1.94:1 against the card behind it — the half D57 never
+     named. The KNOB stays `card` and measures 1.94:1 too; the two ratios are one
+     number because the knob is that colour — the control now has a visible shape, not just a
      visible knob. Chosen against a third constraint the brighter candidates
      lose: OFF must stay clearly distinct from ON (#eceae7), and this keeps
      7.28:1 between the two states. The knob stays `card` in both states
@@ -552,6 +547,59 @@
   [data-dark-surface] :focus-visible {
     outline-color: var(--color-sidebar-text);
   }
+
+  /* A TRACK PAINTED IN ITS PLANE'S FOREGROUND NEEDS THE RING IN THE BACKGROUND.
+     The segmented controls' track is `ink` (2026-09-01) and the base rule two
+     blocks up paints the ring `var(--color-ink)` — so the ring was ink on an
+     ink track, 1.00:1, on EVERY segment of every filled control, active or
+     not. Focus was invisible wherever it landed.
+
+     An earlier draft of this comment blamed `currentColor` and said the idle
+     segments were fine at 13.84:1. Both were artefacts of measuring an
+     animated property: Tailwind's `transition` covers `outline-color`, so a
+     sample taken inside 300ms catches the ring in flight, and 13.84 is in fact
+     this rule's own AFTER number. There is no `currentColor` outline anywhere
+     in the repo.
+
+     `page` rather than a fixed value, so it inverts with the theme the way the
+     track does. Opt-in by attribute, the same shape `[data-dark-surface]` above
+     uses, because only a filled track needs it — a control on `panel` or `card`
+     is already served by the base rule, and so is the rail's currency toggle,
+     which keeps a DARK track by ruling (D114) and therefore wants the light ring
+     the rule above already gives it. */
+  /* WHY THE FILLED TRACKS CARRY `border border-ink` ON A `bg-ink` FILL — it
+     draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
+     the gap D56's concentric rule adds to the segment's radius. Every filled
+     track's radius is `segment + padding + 1`, so removing the border as "a
+     border the same colour as the fill" would silently make all SEVEN radii one
+     pixel too large at once (12 → 11, 11 → 10, 7 → 6). The tracks used to carry a
+     VISIBLE `border-panel-border`; D114 took the colour, not the box. */
+  [data-filled-track] :focus-visible {
+    outline-color: var(--color-page);
+    /* AND A SHORTER REACH, because a filled track is the ring's own backdrop.
+       The base offset of 2 puts a 2px ring at 2→4px from the segment's edge,
+       and the tightest filled track — the price-mode toggle, `p-[2px]` plus a
+       1px border — leaves only 3. Measured in Chrome before this line: the
+       inner half of the ring sat on the track at 15.32:1 and the outer half
+       fell past it onto `panel` at 1.18:1, so a 2px ring read as 1px and
+       reached into the 4px gap toward its neighbour. Offset 1 gives a reach of
+       3, which the tightest track contains exactly and every wider one to
+       spare. */
+    outline-offset: 1px;
+  }
+
+  /* THE RING STILL FADES IN, AND THIS IS THE OPEN EDGE. Tailwind's `transition`
+     utility covers `outline-color`, and an UNFOCUSED segment's computed outline
+     colour is `currentColor` — ink for the active label — so on arrival the ring
+     animates from ink-on-ink to `page`: measured 1.00:1 at t=0, full contrast
+     only at the end of the duration.
+     That 1.00 is NOT the instrument artefact D114 first read it as; it is what a
+     keyboard user sees on arrival. What cannot fix it from here is a rule in this
+     layer: `transition-property` comes from a UTILITY, which wins over `base`
+     whatever the specificity — verified, the override was inert. The fix belongs
+     in the class string (`transition-[color,background-color,transform]`), which
+     is seven duplicated recipes today and the reason a shared
+     `SegmentedTrack` is the open proposal. */
 
   /* THE SAME IDEA, ONE LEVEL UP — an inverted plane needs the DARK theme's
      surface furniture even while the app is in LIGHT. Found by measurement when
