@@ -41,6 +41,7 @@ import {
   trimAmount,
   yieldSinceStart,
 } from './derive';
+import { movesPosition, POSITION_MOVING, unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
 const complete2507: Snapshot = {
@@ -614,5 +615,39 @@ describe('basisIsShort — F-3/D80, and the threshold the sheet delegated', () =
   it('says nothing when there is no basis to be short of', () => {
     expect(basisIsShort(0, 0)).toBe(false);
     expect(basisIsShort(10, 0)).toBe(false);
+  });
+});
+
+describe('movesPosition / unitDelta — the sign rule units depend on', () => {
+  const tx = (over: Partial<Transaction>): Transaction => ({
+    id: 'x',
+    date: '2026-08-12',
+    type: 'buy',
+    assetId: 'reit',
+    amount: 100,
+    source: 'own',
+    ...over,
+  });
+
+  it('names exactly the four types W7 lets carry a quantity', () => {
+    expect([...POSITION_MOVING]).toEqual(['buy', 'sell', 'reinvest', 'redemption']);
+    for (const type of POSITION_MOVING) expect(movesPosition(type), type).toBe(true);
+    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout', 'tax'])
+      expect(movesPosition(type as Transaction['type']), type).toBe(false);
+  });
+
+  it('ADDS on buy and reinvest, REMOVES on sell and redemption', () => {
+    expect(unitDelta(tx({ type: 'buy', quantity: 10 }))).toBe(10);
+    expect(unitDelta(tx({ type: 'reinvest', quantity: 10 }))).toBe(10);
+    expect(unitDelta(tx({ type: 'sell', quantity: 10 }))).toBe(-10);
+    // `redemption` is the bond's principal coming back at maturity — the
+    // position closes, so it removes. Getting this sign wrong would make a
+    // matured bond count double.
+    expect(unitDelta(tx({ type: 'redemption', quantity: 10 }))).toBe(-10);
+  });
+
+  it('is zero without a quantity, and zero on a row that moves nothing', () => {
+    expect(unitDelta(tx({ type: 'buy' }))).toBe(0);
+    expect(unitDelta(tx({ type: 'tax', quantity: 10 }))).toBe(0);
   });
 });

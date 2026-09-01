@@ -80,7 +80,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
   for (const lang of ['uk', 'en'] as const) {
     it(`keeps 6164 units in ${lang}`, () => {
       const defaults = assetFormDefaults(makeFormat(lang), linked as never);
-      const parsed = assetFormSchema('edit').safeParse(defaults);
+      const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
       expect(parsed.success, JSON.stringify(defaults.inzhur)).toBe(true);
       expect(parsed.success && parsed.data.inzhur?.units).toBe(6164);
     });
@@ -97,7 +97,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
       const defaults = assetFormDefaults(fmt, asset as never);
       expect(defaults.targetPct).toBe(lang === 'uk' ? '17,5' : '17.5');
       expect(defaults.expectedPct).toBe(lang === 'uk' ? '16,4' : '16.4');
-      const parsed = assetFormSchema('edit').safeParse(defaults);
+      const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
       expect(parsed.success, JSON.stringify(defaults)).toBe(true);
       expect(parsed.success && parsed.data.targetPct).toBe(17.5);
       expect(parsed.success && parsed.data.expectedPct).toBe(16.4);
@@ -121,7 +121,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
       expectedPct: 6.164,
     } as never);
     expect(defaults.expectedPct).toBe('6,1640');
-    const parsed = assetFormSchema('edit').safeParse(defaults);
+    const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
     expect(parsed.success && parsed.data.expectedPct).toBe(6.164);
   });
 
@@ -130,7 +130,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
     // 7,3 and an untouched Save would silently rewrite it.
     const defaults = assetFormDefaults(makeFormat('uk'), { ...linked, targetPct: 7.25 } as never);
     expect(defaults.targetPct).toBe('7,25');
-    const parsed = assetFormSchema('edit').safeParse(defaults);
+    const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
     expect(parsed.success && parsed.data.targetPct).toBe(7.25);
   });
 });

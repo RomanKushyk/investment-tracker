@@ -195,7 +195,12 @@ describe('input — the editable form, and the round trip it guarantees', () => 
       const f = makeFormat(lang);
       for (const v of VALUES) {
         const shown = f.input(v);
-        expect(Number(normalizeNumberInput(shown)), `${v} rendered "${shown}"`).toBe(v);
+        // THE GROUPING CONVENTION, which is the one `input()` itself checks
+        // against (`GROUPING` in money.ts) and the one every caller of `input()`
+        // still parses with. Stated here rather than inherited from a default,
+        // so the day a caller moves to the Ukrainian rule this stops agreeing
+        // with it by accident.
+        expect(Number(normalizeNumberInput(shown, true)), `${v} rendered "${shown}"`).toBe(v);
       }
     });
   }

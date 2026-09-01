@@ -32,9 +32,13 @@ export function Switch({
       // radii above are keyed to the DRAWN height, so growing the box would move
       // them both — which is exactly what `TAP_44` exists to avoid.
       className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${TAP_44} ${
-        checked ? 'border-ink bg-ink' : 'border-panel-border bg-hairline'
+        checked ? 'border-ink bg-ink' : 'border-panel-border bg-switch-track'
       }`}
     >
+      {/* ONE KNOB COLOUR, BOTH STATES — owner's ruling, 2026-09-01, after
+          seeing a white one: `card` on the lightened OFF track reads fine, and
+          a knob that changes colour with the state makes the state look like
+          two different controls. The OFF fix is the TRACK's alone. */}
       <RadixSwitch.Thumb
         className={`block size-4 rounded-[4px] bg-card shadow-(--shadow-thumb) transition-transform ${
           checked ? 'translate-x-[18px]' : 'translate-x-0'

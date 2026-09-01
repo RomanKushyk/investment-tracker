@@ -40,6 +40,12 @@ export interface FetchApplication {
   fills: { assetId: string; value: number }[];
   /** Rows the user typed whose value differs — OFFERED (S3), never applied. */
   offers: { assetId: string; value: number }[];
+  /**
+   * Assets whose ledger sums BELOW zero — recorded sales exceed recorded
+   * purchases. Not a valuation problem but a data error, and the only bucket
+   * here that names one: `no-position` rows are ordinary and stay silent.
+   */
+  negative: string[];
 }
 
 function kopecks(n: number): number {
@@ -91,15 +97,29 @@ export function reconcileFetched(
 ): FetchApplication {
   const fills: FetchApplication['fills'] = [];
   const offers: FetchApplication['offers'] = [];
+  const negative: string[] = [];
 
   for (const match of matches) {
+    // A MATCH WITH NO VALUE IS SKIPPED, not filled with a guess (D114): the
+    // asset is in the feed, but no count is known for it — no quantities in the
+    // ledger and no legacy total on the link — so there is no position value to
+    // offer. Falling through with `undefined` would have written the string
+    // "undefined" into the draft; falling through with 0 would have written a
+    // real, wrong number.
+    // NO VALUE MEANS NO OFFER — but only `no-position` means no message. A
+    // count below zero is impossible for a holding, so it is reported.
+    if (match.value === undefined) {
+      if (match.noValue === 'negative') negative.push(match.asset.id);
+      continue;
+    }
+    const value = match.value;
     const assetId = match.asset.id;
     const row: DraftRow = { raw: quotes[assetId], origin: origins[assetId] };
-    if (!isTyped(row)) fills.push({ assetId, value: match.value });
-    else if (!sameQuote(row.raw, match.value)) offers.push({ assetId, value: match.value });
+    if (!isTyped(row)) fills.push({ assetId, value });
+    else if (!sameQuote(row.raw, value)) offers.push({ assetId, value });
   }
 
-  return { fills, offers };
+  return { fills, offers, negative };
 }
 
 /** How many portfolio assets carry an Inzhur link — 0 disables the button. */

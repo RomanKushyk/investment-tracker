@@ -283,6 +283,19 @@ describe('transaction', () => {
     await refuses(insertTx(nextId(), 'deposit', 'NULL, 1, NULL, NULL'));
   });
 
+  it('refuses a payout that invents a unit_price, the same as a quantity', async () => {
+    // The price is the other half of one fact — what a position movement cost
+    // per unit — so it takes the rule the count takes. The application enforces
+    // both at all three of its doors; a schema governing only the count would
+    // let a migration land a row the app refuses to write.
+    await refuses(insertTx(nextId(), 'dividend_payout', `${ASSET}, NULL, 11.14, NULL`));
+    await refuses(insertTx(nextId(), 'tax', 'NULL, NULL, 11.14, NULL'));
+  });
+
+  it('still ACCEPTS a unit_price on a row that does move a position', async () => {
+    await accepts(insertTx(nextId(), 'redemption', `${ASSET}, 5, 11.14, NULL`));
+  });
+
   it('refuses a buy with no asset — a position nothing owns', async () => {
     await refuses(insertTx(nextId(), 'buy', 'NULL, 5, NULL, NULL'));
   });

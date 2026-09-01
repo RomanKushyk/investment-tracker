@@ -137,8 +137,13 @@ Asset { id, name, code /*2 letters*/, colorKey, yieldType: 'fixed_coupon'|'divid
         expectedPct, targetPct, payoutSchedule: 'maturity'|'monthly'|'quarterly'|'semiannual',
         firstPurchase, maturity?, couponAmount?, nextCoupon?, reinvestPolicy? }
 Snapshot { date, quotes: Record<assetId, number>, cash }   // one per day, partial until saved
-Transaction { id, date, type: 'buy'|'sell'|'deposit'|'dividend_accrual'|'interest_payout'|'reinvest'|'tax',
-              assetId, amount, source: 'own'|'accrual'|'reinvest_reit'|'reinvest_6475' }
+Transaction { id, date, type: 'buy'|'sell'|'deposit'|'withdrawal'|'dividend_accrual'
+                    |'interest_payout'|'reinvest'|'redemption'|'tax',
+              assetId, amount, source: 'own'|'accrual'|'reinvest_reit'|'reinvest_6475',
+              quantity?, unitPrice? }   // #31/D112 — units are Σ quantity, never a stored
+                                        // total. Position-moving types only (buy/sell/
+                                        // reinvest/redemption); both absent on every row
+                                        // recorded before they existed.
 Settings { currency: 'UAH'|'USD', usdRate: 44.83 }
 ```
 

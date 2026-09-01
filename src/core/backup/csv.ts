@@ -61,6 +61,14 @@ export const TRANSACTION_CSV_COLUMNS = [
   'assetId',
   'amount',
   'source',
+  // ISSUE #31. APPENDED, never inserted: a column order is what a spreadsheet
+  // someone already built its formulas against depends on, and there is no CSV
+  // importer to keep in step (export only — `CsvExportRow` is the sole caller),
+  // so the one compatibility that exists here is with files already on disk.
+  // Empty for every row that carries no units, which is every row recorded
+  // before these existed and every row that moves no position.
+  'quantity',
+  'unitPrice',
 ] as const;
 
 /** Wide snapshots: these two, then one column per asset. */
@@ -125,7 +133,25 @@ export function serializeAssetsCsv(assets: Asset[]): string {
 export function serializeTransactionsCsv(transactions: Transaction[]): string {
   return csvFile([
     [...TRANSACTION_CSV_COLUMNS],
-    ...transactions.map((t) => [t.id, t.date, t.type, t.assetId, money(t.amount), t.source]),
+    ...transactions.map((t) => [
+      t.id,
+      t.date,
+      t.type,
+      t.assetId,
+      money(t.amount),
+      t.source,
+      // `plain` on the COUNT only: a count is not money and must not be padded
+      // to two decimals — a reinvestment buys a fractional number of units, and
+      // `money()` would round 43.4785 to 43.48 in the one column whose whole
+      // purpose is to be exact.
+      t.quantity === undefined ? '' : plain(t.quantity),
+      // `money` on the PRICE: it is ₴, and this file's dialect pins money at two
+      // decimals minimum. `money()` is right for both shapes — it keeps every
+      // decimal of 11.1389 (the `toFixed(2)` round-trip fails, so it falls
+      // through to `String`) while padding a whole-hryvnia price to `1000.00`,
+      // matching the `amount` column beside it.
+      t.unitPrice === undefined ? '' : money(t.unitPrice),
+    ]),
   ]);
 }
 

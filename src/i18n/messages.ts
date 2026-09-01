@@ -114,6 +114,8 @@ export const en = {
       notABackup: 'This is not a Quirenote backup — it has no "quirenote-backup" marker.',
       newerFormat: (version: string) =>
         `This backup was written by a newer version of the app (format ${version}). Update the app, or export again from the version that wrote it.`,
+      olderFormat: (version: string) =>
+        `This backup is format version ${version}, from before this app's data model changed. It can no longer be imported.`,
       unsupportedFormat: "This backup's format version isn't one this app can read.",
     },
     issue: {
@@ -125,6 +127,7 @@ export const en = {
       expectedDatetime: 'expected timezone-less yyyy-MM-ddTHH:mm:ss',
       expectedDate: 'expected a yyyy-MM-dd date',
       expectedPositiveAmount: 'expected a positive number',
+      unitsOnNonPositionRow: 'only a buy, sell, reinvest or redemption carries units',
       invalid: 'invalid value',
     },
     problemCount: (total: number, shown: number) => {
@@ -842,6 +845,16 @@ export const en = {
     // like any other figure (Contract 0) — the parity test caught this one
     // sharing the Ukrainian form with English.
     amountPlaceholder: '10,000.00',
+    // ISSUE #31. The amount field holds one of two things, and its label says
+    // which — a toggle that silently changed what a number meant would be a
+    // worse bug than the one it fixes.
+    amountUnit: 'Per unit, ₴',
+    priceTotal: 'Total amount',
+    priceUnit: 'Price per unit',
+    quantity: 'Units',
+    quantityPlaceholder: '6164',
+    quantityMissing: 'Enter the number of units.',
+    quantityNotPositive: 'Units have to be a positive number.',
     source: 'Source of funds',
     submit: 'Record transaction',
     // The amount's own errors, under the field. The form-level `invalid` line
@@ -850,6 +863,7 @@ export const en = {
     // value that is zero, negative or not a number at all.
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',
+    productTooSmall: 'The price times the count rounds to nothing — check both.',
     invalid: 'Check the highlighted fields and try again.',
     recentEmpty: 'No transactions yet.',
     // The Type select spells out "Interest payout"; the Recent rows say
@@ -965,6 +979,13 @@ export const en = {
       tooCloseToMaturity: 'Too close to maturity to check the yield from the price.',
     },
     fetchFailed: "Couldn't reach Inzhur — check your connection.",
+    // A linked row valued from the asset's old hand-typed total, because one of
+    // its transactions carries no unit count. The row LOOKS filled, which is why
+    // it needs saying — names the fix, not the fault.
+    staleLedgerRows: (names: string) =>
+      `Valued from an old stored unit count: ${names} — some of their transactions have no Units.`,
+    negativeUnits: (names: string) =>
+      `Fewer than zero units: ${names} — recorded sales exceed recorded purchases.`,
     useValuesFrom: (date: string) => `Use values from ${date}`,
     quoteAria: (asset: string) => `${asset} quote`,
     // S5 — the coupon-due card. `Amount, ₴` and the failure toast are the
@@ -1117,6 +1138,8 @@ export const uk: Dict = {
       notABackup: 'Це не копія Quirenote — у ній немає позначки «quirenote-backup».',
       newerFormat: (version: string) =>
         `Цю копію створила новіша версія застосунку (формат ${version}). Оновіть застосунок або експортуйте знову з тієї версії, що її створила.`,
+      olderFormat: (version: string) =>
+        `Ця копія має версію формату ${version} — з часів до зміни моделі даних. Імпортувати її вже не можна.`,
       unsupportedFormat: 'Версію формату цієї копії застосунок прочитати не може.',
     },
     issue: {
@@ -1129,6 +1152,7 @@ export const uk: Dict = {
       expectedDatetime: 'очікується yyyy-MM-ddTHH:mm:ss без часового поясу',
       expectedDate: 'очікується дата yyyy-MM-dd',
       expectedPositiveAmount: 'очікується додатне число',
+      unitsOnNonPositionRow: 'одиниці має лише купівля, продаж, реінвест або погашення',
       invalid: 'некоректне значення',
     },
     problemCount: (total: number, shown: number) => {
@@ -1710,10 +1734,18 @@ export const uk: Dict = {
     newAssetDetails: 'Дані нового активу',
     amount: 'Сума, ₴',
     amountPlaceholder: '10 000,00',
+    amountUnit: 'За одиницю, ₴',
+    priceTotal: 'Загальна сума',
+    priceUnit: 'Ціна за одиницю',
+    quantity: 'Одиниці',
+    quantityPlaceholder: '6 164',
+    quantityMissing: 'Введіть кількість одиниць.',
+    quantityNotPositive: 'Кількість має бути додатним числом.',
     source: 'Джерело коштів',
     submit: 'Записати транзакцію',
     amountMissing: 'Введіть суму.',
     amountNotPositive: 'Сума має бути додатним числом.',
+    productTooSmall: 'Ціна на кількість дає нуль — перевірте обидва поля.',
     invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
     recentEmpty: 'Транзакцій ще немає.',
     types: {
@@ -1812,6 +1844,10 @@ export const uk: Dict = {
       tooCloseToMaturity: 'Занадто близько до погашення, щоб перевіряти дохідність за ціною.',
     },
     fetchFailed: 'Не вдалося зв’язатися з Inzhur — перевірте з’єднання.',
+    staleLedgerRows: (names: string) =>
+      `Оцінено за старою збереженою кількістю: ${names} — не в усіх їхніх транзакціях вказано одиниці.`,
+    negativeUnits: (names: string) =>
+      `Кількість нижча за нуль: ${names} — записаних продажів більше, ніж купівель.`,
     useValuesFrom: (date: string) => `Взяти значення від ${date}`,
     quoteAria: (asset: string) => `Котирування ${asset}`,
     coupon: {

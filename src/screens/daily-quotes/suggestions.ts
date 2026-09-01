@@ -14,7 +14,24 @@ import {
 import { checkQuote, type QuoteVerdict } from '../../core/inzhur/dcf';
 import { couponForecast, matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
 import type { Asset, Snapshot } from '../../core/types';
+
 import { lastQuoteBefore } from './quotes';
+
+/**
+ * These three call sites read `match.quote` ONLY — the schedule and the yield —
+ * never `.value` or `.units`, so they have no count to supply and none to use.
+ *
+ * The argument is REQUIRED rather than optional on purpose: while it defaulted,
+ * omitting it silently restored the #31 behaviour (the stale hand-typed total,
+ * stamped `unitsFrom: 'link'` that nobody reads), so the buggy path was the one
+ * a forgetful caller got for free. Passing this explicitly is the seam saying
+ * "no count needed here", and a new caller that does need one now gets a type
+ * error instead of a wrong number.
+ */
+// `Object.create(null)`, matching `derive.ts`'s own map: an empty object that
+// answers `toString` is not empty, and this one is handed straight to
+// `matchAssets` as a units record.
+const NO_UNITS: Record<string, number> = Object.create(null) as Record<string, number>;
 
 /**
  * The provider's published payment dates for `asset`. Undefined for an unlinked
@@ -27,7 +44,7 @@ import { lastQuoteBefore } from './quotes';
  */
 export function feedSchedule(asset: Asset, feed: ParsedFeed | undefined): string[] | undefined {
   if (feed === undefined) return undefined;
-  const [match] = matchAssets([asset], feed).linked;
+  const [match] = matchAssets([asset], feed, NO_UNITS).linked;
   if (match === undefined) return undefined;
   const dates = match.quote.paymentSchedule.map((p) => p.date);
   return dates.length > 0 ? dates : undefined;
@@ -63,7 +80,7 @@ export function bondQuoteCheck(
   fetchedOnIso: string | undefined,
 ): QuoteVerdict | undefined {
   if (feed === undefined || fetchedOnIso === undefined) return undefined;
-  const [match] = matchAssets([asset], feed).linked;
+  const [match] = matchAssets([asset], feed, NO_UNITS).linked;
   if (match === undefined) return undefined;
   const { quote } = match;
   if (quote.kind !== 'bond') return undefined;
@@ -137,10 +154,33 @@ export function couponPrefill(
   asset: Asset,
   due: DueCoupon,
   feed: ParsedFeed | undefined,
+  // ISSUE #31 REACHES HERE TOO, and it is the more expensive half: a coupon is
+  // paid per unit held, so a stale count does not merely misprice a display, it
+  // prefills the AMOUNT of a transaction the user is about to record. Same
+  // record as the fetch — `unitsByAsset` as of the coupon's own date — and the
+  // same fallback to the link's stored total when the ledger cannot answer.
+  unitsHeld?: Record<string, number>,
 ): number | undefined {
-  const units = asset.inzhur?.units;
+  // OWN keys only, the same rule `matchAssets` applies to the same record.
+  const units =
+    unitsHeld !== undefined && Object.hasOwn(unitsHeld, asset.id)
+      ? unitsHeld[asset.id]
+      : asset.inzhur?.units;
+  // A KNOWN COUNT OF ZERO OR LESS RETURNS `undefined`, and it must return that
+  // rather than fall through.
+  //
+  // Falling through reaches `due.amount` — the asset's full stated
+  // `couponAmount` — so a sold-out bond prefilled ₴1 240 for a position that no
+  // longer exists, in a confirm card the user taps through. That is worse than
+  // the ₴0,00 it replaced: 0 was refused by `quoteInputSchema` and the user SAW
+  // a stop, while a plausible figure is a silent wrong `interest_payout`.
+  //
+  // `undefined` is the card's own documented "nothing to prefill": the field
+  // opens empty and the pinned "Enter an amount." guards the confirm. Same
+  // answer `matchAssets` gives the same count.
+  if (units !== undefined && units <= 0) return undefined;
   if (units !== undefined && feed !== undefined) {
-    const [match] = matchAssets([asset], feed).linked;
+    const [match] = matchAssets([asset], feed, NO_UNITS).linked;
     const forecast =
       match === undefined
         ? undefined

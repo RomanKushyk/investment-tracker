@@ -1,6 +1,6 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
 // Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
-import type { Asset, Snapshot, Transaction } from './types';
+import { movesPosition, unitDelta, type Asset, type Snapshot, type Transaction } from './types';
 import type { PeriodWindow } from './period';
 import { xirr, type CashFlow } from './xirr';
 
@@ -259,6 +259,109 @@ function sumByAsset(txs: Transaction[], types: readonly Transaction['type'][]) {
 
 export function investedByAsset(txs: Transaction[]): Record<string, number> {
   return sumByAsset(txs, ['buy', 'reinvest']);
+}
+
+/**
+ * Units held per asset, as of `asOf` (inclusive; unbounded when omitted) —
+ * `units(a, D) = Σ quantity deltas`, which is W7's model
+ * (`docs/reference/w7-migration-translations.md` §4) and the answer to #31.
+ *
+ * ONLY ASSETS WITH AT LEAST ONE RECORDED QUANTITY GET A KEY, and that is the
+ * point rather than an optimisation: a position whose ledger carries no
+ * quantities must be distinguishable from one that genuinely holds zero units.
+ * The first still needs `Asset.inzhur.units` to be valued at all; the second is
+ * a closed position. Returning 0 for both would value every un-backfilled
+ * holding at nothing — a far louder wrong answer than the one #31 reported.
+ *
+ * The sum is NOT rounded. Units are not money: a reinvestment buys a fractional
+ * count (₴484.36 ÷ 11.1389), and rounding each delta would drift the running
+ * total one purchase at a time — the same cumulative error #31 is about.
+ */
+export interface LedgerUnits {
+  /** Units held, per asset that the ledger can count completely. */
+  units: Record<string, number>;
+  /**
+   * Assets that HOLD position-moving rows but cannot be counted, because at
+   * least one of those rows ON OR BEFORE `asOf` carries no quantity. A row
+   * dated later does not appear here: it cannot make an earlier count any less
+   * known, and treating it as if it could threw away exact sums for every date
+   * before the gap.
+   *
+   * Returned rather than inferred from `units`' missing keys, which cannot tell
+   * "has rows but one is uncounted" from "has no rows at all". The difference is
+   * the whole message: a single un-counted `sell` on an otherwise backfilled
+   * asset drops it back to the stale link total, and without this the fetch
+   * reported that number — both stale and larger than the position — with
+   * nothing to say the ledger had stopped answering.
+   */
+  incomplete: string[];
+}
+
+export function unitsByAsset(txs: Transaction[], asOf?: string): Record<string, number> {
+  return ledgerUnits(txs, asOf).units;
+}
+
+/** `unitsByAsset` plus the assets it declined to count — one walk, both answers. */
+export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
+  // COMPLETENESS FIRST, then the sum. An asset answers only when EVERY
+  // position-moving row it has carries a quantity — one missing count makes the
+  // total wrong, not merely smaller, and the caller cannot tell the difference.
+  //
+  // THIS IS THE WHOLE RULE, and getting it wrong reintroduces #31 larger than it
+  // was. The first cut keyed on "any row has a quantity", which looks equivalent
+  // and is not: the owner's backfill route is BY HAND (D112), so every linked
+  // asset spends days in the half-filled state. A REIT link of 6 164 units whose
+  // ledger has one re-recorded purchase of 1 000 would have reported 1 000 —
+  // an 84% understatement, five times the 16.7% the fix was opened for, and
+  // stamped `unitsFrom: 'ledger'` as if it were correct by construction.
+  //
+  // COMPLETENESS IS A PROPERTY OF THE LEDGER UP TO THE DATE ASKED ABOUT, and
+  // the two sets it takes are bounded differently on purpose:
+  //
+  //   `moving`     THE WHOLE LEDGER. Bounding this one is what inverted time in
+  //                the first cut: an asset whose rows all start 2026-08-15 lost
+  //                its key entirely for 2026-08-10, fell back to the link's
+  //                6 164, and reported a PAST position as larger than the
+  //                present one. Judged over the whole ledger it keys with 0 —
+  //                true, it was not held — and zero is handled as no offer.
+  //   `incomplete` BOUNDED BY `asOf`. A row dated AFTER the date asked about
+  //                cannot make the count before it any less known: an asset
+  //                counted through June, whose July purchase was entered
+  //                without units, is answerable for May exactly. Judging it
+  //                over the whole ledger threw May's exact sum away and took
+  //                the stale link total instead — the same fallback, for a date
+  //                where nothing was actually missing.
+  const within = (tx: Transaction) => asOf === undefined || tx.date <= asOf;
+  const incomplete = new Set<string>();
+  const moving = new Set<string>();
+  for (const tx of txs) {
+    if (!movesPosition(tx.type)) continue;
+    moving.add(tx.assetId);
+    if (within(tx) && tx.quantity === undefined) incomplete.add(tx.assetId);
+  }
+
+  // `Object.create(null)`, NOT `{}`, because the sum loop below gates on
+  // `assetId in out` — and `in` walks the prototype chain, so `'toString' in {}`
+  // is true even though no key was ever set for it. An asset id of `toString`,
+  // `constructor` or `valueOf` (any non-empty string passes `assetRowSchema`)
+  // would then have `+=` run against an inherited function and produce a
+  // string-concatenated own property, which `positionValue` multiplies.
+  const out: Record<string, number> = Object.create(null) as Record<string, number>;
+  for (const assetId of moving) {
+    if (!incomplete.has(assetId)) out[assetId] = 0;
+  }
+  // The incomplete set is RETURNED, not merely used. Without it a single
+  // un-counted `sell` on a fully backfilled asset dropped it back to the stale
+  // link total silently: `matchAssets` found a link, so the row never reached
+  // `uncounted` and the toast never fired — the fetch reported a number both
+  // stale and larger than the position, which is #31 again, after the work to
+  // fix it. The caller can now say WHICH assets stopped answering and why.
+
+  for (const tx of txs) {
+    if (!within(tx) || !(tx.assetId in out)) continue;
+    out[tx.assetId] += unitDelta(tx);
+  }
+  return { units: out, incomplete: [...incomplete] };
 }
 
 export function reinvestedByAsset(txs: Transaction[]): Record<string, number> {

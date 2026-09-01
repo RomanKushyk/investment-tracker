@@ -314,7 +314,7 @@ describe('matchAssets', () => {
   const manual = asset('manual');
 
   it('links by slug / ISIN (case-insensitive, trimmed) and values the position', () => {
-    const { linked, unmatched } = matchAssets([reit, ovdp], feed);
+    const { linked, unmatched } = matchAssets([reit, ovdp], feed, {});
     expect(unmatched).toEqual([]);
     expect(linked.map((m) => [m.asset.id, m.quote.ref, m.value])).toEqual([
       ['reit', 'inzhur-reit', 68660.18],
@@ -324,17 +324,17 @@ describe('matchAssets', () => {
 
   it('reports a linked asset the feed does not carry', () => {
     const gone = asset('gone', { kind: 'bond', ref: 'UA9999999999', units: 1 });
-    const { linked, unmatched } = matchAssets([gone], feed);
+    const { linked, unmatched } = matchAssets([gone], feed, {});
     expect(linked).toEqual([]);
     expect(unmatched.map((a) => a.id)).toEqual(['gone']);
   });
 
   it('does not cross kinds', () => {
     const wrongKind = asset('x', { kind: 'bond', ref: 'inzhur-reit', units: 1 });
-    expect(matchAssets([wrongKind], feed).unmatched.map((a) => a.id)).toEqual(['x']);
+    expect(matchAssets([wrongKind], feed, {}).unmatched.map((a) => a.id)).toEqual(['x']);
   });
 
   it('leaves unlinked assets out of both lists', () => {
-    expect(matchAssets([manual], feed)).toEqual({ linked: [], unmatched: [] });
+    expect(matchAssets([manual], feed, {})).toEqual({ linked: [], unmatched: [] });
   });
 });

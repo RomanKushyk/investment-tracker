@@ -73,6 +73,7 @@ CREATE TABLE "transaction" (
 	CONSTRAINT "transaction_quantity_sign_ck" CHECK ("transaction"."quantity" IS NULL OR "transaction"."quantity" > 0),
 	CONSTRAINT "transaction_unit_price_ck" CHECK ("transaction"."unit_price" IS NULL OR "transaction"."unit_price" > 0),
 	CONSTRAINT "transaction_quantity_absent_ck" CHECK ("transaction"."type" IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."quantity" IS NULL),
+	CONSTRAINT "transaction_unit_price_absent_ck" CHECK ("transaction"."type" IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."unit_price" IS NULL),
 	CONSTRAINT "transaction_asset_absent_ck" CHECK ("transaction"."type" NOT IN ('deposit', 'withdrawal') OR "transaction"."asset_id" IS NULL),
 	CONSTRAINT "transaction_asset_present_ck" CHECK ("transaction"."type" NOT IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."asset_id" IS NOT NULL),
 	CONSTRAINT "transaction_settles_ck" CHECK ("transaction"."settles_payout_id" IS NULL OR "transaction"."type" = 'tax')

@@ -319,8 +319,45 @@ export function couponForecast(
 export interface InzhurMatch {
   asset: Asset;
   quote: InzhurQuote;
-  /** units × sellUAH — the value the fetch offers for this row. */
-  value: number;
+  /**
+   * units × sellUAH — the value the fetch offers for this row, and ABSENT when
+   * no count is known (D114): the ledger has no quantities for this asset yet
+   * and the link carries no legacy total. The asset still MATCHED — it is in the
+   * feed — so it belongs in `linked`; there is simply nothing to offer.
+   */
+  value?: number;
+  /** The count `value` was computed from. Absent with `value`. */
+  units?: number;
+  /**
+   * WHY there is no `value`, when there is none.
+   *
+   * `no-position` — the count is EXACTLY zero. Nothing to fix and nothing to
+   * say: on that date the position genuinely was not held. It covers both a
+   * sold-out holding and a date before the first purchase, and the name says so
+   * — an earlier `closed` read as the first only, while `unitsByAsset` bounds
+   * its sum by `asOf` and produces the second just as readily.
+   *
+   * `negative` — the count is BELOW zero, which no holding can be. It means
+   * recorded sales exceed recorded purchases, so it is a data error the owner
+   * has to fix, and it must be reported rather than absorbed. Folding it into
+   * `no-position` made a real defect indistinguishable from an ordinary empty
+   * day, on the one screen positioned to notice.
+   */
+  noValue?: 'no-position' | 'negative';
+  /**
+   * WHERE that count came from, and it is surfaced rather than inferred because
+   * the two are not equally trustworthy. `ledger` is `Σ quantity` over the
+   * asset's transactions — correct by construction, and what W7 will store.
+   * `link` is `Asset.inzhur.units`, one hand-typed total that no purchase
+   * updates: the defect issue #31 reported. A row valued from `link` is only as
+   * current as the last time someone edited the asset.
+   *
+   * NOT YET SURFACED, and saying so here rather than claiming otherwise: nothing
+   * outside the tests reads this. `reconcileFetched` and `QuoteRow` treat both
+   * sources identically, so the stale-total case stays invisible in the product.
+   * Recorded so the distinction survives until a row can show it.
+   */
+  unitsFrom?: 'ledger' | 'link';
 }
 
 export interface MatchedAssets {
@@ -339,7 +376,19 @@ function matchKey(kind: 'fund' | 'bond', ref: string): string {
  * Split the portfolio's Inzhur-LINKED assets against a parsed feed. Assets
  * without a link appear in neither list — they are not part of a fetch.
  */
-export function matchAssets(assets: Asset[], feed: ParsedFeed): MatchedAssets {
+export function matchAssets(
+  assets: Asset[],
+  feed: ParsedFeed,
+  // ISSUE #31. `units[assetId]` is `derive.ts`'s `unitsByAsset` — the ledger's
+  // own count, which is the RIGHT number and the one W7 keeps. It is a
+  // parameter rather than a second field on the asset because core never reads
+  // the store, and optional because the ledger cannot answer for a position
+  // whose transactions predate `Transaction.quantity`: those rows record ₴ and
+  // nothing else, and §4 of the migration notes says the counts are
+  // unrecoverable. In that case, and only then, the stale link total is still
+  // the best number available — so it is used, and `unitsFrom` says so.
+  units: Record<string, number>,
+): MatchedAssets {
   const byRef = new Map(feed.entries.map((e) => [matchKey(e.kind, e.ref), e]));
   const linked: InzhurMatch[] = [];
   const unmatched: Asset[] = [];
@@ -352,7 +401,45 @@ export function matchAssets(assets: Asset[], feed: ParsedFeed): MatchedAssets {
       unmatched.push(asset);
       continue;
     }
-    linked.push({ asset, quote, value: positionValue(link.units, quote.sellUAH) });
+    // PRESENCE decides, never truthiness: a fully sold position sums to 0, and
+    // `??` on a falsy 0 would fall back to the link's total and value a closed
+    // holding at its old size — the very failure this parameter exists to end.
+    //
+    // `Object.hasOwn`, because PRESENCE HAS TO MEAN OWN. `derive.ts` builds its
+    // map with `Object.create(null)` for this reason and explains it there, but
+    // that guards the PRODUCER only: this function indexes whatever a caller
+    // hands it. An asset id of `toString` passes `assetRowSchema`
+    // (`z.string().min(1)`), so a plain object answers that key with a Function
+    // off the prototype — and `positionValue(fn, price)` is NaN, filled into
+    // the draft as a fetched number.
+    const fromLedger = Object.hasOwn(units, asset.id) ? units[asset.id] : undefined;
+    const held = fromLedger ?? link.units;
+    // A NON-POSITIVE COUNT IS NOT A VALUATION. A sold-out position sums to 0 and
+    // a mistyped `sell` can sum negative; either used to reach `positionValue`
+    // and be written into the draft as "0,00", which `quoteInputSchema` then
+    // rejected for being non-positive — so the row SHOWED a fetched number, the
+    // progress pill did not count it, and Save quietly omitted the asset. No
+    // error anywhere. It joins the no-count case instead: nothing is offered.
+    if (held !== undefined && held <= 0) {
+      linked.push({ asset, quote, noValue: held < 0 ? 'negative' : 'no-position' });
+      continue;
+    }
+    // TWO SOURCES, ONE OF WHICH IS ALWAYS PRESENT HERE: the ledger's count when
+    // it can answer, else the link's own total, which `Asset.inzhur` requires.
+    // So `held` is never undefined in this branch — the spread below keeps the
+    // shape ready for a link that carries no count, which is the asset form's
+    // change to make, not this one's.
+    linked.push({
+      asset,
+      quote,
+      ...(held === undefined
+        ? {}
+        : {
+            value: positionValue(held, quote.sellUAH),
+            units: held,
+            unitsFrom: fromLedger === undefined ? ('link' as const) : ('ledger' as const),
+          }),
+    });
   }
 
   return { linked, unmatched };

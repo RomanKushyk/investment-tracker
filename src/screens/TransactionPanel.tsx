@@ -8,6 +8,7 @@ import { AssetFormFields } from '../components/forms/AssetForm';
 import { assetFormDefaults } from '../components/forms/asset-form';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Reveal } from '../components/ui/Reveal';
 import { Scroller } from '../components/ui/Scroller';
 import { DatePicker } from '../components/ui/DatePicker';
 import { Select } from '../components/ui/Select';
@@ -31,8 +32,10 @@ import {
   type TransactionFormInput,
   type TransactionFormValues,
 } from '../core/schemas';
-import type { Asset, Transaction, TxType } from '../core/types';
+import { convertTypedAmount, priceParts } from '../core/transaction-price';
+import { movesPosition, type Asset, type Transaction, type TxType } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
+import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 
@@ -75,6 +78,102 @@ function inputClass(invalid: boolean): string {
 // folded into its accessible name — see the comment at the field.
 const AMOUNT_ID = 'tx-amount';
 const AMOUNT_ERROR_ID = 'tx-amount-error';
+const QUANTITY_ID = 'tx-quantity';
+const QUANTITY_ERROR_ID = 'tx-quantity-error';
+
+/**
+ * ISSUE #31 — what the amount field holds: the whole transaction, or one unit.
+ *
+ * D56 IS TWO RULES AND A SEGMENTED CONTROL NEEDS BOTH. The segment is
+ * PROPORTIONAL to its own rendered box; the track is CONCENTRIC around it.
+ * AS SHIPPED, measured in the browser: `px-2.5 py-1 text-[11px]` renders each
+ * segment **26.6 × 24.5** — `text-[11px]` sets no line height, so the number
+ * cannot be read off the classes — giving round(24.5 × 0.26) = **6** for the
+ * segment, and 6 + 4 = **10** for the track, which renders 65.2 × 32.5. A
+ * radius is never portable between two sizes: the same classes at `py-[3px]`
+ * render 22.5 (what `Tag` records), and `px-4 py-[5px] text-xs` renders 26 and
+ * takes 7.
+ *
+ * `flex-1` ON BOTH SEGMENTS IS LOAD-BEARING, not tidiness: the thumb is a fixed
+ * `calc(50% - 5px)`, which lands correctly only while the two are equal width.
+ * Content-sized labels are not — `Σ` is wider than `1`, and any word pair is
+ * worse — so the thumb overhangs one state and falls short of the other.
+ *
+ * NO `TAP_44` HERE, AND THAT IS THE HELPER'S OWN RULE, not an omission. A centred
+ * 44px overlay reaches `(44 − w) / 2` past each edge, so two neighbours only tile
+ * when `w + gap ≥ 44` — the sidebar's worked example is 36 drawn + 8 gap = 44.
+ * These segments are ~27 wide with `gap-1`, a pitch of 31, and satisfying 44
+ * would need either a 17px gap or a 40px segment: the first breaks the track's
+ * concentric spacing, the second is geometry, which D66 forbids growing.
+ *
+ * Overlapping hit areas are WORSE than small ones — `tap-target.ts` measured the
+ * daily-quotes ✕ handing its tap to the accept button beside it — and here the
+ * wrong control silently re-reads the amount as a price per unit, which the label
+ * comment below calls a worse defect than #31.
+ *
+ * So the pressable box is REAL instead — that is where the `py-1` above comes
+ * from. 24.5px tall clears WCAG 2.5.8 AA's 24 × 24 with no overlay at all, and
+ * the radii do not move with it.
+ *
+ * `aria-pressed` and not a radio group: it toggles the MEANING of a neighbouring
+ * input rather than submitting a value of its own, and it is announced beside
+ * that input's own label.
+ */
+function PriceModeSegment({
+  value,
+  onChange,
+}: {
+  value: 'total' | 'unit';
+  onChange: (mode: 'total' | 'unit') => void;
+}) {
+  const t = useT();
+  // GLYPH VISIBLE, WORDS IN THE TOOLTIP AND THE ACCESSIBLE NAME.
+  //
+  // `Σ` and `1`, not `₴` and `1` (owner, 2026-08-31). The hryvnia distinguishes
+  // NOTHING here — both modes are in hryvnia, so «₴ проти 1» compares a currency
+  // with a number. Σ against 1 compares like with like: a sum against a single
+  // unit. The symbol says what is being done to the number, not what it is in.
+  //
+  // `aria-label` is right here and wrong two components over: a trigger's
+  // accessible name comes from its CONTENTS, so `Select` must never take one —
+  // it would announce its purpose and never its value. A bare `Σ` is not a name,
+  // so this one supplies the words the glyph replaced. `title` carries the same
+  // string for pointer users, the idiom `QuoteRow`'s provenance chip already uses.
+  const segment = (mode: 'total' | 'unit', glyph: string, label: string) => (
+    <button
+      type="button"
+      aria-pressed={value === mode}
+      aria-label={label}
+      title={label}
+      // ONLY ON AN ACTUAL CHANGE, never on a click. A segmented control reports
+      // that its VALUE moved; firing on every press makes the already-active
+      // segment an action, and the panel converts the amount on this event —
+      // measured, three taps on Σ took «55 694,50» to ₴6 961 812 500 000 000,
+      // multiplying by the count each time. `aria-pressed` already says the
+      // press is a no-op; the handler has to agree with it.
+      onClick={() => {
+        if (mode !== value) onChange(mode);
+      }}
+      className={`relative z-10 flex-1 cursor-pointer rounded-[6px] px-2.5 py-1 text-[11px] font-bold transition active:scale-[.97] ${
+        value === mode ? 'text-ink' : 'text-muted hover:opacity-85'
+      }`}
+    >
+      {glyph}
+    </button>
+  );
+  return (
+    <div className="relative flex gap-1 rounded-[10px] border border-panel-border bg-panel p-[3px]">
+      <div
+        aria-hidden
+        data-owns-motion
+        className="absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[6px] bg-segment-thumb shadow-(--shadow-thumb) transition-transform duration-300 ease-soft"
+        style={{ transform: value === 'total' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }}
+      />
+      {segment('total', 'Σ', t.transaction.priceTotal)}
+      {segment('unit', '1', t.transaction.priceUnit)}
+    </div>
+  );
+}
 
 /**
  * The ledger's distance from the top of the DOCUMENT, published as a custom
@@ -158,6 +257,14 @@ export function TransactionPanel() {
   const ledgerRef = useLedgerTop();
   const f = useFormat();
   const t = useT();
+  const language = useSettings((state) => state.language);
+  // BUILT ONCE PER LANGUAGE, not once per render. These were module constants
+  // until the grammar started following the language (D87); as bare calls in the
+  // component body they rebuilt the whole zod tree — both refinements and both
+  // resolver closures — on every `useWatch` change and every query settle, and
+  // the language changes at most once a session.
+  const txSchema = useMemo(() => transactionSchema(language), [language]);
+  const newAssetSchema = useMemo(() => assetFormSchema('create', language), [language]);
   const assetsData = useAssets().data;
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
   const transactions = useTransactions().data ?? [];
@@ -169,13 +276,21 @@ export function TransactionPanel() {
   const [confirmingId, setConfirmingId] = useState<string | undefined>(undefined);
 
   const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
+    // THE LANGUAGE IS A PARSE RULE HERE, not only a display one: a lone comma
+    // is the decimal mark in Ukrainian and a thousands mark in English, and the
+    // two fields #31 adds are the ones a Ukrainian typist writes with three
+    // decimals — the single shape the normalizer cannot disambiguate alone.
+    resolver: zodResolver(txSchema),
     defaultValues: {
       date: todayIso(),
       type: 'buy',
       assetId: '',
       amount: '',
       source: 'own',
+      quantity: '',
+      // Total is the default because it is what the field has always meant and
+      // what every provider statement quotes; per-unit is the deliberate switch.
+      priceMode: 'total',
     },
   });
 
@@ -184,7 +299,9 @@ export function TransactionPanel() {
   // NewAssetFields). Validated only when Asset = "+ New asset…"; the record
   // itself stays the atomic recordTransaction(tx, newAsset).
   const assetForm = useForm<AssetFormInput, unknown, AssetFormValues>({
-    resolver: zodResolver(assetFormSchema('create')),
+    // Same language rule as the transaction schema above — the sub-form
+    // carries the very same Units field, one form over.
+    resolver: zodResolver(newAssetSchema),
     defaultValues: assetFormDefaults(f),
   });
 
@@ -193,6 +310,11 @@ export function TransactionPanel() {
   // so as a lint warning. It also subscribes just this read instead of
   // re-rendering the form on every field change. Same idiom as AssetForm.
   const assetId = useWatch({ control: form.control, name: 'assetId' });
+  // ISSUE #31 — units belong only to rows that move a position, which is W7's
+  // `transaction_quantity_absent_ck` shown as UI rather than only enforced.
+  const txType = useWatch({ control: form.control, name: 'type' });
+  const priceMode = useWatch({ control: form.control, name: 'priceMode' });
+  const takesUnits = movesPosition(txType);
   const isNewAsset = assetId === 'new';
 
   // Default the Asset select to the first existing asset once assets load
@@ -209,6 +331,52 @@ export function TransactionPanel() {
     if (!isNewAsset) assetForm.reset(assetFormDefaults(f));
   }, [isNewAsset, assetForm, f]);
 
+  // ISSUE #31 — the units field HIDES on a type that moves no position, and a
+  // hidden field holding a value is an invisible error: `transactionSchema`
+  // refuses a quantity on a payout, so typing 100 units against a `buy` and
+  // then switching to `tax` would fail validation pointing at a control nobody
+  // can see. Clearing on the way out is what makes the reveal safe. The mode
+  // goes back to `total` with it, so the amount field can never be left meaning
+  // "per unit" with no count to multiply by.
+  // THE NUMBER MOVES WITH THE LABEL — the arithmetic and the reason for it are
+  // `convertTypedAmount`'s. This is the form wiring: read the two strings, hand
+  // back what they become, and empty the field when they become nothing.
+  //
+  // `f.input` FORMATS THE RESULT, and it is safe on both grammars even though
+  // it verifies against the grouping parser (see `money.ts`): its output is the
+  // more conservative of the two readings, so the Ukrainian rule this form
+  // parses with accepts everything it emits.
+  const convertAmount = useCallback(
+    (to: 'total' | 'unit') => {
+      const typed = form.getValues('amount');
+      if (typed.trim() === '') return;
+      const next = convertTypedAmount(
+        typed,
+        form.getValues('quantity') ?? '',
+        to,
+        language !== 'uk',
+      );
+      form.setValue('amount', next === undefined ? '' : f.input(next), {
+        shouldValidate: form.formState.isSubmitted,
+      });
+    },
+    [form, language, f],
+  );
+
+  useEffect(() => {
+    if (takesUnits) return;
+    // CONVERT BEFORE CLEARING THE COUNT — it is what the conversion divides by,
+    // and a per-unit price left behind here is recorded as a deposit's total.
+    if (form.getValues('priceMode') === 'unit') convertAmount('total');
+    form.setValue('quantity', '');
+    form.setValue('priceMode', 'total');
+    form.clearErrors('quantity');
+    // BOTH, because the underflow path sets them as a pair: what failed there
+    // was the PRODUCT, and on a type with no product the amount's red border
+    // outlived the reason for it.
+    form.clearErrors('amount');
+  }, [takesUnits, form, convertAmount]);
+
   // `handleSubmit` AWAITS the zod resolver, and on the quick-create branch it
   // awaits a second nested one, so two presses can both land inside that window
   // — each minting its own `crypto.randomUUID()`, and on quick-create building
@@ -219,13 +387,41 @@ export function TransactionPanel() {
   const inFlight = useRef(false);
 
   function record(values: TransactionFormValues, newAsset: Asset | undefined) {
+    // ISSUE #31 — the two numbers the ledger now keeps. `amount` is ALWAYS the
+    // total ₴ the transaction moved, whichever way it was typed: the toggle
+    // changes what the user enters, never what is stored, so a row recorded in
+    // one mode reads identically to a row recorded in the other.
+    // `undefined` MEANS THERE IS NO ROW TO RECORD, and it is the only refusal:
+    // in per-unit mode the total is derived, and it can round away or have no
+    // count to derive from. A price that merely underflowed is NOT this case —
+    // that is a recordable row with no stored price, the same shape every row
+    // written before #31 has.
+    const parts = priceParts(values);
+    if (parts === undefined) {
+      // BOTH FIELDS, because what failed is their PRODUCT — either number small
+      // enough rounds the pair away, so highlighting only the amount tells a
+      // user who typed a sane price to look at the one number that is fine.
+      //
+      // `type: 'product'` IS READ BY BOTH ERROR RENDERERS. Without it they fall
+      // through to "must be a positive number" for two values that are both
+      // positive — a message that describes nothing the user can act on.
+      form.setError('amount', { type: 'product' });
+      form.setError('quantity', { type: 'product' });
+      releaseLatch();
+      return;
+    }
+    const { amount, unitPrice } = parts;
     const tx: Transaction = {
       id: crypto.randomUUID(),
       date: values.date,
       type: values.type,
       assetId: newAsset ? newAsset.id : values.assetId,
-      amount: values.amount,
+      amount,
       source: values.source,
+      // Spread rather than assigned: Dexie stores `undefined` as a present key,
+      // and `json.ts` round-trips the object, so an absent field must be ABSENT.
+      ...(values.quantity === undefined ? {} : { quantity: values.quantity }),
+      ...(unitPrice === undefined ? {} : { unitPrice }),
     };
     recordTransaction.mutate(
       { tx, newAsset },
@@ -246,6 +442,12 @@ export function TransactionPanel() {
             assetId: newAsset ? newAsset.id : values.assetId,
             amount: '',
             source: values.source,
+            // The COUNT clears with the amount — it is per-transaction, and
+            // carrying it over would silently repeat the last purchase's units
+            // on the next one. The MODE survives, like type/asset/source: it is
+            // how this user reads their statements, not a fact about one row.
+            quantity: '',
+            priceMode: values.priceMode,
           });
           assetForm.reset(assetFormDefaults(f));
         },
@@ -496,7 +698,91 @@ export function TransactionPanel() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5">
+          {/* ISSUE #31 — THE ROW HAS TWO SHAPES (owner's rulings, 2026-08-31).
+              With units: `[Одиниці][Сума]`, «Джерело коштів» full width
+              beneath — the count and the amount are one idea, since a count is
+              what makes a per-unit price into a total, and a full row is what
+              the form already gives «Актив». Without them: `[Сума][Джерело]`,
+              the row closing up rather than leaving a hole, which is the shape
+              this form had before the count existed.
+
+              ALL THREE CELLS AUTO-PLACE. The only placement rule is
+              `col-span-2` on «Джерело», and a spanning cell cannot fit beside
+              two others — so the span alone is what puts it on its own line,
+              and dropping it is what brings it back up.
+
+              THE SPAN ASKS THE DOM, not `takesUnits`, and the difference is the
+              reveal's exit. The flag flips the instant the type changes, while
+              the field is still on screen playing its leave animation, so a
+              layout driven by it would reflow underneath the field and then
+              again when it unmounts. `:has` turns false only once the node is
+              gone, so the three cells re-place in ONE step, with it.
+
+              SUBGRID, three shared rows — label, control, error — so the cells
+              align control-to-control whatever sits above or below them. The
+              segment makes the amount's label row the taller one, and an
+              earlier `items-end` pinned the cells' BOTTOMS instead: that held
+              only until an error rendered under one of them, and measured, the
+              two 36px controls then sat 20.5px out of line — on exactly the
+              screen a user is looking at because something is wrong. Row 1
+              sizes itself to the taller label, so nothing here is hard-coded,
+              which is what ruled out equalising the label rows by hand.
+
+              Units stay OPTIONAL even on the types that take them: every row
+              recorded before this lacks them and the migration notes say those
+              counts are unrecoverable, so demanding one would make old habits
+              unenterable rather than fix anything. */}
+          <div className="group grid grid-cols-2 grid-rows-[auto_auto_auto] gap-2.5">
+            <Reveal show={takesUnits} className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
+              {/* `self-center`, because row 1 is as tall as the amount's label
+                  row and a stretched label would render its text at the top of
+                  that box — two labels side by side at different heights. */}
+              <label className="self-center text-[11px] text-muted" htmlFor={QUANTITY_ID}>
+                {t.transaction.quantity}
+              </label>
+              <Controller
+                control={form.control}
+                name="quantity"
+                render={({ field, fieldState }) => (
+                  <>
+                    <input
+                      id={QUANTITY_ID}
+                      className={inputClass(fieldState.invalid)}
+                      placeholder={t.transaction.quantityPlaceholder}
+                      inputMode="decimal"
+                      aria-invalid={fieldState.invalid || undefined}
+                      aria-describedby={fieldState.invalid ? QUANTITY_ERROR_ID : undefined}
+                      name={field.name}
+                      ref={field.ref}
+                      // `?? ''` because the schema takes an ABSENT quantity as
+                      // "no units" too — that leniency is what keeps a minimal
+                      // transaction parseable, and it makes the field's own
+                      // value optional at the type level. The input itself is
+                      // always controlled.
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                    {fieldState.error && (
+                      <span
+                        id={QUANTITY_ERROR_ID}
+                        className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+                      >
+                        {/* Blank in per-unit mode is the ONE failure the schema
+                            adds; anything else here is a value that parsed but
+                            was not a positive number. */}
+                        {fieldState.error.type === 'product'
+                          ? t.transaction.productTooSmall
+                          : (field.value ?? '').trim() === ''
+                            ? t.transaction.quantityMissing
+                            : t.transaction.quantityNotPositive}
+                      </span>
+                    )}
+                  </>
+                )}
+              />
+            </Reveal>
+
             {/* NOT A `<label>` WRAPPER, unlike its neighbours, and the reason is
                 the error: a message inside the label becomes part of the
                 input's accessible NAME, so submitting an empty field renamed it
@@ -510,10 +796,53 @@ export function TransactionPanel() {
                 The value itself says which of the two it is — no zod internals,
                 and `fieldState` is the single read behind border, flag and
                 message alike. */}
-            <div className="flex min-w-0 flex-col gap-1">
-              <label className="text-[11px] text-muted" htmlFor={AMOUNT_ID}>
-                {t.transaction.amount}
-              </label>
+            <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
+              {/* THE SEGMENT RIDES THE LABEL ROW (owner's variant A, 2026-08-31).
+                  It stood in its own labelled block above, which read as a
+                  second field and sat a whole row away from the number it
+                  governs. Here the two are one line apart, and the row costs
+                  nothing: the label never filled 185px on its own.
+
+                  `min-w-0` + `truncate` on the label, because the row has a
+                  hard budget — the unit-mode label plus the track plus the gap
+                  has to fit the grid column, and a label that wraps would push
+                  the input down out of line with the Source select beside it. */}
+              <div className="flex items-center justify-between gap-2">
+                <label className="min-w-0 truncate text-[11px] text-muted" htmlFor={AMOUNT_ID}>
+                  {/* THE LABEL IS THE CONTRACT. A toggle that changed what a
+                      number meant while the field kept saying «Сума, ₴» would be
+                      a worse defect than #31 — silent, and in the direction of
+                      recording a price as a total. The glyphs alone cannot carry
+                      this: `Σ` says which mode is ACTIVE, not what the number is. */}
+                  {priceMode === 'unit' ? t.transaction.amountUnit : t.transaction.amount}
+                </label>
+                {/* THE SAME `Reveal` THE UNITS FIELD ABOVE USES, and for the
+                    same reason: these two appear and leave on one condition —
+                    `movesPosition` — so a bare `&&` here had the track vanish in
+                    a single frame while the field it governs was still gliding
+                    away beside it. `distance={1}`, the shorter travel, because
+                    this one moves inside a label row rather than a whole
+                    field block. */}
+                {/* `shrink-0` because this wrapper is now the flex item the
+                    track sits in, and the label beside it is `truncate` on a
+                    hard budget — a shrinkable track would be squeezed before
+                    the label gave up a character. */}
+                <Reveal show={takesUnits} distance={1} className="shrink-0">
+                  <Controller
+                    control={form.control}
+                    name="priceMode"
+                    render={({ field }) => (
+                      <PriceModeSegment
+                        value={field.value ?? 'total'}
+                        onChange={(mode) => {
+                          convertAmount(mode);
+                          field.onChange(mode);
+                        }}
+                      />
+                    )}
+                  />
+                </Reveal>
+              </div>
               <Controller
                 control={form.control}
                 name="amount"
@@ -537,16 +866,25 @@ export function TransactionPanel() {
                         id={AMOUNT_ERROR_ID}
                         className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
                       >
-                        {field.value.trim() === ''
-                          ? t.transaction.amountMissing
-                          : t.transaction.amountNotPositive}
+                        {fieldState.error.type === 'product'
+                          ? t.transaction.productTooSmall
+                          : field.value.trim() === ''
+                            ? t.transaction.amountMissing
+                            : t.transaction.amountNotPositive}
                       </span>
                     )}
                   </>
                 )}
               />
             </div>
-            <label className="flex flex-col gap-1 text-[11px] text-muted">
+
+            {/* Spanning lands this in the grid's IMPLICIT rows 4–6, whose
+                leading gap is the same `gap-2.5` the form puts between its own
+                rows — so the full-width shape needs no spacing of its own.
+                And it never shares a line with a «Сума» carrying the Σ/1
+                track, because the track is gated on the same condition the
+                span is. */}
+            <label className="row-span-3 grid grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2">
               {t.transaction.source}
               <Controller
                 control={form.control}
@@ -681,6 +1019,25 @@ export function TransactionPanel() {
                           : t.transaction.types[tx.type]}{' '}
                         · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
                       </span>
+                      {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE (owner's
+                          ruling, 2026-09-01). The fetch reports which assets it
+                          had to value from a stale stored total; this is where
+                          that report is acted on, so the row has to show whether
+                          it carries its units.
+                          `movesPosition` GATES IT, because absence has to mean
+                          something: on a deposit or a tax there is no count to
+                          miss, and a blank there would read the same as the gap
+                          the owner is hunting. On a row that CAN hold one, the
+                          dash is the answer — that row is why the ledger stopped
+                          answering for the asset. */}
+                      {movesPosition(tx.type) && (
+                        <span
+                          className="whitespace-nowrap text-muted tabular-nums"
+                          title={t.transaction.quantity}
+                        >
+                          {tx.quantity === undefined ? '—' : f.units(tx.quantity)}
+                        </span>
+                      )}
                       <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
                       <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
                       {/* HOVER REVEALS IT ON A POINTER, AND TOUCH ALWAYS SEES IT.

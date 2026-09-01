@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Asset, Snapshot, Transaction } from '../types';
+import { POSITION_MOVING, type Asset, type Snapshot, type Transaction } from '../types';
 import { buildBackup, type BackupEnvelope } from './json';
 import {
   classifyImportFiles,
@@ -180,14 +180,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 2 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 2)));
+  it('rejects formatVersion 3 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 3)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(2);
+    expect(result.rejection.version).toBe(3);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 2 — this app reads formatVersion 1 only.',
+      'Unsupported formatVersion 3 — this app reads formatVersion 2 only.',
     );
   });
 
@@ -540,5 +540,73 @@ describe('diffBackup', () => {
     const diff = diffBackup({ assets: [], snapshots: [], transactions: [] }, envelope(), CTX);
     expect(diff.warnings).toEqual([]);
     expect(diff.after).toEqual({ assets: 2, snapshots: 2, transactions: 3 });
+  });
+});
+
+describe('the units rule reaches the reader in their own language (D8)', () => {
+  // The schema emits a PATH and no message; `codeFor` turns it into an
+  // `IssueCode` and `import-labels.ts` owns the words. A message on the schema
+  // is carried through as `issue.detail` and printed verbatim, which put an
+  // English sentence in the middle of a Ukrainian report.
+  const withUnitsOnAPayout = (field: 'quantity' | 'unitPrice') =>
+    mutated((env) => {
+      const rows = env.transactions as Record<string, unknown>[];
+      const payout = rows.find((r) => !POSITION_MOVING.includes(r.type as never));
+      if (payout === undefined) throw new Error('fixture has no non-position row');
+      payout[field] = 12;
+    });
+
+  for (const field of ['quantity', 'unitPrice'] as const) {
+    it(`codes a ${field} on a payout, rather than describing it in English`, () => {
+      const result = validateImport(withUnitsOnAPayout(field));
+      expect(result.ok).toBe(false);
+      if (result.ok || result.rejection.kind !== 'rows') return;
+      const issue = result.rejection.issues.find((i) => i.field === field);
+      expect(issue?.code).toBe('units-on-non-position-row');
+      // and no English rides along to be printed as the reason
+      expect(issue?.detail ?? '').not.toMatch(/only valid on/);
+    });
+  }
+});
+
+describe('an OLDER backup is named as older, not as broken (D113)', () => {
+  it('maps formatVersion 1 to `older-format`, with the version', () => {
+    // Every backup on disk today is a v1 file. Before D113 it shared a code —
+    // and therefore a sentence — with a hand-edited `0`, telling the owner their
+    // real backup was unreadable rather than superseded.
+    const result = validateImport(mutated((env) => void (env.formatVersion = 1)));
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'format') return;
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(1);
+  });
+
+  it('does not call a fractional version an older backup', () => {
+    // `1.5` is below the current version and at least 1, so the bare `>= 1`
+    // read it as a real backup from an older app and reported "version 1.5".
+    // A version counts format revisions; a non-integer is a corrupt file.
+    const result = validateImport(mutated((env) => void (env.formatVersion = 1.5)));
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'format') return;
+    expect(result.rejection.code).toBe('unsupported-format');
+  });
+
+  it('keeps `unsupported-format` for a version that is not a real one', () => {
+    for (const bad of [0, -1, 'v2']) {
+      const result = validateImport(mutated((env) => void (env.formatVersion = bad)));
+      expect(result.ok).toBe(false);
+      if (result.ok || result.rejection.kind !== 'format') continue;
+      expect(result.rejection.code).toBe('unsupported-format');
+    }
+  });
+
+  it('carries the detail line naming BOTH versions', () => {
+    // The code picks the sentence; the detail is the parser's own line, and it
+    // has to say what this app reads or "no longer importable" is unactionable.
+    const result = validateImport(mutated((env) => void (env.formatVersion = 1)));
+    if (result.ok || result.rejection.kind !== 'format')
+      throw new Error('expected a format reject');
+    expect(result.rejection.detail).toContain('formatVersion 1');
+    expect(result.rejection.detail).toContain('formatVersion 2');
   });
 });

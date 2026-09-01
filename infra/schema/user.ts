@@ -225,6 +225,16 @@ export const transaction = pgTable(
       'transaction_quantity_absent_ck',
       sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.quantity} IS NULL`,
     ),
+    // THE PRICE TAKES THE SAME RULE AS THE COUNT. It is the other half of one
+    // fact — what a position movement cost per unit — and the app enforces both
+    // at all three of its doors (the form, the derivation, the backup importer).
+    // A schema that governs only the count leaves the store the app mirrors
+    // weaker than the app, so a `unit_price` on a payout survives a migration
+    // the application would have refused.
+    check(
+      'transaction_unit_price_absent_ck',
+      sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.unitPrice} IS NULL`,
+    ),
     // TWO ONE-WAY RULES, not a biconditional: `(type IN ('deposit',
     // 'withdrawal')) = (asset_id IS NULL)` would reject every deposit the
     // app records today (`schemas.ts` fills `assetId` for all nine

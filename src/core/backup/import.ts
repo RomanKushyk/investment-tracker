@@ -86,7 +86,7 @@ export function classifyImportFiles(files: { name: string; size: number }[]): Fi
 export const ISSUE_LIST_CAP = 10;
 
 export type FormatRejectionCode =
-  'not-json' | 'not-a-backup' | 'newer-format' | 'unsupported-format';
+  'not-json' | 'not-a-backup' | 'newer-format' | 'older-format' | 'unsupported-format';
 
 /** A format-level rejection is ONE sentence + one mono detail, never a list. */
 export interface FormatRejection {
@@ -139,13 +139,25 @@ function formatRejection(
     const found = typeof version === 'number' ? version : undefined;
     return {
       kind: 'format',
-      // A file from a FUTURE app is the case the copy is written for; any
-      // other unreadable version (a hand-edited 0, a string) gets its own
-      // honest sentence rather than a claim about a newer app.
+      // THREE CASES, NOT TWO. A file from a FUTURE app is the case the copy was
+      // written for; a file from an OLDER one became reachable when
+      // `BACKUP_FORMAT_VERSION` went to 2 (#31), and it is a real backup the
+      // owner may hold — telling them it is simply "unsupported", the same
+      // sentence a hand-edited `0` gets, hides which of the two it is. The break
+      // itself is accepted (see the version's own doc); being unable to name it
+      // is not part of that acceptance. Anything else — a string, a 0, a
+      // negative, a 1.5 — keeps the honest catch-all. INTEGER, because a
+      // version is a count of format revisions: `1.5` is below the current
+      // version and at least 1, so a bare `>= 1` named it a real older backup
+      // and told the owner it was "version 1.5".
       code:
-        found !== undefined && found > BACKUP_FORMAT_VERSION
-          ? 'newer-format'
-          : 'unsupported-format',
+        found === undefined
+          ? 'unsupported-format'
+          : found > BACKUP_FORMAT_VERSION
+            ? 'newer-format'
+            : Number.isInteger(found) && found >= 1
+              ? 'older-format'
+              : 'unsupported-format',
       ...(found !== undefined ? { version: found } : {}),
       detail,
     };
@@ -213,6 +225,11 @@ function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
   if (field !== undefined && DATETIME_FIELDS.has(field)) return 'expected-datetime';
   if (field !== undefined && DATE_FIELDS.has(field)) return 'expected-date';
   if (field === 'amount') return 'expected-positive-amount';
+  // The one-way units rule (#31, D112). `custom` with no message is the shape
+  // `transactionRowsSchema` emits for it — this is where it gets its words.
+  if (issue.code === 'custom' && (field === 'quantity' || field === 'unitPrice')) {
+    return 'units-on-non-position-row';
+  }
   return 'invalid';
 }
 

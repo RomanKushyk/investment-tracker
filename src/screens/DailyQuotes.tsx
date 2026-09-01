@@ -8,11 +8,17 @@ import { ParseSkips } from '../components/ui/ParseSkips';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
 import { couponReminderId, dueCoupons } from '../core/accrual';
-import { kyivDateIso, todayIso } from '../core/dates';
-import { investedByAsset, latestCash, latestQuotes } from '../core/derive';
+import { dayBefore, kyivDateIso, todayIso } from '../core/dates';
+import {
+  investedByAsset,
+  latestCash,
+  latestQuotes,
+  ledgerUnits,
+  unitsByAsset,
+} from '../core/derive';
 import type { QuoteVerdict } from '../core/inzhur/dcf';
 import { quoteInputSchema } from '../core/schemas';
-import type { Asset, Snapshot } from '../core/types';
+import type { Asset, Snapshot, Transaction } from '../core/types';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
@@ -36,6 +42,10 @@ import { useT } from '../i18n/useT';
  *  `[]` per render would change the verdict memo's dependency every time and
  *  make the memo do nothing at all. */
 const NO_ASSETS: Asset[] = [];
+// Same idiom, and now load-bearing rather than tidy: `?? []` mints a new array
+// on every render, so the `unitsByAsset` memo below it would recompute forever
+// and hand `useQuoteFetch` a new object each time. Lint said so.
+const NO_TRANSACTIONS: Transaction[] = [];
 
 /**
  * Publishes the action bar's RENDERED height as `--action-bar-h` while the bar
@@ -81,12 +91,34 @@ export function DailyQuotes() {
   const t = useT();
   const assets = useAssets().data ?? NO_ASSETS;
   const snapshots = useSnapshots().data ?? [];
-  const transactions = useTransactions().data ?? [];
+  const transactions = useTransactions().data ?? NO_TRANSACTIONS;
   const { date, quotes, setDate, setQuote, fillQuote } = useDraft();
   const saveSnapshot = useSaveSnapshot();
+  // ONE READING OF THE CLOCK PER RENDER, PASSED AS A DEPENDENCY. `due` asks
+  // what is owed TODAY, and a clock read inside a memo is a value its deps
+  // cannot see — a session left open across midnight keeps the previous day's
+  // answer until something else in the deps changes, which on this screen means
+  // withholding a coupon that has since come due. A date string compares by
+  // value, so this re-derives on the first render after the day turns and never
+  // churns within one.
+  const today = todayIso();
+  // Hoisted above the fetch hook, which needs it — it used to sit below the
+  // default-to-today effect.
+  const selectedDate = date || today;
+  // ISSUE #31 — the units the ledger says are held ON THE DRAFTED DATE, not
+  // today's. A quote drafted for a past day must value the position that existed
+  // then; passing today's count would restate history every time a purchase
+  // landed. `matchAssets` falls back to the asset's stored total for any asset
+  // this does not answer for.
+  // ONE walk, both answers — `incomplete` is what makes a half-counted ledger
+  // visible instead of silently falling back to the link's stale total.
+  const ledger = useMemo(
+    () => ledgerUnits(transactions, selectedDate),
+    [transactions, selectedDate],
+  );
   // S1–S3: the fetch ritual. It only ever writes the draft store — "Save
   // snapshot" below stays the sole write path (G5).
-  const fetch = useQuoteFetch(assets);
+  const fetch = useQuoteFetch(assets, ledger.units, ledger.incomplete);
   // S4/S5 automation switches (S8) — pure local derivations, so they run in
   // demo as well as live (G4/D16).
   const { autoQuoteSuggest, couponSuggest, dismissedReminders, dismissReminder } = useSettings();
@@ -103,8 +135,6 @@ export function DailyQuotes() {
   useEffect(() => {
     if (!date) setDate(todayIso());
   }, [date, setDate]);
-
-  const selectedDate = date || todayIso();
 
   const dismissedSuggestions = dismissed.date === selectedDate ? dismissed.ids : [];
   const todaySnapshot = snapshots.find((s) => s.date === selectedDate);
@@ -196,9 +226,32 @@ export function DailyQuotes() {
   // skipped occurrences (derived ids, shared with the reminders) go INTO the
   // derivation rather than filtering its result: a skipped coupon must step
   // aside for the next one on the grid, not silence the asset (D23).
-  const due = couponSuggest
-    ? dueCoupons(assets, transactions, todayIso(), { dismissed: dismissedReminders })
-    : [];
+  const due = useMemo(
+    () =>
+      couponSuggest
+        ? dueCoupons(assets, transactions, today, { dismissed: dismissedReminders })
+        : [],
+    [couponSuggest, assets, transactions, today, dismissedReminders],
+  );
+
+  // One entry per DUE DATE, not per card: several coupons can fall on one day,
+  // and the walk is the whole ledger each time.
+  // THE DAY BEFORE, NOT THE COUPON'S OWN DAY, and the two consumers of a units
+  // count genuinely want different bounds. Valuing a position wants the END of
+  // the date asked about — sell everything on the 25th and the 25th is worth
+  // nothing. A coupon is paid on the holding the day OPENED with: a bond's
+  // final coupon falls on its maturity date, the same date as the redemption
+  // that closes it (`nextPaymentOnOrAfter` documents that tie), so an inclusive
+  // bound summed the payout and the disposal together, got zero, and left the
+  // one coupon whose amount the feed knows exactly with an empty field.
+  //
+  // It cuts the other way too, and correctly: units bought ON the payment date
+  // do not earn that payment.
+  const unitsOnCouponDate = useMemo(() => {
+    const out: Record<string, Record<string, number>> = {};
+    for (const d of due) out[d.date] ??= unitsByAsset(transactions, dayBefore(d.date));
+    return out;
+  }, [due, transactions]);
 
   return (
     <>
@@ -360,7 +413,13 @@ export function DailyQuotes() {
                   key={couponReminderId(d.assetId, d.date)}
                   asset={asset}
                   due={d}
-                  prefill={couponPrefill(asset, d, fetch.feed)}
+                  // As of the COUPON's date, not the drafted quote's: the two
+                  // differ whenever a due coupon is confirmed from a day other
+                  // than its own, and it is the holding on the payment date
+                  // that determines what was paid. MEMOISED per date, because
+                  // this sits in a render-time map on a screen that re-renders
+                  // on every keystroke in every quote input.
+                  prefill={couponPrefill(asset, d, fetch.feed, unitsOnCouponDate[d.date])}
                   schedule={feedSchedule(asset, fetch.feed)}
                   onSkip={() => dismissReminder(couponReminderId(d.assetId, d.date))}
                 />

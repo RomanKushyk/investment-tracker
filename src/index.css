@@ -116,6 +116,23 @@
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
   --color-panel-border: #dedcd8;
+  /* THE SEGMENTED THUMB'S OWN SURFACE, and it exists because `card` cannot be
+     it in both themes. `card` is LIGHTER than `panel` in light (#ffffff on
+     #eceae7) and DARKER than it in dark (#1c1c1f on #232327) — the inversion
+     --shadow-thumb's comment already names — so a thumb painted `card` reads as
+     raised in one theme and as a hole in the other. Measured on the shipped
+     control: 1.20:1 against its track in light, 1.09:1 in dark and the wrong
+     way round, which is why the owner reported the slide as "no animation" —
+     there was motion, and nothing visible moving.
+     Identical to `card` here, so the light theme does not move. */
+  --color-segment-thumb: #ffffff;
+  /* THE SWITCH'S OFF STATE, which `--shadow-thumb`'s comment admits it never
+     fixed: measured in dark, the knob sat at 1.19:1 on its own track AND the
+     track at 1.19:1 on the card behind it, so the whole control was a rumour.
+     Owner's ruling, 2026-09-01: lighter grey track, and the knob may go white.
+     Both values here are what the light theme already renders, so light — which
+     the reference draws — does not move; only dark does. */
+  --color-switch-track: #e8e7e4;
   /* The edge a surface needs when its SHADOW cannot draw one — the same trade
      --shadow-thumb above makes, for the surfaces whose shadow is a plain drop
      rather than a separator. Transparent in light on purpose: the rail is
@@ -226,11 +243,11 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 40 values instead of two that
+   CSS never has to express "system". One list of 42 values instead of two that
    can drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 40 PALETTE tokens are here, and they are the SAME 40 that @theme
+   Only the 42 PALETTE tokens are here, and they are the SAME 42 that @theme
    declares outside the chart aliases — one for one, neither set holding a name
    the other lacks. That equality is the real invariant; the number is just how
    it is counted, and the number is what rots. It read 38 from A9 until
@@ -260,6 +277,23 @@
   --color-hairline: #2a2a2e;
   --color-panel: #232327;
   --color-panel-border: #33333a;
+  /* LIGHTER THAN THE TRACK, and by more than light's step rather than the same:
+     1.66:1 against `panel` where light gets 1.20:1. Dark needs the bigger
+     number to read as the same elevation, and 1.25 — the value that matches
+     light arithmetically — is `panel-border` itself, which would erase the
+     thumb's ring. This keeps the ring at 1.33:1 against the fill, the step it
+     has today, and the active glyph at 7.88:1 on it. Continues the
+     panel → panel-border ramp rather than starting a new hue. */
+  --color-segment-thumb: #454550;
+  /* The OFF track goes from `hairline` to a real mid-grey and the knob to
+     white: knob 8.74:1 on the track, and the track itself 1.94:1 on the card
+     where it was 1.19:1 — the control now has a visible shape, not just a
+     visible knob. Chosen against a third constraint the brighter candidates
+     lose: OFF must stay clearly distinct from ON (#eceae7), and this keeps
+     7.28:1 between the two states. The knob stays `card` in both states
+     (owner's ruling after seeing a white one): on this track it reads, and a
+     knob that changes colour with the state looks like two controls. */
+  --color-switch-track: #4a4a55;
   /* Dark is where this token earns its keep. The rail goes DARKER than the page
      (#0f0f11 on #141416 — the two planes meet at 1.1:1) and every shadow above
      is zeroed, so the dialog floats over the scrim with no boundary at all.

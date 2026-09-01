@@ -68,7 +68,22 @@ export interface QuoteFetch {
   dismissOffer: (assetId: string) => void;
 }
 
-export function useQuoteFetch(assets: Asset[]): QuoteFetch {
+export function useQuoteFetch(
+  assets: Asset[],
+  /**
+   * Units held per asset, from the ledger (`derive.ts` `unitsByAsset`), as of
+   * the drafted date — issue #31. An asset absent from this record is valued
+   * from its stored link total instead; see `matchAssets`.
+   */
+  unitsHeld: Record<string, number>,
+  /**
+   * Assets whose ledger holds position-moving rows but cannot be counted — one
+   * of them carries no quantity. They fall back to the link's stale hand-typed
+   * total, so the fetch reports a number that is both old and, after any sale,
+   * too large. That is #31 again, and the ONLY way it becomes visible.
+   */
+  incompleteLedgers: readonly string[],
+): QuoteFetch {
   const t = useT();
   const f = useFormat();
   const { data, lastGood, isFetching, disabled, fetchAssets } = useInzhurAssets();
@@ -87,9 +102,13 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
   // second press always reconciles against what is on screen right now.
   const apply = useCallback(
     (feed: InzhurFeed, source: QuoteSource) => {
-      const { linked } = matchAssets(assets, feed.feed);
+      const { linked } = matchAssets(assets, feed.feed, unitsHeld);
       const draft = useDraft.getState();
-      const { fills, offers: pending } = reconcileFetched(linked, draft.quotes, draft.origins);
+      const {
+        fills,
+        offers: pending,
+        negative,
+      } = reconcileFetched(linked, draft.quotes, draft.origins);
       for (const fill of fills) {
         draft.fillQuote(fill.assetId, f.num(fill.value), { source, at: feed.fetchedAt });
       }
@@ -107,8 +126,39 @@ export function useQuoteFetch(assets: Asset[]): QuoteFetch {
       // payload counts, S1); applying the CACHE after a failure must not claim
       // it — that press ends in state 5, with the button back to idle.
       if (source === 'fetch') setFlashAt(feed.fetchedAt);
+      // NAMED, NOT COUNTED (owner's ruling, 2026-09-01). A count told the owner
+      // that something among their assets was stale and left them to find which
+      // — and `ledgerUnits` already knows, so the count was throwing the answer
+      // away. Naming them also removes the plural problem the count had in both
+      // languages.
+      const nameOf = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
+      // SAID OUT LOUD, once per fetch. The row is filled — from the link's old
+      // total — so nothing on screen looks wrong, which is exactly why it needs
+      // a sentence. Only on a live fetch: the cache path already carries its own
+      // red toast, and stacking a second under it reads as two failures.
+      const stale = incompleteLedgers.filter((id) => linked.some((m) => m.asset.id === id));
+      if (source === 'fetch' && stale.length > 0) {
+        toast.message(t.dailyQuotes.staleLedgerRows(stale.map(nameOf).join(', ')), {
+          id: 'stale-ledger',
+        });
+      }
+      // A HOLDING CANNOT BE NEGATIVE. `error`, not `message`: the one above
+      // describes a value that is merely old, this one says the ledger contains
+      // something impossible.
+      //
+      // NOT GATED ON `source`, and that is the difference between the two. A
+      // stale valuation is a claim about THIS fetch's output, so it steps aside
+      // for the cache path's own red toast. A negative holding is a claim about
+      // the LEDGER — the prices it was noticed alongside are irrelevant, this is
+      // the only place the app ever reports it, and the cache path is the one
+      // the owner takes for days at a stretch while the network is down.
+      if (negative.length > 0) {
+        toast.error(t.dailyQuotes.negativeUnits(negative.map(nameOf).join(', ')), {
+          id: 'negative-units',
+        });
+      }
     },
-    [assets, f],
+    [assets, f, unitsHeld, incompleteLedgers, t],
   );
 
   const fetchQuotes = useCallback(() => {

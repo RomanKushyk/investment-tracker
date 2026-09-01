@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { Controller, useForm, useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
 
@@ -25,6 +25,7 @@ import {
 } from './asset-form';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
+import { useSettings } from '../../state/settings';
 
 // The single standalone asset form (NEXT-PHASE-PLAN P2 feat/asset-form,
 // brief S3, design/extensions/asset-form.dc.html) — replaces the
@@ -534,8 +535,15 @@ export function AssetForm({
   const t = useT();
   const MSG = t.asset.message;
   const f = useFormat();
+  const language = useSettings((state) => state.language);
+  // Once per language, not once per render — see `TransactionPanel`.
+  const schema = useMemo(() => assetFormSchema(mode, language), [mode, language]);
   const form = useForm<AssetFormInput, unknown, AssetFormValues>({
-    resolver: zodResolver(assetFormSchema(mode)),
+    // THE LANGUAGE IS A PARSE RULE for the Units field, not only a display one —
+    // a lone comma is the decimal mark in Ukrainian and a thousands mark in
+    // English, and this field's own prefill (`f.units`) renders `6,164` in one
+    // of them.
+    resolver: zodResolver(schema),
     defaultValues: assetFormDefaults(f, asset),
   });
   const avatarColorKey =

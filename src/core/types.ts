@@ -47,6 +47,26 @@ export interface Snapshot {
   savedAt?: string; // ISO datetime, set on save — feeds "Last saved 25.07, 21:14"
 }
 
+/**
+ * The only types that may carry `quantity` — W7's `transaction_quantity_absent_ck`
+ * (`infra/schema/user.ts`), mirrored here so the app and the target schema cannot
+ * drift. ONE WAY ONLY, exactly as the CHECK reads: a row that moves no position
+ * must not invent a quantity, while a position-moving row is allowed to lack one,
+ * because every row recorded before #31 does and none can be reconstructed.
+ */
+export const POSITION_MOVING = ['buy', 'sell', 'reinvest', 'redemption'] as const;
+
+/** Does this row move a position, and so admit units? */
+export function movesPosition(type: TxType): boolean {
+  return (POSITION_MOVING as readonly TxType[]).includes(type);
+}
+
+/** How many units this row ADDS to the position — `sell`/`redemption` remove. */
+export function unitDelta(tx: Transaction): number {
+  if (tx.quantity === undefined || !movesPosition(tx.type)) return 0;
+  return tx.type === 'sell' || tx.type === 'redemption' ? -tx.quantity : tx.quantity;
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -54,6 +74,30 @@ export interface Transaction {
   assetId: string; // '' for portfolio-level rows (deposit)
   amount: number;
   source: TxSource;
+  // ISSUE #31 — units, at last. Before these existed a `buy` recorded ₴ and
+  // nothing else, so `Asset.inzhur.units` (one hand-typed total) was the app's
+  // only unit count and every later purchase left it untouched: the fetch
+  // silently understated the position by whatever those purchases bought.
+  //
+  // W7's `transaction.quantity` / `transaction.unit_price`, brought forward
+  // rather than invented — the target schema has no running-total column on
+  // `asset`, because units are a DERIVATION there: `units(a, D) = Σ quantity
+  // deltas` (`docs/reference/w7-migration-translations.md` §4). `derive.ts`'s
+  // `unitsByAsset` is that sum.
+  //
+  // BOTH OPTIONAL, and they stay optional: every row recorded before this
+  // landed carries neither, and §4 says the counts behind them are
+  // unrecoverable. So a consumer must handle their absence — it is the normal
+  // state of historical data, not a defect.
+  /** Units this row moved. Position-moving types only (`movesPosition`). */
+  quantity?: number;
+  /**
+   * ₴ per unit. Kept beside `amount` rather than derived from it because the
+   * feed publishes four decimals (11.1389) while `amount` is money and rounds
+   * to kopiykas — deriving one from the other loses a different digit each way.
+   * W7 stores all three and enforces no arithmetic between them.
+   */
+  unitPrice?: number;
 }
 
 // Where a quote DRAFT value came from (P3 S2 provenance chips). Lives with the

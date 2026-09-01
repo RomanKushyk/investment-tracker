@@ -1,5 +1,6 @@
-// Backup envelope v1 (NEXT-PHASE-PLAN P1 / DECISIONS D12) — pure build +
-// parse for the JSON safety backup. The envelope is the app-owned stable
+// The backup envelope (NEXT-PHASE-PLAN P1 / DECISIONS D12, now at
+// `BACKUP_FORMAT_VERSION` 2 — D113) — pure build + parse for the JSON safety
+// backup. The envelope is the app-owned stable
 // contract (dexie-export-import rejected, see D12); P4's import feature
 // EXTENDS this module rather than forking it — `core/backup/import.ts` reuses
 // `readEnvelopeHead` (the format/version gate), `backupEnvelopeSchema` and
@@ -7,10 +8,31 @@
 // and the preview diff (D24).
 import { z } from 'zod';
 
-import type { Asset, Settings, Snapshot, Transaction } from '../types';
+import {
+  movesPosition,
+  type Asset,
+  type Settings,
+  type Snapshot,
+  type Transaction,
+} from '../types';
 
 export const BACKUP_FORMAT = 'quirenote-backup';
-export const BACKUP_FORMAT_VERSION = 1;
+/**
+ * BUMPED TO 2 WHEN `quantity` / `unitPrice` LANDED (#31).
+ *
+ * The rows are `strictObject`, and the header above explains the mechanism that
+ * makes a version bump avoidable: declare an optional field BEFORE it ships, and
+ * the older build already accepts it. These two shipped in the SAME commit as
+ * their writer, so no earlier build has them declared — it rejects the file with
+ * `unrecognized_keys`, naming a field instead of a version.
+ *
+ * That is not academic here: two live sites run from two branches
+ * (dev.quirenote.com from `dev`, quirenote.com from `main`, promoted only on
+ * release), so between this merge and the next promotion a backup taken from dev
+ * cannot be imported into production. The bump makes that refusal say what it
+ * actually is.
+ */
+export const BACKUP_FORMAT_VERSION = 2;
 
 export type Dataset = 'demo' | 'live';
 
@@ -47,7 +69,13 @@ const assetRowSchema = z.strictObject({
     .strictObject({
       kind: z.enum(['fund', 'bond']),
       ref: z.string().min(1),
-      units: z.number(),
+      // POSITIVE, matching the form. `assetFormSchema` parses this through
+      // `positiveNumberInput`, so the store can never hold 0 or a negative — but a
+      // hand-edited backup could, and `matchAssets` then read it as a count it
+      // KNOWS, stamping the row `no-position` and skipping it in silence. The
+      // two doors disagreeing about what a unit count may be is how the store
+      // ends up holding a value the form would have refused.
+      units: z.number().positive(),
     })
     .optional(),
 });
@@ -83,6 +111,45 @@ const transactionRowSchema = z.strictObject({
   // freeCashFromLedger, silently corrupting globalRoi and the drift check.
   amount: z.number().positive(),
   source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
+  // ISSUE #31. OPTIONAL IN BOTH DIRECTIONS, and both directions matter:
+  // `buildBackup` passes transactions through unchanged, so a strictObject
+  // without these would reject a backup the app had just written — and every
+  // row recorded before they existed carries neither, so requiring them would
+  // reject every ROW the app has. Optional in the SCHEMA is not the same as
+  // additive in the FORMAT: the version moved to 2 all the same (D113), because
+  // an older build declares neither key and its `strictObject` refuses the file
+  // on `unrecognized_keys` — see `BACKUP_FORMAT_VERSION` for why that refusal
+  // had to be made to say what it is.
+  quantity: z.number().positive().optional(),
+  unitPrice: z.number().positive().optional(),
+});
+
+/**
+ * THE IMPORT BOUNDARY ENFORCES W7's `transaction_quantity_absent_ck` TOO.
+ *
+ * `transactionSchema` (the form) and `unitDelta` (the derivation) both already
+ * do — and that was the bug: two different predicates decided whether an asset
+ * HAS a unit count (`quantity !== undefined`) and what that count IS
+ * (`movesPosition`). A hand-edited backup with `quantity` on an `interest_payout`
+ * row created the key and then contributed 0 to it, valuing the whole position
+ * at ₴0.00. One predicate, applied at every door.
+ */
+const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, ctx) => {
+  rows.forEach((row, i) => {
+    if (movesPosition(row.type)) return;
+    // BOTH fields, not just the count. A hand-edited `unitPrice` on an
+    // `interest_payout` was accepted while `quantity` beside it was refused —
+    // and the pair is what W7's two CHECKs govern together.
+    for (const field of ['quantity', 'unitPrice'] as const) {
+      if (row[field] === undefined) continue;
+      // NO MESSAGE. This layer emits PATHS, never English (`src/core/README.md`,
+      // D8): a message here is carried through as `issue.detail` and printed
+      // verbatim into a report the rest of which is in the reader's language.
+      // The words belong to `import-labels.ts`, which is why the `IssueCode`
+      // vocabulary exists — this rule needed a code, not a sentence.
+      ctx.addIssue({ code: 'custom', path: [i, field] });
+    }
+  });
 });
 
 const settingsSchema = z.strictObject({
@@ -98,7 +165,7 @@ export const backupEnvelopeSchema = z.strictObject({
   dataset: z.enum(['demo', 'live']),
   assets: z.array(assetRowSchema),
   snapshots: z.array(snapshotRowSchema),
-  transactions: z.array(transactionRowSchema),
+  transactions: transactionRowsSchema,
   settings: settingsSchema.optional(),
 });
 
@@ -216,6 +283,8 @@ export type IssueCode =
   | 'expected-datetime'
   | 'expected-date'
   | 'expected-positive-amount'
+  /** `quantity` / `unitPrice` on a row that moves no position (#31, D112). */
+  | 'units-on-non-position-row'
   | 'invalid';
 
 export interface RowIssue {

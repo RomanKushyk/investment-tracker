@@ -14,11 +14,12 @@ import { toast } from 'sonner';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { rollNextCoupon, type DueCoupon } from '../../core/accrual';
-import { quoteInputSchema } from '../../core/schemas';
+import { amountInputSchema } from '../../core/schemas';
 import type { Asset, Transaction } from '../../core/types';
 import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
+import { useSettings } from '../../state/settings';
 
 export function CouponDueCard({
   asset,
@@ -42,6 +43,11 @@ export function CouponDueCard({
 }) {
   const t = useT();
   const f = useFormat();
+  // THE LANGUAGE IS A PARSE RULE HERE TOO. This card writes a `Transaction`,
+  // not a display, so «1,240» must mean here exactly what it means in the
+  // transaction panel — on the module-level grouping schema the two recorded
+  // the identical text 1000x apart into one ledger.
+  const language = useSettings((state) => state.language);
   // The field mirrors the prefill until the user touches it — `edited` is the
   // discriminator, so a prefill that only becomes available LATER (a linked
   // bond's `paymentSchedule` forecast arrives with the first fetch, and the card
@@ -71,7 +77,7 @@ export function CouponDueCard({
   }
 
   function handleConfirm() {
-    const parsed = quoteInputSchema.safeParse(amount);
+    const parsed = amountInputSchema(language).safeParse(amount);
     if (!parsed.success) {
       setError(true);
       return;

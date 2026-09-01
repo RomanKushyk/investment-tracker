@@ -29,8 +29,12 @@ export function formatReasonSentence(
       return m.notABackup;
     case 'newer-format':
       return m.newerFormat(String(version ?? '?'));
-    // A hand-edited or otherwise unreadable version: the sentence above would
-    // claim something about a newer app that isn't true.
+    // A genuine backup from before the format moved on — named as such, so it
+    // reads as "this app moved past it" rather than "this file is broken".
+    case 'older-format':
+      return m.olderFormat(String(version ?? '?'));
+    // A hand-edited or otherwise unreadable version: neither sentence above
+    // would claim anything true about it.
     case 'unsupported-format':
       return m.unsupportedFormat;
   }
@@ -63,6 +67,8 @@ function issueReason(issue: RowIssue, t: Dict): string {
       return m.expectedDate;
     case 'expected-positive-amount':
       return m.expectedPositiveAmount;
+    case 'units-on-non-position-row':
+      return m.unitsOnNonPositionRow;
     // Last resort: state the validator's own words rather than swallow a
     // reason the user needs in order to fix the file.
     case 'invalid':

@@ -28,15 +28,23 @@ both  BOTH marks present -> the LAST is the decimal        (unchanged)
 - [ ] The both-marks-present branch stays exactly as it is, in both languages —
       it is what makes pasted `1,234.56` and `1.234,56` safe, and no ruling
       touched it.
-- [ ] **How the language reaches the parser is this task's to decide, and D87
-      deliberately does not.** `normalizeNumberInput` takes no language today,
-      and `quoteInputSchema` / `percentInputSchema` are static module-level
-      exports nested inside **three** schemas, not one: `assetFormSchema`
-      (`units`, `expectedPct`, `targetPct`), `transactionSchema` (`amount`) and
-      `optionalAmount` → `couponAmount`. A factory per language and normalising
-      at the component boundary are both open; pick one and say in the commit
-      why. **Converting only the asset form leaves the whole transaction amount
-      path and the coupon amount on the old grammar.**
+- [x] **How the language reaches the parser is DECIDED, and by #31 rather than
+      here: a FACTORY per language.** `normalizeNumberInput(input, groupsWithComma)`,
+      `transactionSchema(lang)` and `assetFormSchema(mode, lang)`; the component
+      passes `useSettings(s => s.language)`. The alternative — normalising at the
+      component boundary — was not taken: the parse rule then lives outside the
+      schema that owns the field, and a second caller of the same schema gets no
+      rule at all.
+- [ ] **THREE FIELDS ARE ON THE NEW GRAMMAR, THE REST ARE NOT.** #31 needed it
+      for the transaction panel's `quantity` and `amount` and the asset form's
+      `inzhur.units` — the fields a Ukrainian typist writes with three decimals.
+      Still on the grouping default, and this row's remaining work:
+      `expectedPct`, `targetPct`, `couponAmount`, the daily-quote inputs,
+      `usdRate` and `reminderLeadDays` (`quoteInputSchema` / `percentInputSchema`
+      are still static module-level exports, and both take the default).
+      `Format.input()` verifies its round trip against the DEFAULT parser too —
+      see its doc in `money.ts`; a field moved to the Ukrainian rule whose
+      prefill goes through `f.input` loses the guarantee silently.
 - [ ] One shared **`NumberField`** replaces the hand-rolled numeric inputs at
       the sites that hold a groupable number — `QuoteRow`, `TransactionPanel`
       (amount), `AssetForm` (units, coupon, expected, target), `Settings`' USD

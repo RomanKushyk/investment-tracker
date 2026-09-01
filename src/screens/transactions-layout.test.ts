@@ -47,11 +47,20 @@ function ledgerCard(): string {
   return m[1];
 }
 
-/** The form card's own class string, anchored by its `bg-panel` surface.
- *  The token must stand alone — `hover:bg-panel`, `bg-panel/50` or
- *  `bg-panel-muted` on some earlier element must not retarget the anchor. */
+/** The form card's own class string, anchored by `<Card>` AND its `bg-panel`
+ *  surface. The token must stand alone — `hover:bg-panel`, `bg-panel/50` or
+ *  `bg-panel-muted` must not retarget the anchor.
+ *
+ *  `<Card` IS PART OF THE ANCHOR, and it was added after a standalone
+ *  `bg-panel` on a plain `<div>` earlier in the file — the price-mode segment
+ *  of #31, which takes the segmented-control surface every such control in this
+ *  app has taken — captured the match and reported the segment's classes as
+ *  the card's.
+ *  Anchoring on the element, the way `ledgerCard` anchors on its ref, is what
+ *  makes this specific; matching a bare class string means any later element
+ *  that legitimately shares the surface silently becomes the subject. */
 function formCard(): string {
-  const m = PANEL.match(/className="([^"]*(?<![-:/\w])bg-panel(?![-/\w])[^"]*)"/);
+  const m = PANEL.match(/<Card\b[^>]*className="([^"]*(?<![-:/\w])bg-panel(?![-/\w])[^"]*)"/);
   if (m === null) throw new Error('no form Card (bg-panel) in TransactionPanel');
   return m[1];
 }

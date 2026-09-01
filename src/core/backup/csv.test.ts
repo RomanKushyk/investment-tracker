@@ -196,7 +196,36 @@ describe('column orders (pinned contract)', () => {
     };
     const rows = readCsv(serializeTransactionsCsv([tx]));
     expect(rows[0]).toEqual([...TRANSACTION_CSV_COLUMNS]);
-    expect(rows[1]).toEqual(['tx-0001', '2026-02-03', 'deposit', '', '143176.37', 'own']);
+    // A deposit moves no position, so both #31 columns are EMPTY — never 0,
+    // which would read as "zero units bought" rather than "not applicable".
+    expect(rows[1]).toEqual(['tx-0001', '2026-02-03', 'deposit', '', '143176.37', 'own', '', '']);
+  });
+
+  it('carries units and the per-unit price, unrounded (#31)', () => {
+    const tx: Transaction = {
+      id: 'tx-0002',
+      date: '2026-08-10',
+      type: 'reinvest',
+      assetId: 'reit',
+      amount: 484.36,
+      source: 'reinvest_reit',
+      quantity: 43.4785,
+      unitPrice: 11.1389,
+    };
+    const [, row] = readCsv(serializeTransactionsCsv([tx]));
+    // `money()` on the amount, `plain()` on both counts: a reinvestment buys a
+    // fractional number of units, and padding that to two decimals in the one
+    // column whose purpose is exactness is how a unit total drifts.
+    expect(row).toEqual([
+      'tx-0002',
+      '2026-08-10',
+      'reinvest',
+      'reit',
+      '484.36',
+      'reinvest_reit',
+      '43.4785',
+      '11.1389',
+    ]);
   });
 
   it('snapshots serialize WIDE: date, cash, then one column per asset', () => {

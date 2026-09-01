@@ -42,7 +42,7 @@ const energy = asset('energy', { kind: 'fund', ref: 'inzhur-energy', units: 9 })
 const bond = asset('ovdp8976', { kind: 'bond', ref: 'UA4000238976', units: 15 });
 const manual = asset('manual');
 
-const matches: InzhurMatch[] = matchAssets([reit, energy, bond], feed).linked;
+const matches: InzhurMatch[] = matchAssets([reit, energy, bond], feed, {}).linked;
 const FETCH: QuoteOrigin = { source: 'fetch', at: '2026-08-04T10:05:00.000Z' };
 const CACHE: QuoteOrigin = { source: 'cache', at: '2026-07-25T10:05:00.000Z' };
 
@@ -115,6 +115,7 @@ describe('reconcileFetched — the G5 decision', () => {
         { assetId: 'ovdp8976', value: 15865.05 },
       ],
       offers: [],
+      negative: [],
     });
   });
 
@@ -142,8 +143,8 @@ describe('reconcileFetched — the G5 decision', () => {
 
   it('ignores assets the feed does not carry (matchAssets never lists them)', () => {
     const gone = asset('gone', { kind: 'bond', ref: 'UA9999999999', units: 1 });
-    const { linked } = matchAssets([gone, manual], feed);
-    expect(reconcileFetched(linked, {}, {})).toEqual({ fills: [], offers: [] });
+    const { linked } = matchAssets([gone, manual], feed, {});
+    expect(reconcileFetched(linked, {}, {})).toEqual({ fills: [], offers: [], negative: [] });
   });
 });
 

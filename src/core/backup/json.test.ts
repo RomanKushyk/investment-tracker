@@ -90,7 +90,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(1);
+    expect(env.formatVersion).toBe(2);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -143,6 +143,42 @@ describe('parseBackup round-trip', () => {
     expect(result.data.snapshots).toEqual(SNAPSHOTS);
     expect(result.data.transactions).toEqual(TRANSACTIONS);
     expect(result.data.settings).toEqual(SETTINGS);
+  });
+
+  it('round-trips units and the per-unit price, and still takes rows without them (#31)', () => {
+    // THE BREAK THIS GUARDS: `buildBackup` passes transactions through
+    // unchanged and the row schema is a `strictObject`, so before `quantity`
+    // and `unitPrice` were declared the app could write a backup its own
+    // parser refused. A round trip is the only test that catches that — a
+    // serializer test alone stays green while the reader rejects the file.
+    const withUnits: Transaction = {
+      id: 'tx-units',
+      date: '2026-08-10',
+      type: 'reinvest',
+      assetId: 'reit',
+      amount: 484.36,
+      source: 'reinvest_reit',
+      quantity: 43.4785,
+      unitPrice: 11.1389,
+    };
+    const env = buildBackup(
+      ASSETS,
+      SNAPSHOTS,
+      // Mixed on purpose: the legacy rows carry neither field, which is the
+      // state of every transaction recorded before #31 and must stay valid.
+      [...TRANSACTIONS, withUnits],
+      SETTINGS,
+      'demo',
+      '2026-07-28T12:00:00',
+      2,
+    );
+    const result = parseBackup(JSON.stringify(env));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.transactions.at(-1)).toEqual(withUnits);
+    // Absent, not `undefined`: a key present with an undefined value would
+    // survive zod and then serialize back as `"quantity": null`.
+    expect(result.data.transactions[0]).not.toHaveProperty('quantity');
   });
 
   it('accepts a hand-injected inzhur link on a raw envelope (P2 field)', () => {
@@ -205,13 +241,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 2 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 2)));
+  it('rejects formatVersion 3 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 3)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 2/);
-    expect(result.issues[0]).toMatch(/formatVersion 1/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 3/);
+    expect(result.issues[0]).toMatch(/formatVersion 2/);
   });
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
@@ -342,6 +378,50 @@ describe('parseBackup rejections', () => {
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues.some((i) => i.startsWith('dataset'))).toBe(true);
+  });
+});
+
+describe('the import boundary enforces W7’s quantity CHECKs (#31)', () => {
+  // `transactionRowsSchema.superRefine`. `transactionSchema` (the form) and
+  // `unitDelta` (the derivation) apply the same rule; a hand-edited backup is
+  // the third door, and it is the only one an attacker of the app’s own data
+  // — a text editor — can reach directly.
+  const rowAt = (i: number, patch: Record<string, unknown>) =>
+    mutated((env) => {
+      const rows = env.transactions as Record<string, unknown>[];
+      Object.assign(rows[i], patch);
+    });
+
+  // Index 2 is the `dividend_accrual`: a payout, so it moves no position.
+  for (const field of ['quantity', 'unitPrice'] as const) {
+    it(`rejects ${field} on a row that moves no position`, () => {
+      const result = parseBackup(rowAt(2, { [field]: 12 }));
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      // THE PATH, not the words. This layer emits paths and lets
+      // `import-labels.ts` own the sentence (D8), so asserting English here
+      // would pin the rule this module exists to keep.
+      expect(result.issues.join(' | ')).toMatch(new RegExp(`transactions[.]2[.]${field}`));
+    });
+  }
+
+  it('accepts both on a row that does move one', () => {
+    // Index 1 is the `buy`. The rule is one-way on purpose (D112): a
+    // position-moving row MAY lack them, because every row recorded before #31
+    // does.
+    const withUnits = parseBackup(rowAt(1, { quantity: 5800, unitPrice: 11.142866 }));
+    expect(withUnits.ok).toBe(true);
+    expect(parseBackup(rowAt(1, {})).ok).toBe(true);
+  });
+
+  it('names the row and the field, not just the array', () => {
+    // The importer maps zod paths to a per-row message, so the path has to
+    // carry the index — an issue on the array alone tells the owner the whole
+    // ledger is bad and nothing more.
+    const result = parseBackup(rowAt(2, { quantity: 1 }));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues).toEqual(['transactions.2.quantity: Invalid input']);
   });
 });
 
