@@ -89,6 +89,7 @@
   "commentChars": {
     "infra/drizzle.config.ts": 1203,
     "infra/schema/user.ts": 10853,
+    "infra/src/bind-params.test.ts": 3644,
     "infra/src/bond-terms.test.ts": 397,
     "infra/src/bond-terms.ts": 3064,
     "infra/src/capture.ts": 44238,

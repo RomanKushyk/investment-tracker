@@ -1337,7 +1337,7 @@ async function diagnose(client: Client) {
     `EXPLAIN (ANALYZE, VERBOSE)
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
        FROM price_capture WHERE source = $1 AND as_of BETWEEN $2 AND $3`,
-    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today, null],
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today],
   );
   plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
 
@@ -1385,7 +1385,7 @@ async function diagnose(client: Client) {
   // diagnostic and not the archive.
   const observeOpen = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
-    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today],
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today, null],
   );
   plans.observeNbuOpenRange = observeOpen.rows.map((r) => r['QUERY PLAN']);
 
