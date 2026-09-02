@@ -149,8 +149,10 @@ been given an API.
   server keeps that, adds tombstones, or adopts foreign keys is O33's, and an
   API document that quietly picked one would be the implicit resolution Plan C
   forbids.
-- **O31 — the seed's row count.** `dataset.replace` and `dataset.clear` carry
-  whatever the seed produces. W7's Seed bullet needs O31 first.
+- **~~O31 — the seed's row count.~~ CLOSED 2026-09-02 as D133**: all three
+  figures may move and the checkpoints are re-derived from the new seed.
+  `dataset.replace` and `dataset.clear` still carry whatever the seed produces,
+  which is now a seed that may differ from today's.
 - **`transaction.patch` is the only unvalidated write path, and that is a
   hazard rather than a curiosity.** `repo.updateTransaction` IS called — by
   `useUpdateTransaction` in `hooks/queries.ts` — but that HOOK has no caller, so

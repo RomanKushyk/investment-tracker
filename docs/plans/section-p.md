@@ -55,10 +55,11 @@ exclusion rules. Before that, it is unsatisfiable.
 (`phase-w-i-ii-iii.md`, the Seed bullet). The seed rewrite and the `derive.ts` change
 land together or neither lands.
 
-**What W7 needs answered first — `PLAN-OPEN.md` O31.** Moving `4/174/18` means
-superseding part of D10 and D24, which are decisions: this repo supersedes them
-with a new entry, never edits them. Nobody has ruled on that, so it is a
-question, not a task.
+**What W7 needed answered first was `PLAN-OPEN.md` O31, and it is answered:**
+**D133**, 2026-09-02 — all three figures may move and the checkpoints are
+re-derived from the new seed. D10, D24 and D5#6 are superseded as FIGURES, not
+as rulings, by that entry rather than edited. A52's finding stands otherwise:
+the seed rewrite and the `derive.ts` change land together, inside W7.
 
 **Two facts the original A52 had wrong, kept here so W7 does not inherit them:**
 

@@ -82,8 +82,13 @@ D` across `account`. But the withdrawal that produced A52 measured that
 today's ledger does not reproduce today's figures, and D5 pins the ₴7.75
 residue that every one of those snapshots records. So the <!--f:seed.snapshots-->174<!--/f--> recorded
 balances are either dropped or need somewhere to live, and that is not this
-document's call — it is the same ruling `docs/plans/PLAN-OPEN.md` O31 is
-waiting on.
+document's call.
+
+**It is NOT the ruling O31 was waiting on, and D133 does not answer it.** O31
+closed on 2026-09-02 ruling only that the pinned FIGURES may move. Where the
+recorded cash balances LIVE — dropped, or given a column — is a separate
+question that lost its pointer when O31 closed and has no home in
+`PLAN-OPEN.md` today. Raise it before the migration assumes an answer.
 
 ## 6. Timestamps are stored in three incompatible encodings
 
