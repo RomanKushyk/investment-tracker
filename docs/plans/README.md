@@ -56,8 +56,12 @@ labelled `enhancement` and `bug`. `USER-FEATURES-DRAFT.md` and
   is open by design or costs nothing to leave.** For that last one read
   `PLAN-OPEN.md`'s **disposition sentence**, not the row's status cell — O30's cell
   says "not measurable on a free-tier pool" while the disposition puts it under
-  "cost nothing to leave", and applying the rule to the cell yields six questions
-  where D105 names five. Phase 6 and Phase 7 are IN. Only
+  "cost nothing to leave", so reading cells counts O30 in when it should be out.
+  **The counts moved on 2026-09-02** and are given here as a worked example, not
+  as a total to trust: the disposition then said five, reading cells said six,
+  and O5's remainder was reclassified out of *open by design* into the waiting
+  set — so the disposition says **six** and reading cells says seven. **The
+  disposition sentence is the answer; this bullet only says why.** Phase 6 and Phase 7 are IN. Only
   then are issues worked, one at a time. **No task IDs here on purpose** — they
   close, and a list in a rules file outlives the work it names. The indexes are
   the live authority; D105 is the authority on the rule. The milestone says
