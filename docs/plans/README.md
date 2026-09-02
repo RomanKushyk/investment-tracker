@@ -28,8 +28,11 @@ labelled `enhancement` and `bug`. `USER-FEATURES-DRAFT.md` and
   [D105](../decisions/D105.md) the work needs no plan body. A missing capability is an `enhancement`, not a `bug`; a cosmetic shipped
   on purpose is [`FOLLOW-UPS.md`](FOLLOW-UPS.md).
 - **A pasted sample is BYTES — never re-key one.** Issue #1 carries a U+00A0 as
-  its thousands separator, which is plausibly the whole bug. Quote the issue, do
-  not retype it, and write the failing test against the bytes.
+  its thousands separator, and that separator is a RED HERRING — `\s` strips it
+  before the parser sees it (corrected 2026-09-02; this line used to call it
+  "plausibly the whole bug"). The rule stands and is better evidenced for it:
+  quote the issue, do not retype it, write the failing test against the bytes,
+  and expect the dump to refute a hypothesis as often as it confirms one.
 - **The default is: branch, do the work, `Closes #N`, and add NOTHING to this
   folder ([D105](../decisions/D105.md)).** `dev` is the default branch, so
   GitHub closes the issue on the squash-merge and leaves the commit↔issue link
