@@ -116,6 +116,7 @@ describe('reconcileFetched — the G5 decision', () => {
       ],
       offers: [],
       negative: [],
+      noCount: [],
     });
   });
 
@@ -141,10 +142,32 @@ describe('reconcileFetched — the G5 decision', () => {
     expect(offers).toEqual([]);
   });
 
+  it('NAMES a linked row with no count from any source, instead of skipping it silently', () => {
+    // D117's third state, unreachable before it: the link carries no `units`
+    // (the form stopped asking) and the ledger has no quantities for the asset
+    // (no position-moving rows at all, so it is not in `incompleteLedgers`
+    // either). The fetch used to report success, fill every other row, and leave
+    // this one empty forever with nothing said anywhere.
+    const fresh = asset('fresh', { kind: 'fund', ref: 'inzhur-reit' });
+    const { linked } = matchAssets([fresh], feed, {});
+    const out = reconcileFetched(linked, {}, {});
+    expect(out.fills).toEqual([]);
+    expect(out.offers).toEqual([]);
+    expect(out.noCount).toEqual(['fresh']);
+    // NOT the negative list — that one means the ledger holds something
+    // impossible, and this one means it holds nothing yet.
+    expect(out.negative).toEqual([]);
+  });
+
   it('ignores assets the feed does not carry (matchAssets never lists them)', () => {
     const gone = asset('gone', { kind: 'bond', ref: 'UA9999999999', units: 1 });
     const { linked } = matchAssets([gone, manual], feed, {});
-    expect(reconcileFetched(linked, {}, {})).toEqual({ fills: [], offers: [], negative: [] });
+    expect(reconcileFetched(linked, {}, {})).toEqual({
+      fills: [],
+      offers: [],
+      negative: [],
+      noCount: [],
+    });
   });
 });
 

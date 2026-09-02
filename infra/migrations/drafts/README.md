@@ -139,7 +139,7 @@ reviewed, and only then promoted.
   2026-08-27 inside a throwaway schema dropped `CASCADE` —
   <!--f:userSchema.tables-->5<!--/f--> primary keys,
   <!--f:userSchema.compositeKeys-->4<!--/f--> of them composite,
-  <!--f:userSchema.checks-->21<!--/f--> `CHECK`s,
+  <!--f:userSchema.checks-->23<!--/f--> `CHECK`s,
   <!--f:userSchema.uniques-->3<!--/f--> `UNIQUE`s, one `DEFAULT`, `numeric`
   with no precision. (Fenced — `pnpm facts` derives all four from the DDL,
   because the first draft of this bullet typed three of them wrong.)

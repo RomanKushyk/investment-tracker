@@ -30,6 +30,23 @@ describe('inzhurRefOptions (S7)', () => {
     ]);
   });
 
+  it('appends NO synthetic row for a ref that differs only in case', () => {
+    // The picker used to compare with `===`, so a stored `inzhur-reit` against a
+    // published `Inzhur-REIT` showed one fund TWICE, differing only in case,
+    // while `matchAssets` treated the two as one instrument all along.
+    //
+    // The other half of the fix lives in `AssetForm`: `RadixSelect.Value` matches
+    // the root value against each item's value as an EXACT string, so removing
+    // the synthetic row alone would render the PLACEHOLDER over a value that is
+    // set — a linked asset reading as unlinked. The form canonicalises the stored
+    // ref to the provider's spelling once the feed can supply it, so there is one
+    // row and it is selected.
+    expect(inzhurRefOptions(entries, 'fund', 'INZHUR-REIT', f, t)).toHaveLength(2);
+    expect(inzhurRefOptions(entries, 'fund', '  inzhur-reit  ', f, t)).toHaveLength(2);
+    // A ref the feed genuinely does not carry still gets its row.
+    expect(inzhurRefOptions(entries, 'fund', 'inzhur-unknown', f, t)).toHaveLength(3);
+  });
+
   it('lists bonds as ISIN + maturity hint, valued by ISIN', () => {
     expect(inzhurRefOptions(entries, 'bond', '', f, t)).toEqual([
       { value: 'UA4000238976', label: 'UA4000238976', hint: 'погашення 24.03.2027' },
@@ -60,10 +77,21 @@ describe('inzhurRefOptions (S7)', () => {
 
 describe('assetFormDefaults round-trips through the schema in BOTH languages', () => {
   // The prefill is FORMATTED (Contract 0) and the schema parses that same
-  // string back, so the two have to agree in every language. They did not:
-  // English formats 6164 units as "6,164", the parser read the comma as a
-  // decimal point, and saving an untouched linked asset stored 6.164 units —
-  // its value (units x sell price) collapsing by three orders of magnitude.
+  // string back, so the two have to agree in every language.
+  //
+  // THIS BLOCK USED TO GUARD THE UNITS ROUND TRIP, and the bug it was written
+  // for is worth keeping on the record: English formats 6164 units as "6,164",
+  // the parser read the comma as a decimal point, and saving an untouched
+  // linked asset stored 6.164 units — its value collapsing by three orders of
+  // magnitude. D117 removed the Units field, so that trip no longer happens
+  // here; the comma rule itself is `quoteInputSchema`'s and is tested in
+  // `core/schemas.test.ts`, which is where the transaction form's own units
+  // field now depends on it.
+  //
+  // What replaces it is the guarantee D117 actually rests on: the legacy count
+  // must NOT reach the form. It survives in the store only because nothing
+  // writes it back, so the moment it round-trips it is one bad parse from being
+  // destroyed.
   const linked = {
     id: 'reit',
     name: 'Inzhur REIT',
@@ -78,11 +106,15 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
   } as const;
 
   for (const lang of ['uk', 'en'] as const) {
-    it(`keeps 6164 units in ${lang}`, () => {
+    it(`carries the link without its legacy units in ${lang}`, () => {
       const defaults = assetFormDefaults(makeFormat(lang), linked as never);
+      expect(defaults.inzhur).toEqual({ kind: 'fund', ref: 'inzhur-reit' });
       const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
       expect(parsed.success, JSON.stringify(defaults.inzhur)).toBe(true);
-      expect(parsed.success && parsed.data.inzhur?.units).toBe(6164);
+      expect(parsed.success && parsed.data.inzhur).toEqual({
+        kind: 'fund',
+        ref: 'inzhur-reit',
+      });
     });
 
     // A36 put the two percent fields on this same formatted path, so they join

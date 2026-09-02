@@ -108,6 +108,7 @@ export function useQuoteFetch(
         fills,
         offers: pending,
         negative,
+        noCount,
       } = reconcileFetched(linked, draft.quotes, draft.origins);
       for (const fill of fills) {
         draft.fillQuote(fill.assetId, f.num(fill.value), { source, at: feed.fetchedAt });
@@ -134,9 +135,24 @@ export function useQuoteFetch(
       const nameOf = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
       // SAID OUT LOUD, once per fetch. The row is filled — from the link's old
       // total — so nothing on screen looks wrong, which is exactly why it needs
-      // a sentence. Only on a live fetch: the cache path already carries its own
-      // red toast, and stacking a second under it reads as two failures.
-      const stale = incompleteLedgers.filter((id) => linked.some((m) => m.asset.id === id));
+      // a sentence. Only on a live fetch, and NOT because a red toast is
+      // already up — measured, it is not: the cache path runs only from that
+      // toast's action button, and sonner dismisses a toast when its action
+      // fires. The reason is what the two sentences CLAIM. This one says a row
+      // was valued from an old count, which on the cache path competes with the
+      // cache's own account of the same value; `noUnitsRecorded` below says a
+      // row was not valued at all, which nothing else on the screen explains, so
+      // that one is ungated.
+      // MINUS THE ROWS THAT WERE NOT VALUED AT ALL. This toast says a row was
+      // "valued from an old stored unit count", and for a `no-count` row that is
+      // simply false — nothing was offered for it. The two states overlap more
+      // easily than they look: link a pre-#31 asset for the FIRST time and it has
+      // position-moving rows without quantities (so it is in `incompleteLedgers`)
+      // AND a link with no legacy total (so it is `no-count`). An earlier comment
+      // on the `noUnitsRecorded` toast below asserted the pairing was impossible.
+      const stale = incompleteLedgers.filter(
+        (id) => linked.some((m) => m.asset.id === id) && !noCount.includes(id),
+      );
       if (source === 'fetch' && stale.length > 0) {
         toast.message(t.dailyQuotes.staleLedgerRows(stale.map(nameOf).join(', ')), {
           id: 'stale-ledger',
@@ -155,6 +171,34 @@ export function useQuoteFetch(
       if (negative.length > 0) {
         toast.error(t.dailyQuotes.negativeUnits(negative.map(nameOf).join(', ')), {
           id: 'negative-units',
+        });
+      }
+
+      // NO COUNT AT ALL — D117's third state, and the only one nothing else on
+      // the screen can explain. The row is linked, the feed HAS it, and the fetch
+      // still leaves it empty because no usable quantity exists for it. Before
+      // D117 the state was unreachable, so the silence was correct then and is
+      // not now. It takes precedence over `staleLedgerRows` above, which claims
+      // the row WAS valued.
+      //
+      // `message`, not `error`: nothing is wrong: the app is saying what it
+      // needs in order to value the row.
+      //
+      // UNGATED, like `negativeUnits` and unlike `staleLedgerRows`. The gate was
+      // added on the reasoning that the cache path already carries a red toast
+      // and a second sentence under it reads as two failures — measured, that
+      // toast is GONE by then: the cache path runs only from its action button,
+      // and sonner dismisses a toast when its action fires. Nothing is stacked
+      // under anything.
+      //
+      // And the two messages are not the same kind of claim. `staleLedgerRows`
+      // describes a row that WAS valued, so on the cache path it competes with
+      // the cache's own account of the same value. This one describes a row that
+      // was NOT — an empty cell with no explanation anywhere else on the screen,
+      // which is the silence D117 made reachable and this toast exists to end.
+      if (noCount.length > 0) {
+        toast(t.dailyQuotes.noUnitsRecorded(noCount.map(nameOf).join(', ')), {
+          id: 'no-units-recorded',
         });
       }
     },

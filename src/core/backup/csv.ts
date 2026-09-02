@@ -52,6 +52,10 @@ export const ASSET_CSV_COLUMNS = [
   'inzhurKind',
   'inzhurRef',
   'inzhurUnits',
+  // APPENDED, never inserted (D119) — `couponAmount` above is the legacy stored
+  // ₴ figure and keeps its position so an existing spreadsheet's formulas hold;
+  // this is the rate that replaced it as the thing the form asks for.
+  'couponRatePct',
 ] as const;
 
 export const TRANSACTION_CSV_COLUMNS = [
@@ -125,7 +129,11 @@ export function serializeAssetsCsv(assets: Asset[]): string {
       optional(a.reinvestPolicy),
       optional(a.inzhur?.kind),
       optional(a.inzhur?.ref),
-      a.inzhur === undefined ? '' : plain(a.inzhur.units),
+      // EMPTY for a link made after D117 as well as for no link at all — the
+      // column is the legacy count, and it is exported precisely because a value
+      // nothing writes any more still has to leave the database somewhere.
+      a.inzhur?.units === undefined ? '' : plain(a.inzhur.units),
+      a.couponRatePct === undefined ? '' : plain(a.couponRatePct),
     ]),
   ]);
 }

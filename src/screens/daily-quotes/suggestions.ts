@@ -6,32 +6,21 @@
 // confirms — both paths run through the components, which own the writes.
 import {
   couponPeriodDays,
+  couponPerPayment,
   couponsInGap,
   dailyAccrual,
   suggestedQuote,
   type DueCoupon,
 } from '../../core/accrual';
 import { checkQuote, type QuoteVerdict } from '../../core/inzhur/dcf';
-import { couponForecast, matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
+import { couponForecast, matchAssets, NO_UNITS, type ParsedFeed } from '../../core/inzhur/parse';
 import type { Asset, Snapshot } from '../../core/types';
 
 import { lastQuoteBefore } from './quotes';
 
-/**
- * These three call sites read `match.quote` ONLY — the schedule and the yield —
- * never `.value` or `.units`, so they have no count to supply and none to use.
- *
- * The argument is REQUIRED rather than optional on purpose: while it defaulted,
- * omitting it silently restored the #31 behaviour (the stale hand-typed total,
- * stamped `unitsFrom: 'link'` that nobody reads), so the buggy path was the one
- * a forgetful caller got for free. Passing this explicitly is the seam saying
- * "no count needed here", and a new caller that does need one now gets a type
- * error instead of a wrong number.
- */
-// `Object.create(null)`, matching `derive.ts`'s own map: an empty object that
-// answers `toString` is not empty, and this one is handed straight to
-// `matchAssets` as a units record.
-const NO_UNITS: Record<string, number> = Object.create(null) as Record<string, number>;
+// `NO_UNITS` lives beside the `matchAssets` that reads it, in `inzhur/parse.ts`,
+// and carries there the argument for why a units record is `Object.create(null)`
+// and why the parameters that take one are required rather than optional.
 
 /**
  * The provider's published payment dates for `asset`. Undefined for an unlinked
@@ -117,25 +106,99 @@ export function accrualSuggestion(
   snapshots: Snapshot[],
   invested: number,
   selectedDate: string,
-  feed?: ParsedFeed,
+  /** The live payload, or `undefined` when none is in hand. */
+  feed: ParsedFeed | undefined,
+  /**
+   * Units held on `selectedDate` — D119. The ghost climbs toward the coupon this
+   * position actually earns, so it must scale with the holding; before the rate
+   * replaced the stored amount it climbed toward a hand-typed constant while the
+   * coupon card beside it prefilled the feed's per-unit figure × units. Two
+   * numbers for one coupon, on one screen.
+   *
+   * REQUIRED, not optional — see `NO_UNITS` above. Explicit `undefined` means
+   * "the ledger cannot say"; an omitted argument used to mean the same thing by
+   * accident, which made the pre-#31 behaviour the default a forgetful caller
+   * got.
+   */
+  unitsHeld: number | undefined,
+  /**
+   * Units held ON A GIVEN DATE — what a coupon that landed earlier in the gap
+   * actually paid on. `unitsHeld` above answers for the DRAFTED date only, and
+   * `couponsInGap` needs the other question: a position that grew since a coupon
+   * would otherwise subtract the new size from an old payment.
+   *
+   * `undefined` when the ledger cannot say. THAT IS NOT "nothing to subtract":
+   * it reaches `couponPerPayment`, which falls through to `inzhur.units` and
+   * then to the legacy `couponAmount` — so on the seed's two legacy bonds every
+   * gap date resolves to the full unscaled amount whatever this returns. An
+   * earlier version of this doc claimed the opposite and would have sent a
+   * reader looking for an inert path that does not exist.
+   *
+   * WHY THIS IS A DIFFERENT QUESTION FROM `unitsHeld` ABOVE, and not an
+   * inconsistency: `dailyAccrual` climbs toward the NEXT coupon, whose size is
+   * the holding as it stands on the drafted date; the gap drops coupons ALREADY
+   * PAID, each on the holding of its own date. Forward and backward, two bases,
+   * both correct. What they must still agree on is whether the asset has a
+   * coupon figure at all — `couponsInGap` asks that once, at its own guard.
+   */
+  unitsAt: (couponDate: string) => number | undefined,
 ): number | null {
   if (asset.yieldType !== 'fixed_coupon') return null;
+  // A CLOSED POSITION ACCRUES NOTHING, asked before the estimate for the reason
+  // `couponProjection` gives at its own guard: `couponPerPayment` returns
+  // `undefined` both for "no stated figure" and for "the position is closed",
+  // and only the first may fall through to `dailyAccrual`'s `expectedPct ×
+  // invested / 365` fallback. `investedByAsset` sums `buy`/`reinvest` and is
+  // never reduced by a `sell`, so `invested` stays positive forever — a sold-out
+  // bond went on growing a ghost quote at ~₴7/day on a holding that is gone.
+  if (unitsHeld !== undefined && unitsHeld <= 0) return null;
   const last = lastQuoteBefore(snapshots, asset.id, selectedDate);
   if (last === undefined) return null; // never quoted → nothing to carry forward
+  // ONE BINDING FOR THE NEXT COUPON, used by the daily rate and handed to the
+  // gap as its starting point — see `couponsInGap`'s `perCouponAt` doc for what
+  // happened when the two disagreed about WHICH coupon.
+  const perCoupon = couponPerPayment(asset, unitsHeld);
   return suggestedQuote({
     lastQuote: last.value,
     lastDate: last.date,
     today: selectedDate,
     daily: dailyAccrual(
-      asset.couponAmount,
+      perCoupon,
       asset.payoutSchedule,
       { expectedPct: asset.expectedPct, invested },
       feedPeriodDays(asset, feed, selectedDate),
     ),
     // The SAME dates the divisor came from. If the accrual rate and the gap
-    // count ever disagreed about when a coupon lands, the ghost would drift by
-    // a whole coupon at exactly the boundary the user is looking at.
-    couponsInGap: couponsInGap(asset, last.date, selectedDate, feedSchedule(asset, feed)),
+    // count ever disagreed about WHEN a coupon lands, the ghost would drift by a
+    // whole coupon at exactly the boundary the user is looking at.
+    //
+    // The SIZE is asked per date, and that is deliberate rather than a break of
+    // the rule above: `perCoupon` is the NEXT coupon, sized on the drafted date,
+    // which is what the daily rate climbs toward; the gap drops coupons already
+    // paid, each sized on its own date. Same dates, two holdings, one question
+    // each.
+    // THE PAIRING GUARD, and it belongs here because this is the only place both
+    // figures exist. `dailyAccrual` above falls back to the
+    // `expectedPct × invested` estimate whenever `perCoupon` is absent or
+    // non-positive; a gap that then subtracted a real past coupon would drop a
+    // figure the ghost never climbed toward.
+    //
+    // IT USED TO LIVE INSIDE `couponsInGap`, asking `perCouponAt(toInclusive)`.
+    // That looked equivalent and was not: this caller counts units INCLUSIVE of
+    // the drafted date while the resolver counts them as of the day before, so a
+    // position closed and re-opened on that date suppressed the whole gap while
+    // the accrual climbed normally. Same binding as the daily rate, or no
+    // pairing at all.
+    couponsInGap:
+      perCoupon === undefined || perCoupon <= 0
+        ? 0
+        : couponsInGap(
+            asset,
+            (couponDate) => couponPerPayment(asset, unitsAt(couponDate)),
+            last.date,
+            selectedDate,
+            feedSchedule(asset, feed),
+          ),
     maturity: asset.maturity,
   });
 }
@@ -143,7 +206,7 @@ export function accrualSuggestion(
 /**
  * S5: the coupon card's prefilled amount. An Inzhur-linked bond prefers the
  * feed's own `paymentSchedule` forecast (per-unit ₴ × units — the feed knows the
- * exact coupon), otherwise the asset's stated `couponAmount`.
+ * exact coupon), otherwise `couponPerPayment` — the rate scaled by the units held (D119), or the legacy stated `couponAmount` when there is no rate.
  *
  * `undefined` = nothing to prefill: the field opens empty and the pinned
  * "Enter an amount." message guards the confirm. An `expectedPct` ESTIMATE is
@@ -159,9 +222,20 @@ export function couponPrefill(
   // prefills the AMOUNT of a transaction the user is about to record. Same
   // record as the fetch — `unitsByAsset` as of the coupon's own date — and the
   // same fallback to the link's stored total when the ledger cannot answer.
-  unitsHeld?: Record<string, number>,
+  /**
+   * Units per asset on the coupon's own date, or an explicit `undefined`.
+   *
+   * REQUIRED, like `accrualSuggestion`'s and `couponProjection`'s — omitting it
+   * silently falls back to `asset.inzhur?.units`, the pre-#31 stale
+   * whole-position total, and skips the ledger entirely. That is the failure all
+   * three signatures were changed away from: the buggy path must not be the
+   * cheap one.
+   */
+  unitsHeld: Record<string, number> | undefined,
 ): number | undefined {
-  // OWN keys only, the same rule `matchAssets` applies to the same record.
+  // OWN keys only, the same rule `matchAssets` applies to the same record: an
+  // asset id of `toString` passes `assetRowSchema`, and a plain object answers
+  // that key with a Function which reaches `couponForecast` as a count.
   const units =
     unitsHeld !== undefined && Object.hasOwn(unitsHeld, asset.id)
       ? unitsHeld[asset.id]
@@ -169,15 +243,14 @@ export function couponPrefill(
   // A KNOWN COUNT OF ZERO OR LESS RETURNS `undefined`, and it must return that
   // rather than fall through.
   //
-  // Falling through reaches `due.amount` — the asset's full stated
-  // `couponAmount` — so a sold-out bond prefilled ₴1 240 for a position that no
-  // longer exists, in a confirm card the user taps through. That is worse than
-  // the ₴0,00 it replaced: 0 was refused by `quoteInputSchema` and the user SAW
+  // Falling through reaches `due.amount`, which for a pre-D119 bond is its whole
+  // stated `couponAmount` — so a sold-out bond prefilled ₴1 240 for a position
+  // that no longer exists, in a confirm card the user taps through. That is
+  // worse than the ₴0,00 it replaced: 0 was refused at the door and the user SAW
   // a stop, while a plausible figure is a silent wrong `interest_payout`.
   //
   // `undefined` is the card's own documented "nothing to prefill": the field
-  // opens empty and the pinned "Enter an amount." guards the confirm. Same
-  // answer `matchAssets` gives the same count.
+  // opens empty and the pinned "Enter an amount." guards the confirm.
   if (units !== undefined && units <= 0) return undefined;
   if (units !== undefined && feed !== undefined) {
     const [match] = matchAssets([asset], feed, NO_UNITS).linked;

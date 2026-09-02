@@ -262,6 +262,40 @@ export function investedByAsset(txs: Transaction[]): Record<string, number> {
 }
 
 /**
+ * ₴ per unit this holder PAID, from the earliest purchase that records it — the
+ * price half of a YTM at purchase (D120).
+ *
+ * `unitPrice` first, `amount / quantity` second: the stored price is what the
+ * form recorded, and re-deriving it from a rounded total loses the last kopiyka
+ * (`transaction-price.ts` keeps both for exactly this reason). Either way this
+ * answers only for a row that carries units — every purchase made before #31
+ * records ₴ and nothing else, and no price can be recovered from that.
+ *
+ * THE EARLIEST such purchase, not an average: "at purchase" names one moment,
+ * and the field it derives is dated by `firstPurchase`. Averaging across a
+ * ladder of buys would produce a yield no single trade ever had.
+ */
+export function purchaseUnitPrice(
+  txs: Transaction[],
+  assetId: string,
+): { price: number; date: string } | undefined {
+  const buys = txs
+    .filter((t) => t.assetId === assetId && t.type === 'buy' && t.quantity !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const first = buys[0];
+  if (first === undefined) return undefined;
+  // THE DATE COMES BACK WITH THE PRICE, and that is the whole point of the pair.
+  // Returning the price alone left the caller to reach for `asset.firstPurchase`
+  // — a free date field on the form, editable independently of the ledger. An
+  // asset stating 05.02 whose earliest counted buy is 12.08 discounted a
+  // 12.08 price over six extra months of cash flows and counted in coupons paid
+  // before the purchase happened. A price belongs to the day it was paid.
+  const price =
+    first.unitPrice ?? (first.quantity! > 0 ? first.amount / first.quantity! : undefined);
+  return price === undefined || price <= 0 ? undefined : { price, date: first.date };
+}
+
+/**
  * Units held per asset, as of `asOf` (inclusive; unbounded when omitted) —
  * `units(a, D) = Σ quantity deltas`, which is W7's model
  * (`docs/reference/w7-migration-translations.md` §4) and the answer to #31.

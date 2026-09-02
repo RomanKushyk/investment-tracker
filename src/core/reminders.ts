@@ -12,7 +12,7 @@
 //
 // Structured returns (D8): tokens only — kind, severity, ISO date, day count.
 // The banner sentences live in components/ui/reminder-labels.ts.
-import { couponReminderId, COUPON_MATCH_WINDOW_DAYS, nextUnsettledCoupon } from './accrual';
+import { couponReminderId, COUPON_MATCH_WINDOW_DAYS, nextUnsettledCouponDate } from './accrual';
 import { daysBetween } from './dates';
 import type { Asset, Snapshot, Transaction } from './types';
 
@@ -129,7 +129,7 @@ function isDismissed(reminder: Reminder, dismissed: readonly string[]): boolean 
  * - `coupon-overdue` (overdue) — a coupon date that has arrived unrecorded.
  * - `maturity` (info) — a maturity date within 30 days.
  *
- * Both coupon kinds read `nextUnsettledCoupon`, which carries the S5 dedupe
+ * Both coupon kinds read `nextUnsettledCouponDate`, which carries the S5 dedupe
  * (`couponRecorded`, ±7 days) and the skip list: a coupon the user already
  * recorded by hand is never announced, whichever side of its date the recording
  * sits on, and a settled occurrence hands over to the next one on the grid.
@@ -159,12 +159,14 @@ export function computeReminders(
     // The next OPEN occurrence on the asset's grid, not the `nextCoupon` pointer:
     // a coupon recorded by hand (or skipped from the S5 card) is stepped over, so
     // one settled occurrence can never mute the asset's later ones (D23).
-    const occurrence = nextUnsettledCoupon(asset, transactions, {
+    // THE DATE-ONLY WALK. This function reads the occurrence's date and never
+    // its amount, and the amount costs a full `unitsByAsset` traversal of the
+    // ledger per asset — on a derivation that runs on the header render path.
+    const coupon = nextUnsettledCouponDate(asset, transactions, {
       windowDays: COUPON_MATCH_WINDOW_DAYS,
       dismissed,
     });
-    if (occurrence !== undefined) {
-      const coupon = occurrence.date;
+    if (coupon !== undefined) {
       const days = daysBetween(today, coupon);
       if (days <= 0 || days <= leadDays) {
         reminders.push(

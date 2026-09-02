@@ -31,13 +31,43 @@ export interface Asset {
   firstPurchase: string; // ISO yyyy-MM-dd (all dates below too)
   createdAt: string; // ISO datetime — listAssets display order
   maturity?: string;
+  /**
+   * The bond's fixed annual coupon rate, percent (15.68 for a bond paying ₴78.40
+   * per unit twice a year on a ₴1000 nominal). D119.
+   *
+   * THE RATE, not the amount, because the rate is what a bond actually has: it is
+   * set at issuance and never moves, while the ₴ a coupon pays moves with the
+   * holding. `couponPerPayment` scales it by the ledger's units.
+   *
+   * NOT `expectedPct`, which on a bond is YTM at purchase — a different quantity
+   * that depends on the price this holder paid. Measured, the two differ by up to
+   * 4.3 percentage points and in both directions
+   * (`docs/reference/OVDP-COUPON-STRUCTURE.md`).
+   */
+  couponRatePct?: number;
+  /**
+   * LEGACY (D119): ₴ one coupon paid for the WHOLE position, hand-typed. Never
+   * asked for again and never written; read only when `couponRatePct` cannot
+   * answer, which is every asset created before this field existed — the seed's
+   * two bonds included, whose ledgers carry no quantities to scale a rate by.
+   */
   couponAmount?: number;
   nextCoupon?: string;
   reinvestPolicy?: string;
   // Inzhur link (P2 feat/asset-form): valued as units × fetched sell price
   // once P3's fetch lands. `ref` = fund slug ('inzhur-reit') or bond ISIN
   // ('UA4000238976'). Optional object field — no Dexie version bump (D9).
-  inzhur?: { kind: 'fund' | 'bond'; ref: string; units: number };
+  // `units` is LEGACY and no longer asked for (D117). The form's Units field was
+  // removed on 2026-08-31: units are `Σ transaction.quantity` (D112), and in the
+  // quick-create flow the very transaction being recorded IS the first purchase,
+  // so the group asked for a count the row beneath it already carried.
+  //
+  // The FIELD went; the property stays, optional, and is never written again. It
+  // is the only unit count an asset linked before this date has —
+  // `w7-migration-translations.md` §4 calls those counts unrecoverable — so
+  // `matchAssets` still falls back to it and nothing regresses before the ledger
+  // is backfilled. A new link carries no `units` at all.
+  inzhur?: { kind: 'fund' | 'bond'; ref: string; units?: number };
 }
 
 export interface Snapshot {

@@ -116,6 +116,43 @@ migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which
 Rules in `infra/migrations/drafts/README.md`, working in
 `infra/docs/dsql-ddl-first-contact.md`.
 
+**W7 SEEDS FRESH DEMO DATA — it does NOT carry the local data across** (owner,
+2026-09-01). There is no live user and therefore no live data, so there is
+nothing on the other side worth a migration: the browser's IndexedDB holds a
+demo portfolio and whatever the owner typed while building the app, and both are
+cheaper to re-create than to translate. **What this removes from the phase:**
+the whole class of problems in
+[`../reference/w7-migration-translations.md`](../reference/w7-migration-translations.md)
+that exist only because a stored row predates a rule — unrecoverable unit counts
+([`../decisions/D128.md`](../decisions/D128.md)) first among them. **What it does
+NOT remove:** the translations that are about SHAPE rather than history — enum
+spellings, key order, nullability — which a fresh seed still has to satisfy.
+
+**So `transaction_quantity_required_ck` needs no backfill step.** D125 justified
+that CHECK by sequencing (backfill, then migrate); with nothing migrating, the
+constraint is simply true of everything the seed writes. Read the DDL's own
+comment beside it — it says the same thing and points here.
+
+**READ THIS AGAINST THE D33 BULLET BELOW, which says the migration MUST carry
+the snapshots into a per-user `user_price` overlay and that discarding them
+"deletes five months of history no source can regenerate".** The two meet
+exactly, and the seeming contradiction is worth spelling out because a session
+skimming will hit one or the other:
+
+- **The mechanism changes.** Nothing is CARRIED. `seed.ts` is the source that
+  regenerates those snapshots — deterministically, which is why their count sits
+  behind a fact fence — so "no source can regenerate" was true of a live user's
+  hand-entered prices and never of the demo's.
+- **The requirement does not.** D33's overlay is about SHAPE, and shape survives
+  a reseed intact: the demo's prices still have to land as `user_price` rows, or
+  `coalesce(user_price, archive)` has nothing to coalesce and every past-date
+  value falls back to the archive's basis. **The seed writes them; the migration
+  does not move them.** Same end state, and the D34 bullet below already assumes
+  the seed is rewritten for this schema.
+
+That is the whole of the reconciliation: history-because-a-row-is-old is gone,
+history-because-a-derivation-needs-a-row stays.
+
 **Scope is now specified, not merely named** — D32–D34 closed the questions that used to sit under each of these words:
 
 - **Auth (D32, amended by D36 and D38):** Cognito user pool on the **Essentials** tier, **managed login**, refresh token measured in years, API Gateway **HTTP API with the native JWT authorizer** — no Lambda authorizer. Free to 10,000 MAU. `GET /v1/prices/{YYYY}.ndjson` stays public with no authorizer, ever.
@@ -185,6 +222,35 @@ Remaining scope: user schema in DSQL, API Gateway + API Lambda, `repository.ts` 
 Retires D2 (IndexedDB), D16/G4 (demo+live split) and the dataset guards. `navigation-map.md` needs a full re-baseline in the same phase; **198** `it()` blocks across 12 files depend on the seed helpers (measured 2026-08-26 — see the Seed bullet above for why D34 still reads 97).
 
 ## W8 — Super-admin control surface — **after W7**
+
+**THE DEMO PORTFOLIO IS OWNED, AND ONLY THE SUPER-ADMIN OWNS IT** (owner,
+2026-09-01). The seeded demo lives in the database as ONE original. The
+super-admin edits that original — it is the reference portfolio every screenshot,
+every pinned figure and every walk-through in `navigation-map.md` is measured
+against, so it must not drift under anyone else's hands.
+
+**An ordinary user may play with it, and their changes never reach it.** They get
+a working copy scoped to the DEVICE — or to the session, if that turns out
+simpler, and the choice is deliberately left open here because it is the whole
+implementation question. What matters is the guarantee, not the storage: two
+users on the demo see the same starting portfolio, neither can move the other's,
+and neither can move the original.
+
+**Why it belongs to this phase and not to `feat/dataset-split`.** Today's demo /
+live switch (G4) is a choice between two LOCAL databases — there is no server, no
+account and so no notion of "whose". The moment [`W7`](#w7--b3-migration--earliest-2026-09-02)
+gives every row a `user_id` and the app an authenticated identity, "the demo" has
+to answer a question it has never faced: is it a row set with an owner, or a
+fixture the client materialises? This ruling answers it — **owned, with
+copy-on-play** — and W8 is where the control to edit the original lands, beside
+the other things only the super-admin may touch.
+
+**Three things to settle when it is built,** none of them decided here:
+the scope (device vs session) and how a reset back to the original is offered ·
+whether a play copy survives a sign-out on the same device · whether the copy
+lives in the same store as `live` or beside it, since `exportAll` reads "the DB
+bound to the active dataset" and a backup of a play copy must not claim to be
+the demo.
 
 Deferred until the app can read the archive. The data is already being recorded, so nothing is lost by waiting.
 

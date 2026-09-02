@@ -11,7 +11,16 @@
 import { z } from 'zod';
 
 import { kyivDateIso } from '../dates';
-import type { Asset } from '../types';
+// IMPORTED, NOT MIRRORED. Both were private copies in this file, under a comment
+// claiming a test pinned them equal to `accrual.ts`'s — no such test existed —
+// and that importing would cycle. `ovdp.ts` is a leaf that imports one type, so
+// there is nothing to cycle with and nothing extra reaches the backend's
+// typecheck (D122). D119 rests on the rate and the ₴ `couponPerPayment` derives
+// from it agreeing BY CONSTRUCTION; two copies of the divisor is exactly how
+// that stops being true.
+import { OVDP_FACE_UAH, PAYMENTS_PER_YEAR } from '../ovdp';
+import { normalizeRef } from './ref';
+import type { Asset, PayoutSchedule } from '../types';
 
 /** The feed publishes bond payment amounts in integer kopecks per bond. */
 export const KOPECKS_PER_UAH = 100;
@@ -316,12 +325,152 @@ export function couponForecast(
   return { date: next.date, perUnit: next.amount, amount: positionValue(units, next.amount) };
 }
 
+/**
+ * What the provider's own schedule already says about a bond, so a person is not
+ * asked for it (D121). Every field is optional: the feed answers what it answers.
+ *
+ * These three used to be hand-typed, and they are NOT decorative —
+ * [`D120`](../../../docs/decisions/D120.md) measured how load-bearing they are:
+ * `nextCoupon` anchors the coupon grid and the payout projection, `maturity`
+ * stops the ghost accrual and raises the maturity reminder, and
+ * `payoutSchedule` is the divisor in `couponPerPayment`. Getting them from the
+ * instrument itself is the same move `D119` made for the coupon rate.
+ */
+export interface ScheduleFacts {
+  maturity?: string;
+  nextCoupon?: string;
+  payoutSchedule?: PayoutSchedule;
+  /**
+   * The annual coupon RATE, percent — `perUnitCoupon ÷ 5` on the ₴1000 nominal
+   * every measured bond repays (`docs/reference/OVDP-COUPON-STRUCTURE.md`).
+   *
+   * The same `paymentSchedule` the three above come from already carries it, and
+   * the rate is the field most expensive to get wrong: it is the multiplier in
+   * every coupon figure the asset produces, so a typo of 15.86 for 15.68
+   * mis-scales all of them with nothing to cross-check against. Filling the
+   * other three and leaving this one to be hand-typed was the odd exception.
+   */
+  couponRatePct?: number;
+}
+
+/**
+ * The most frequent value, and `undefined` when nothing repeats — a two-payment
+ * schedule of two different amounts states no recurring coupon, so it gets no
+ * rate rather than a coin flip.
+ *
+ * TIES BREAK TOWARD THE LARGER VALUE, and only among values that ALREADY
+ * repeat. An earlier version of this doc promised the tie-break for a stub and a
+ * full coupon appearing once each; the gate below discards that case before the
+ * tie-break can see it, and `parse.test.ts` pins the `undefined`. Silence is the
+ * intended answer there: one occurrence each is not evidence of a contract.
+ */
+function modeOf(values: readonly number[]): number | undefined {
+  if (values.length === 0) return undefined;
+  const counts = new Map<number, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: number | undefined;
+  let bestCount = 0;
+  for (const [value, count] of counts) {
+    if (count > bestCount || (count === bestCount && best !== undefined && value > best)) {
+      best = value;
+      bestCount = count;
+    }
+  }
+  return bestCount > 1 || counts.size === 1 ? best : undefined;
+}
+
+/**
+ * Coupon CADENCE from the gaps between payment dates.
+ *
+ * Bands, not equality: the provider's bonds pay every 182 days — 26 weeks, so the
+ * weekday holds for life — and one of the 32 measured carries a single one-day
+ * shift (183 then 181) around a moved date
+ * (`docs/reference/OVDP-COUPON-STRUCTURE.md`). Matching 182 exactly would
+ * misread that bond; the bands read it correctly.
+ *
+ * ONE DATE MEANS `maturity` — a zero-coupon bond pays once, at the end.
+ *
+ * ANYTHING OUTSIDE THE BANDS RETURNS `undefined`, deliberately. An annual bond
+ * has no member in this enum, and an irregular schedule has no cadence at all;
+ * saying nothing leaves the field to the user, while guessing would put a wrong
+ * divisor into every coupon figure the asset produces.
+ */
+function cadenceOf(dates: readonly string[]): PayoutSchedule | undefined {
+  if (dates.length === 0) return undefined;
+  if (dates.length === 1) return 'maturity';
+  const gaps = dates
+    .slice(1)
+    .map(
+      (d, i) => (Date.parse(`${d}T00:00:00Z`) - Date.parse(`${dates[i]}T00:00:00Z`)) / 86_400_000,
+    )
+    .sort((a, b) => a - b);
+  // The MEDIAN, so one shifted date cannot move the answer.
+  const gap = gaps[Math.floor(gaps.length / 2)];
+  if (gap < 45) return 'monthly';
+  if (gap < 135) return 'quarterly';
+  if (gap < 250) return 'semiannual';
+  return undefined;
+}
+
+/**
+ * Read the three schedule facts out of one feed entry, as of `fromIso`.
+ *
+ * `nextCoupon` is `nextPaymentOnOrAfter`'s date, so it inherits that function's
+ * tie-break: on a maturity date carrying both the final coupon and the principal
+ * it takes the SMALLER row, which is the coupon. The date is the same either
+ * way; the shared tie-break is what keeps this and the forecast agreeing.
+ */
+export function scheduleFacts(quote: InzhurQuote, fromIso: string): ScheduleFacts {
+  const dates = [...new Set(quote.paymentSchedule.map((p) => p.date))].sort();
+  const next = nextPaymentOnOrAfter(quote.paymentSchedule, fromIso);
+  const cadence = cadenceOf(dates);
+  // ONLY FROM A CADENCE WE READ. The rate is `perUnit × paymentsPerYear / FACE`,
+  // so it needs the divisor the cadence supplies — deriving it against an
+  // assumed 2 would be exactly the guess `cadenceOf` refuses to make. The
+  // per-unit figure is the schedule's SMALLEST payment: the maturity date
+  // carries the final coupon and the ₴1000 principal, and only one of them is a
+  // coupon.
+  const perYear = cadence === undefined ? undefined : PAYMENTS_PER_YEAR[cadence];
+  const coupons = quote.paymentSchedule.filter((p) => p.amount !== OVDP_FACE_UAH);
+  // THE RECURRING COUPON, NOT THE SMALLEST ONE. `Math.min` was wrong for a bond
+  // issued mid-period: its first coupon is a short STUB (a part-period accrual),
+  // and taking it as the rate halved every coupon figure the asset produces. The
+  // measurement behind `OVDP-COUPON-STRUCTURE.md` — "exactly one distinct coupon
+  // value per bond" — was one day's list of 32 live bonds, and a stub is exactly
+  // the shape it would not have contained. The MODE is the honest reading: the
+  // value that repeats is the contract, whatever else sits beside it.
+  const perUnit = modeOf(coupons.map((p) => p.amount));
+  // BOUNDED THE WAY THE FORM IS BOUNDED. This figure is written straight into
+  // `couponRatePct` by the picker's effect, and `optionalPercent` refuses
+  // anything outside (0, 100] — so a bond whose principal row is not exactly
+  // ₴1000 (a non-UAH nominal, or a final row that pays coupon and principal
+  // together as the only payment) derived a rate above 100 and left the field red
+  // with an error the user did not cause and no way to see why. Offering nothing
+  // is the honest answer: the schedule does not fit the ₴1000-face convention
+  // this derivation rests on.
+  // No `perYear === 0` case: `cadenceOf` returns only `maturity`, `monthly`,
+  // `quarterly` or `semiannual`, and every one of those maps to a non-zero
+  // entry. `'none'` is the single 0 in the table and this derivation can never
+  // see it — a guard for it read as if a zero-payment cadence were reachable.
+  const derived =
+    perYear === undefined || perUnit === undefined
+      ? undefined
+      : round2((perUnit * perYear * 100) / OVDP_FACE_UAH);
+  const ratePct = derived !== undefined && derived > 0 && derived <= 100 ? derived : undefined;
+  return {
+    ...(quote.maturity === undefined ? {} : { maturity: quote.maturity }),
+    ...(next === undefined ? {} : { nextCoupon: next.date }),
+    ...(cadence === undefined ? {} : { payoutSchedule: cadence }),
+    ...(ratePct === undefined ? {} : { couponRatePct: ratePct }),
+  };
+}
+
 export interface InzhurMatch {
   asset: Asset;
   quote: InzhurQuote;
   /**
    * units × sellUAH — the value the fetch offers for this row, and ABSENT when
-   * no count is known (D114): the ledger has no quantities for this asset yet
+   * no count is known (D117): the ledger has no quantities for this asset yet
    * and the link carries no legacy total. The asset still MATCHED — it is in the
    * feed — so it belongs in `linked`; there is simply nothing to offer.
    */
@@ -343,7 +492,7 @@ export interface InzhurMatch {
    * `no-position` made a real defect indistinguishable from an ordinary empty
    * day, on the one screen positioned to notice.
    */
-  noValue?: 'no-position' | 'negative';
+  noValue?: 'no-position' | 'negative' | 'no-count';
   /**
    * WHERE that count came from, and it is surfaced rather than inferred because
    * the two are not equally trustworthy. `ledger` is `Σ quantity` over the
@@ -366,11 +515,59 @@ export interface MatchedAssets {
   unmatched: Asset[];
 }
 
-// Refs are compared trimmed + lower-cased: ISINs are published upper-case but
-// may be typed either way, slugs are lower-case by convention.
+// The lookup key: the kind IS part of it, because it selects which half of the
+// feed the ref is looked for in. `sameInstrument` is the other question and
+// deliberately excludes the kind — see `ref.ts`.
 function matchKey(kind: 'fund' | 'bond', ref: string): string {
-  return `${kind}:${ref.trim().toLowerCase()}`;
+  return `${kind}:${normalizeRef(ref)}`;
 }
+
+/**
+ * Do these two links name the same instrument? THE one answer — `matchKey` is
+ * what decides whether a stored ref reaches the feed, so nothing else may hold a
+ * private copy of the comparison.
+ *
+ * KIND-SENSITIVE, unlike `sameInstrument` — this asks whether two links resolve
+ * to the same feed ENTRY, which is a question about where to look as much as
+ * what to look for. `legacyUnitsOf` asks the other question and uses the other
+ * helper; `ref.ts` carries why.
+ *
+ * The normalization itself lives in `ref.ts` so that four call sites across
+ * three layers cannot drift: strip an ISIN check digit or normalize an NBSP in
+ * one of them and the picker fills facts for an instrument the fetch will not
+ * match, or an edit deletes the only unit count an asset had.
+ */
+export function sameRef(
+  a: { kind: 'fund' | 'bond'; ref: string },
+  b: { kind: 'fund' | 'bond'; ref: string },
+): boolean {
+  return matchKey(a.kind, a.ref) === matchKey(b.kind, b.ref);
+}
+
+/**
+ * The empty units record — what a caller passes to `matchAssets` when it has no
+ * count to offer and wants the link's own legacy figure, or nothing.
+ *
+ * `Object.create(null)`, NOT `{}`, for the reason spelled out on `unitsByAsset`'s
+ * map in `derive.ts`: an asset id of `toString`, `constructor` or `valueOf` is a
+ * legal id, and a plain object answers those keys with an inherited function. A
+ * bare `{}` survives here only because `matchAssets` guards with `Object.hasOwn`
+ * — by accident rather than by the rule, which is what this constant removes.
+ *
+ * EXPORTED so there is ONE of it: two screens wanted the idiom and only one had
+ * it — `daily-quotes/suggestions.ts` declared it privately while
+ * `attributes.ts` passed a bare `{}` beside it.
+ *
+ * FROZEN, because one of it is also one point of corruption. Three call sites
+ * now hand the same object to a function whose whole job is to index a units
+ * record by asset id; a future caller that writes back into the record it was
+ * given would poison every other reader for the life of the module. The freeze
+ * and the `Readonly` type cost nothing and make the single owner actually
+ * single.
+ */
+export const NO_UNITS: Readonly<Record<string, number>> = Object.freeze(
+  Object.create(null) as Record<string, number>,
+);
 
 /**
  * Split the portfolio's Inzhur-LINKED assets against a parsed feed. Assets
@@ -424,16 +621,23 @@ export function matchAssets(
       linked.push({ asset, quote, noValue: held < 0 ? 'negative' : 'no-position' });
       continue;
     }
-    // TWO SOURCES, ONE OF WHICH IS ALWAYS PRESENT HERE: the ledger's count when
-    // it can answer, else the link's own total, which `Asset.inzhur` requires.
-    // So `held` is never undefined in this branch — the spread below keeps the
-    // shape ready for a link that carries no count, which is the asset form's
-    // change to make, not this one's.
+    // THREE STATES, NOT TWO, since D117 removed the form's Units field: the
+    // ledger knows, the legacy link total knows, or NOBODY does — a link made
+    // after that date carries no count and its asset has no quantities recorded
+    // yet. The third gets a match with no `value`, and the fetch offers nothing
+    // for that row rather than inventing a figure from a count it does not have.
+    // Valuing it at 0 would be worse than silence: 0 is a real answer, and it is
+    // the one a sold-out position gives.
     linked.push({
       asset,
       quote,
+      // `no-count` NAMES THE THIRD STATE. It used to push a match with no
+      // `value` and no reason either, so `reconcileFetched` skipped it in
+      // silence: the fetch reported success, every other row filled, and this
+      // one stayed empty forever with nothing said. Before D117 the state was
+      // unreachable — the form required units, so a link always carried a count.
       ...(held === undefined
-        ? {}
+        ? { noValue: 'no-count' as const }
         : {
             value: positionValue(held, quote.sellUAH),
             units: held,

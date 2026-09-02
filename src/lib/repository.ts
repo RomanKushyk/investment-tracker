@@ -76,6 +76,17 @@ export const repo = {
     });
   },
 
+  // THE ONLY UNVALIDATED WRITE PATH LEFT FOR A TRANSACTION, and D128's
+  // "every door is closed" table does not list it because it has no caller —
+  // `useUpdateTransaction` is exported and unused. That is load-bearing: D128
+  // argues a position-moving row cannot exist without a unit count, and this
+  // takes a bare `Partial<Transaction>` with no schema in front of it.
+  //
+  // A transaction-edit affordance is the natural first caller. When one is
+  // written, it must go through `transactionSchema` (D124) or repeat its rule —
+  // otherwise it can store a count-less moving row again, and the export guard
+  // in `useBackupDownload` becomes the only thing standing between that and an
+  // unrestorable backup.
   async updateTransaction(id: string, patch: Partial<Transaction>): Promise<void> {
     await db.transactions.update(id, patch);
   },

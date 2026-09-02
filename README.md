@@ -48,7 +48,7 @@ Shape: cards radius 20–24px; standard inputs white bg; focus ring `2px solid #
 
 **Radius rules (D56).** Two rules, and which applies depends on whether the box is nested against a parent's corner:
 - **Concentric** — when a box sits inside another at a uniform gap, `outer = inner + gap`, so the two curves stay parallel. The sidebar is the worked example: header plate 14 + its 16px inset = shell 30.
-- **A segmented control is both.** Its segment is an object (proportional); its track is a container (concentric). The gap is padding **plus any border**, because the segment's corner sits inside both — a 28px segment gives 7, so sidebar toggle `7+6` = 13 (borderless), Settings and dataset `7+4+1` = 12, asset form `7+3+1` = 11, and the price-mode toggle `4+3` = **7** — a 15px segment gives 4, which is why 7 appears here as a TRACK where the list above uses it for segments. Never give the track its own proportional value.
+- **A segmented control is both.** Its segment is an object (proportional); its track is a container (concentric). The gap is padding **plus any border**, because the segment's corner sits inside both — a 28px segment gives 7, so sidebar toggle `7+6` = 13 (borderless), Settings and dataset `7+4+1` = 12, and the price-mode toggle `4+3` = **7**, whose 15px segment gives 4 — which is why 7 appears in this app as BOTH a 28px segment and a 15px segment's track. (The asset form's own segment was `7+3+1` = 11 until D116 derived the kind from the yield type and deleted it.) Never give the track its own proportional value.
 - **Proportional** — for a standalone control not adjacent to a parent's corner, `r = round(min(w, h) × 0.26)`, keyed to the SHORT side. Measure the RENDERED height: `text-[11px]` sets a font size, not a line height, so the classes alone cannot tell you how tall a control is. Gives 3 (bars, chart-legend swatches), 5 (micro badges), 6 (tags, status badges), 7 (segments, chips), 8 (`Button` sm), 9 (inputs, nav pills, day cells, menu rows), 10 (`Button` md/header). Surfaces are NOT proportional — cards, dialogs and popovers keep the reference's own 16 / 20 / 24.
 - **Circles stay circles** — `AssetAvatar`, `ColorDot`, the logo circle, the decorative blob. One round thing among rounded rectangles reads as deliberate. Nothing else is a capsule: the `Switch` track (6) and its knob (4) follow the rule too.
 
@@ -135,7 +135,11 @@ quote draft.
 ```ts
 Asset { id, name, code /*2 letters*/, colorKey, yieldType: 'fixed_coupon'|'dividends'|'capitalization'|'div_cap',
         expectedPct, targetPct, payoutSchedule: 'maturity'|'monthly'|'quarterly'|'semiannual',
-        firstPurchase, maturity?, couponAmount?, nextCoupon?, reinvestPolicy? }
+        firstPurchase, maturity?, nextCoupon?,
+        couponRatePct?,      // D119 — the fixed annual rate; the ₴ a coupon pays is DERIVED
+        couponAmount?,       // legacy, never written: the pre-D119 whole-position ₴ figure
+        reinvestPolicy?,     // legacy, never written since D118 removed the control
+        inzhur?: { kind: 'fund'|'bond', ref, units? } }  // `units` legacy since D117
 Snapshot { date, quotes: Record<assetId, number>, cash }   // one per day, partial until saved
 Transaction { id, date, type: 'buy'|'sell'|'deposit'|'withdrawal'|'dividend_accrual'
                     |'interest_payout'|'reinvest'|'redemption'|'tax',

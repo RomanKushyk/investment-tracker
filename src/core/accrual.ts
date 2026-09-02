@@ -13,17 +13,15 @@
 // once, at creation, to kopecks — the same rule core/inzhur/parse.ts follows:
 // D13's "round at display only" governs derivations over stored data, not a
 // value that is about to be shown in an input and saved from it.
-import { addMonths, daysBetween } from './dates';
+import { addMonths, dayBefore, daysBetween } from './dates';
+import { unitsByAsset } from './derive';
 import type { Asset, PayoutSchedule, Transaction } from './types';
+// The coupon convention lives in a LEAF module — see `ovdp.ts` for why it is not
+// declared here, where it was.
+import { OVDP_FACE_UAH, PAYMENTS_PER_YEAR } from './ovdp';
 
-/** Coupon payments per year, by payout schedule (0 = the schedule pays none). */
-const PAYMENTS_PER_YEAR: Record<PayoutSchedule, number> = {
-  monthly: 12,
-  quarterly: 4,
-  semiannual: 2,
-  maturity: 1,
-  none: 0,
-};
+// Re-exported because every existing citation of these two names points here.
+export { OVDP_FACE_UAH, PAYMENTS_PER_YEAR };
 
 /** Months between two consecutive coupons; undefined = no recurring period. */
 const MONTHS_PER_PERIOD: Record<PayoutSchedule, number | undefined> = {
@@ -46,6 +44,85 @@ export interface AccrualFallback {
   expectedPct: number;
   /** Capital invested in the asset (buys + reinvests). */
   invested: number;
+}
+
+/**
+ * ₴ ONE coupon payment brings for a position of `units`.
+ *
+ *     ratePct / 100 / paymentsPerYear × FACE × units
+ *
+ * THE RATE IS THE FIXED PROPERTY, the amount is not. A bond's coupon rate is set
+ * at issuance and never moves; the ₴ it pays moves every time the holding does —
+ * which is why the stored amount this replaces went stale on every purchase, the
+ * same defect issue #31 reported for `Asset.inzhur.units`.
+ *
+ * It agrees with the provider's own schedule BY CONSTRUCTION rather than by
+ * coincidence: `ratePct / 100 × 1000 / 2 = ratePct × 5`, and `ratePct × 5` is
+ * exactly the per-unit coupon the feed publishes. So a linked bond valued from
+ * the rate and one valued from `paymentSchedule` cannot disagree.
+ *
+ * `couponAmount` is the LEGACY fallback — a whole-position ₴ figure the form used
+ * to ask for. It is returned unscaled, because it never knew how many units it
+ * was counting; the seed's two bonds are the reason it still has to work.
+ */
+export function couponPerPayment(asset: Asset, units: number | undefined): number | undefined {
+  // GATED ON THE YIELD TYPE, like `couponProjection` one screen down. Four call
+  // sites filter on it themselves — `Seasonality` after the fact, `Attributes`
+  // by sitting inside the bond branch — and a fifth that forgets would get a
+  // coupon figure for a `div_cap` asset that happens to carry a legacy
+  // `couponAmount`. The seed's REIT is one field away from being that asset.
+  if (asset.yieldType !== 'fixed_coupon') return undefined;
+
+  const perYear = PAYMENTS_PER_YEAR[asset.payoutSchedule];
+  const rate = asset.couponRatePct;
+
+  // THE LEDGER FIRST, THEN THE LINK'S LEGACY TOTAL — the same two-source rule
+  // `matchAssets` applies (`fromLedger ?? link.units`) and `couponPrefill`
+  // repeats. This function was the one consumer that read only the ledger, so a
+  // pre-D117 linked bond with `inzhur.units` but no quantities fell past a rate
+  // it HAD to the stale whole-position `couponAmount` — while the coupon card
+  // one screen over scaled the feed's per-unit figure by the very count this
+  // ignored. Two figures for one coupon is what D119 exists to end, and the
+  // count is `undefined` only when NOBODY knows (D117's third state).
+  const held = units ?? asset.inzhur?.units;
+
+  // A RATE, ONCE STATED, OWNS THE ANSWER WHENEVER THE LEDGER CAN COUNT THE
+  // POSITION — and "the position is closed" is a count, so it owns that answer
+  // too. The first cut let a closed position fall PAST the rate to the legacy
+  // amount, so a bond given a rate and then sold out reported the old
+  // whole-position ₴ figure: `/attributes` printed "₴1 240 twice a year" for a
+  // position that no longer exists, the coupon card prefilled a ₴1 240
+  // transaction, and `/overview` projected it as `estimated: false`.
+  //
+  // THE ONE CASE WHERE THE LEGACY AMOUNT STANDS ALONGSIDE A RATE is an
+  // UNCOUNTABLE ledger, and the block inside the rate branch below is where that
+  // is argued. It is not an oversight and deleting it is a regression: `rate ×
+  // units` has no answer when `units` is unknown, so suppressing the fallback
+  // there empties the coupon out of four screens at once. Read the two together
+  // — neither absolute is the whole rule.
+  // A CLOSED POSITION PAYS NO COUPON, whichever figure would have answered, and
+  // that is why this cannot live inside the rate branch below. It did, and a
+  // legacy bond — both of the seed's — fell straight past it to `couponAmount`
+  // and reported its whole stated coupon for a holding that is gone: in
+  // `/attributes`, in `/overview`'s next payouts as `estimated: false`, in both
+  // `/seasonality` axes, and prefilled into the due card. The rule is about the
+  // HOLDING, not about which source priced it.
+  if (held !== undefined && held <= 0) return undefined;
+  if (rate !== undefined && rate > 0 && perYear > 0) {
+    // UNKNOWN AND ZERO ARE DIFFERENT QUESTIONS, and collapsing them broke a real
+    // case each way.
+    //
+    // `undefined` — the ledger cannot count this asset at all, so the RATE
+    // cannot answer either. The legacy amount still can, and it is the only
+    // figure the asset has: suppressing it here emptied the coupon out of
+    // `/attributes`, the due card, the ghost accrual and the projection at once,
+    // for exactly the pre-#31 bonds the fallback exists to protect.
+    //
+    // `<= 0` is handled ABOVE, for every source rather than only this one.
+    if (held === undefined) return asset.couponAmount;
+    return round2(((rate / 100) * OVDP_FACE_UAH * held) / perYear);
+  }
+  return asset.couponAmount;
 }
 
 /**
@@ -129,13 +206,48 @@ export function couponPeriodDays(dates: string[], onIso: string): number | undef
  */
 export function couponsInGap(
   asset: Asset,
+  /**
+   * ₴ one coupon pays ON ITS OWN DATE — a function, not a number.
+   *
+   * A NUMBER WAS WRONG AS SOON AS THE FIGURE STARTED SCALING (D119). The caller
+   * derives it from the units held on the DRAFTED date, and this function then
+   * multiplied it by every coupon that landed earlier in the gap — coupons the
+   * position was a different size for. Hold 10 units through a coupon on 25.08,
+   * buy 10 more on 30.08, draft 31.08: the gap subtracted 20 units' worth of a
+   * payment that paid on 10, understating the ghost by half a coupon at exactly
+   * the boundary the user is looking at. One figure cannot answer for two dates.
+   *
+   * A PARAMETER, and required, because this function used to read
+   * `asset.couponAmount` itself. Once D119 made the divisor
+   * `couponPerPayment(asset, units)`, the ghost climbed toward one number and
+   * subtracted another: on a rate-only bond the gap returned 0 and the ghost
+   * carried a whole coupon it should have dropped; on a seed bond given a rate
+   * it climbed toward ₴7 840 while the gap subtracted ₴1 240. The comment at
+   * the call site already named the invariant — "if the accrual rate and the
+   * gap count ever disagreed about when a coupon lands, the ghost would drift
+   * by a whole coupon" — and reading the amount from two places is how they
+   * disagreed about WHAT one lands. The caller now hands over a RESOLVER rather
+   * than a number, so the two can still never differ about which coupon — only
+   * about its size, which is the one thing that legitimately varies by date.
+   */
+  perCouponAt: (couponDate: string) => number | undefined,
   fromExclusive: string,
   toInclusive: string,
   schedule?: readonly string[],
 ): number {
-  const amount = asset.couponAmount;
   const anchor = asset.nextCoupon;
-  if (amount === undefined || amount <= 0 || !anchor) return 0;
+  if (!anchor) return 0;
+  // NO PAIRING GUARD HERE, AND THAT IS DELIBERATE. The rule it enforced is real
+  // — if `dailyAccrual` has no coupon figure to climb toward, the gap must
+  // subtract none — but this function cannot ask the question. It sees a
+  // resolver keyed by DATE; the daily rate was built from the drafted date's
+  // holding, which the caller holds and this does not. A first cut asked
+  // `perCouponAt(toInclusive)` and got a different answer on the same day: the
+  // caller counts units INCLUSIVE of the drafted date, the resolver counts them
+  // as of the day before, so a position closed and re-opened on that date
+  // suppressed the whole gap while the accrual climbed normally.
+  //
+  // The guard lives in `accrualSuggestion`, where both figures are in hand.
 
   // The provider's own dates beat any grid derived from them. The real bonds
   // pay every 182 days and always on a Wednesday, which no month arithmetic
@@ -145,13 +257,14 @@ export function couponsInGap(
   // one of them is a coupon.
   if (schedule !== undefined && schedule.length > 0) {
     const dates = [...new Set(schedule)];
-    const count = dates.filter((d) => d > fromExclusive && d <= toInclusive).length;
-    return count * amount;
+    return dates
+      .filter((d) => d > fromExclusive && d <= toInclusive)
+      .reduce((sum, d) => sum + (perCouponAt(d) ?? 0), 0);
   }
 
   const months = MONTHS_PER_PERIOD[asset.payoutSchedule];
   if (months === undefined) {
-    return anchor > fromExclusive && anchor <= toInclusive ? amount : 0;
+    return anchor > fromExclusive && anchor <= toInclusive ? (perCouponAt(anchor) ?? 0) : 0;
   }
 
   // EVERY grid date is computed FROM THE ANCHOR (`anchor + k periods`), never by
@@ -167,13 +280,13 @@ export function couponsInGap(
   // can never span a full period, so no counted date sits before this index.
   const startIndex = Math.floor(monthsToGap / months) - 1;
 
-  let count = 0;
+  let total = 0;
   for (let i = 0; i < MAX_GRID_STEPS; i++) {
     const date = addMonths(anchor, (startIndex + i) * months);
     if (date > toInclusive) break;
-    if (date > fromExclusive) count++;
+    if (date > fromExclusive) total += perCouponAt(date) ?? 0;
   }
-  return count * amount;
+  return total;
 }
 
 export interface QuoteSuggestionInput {
@@ -238,7 +351,7 @@ export function couponRecorded(
 export interface CouponOccurrence {
   /** The occurrence's scheduled date, on the asset's own coupon grid. */
   date: string;
-  /** The asset's stated `couponAmount`, when it has one. */
+  /** What one payment pays — `couponPerPayment`, i.e. the rate scaled by the units held (D119), or the legacy stated `couponAmount` when the asset has no rate. */
   amount: number | undefined;
 }
 
@@ -267,11 +380,19 @@ export interface CouponWalkOptions {
  * ("the NEXT coupon date suggests normally"). Nothing here writes: the pointer
  * is still rolled only by the user's Confirm press (G5).
  */
-export function nextUnsettledCoupon(
+/**
+ * The DATE of the next unsettled occurrence — the walk without the amount.
+ *
+ * SPLIT OUT because `scheduledCouponMonths` needs only the date and was paying
+ * for a `unitsByAsset` walk of the whole ledger per asset, per render, to build
+ * a figure it threw away. That is the shape the `perCouponAt` parameter was added
+ * to `couponsInGap` to end, arriving one function over.
+ */
+export function nextUnsettledCouponDate(
   asset: Asset,
   transactions: Transaction[],
   opts: CouponWalkOptions = {},
-): CouponOccurrence | undefined {
+): string | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   let date = asset.nextCoupon;
   if (!date) return undefined;
@@ -283,7 +404,7 @@ export function nextUnsettledCoupon(
     const settled =
       couponRecorded(transactions, asset.id, date, windowDays) ||
       dismissed.includes(couponReminderId(asset.id, date));
-    if (!settled) return { date, amount: asset.couponAmount };
+    if (!settled) return date;
     // Same stepper the confirm writes with, so the walk can never land on a date
     // the roll would not produce (and it stops at maturity rather than past it).
     const roll = rollNextCoupon(asset, date);
@@ -293,13 +414,36 @@ export function nextUnsettledCoupon(
   return undefined;
 }
 
+export function nextUnsettledCoupon(
+  asset: Asset,
+  transactions: Transaction[],
+  opts: CouponWalkOptions = {},
+): CouponOccurrence | undefined {
+  // ONE WALK, shared with the date-only caller above — the amount is what this
+  // function adds, not a second traversal of the same grid.
+  const date = nextUnsettledCouponDate(asset, transactions, opts);
+  if (date === undefined) return undefined;
+  // UNITS AS OF THE DAY THE COUPON DATE OPENED, not today's — the holding on the
+  // payment date is what determines what that payment brings, and this amount
+  // prefills a transaction (D119).
+  //
+  // `dayBefore`, and it must be the SAME bound `DailyQuotes` computes
+  // `unitsOnCouponDate` with — that comment carries the reasoning and the
+  // maturity/redemption tie it turns on. This site had the inclusive bound and
+  // lost the one coupon whose amount is known exactly, in the card title and in
+  // `couponPrefill`'s last resort. Two bounds for one quantity is the divergence
+  // `couponsInGap` was fixed for.
+  const held = unitsByAsset(transactions, dayBefore(date))[asset.id];
+  return { date, amount: couponPerPayment(asset, held) };
+}
+
 export interface DueCoupon {
   assetId: string;
   /** The scheduled date that has arrived (the next unsettled occurrence). */
   date: string;
   /** 0 = due today; > 0 = overdue by that many days (S5's warn date pill). */
   overdueDays: number;
-  /** The asset's stated `couponAmount`, when it has one. */
+  /** What one payment pays — `couponPerPayment` (D119), legacy amount as fallback. */
   amount: number | undefined;
 }
 
@@ -389,14 +533,36 @@ export interface CouponProjection {
  * carries both attributes on both bonds, which is why the gap was invisible —
  * and why every D5-pinned figure is unchanged by this fallback.
  */
-export function couponProjection(asset: Asset, invested: number): CouponProjection | undefined {
+export function couponProjection(
+  asset: Asset,
+  invested: number,
+  /**
+   * Units held on the projected date, or `undefined` when the ledger cannot say.
+   * REQUIRED rather than optional, for the reason `NO_UNITS` gives in
+   * `daily-quotes/suggestions.ts`: while it defaulted, a caller that forgot it
+   * got the pre-#31 whole-position figure for free AND skipped the closed-
+   * position guard below — the buggy path was the cheap one. Explicit
+   * `undefined` is a real answer ("nobody knows"); an omitted argument is not.
+   */
+  units: number | undefined,
+): CouponProjection | undefined {
   if (asset.yieldType !== 'fixed_coupon') return undefined;
   const date = asset.nextCoupon || asset.maturity;
   if (!date) return undefined;
 
-  if (asset.couponAmount !== undefined && asset.couponAmount > 0) {
-    return { amount: asset.couponAmount, date, estimated: false };
-  }
+  // The rate scaled by the ledger's units, or the legacy stated amount — either
+  // is a STATED coupon, so neither is `estimated`. Only the expectedPct share
+  // below is (D119).
+  // A CLOSED POSITION PROJECTS NOTHING, and this has to be asked BEFORE the
+  // estimate. `couponPerPayment` returns `undefined` for two different reasons —
+  // "no stated figure at all" and "the position is closed" — and only the first
+  // may fall through to `expectedPct`. It did fall through for both, and the
+  // estimate cannot catch it: `investedByAsset` sums `buy`/`reinvest` and is
+  // never reduced by a `sell`, so `invested` stays positive forever and a
+  // sold-out bond kept projecting a coupon, relabelled `estimated: true`.
+  if (units !== undefined && units <= 0) return undefined;
+  const stated = couponPerPayment(asset, units);
+  if (stated !== undefined && stated > 0) return { amount: stated, date, estimated: false };
 
   const perYear = PAYMENTS_PER_YEAR[asset.payoutSchedule];
   if (perYear === 0 || asset.expectedPct <= 0 || invested <= 0) return undefined;
@@ -442,8 +608,10 @@ const MONTHS_IN_YEAR = 12;
  */
 export function scheduledCouponMonths(asset: Asset, transactions: Transaction[]): number[] {
   if (asset.yieldType !== 'fixed_coupon') return [];
-  const open = nextUnsettledCoupon(asset, transactions);
-  const anchor = open?.date ?? (asset.nextCoupon === undefined ? asset.maturity : undefined);
+  // The DATE-ONLY walk: this function never reads the amount, and asking for
+  // one cost a full ledger traversal per asset per render.
+  const open = nextUnsettledCouponDate(asset, transactions);
+  const anchor = open ?? (asset.nextCoupon === undefined ? asset.maturity : undefined);
   if (anchor === undefined) return [];
 
   let date = anchor;

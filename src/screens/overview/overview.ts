@@ -12,6 +12,7 @@ import {
   headlineTotalAsOf,
   portfolioXirr,
   investedByAsset,
+  unitsByAsset,
   latestCash,
   ledgerCashDrift,
   netDeposits,
@@ -313,10 +314,11 @@ export function nextPayoutRows(
 ): PayoutRow[] {
   const rows: PayoutRow[] = [];
   const invested = investedByAsset(transactions);
+  const units = unitsByAsset(transactions);
 
   for (const asset of assets) {
     if (asset.yieldType === 'fixed_coupon') {
-      const coupon = couponProjection(asset, invested[asset.id] ?? 0);
+      const coupon = couponProjection(asset, invested[asset.id] ?? 0, units[asset.id]);
       if (coupon === undefined) continue;
       const date = rollCouponTo(asset, coupon.date, onIso);
       if (date === undefined) continue; // matured before the reference date

@@ -1,12 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { Controller, useForm, useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
 
 import { COLOR_KEYS } from '../../core/colors';
 import { kyivDateIso } from '../../core/dates';
 import { assetFormSchema, type AssetFormInput, type AssetFormValues } from '../../core/schemas';
+import { sameRef, scheduleFacts } from '../../core/inzhur/parse';
+import { normalizeRef } from '../../core/inzhur/ref';
 import type { Asset, ColorKey } from '../../core/types';
 import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
@@ -69,65 +71,7 @@ function inputClass(invalid: boolean): string {
   }`;
 }
 
-// Fund/Bond segmented control — FILLED like every other one (D114): track
-// `ink`, `card` sliding chip, no thumb shadow. The sliding-thumb mechanics are
-// still the currency toggle's, but not its surface — the rail keeps the old
-// orientation and this does not.
-// (D7: transform 300ms soft; both labels are 4 mono chars, so 50% works).
-function KindSegment({
-  value,
-  onChange,
-}: {
-  value: 'fund' | 'bond' | undefined;
-  onChange: (kind: 'fund' | 'bond') => void;
-}) {
-  const t = useT();
-  const segment = (kind: 'fund' | 'bond', label: string) => (
-    <button
-      type="button"
-      aria-pressed={value === kind}
-      // Only on an actual change — see `PriceModeSegment`.
-      onClick={() => {
-        if (value !== kind) onChange(kind);
-      }}
-      className={`relative z-10 cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition active:scale-[.97] ${
-        value === kind ? 'text-ink' : 'text-page hover:opacity-85'
-      }`}
-    >
-      {label}
-    </button>
-  );
-  /* A GRID for the same reason the dataset switch needed one: a flex track
-  shrink-wraps and the chip is a fixed `calc(50% − 5px)`, so it lands only
-  while both labels are the same width. `Fund`/`Bond` and «Фонд»/«ОВДП»
-  all happen to be four characters — one relabel or one new locale and the
-  chip drifts, now at 14:1 where it used to hide at 1.09:1. */
-  return (
-    <div
-      data-filled-track
-      className="relative grid grid-cols-2 gap-1 rounded-[11px] border border-ink bg-ink p-[3px]"
-    >
-      <div
-        aria-hidden
-        data-owns-motion
-        // HIDDEN WHEN NOTHING IS CHOSEN, because the position is a binary and
-        // `undefined` is not one of its two states: the ternary below sends it
-        // to the Bond slot, so the chip claimed a selection that `aria-pressed`
-        // denied on both segments — and the idle `text-page` label then sat on
-        // the white chip at ~1.05:1 in light. Reachable while `Reveal` keeps the
-        // group mounted for its 300ms exit after the Inzhur link is switched off.
-        className={`absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-5px)] rounded-[7px] bg-card transition-transform duration-300 ease-soft ${
-          value === undefined ? 'opacity-0' : ''
-        }`}
-        style={{ transform: value === 'bond' ? 'translateX(calc(100% + 4px))' : 'translateX(0)' }}
-      />
-      {segment('fund', t.asset.picker.fund)}
-      {segment('bond', t.asset.picker.bond)}
-    </div>
-  );
-}
-
-// The Inzhur link group — Units (units-first framing, S3) + Kind + the ref
+// The Inzhur link group — Units (units-first framing, S3) + the ref
 // field, which in Phase 3 became a LIVE PICKER of the public feed
 // (automation.dc.html S7). Own `useFormState`/`useWatch` subscriptions for the
 // same reason AssetFormFields holds its own (the form arrives via props).
@@ -147,13 +91,210 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
   const f = useFormat();
   const { errors } = useFormState({ control: form.control });
   const inzhur = useWatch({ control: form.control, name: 'inzhur' });
-  const kind = inzhur?.kind ?? 'fund';
+  // KIND IS DERIVED, NOT ASKED (owner, 2026-08-31). It was a segmented control
+  // beside the ref picker, and it never had an answer of its own: an Inzhur bond
+  // is an OVDP, which is `fixed_coupon`, and everything else the provider lists
+  // is a fund. The segment could therefore only ever agree with the yield type
+  // or contradict it — and contradicting it produced a picker listing the wrong
+  // instruments with no way to tell why. Turning the link on now adds ONE
+  // control, the ref picker.
+  const yieldType = useWatch({ control: form.control, name: 'yieldType' });
+  const kind: 'fund' | 'bond' = yieldType === 'fixed_coupon' ? 'bond' : 'fund';
   const { data, lastGood, isFetching, isError, disabled, fetchAssets } = useInzhurAssets();
+  // ONE NAME FOR ONE FEED. It was bound twice under two names, which is the same
+  // divergence `couponsInGap`'s `perCouponAt` and `legacyUnitsOf`'s "one lookup,
+  // one answer" were introduced to stop: a later change to the fallback rule
+  // would update one and leave the picker reading a different payload from the
+  // one filling maturity, next coupon and the rate.
+  const feed = data ?? lastGood;
   const [manual, setManual] = useState(false);
+
+  // The derived kind still has to REACH the form, because `inzhur.kind` is what
+  // is submitted and what `matchAssets` keys on. And the ref goes with it: a
+  // fund slug is not an ISIN, so a yield type changed while linked leaves a ref
+  // that can only fail to match — silently, as an unmatched asset at the next
+  // fetch. Clearing is the honest outcome; the picker reopens on the right list.
+  //
+  // ON MOUNT IT TOUCHES NOTHING, and a disagreement inherited from stored data
+  // is not this effect's to settle. The old form let `kind` and `yieldType`
+  // disagree — the segment was a free choice — so a stored asset can legitimately
+  // open with `div_cap` + `kind: 'bond'`. Clearing on mount wiped that asset's ref
+  // before the user touched anything, left the picker blank and the form invalid,
+  // and re-picking then made `legacyUnitsOf` see a changed ref and DELETE the only
+  // unit count the asset had. One save, no user intent, two losses.
+  //
+  // IT KEYS ON THE DERIVED KIND CHANGING. Two other questions were tried and both
+  // were unanswerable, in opposite directions — recorded so neither comes back:
+  //
+  //   "Is this the first run", via a `settled` ref: a ref is not reset between
+  //   StrictMode's two effect passes on one fiber, so the second read `true` and
+  //   cleared on mount. `src/main.tsx` mounts in StrictMode, so this was `pnpm
+  //   dev` — where the navigation-map walk-throughs run.
+  //
+  //   "Is the yield type dirty", via `dirtyFields.yieldType`: react-hook-form
+  //   diffs against `defaultValues` and UNSETS the entry when a field returns to
+  //   its default, so `fixed_coupon` → `dividends` → `fixed_coupon` loses the
+  //   flag. The effect then bails with `inzhur.kind` still `'fund'` while the
+  //   picker, reading the DERIVED kind, lists ISINs — and picking one stores a
+  //   pair `matchKey` can never match: silently unlinked, with no error.
+  //
+  // A ref holding the PREVIOUS KIND has neither hole: idempotent, so StrictMode's
+  // second pass sees equality; and a comparison against the last value rather
+  // than a default, so a round trip counts as two changes. Keyed on the KIND, not
+  // the yield type — `dividends` and `div_cap` both derive `fund`, and a fund slug
+  // stays valid across that.
+  const prevKind = useRef(kind);
+  useEffect(() => {
+    const changed = prevKind.current !== kind;
+    // Recorded before every early return: a bail that skipped the assignment
+    // would compare the NEXT change against a stale kind and miss it.
+    prevKind.current = kind;
+    if (!changed) return;
+    if (inzhur === undefined) return;
+    // NO `inzhur.kind === kind` SHORTCUT. It looks like a cheap no-op guard and
+    // it defeats the clearing: a stored `{kind:'bond', ref:'inzhur-reit'}` under
+    // `yieldType: 'dividends'` — reachable on `dev`, where the segment was free —
+    // derives `fund` on mount, and switching to Fixed coupon then makes the
+    // derived kind `bond`, which the STORED kind already says. The guard returned
+    // and left a fund slug under `kind: 'bond'`, a pair `matchKey` can never
+    // resolve. What changed is the KIND, and a ref belongs to the kind it was
+    // picked under; whether the stored field happens to agree says nothing about
+    // the ref.
+    form.setValue('inzhur.kind', kind);
+    form.setValue('inzhur.ref', '');
+    form.clearErrors('inzhur.ref');
+  }, [kind, inzhur, form]);
+
+  // THE PROVIDER ALREADY KNOWS THREE OF THE FIELDS ABOVE (D121): a bond's
+  // maturity, its next coupon date and its cadence are all in `paymentSchedule`,
+  // and the picker has been showing "matures 24.03.2027" as a hint while writing
+  // it nowhere. Naming an instrument fills them.
+  //
+  // OVERWRITING IS CORRECT HERE, unlike a quote fetch (G5). These are facts about
+  // the instrument the user JUST NAMED — a maturity left over from the previously
+  // picked bond is not a value worth protecting, it is the stale ref problem D116
+  // solved one field over. What the feed cannot answer is left alone: an unknown
+  // cadence writes nothing rather than guessing a divisor into every coupon.
+  //
+  // Keyed on the ref we last applied, so this fires once per instrument rather
+  // than on every render — and clearing the ref re-arms it, so re-picking the
+  // same bond fills again.
+  //
+  // SEEDED WITH THE REF THE FORM OPENED ON, so mount fills nothing. Starting at
+  // `undefined` meant opening Edit on an already-linked bond — to fix its NAME —
+  // rewrote its stored maturity and next coupon from the cache and Save
+  // persisted them. The comment below justifies overwriting as "facts about the
+  // instrument the user JUST NAMED"; on mount the user named nothing, and D120's
+  // own rule is that a derivation is never written where nothing can mark it
+  // stale. It fills when the ref CHANGES, which is the act it was written for.
+  //
+  // NORMALIZED on both sides, so the canonicalisation below is not mistaken for
+  // a naming act: rewriting `ua4000238976` to the feed's `UA4000238976` changes
+  // the string and nothing else, and an exact comparison would read that as the
+  // user picking a new instrument and refill the whole group from the feed.
+  const pickedRef = useRef<string | undefined>(undefined);
+  const appliedRef = useRef<string | undefined>(
+    normalizeRef(form.getValues('inzhur')?.ref ?? '') || undefined,
+  );
+
+  // THE STORED REF TAKES THE PROVIDER'S SPELLING once the feed can supply it.
+  //
+  // It has to, and the reason is the picker's own control: `RadixSelect.Value`
+  // matches the root value against each item's value as an EXACT string, so a
+  // stored `ua4000238976` against a published `UA4000238976` rendered the
+  // PLACEHOLDER — a linked asset reading as unlinked. `inzhurRefOptions` used to
+  // paper over that by appending a synthetic row for any ref not exactly present,
+  // which showed one bond twice; comparing with `sameInstrument` removed the
+  // duplicate and exposed the placeholder underneath it. Canonicalising fixes
+  // both: one row, and it is selected.
+  //
+  // `shouldDirty: false` — the provider's casing is not the user's edit, and an
+  // asset opened and closed untouched must not come out dirty.
+  useEffect(() => {
+    const ref = inzhur?.ref?.trim() ?? '';
+    if (ref === '' || feed === undefined) return;
+    // `sameRef`, the SAME spelling the schedule fill uses one effect down — the
+    // question is identical and `ref.ts` exists because every private copy of it
+    // has been a bug.
+    const entry = feed.feed.entries.find((e) => sameRef(e, { kind, ref }));
+    if (entry === undefined || entry.ref === ref) return;
+    form.setValue('inzhur.ref', entry.ref, { shouldDirty: false });
+  }, [inzhur?.ref, kind, feed, form]);
+
+  useEffect(() => {
+    const ref = inzhur?.ref?.trim() ?? '';
+    if (ref === '') {
+      appliedRef.current = undefined;
+      return;
+    }
+    const key = normalizeRef(ref);
+    if (appliedRef.current === key) return;
+    // MARKED APPLIED THE MOMENT THE REF CHANGES, whether or not anything could be
+    // filled from it — otherwise the fill fires on the FEED ARRIVING rather than
+    // on the user naming an instrument. Offline, the picker fails over to the
+    // manual input; the user types an ISIN and hand-fills maturity, next coupon
+    // and rate; pressing "pick from the list" calls `ensureFeed()`, the fetch
+    // succeeds, and this effect — which had returned at `feed === undefined`
+    // without recording anything — replaced all three, clearing whatever the feed
+    // could not answer. Its own justification is "facts about the instrument the
+    // user JUST NAMED", and a network success is not a naming act.
+    //
+    // THE COST, stated: a ref typed while no feed is in hand never auto-fills,
+    // not even later. That is the safer direction — it loses a convenience,
+    // where the other loses hand-typed data — and re-picking from the list is
+    // one press away once the feed is up.
+    appliedRef.current = key;
+    if (kind !== 'bond' || feed === undefined) return;
+    // ONLY WHAT THE PICKER NAMED. A ref typed by hand never fills — see
+    // `nameRef` for why — and that is the same trade the feed rule above makes:
+    // it loses a convenience rather than hand-entered data.
+    if (pickedRef.current !== key) return;
+    // `sameRef`, the one owner of "do these two names mean the same instrument".
+    const quote = feed.feed.entries.find((e) => sameRef(e, { kind: 'bond', ref }));
+    if (quote === undefined) return;
+    // KYIV'S CALENDAR DAY, not the browser's. Every date in `paymentSchedule`
+    // came through `feedDate`, which normalises to Kyiv midnight — and
+    // `nextPaymentOnOrAfter` compares them as STRINGS against this one. A user
+    // east of Kyiv on a payment day (or west the day before) would hand it a
+    // date one off the schedule's own calendar, so `nextCoupon` would be filled
+    // with the wrong occurrence: today's coupon skipped for one 182 days out, or
+    // one already paid written in as the anchor. That anchor is what
+    // `nextUnsettledCoupon`, `dueCoupons`, `computeReminders`, `couponsInGap`
+    // and `couponProjection` all walk from.
+    const facts = scheduleFacts(quote, kyivDateIso(new Date()));
+    // WRITTEN OR CLEARED, never left. "Leave alone what the feed cannot answer"
+    // is D121's rule and it is right for a FIRST fill; on a RE-POINT it keeps
+    // the PREVIOUS instrument's answer, which is a different mistake wearing the
+    // same clothes. `scheduleFacts` returns no `nextCoupon` for a bond whose
+    // schedule is entirely spent, and D19 keeps completed bonds in the picker —
+    // so naming A and then B stored B's maturity and rate with A's coupon
+    // anchor, the date `nextUnsettledCoupon`, `dueCoupons`, `computeReminders`,
+    // `couponsInGap` and `couponProjection` all walk from. D121's own words
+    // apply verbatim: a value left over from the previously picked bond is not
+    // worth protecting.
+    form.setValue('maturity', facts.maturity ?? '');
+    form.setValue('nextCoupon', facts.nextCoupon ?? '');
+    form.setValue(
+      'couponRatePct',
+      facts.couponRatePct === undefined ? '' : f.input(facts.couponRatePct),
+    );
+    // `payoutSchedule` HAS NO EMPTY MEMBER, so "clear it" means choosing what a
+    // fresh form would hold — `semiannual`, the measured cadence of all 32 bonds
+    // the provider lists (D121).
+    //
+    // An earlier version left it alone, reasoning that writing a cadence the
+    // feed could not read is the guess D121 refuses. But on a RE-POINT the
+    // alternative is not silence: it is keeping bond A's cadence on bond B. Both
+    // are guesses, and the population default is the better-founded one — it is
+    // what the same field would hold had the user opened the form fresh and
+    // picked B first. `payoutSchedule` is the divisor in `couponPerPayment` and
+    // the step in `rollNextCoupon`, so carrying A's answer across walks B's
+    // coupons onto dates it never pays on.
+    form.setValue('payoutSchedule', facts.payoutSchedule ?? 'semiannual');
+  }, [inzhur?.ref, kind, feed, form, f]);
 
   // The cache feeds the list whenever a live payload is not in hand — the
   // footer then states its date rather than pretending the prices are today's.
-  const feed = data ?? lastGood;
   const stale = data === undefined && lastGood !== undefined;
   const options =
     feed === undefined ? [] : inzhurRefOptions(feed.feed.entries, kind, inzhur?.ref ?? '', f, t);
@@ -180,36 +321,12 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
 
   return (
     <>
-      {/* Units-first framing (S3): while linked, quantity is the input —
-          value is derived — so Units leads, emphasized (h 44, display
-          font 15/600). */}
-      <Field label={t.asset.field.units} error={!!errors.inzhur?.units && MSG.units}>
-        <input
-          className={`h-11 rounded-[11px] border px-3 font-display text-[15px] font-semibold ${
-            errors.inzhur?.units ? 'border-neg' : 'border-hairline hover:border-faint'
-          } bg-page text-ink transition`}
-          placeholder={t.asset.placeholder.units}
-          inputMode="decimal"
-          {...form.register('inzhur.units')}
-        />
-      </Field>
-      <div className="grid grid-cols-[auto_1fr] items-end gap-2.5">
-        <div className="flex flex-col gap-1 text-[11px] text-muted">
-          {t.asset.field.kind}
-          {/* NO `?? 'fund'` FALLBACK ON THE VALUE BELOW, and its absence is the
-              point. It painted Fund as pressed while the field held nothing —
-              and once the segment only emits on a real CHANGE, pressing the
-              segment that already looked pressed became a no-op, so the one
-              press that would have repaired the empty field did nothing. What
-              the control shows and what it can write have to be the same value.
-              Both writers set `kind`, so this was a latent trap rather than a
-              live bug; it goes because it can only ever lie. */}
-          <Controller
-            control={form.control}
-            name="inzhur.kind"
-            render={({ field }) => <KindSegment value={field.value} onChange={field.onChange} />}
-          />
-        </div>
+      {/* The kind segment stood here. It is derived now — see `kind` above —
+          so the ref field takes the whole row rather than 1fr of it. */}
+      {/* A one-cell grid since D116 took the segment out: `items-end` and the
+          gap have nothing left to act on, and the row is kept only so the note
+          below stays outside the field. */}
+      <div>
         <Field
           label={
             showManual
@@ -222,23 +339,49 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
           }
           error={!!errors.inzhur?.ref && (kind === 'bond' ? MSG.refBond : MSG.refFund)}
         >
+          {/* NAMING A REF WRITES THE KIND WITH IT, in BOTH branches, and it has to:
+              the list and the placeholder are built from the DERIVED kind, so a ref
+              entered against either belongs to that kind by construction.
+
+              Without this the effect above is the only writer of `inzhur.kind`, and
+              it deliberately does nothing on mount — so a `dev`-era asset carrying
+              the retired free-choice segment's disagreement (`fixed_coupon` +
+              `kind: 'fund'`) opened on a list of ISINs, and picking one saved
+              `{kind:'fund', ref:'UA4000238976'}`: a pair `matchKey` can never match,
+              silently unmatched at every fetch, and with the segment gone no control
+              on the form could correct it. Reconciling on MOUNT is the other way to
+              close it and is the wrong one — that is what deletes a legacy unit
+              count nobody asked to lose. */}
           <Controller
             control={form.control}
             name="inzhur.ref"
-            render={({ field }) =>
-              showManual ? (
+            render={({ field }) => {
+              const nameRef = (v: string, picked: boolean) => {
+                form.setValue('inzhur.kind', kind);
+                // NAMING IS A PICK, NOT A KEYSTROKE. The schedule fill treats a
+                // changed ref as "the user just named this instrument", and in
+                // the manual input that fires on every character: type an ISIN,
+                // hand-correct `nextCoupon`, then fix a typo in the ISIN — the
+                // delete and the re-type are two ref changes, and the second
+                // rewrote maturity, next coupon, rate and cadence from the feed,
+                // discarding the hand-entered anchor. A pick happens once and
+                // means one thing.
+                if (picked) pickedRef.current = normalizeRef(v);
+                field.onChange(v);
+              };
+              return showManual ? (
                 <input
                   className={inputClass(!!errors.inzhur?.ref)}
                   aria-invalid={!!errors.inzhur?.ref || undefined}
                   placeholder={kind === 'bond' ? 'UA4000238976' : 'inzhur-reit'}
                   value={field.value ?? ''}
-                  onChange={field.onChange}
+                  onChange={(e) => nameRef(e.target.value, false)}
                   onBlur={field.onBlur}
                 />
               ) : (
                 <Select
                   value={field.value ?? ''}
-                  onValueChange={field.onChange}
+                  onValueChange={(v) => nameRef(v, true)}
                   options={options}
                   placeholder={PICK.placeholder}
                   bg="page"
@@ -246,13 +389,15 @@ function InzhurGroup({ form }: { form: AssetFormHandle }) {
                   status={status}
                   scrollList
                 />
-              )
-            }
+              );
+            }}
           />
         </Field>
       </div>
-      {/* Note under the row, not inside the field: the Kind segment and the ref
-          control stay bottom-aligned exactly as P2 pinned them. */}
+      {/* Note UNDER the row rather than inside the field, which is what keeps
+          the ref control on the baseline P2 pinned. The pairing that made this
+          matter — a Kind segment beside it — is gone since D116, but the note
+          would still push the field up if it moved inside. */}
       {note !== undefined && (
         <p className="m-0 animate-in text-[11px] text-muted duration-200 fade-in">{note}</p>
       )}
@@ -346,10 +491,9 @@ export function AssetFormFields({
               // the user cannot see (what-you-see-is-what-you-save).
               if (v !== 'fixed_coupon') {
                 form.setValue('maturity', '');
-                form.setValue('couponAmount', '');
+                form.setValue('couponRatePct', '');
                 form.setValue('nextCoupon', '');
-                form.setValue('reinvestPolicy', '');
-                form.clearErrors(['maturity', 'couponAmount', 'nextCoupon', 'reinvestPolicy']);
+                form.clearErrors(['maturity', 'couponRatePct', 'nextCoupon']);
               }
             }}
             options={yieldTypeOptions(t)}
@@ -494,24 +638,24 @@ export function AssetFormFields({
             />
           </Field>
         </div>
+        {/* ONE CHILD IN A TWO-COLUMN GRID, and that is the intended half width —
+            D118 removed the Reinvest policy that used to sit in the second cell.
+            It keeps the column the two date fields above establish; a rate reading
+            "15,68" in a full-row box is a wide field for a short number, and it
+            would be the only full-row numeric input on the screen. The sibling
+            leftover in `InzhurGroup` was collapsed to a plain `<div>` instead
+            because the ISIN it holds is long enough to want the whole row. */}
         <div className="grid grid-cols-2 gap-2.5">
           <Field
-            label={t.asset.field.couponAmount}
-            error={!!errors.couponAmount && MSG.couponAmount}
+            label={t.asset.field.couponRatePct}
+            error={!!errors.couponRatePct && MSG.couponRatePct}
           >
             <input
-              className={inputClass(!!errors.couponAmount)}
-              aria-invalid={!!errors.couponAmount || undefined}
-              placeholder={t.asset.placeholder.couponAmount}
+              className={inputClass(!!errors.couponRatePct)}
+              aria-invalid={!!errors.couponRatePct || undefined}
+              placeholder={t.asset.placeholder.couponRatePct}
               inputMode="decimal"
-              {...form.register('couponAmount')}
-            />
-          </Field>
-          <Field label={t.asset.field.reinvestPolicy}>
-            <input
-              className={inputClass(false)}
-              placeholder={t.asset.placeholder.reinvestPolicy}
-              {...form.register('reinvestPolicy')}
+              {...form.register('couponRatePct')}
             />
           </Field>
         </div>
@@ -526,7 +670,7 @@ export function AssetFormFields({
             onCheckedChange={(on) => {
               if (on) {
                 // Smart default: bonds link by ISIN, everything else by slug.
-                form.setValue('inzhur', { kind: isBond ? 'bond' : 'fund', ref: '', units: '' });
+                form.setValue('inzhur', { kind: isBond ? 'bond' : 'fund', ref: '' });
               } else {
                 form.setValue('inzhur', undefined);
                 form.clearErrors('inzhur');
@@ -564,13 +708,26 @@ export function AssetForm({
   const MSG = t.asset.message;
   const f = useFormat();
   const language = useSettings((state) => state.language);
-  // Once per language, not once per render — see `TransactionPanel`.
+  // Built once per mode AND LANGUAGE, not once per render: a bare call rebuilds
+  // the whole zod tree and a resolver closure on every render of a form that
+  // re-renders on each field change.
+  //
+  // THE LANGUAGE ARGUMENT REACHES THE PERCENT FIELDS, which is new — and the
+  // bug it closes is OLDER THAN THIS BRANCH. Measured: `dev` binds
+  // `expectedPct: quoteInputSchema`, and `quoteInputSchema` is
+  // `positiveNumberInput(true)` — the English grouping rule, hard-wired, with no
+  // `max` to catch the result. So a Ukrainian typist writing 16,4 % stored
+  // 16400 % on `dev` too, into the field that drives `dailyAccrual`'s fallback,
+  // `couponProjection`'s estimate and `/yield`'s «проти очікуваної».
+  //
+  // `dev` DID pass a `lang` here, which is what made this easy to misread: it
+  // fed `inzhur.units` and nothing else. B then dropped the parameter as inert,
+  // which was true of the field it was actually wired to and false of the form.
+  // An earlier version of this comment called the removal "this branch's worst
+  // bug" and named `dev` as reading 16.4 — both wrong, and wrong in the
+  // direction that would make a revert to `dev` look safe.
   const schema = useMemo(() => assetFormSchema(mode, language), [mode, language]);
   const form = useForm<AssetFormInput, unknown, AssetFormValues>({
-    // THE LANGUAGE IS A PARSE RULE for the Units field, not only a display one —
-    // a lone comma is the decimal mark in Ukrainian and a thousands mark in
-    // English, and this field's own prefill (`f.units`) renders `6,164` in one
-    // of them.
     resolver: zodResolver(schema),
     defaultValues: assetFormDefaults(f, asset),
   });

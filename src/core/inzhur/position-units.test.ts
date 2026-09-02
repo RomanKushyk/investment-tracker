@@ -111,6 +111,20 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
     expect(after.value! - before.value!).toBeCloseTo(REINVESTED_UAH, 2);
   });
 
+  it('offers NOTHING when no count is known at all (D117)', () => {
+    // The third state, which only exists since the form stopped asking for
+    // units: a link made after 2026-08-31 carries no legacy total, and this
+    // asset has no quantities recorded yet. The asset still MATCHED — it is in
+    // the feed — so it belongs in `linked`; there is simply nothing to value it
+    // with, and silence beats a figure invented from a count we do not have.
+    const freshLink: Asset = { ...reitLinkedWith(0), inzhur: { kind: 'fund', ref: 'inzhur-reit' } };
+    const [match] = matchAssets([freshLink], feed, {}).linked;
+    expect(match).toBeDefined();
+    expect(match.value).toBeUndefined();
+    expect(match.units).toBeUndefined();
+    expect(match.unitsFrom).toBeUndefined();
+  });
+
   it('falls back to the link total when the ledger records no quantities at all', () => {
     // Every row recorded before #31 is this shape — an amount and nothing else.
     // The fallback is not a leftover: §4 of the migration notes says these counts

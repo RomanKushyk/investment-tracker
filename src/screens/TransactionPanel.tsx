@@ -293,6 +293,10 @@ export function TransactionPanel() {
   // resolver closures — on every `useWatch` change and every query settle, and
   // the language changes at most once a session.
   const txSchema = useMemo(() => transactionSchema(language), [language]);
+  // The asset form takes the language for the same reason this one does — see
+  // the note at its own `useMemo`: `expectedPct` is an UNBOUNDED percent, so a
+  // Ukrainian `16,400` read under the English grouping rule stores 16400 with
+  // nothing to catch it.
   const newAssetSchema = useMemo(() => assetFormSchema('create', language), [language]);
   const assetsData = useAssets().data;
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
@@ -757,10 +761,14 @@ export function TransactionPanel() {
               sizes itself to the taller label, so nothing here is hard-coded,
               which is what ruled out equalising the label rows by hand.
 
-              Units stay OPTIONAL even on the types that take them: every row
-              recorded before this lacks them and the migration notes say those
-              counts are unrecoverable, so demanding one would make old habits
-              unenterable rather than fix anything. */}
+              UNITS ARE REQUIRED on the types that take them (D124). They were
+              optional until the owner ruled otherwise, on the ground that every
+              row recorded before #31 lacks a count — but that is a fact about
+              rows already stored, and this form only writes new ones. D119 made
+              the whole coupon derivation `rate × units`, so a buy recorded in
+              the default `total` mode with this left blank produced a bond with
+              no coupon figure anywhere and no explanation. Nothing stored
+              changes: the backup, the DDL and the type all keep it optional. */}
           <div className="group grid grid-cols-2 grid-rows-[auto_auto_auto] gap-2.5">
             <Reveal show={takesUnits} className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
               {/* `self-center`, because row 1 is as tall as the amount's label
@@ -797,9 +805,10 @@ export function TransactionPanel() {
                         id={QUANTITY_ERROR_ID}
                         className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
                       >
-                        {/* Blank in per-unit mode is the ONE failure the schema
-                            adds; anything else here is a value that parsed but
-                            was not a positive number. */}
+                        {/* Blank is a failure on ANY position-moving row since
+                            D124 — not only in per-unit mode, where it used to be
+                            the one case the schema added. Anything else here is a
+                            value that parsed but was not a positive number. */}
                         {fieldState.error.type === 'product'
                           ? t.transaction.productTooSmall
                           : (field.value ?? '').trim() === ''

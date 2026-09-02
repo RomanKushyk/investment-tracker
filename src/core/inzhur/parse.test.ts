@@ -10,6 +10,7 @@ import {
   nextPaymentOnOrAfter,
   parseAssetsFeed,
   positionValue,
+  scheduleFacts,
   type InzhurPayment,
   type InzhurQuote,
 } from './parse';
@@ -336,5 +337,171 @@ describe('matchAssets', () => {
 
   it('leaves unlinked assets out of both lists', () => {
     expect(matchAssets([manual], feed, {})).toEqual({ linked: [], unmatched: [] });
+  });
+});
+
+describe('scheduleFacts — the three dates the provider already knows (D121)', () => {
+  const bond = entry('UA4000238976');
+
+  it('reads maturity, the next coupon and the cadence off one entry', () => {
+    // The fixture's UA4000238976 pays 78.40/unit on 24.03.2026, 23.09.2026 and
+    // 24.03.2027, where the last date also carries the ₴1000 principal.
+    expect(scheduleFacts(bond, '2026-08-12')).toEqual({
+      maturity: '2027-03-24',
+      nextCoupon: '2026-09-23',
+      payoutSchedule: 'semiannual',
+      // 78.40 × 2 / 1000 × 100 — the measured derivation, and it must land on
+      // the published two decimals exactly (OVDP-COUPON-STRUCTURE.md).
+      couponRatePct: 15.68,
+    });
+  });
+
+  it('moves the next coupon forward as the date does, and runs out at the end', () => {
+    expect(scheduleFacts(bond, '2026-09-24').nextCoupon).toBe('2027-03-24');
+    expect(scheduleFacts(bond, '2027-03-25').nextCoupon).toBeUndefined();
+    // Maturity and cadence are facts about the instrument, not about today, so
+    // they survive a schedule that is entirely spent.
+    expect(scheduleFacts(bond, '2027-03-25').maturity).toBe('2027-03-24');
+  });
+
+  it('reads the cadence in BANDS, so one shifted date cannot change it', () => {
+    // Measured: UA4000235782 carries a 183-day gap followed by a 181-day one
+    // around a payment moved by a day. Matching 182 exactly would misread it.
+    const shifted: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-12-02', amount: 89 },
+        { date: '2027-06-03', amount: 89 }, // 183
+        { date: '2027-12-01', amount: 89 }, // 181
+      ],
+    };
+    expect(scheduleFacts(shifted, '2026-01-01').payoutSchedule).toBe('semiannual');
+  });
+
+  it('calls a single payment `maturity` — a zero-coupon bond pays once', () => {
+    const zero: InzhurQuote = { ...bond, paymentSchedule: [{ date: '2027-03-24', amount: 1000 }] };
+    expect(scheduleFacts(zero, '2026-01-01').payoutSchedule).toBe('maturity');
+  });
+
+  it('says NOTHING about a cadence the enum cannot express', () => {
+    // An annual bond has no member here, and a wrong divisor would corrupt every
+    // coupon figure the asset produces. Silence leaves the field to the user.
+    const annual: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-03-24', amount: 156.8 },
+        { date: '2027-03-24', amount: 156.8 },
+      ],
+    };
+    expect(scheduleFacts(annual, '2026-01-01').payoutSchedule).toBeUndefined();
+  });
+
+  it('answers nothing at all for a fund — no schedule, no facts', () => {
+    expect(scheduleFacts(entry('inzhur-reit'), '2026-08-12')).toEqual({});
+  });
+});
+
+describe('a derived rate the form would refuse is not offered', () => {
+  // The picker's effect writes this straight into `couponRatePct`, and
+  // `optionalPercent` bounds it to (0, 100]. A bond whose principal row is not
+  // exactly ₴1000 — a non-UAH nominal, or a final row paying coupon and
+  // principal together as its only payment — derived a rate above 100 and left
+  // the field red with an error the user did not cause.
+  it('offers nothing when the derivation lands outside (0, 100]', () => {
+    const bond = entry('UA4000238976');
+    const combined = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-08-26', amount: 1078.4 },
+        { date: '2027-02-25', amount: 1078.4 },
+      ],
+    };
+    // 1078.4 × 2 / 1000 × 100 = 215.68 — a rate the form refuses.
+    expect(scheduleFacts(combined, '2026-08-12').couponRatePct).toBeUndefined();
+  });
+});
+
+describe('scheduleFacts — the coupon RATE, from the same schedule (D119/D121)', () => {
+  const bond = entry('UA4000238976');
+
+  it('takes the SMALLEST payment as the coupon, never the principal', () => {
+    // The maturity date carries the final ₴78.40 coupon AND the ₴1000 principal.
+    // Reading the largest, or an average, would report a rate of 200%.
+    expect(scheduleFacts(bond, '2026-01-01').couponRatePct).toBe(15.68);
+  });
+
+  it('scales the divisor with the cadence it read, never an assumed 2', () => {
+    const quarterly: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-03-24', amount: 40 },
+        { date: '2026-06-23', amount: 40 },
+        { date: '2026-09-22', amount: 40 },
+      ],
+    };
+    expect(scheduleFacts(quarterly, '2026-01-01').payoutSchedule).toBe('quarterly');
+    expect(scheduleFacts(quarterly, '2026-01-01').couponRatePct).toBe(16);
+  });
+
+  it('says NOTHING when the cadence is unreadable — no divisor, no rate', () => {
+    // An annual bond: `cadenceOf` refuses to guess, and deriving the rate
+    // against an assumed 2 would be exactly that guess, one field over.
+    const annual: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-03-24', amount: 156.8 },
+        { date: '2027-03-24', amount: 156.8 },
+      ],
+    };
+    const facts = scheduleFacts(annual, '2026-01-01');
+    expect(facts.payoutSchedule).toBeUndefined();
+    expect(facts.couponRatePct).toBeUndefined();
+  });
+
+  it('answers nothing for a fund, which publishes no schedule', () => {
+    expect(scheduleFacts(entry('inzhur-reit'), '2026-08-12').couponRatePct).toBeUndefined();
+  });
+});
+
+describe('scheduleFacts — a stub first coupon must not set the rate', () => {
+  const bond = entry('UA4000238976');
+
+  it('takes the RECURRING coupon, not the smallest payment', () => {
+    // A bond issued mid-period pays a short part-period stub first. Reading the
+    // minimum halved every coupon figure the asset produces; the value that
+    // REPEATS is the contract.
+    const stubbed: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-03-24', amount: 41.2 }, // stub
+        { date: '2026-09-22', amount: 78.4 },
+        { date: '2027-03-24', amount: 78.4 },
+        { date: '2027-03-24', amount: 1000 }, // principal
+      ],
+    };
+    expect(scheduleFacts(stubbed, '2026-01-01').couponRatePct).toBe(15.68);
+  });
+
+  it('says nothing when no coupon repeats — a coin flip is not a reading', () => {
+    const ambiguous: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2026-03-24', amount: 41.2 },
+        { date: '2026-09-22', amount: 78.4 },
+      ],
+    };
+    expect(scheduleFacts(ambiguous, '2026-01-01').couponRatePct).toBeUndefined();
+  });
+
+  it('still reads a single-coupon schedule, where nothing can repeat', () => {
+    const one: InzhurQuote = {
+      ...bond,
+      paymentSchedule: [
+        { date: '2027-03-24', amount: 78.4 },
+        { date: '2027-03-24', amount: 1000 },
+      ],
+    };
+    // One payment date → `maturity` cadence → divisor 1, so 78.40 / 1000 × 100.
+    expect(scheduleFacts(one, '2026-01-01').couponRatePct).toBe(7.84);
   });
 });

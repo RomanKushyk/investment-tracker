@@ -6,7 +6,9 @@ import {
   couponReminderId,
   couponsInGap,
   couponPeriodDays,
+  couponPerPayment,
   dailyAccrual,
+  OVDP_FACE_UAH,
   dueCoupons,
   nextUnsettledCoupon,
   rollNextCoupon,
@@ -87,37 +89,102 @@ describe('dailyAccrual', () => {
 });
 
 describe('couponsInGap', () => {
+  it('hands the GRID branch each computed date, not the anchor', () => {
+    // The schedule branch is covered above; this is the half that derives its
+    // dates by arithmetic, and a regression that passed `anchor` — or
+    // `fromExclusive` — to the resolver would return the same constant every
+    // other grid test asserts and sail through the suite. Only a resolver that
+    // VARIES by date can catch it.
+    const b = bond({ nextCoupon: '2026-08-25', payoutSchedule: 'quarterly' });
+    const seen: string[] = [];
+    couponsInGap(
+      b,
+      (d) => {
+        seen.push(d);
+        return 100;
+      },
+      '2026-01-01',
+      '2026-08-31',
+    );
+    // ONLY the counted dates reach the resolver — no probe of its own. The
+    // pairing guard moved to `accrualSuggestion`, which is the only place that
+    // holds both this figure and the one `dailyAccrual` was built from; asking
+    // here read the ledger on a shifted date and answered a different question.
+    // The quarterly grid back from 25.08: 25.02 and 25.05 fall in the window
+    // alongside the anchor itself, each with its OWN date.
+    expect(seen).toEqual(['2026-02-25', '2026-05-25', '2026-08-25']);
+  });
+
+  it('sizes EACH coupon on its own date, not all of them on the drafted one', () => {
+    // THE DEFECT THIS CLOSES arrived with D119: the caller derives one figure
+    // from the units held on the DRAFTED date, and this function multiplied it
+    // by every coupon in the gap — coupons the position was a different size
+    // for. Hold 10 units through a coupon, double the position days later, draft
+    // after that, and the gap subtracted 20 units' worth of a payment that paid
+    // on 10.
+    const b = bond({ nextCoupon: '2026-08-25', payoutSchedule: 'semiannual' });
+    const schedule = ['2026-02-25', '2026-08-25'];
+    // 78,40 per unit per coupon: 10 units on 25.02, 20 on 25.08.
+    const perDate = (d: string) => (d === '2026-02-25' ? 784 : 1568);
+    expect(couponsInGap(b, perDate, '2026-01-01', '2026-12-31', schedule)).toBe(784 + 1568);
+    // A single figure would have answered 1568 × 2 — the number the old
+    // signature could not avoid.
+    expect(couponsInGap(b, () => 1568, '2026-01-01', '2026-12-31', schedule)).toBe(3136);
+    // A date the ledger cannot count contributes nothing rather than NaN — and
+    // this now exercises the `?? 0` fallback itself, since nothing short-circuits
+    // ahead of the reduce any more.
+    expect(couponsInGap(b, () => undefined, '2026-01-01', '2026-12-31', schedule)).toBe(0);
+    // THE ORDINARY MIXED CASE, which had no coverage while a guard swallowed it:
+    // a bond bought AFTER the February coupon answers for August and not for
+    // February, so exactly one of the two is subtracted.
+    expect(
+      couponsInGap(
+        b,
+        (d) => (d === '2026-02-25' ? undefined : 1568),
+        '2026-01-01',
+        '2026-12-31',
+        schedule,
+      ),
+    ).toBe(1568);
+  });
+
   it('finds the scheduled coupon inside the gap', () => {
-    expect(couponsInGap(bond(), '2026-08-20', '2026-08-27')).toBe(1240);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-20', '2026-08-27')).toBe(1240);
   });
 
   it('excludes the gap start and includes its end', () => {
     // A coupon ON the last-quote date is already priced into that quote.
-    expect(couponsInGap(bond(), '2026-08-25', '2026-08-27')).toBe(0);
-    expect(couponsInGap(bond(), '2026-08-24', '2026-08-25')).toBe(1240);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-25', '2026-08-27')).toBe(0);
+    expect(couponsInGap(bond(), () => 1240, '2026-08-24', '2026-08-25')).toBe(1240);
   });
 
   it('is 0 when no coupon date falls in the gap', () => {
-    expect(couponsInGap(bond(), '2026-07-25', '2026-08-04')).toBe(0);
+    expect(couponsInGap(bond(), () => 1240, '2026-07-25', '2026-08-04')).toBe(0);
   });
 
   it('finds a gap coupon that sits BEHIND the anchor (nextCoupon already rolled)', () => {
-    expect(couponsInGap(bond({ nextCoupon: '2027-02-25' }), '2026-08-20', '2026-08-27')).toBe(1240);
+    expect(
+      couponsInGap(bond({ nextCoupon: '2027-02-25' }), () => 1240, '2026-08-20', '2026-08-27'),
+    ).toBe(1240);
   });
 
   it('sums every coupon of a long gap', () => {
-    expect(couponsInGap(bond(), '2026-01-01', '2026-09-01')).toBe(2480);
+    expect(couponsInGap(bond(), () => 1240, '2026-01-01', '2026-09-01')).toBe(2480);
   });
 
   it('treats a maturity-only schedule as its single payment', () => {
     const single = bond({ payoutSchedule: 'maturity', nextCoupon: '2027-02-25' });
-    expect(couponsInGap(single, '2027-02-20', '2027-02-27')).toBe(1240);
-    expect(couponsInGap(single, '2026-08-20', '2026-08-27')).toBe(0);
+    expect(couponsInGap(single, () => 1240, '2027-02-20', '2027-02-27')).toBe(1240);
+    expect(couponsInGap(single, () => 1240, '2026-08-20', '2026-08-27')).toBe(0);
   });
 
   it('is 0 without the attributes it needs', () => {
-    expect(couponsInGap(bond({ couponAmount: undefined }), '2026-08-20', '2026-08-27')).toBe(0);
-    expect(couponsInGap(bond({ nextCoupon: undefined }), '2026-08-20', '2026-08-27')).toBe(0);
+    expect(
+      couponsInGap(bond({ couponAmount: undefined }), () => undefined, '2026-08-20', '2026-08-27'),
+    ).toBe(0);
+    expect(
+      couponsInGap(bond({ nextCoupon: undefined }), () => 1240, '2026-08-20', '2026-08-27'),
+    ).toBe(0);
   });
 
   // Regression: the grid used to be rebuilt by stepping BACK with addMonths and
@@ -130,27 +197,27 @@ describe('couponsInGap', () => {
 
     it('counts the real monthly dates, not the drifted ones', () => {
       // Real grid around the gap: 06-30, 07-31 (08-31 is past `to`).
-      expect(couponsInGap(eom({ payoutSchedule: 'monthly' }), '2026-06-15', '2026-08-30')).toBe(
-        2 * 1240,
-      );
+      expect(
+        couponsInGap(eom({ payoutSchedule: 'monthly' }), () => 1240, '2026-06-15', '2026-08-30'),
+      ).toBe(2 * 1240);
     });
 
     it('counts the real quarterly date', () => {
       // Real grid: 2026-02-28, 05-31, 08-31 → only 05-31 is inside the gap.
-      expect(couponsInGap(eom({ payoutSchedule: 'quarterly' }), '2026-04-01', '2026-08-30')).toBe(
-        1240,
-      );
+      expect(
+        couponsInGap(eom({ payoutSchedule: 'quarterly' }), () => 1240, '2026-04-01', '2026-08-30'),
+      ).toBe(1240);
     });
 
     it('counts the real semiannual date', () => {
       // Real grid: 2026-02-28, 08-31 → only 02-28 is inside the gap.
-      expect(couponsInGap(eom(), '2025-12-01', '2026-08-30')).toBe(1240);
+      expect(couponsInGap(eom(), () => 1240, '2025-12-01', '2026-08-30')).toBe(1240);
     });
 
     it('keeps the anchor itself on the grid it reconstructs', () => {
-      expect(couponsInGap(eom({ payoutSchedule: 'monthly' }), '2026-08-30', '2026-08-31')).toBe(
-        1240,
-      );
+      expect(
+        couponsInGap(eom({ payoutSchedule: 'monthly' }), () => 1240, '2026-08-30', '2026-08-31'),
+      ).toBe(1240);
     });
   });
 });
@@ -434,30 +501,34 @@ describe('rollNextCoupon', () => {
 
 describe('couponProjection', () => {
   it('uses the stated attributes when the asset carries them (the seed case)', () => {
-    expect(couponProjection(bond(), 15390)).toEqual({
+    expect(couponProjection(bond(), 15390, undefined)).toEqual({
       amount: 1240,
       date: '2026-08-25',
       estimated: false,
     });
     // Invested capital is irrelevant to a stated coupon.
-    expect(couponProjection(bond(), 0)?.amount).toBe(1240);
+    expect(couponProjection(bond(), 0, undefined)?.amount).toBe(1240);
   });
 
   it('estimates the amount from expectedPct × invested when no coupon is stated', () => {
     const user = bond({ couponAmount: undefined });
     // 16.4 % of 15 390,00, half-yearly = 1 261,98 — close to the real 1 240,00.
-    expect(couponProjection(user, 15390)).toEqual({
+    expect(couponProjection(user, 15390, undefined)).toEqual({
       amount: 1261.98,
       date: '2026-08-25',
       estimated: true,
     });
     expect(
-      couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'monthly' }), 15390),
+      couponProjection(
+        bond({ couponAmount: undefined, payoutSchedule: 'monthly' }),
+        15390,
+        undefined,
+      ),
     ).toEqual({ amount: 210.33, date: '2026-08-25', estimated: true });
   });
 
   it('falls back to the maturity date when no next coupon is stated', () => {
-    expect(couponProjection(bond({ nextCoupon: undefined }), 15390)).toEqual({
+    expect(couponProjection(bond({ nextCoupon: undefined }), 15390, undefined)).toEqual({
       amount: 1240,
       date: '2027-02-25',
       estimated: false,
@@ -466,16 +537,16 @@ describe('couponProjection', () => {
 
   it('never invents a date or an amount', () => {
     expect(
-      couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390),
+      couponProjection(bond({ nextCoupon: undefined, maturity: undefined }), 15390, undefined),
     ).toBeUndefined();
-    expect(couponProjection(bond({ couponAmount: undefined }), 0)).toBeUndefined();
+    expect(couponProjection(bond({ couponAmount: undefined }), 0, undefined)).toBeUndefined();
     expect(
-      couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390),
+      couponProjection(bond({ couponAmount: undefined, expectedPct: 0 }), 15390, undefined),
     ).toBeUndefined();
     expect(
-      couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'none' }), 15390),
+      couponProjection(bond({ couponAmount: undefined, payoutSchedule: 'none' }), 15390, undefined),
     ).toBeUndefined();
-    expect(couponProjection(bond({ yieldType: 'div_cap' }), 15390)).toBeUndefined();
+    expect(couponProjection(bond({ yieldType: 'div_cap' }), 15390, undefined)).toBeUndefined();
   });
 });
 
@@ -529,19 +600,21 @@ describe('the published schedule beats the month grid (A1)', () => {
   it('counts the coupon on the real date, not the grid date', () => {
     const a = linked();
     // A gap that contains the REAL date but ends before the grid's 25th.
-    expect(couponsInGap(a, '2026-09-20', '2026-09-24', REAL)).toBe(1240);
+    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24', REAL)).toBe(1240);
     // Without the schedule the same gap sees nothing — the defect, pinned.
-    expect(couponsInGap(a, '2026-09-20', '2026-09-24')).toBe(0);
+    expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24')).toBe(0);
   });
 
   it('does not count it twice when the gap spans both dates', () => {
-    expect(couponsInGap(linked(), '2026-09-01', '2026-09-30', REAL)).toBe(1240);
+    expect(couponsInGap(linked(), () => 1240, '2026-09-01', '2026-09-30', REAL)).toBe(1240);
   });
 
   it('counts the maturity date once, though the schedule lists it twice', () => {
     // The final row is coupon AND principal on one date; only one is a coupon.
     const withDuplicate = [...REAL, '2027-03-24'];
-    expect(couponsInGap(linked(), '2027-03-01', '2027-03-31', withDuplicate)).toBe(1240);
+    expect(couponsInGap(linked(), () => 1240, '2027-03-01', '2027-03-31', withDuplicate)).toBe(
+      1240,
+    );
   });
 
   it('rolls to the published date', () => {
@@ -562,7 +635,7 @@ describe('the published schedule beats the month grid (A1)', () => {
 
   it('falls back to the grid for an asset with no linked schedule', () => {
     // The non-regression that protects every existing seed-coupled test.
-    expect(couponsInGap(linked(), '2026-09-20', '2026-09-26', undefined)).toBe(1240);
+    expect(couponsInGap(linked(), () => 1240, '2026-09-20', '2026-09-26', undefined)).toBe(1240);
     expect(rollNextCoupon(linked(), '2026-03-25', undefined)).toEqual({
       kind: 'rolled',
       nextCoupon: '2026-09-25',
@@ -717,5 +790,162 @@ describe('rollbackNextCoupon — deleting a confirmed coupon gives its occurrenc
     expect(nextUnsettledCoupon(reopened, [])).toEqual({ date: '2026-08-25', amount: 1240 });
     // Record it again and the walk returns to where the pointer had been.
     expect(nextUnsettledCoupon(reopened, [payout])).toEqual({ date: '2027-02-25', amount: 1240 });
+  });
+});
+
+describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () => {
+  const bond = (over: Partial<Asset> = {}): Asset => ({
+    id: 'b',
+    name: 'OVDP UA4000238976',
+    code: 'GB',
+    colorKey: 'ovdp8976',
+    yieldType: 'fixed_coupon',
+    expectedPct: 16.4,
+    targetPct: 17,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-02-05',
+    createdAt: '2026-02-05T10:00:00',
+    ...over,
+  });
+
+  it("falls back to the LINK's legacy total when the ledger cannot count (D117)", () => {
+    // The two-source rule `matchAssets` and `couponPrefill` both apply, and this
+    // was the one consumer that read only the ledger. A pre-D117 linked bond has
+    // `inzhur.units` and no quantities, so reading the ledger alone fell past a
+    // rate the asset HAS to the stale whole-position amount — while the coupon
+    // card one screen over scaled the feed's per-unit figure by this very count.
+    const linked = bond({
+      couponRatePct: 15.68,
+      couponAmount: 1240,
+      inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
+    });
+    expect(couponPerPayment(linked, undefined)).toBe(1176); // 15,68 % × 1000 × 15 / 2
+    // THE LEDGER WINS WHENEVER IT CAN SPEAK — it is the newer truth, and a
+    // closed position is something it can say.
+    expect(couponPerPayment(linked, 20)).toBe(1568);
+    expect(couponPerPayment(linked, 0)).toBeUndefined();
+    // Neither source knows → the legacy amount, unscaled. That is D117's third
+    // state and the reason the fallback still exists.
+    expect(couponPerPayment(bond({ couponRatePct: 15.68, couponAmount: 1240 }), undefined)).toBe(
+      1240,
+    );
+  });
+
+  it('answers nothing for a non-bond, even one carrying a legacy amount', () => {
+    // `couponProjection` gates on the yield type and this did not, so a
+    // `div_cap` asset one stray `couponAmount` away — the seed's REIT — would
+    // report a coupon to any caller that forgot its own filter. Four call sites
+    // filter today; the gate belongs here rather than in each of them.
+    expect(
+      couponPerPayment(bond({ yieldType: 'div_cap', couponAmount: 1240 }), 15),
+    ).toBeUndefined();
+    expect(
+      couponPerPayment(bond({ yieldType: 'dividends', couponRatePct: 15.68 }), 15),
+    ).toBeUndefined();
+  });
+
+  it('agrees with the provider schedule BY CONSTRUCTION, not by luck', () => {
+    // UA4000238976 publishes ₴78.40 per unit per coupon on a ₴1000 nominal, so
+    // its rate is 78.40 / 5 = 15.68 % (docs/reference/OVDP-COUPON-STRUCTURE.md).
+    // Going back the other way must land exactly on the published figure, or the
+    // rate and the feed would be two bases for one coupon.
+    expect(couponPerPayment(bond({ couponRatePct: 15.68 }), 1)).toBe(78.4);
+    expect(OVDP_FACE_UAH).toBe(1000);
+  });
+
+  it('SCALES with the holding — the whole point', () => {
+    const b = bond({ couponRatePct: 15.68 });
+    expect(couponPerPayment(b, 100)).toBe(7840);
+    expect(couponPerPayment(b, 200)).toBe(15680);
+    // The defect it replaces: a stored ₴ figure answers the same on both.
+    expect(couponPerPayment(b, 200)).not.toBe(couponPerPayment(b, 100));
+  });
+
+  it('honours the payout schedule rather than assuming semiannual', () => {
+    // Every OVDP measured pays twice a year, but the field admits five schedules
+    // and the divisor must follow it — a quarterly bond at the same rate pays
+    // half as much per coupon, four times a year.
+    expect(couponPerPayment(bond({ couponRatePct: 16, payoutSchedule: 'quarterly' }), 1)).toBe(40);
+    expect(couponPerPayment(bond({ couponRatePct: 16, payoutSchedule: 'semiannual' }), 1)).toBe(80);
+  });
+
+  it('falls back to the LEGACY stored amount, unscaled', () => {
+    // The seed's two bonds are why this path still has to work: they carry a
+    // hand-typed whole-position figure and no quantities to scale a rate by.
+    const legacy = bond({ couponAmount: 1240 });
+    expect(couponPerPayment(legacy, undefined)).toBe(1240);
+    expect(couponPerPayment(legacy, 999)).toBe(1240); // unscaled, deliberately
+  });
+
+  it('prefers the rate over a legacy amount when both are present', () => {
+    expect(couponPerPayment(bond({ couponRatePct: 15.68, couponAmount: 1240 }), 100)).toBe(7840);
+  });
+
+  it('a CLOSED position reports nothing, not the stale legacy amount', () => {
+    // Units are KNOWN and the holding is gone. Reporting the old whole-position
+    // figure would print "₴1 240 twice a year" for a position that no longer
+    // exists, and prefill a transaction for a coupon nobody will receive.
+    const both = bond({ couponRatePct: 15.68, couponAmount: 1240 });
+    expect(couponPerPayment(both, 0)).toBeUndefined();
+    expect(couponPerPayment(both, 100)).toBe(7840);
+  });
+
+  it('an UNCOUNTABLE ledger keeps the legacy amount — the rate cannot answer', () => {
+    // The other half, and collapsing the two broke this one: when the ledger
+    // cannot count the asset at all, the rate has nothing to scale, so the
+    // legacy figure is the only number the asset has. Suppressing it emptied the
+    // coupon out of /attributes, the due card, the ghost accrual and the
+    // projection at once — for exactly the pre-#31 bonds the fallback protects.
+    const both = bond({ couponRatePct: 15.68, couponAmount: 1240 });
+    expect(couponPerPayment(both, undefined)).toBe(1240);
+    // With no legacy figure either, there is genuinely nothing to report.
+    expect(couponPerPayment(bond({ couponRatePct: 15.68 }), undefined)).toBeUndefined();
+  });
+
+  it('cannot answer from a rate alone — units are required', () => {
+    // A rate with no holding is not a coupon. Returning 0 would read as "this
+    // bond pays nothing", which is a different and wrong claim.
+    expect(couponPerPayment(bond({ couponRatePct: 15.68 }), undefined)).toBeUndefined();
+    expect(couponPerPayment(bond({ couponRatePct: 15.68 }), 0)).toBeUndefined();
+  });
+
+  it('is undefined when the asset states neither', () => {
+    expect(couponPerPayment(bond(), 100)).toBeUndefined();
+  });
+});
+
+describe('a closed position pays no coupon, whichever figure would have answered', () => {
+  // The rule used to live INSIDE the rate branch, so a legacy bond — both of the
+  // seed's — fell past it and reported its whole stated `couponAmount` for a
+  // holding that is gone.
+  const legacy: Asset = {
+    id: 'ovdp',
+    name: 'OVDP UA4000238976',
+    code: 'GB',
+    colorKey: 'ovdp8976',
+    yieldType: 'fixed_coupon',
+    expectedPct: 17,
+    targetPct: 17,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-02-05',
+    createdAt: '2026-02-05T10:00:00',
+    couponAmount: 1240,
+  };
+
+  it('returns undefined for a legacy bond whose position is closed', () => {
+    expect(couponPerPayment(legacy, 0)).toBeUndefined();
+    expect(couponPerPayment(legacy, -5)).toBeUndefined();
+  });
+
+  it('still returns the legacy amount when the count is UNKNOWN', () => {
+    // `undefined` is a different question from 0: the ledger cannot count this
+    // asset, and the stated figure is the only one it has.
+    expect(couponPerPayment(legacy, undefined)).toBe(1240);
+  });
+
+  it('applies the same rule to a rate-bearing bond', () => {
+    const rated: Asset = { ...legacy, couponAmount: undefined, couponRatePct: 15.68 };
+    expect(couponPerPayment(rated, 0)).toBeUndefined();
+    expect(couponPerPayment(rated, 15)).toBeCloseTo(1176, 0);
   });
 });

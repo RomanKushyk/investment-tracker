@@ -5,13 +5,16 @@
 // assertion changed — the editor now lives on /allocation, beside the card that
 // draws what it edits, and per-screen glue belongs under its own route.
 // Covered by targets.test.ts.
-import { percentInputSchema } from '../../core/schemas';
+import { percentInputSchemaFor } from '../../core/schemas';
+import type { Lang } from '../../core/money';
 
 // One raw %-input → 0–100 target share, or null when invalid. Exactly the
-// AssetForm Target grammar (spaces, comma or dot decimals) via the shared
-// core schema, so the two target editors can never disagree.
-export function parseTargetPct(raw: string): number | null {
-  const parsed = percentInputSchema.safeParse(raw);
+// AssetForm Target grammar via the shared core schema, so the two target
+// editors can never disagree — WHICH NOW MEANS TAKING THE LANGUAGE, because the
+// asset form's copy of that grammar does. Under Ukrainian `17,500` is 17.5 in
+// one editor, and was 17500 (refused by the 100 cap) in the other.
+export function parseTargetPct(raw: string, lang: Lang): number | null {
+  const parsed = percentInputSchemaFor(lang).safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
 
@@ -31,12 +34,13 @@ export interface TargetRowState {
 export function targetRowStates(
   assets: readonly { id: string; targetPct: number }[],
   drafts: Readonly<Record<string, string>>,
+  lang: Lang,
 ): TargetRowState[] {
   return assets.map((a) => {
     const raw = drafts[a.id];
     if (raw === undefined)
       return { id: a.id, value: a.targetPct, effective: a.targetPct, changed: false };
-    const value = parseTargetPct(raw);
+    const value = parseTargetPct(raw, lang);
     return {
       id: a.id,
       value,

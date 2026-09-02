@@ -10,6 +10,7 @@ import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
 import { useAssets, useSnapshots, useUpdateAsset } from '../hooks/queries';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
+import { useSettings } from '../state/settings';
 import { severityOf } from './allocation/allocation';
 import { headlineTotal, latestQuotes, sharePct } from '../core/derive';
 import type { Asset, ColorKey } from '../core/types';
@@ -50,7 +51,11 @@ export function Allocation() {
   const { actions, withinRange } = rebalancePlan(assets, values, total);
 
   // ── the targets editor, rehoused from Settings (A30, brief S2) ───────────
-  const targetRows = targetRowStates(assets, drafts);
+  // THE LANGUAGE, because the grammar is a language rule: under Ukrainian
+  // `17,500` is 17.5, and this editor used to read it as 17500 while the asset
+  // form beside it read 17.5 — one field, two doors, two answers.
+  const targetLang = useSettings((state) => state.language);
+  const targetRows = targetRowStates(assets, drafts, targetLang);
   const sum = targetsSum(targetRows);
   const status = sumStatus(sum);
   // Σ ≠ 100 warns and never blocks; an unparseable entry is the one thing that
@@ -268,9 +273,6 @@ export function Allocation() {
                     {i + 1} ·{' '}
                     {a.kind === 'buy' ? t.analytics.allocation.buy : t.analytics.allocation.trim}{' '}
                     {planLabel(a.asset)}
-                    {a.kind === 'sell' && a.asset.reinvestPolicy
-                      ? t.analytics.allocation.orPauseReinvest
-                      : ''}
                   </span>
                   <strong className="whitespace-nowrap">
                     {a.kind === 'buy' ? '+' : '−'}

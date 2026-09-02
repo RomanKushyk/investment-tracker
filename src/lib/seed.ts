@@ -75,10 +75,10 @@ export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
   { id: 'd2', date: '2026-02-05', type: 'deposit', assetId: '', amount: 15390, source: 'own' },
   { id: 'd3', date: '2026-06-02', type: 'deposit', assetId: '', amount: 3942, source: 'own' },
-  { id: 'b1', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62, source: 'own' },
-  { id: 'b2', date: '2026-02-03', type: 'buy', assetId: 'energy', amount: 59208, source: 'own' },
-  { id: 'b3', date: '2026-02-05', type: 'buy', assetId: 'ovdp8976', amount: 15390, source: 'own' },
-  { id: 'b4', date: '2026-06-02', type: 'buy', assetId: 'ovdp6475', amount: 3942, source: 'own' },
+  { id: 'b1', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62, quantity: 6164, source: 'own' },
+  { id: 'b2', date: '2026-02-03', type: 'buy', assetId: 'energy', amount: 59208, quantity: 6000, source: 'own' },
+  { id: 'b3', date: '2026-02-05', type: 'buy', assetId: 'ovdp8976', amount: 15390, quantity: 15, source: 'own' },
+  { id: 'b4', date: '2026-06-02', type: 'buy', assetId: 'ovdp6475', amount: 3942, quantity: 4, source: 'own' },
   { id: 'p1', date: '2026-02-10', type: 'dividend_accrual', assetId: 'reit', amount: 580.2, source: 'accrual' },
   { id: 'p2', date: '2026-02-25', type: 'interest_payout', assetId: 'ovdp8976', amount: 1183.5, source: 'accrual' },
   { id: 'p3', date: '2026-03-10', type: 'dividend_accrual', assetId: 'reit', amount: 595.8, source: 'accrual' },
@@ -87,9 +87,9 @@ export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'p6', date: '2026-06-03', type: 'interest_payout', assetId: 'ovdp6475', amount: 216, source: 'accrual' },
   { id: 'p7', date: '2026-06-10', type: 'dividend_accrual', assetId: 'reit', amount: 680.55, source: 'accrual' },
   { id: 'p8', date: '2026-07-10', type: 'dividend_accrual', assetId: 'reit', amount: 700.36, source: 'accrual' },
-  { id: 'r1', date: '2026-06-03', type: 'reinvest', assetId: 'ovdp6475', amount: 216, source: 'reinvest_6475' },
-  { id: 'r2', date: '2026-06-10', type: 'reinvest', assetId: 'reit', amount: 484.36, source: 'reinvest_reit' },
-  { id: 'r3', date: '2026-07-10', type: 'reinvest', assetId: 'reit', amount: 687.02, source: 'reinvest_reit' },
+  { id: 'r1', date: '2026-06-03', type: 'reinvest', assetId: 'ovdp6475', amount: 216, quantity: 0.2192, source: 'reinvest_6475' },
+  { id: 'r2', date: '2026-06-10', type: 'reinvest', assetId: 'reit', amount: 484.36, quantity: 43.4835, source: 'reinvest_reit' },
+  { id: 'r3', date: '2026-07-10', type: 'reinvest', assetId: 'reit', amount: 687.02, quantity: 61.6161, source: 'reinvest_reit' },
 ];
 
 const DAY = 86_400_000;

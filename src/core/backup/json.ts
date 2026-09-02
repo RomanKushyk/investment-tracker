@@ -1,5 +1,5 @@
 // The backup envelope (NEXT-PHASE-PLAN P1 / DECISIONS D12, now at
-// `BACKUP_FORMAT_VERSION` 2 — D113) — pure build + parse for the JSON safety
+// `BACKUP_FORMAT_VERSION` 4 — D113, D122, D125, D127) — pure build + parse for the JSON safety
 // backup. The envelope is the app-owned stable
 // contract (dexie-export-import rejected, see D12); P4's import feature
 // EXTENDS this module rather than forking it — `core/backup/import.ts` reuses
@@ -18,21 +18,38 @@ import {
 
 export const BACKUP_FORMAT = 'quirenote-backup';
 /**
- * BUMPED TO 2 WHEN `quantity` / `unitPrice` LANDED (#31).
+ * 2 WHEN `quantity` / `unitPrice` LANDED (#31, D113); 3 WHEN `couponRatePct` DID;
+ * 4 WHEN A POSITION-MOVING ROW STARTED REQUIRING ITS COUNT (D125).
  *
  * The rows are `strictObject`, and the header above explains the mechanism that
  * makes a version bump avoidable: declare an optional field BEFORE it ships, and
- * the older build already accepts it. These two shipped in the SAME commit as
- * their writer, so no earlier build has them declared — it rejects the file with
- * `unrecognized_keys`, naming a field instead of a version.
+ * the older build already accepts it. Each of these fields shipped in the SAME
+ * commit as its writer, so no earlier build has it declared — it rejects the file
+ * with `unrecognized_keys`, naming a field instead of a version.
  *
  * That is not academic here: two live sites run from two branches
  * (dev.quirenote.com from `dev`, quirenote.com from `main`, promoted only on
  * release), so between this merge and the next promotion a backup taken from dev
  * cannot be imported into production. The bump makes that refusal say what it
  * actually is.
+ *
+ * 3 IS NOT REDUNDANT WITH 2, even though both landed within days and neither has
+ * been promoted to production yet. `dev` deploys on every push, so a build
+ * carrying `quantity`/`unitPrice` but NOT `couponRatePct` was live — two builds
+ * that both call themselves version 2 and disagree about the fields, which is
+ * the one thing the number exists to prevent. The version tracks what a build
+ * ACCEPTS, not how much time passed.
  */
-export const BACKUP_FORMAT_VERSION = 2;
+/**
+ * 4 IS THE FIRST BUMP FOR A STRICTER READER RATHER THAN A NEW FIELD, and D122's
+ * rule covers it unchanged: the version tracks what a build ACCEPTS. A v3 build
+ * accepts a `buy` with no `quantity` and a v4 build does not, so every file
+ * written before this — including one the demo dataset exported yesterday — is
+ * refused. Without the bump that refusal reads `invalid_type: transactions[3]
+ * .quantity`, naming a field the owner never omitted on purpose; with it, it
+ * reads as the older format it is.
+ */
+export const BACKUP_FORMAT_VERSION = 4;
 
 export type Dataset = 'demo' | 'live';
 
@@ -60,7 +77,19 @@ const assetRowSchema = z.strictObject({
   firstPurchase: isoDate,
   createdAt: isoDateTime,
   maturity: isoDate.optional(),
+  // `couponAmount` is the LEGACY stored ₴ figure; `couponRatePct` is what the
+  // form asks for since D119. Both optional, and a file may carry either, both
+  // or neither. Additive does NOT mean the version stays: `couponRatePct` ships
+  // in the same commit as its writer, so no deployed build has it declared, and
+  // `strictObject` refuses it by field name. That is what moved the version to 3.
   couponAmount: z.number().optional(),
+  // BOUNDED LIKE THE FORM BOUNDS IT. `optionalPercent` refuses 0, a negative and
+  // anything over 100, and a backup is the other door onto the same field — the
+  // "two doors disagreeing" failure the `units` comment below is about. A stored
+  // 0 or negative is worse than wrong, it is INERT: `couponPerPayment` gates on
+  // `rate > 0`, so it silently falls back to the legacy amount and no screen ever
+  // says why. A 250 scales every coupon figure the asset produces by 2.5.
+  couponRatePct: z.number().positive().max(100).optional(),
   nextCoupon: isoDate.optional(),
   reinvestPolicy: z.string().optional(),
   // Asset.inzhur (P2 feat/asset-form) — field names mirror core/types.ts
@@ -69,13 +98,14 @@ const assetRowSchema = z.strictObject({
     .strictObject({
       kind: z.enum(['fund', 'bond']),
       ref: z.string().min(1),
-      // POSITIVE, matching the form. `assetFormSchema` parses this through
-      // `positiveNumberInput`, so the store can never hold 0 or a negative — but a
-      // hand-edited backup could, and `matchAssets` then read it as a count it
-      // KNOWS, stamping the row `no-position` and skipping it in silence. The
-      // two doors disagreeing about what a unit count may be is how the store
-      // ends up holding a value the form would have refused.
-      units: z.number().positive(),
+      // OPTIONAL since D117, POSITIVE when present — and the pair is the merge
+      // rather than either side. A link made after 2026-08-31 carries no count
+      // at all (units are `Σ transaction.quantity`), while one made before it
+      // carries the last number the removed field held, so a backup must read
+      // both. But the form never accepted 0 or a negative, and a hand-edited
+      // backup that slipped one past would be read by `matchAssets` as a count
+      // it KNOWS — stamping the row `no-position` and skipping it in silence.
+      units: z.number().positive().optional(),
     })
     .optional(),
 });
@@ -136,7 +166,23 @@ const transactionRowSchema = z.strictObject({
  */
 const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, ctx) => {
   rows.forEach((row, i) => {
-    if (movesPosition(row.type)) return;
+    if (movesPosition(row.type)) {
+      // BOTH WAYS SINCE D125. A row that moves a position must carry its count,
+      // at THIS door too and not only at the form's (D124) — because the form is
+      // not the app's only writer. `CouponDueCard` builds a `reinvest` and hands
+      // it straight to `recordTransaction`, so a count-less moving row could
+      // still reach the store, and from there an export. A backup that refuses
+      // what the store can hold would be worse than useless; this is the door
+      // that makes the rule true of the DATA rather than of one form.
+      //
+      // `unitPrice` deliberately keeps only the one-way rule: it is derivable
+      // from `amount / quantity`, so a row without it loses nothing, while a
+      // row without the COUNT cannot be valued or scaled at all.
+      if (row.quantity === undefined) {
+        ctx.addIssue({ code: 'custom', path: [i, 'quantity'], params: { rule: 'missing' } });
+      }
+      return;
+    }
     // BOTH fields, not just the count. A hand-edited `unitPrice` on an
     // `interest_payout` was accepted while `quantity` beside it was refused —
     // and the pair is what W7's two CHECKs govern together.
@@ -285,6 +331,8 @@ export type IssueCode =
   | 'expected-positive-amount'
   /** `quantity` / `unitPrice` on a row that moves no position (#31, D112). */
   | 'units-on-non-position-row'
+  /** No `quantity` on a row that DOES move a position (D125) — the converse. */
+  | 'units-missing-on-position-row'
   | 'invalid';
 
 export interface RowIssue {

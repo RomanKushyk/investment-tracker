@@ -25,7 +25,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W5 | **cum/ex boundary on UA4000238976** | the coupon itself | **2026-09-24** | **yes** | **182 days** — next chance 2027-03-24 |
 | W6 | DPU over a real month — **and `BytesRead` against `ClusterStorageSize`** | 30 days of captures | **2026-09-10** | no | **low, but not none.** The scan question is answered (**D91**, not W6). What is lost by skipping W6 is the standing re-read of `BytesRead` / `ClusterStorageSize` — the ratio that exposed a scan three code reviews missed — and confirmation of ~173 DPU/month over a full month rather than seven days |
 | W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **2026-09-02** | no | everything downstream — **it owns the dev/prod database split, USER data only (D63)**, and **it is the gate on resubmitting SES production access**: the request describes a sign-up-then-approve flow that will not exist until this lands (A11 audit, 2026-08-14) |
-| W8 | Super-admin control surface | W7 | after W7 | no | parse control stays code-only |
+| W8 | Super-admin control surface **+ demo-data ownership** | W7 | after W7 | no | parse control stays code-only; **the demo original is the super-admin's, ordinary users get a device-scoped play copy** (owner, 2026-09-01) |
 | W9 | First year sealed in the archive | the 01:00 run on 1 Jan writes 31 Dec | **2027-01-01** | no | a year cached wrong is cached forever |
 | W10 | UA4000238976 matures | the bond | **2027-03-24** | **yes** | first production exercise of the `sold` term |
 | W11 | AWS credits expire | — | **2027-07-29** | **yes** | $119.99 unused |

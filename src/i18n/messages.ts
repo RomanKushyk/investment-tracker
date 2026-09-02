@@ -128,6 +128,7 @@ export const en = {
       expectedDate: 'expected a yyyy-MM-dd date',
       expectedPositiveAmount: 'expected a positive number',
       unitsOnNonPositionRow: 'only a buy, sell, reinvest or redemption carries units',
+      unitsMissingOnPositionRow: 'a buy, sell, reinvest or redemption must state its units',
       invalid: 'invalid value',
     },
     problemCount: (total: number, shown: number) => {
@@ -247,17 +248,14 @@ export const en = {
     field: {
       name: 'Name',
       code: 'Code',
-      kind: 'Kind',
-      units: 'Units',
       expectedPct: 'Expected, %',
-      targetPct: 'Target, %',
+      targetPct: 'Target share, %',
       yieldType: 'Yield type',
       payoutSchedule: 'Payout schedule',
       firstPurchase: 'First purchase',
       maturity: 'Maturity',
       nextCoupon: 'Next coupon',
-      couponAmount: 'Coupon amount, ₴',
-      reinvestPolicy: 'Reinvest policy',
+      couponRatePct: 'Coupon rate, %',
       linkToInzhur: 'Link to Inzhur',
       // The fixed-coupon group's heading, shown only for a bond.
       fixedCouponGroup: 'Fixed coupon',
@@ -267,13 +265,12 @@ export const en = {
       code: 'Code is 1–2 letters.',
       expectedPct: 'Enter a percentage.',
       targetPct: 'Enter a percentage.',
-      couponAmount: 'Enter an amount.',
+      couponRatePct: 'Enter the coupon rate.',
       firstPurchase: 'Pick a date.',
       maturity: 'Pick a date.',
       nextCoupon: 'Pick a date.',
       refFund: 'Enter the fund slug.',
       refBond: 'Enter the bond ISIN.',
-      units: 'Enter the number of units.',
       summary: 'Check the highlighted fields and try again.',
     },
     // A placeholder MODELS the input convention, so it follows the language
@@ -282,13 +279,11 @@ export const en = {
     // field OFFERS.
     placeholder: {
       name: 'OVDP UA4000241234',
-      units: '6,164',
       expectedPct: '16.5',
       targetPct: '10',
-      couponAmount: '1,240.00',
+      couponRatePct: '15.68',
       maturity: '25 Feb 2027',
       nextCoupon: '25 Aug 2026',
-      reinvestPolicy: 'Auto (dividends)',
     },
     picker: {
       placeholder: 'Pick from Inzhur…',
@@ -299,7 +294,7 @@ export const en = {
       toPicker: 'Pick from the list',
       demo: 'Live list is disabled in demo — enter the slug or ISIN manually.',
       helper:
-        'Linked assets are valued as units × the fetched sell price — use Fetch quotes on Daily quotes.',
+        'Linked assets are valued as units × the fetched sell price. Units come from your transactions — record the quantity when you buy.',
       fund: 'Fund',
       bond: 'Bond',
       fundManual: 'Fund slug',
@@ -573,7 +568,6 @@ export const en = {
       rebalancePlan: 'Rebalance plan',
       buy: 'Buy',
       trim: 'Trim',
-      orPauseReinvest: ' (or pause reinvest)',
       withinRange: 'within ±0.5% — no action',
       // The donut's centre: a rounded thousands figure, so the unit word is
       // part of the phrase and not something the money formatter can place.
@@ -597,10 +591,13 @@ export const en = {
       expectedReturn: 'Expected return',
       actualAnn: 'Actual (ann.)',
       payoutSchedule: 'Payout schedule',
-      reinvestPolicy: 'Reinvest policy',
     },
     prose: {
       totalPlusCash: (cash: string) => `Total + cash ${cash}`,
+      // Shown only when the solved YTM and the stored one disagree — the rest
+      // of the app still measures against the stored figure.
+      ytmDerived: (stored: string) =>
+        `Solved from the price you paid. The stored expected return is ${stored}, and that is what /yield compares against.`,
       capitalGainNote:
         'Capital gain = value − invested (incl. reinvested payouts). Payout income counts in Total return on the Yield screen.',
       inWeeks: (pct: string, weeks: number) => `${pct} in ${weeks} weeks`,
@@ -795,6 +792,11 @@ export const en = {
         'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.',
       button: 'Download backup',
       failedToast: 'Could not build the backup — please try again.',
+      // THE EXPORT VALIDATES ITS OWN OUTPUT (D125's consequence): a backup the
+      // app cannot read back is worse than none, because the owner discovers it
+      // at the one moment it mattered.
+      unreadableToast: (issue: string) =>
+        `Backup not saved: this build cannot read the file it just built (${issue}).`,
     },
     dangerZone: {
       title: 'Danger zone',
@@ -852,7 +854,9 @@ export const en = {
     priceTotal: 'Total amount',
     priceUnit: 'Price per unit',
     quantity: 'Units',
-    quantityPlaceholder: '6164',
+    quantityPlaceholder: '6,164',
+    // On ANY position-moving row since D124, not just per-unit mode — there the
+    // count is what a total is derived FROM, here it is required outright.
     quantityMissing: 'Enter the number of units.',
     quantityNotPositive: 'Units have to be a positive number.',
     source: 'Source of funds',
@@ -986,6 +990,8 @@ export const en = {
       `Valued from an old stored unit count: ${names} — some of their transactions have no Units.`,
     negativeUnits: (names: string) =>
       `Fewer than zero units: ${names} — recorded sales exceed recorded purchases.`,
+    noUnitsRecorded: (names: string) =>
+      `No units recorded yet: ${names} — record a purchase with its Units to value these.`,
     useValuesFrom: (date: string) => `Use values from ${date}`,
     quoteAria: (asset: string) => `${asset} quote`,
     // S5 — the coupon-due card. `Amount, ₴` and the failure toast are the
@@ -1153,6 +1159,7 @@ export const uk: Dict = {
       expectedDate: 'очікується дата yyyy-MM-dd',
       expectedPositiveAmount: 'очікується додатне число',
       unitsOnNonPositionRow: 'одиниці має лише купівля, продаж, реінвест або погашення',
+      unitsMissingOnPositionRow: 'купівля, продаж, реінвест і погашення мають вказувати одиниці',
       invalid: 'некоректне значення',
     },
     problemCount: (total: number, shown: number) => {
@@ -1262,17 +1269,14 @@ export const uk: Dict = {
     field: {
       name: 'Назва',
       code: 'Код',
-      kind: 'Вид',
-      units: 'Одиниці',
       expectedPct: 'Очікувано, %',
-      targetPct: 'Ціль, %',
+      targetPct: 'Цільова частка, %',
       yieldType: 'Тип дохідності',
       payoutSchedule: 'Графік виплат',
       firstPurchase: 'Перша купівля',
       maturity: 'Погашення',
       nextCoupon: 'Наступний купон',
-      couponAmount: 'Сума купона, ₴',
-      reinvestPolicy: 'Політика реінвестування',
+      couponRatePct: 'Ставка купона, %',
       linkToInzhur: 'Прив’язати до Inzhur',
       fixedCouponGroup: 'Фіксований купон',
     },
@@ -1281,24 +1285,21 @@ export const uk: Dict = {
       code: 'Код — 1–2 літери.',
       expectedPct: 'Введіть відсоток.',
       targetPct: 'Введіть відсоток.',
-      couponAmount: 'Введіть суму.',
+      couponRatePct: 'Введіть ставку купона.',
       firstPurchase: 'Оберіть дату.',
       maturity: 'Оберіть дату.',
       nextCoupon: 'Оберіть дату.',
       refFund: 'Введіть ідентифікатор фонду.',
       refBond: 'Введіть ISIN ОВДП.',
-      units: 'Введіть кількість одиниць.',
       summary: 'Перевірте підсвічені поля та спробуйте ще раз.',
     },
     placeholder: {
       name: 'ОВДП UA4000241234',
-      units: '6 164',
       expectedPct: '16,5',
       targetPct: '10',
-      couponAmount: '1 240,00',
+      couponRatePct: '15,68',
       maturity: '25.02.2027',
       nextCoupon: '25.08.2026',
-      reinvestPolicy: 'Авто (дивіденди)',
     },
     picker: {
       placeholder: 'Обрати з Inzhur…',
@@ -1309,7 +1310,7 @@ export const uk: Dict = {
       toPicker: 'Обрати зі списку',
       demo: 'Живий список вимкнено в демо — введіть ідентифікатор або ISIN вручну.',
       helper:
-        'Прив’язані активи оцінюються як одиниці × отримана ціна продажу — скористайтеся «Отримати котирування» на екрані котирувань.',
+        'Прив’язані активи оцінюються як одиниці × отримана ціна продажу. Одиниці беруться з транзакцій — вказуйте кількість при купівлі.',
       fund: 'Фонд',
       bond: 'ОВДП',
       fundManual: 'Ідентифікатор фонду',
@@ -1513,7 +1514,6 @@ export const uk: Dict = {
       rebalancePlan: 'План ребалансу',
       buy: 'Купити',
       trim: 'Зменшити',
-      orPauseReinvest: ' (або призупинити реінвестицію)',
       withinRange: 'у межах ±0,5 % — без дій',
       centerTotal: (thousands: number) => `${thousands} тис. ₴`,
       assetsPlusCash: (n: number) => `${n} ${plural(n, 'актив', 'активи', 'активів')} + готівка`,
@@ -1533,10 +1533,11 @@ export const uk: Dict = {
       expectedReturn: 'Очікувана дохідність',
       actualAnn: 'Фактична (річна)',
       payoutSchedule: 'Графік виплат',
-      reinvestPolicy: 'Політика реінвестування',
     },
     prose: {
       totalPlusCash: (cash: string) => `Разом + готівка ${cash}`,
+      ytmDerived: (stored: string) =>
+        `Виведено з ціни, яку ви заплатили. Збережена очікувана дохідність — ${stored}, і саме з нею порівнює «Дохідність».`,
       capitalGainNote:
         'Приріст капіталу = вартість − вкладено (з реінвестованими виплатами). Дохід від виплат враховується в загальній дохідності на екрані «Дохідність».',
       inWeeks: (pct: string, weeks: number) => `${pct} за ${weeks} тиж.`,
@@ -1686,6 +1687,8 @@ export const uk: Dict = {
         'Повна копія активного набору в JSON — quirenote-backup-<дата>.json. Відновлюється через Імпорт нижче.',
       button: 'Завантажити копію',
       failedToast: 'Не вдалося створити копію — спробуйте ще раз.',
+      unreadableToast: (issue: string) =>
+        `Копію не збережено: ця збірка не може прочитати щойно створений нею файл (${issue}).`,
     },
     dangerZone: {
       title: 'Небезпечна зона',
@@ -1848,6 +1851,8 @@ export const uk: Dict = {
       `Оцінено за старою збереженою кількістю: ${names} — не в усіх їхніх транзакціях вказано одиниці.`,
     negativeUnits: (names: string) =>
       `Кількість нижча за нуль: ${names} — записаних продажів більше, ніж купівель.`,
+    noUnitsRecorded: (names: string) =>
+      `Кількість ще не записана: ${names} — запишіть купівлю з полем «Одиниці», щоб оцінити ці рядки.`,
     useValuesFrom: (date: string) => `Взяти значення від ${date}`,
     quoteAria: (asset: string) => `Котирування ${asset}`,
     coupon: {

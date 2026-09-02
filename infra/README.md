@@ -28,9 +28,12 @@ substitute (~0.9% same-day divergence, D26/D27).
 
 - **`pnpm typecheck` does NOT read this folder — run `pnpm exec tsc --noEmit -p infra`**
   (from the repository root, after `npm ci` here — see below). **Run it for a
-  change to the six SHARED files this program compiles as well** —
-  `src/core/types.ts`, `dates.ts`, `inzhur/{parse,dcf}.ts`,
-  `nbu/{date,fair-value}.ts` (`--listFiles` names them). The two tsconfigs
+  change to the eight SHARED files this program compiles as well** —
+  `src/core/types.ts`, `dates.ts`, `ovdp.ts`, `inzhur/{parse,dcf,ref}.ts`,
+  `nbu/{date,fair-value}.ts`. **Take the list from `--listFiles`, never from
+  arithmetic** — `ovdp.ts` and `ref.ts` both exist BECAUSE an import added to
+  `parse.ts` pulled `accrual.ts`, `derive.ts`, `period.ts` and `xirr.ts` in
+  behind it, and two hand-counted versions of that story were both off by one. The two tsconfigs
   differ, so a DOM type added there passes every root gate and reddens CI after
   the merge, on work that never touched this folder.
   Root `tsconfig.json` includes only `src`, `vite.config.ts` and `scripts`, so a

@@ -126,7 +126,7 @@ lines, ran clean: <!--f:userSchema.tables-->5<!--/f--> tables with one primary
 key each, <!--f:userSchema.compositeKeys-->4<!--/f--> of them composite
 (`app_user` keys on `user_id` alone), named `CONSTRAINT`s throughout,
 <!--f:userSchema.uniques-->3<!--/f--> `UNIQUE`s,
-<!--f:userSchema.checks-->21<!--/f--> `CHECK`s, one `DEFAULT 0`, and the types
+<!--f:userSchema.checks-->23<!--/f--> `CHECK`s, one `DEFAULT 0`, and the types
 `uuid`, `text`, `numeric` (unqualified), `smallint`, `bigint`, `date`,
 `timestamptz`.
 

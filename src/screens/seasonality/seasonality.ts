@@ -2,7 +2,7 @@
 // cards) — not in src/lib, that layer stays untouched per this task's scope.
 // Covered by seasonality.test.ts.
 import { couponProjection, scheduledCouponMonths } from '../../core/accrual';
-import { investedByAsset, transactionsFromWindow } from '../../core/derive';
+import { investedByAsset, transactionsFromWindow, unitsByAsset } from '../../core/derive';
 import type { PeriodWindow } from '../../core/period';
 import type { Asset, Transaction } from '../../core/types';
 
@@ -35,8 +35,9 @@ function expectedByDayOfMonth(
 ): Record<number, number> {
   const out: Record<number, number> = {};
   const invested = investedByAsset(transactions);
+  const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
     if (coupon === undefined) continue;
     const day = dayOfMonth(coupon.date);
     out[day] = (out[day] ?? 0) + coupon.amount;
@@ -92,8 +93,9 @@ export function incomeByMonth(transactions: Transaction[]): Record<number, numbe
 function expectedByMonth(assets: Asset[], transactions: Transaction[]): Record<number, number> {
   const out: Record<number, number> = {};
   const invested = investedByAsset(transactions);
+  const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
     if (coupon === undefined) continue;
     for (const month of scheduledCouponMonths(a, transactions)) {
       out[month] = (out[month] ?? 0) + coupon.amount;
@@ -185,8 +187,9 @@ export function dominantExpectedAssetOnDay(
   let bestId: string | undefined;
   let bestAmount = -Infinity;
   const invested = investedByAsset(transactions);
+  const units = unitsByAsset(transactions);
   for (const a of assets) {
-    const coupon = couponProjection(a, invested[a.id] ?? 0);
+    const coupon = couponProjection(a, invested[a.id] ?? 0, units[a.id]);
     if (coupon === undefined || dayOfMonth(coupon.date) !== day) continue;
     if (coupon.amount > bestAmount) {
       bestAmount = coupon.amount;

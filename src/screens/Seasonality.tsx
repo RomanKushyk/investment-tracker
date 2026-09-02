@@ -7,7 +7,8 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { transactionsFromWindow } from '../core/derive';
+import { couponPerPayment } from '../core/accrual';
+import { transactionsFromWindow, unitsByAsset } from '../core/derive';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import {
@@ -149,12 +150,19 @@ export function Seasonality() {
 
   // "Coupon season" card copy — the bond with the biggest coupon drives the
   // headline months; other bonds get a one-line "pays in {descriptor} {month}".
+  // RANKED BY THE DERIVED COUPON (D119), not by a stored figure: the rate is what
+  // the asset carries, and what it PAYS depends on how much of it is held — so a
+  // ranking off the rate alone would headline the highest-rate bond rather than
+  // the one that actually pays most.
+  const bondUnits = useMemo(() => unitsByAsset(transactions), [transactions]);
   const bonds = assets
-    .filter(
-      (a): a is Asset & { couponAmount: number } =>
-        a.yieldType === 'fixed_coupon' && a.couponAmount !== undefined,
-    )
-    .sort((a, b) => b.couponAmount - a.couponAmount);
+    .map((a) => ({ asset: a, coupon: couponPerPayment(a, bondUnits[a.id]) }))
+    // `coupon !== undefined` ALONE: `couponPerPayment` opens by returning
+    // `undefined` for any non-`fixed_coupon` asset, so re-checking the yield type
+    // here was a second gate a reader had to reconcile with the one inside.
+    .filter((b): b is { asset: Asset; coupon: number } => b.coupon !== undefined)
+    .sort((x, y) => y.coupon - x.coupon)
+    .map((b) => b.asset);
   const big = bonds[0];
   // HALF OF THIS IS HISTORY, and that half windows. `bondCouponInfo`'s months
   // are the months a bond HAS PAID in, union the one `nextCoupon` names — so

@@ -135,7 +135,15 @@ export const asset = pgTable(
     firstPurchase: date('first_purchase').notNull(),
     // Genuinely optional in the app, and optional here.
     maturity: date(),
+    // BOTH, and the app writes only the second. `coupon_amount` is the whole-
+    // position ₴ figure the form used to ask for; `coupon_rate_pct` is the fixed
+    // annual rate that replaced it (D119), from which the ₴ is derived as
+    // `rate/100 ÷ paymentsPerYear × 1000 × units`. The legacy column stays
+    // because assets created before that date carry a figure and no rate, and
+    // their ledgers hold no quantities to scale a rate by — dropping it would
+    // land those bonds here with no coupon at all.
     couponAmount: numeric('coupon_amount'),
+    couponRatePct: numeric('coupon_rate_pct'),
     nextCoupon: date('next_coupon'),
     reinvestPolicy: text('reinvest_policy'),
     // The archive link. NULL = a hand-valued asset (D75).
@@ -162,6 +170,14 @@ export const asset = pgTable(
     // is negative.
     check('asset_expected_pct_ck', sql`${t.expectedPct} >= 0`),
     check('asset_target_pct_ck', sql`${t.targetPct} >= 0 AND ${t.targetPct} <= 100`),
+    // THE SAME RANGE THE FORM AND THE BACKUP ENFORCE (D119). A rate is a
+    // percentage of the ₴1000 face, so 0 and negatives are not smaller rates —
+    // they are values `couponPerPayment` treats as absent, falling back to the
+    // legacy amount with nothing to say it did.
+    check(
+      'asset_coupon_rate_pct_ck',
+      sql`${t.couponRatePct} IS NULL OR (${t.couponRatePct} > 0 AND ${t.couponRatePct} <= 100)`,
+    ),
     check(
       'asset_yield_type_ck',
       sql`${t.yieldType} IN ('fixed_coupon', 'dividends', 'capitalization', 'div_cap')`,
@@ -218,12 +234,36 @@ export const transaction = pgTable(
     // `type`, and nothing else records units.
     check('transaction_quantity_sign_ck', sql`${t.quantity} IS NULL OR ${t.quantity} > 0`),
     check('transaction_unit_price_ck', sql`${t.unitPrice} IS NULL OR ${t.unitPrice} > 0`),
-    // ONE WAY ONLY: a row that moves no position must not invent a quantity.
-    // The converse is application-enforced, not a CHECK — legacy rows carry
-    // no quantity and cannot be reconstructed.
+    // A row that moves no position must not invent a quantity. THE CONVERSE IS
+    // NOW A CHECK TOO — `transaction_quantity_required_ck`, declared below,
+    // added when W7 stopped migrating legacy rows and started seeding fresh ones
+    // (D125/D128). This comment used to end "application-enforced, not a CHECK,
+    // because legacy rows carry no quantity and cannot be reconstructed", which
+    // was true until there were no legacy rows to carry.
     check(
       'transaction_quantity_absent_ck',
       sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.quantity} IS NULL`,
+    ),
+    // THE CONVERSE (D125). A row that moves a position must state its count.
+    //
+    // NO BACKFILL STEP IS OWED, and an earlier version of this comment said one
+    // was. D112 declined this CHECK because pre-#31 rows have none and their
+    // counts are unrecoverable — true, and irrelevant here: **W7 seeds fresh
+    // demo data rather than carrying the local store across** (owner,
+    // 2026-09-01, `docs/plans/phase-w-i-ii-iii.md`). There is no live user and
+    // so no history to migrate, which is the same premise D128 rests on. The
+    // constraint is simply true of everything that will ever be written.
+    //
+    // The store must not be weaker than the app, which is the argument the
+    // `unit_price` check beside this one already makes. With the count required
+    // at the form (D124) and at the backup importer, a schema that still
+    // accepted a count-less `buy` would let a migration land rows the
+    // application itself refuses to write — and every coupon figure D119
+    // derives is `rate × units`, so such a row values its whole position at
+    // nothing and says nothing about why.
+    check(
+      'transaction_quantity_required_ck',
+      sql`${t.type} NOT IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.quantity} IS NOT NULL`,
     ),
     // THE PRICE TAKES THE SAME RULE AS THE COUNT. It is the other half of one
     // fact — what a position movement cost per unit — and the app enforces both

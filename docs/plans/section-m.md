@@ -38,10 +38,14 @@ both  BOTH marks present -> the LAST is the decimal        (unchanged)
 - [ ] **THREE FIELDS ARE ON THE NEW GRAMMAR, THE REST ARE NOT.** #31 needed it
       for the transaction panel's `quantity` and `amount` and the asset form's
       `inzhur.units` — the fields a Ukrainian typist writes with three decimals.
-      Still on the grouping default, and this row's remaining work:
-      `expectedPct`, `targetPct`, `couponAmount`, the daily-quote inputs,
-      `usdRate` and `reminderLeadDays` (`quoteInputSchema` / `percentInputSchema`
-      are still static module-level exports, and both take the default).
+      Still on the grouping default, and this row's remaining work: the
+      daily-quote inputs, `usdRate` and `reminderLeadDays` — `quoteInputSchema`
+      is still a static module-level export taking it. **`expectedPct`,
+      `targetPct` and the rate LANDED** on `split/asset-form`: the asset form
+      regained `assetFormSchema(mode, lang)`, `percentInputSchema` became
+      `percentInputSchemaWith` / `…For`, and `couponAmount` is gone to D119's
+      `couponRatePct`. `/allocation`'s target editor takes the language too, or
+      one field would parse two ways.
       `Format.input()` verifies its round trip against the DEFAULT parser too —
       see its doc in `money.ts`; a field moved to the Ukrainian rule whose
       prefill goes through `f.input` loses the guarantee silently.

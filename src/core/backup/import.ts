@@ -187,6 +187,14 @@ interface ZodIssueLike {
   path: PropertyKey[];
   message: string;
   keys?: unknown;
+  /**
+   * The one thing a `custom` issue may carry besides its path. Two OPPOSITE
+   * rules now land on `[i, 'quantity']` — a count on a row that takes none
+   * (D112) and no count on a row that requires one (D125) — and they need
+   * different words. `params` discriminates them without putting English in
+   * `core/`, which is the rule `transactionRowsSchema`'s own comment states.
+   */
+  params?: { rule?: string };
 }
 
 /** zod issues → the shared structured shape, with the addressing rule above. */
@@ -228,7 +236,9 @@ function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
   // The one-way units rule (#31, D112). `custom` with no message is the shape
   // `transactionRowsSchema` emits for it — this is where it gets its words.
   if (issue.code === 'custom' && (field === 'quantity' || field === 'unitPrice')) {
-    return 'units-on-non-position-row';
+    return issue.params?.rule === 'missing'
+      ? 'units-missing-on-position-row'
+      : 'units-on-non-position-row';
   }
   return 'invalid';
 }

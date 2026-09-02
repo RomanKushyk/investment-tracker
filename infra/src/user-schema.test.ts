@@ -52,8 +52,8 @@ const uuid = (c: string) =>
  * A FRESH id per insert.
  *
  * Reusing one throwaway id across tests was safe only while every test using it
- * expected a rejection. The moment a case flipped to accepting — a buy with no
- * quantity, a tax with no asset — the row persisted and the next test collided
+ * expected a rejection. The moment a case flipped to accepting — a tax with no
+ * asset, a moving row WITH a count — the row persisted and the next test collided
  * on the primary key, failing for a reason that had nothing to do with what it
  * was checking. Sequential rather than random so a failure is reproducible.
  */
@@ -253,6 +253,16 @@ describe('asset', () => {
                      VALUES (${USER}, ${nextId()}, 'x', 'XX', 1, 'dividends', 25,
                              'monthly', '2026-02-03', now());`);
   });
+  it('refuses a coupon rate outside the range the form allows', async () => {
+    // D119: 0 and negatives are not smaller rates — `couponPerPayment` gates on
+    // `rate > 0`, so they read as ABSENT and fall back to the legacy amount with
+    // nothing to say they did. Over 100 scales every coupon the asset produces.
+    await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', 0'));
+    await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', -1'));
+    await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', 250'));
+    await accepts(insertAsset(nextId(), ', coupon_rate_pct', ', 15.68'));
+    await accepts(insertAsset(nextId(), ', coupon_rate_pct', ', NULL'));
+  });
 });
 
 describe('transaction', () => {
@@ -262,15 +272,6 @@ describe('transaction', () => {
 
   it('accepts a buy with an asset and a quantity', async () => {
     await accepts(insertTx(nextId(), 'buy', `${ASSET}, 12.5, 8.0, NULL`));
-  });
-
-  it('ACCEPTS a buy with no quantity — the legacy rows have none', async () => {
-    // Not an oversight. `Transaction` has no quantity field, so the seed's four
-    // buys and three reinvests carry none and none can be reconstructed: an
-    // asset's `inzhur.units` is a current TOTAL and does not decompose. A hard
-    // CHECK would reject the entire buy history at migration. The requirement
-    // is application-enforced on NEW rows.
-    await accepts(insertTx(nextId(), 'buy', `${ASSET}, NULL, NULL, NULL`));
   });
 
   it('ACCEPTS a tax row with no asset — required only when it settles a payout', async () => {
@@ -355,6 +356,26 @@ describe('transaction', () => {
 
   it('refuses a non-tax row settling a payout', async () => {
     await refuses(insertTx(nextId(), 'sell', `${ASSET}, 1, NULL, ${PAYOUT}`));
+  });
+  it('requires a count on a position-moving row, and only there (D125)', async () => {
+    // THE CONVERSE of `transaction_quantity_absent_ck`, REVERSING the rule this
+    // file pinned until now ("ACCEPTS a buy with no quantity — the legacy rows
+    // have none"). That reasoning was about rows already STORED, and W7 stores
+    // none of them: it seeds fresh demo data rather than carrying the local
+    // store across (owner, 2026-09-01). No live user, no history, no backfill —
+    // the constraint is simply true of everything that will be written.
+    //
+    // The store must not be weaker than the app, which is the argument the
+    // `unit_price` check already makes: the count is now required at the form
+    // (D124) and at the backup importer, so a schema that still accepted a
+    // count-less `buy` would let a migration land rows the application refuses
+    // to write.
+    for (const type of ['buy', 'sell', 'reinvest', 'redemption']) {
+      await refuses(insertTx(nextId(), type, `${ASSET}, NULL, NULL, NULL`));
+      await accepts(insertTx(nextId(), type, `${ASSET}, 5, NULL, NULL`));
+    }
+    // A row that moves nothing still states nothing, which is the other check.
+    await accepts(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL'));
   });
 });
 

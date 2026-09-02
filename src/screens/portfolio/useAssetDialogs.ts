@@ -66,7 +66,9 @@ export function useAssetDialogs(assets: Asset[]) {
 
   function submitEdit(asset: Asset, values: AssetFormValues) {
     updateAsset.mutate(
-      { id: asset.id, patch: assetPatchFromForm(values) },
+      // `asset` so the patch can carry a legacy `inzhur.units` across — the form
+      // stopped asking for it (D117) and `inzhur` is replaced wholesale.
+      { id: asset.id, patch: assetPatchFromForm(values, asset) },
       {
         onSuccess: () => {
           toast.success(t.assets.updatedToast);

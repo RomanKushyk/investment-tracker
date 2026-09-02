@@ -115,15 +115,30 @@ export const quoteInputSchema = positiveNumberInput(true);
 // admit any 0–100 split). Shared by the AssetForm Target field and the
 // Settings targets editor (screens/allocation/targets.ts) so both accept the
 // exact same grammar.
-export const percentInputSchema = numberInput(true).pipe(z.number().finite().min(0).max(100));
+/**
+ * A 0–100 share — THE one definition of that grammar, in both spellings.
+ *
+ * TWO ENTRY POINTS AND ONE BODY, because the two callers hold different halves
+ * of the same fact: `assetFormObjectFor` already has the boolean, and
+ * `/allocation`'s target editor has the language. An earlier cut gave them a
+ * factory each and left the chain written out twice in this file — which is the
+ * duplication `numberInput` exists to prevent, arriving in the very change that
+ * was fixing it.
+ *
+ * WHY IT TOOK THE LANGUAGE AT ALL: the asset form regained its `lang` and this
+ * editor did not, so under Ukrainian `17,500` was 17.5 in one door and 17500 —
+ * refused by the cap — in the other, on one stored field whose own comment
+ * promised the two editors "can never disagree".
+ */
+function percentInputSchemaWith(groupsWithComma: boolean) {
+  return numberInput(groupsWithComma).pipe(z.number().finite().min(0).max(100));
+}
+
+export function percentInputSchemaFor(lang: Lang) {
+  return percentInputSchemaWith(groupsWithCommaFor(lang));
+}
 
 const isoDateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-
-// Optional text field: '' (an untouched input) parses to undefined.
-const optionalText = z
-  .string()
-  .trim()
-  .transform((s) => (s === '' ? undefined : s));
 
 const optionalDate = z
   .string()
@@ -131,28 +146,69 @@ const optionalDate = z
   .transform((s) => (s === '' ? undefined : s))
   .pipe(isoDateInput.optional());
 
-const optionalAmount = z
-  .string()
-  .trim()
-  .transform((s) => (s === '' ? undefined : s))
-  .pipe(quoteInputSchema.optional());
+// A percentage that may be left blank, bounded (0, 100]. The upper bound is the
+// right one for a coupon rate — the widest measured across the provider's 32 live
+// bonds is 18.50 % (`docs/reference/OVDP-COUPON-STRUCTURE.md`).
+//
+// DELIBERATELY NOT `percentInputSchemaFor(lang).optional()`, which is where a reader will
+// reach first, because it is `[0, 100]` and admits 0: a 0 % TARGET share is a
+// real answer, a 0 % coupon is not a coupon. `couponPerPayment` gates on
+// `rate > 0`, so a stored 0 does not read as a smaller rate — it reads as ABSENT
+// and falls silently back to the legacy `couponAmount`, with no screen able to
+// say which figure it is showing. Refuse it at the door; `core/backup/json.ts`
+// and `asset_coupon_rate_pct_ck` refuse it at the other two.
+function optionalPercentFor(groupsWithComma: boolean) {
+  // COMPOSED from `numberInput`, not a second copy of it, and following
+  // `optionalDate`'s shape: empty → `undefined` first, then the shared parse
+  // half, then this schema's own range. `numberInput`'s doc gives the reason —
+  // "copied, the shared half was free to drift from the rule it is supposed to
+  // be" — and this field is the one pinned against `core/backup/json.ts` AND
+  // `asset_coupon_rate_pct_ck`, so a drift here disagrees with two other doors.
+  return z
+    .string()
+    .trim()
+    .transform((s) => (s === '' ? undefined : s))
+    .pipe(numberInput(groupsWithComma).pipe(z.number().finite().positive().max(100)).optional());
+}
 
 // The AssetForm (NEXT-PHASE-PLAN P2 feat/asset-form, brief S3) — every
 // editable Asset field. The Inzhur group is present only while the
 // "Link to Inzhur" toggle is on (the component sets `inzhur: undefined`
 // when off, mirroring the TransactionPanel newAsset-clearing rule).
-function inzhurGroupSchemaFor(groupsWithComma: boolean) {
-  return z.object({
-    kind: z.enum(['fund', 'bond']),
-    ref: z.string().trim().min(1), // fund slug / bond ISIN — manual text this phase, live picker in P3
-    // THE SAME FIELD AS THE TRANSACTION PANEL'S «Одиниці», one form over, and it
-    // needs the same rule: `43,478` is 43.478 to a Ukrainian typist and 43478
-    // under the grouping rule. Fixing one and leaving this one had the two
-    // sources `matchAssets` treats as interchangeable — `unitsFrom: 'ledger'`
-    // and `'link'` — parsing identical text a thousandfold apart.
-    units: positiveNumberInput(groupsWithComma),
-  });
-}
+// `units` LEFT this group on 2026-08-31 (D117) — units are `Σ quantity` over the
+// ledger now (D112), and the form no longer asks. What the link still holds is
+// where to look the instrument up.
+//
+// AND THE UNITS FIELD TOOK NOTHING ELSE WITH IT. `dev` made this schema a factory
+// over `groupsWithComma` for one reason: `units` is a count a Ukrainian typist
+// writes with three decimals, so `43,478` had to mean 43.478 here and not 43478.
+//
+// THE LANGUAGE STAYED ANYWAY, and it now reaches the PERCENT fields — which it
+// never did before, on this branch or on `dev`. The removal was justified by a
+// claim that no field left in the form could store a wrong number under the
+// grouping rule; measured properly that is false for exactly one field.
+// `targetPct` and `couponRatePct` are bounded at 100, so a misread `10,500` is
+// REFUSED; `expectedPct` was `quoteInputSchema` — `positiveNumberInput(true)`,
+// English grouping hard-wired, no `max` — so `16,400` from a Ukrainian typist
+// stored 16400 and reached `dailyAccrual`'s fallback, `couponProjection`'s
+// estimate and `/yield`.
+//
+// THAT BUG IS OLDER THAN THIS BRANCH. `dev` binds `expectedPct` to the same
+// `quoteInputSchema`, so it stores 16400 too; `dev`'s `lang` argument fed
+// `inzhur.units` alone. B dropped the parameter as inert, which was true of the
+// field it was wired to and false of the form. So this is a FIX to a standing
+// defect, not the repair of a regression — and the difference matters, because
+// the other reading makes a revert to `dev` look safe.
+//
+// The first measurement missed it because the probe omitted three required keys
+// and read the resulting `invalid_type` as a rejection of the VALUE — D115's
+// rule, in a schema instead of a browser: a reading that disagrees with the
+// arithmetic of its own rules is the instrument until proven otherwise.
+
+const inzhurGroupSchema = z.object({
+  kind: z.enum(['fund', 'bond']),
+  ref: z.string().trim().min(1), // fund slug / bond ISIN — manual text this phase, live picker in P3
+});
 
 function assetFormObjectFor(groupsWithComma: boolean) {
   return z.object({
@@ -165,8 +221,8 @@ function assetFormObjectFor(groupsWithComma: boolean) {
       .regex(/^\p{L}{1,2}$/u)
       .transform((s) => s.toUpperCase()),
     yieldType: z.enum(['fixed_coupon', 'dividends', 'capitalization', 'div_cap']),
-    expectedPct: quoteInputSchema,
-    targetPct: percentInputSchema,
+    expectedPct: positiveNumberInput(groupsWithComma),
+    targetPct: percentInputSchemaWith(groupsWithComma),
     // All 5 domain schedules here; the mode refinement below rejects the
     // seed-only 'none' on create (edit of a 'none' asset may keep it — S3).
     payoutSchedule: z.enum(['maturity', 'monthly', 'quarterly', 'semiannual', 'none']),
@@ -174,15 +230,15 @@ function assetFormObjectFor(groupsWithComma: boolean) {
     // Fixed-coupon group (revealed when yieldType = fixed_coupon) — each field
     // stays optional (the Asset type allows their absence; Attributes shows —).
     maturity: optionalDate,
-    couponAmount: optionalAmount,
+    // THE RATE, not the amount (D119). A bond's coupon rate is fixed at issuance;
+    // the ₴ it pays scales with the holding, so the amount is derived
+    // (`couponPerPayment`) rather than asked for. `couponAmount` is legacy and the
+    // form no longer writes it — see `Asset`.
+    couponRatePct: optionalPercentFor(groupsWithComma),
     nextCoupon: optionalDate,
-    reinvestPolicy: optionalText,
-    inzhur: inzhurGroupSchemaFor(groupsWithComma).optional(),
+    inzhur: inzhurGroupSchema.optional(),
   });
 }
-
-/** The shape for TYPES — the language changes a parse rule, never the fields. */
-type AssetFormObject = ReturnType<typeof assetFormObjectFor>;
 
 // Create never offers 'none' (README schedules); edit mode of an asset
 // already holding the seed-only 'none' may keep it — brief S3.
@@ -194,6 +250,7 @@ export function assetFormSchema(mode: 'create' | 'edit', lang: Lang) {
   });
 }
 
+type AssetFormObject = ReturnType<typeof assetFormObjectFor>;
 export type AssetFormInput = z.input<AssetFormObject>;
 export type AssetFormValues = z.output<AssetFormObject>;
 
@@ -257,13 +314,35 @@ type TransactionObject = ReturnType<typeof transactionObjectFor>;
 
 export function transactionSchema(lang: Lang) {
   return transactionObjectFor(lang).superRefine((v, ctx) => {
-    if (v.priceMode === 'unit' && v.quantity === undefined) {
+    // BOTH WAYS NOW (D124, owner's ruling). A row that moves no position must
+    // not carry units, and a row that DOES move one must carry them.
+    //
+    // The converse used to be deliberately unenforced, on the ground that every
+    // row recorded before #31 lacks a count and demanding one would make an old
+    // habit unenterable. That reasoning protected the wrong thing: it is about
+    // rows already STORED, and this schema only ever sees a row being typed now.
+    // Meanwhile D119 made every coupon figure `rate × units`, so a buy recorded
+    // in the default `total` mode with the quantity left blank produced a bond
+    // whose coupon reads «—» on `/attributes`, drops out of `/seasonality`'s
+    // coupon season, falls back to an `expectedPct` estimate on `/overview` and
+    // prefills nothing in the due card — with nothing anywhere saying why.
+    //
+    // This subsumes the old `priceMode === 'unit'` check: the panel forces
+    // `total` on any type that takes no units, so `unit` implies a moving row.
+    //
+    // THE OTHER DOORS ENFORCE IT TOO, and that is a later ruling than this
+    // block's first draft. D125 put the same rule on the JSON importer and on
+    // `transaction_quantity_required_ck`; D126 removed the backup half and D127
+    // — the owner's — put it back. `Transaction.quantity` stays optional in the
+    // TYPE, because a row that moves no position has none to state.
+    //
+    // What made all three safe is D128: no door can produce a count-less moving
+    // row any more, so there is no legacy population for them to lock out. This
+    // comment used to say storage was deliberately left permissive; that was
+    // true of the branch that wrote it and is not true of the merge.
+    if (movesPosition(v.type) && v.quantity === undefined) {
       ctx.addIssue({ code: 'custom', path: ['quantity'] });
     }
-    // ONE WAY ONLY, mirroring W7's `transaction_quantity_absent_ck`: a row that
-    // moves no position must not carry units. The converse is deliberately not
-    // enforced — a position-moving row is allowed to lack a quantity, which is
-    // the state every row recorded before #31 is in.
     if (v.quantity !== undefined && !movesPosition(v.type)) {
       ctx.addIssue({ code: 'custom', path: ['quantity'] });
     }

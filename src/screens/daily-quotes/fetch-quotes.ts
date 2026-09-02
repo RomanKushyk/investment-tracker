@@ -46,6 +46,8 @@ export interface FetchApplication {
    * here that names one: `no-position` rows are ordinary and stay silent.
    */
   negative: string[];
+  /** Linked and matched, but no count from any source (D117's third state). */
+  noCount: string[];
 }
 
 function kopecks(n: number): number {
@@ -98,18 +100,22 @@ export function reconcileFetched(
   const fills: FetchApplication['fills'] = [];
   const offers: FetchApplication['offers'] = [];
   const negative: string[] = [];
+  const noCount: string[] = [];
 
   for (const match of matches) {
-    // A MATCH WITH NO VALUE IS SKIPPED, not filled with a guess (D114): the
+    // A MATCH WITH NO VALUE IS SKIPPED, not filled with a guess (D117): the
     // asset is in the feed, but no count is known for it — no quantities in the
     // ledger and no legacy total on the link — so there is no position value to
     // offer. Falling through with `undefined` would have written the string
     // "undefined" into the draft; falling through with 0 would have written a
     // real, wrong number.
     // NO VALUE MEANS NO OFFER — but only `no-position` means no message. A
-    // count below zero is impossible for a holding, so it is reported.
+    // sold-out holding is a fact the ledger states on purpose; a count below
+    // zero is impossible; and NO COUNT AT ALL is a row the user has to be told
+    // about, because nothing else on the screen says why it stayed empty.
     if (match.value === undefined) {
       if (match.noValue === 'negative') negative.push(match.asset.id);
+      if (match.noValue === 'no-count') noCount.push(match.asset.id);
       continue;
     }
     const value = match.value;
@@ -119,7 +125,7 @@ export function reconcileFetched(
     else if (!sameQuote(row.raw, value)) offers.push({ assetId, value });
   }
 
-  return { fills, offers, negative };
+  return { fills, offers, negative, noCount };
 }
 
 /** How many portfolio assets carry an Inzhur link — 0 disables the button. */

@@ -57,6 +57,9 @@ describe('transactionSchema', () => {
     type: 'buy',
     assetId: 'reit',
     amount: '1 000,00',
+    // REQUIRED on a position-moving row since D124 — a `buy` without one no
+    // longer parses, which is what the four rules below are about.
+    quantity: '10',
     source: 'own',
   };
 
@@ -76,7 +79,9 @@ describe('transactionSchema', () => {
 
   it("accepts the P1 domain types 'withdrawal' and 'redemption'", () => {
     expect(
-      transactionSchema('en').safeParse({ ...base, type: 'withdrawal', assetId: 'x' }).success,
+      // `quantity: ''` — a withdrawal moves no position, so it must NOT carry one.
+      transactionSchema('en').safeParse({ ...base, type: 'withdrawal', assetId: 'x', quantity: '' })
+        .success,
     ).toBe(true);
     expect(transactionSchema('en').safeParse({ ...base, type: 'redemption' }).success).toBe(true);
   });
@@ -92,9 +97,8 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
     payoutSchedule: 'quarterly',
     firstPurchase: '2026-08-01',
     maturity: '',
-    couponAmount: '',
+    couponRatePct: '',
     nextCoupon: '',
-    reinvestPolicy: '',
   };
 
   it('parses a plain dividends asset; empty optionals become undefined; code uppercases', () => {
@@ -103,9 +107,8 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
     expect(parsed.expectedPct).toBe(12);
     expect(parsed.targetPct).toBe(5);
     expect(parsed.maturity).toBeUndefined();
-    expect(parsed.couponAmount).toBeUndefined();
+    expect(parsed.couponRatePct).toBeUndefined();
     expect(parsed.nextCoupon).toBeUndefined();
-    expect(parsed.reinvestPolicy).toBeUndefined();
     expect(parsed.inzhur).toBeUndefined();
   });
 
@@ -118,51 +121,110 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
       expectedPct: '16,5',
       payoutSchedule: 'semiannual',
       maturity: '2027-02-25',
-      couponAmount: '1 240,00',
+      couponRatePct: '15,68',
       nextCoupon: '2026-08-25',
-      reinvestPolicy: 'Auto (dividends)',
     });
     expect(parsed.maturity).toBe('2027-02-25');
-    expect(parsed.couponAmount).toBe(1240);
+    expect(parsed.couponRatePct).toBeCloseTo(15.68, 4);
     expect(parsed.nextCoupon).toBe('2026-08-25');
-    expect(parsed.reinvestPolicy).toBe('Auto (dividends)');
     expect(parsed.expectedPct).toBeCloseTo(16.5, 2);
   });
 
-  it('parses the Inzhur group — fund slug and bond ISIN variants, units table-format', () => {
+  it('reads a Ukrainian comma as a DECIMAL point, in every percent field', () => {
+    // THE BUG THIS PINS IS OLDER THAN THE BRANCH: `dev` binds `expectedPct` to
+    // `quoteInputSchema` = `positiveNumberInput(true)`, so it stores 16400 too.
+    // Dropping the schema's `lang` argument did not cause it — the argument fed
+    // `inzhur.units` and never these fields — but the claim used to justify the
+    // drop was measured wrong: that every percent field would refuse an
+    // out-of-range result. Two of the three do, because they are
+    // bounded at 100. `expectedPct` is `positiveNumberInput` with NO max, so
+    // «16,400» — 16.4 % as a Ukrainian writes it — stored 16400 and drove
+    // `dailyAccrual`'s fallback, `couponProjection`'s estimate and `/yield`'s
+    // «проти очікуваної» with it. A lone comma read the wrong way is a
+    // thousandfold, not an error (D87).
+    const uk = { ...base, expectedPct: '16,400', targetPct: '10,500' };
+    const parsedUk = assetFormSchema('create', 'uk').parse(uk);
+    expect(parsedUk.expectedPct).toBeCloseTo(16.4, 4);
+    expect(parsedUk.targetPct).toBeCloseTo(10.5, 4);
+    // The same text under the English grammar means thousands — and the bounded
+    // field refuses it while the unbounded one cannot, which is exactly why the
+    // language has to reach the schema rather than being caught downstream.
+    expect(
+      assetFormSchema('create', 'en').parse({ ...base, expectedPct: '16,400' }).expectedPct,
+    ).toBe(16400);
+    expect(
+      assetFormSchema('create', 'en').safeParse({ ...base, targetPct: '10,500' }).success,
+    ).toBe(false);
+    // A three-decimal coupon rate now parses instead of being refused for a
+    // reason the user could not have guessed.
+    const bond = { ...base, yieldType: 'fixed_coupon', payoutSchedule: 'semiannual' };
+    expect(
+      assetFormSchema('create', 'uk').parse({ ...bond, couponRatePct: '15,680' }).couponRatePct,
+    ).toBeCloseTo(15.68, 4);
+  });
+
+  it('refuses a coupon rate of 0, a negative and one over 100 (D119)', () => {
+    // THE DOOR THE USER ACTUALLY TYPES THROUGH, and it was the one door without
+    // these cases: `core/backup/json.ts` and `asset_coupon_rate_pct_ck` both pin
+    // the same three, so widening this schema — say by "simplifying" it back to
+    // `percentInputSchemaFor(lang).optional()`, which admits 0 — would leave the whole
+    // suite green while the backup and the DDL kept refusing what the form stores.
+    //
+    // 0 is the one worth naming: it is not a smaller rate but an INERT one.
+    // `couponPerPayment` gates on `rate > 0`, so a stored 0 falls back to the
+    // legacy `couponAmount` and no screen can say which figure it is showing.
+    const bond = { ...base, yieldType: 'fixed_coupon', payoutSchedule: 'semiannual' };
+    for (const bad of ['0', '0,00', '-5', '-0,01', '100,01', '250']) {
+      expect(
+        assetFormSchema('create', 'en').safeParse({ ...bond, couponRatePct: bad }).success,
+      ).toBe(false);
+    }
+    // The bounds themselves are inclusive at the top and exclusive at the bottom.
+    for (const ok of ['0,01', '18,50', '100']) {
+      expect(
+        assetFormSchema('create', 'en').safeParse({ ...bond, couponRatePct: ok }).success,
+      ).toBe(true);
+    }
+  });
+
+  it('parses the Inzhur group — fund slug and bond ISIN variants', () => {
+    // NO UNITS since D117: the group says where to look the instrument up, and
+    // nothing else. Counts are `Σ transaction.quantity` (D112).
     const fund = assetFormSchema('create', 'en').parse({
       ...base,
-      inzhur: { kind: 'fund', ref: 'inzhur-reit', units: '6 164' },
+      inzhur: { kind: 'fund', ref: 'inzhur-reit' },
     });
-    expect(fund.inzhur).toEqual({ kind: 'fund', ref: 'inzhur-reit', units: 6164 });
+    expect(fund.inzhur).toEqual({ kind: 'fund', ref: 'inzhur-reit' });
 
     const bond = assetFormSchema('edit', 'en').parse({
       ...base,
       yieldType: 'fixed_coupon',
-      inzhur: { kind: 'bond', ref: 'UA4000238976', units: '15' },
+      inzhur: { kind: 'bond', ref: 'UA4000238976' },
     });
-    expect(bond.inzhur).toEqual({ kind: 'bond', ref: 'UA4000238976', units: 15 });
+    expect(bond.inzhur).toEqual({ kind: 'bond', ref: 'UA4000238976' });
   });
 
-  it('rejects a missing ref and non-positive units when linked', () => {
+  it('rejects a missing ref when linked', () => {
     expect(
-      assetFormSchema('create', 'en').safeParse({
-        ...base,
-        inzhur: { kind: 'fund', ref: '', units: '10' },
-      }).success,
+      assetFormSchema('create', 'en').safeParse({ ...base, inzhur: { kind: 'fund', ref: '' } })
+        .success,
     ).toBe(false);
     expect(
-      assetFormSchema('create', 'en').safeParse({
-        ...base,
-        inzhur: { kind: 'bond', ref: 'UA4000238976', units: '0' },
-      }).success,
+      assetFormSchema('create', 'en').safeParse({ ...base, inzhur: { kind: 'fund', ref: '   ' } })
+        .success,
     ).toBe(false);
-    expect(
-      assetFormSchema('create', 'en').safeParse({
-        ...base,
-        inzhur: { kind: 'bond', ref: 'UA4000238976', units: '-3' },
-      }).success,
-    ).toBe(false);
+  });
+
+  it('DROPS a units key the caller still sends (D117)', () => {
+    // A stale backup, or a caller written against the old shape. `z.object` is
+    // not strict, so the key is ignored rather than rejected — and the parsed
+    // value must not carry it through, or the count would ride back into the
+    // store on the next save without any field ever showing it.
+    const parsed = assetFormSchema('create', 'en').parse({
+      ...base,
+      inzhur: { kind: 'fund', ref: 'inzhur-reit', units: '6 164' },
+    });
+    expect(parsed.inzhur).toEqual({ kind: 'fund', ref: 'inzhur-reit' });
   });
 
   it("allows the seed-only 'none' schedule in edit mode ONLY", () => {
@@ -211,6 +273,9 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
     type: 'reinvest' as const,
     assetId: 'reit',
     amount: '484,36',
+    // A `reinvest` moves a position, so D124 requires this — every case below
+    // overrides it with the shape under test.
+    quantity: '1',
     source: 'reinvest_reit' as const,
   };
 
@@ -238,64 +303,6 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
       priceMode: 'unit',
     });
     expect(uk.amount).toBeCloseTo(11.138, 6);
-  });
-
-  it('reads the SAME field the same way in the asset form, which holds it too', () => {
-    // `matchAssets` treats the ledger's count and `Asset.inzhur.units` as two
-    // sources of ONE number (D112, `unitsFrom`). Fixing the transaction panel
-    // and leaving `inzhurGroupSchema` on the grouping rule had the two parsing
-    // identical Ukrainian text a thousandfold apart — 43.478 units on one
-    // screen and 43 478 on the other, both silently accepted.
-    const asset = {
-      name: 'City Garden REIT',
-      code: 'ci',
-      yieldType: 'dividends',
-      expectedPct: '12',
-      targetPct: '5',
-      payoutSchedule: 'quarterly',
-      firstPurchase: '2026-08-01',
-      maturity: '',
-      couponAmount: '',
-      nextCoupon: '',
-      reinvestPolicy: '',
-      inzhur: { kind: 'fund' as const, ref: 'reit', units: '43,478' },
-    };
-    expect(assetFormSchema('create', 'uk').parse(asset).inzhur?.units).toBeCloseTo(43.478, 6);
-    expect(assetFormSchema('create', 'en').parse(asset).inzhur?.units).toBe(43478);
-    // And the default is the grouping rule, so every call site that has no
-    // language to give — the backup importer, a test — keeps its old reading.
-    expect(assetFormSchema('create', 'en').parse(asset).inzhur?.units).toBe(43478);
-  });
-
-  it('round-trips what the asset form PREFILLS into the units field', () => {
-    // The guarantee that matters to a user: open an asset, change nothing but
-    // the name, Save — the unit count must come back as the number that went
-    // in. The prefill is `f.units(asset.inzhur.units)` (`asset-form.ts`), which
-    // is a formatter with no round-trip check of its own, so the schema is what
-    // has to agree with it.
-    const asset = (units: string) => ({
-      name: 'City Garden REIT',
-      code: 'ci',
-      yieldType: 'dividends',
-      expectedPct: '12',
-      targetPct: '5',
-      payoutSchedule: 'quarterly',
-      firstPurchase: '2026-08-01',
-      maturity: '',
-      couponAmount: '',
-      nextCoupon: '',
-      reinvestPolicy: '',
-      inzhur: { kind: 'fund' as const, ref: 'reit', units },
-    });
-    const back = (lang: 'uk' | 'en', shown: string) =>
-      assetFormSchema('edit', lang).parse(asset(shown)).inzhur?.units;
-
-    // `f.units` renders these; the values are the two shapes #31 made reachable
-    // — a whole count and a fractional one a reinvestment buys.
-    expect(back('uk', '6 164')).toBe(6164); // NBSP — what `f.units` emits
-    expect(back('en', '6,164')).toBe(6164);
-    expect(back('uk', '43,478')).toBeCloseTo(43.478, 6);
-    expect(back('en', '43.478')).toBeCloseTo(43.478, 6);
   });
 
   it('gives the coupon card the SAME reading as the panel — both write a Transaction', () => {
@@ -332,17 +339,18 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
   });
 });
 
-describe('the transaction refinements #31 adds', () => {
+describe('the transaction refinements #31 adds, and D124 completes', () => {
   const base = {
     date: '2026-08-12',
     type: 'buy' as const,
     assetId: 'reit',
     amount: '1 000,00',
+    quantity: '10',
     source: 'own' as const,
   };
 
   it('refuses per-unit mode with no quantity — there is no total to record', () => {
-    const bad = transactionSchema('uk').safeParse({ ...base, priceMode: 'unit' });
+    const bad = transactionSchema('uk').safeParse({ ...base, priceMode: 'unit', quantity: '' });
     expect(bad.success).toBe(false);
     if (bad.success) return;
     expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('quantity');
@@ -356,11 +364,18 @@ describe('the transaction refinements #31 adds', () => {
     }
   });
 
-  it('ACCEPTS a position-moving row that lacks one — every legacy row is that', () => {
-    // ONE WAY ONLY. The converse is deliberately not enforced: requiring a
-    // quantity here would make the app unable to record what it used to.
+  it('REFUSES a position-moving row that lacks one (D124)', () => {
+    // REVERSED by the owner's ruling. It used to accept these, on the ground
+    // that every pre-#31 row lacks a count — but that is a fact about rows
+    // already STORED, and this schema only sees a row being typed now. D119 made
+    // every coupon figure `rate × units`, so a `buy` in the default `total` mode
+    // with the field blank produced a bond whose coupon reads «—» everywhere,
+    // silently.
     for (const type of ['buy', 'sell', 'reinvest', 'redemption']) {
-      expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(true);
+      const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '' });
+      expect(bad.success, type).toBe(false);
+      if (bad.success) continue;
+      expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('quantity');
       expect(
         transactionSchema('uk').safeParse({ ...base, type, quantity: '10' }).success,
         type,
@@ -368,9 +383,7 @@ describe('the transaction refinements #31 adds', () => {
     }
   });
 
-  it('defaults priceMode to total, so a minimal transaction still parses', () => {
-    const parsed = transactionSchema('uk').parse(base);
-    expect(parsed.priceMode).toBe('total');
-    expect(parsed.quantity).toBeUndefined();
+  it('defaults priceMode to total', () => {
+    expect(transactionSchema('uk').parse(base).priceMode).toBe('total');
   });
 });

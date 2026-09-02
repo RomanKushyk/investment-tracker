@@ -52,7 +52,16 @@ const SNAPSHOTS: Snapshot[] = [
 
 const TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
-  { id: 'b1', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62, source: 'own' },
+  // A COUNT, because D125 requires one on a position-moving row at this door too.
+  {
+    id: 'b1',
+    date: '2026-02-03',
+    type: 'buy',
+    assetId: 'reit',
+    amount: 64628.62,
+    quantity: 6164,
+    source: 'own',
+  },
   {
     id: 'p1',
     date: '2026-02-10',
@@ -180,14 +189,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 3 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 3)));
+  it('rejects formatVersion 5 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 5)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(3);
+    expect(result.rejection.version).toBe(5);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 3 — this app reads formatVersion 2 only.',
+      'Unsupported formatVersion 5 — this app reads formatVersion 4 only.',
     );
   });
 
@@ -206,7 +215,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 3;
+        env.formatVersion = 5;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -274,6 +283,9 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           type: 'buy',
           assetId: 'a-9',
           amount: 100,
+          // A COUNT, so the ONE reason under test is the unknown asset id — a
+          // moving row without it now fails for a second reason (D125).
+          quantity: 1,
           source: 'own',
         }),
       ),
@@ -581,6 +593,18 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
     expect(result.rejection.version).toBe(1);
   });
 
+  it('maps formatVersion 2 to `older-format` too (D122)', () => {
+    // 2 was current for days, not months, and it was never promoted to
+    // production — but `dev` deploys on every push, so files written by a v2
+    // build exist. The rule is the same one D113 wrote for v1: a real backup
+    // from an older build must not share a sentence with a hand-edited `0`.
+    const result = validateImport(mutated((env) => void (env.formatVersion = 2)));
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'format') return;
+    expect(result.rejection.code).toBe('older-format');
+    expect(result.rejection.version).toBe(2);
+  });
+
   it('does not call a fractional version an older backup', () => {
     // `1.5` is below the current version and at least 1, so the bare `>= 1`
     // read it as a real backup from an older app and reported "version 1.5".
@@ -607,6 +631,6 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 2');
+    expect(result.rejection.detail).toContain('formatVersion 4');
   });
 });

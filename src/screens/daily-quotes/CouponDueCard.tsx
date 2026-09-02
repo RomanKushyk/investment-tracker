@@ -56,6 +56,14 @@ export function CouponDueCard({
   const [edited, setEdited] = useState<string | undefined>(undefined);
   const amount = edited ?? (prefill === undefined ? '' : f.num(prefill));
   const [reinvest, setReinvest] = useState(false);
+  // THE REINVEST'S OWN COUNT. This card writes a `reinvest`, which MOVES A
+  // POSITION, and D124/D125 require such a row to state its units at every door
+  // — the form, the backup importer and the DDL. The card cannot derive it: it
+  // receives the asset, the due date, a prefill and a schedule, and no price at
+  // all, so the ₴ it holds cannot be turned into a count without inventing one.
+  // So it asks, exactly as the transaction panel does.
+  const [units, setUnits] = useState('');
+  const [unitsError, setUnitsError] = useState(false);
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const recordTransaction = useRecordTransaction();
@@ -64,24 +72,28 @@ export function CouponDueCard({
   // handler: the latch is checked and set synchronously, before any await.
   const confirmed = useRef(false);
   const errorId = `coupon-amount-${asset.id}-error`;
+  const unitsErrorId = `coupon-units-${asset.id}-error`;
 
-  function tx(type: Transaction['type'], value: number): Transaction {
+  function tx(type: Transaction['type'], value: number, quantity?: number): Transaction {
     return {
       id: crypto.randomUUID(),
       date: due.date, // the coupon's own date — history is never rewritten
       type,
       assetId: asset.id,
       amount: value,
+      // Only ever set on the `reinvest`: an `interest_payout` moves no position,
+      // and a count on one is what `transaction_quantity_absent_ck` refuses.
+      ...(quantity === undefined ? {} : { quantity }),
       source: 'accrual',
     };
   }
 
   function handleConfirm() {
     const parsed = amountInputSchema(language).safeParse(amount);
-    if (!parsed.success) {
-      setError(true);
-      return;
-    }
+    const parsedUnits = reinvest ? amountInputSchema(language).safeParse(units) : undefined;
+    if (!parsed.success) setError(true);
+    if (parsedUnits !== undefined && !parsedUnits.success) setUnitsError(true);
+    if (!parsed.success || (parsedUnits !== undefined && !parsedUnits.success)) return;
     if (confirmed.current) return;
     confirmed.current = true;
     setPending(true);
@@ -90,7 +102,10 @@ export function CouponDueCard({
         await recordTransaction.mutateAsync({ tx: tx('interest_payout', parsed.data) });
         // The paired reinvest makes the payout count as reinvested rather than
         // paid out (same date + asset is what the derivations match on).
-        if (reinvest) await recordTransaction.mutateAsync({ tx: tx('reinvest', parsed.data) });
+        if (parsedUnits?.success === true)
+          await recordTransaction.mutateAsync({
+            tx: tx('reinvest', parsed.data, parsedUnits.data),
+          });
         // Rolled off the occurrence just recorded, not off the asset's stored
         // pointer: the two differ whenever an earlier occurrence was settled by
         // hand, and the pointer must land on a date that is still open.
@@ -170,7 +185,18 @@ export function CouponDueCard({
         <input
           type="checkbox"
           checked={reinvest}
-          onChange={(e) => setReinvest(e.target.checked)}
+          onChange={(e) => {
+            setReinvest(e.target.checked);
+            // THE ERROR RESETS, THE VALUE DOES NOT. The field unmounts but its
+            // state survives, so unchecking after a rejected `0` and re-checking
+            // rendered it already red before the user touched anything — and
+            // `unitsError` is the only thing that renders red, so clearing it is
+            // the whole fix. Clearing `units` as well was broader than the
+            // defect: a mis-clicked checkbox would discard a typed `43,4835`
+            // with nowhere to recover it, which is why the amount field beside
+            // it is not reset either.
+            setUnitsError(false);
+          }}
           className="mt-[1px] size-4 flex-none rounded-[5px] border-panel-border bg-page accent-ink transition active:scale-[.97]"
         />
         <span className="text-xs leading-[1.45]">
@@ -178,6 +204,49 @@ export function CouponDueCard({
           <span className="block text-[11px] text-muted">{t.dailyQuotes.coupon.reinvestHint}</span>
         </span>
       </label>
+
+      {/* REVEALED WITH THE CHECKBOX, and required while it is on. A `reinvest`
+          moves a position, so D124/D125 make its count mandatory at all three
+          doors — and this card is the writer that bypasses the form entirely,
+          handing a `Transaction` straight to `recordTransaction`. Without the
+          field it would write a row the backup importer and the DDL both refuse,
+          so the app could hold local data it cannot export. */}
+      {reinvest && (
+        <div className="mt-2.5 animate-in duration-200 fade-in slide-in-from-top-1">
+          <label className="mb-1 block text-[11px] text-muted" htmlFor={`coupon-units-${asset.id}`}>
+            {t.transaction.quantity}
+          </label>
+          <input
+            id={`coupon-units-${asset.id}`}
+            name={`coupon-units-${asset.id}`}
+            value={units}
+            onChange={(e) => {
+              setUnits(e.target.value);
+              if (unitsError) setUnitsError(false);
+            }}
+            inputMode="decimal"
+            placeholder={t.transaction.quantityPlaceholder}
+            aria-invalid={unitsError}
+            aria-describedby={unitsError ? unitsErrorId : undefined}
+            className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
+              unitsError ? 'border-neg' : 'border-hairline hover:border-faint'
+            }`}
+          />
+          {unitsError && (
+            <div
+              id={unitsErrorId}
+              className="mt-1 animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+            >
+              {/* The panel's own split: blank is a missing count, `0` or `-5`
+                  is a count that cannot be one. Showing "enter the number" over
+                  a field that HAS a number reads as a bug. */}
+              {units.trim() === ''
+                ? t.transaction.quantityMissing
+                : t.transaction.quantityNotPositive}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
         <Button size="header" onClick={handleConfirm} disabled={pending}>

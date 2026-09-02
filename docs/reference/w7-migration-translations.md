@@ -1,10 +1,28 @@
 # W7 migration translations — the app's data, translated for the schema
 
 The user schema (`infra/schema/user.ts`) does not accept `src/lib/seed.ts`'s
-shape, or the live app's, as-is. Seven translations are needed when W7
-migrates existing data into it, carried here from the hand-written migration
-draft's header before generation retired that header. Each one loses
-something real if skipped.
+shape as-is. Seven translations are needed, carried here from the hand-written
+migration draft's header before generation retired that header.
+
+> **W7 SEEDS FRESH DEMO DATA — it does not carry the local store across**
+> (owner, 2026-09-01; [`D128`](../decisions/D128.md), recorded under W7 in
+> [`../plans/phase-w-i-ii-iii.md`](../plans/phase-w-i-ii-iii.md)). There is no
+> live user and therefore no history worth translating.
+>
+> **That splits this file in two, and the split is what to read it by:**
+>
+> - **Translations about SHAPE still apply in full** — ids, enum spellings, key
+>   order, nullability, kopecks-vs-decimals. A fresh seed has to satisfy the
+>   schema exactly as any other writer would.
+> - **Translations that exist because a stored row PREDATES a rule do not.**
+>   Item 4 below is the whole of that class: `quantity` is unrecoverable only for
+>   rows written before it was required, and no such row will be migrated,
+>   because none will be migrated at all. The seed carries its own seven counts.
+>   `transaction_quantity_required_ck` therefore owes **no backfill step** — read
+>   its comment in `schema/user.ts`, which says the same.
+>
+> Nothing below is deleted: the item-4 reasoning is why the counts exist in the
+> seed at all, and it becomes live again the day a real user's data has to move.
 
 ## 1. IDs are slugs today; the schema says UUID
 
@@ -72,7 +90,7 @@ The old→new `Transaction` mapping the migration is written against:
 | `type` | `type` | nine values; `dividend_accrual` → `dividend_payout`, below |
 | `assetId` (`''` = portfolio) | `asset_id` | NULL, not `''` — see item 2 |
 | `amount` | `amount` | positive, sign from type |
-| (none) | `quantity` | required on position-moving rows; unrecoverable if not captured — see item 4 |
+| (none) | `quantity` | required on position-moving rows; the seed carries its own (D125). Item 4's "unrecoverable if not captured" applies to a MIGRATED row, and W7 migrates none (D128) |
 | (none) | `unit_price` | fees stay separate rows |
 | (none) | `settles_payout_id` | `tax` rows ONLY; cannot be backfilled, which is why it goes in now |
 | (none) | `created_at` | |

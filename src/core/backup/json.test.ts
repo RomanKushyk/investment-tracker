@@ -61,6 +61,10 @@ const TRANSACTIONS: Transaction[] = [
     type: 'buy',
     assetId: 'reit',
     amount: 64628.62,
+    // D125 requires a count on a position-moving row at this door too. No
+    // `unitPrice`: that one keeps only the one-way rule, since it is derivable
+    // from `amount / quantity`.
+    quantity: 6164,
     source: 'own',
   },
   {
@@ -90,7 +94,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(2);
+    expect(env.formatVersion).toBe(4);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -145,7 +149,7 @@ describe('parseBackup round-trip', () => {
     expect(result.data.settings).toEqual(SETTINGS);
   });
 
-  it('round-trips units and the per-unit price, and still takes rows without them (#31)', () => {
+  it('round-trips units and the per-unit price; a NON-MOVING row still takes neither (#31, D125)', () => {
     // THE BREAK THIS GUARDS: `buildBackup` passes transactions through
     // unchanged and the row schema is a `strictObject`, so before `quantity`
     // and `unitPrice` were declared the app could write a backup its own
@@ -164,8 +168,9 @@ describe('parseBackup round-trip', () => {
     const env = buildBackup(
       ASSETS,
       SNAPSHOTS,
-      // Mixed on purpose: the legacy rows carry neither field, which is the
-      // state of every transaction recorded before #31 and must stay valid.
+      // Mixed on purpose: the deposit carries neither field and must stay valid
+      // — a row that moves no position never had units to state. Since D125 the
+      // MOVING rows must carry a count, so `b1` does.
       [...TRANSACTIONS, withUnits],
       SETTINGS,
       'demo',
@@ -241,13 +246,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 3 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 3)));
+  it('rejects formatVersion 5 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 5)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 3/);
-    expect(result.issues[0]).toMatch(/formatVersion 2/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 5/);
+    expect(result.issues[0]).toMatch(/formatVersion 4/);
   });
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
@@ -273,6 +278,80 @@ describe('parseBackup rejections', () => {
     expect(result.issues.some((i) => i.startsWith('assets.0.createdAt'))).toBe(true);
   });
 
+  it('CAN BUILD an envelope it cannot parse — which is why the export re-reads its own output', () => {
+    // THE HOLE D125 OPENED, pinned rather than described. `buildBackup` passes
+    // transactions through unchanged and validates nothing, so a store created
+    // before this branch — pre-#31 rows with no `quantity`, which nothing can
+    // backfill because those counts are unrecoverable — exports a
+    // `formatVersion: 4` file that passes the version gate and then fails row by
+    // row. The owner's only restore path (D12), unusable, discovered at the one
+    // moment it mattered.
+    //
+    // `useBackupDownload` closes it by parsing what it just built and refusing
+    // to offer a file that comes back rejected. This test is what makes that
+    // guard necessary rather than defensive — delete the guard and this
+    // asymmetry is what ships.
+    const legacy: Transaction = {
+      id: 'legacy-buy',
+      date: '2026-02-03',
+      type: 'buy',
+      assetId: 'reit',
+      amount: 1000,
+      source: 'own',
+    };
+    const env = buildBackup(
+      ASSETS,
+      SNAPSHOTS,
+      [legacy],
+      SETTINGS,
+      'live',
+      '2026-09-01T12:00:00',
+      2,
+    );
+    expect(env.formatVersion).toBe(4);
+    expect(env.transactions).toHaveLength(1);
+    const readBack = parseBackup(JSON.stringify(env));
+    expect(readBack.ok).toBe(false);
+  });
+
+  it('refuses a position-moving row with NO count, naming the row and the field (D125)', () => {
+    // BOTH WAYS AT THIS DOOR NOW. The form was the only one enforcing it
+    // (D124), and the form is not the app's only writer — `CouponDueCard` hands
+    // a `reinvest` straight to `recordTransaction`. A backup that accepted what
+    // the form refuses would let the gap back in through the file.
+    const result = parseBackup(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'countless',
+          date: '2026-07-01',
+          type: 'reinvest',
+          assetId: 'reit',
+          amount: 100,
+          source: 'reinvest_reit',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.join(' ')).toMatch(/quantity/);
+  });
+
+  it('still accepts a NON-MOVING row with no count — it never had units to state', () => {
+    const result = parseBackup(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'tax1',
+          date: '2026-07-01',
+          type: 'tax',
+          assetId: 'reit',
+          amount: 100,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(true);
+  });
+
   it('rejects a transaction pointing at an unknown asset', () => {
     const result = parseBackup(
       mutated((env) =>
@@ -282,6 +361,8 @@ describe('parseBackup rejections', () => {
           type: 'buy',
           assetId: 'nope',
           amount: 100,
+          // A COUNT, so the ONE reason under test is the unknown asset id.
+          quantity: 1,
           source: 'own',
         }),
       ),

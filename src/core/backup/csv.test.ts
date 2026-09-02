@@ -182,7 +182,21 @@ describe('column orders (pinned contract)', () => {
       '',
       '',
       '',
+      // `couponRatePct`, APPENDED after `inzhurUnits` (D119) — the legacy
+      // `couponAmount` column keeps its place further up so an existing
+      // spreadsheet's formulas hold.
+      '',
     ]);
+  });
+
+  it('carries the coupon RATE, appended after the legacy columns (D119)', () => {
+    const [, row] = readCsv(
+      serializeAssetsCsv([{ ...ASSETS[0], yieldType: 'fixed_coupon', couponRatePct: 15.68 }]),
+    );
+    expect(row.at(-1)).toBe('15.68');
+    // `plain`, not `money`: a rate is a percentage, and padding 15.68 to two
+    // decimals is right by luck here and wrong for 16.
+    expect(readCsv(serializeAssetsCsv([{ ...ASSETS[0], couponRatePct: 16 }]))[1].at(-1)).toBe('16');
   });
 
   it('transactions serialize LONG in the pinned order', () => {
