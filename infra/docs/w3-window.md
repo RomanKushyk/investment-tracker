@@ -207,6 +207,29 @@ healthy feed cannot close it.
   5 funds) on 2026-08-12 and 37 (32 + 5) on 2026-08-31** — so
   `instrument.listed_from` / `last_seen_on` have real work to do.
 
+  > **PARTLY RECONCILED 2026-09-02, and here is where each number came from** —
+  > a review read the first draft of this note as INFERENCE from two counters,
+  > which it would have been had the counters been all there was.
+  >
+  > | Figure | Source |
+  > |---|---|
+  > | 34 `sell`, 34 `buy`, 2 `nav` = 70 rows | `{diagnose:true}`, grouped per `(instrument_ref, basis, source)` — not derived from `seen` |
+  > | 34 instruments | the same response's `instrument` dump |
+  > | 30 bonds | `termsWritten: 30` **with `termsRefused: 0`** — the refusal counter is what makes it exact rather than a floor |
+  > | 4 funds | 34 − 30 |
+  >
+  > So 2026-08-11 is **30 bonds + 4 funds**, which makes
+  > `002_price_observation.sql`'s "all 31 bonds" on that date wrong by one, and
+  > leaves the window's 30+5 on 08-12 consistent in bonds while a fifth fund
+  > appeared between the two days. **The `nav` count then confirms D31 rather
+  > than assuming it**: 2 of those 4 funds publish a nav and 2 carry `0`, which
+  > is `ocean-plaza` and `zhytniy` measured again a month later — and the 2 is
+  > counted per basis, not inferred from the instrument total.
+  >
+  > **What is still open:** the other two disputed figures (`field-notes.md`'s
+  > 35 on 08-10, `frozen-feed.md`'s 36 over 08-12→08-17) need their own days
+  > derived the same way. One date is settled, not four.
+  >
   > **UNRECONCILED, and W4 should resolve it before trusting any count.** Three
   > existing figures disagree with those: `field-notes.md` measured 35 entries live on
   > 2026-08-10, `002_price_observation.sql` pins "all 31 bonds" on 2026-08-11, and

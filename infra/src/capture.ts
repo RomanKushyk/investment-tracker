@@ -1135,9 +1135,11 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
      *  the healthy reading; anything else names an instrument at risk of
      *  outliving its only surviving schedule. */
     termsRefused,
-    /** `bond_terms` rows ATTEMPTED. Unlike `written` this counts attempts, not
-     *  `rowCount`: the terms row is a by-product of the observation loop and
-     *  its own no-op is already proved by that loop's `written`. */
+    /** `bond_terms` rows INSERTED — `rowCount`, the same contract `written`
+     *  keeps. An earlier version counted attempts and this comment described
+     *  that; both were wrong, because a repaired capture for an already-derived
+     *  date is picked up and `DO NOTHING` then keeps the OLD schedule while an
+     *  attempt counter reports a write. */
     termsWritten,
     complete: !remaining,
     nextFrom: remaining ? addDays(cursor, 1) : null,

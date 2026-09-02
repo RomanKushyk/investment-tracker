@@ -6,6 +6,10 @@ Created 2026-08-26 by splitting `A41-A60.md`, which Section P pushed past the 20
 
 # Section P — W7 preparation, startable ahead of the gate
 
+> **A53 closed 2026-09-02** and moved verbatim to
+> [`../archive/plan-a/section-p.md`](../archive/plan-a/section-p.md); its
+> deliverable is [`../reference/W7-API-CONTRACT.md`](../reference/W7-API-CONTRACT.md).
+
 The 2026-08-25 research (its record: **D92**; the questions it left:
 `PLAN-OPEN.md` O28/O29 — D93/D94 are that day's width-cap rulings and belong to
 no phase here) mapped what the B3 migration needs that nothing gates: the
@@ -71,31 +75,6 @@ question, not a task.
   exports three serializers and nothing parses them back (`import.ts` reads the
   JSON envelope only). The real exposure is an external spreadsheet keyed to a
   six-column header, not an internal contract.
-
-## A53 — The W7 API contract on paper — `docs/w7-api-contract`
-
-One reference file, `docs/reference/W7-API-CONTRACT.md` (under the 200-line
-cap), so W7's design session starts from an inventory, not an excavation.
-
-- [ ] All 17 `repo` methods mapped onto `GET /state` / `POST /mutations` — the
-      mutation op per method, where `If-Match`/`version` sits, what retries.
-      Keep A51's split: rowcount detects the conflict, 40001 is serialization.
-- [ ] The `meta` keys sorted: `inzhur:lastFetch`, `inzhur:lastParse`,
-      `nbu:lastRate` are client caches and stay local; `seeded` dies with D2.
-- [ ] The endpoint inventory: the four already specified (`GET /state`,
-      `POST /mutations`, `POST /v1/applications`, public
-      `GET /v1/prices/{YYYY}.ndjson`) plus the W8 admin surface nothing has
-      planned — users approve/reject/delete, the last-N-runs journal, missing
-      tracked refs (A12's data), the source toggle, and HTTP wrappers for the
-      Lambda's existing `{asOf}`/`{backfill}` ops. Auth column throughout: the
-      `role` field, never `cognito:groups`; prices and user data never share a
-      response, an auth policy or a cache policy.
-- [ ] O28 is marked, never decided: reads that COULD materialize on mutation
-      are flagged O28-dependent and the doc takes no side (Plan C's rule).
-- [ ] **Its row joins `docs/README.md`'s Reference table in the same commit** —
-      that table lists every reference file one by one, and an index that does
-      not list a file is how a body becomes unreachable (`README.md`, this
-      folder).
 
 ## A54 — Cognito rehearsal on a throwaway pool — `infra/cognito-pool-rehearsal`
 

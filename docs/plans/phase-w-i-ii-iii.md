@@ -99,13 +99,13 @@ corroboration rather than the only record.
 **Then, as W4:**
 - [x] Extend `price_observation` to the Inzhur source, reusing the key A4 pinned for NBU (closed; `../archive/plan-a/`). **NO DDL was needed — D132.**
 - [x] `bond_terms`, versioned and effective-dated, written every run — `migrations/004_bond_terms.sql`, 004 because drafts reserves 003 — reconstructable in principle, but **delisting after maturity destroys the live copy permanently**, which is why it is captured rather than derived.
-- [ ] Backfill from stored raw payloads; re-running must be a no-op. **Code done and gated; the LIVE run has not happened** — a wrong row cannot be deleted, so the first `{observe:{source:'inzhur'}}` takes a narrow range.
+- [x] Backfill from stored raw payloads; re-running must be a no-op. **VERIFIED LIVE 2026-09-02** on a one-day range: `seen 70, written 70, termsWritten 30`, then the identical call `seen 70, written 0, termsWritten 0`.
 
 **Explicitly not decided by this window** — see `PLAN-OPEN.md`: the fund T-1 dedup rule (O7) rests on one informative observation and conflates the FX conversion date with the NAV strike date; **do not ship it on this evidence**, more weeks do not automatically fix it.
 
-## W7 — B3 migration — **gate NOT met: W4**
+## W7 — B3 migration
 
-**Gate:** W4 complete **and** the A3 durability gate passed — **the durability half did, 2026-08-11 (D49); the W4 half has NOT, and W4 is now `PLAN-NOW.md`'s first row.** W7's own 2026-09-02 is the date arriving, not the gate opening — and it is deliberately no longer in this heading, so that a passed date cannot read as an open gate. A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A53, A54 — bodies in `section-p.md`; A51 closed 2026-08-26 and is in `../archive/plan-a/section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
+**GATE MET 2026-09-02.** W4 complete **and** the A3 durability gate passed — **both halves.** (The status lives here rather than in the heading: putting it there broke this section's anchor twice, and it is the only intra-doc link in the folder.) The durability half passed 2026-08-11 (D49); W4's three boxes all closed 2026-09-02, verified against the live cluster. W7's own 2026-09-02 is the date arriving, not the gate opening — and it is deliberately no longer in this heading, so that a passed date cannot read as an open gate. A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A54 — body in `section-p.md`; A51 and A53 closed and are in `../archive/plan-a/section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
 
 **Pre-condition, CLEARED 2026-08-27 (D99).** DSQL rejects `USING btree` and
 rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
@@ -238,7 +238,7 @@ and neither can move the original.
 
 **Why it belongs to this phase and not to `feat/dataset-split`.** Today's demo /
 live switch (G4) is a choice between two LOCAL databases — there is no server, no
-account and so no notion of "whose". The moment [`W7`](#w7--b3-migration--gate-not-met-w4)
+account and so no notion of "whose". The moment [`W7`](#w7--b3-migration)
 gives every row a `user_id` and the app an authenticated identity, "the demo" has
 to answer a question it has never faced: is it a row set with an owner, or a
 fixture the client materialises? This ruling answers it — **owned, with

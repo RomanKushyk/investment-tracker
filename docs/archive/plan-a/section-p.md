@@ -58,3 +58,28 @@ now, so W7 starts from a reviewed draft instead of a blank file.
       one of its own, the duty A53 and A54 take for `docs/README.md`.
 - [x] NOT gated on O5: the Inzhur non-key columns live in `price_observation`,
       which this schema does not touch.
+
+## A53 — The W7 API contract on paper — `docs/w7-api-contract`
+
+One reference file, `docs/reference/W7-API-CONTRACT.md` (under the 200-line
+cap), so W7's design session starts from an inventory, not an excavation.
+
+- [x] All 17 `repo` methods mapped onto `GET /state` / `POST /mutations` — the
+      mutation op per method, where `If-Match`/`version` sits, what retries.
+      Keep A51's split: rowcount detects the conflict, 40001 is serialization.
+- [x] The `meta` keys sorted: `inzhur:lastFetch`, `inzhur:lastParse`,
+      `nbu:lastRate` are client caches and stay local; `seeded` dies with D2.
+- [x] The endpoint inventory: the four already specified (`GET /state`,
+      `POST /mutations`, `POST /v1/applications`, public
+      `GET /v1/prices/{YYYY}.ndjson`) plus the W8 admin surface nothing has
+      planned — users approve/reject/delete, the last-N-runs journal, missing
+      tracked refs (A12's data), the source toggle, and HTTP wrappers for the
+      Lambda's existing `{asOf}`/`{backfill}` ops. Auth column throughout: the
+      `role` field, never `cognito:groups`; prices and user data never share a
+      response, an auth policy or a cache policy.
+- [x] O28 is marked, never decided: reads that COULD materialize on mutation
+      are flagged O28-dependent and the doc takes no side (Plan C's rule).
+- [x] **Its row joins `docs/README.md`'s Reference table in the same commit** —
+      that table lists every reference file one by one, and an index that does
+      not list a file is how a body becomes unreachable (`README.md`, this
+      folder).
