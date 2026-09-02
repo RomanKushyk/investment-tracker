@@ -71,6 +71,8 @@ function issueReason(issue: RowIssue, t: Dict): string {
       return m.unitsOnNonPositionRow;
     case 'units-missing-on-position-row':
       return m.unitsMissingOnPositionRow;
+    case 'asset-missing-on-position-row':
+      return m.assetMissingOnPositionRow;
     // Last resort: state the validator's own words rather than swallow a
     // reason the user needs in order to fix the file.
     case 'invalid':

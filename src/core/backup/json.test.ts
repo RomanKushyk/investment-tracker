@@ -94,7 +94,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(4);
+    expect(env.formatVersion).toBe(5);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -246,13 +246,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 5 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 5)));
+  it('rejects formatVersion 6 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 6)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 5/);
-    expect(result.issues[0]).toMatch(/formatVersion 4/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 6/);
+    expect(result.issues[0]).toMatch(/formatVersion 5/);
   });
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
@@ -283,7 +283,7 @@ describe('parseBackup rejections', () => {
     // transactions through unchanged and validates nothing, so a store created
     // before this branch — pre-#31 rows with no `quantity`, which nothing can
     // backfill because those counts are unrecoverable — exports a
-    // `formatVersion: 4` file that passes the version gate and then fails row by
+    // `formatVersion: 5` file that passes the version gate and then fails row by
     // row. The owner's only restore path (D12), unusable, discovered at the one
     // moment it mattered.
     //
@@ -308,7 +308,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(4);
+    expect(env.formatVersion).toBe(5);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -334,6 +334,52 @@ describe('parseBackup rejections', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.issues.join(' ')).toMatch(/quantity/);
+  });
+
+  it('BLANKS the asset a portfolio-level row names, on the way out of parseBackup (D129)', () => {
+    // `parseBackup` is the OTHER funnel, and it was unpinned: the rule used to
+    // live in the row schema, so both doors got it by construction; splitting it
+    // into `blankPortfolioAssetIds` made them two code paths. Verified by
+    // mutation — dropping the call from `parseBackup` left the whole suite
+    // green, and `useBackupDownload`'s export guard is its only other consumer.
+    const result = parseBackup(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'borrowed',
+          date: '2026-07-01',
+          type: 'deposit',
+          assetId: 'reit',
+          amount: 100,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.transactions.find((t) => t.id === 'borrowed')?.assetId).toBe('');
+    // And a row that DOES target an asset keeps it.
+    expect(result.data.transactions.find((t) => t.type === 'buy')?.assetId).not.toBe('');
+  });
+
+  it('REPORTS a dangling id on a portfolio-level row rather than blanking it away', () => {
+    // The order the split exists to protect: `integrityIssues` first, blanking
+    // after. As a row transform the blanking ran first and this file parsed
+    // clean, losing the one signal that says an asset row went missing.
+    const result = parseBackup(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'dangling',
+          date: '2026-07-01',
+          type: 'deposit',
+          assetId: 'gone',
+          amount: 100,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.join(' ')).toMatch(/unknown assetId 'gone'/);
   });
 
   it('still accepts a NON-MOVING row with no count — it never had units to state', () => {

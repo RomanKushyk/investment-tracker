@@ -1,5 +1,5 @@
 // The backup envelope (NEXT-PHASE-PLAN P1 / DECISIONS D12, now at
-// `BACKUP_FORMAT_VERSION` 4 — D113, D122, D125, D127) — pure build + parse for the JSON safety
+// `BACKUP_FORMAT_VERSION` 5 — D113, D122, D125, D127, D129) — pure build + parse for the JSON safety
 // backup. The envelope is the app-owned stable
 // contract (dexie-export-import rejected, see D12); P4's import feature
 // EXTENDS this module rather than forking it — `core/backup/import.ts` reuses
@@ -10,6 +10,7 @@ import { z } from 'zod';
 
 import {
   movesPosition,
+  targetsAsset,
   type Asset,
   type Settings,
   type Snapshot,
@@ -41,7 +42,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * ACCEPTS, not how much time passed.
  */
 /**
- * 4 IS THE FIRST BUMP FOR A STRICTER READER RATHER THAN A NEW FIELD, and D122's
+ * 4 WAS THE FIRST BUMP FOR A STRICTER READER RATHER THAN A NEW FIELD, and D122's
  * rule covers it unchanged: the version tracks what a build ACCEPTS. A v3 build
  * accepts a `buy` with no `quantity` and a v4 build does not, so every file
  * written before this — including one the demo dataset exported yesterday — is
@@ -49,7 +50,24 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * .quantity`, naming a field the owner never omitted on purpose; with it, it
  * reads as the older format it is.
  */
-export const BACKUP_FORMAT_VERSION = 4;
+/**
+ * 5 IS THE SECOND SUCH BUMP (D129). A v4 build accepts a `buy` with no
+ * `assetId` and this one does not — and a v4 build is LIVE, because dev deploys
+ * on every push. Two builds that both call themselves 4 and disagree about what
+ * they accept is the one thing D122 says the number exists to prevent, in those
+ * words, about exactly this situation.
+ *
+ * THE ARGUMENT AGAINST IT WAS TRIED AND IS WRONG. It ran: no build ever WROTE a
+ * `buy` with an empty assetId, so bumping refuses readable v4 files to catch a
+ * shape none of them contain. True about the writer, and beside the point — the
+ * version tracks the READER. D128 proved the same thing about 4 (nothing could
+ * produce the count-less row it refuses) and 4 stands; a criterion that has to
+ * be re-read case by case is not a criterion.
+ *
+ * The portfolio-level converse does NOT enter into it: that one is normalized
+ * rather than refused, so every v4 file stays readable through it.
+ */
+export const BACKUP_FORMAT_VERSION = 5;
 
 export type Dataset = 'demo' | 'live';
 
@@ -310,7 +328,46 @@ export function parseBackup(text: string): ParseBackupResult {
   const issues = integrityIssues(parsed.data);
   return issues.length > 0
     ? { ok: false, issues: issues.map(renderIssue) }
-    : { ok: true, data: parsed.data };
+    : { ok: true, data: blankPortfolioAssetIds(parsed.data) };
+}
+
+/**
+ * THE ASSET A PORTFOLIO-LEVEL ROW NAMES IS BLANKED, NOT REFUSED (D129) — the
+ * same answer `transactionSchema` gives at the form.
+ *
+ * THE FILE THIS PROTECTS IS A **v5** ONE, and an earlier draft of this docblock
+ * named the wrong population. It said every backup written before D129 carries a
+ * real `assetId` on its deposits and refusing them would make those files
+ * unimportable — true of the ids, false of the consequence: D129 also took
+ * `BACKUP_FORMAT_VERSION` to 5, so a pre-D129 file never reaches this code. It
+ * is refused by the version gate first.
+ *
+ * What DOES reach here is a file exported today from a store whose deposits
+ * predate D129 — the owner's own, if they ever recorded one through the form.
+ * Those rows are legitimate history carrying a value W7's
+ * `transaction_asset_absent_ck` discards anyway, and refusing them would make
+ * that store unable to back itself up. Blanking lands the row the way `seed.ts`
+ * has always written one.
+ *
+ * IT IS NOT WHAT FIXES THE LEDGER. An earlier draft claimed blanking is what
+ * stops a row reading «Внесок · REIT» on screen; that only ever applied to data
+ * that had made a round trip through export and import. The renderer asks
+ * `targetsAsset(tx.type)` directly, which is what makes the display right for
+ * rows already in the store.
+ *
+ * AFTER `integrityIssues`, NEVER BEFORE, AND NOT IN THE ROW SCHEMA. As a
+ * `.transform` on the rows it ran first, so a deposit naming an asset the file
+ * does not carry was silently tidied instead of reported: the `unknown-asset-id`
+ * branch was never reached. A dangling id is not a value to discard, it is
+ * evidence the file lost an asset row — the one thing the referential pass
+ * exists to say — and `integrityIssues` states that as its standing invariant.
+ * So the order is: validate the file as written, then normalize what is stored.
+ */
+export function blankPortfolioAssetIds(env: BackupEnvelope): BackupEnvelope {
+  return {
+    ...env,
+    transactions: env.transactions.map((t) => (targetsAsset(t.type) ? t : { ...t, assetId: '' })),
+  };
 }
 
 // --- Structured row issues (D8) --------------------------------------------
@@ -333,6 +390,8 @@ export type IssueCode =
   | 'units-on-non-position-row'
   /** No `quantity` on a row that DOES move a position (D125) — the converse. */
   | 'units-missing-on-position-row'
+  /** No `assetId` on a row that MOVES a position (D129) — W7's `transaction_asset_present_ck`. */
+  | 'asset-missing-on-position-row'
   | 'invalid';
 
 export interface RowIssue {
@@ -371,7 +430,28 @@ export function integrityIssues(env: BackupEnvelope): RowIssue[] {
       issues.push({ table: 'transactions', field: 'id', code: 'duplicate-key', value: tx.id });
     }
     txIds.add(tx.id);
-    if (tx.assetId !== '' && !assetIds.has(tx.assetId)) {
+    // TWO QUESTIONS ABOUT ONE FIELD, and `!== ''` only ever asked the first. An
+    // empty id is legitimate on a portfolio-level row and meaningless on a
+    // position-moving one, so skipping the whole check for it let
+    // `{ type: 'buy', assetId: '' }` through — the shape `transactionSchema`
+    // refuses at the form and `transaction_asset_present_ck` rejects at
+    // migration, rendering meanwhile as «Купівля · Портфель».
+    //
+    // `movesPosition`, NOT `targetsAsset`, and the difference is the whole
+    // reason this door is not the form's. The FORM asks for an asset on a
+    // `tax`, a `dividend_accrual` and an `interest_payout` too; the STORE does
+    // not, and `transaction_asset_present_ck` names only the four moving types.
+    // A backup that refuses what the store can legitimately hold cannot be
+    // written — the export re-reads its own output — so the day anything puts
+    // `{ type: 'tax', assetId: '' }` into Dexie, a stricter rule here would
+    // lock the database out of exporting, importing and backing up before a
+    // wipe. That is D126's deadlock, and it is not worth re-creating to make
+    // two doors look symmetrical.
+    if (tx.assetId === '') {
+      if (movesPosition(tx.type)) {
+        issues.push({ table: 'transactions', at: tx.id, code: 'asset-missing-on-position-row' });
+      }
+    } else if (!assetIds.has(tx.assetId)) {
       issues.push({
         table: 'transactions',
         at: tx.id,
@@ -403,6 +483,14 @@ export function integrityIssues(env: BackupEnvelope): RowIssue[] {
 
 // The P1 string form of an integrity issue — kept byte-identical so
 // `parseBackup`'s contract (and its fixtures) never moved.
+//
+// THESE SENTENCES ARE NOT THE UI COPY, and the duplication is not an oversight:
+// `import-labels.ts` owns the localised words for the S4 report, this owns a
+// frozen English contract for `parseBackup`'s string result. A code with a
+// sentence in both places has it written twice on purpose, and rewording one
+// does not reword the other. (The export guard's toast still shows THIS string
+// in a Ukrainian-default app — a pre-existing wart of every code here, not
+// D129's to fix.)
 function renderIssue(i: RowIssue): string {
   const at = i.at ? `${i.table}.${i.at}` : i.table;
   switch (i.code) {
@@ -410,6 +498,8 @@ function renderIssue(i: RowIssue): string {
       return `${at}: unknown assetId '${i.value ?? ''}'`;
     case 'unknown-quote-asset':
       return `${at}: quote for unknown asset '${i.value ?? ''}'`;
+    case 'asset-missing-on-position-row':
+      return `${at}: a buy, sell, reinvest or redemption must name an asset`;
     case 'duplicate-key':
       return `${at}: duplicate ${i.field ?? 'key'} '${i.value ?? ''}' (${i.field ?? 'key'} is the primary key)`;
     default:

@@ -276,10 +276,23 @@ export const transaction = pgTable(
       sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.unitPrice} IS NULL`,
     ),
     // TWO ONE-WAY RULES, not a biconditional: `(type IN ('deposit',
-    // 'withdrawal')) = (asset_id IS NULL)` would reject every deposit the
-    // app records today (`schemas.ts` fills `assetId` for all nine
-    // transaction types) and force an asset onto every `tax` row, when the
-    // spec requires one only when the tax relates to a payout.
+    // 'withdrawal')) = (asset_id IS NULL)` would force an asset onto every
+    // `tax` row, when the spec requires one only when the tax relates to a
+    // payout.
+    //
+    // `transaction_asset_absent_ck` USED TO BE THE SECOND REASON, and it was
+    // the app that was wrong: `schemas.ts` filled `assetId` for all nine types,
+    // so this CHECK would have rejected every deposit the app had ever
+    // recorded — while the seed, the backup importer and the ledger row all
+    // already used `''` for exactly these two types. D129 made the form agree
+    // with them.
+    //
+    // THE MIGRATION IS NOT DISCHARGED BY THAT, and the column's own comment
+    // above says why: NULL, never `''`. D129 retires item 3 of
+    // `docs/reference/w7-migration-translations.md` — there is no longer a
+    // borrowed real id to identify and strip — and leaves item 2 exactly where
+    // it was: `''` is not a uuid, so a migration that copies Dexie's value
+    // verbatim still fails this CHECK. Translate, do not copy.
     check(
       'transaction_asset_absent_ck',
       sql`${t.type} NOT IN ('deposit', 'withdrawal') OR ${t.assetId} IS NULL`,

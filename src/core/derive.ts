@@ -689,8 +689,11 @@ export function portfolioXirr(
   if (!terminalDate) return null;
   const flows: CashFlow[] = [];
   for (const t of txs) {
-    // The assetId a deposit carries is noise — the transaction form attaches
-    // the selected asset to every row it writes. Only the type matters here.
+    // ONLY THE TYPE MATTERS HERE, and it always did. This used to read that a
+    // deposit's assetId is noise the form attaches to every row it writes —
+    // true until D129, which stopped the form writing one: a deposit now
+    // carries `''`, the shape the seed always used. Reading the type rather
+    // than the id is what made this function survive that change unedited.
     if (t.type === 'deposit') flows.push({ date: t.date, amount: -t.amount });
     else if (t.type === 'withdrawal') flows.push({ date: t.date, amount: t.amount });
   }

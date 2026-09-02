@@ -33,7 +33,13 @@ import {
   type TransactionFormValues,
 } from '../core/schemas';
 import { convertTypedAmount, priceParts } from '../core/transaction-price';
-import { movesPosition, type Asset, type Transaction, type TxType } from '../core/types';
+import {
+  movesPosition,
+  targetsAsset,
+  type Asset,
+  type Transaction,
+  type TxType,
+} from '../core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
@@ -348,7 +354,17 @@ export function TransactionPanel() {
   const txType = useWatch({ control: form.control, name: 'type' });
   const priceMode = useWatch({ control: form.control, name: 'priceMode' });
   const takesUnits = movesPosition(txType);
-  const isNewAsset = assetId === 'new';
+  // D129 — a deposit and a withdrawal cross the PORTFOLIO's edge, not an
+  // asset's, so the picker has nothing to ask them.
+  const needsAsset = targetsAsset(txType);
+  // TWO QUESTIONS, and conflating them cost a half-typed asset (D129 review).
+  // `pickedNew` is where the PICKER is; `isNewAsset` is whether quick-create is
+  // in play, which also needs the type to want an asset at all — a deposit
+  // cannot bring one into existence. Only the second gates the panel and
+  // `onSubmit`; the RESET below keys off the first, because a glance at
+  // «Внесок» must not discard a name and code already typed.
+  const pickedNew = assetId === 'new';
+  const isNewAsset = needsAsset && pickedNew;
 
   // Default the Asset select to the first existing asset once assets load
   // (an empty picker would satisfy the schema only via the "new" branch).
@@ -358,11 +374,29 @@ export function TransactionPanel() {
     }
   }, [assets, form]);
 
+  // D129 — THE ERROR, NOT THE VALUE. The asset field hides on a type that
+  // targets none, and a hidden field carrying a red border would feed the
+  // submit summary a highlight nobody can see — the exact failure the Select's
+  // own `invalid` comment below was added to fix. Reachable: submit a `buy`
+  // with an empty picker, then switch to «Внесок».
+  //
+  // The VALUE deliberately stays, and clearing-and-restoring it here was tried
+  // first — it is what the units reveal does one field over. It cannot work on
+  // this control. Traced 2026-09-02: the effect's write lands (`getValues`
+  // reads it back immediately), and then the freshly mounted Radix `Select`
+  // reports its own empty value through `field.onChange`, so the restored id was
+  // gone again by the next probe. `transactionSchema` blanks the field for these
+  // types on the way out instead, which needs no timing to be right and cannot
+  // be bypassed by whatever the hidden control still holds.
+  useLayoutEffect(() => {
+    if (!needsAsset) form.clearErrors('assetId');
+  }, [needsAsset, form]);
+
   // Reset the sub-form whenever it leaves play so stale values/errors never
   // linger into a later "+ New asset…" round.
   useEffect(() => {
-    if (!isNewAsset) assetForm.reset(assetFormDefaults(f));
-  }, [isNewAsset, assetForm, f]);
+    if (!pickedNew) assetForm.reset(assetFormDefaults(f));
+  }, [pickedNew, assetForm, f]);
 
   // ISSUE #31 — the units field HIDES on a type that moves no position, and a
   // hidden field holding a value is an invisible error: `transactionSchema`
@@ -472,7 +506,19 @@ export function TransactionPanel() {
           form.reset({
             date: values.date,
             type: values.type,
-            assetId: newAsset ? newAsset.id : values.assetId,
+            // `assetId` — THE WATCHED VALUE FROM THE SUBMITTING RENDER, not a
+            // `getValues` read. `values.assetId` cannot serve: D129's transform
+            // has blanked it on a portfolio-level type, and resetting from it
+            // would throw away the asset the user picked for the row before this
+            // one, leaving an empty picker behind on the next `buy`.
+            //
+            // Nor can the control be re-read here, or even at the top of
+            // `record`: `handleSubmit` AWAITS the resolver (and a second nested
+            // one on the quick-create branch), so a picker moved inside that
+            // window would be restored over the choice the row was actually
+            // written with. The closure holds the render that submitted — the
+            // same fix the paragraph below describes for `assets[0]?.id`.
+            assetId: newAsset ? newAsset.id : assetId,
             amount: '',
             source: values.source,
             // The COUNT clears with the amount — it is per-transaction, and
@@ -482,7 +528,40 @@ export function TransactionPanel() {
             quantity: '',
             priceMode: values.priceMode,
           });
-          assetForm.reset(assetFormDefaults(f));
+          // THE ERRORS, NOT THE VALUES. A full `assetForm.reset` here wiped a
+          // half-typed asset whenever a row was recorded that did not use the
+          // sub-form — reachable since the panel stopped closing quick-create on
+          // a type change: pick «+ Новий актив…», type a name, remember a
+          // deposit is needed first, record it, and the name was gone.
+          //
+          // Nothing needs to reset the VALUES from here. On the quick-create
+          // path the `form.reset` above moves the picker onto the asset it just
+          // built, so `pickedNew` goes false and the effect does it; on every
+          // other path the sub-form was already emptied when the picker left the
+          // sentinel. What no effect covers is a failed quick-create press whose
+          // red borders outlive a LATER successful submit — the picker never
+          // moved, so nothing cleared them, and they came back on screen with
+          // the summary line over a form that had just succeeded.
+          //
+          // `reset` WITH `keepValues`, not `clearErrors`, and the difference is
+          // `isSubmitted`. `clearErrors` empties the errors and leaves that flag
+          // set, so the sub-form stays in re-validate-on-change: the next
+          // keystroke in «Назва» re-runs the resolver and can light «Код» red on
+          // a form nobody has submitted since it was cleared —
+          // `AssetFormFields` reads the flag directly for the derived Code.
+          //
+          // `keepDirty` IS NOT OPTIONAL HERE. With `formValues` undefined and no
+          // dirty flag, RHF's `_reset` falls through to `dirtyFields: {}` — and
+          // `AssetForm` gates the Name→Code derivation on `!dirtyFields.code`,
+          // so wiping it makes a hand-typed «Код» start being overwritten from
+          // «Назва» again on the next keystroke. `clearErrors`, which this
+          // replaced, never touched dirty state; the three flags together are
+          // what make this reset equivalent to it plus the `isSubmitted` fix.
+          assetForm.reset(undefined, {
+            keepValues: true,
+            keepDefaultValues: true,
+            keepDirty: true,
+          });
         },
         onError: () => {
           releaseLatch();
@@ -686,31 +765,57 @@ export function TransactionPanel() {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-[11px] text-muted">
-            {t.transaction.asset}
-            <Controller
-              control={form.control}
-              name="assetId"
-              render={({ field, fieldState }) => (
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  placeholder={t.transaction.assetPlaceholder}
-                  // Reachable with no assets at all, or on a press before
-                  // `useAssets()` resolves and the effect above has defaulted
-                  // this: the schema refuses an empty id, and without this the
-                  // summary named highlights that did not exist.
-                  invalid={fieldState.invalid}
-                  borderColor={isNewAsset ? 'faint' : 'hairline'}
-                  options={[
-                    { value: 'new', label: t.transaction.newAssetOption },
-                    ...assets.map((a) => ({ value: a.id, label: a.name })),
-                  ]}
-                />
-              )}
-            />
-          </label>
+          <Reveal show={needsAsset} className="flex min-w-0 flex-col">
+            <label className="flex flex-col gap-1 text-[11px] text-muted">
+              {t.transaction.asset}
+              <Controller
+                control={form.control}
+                name="assetId"
+                render={({ field, fieldState }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={t.transaction.assetPlaceholder}
+                    // Reachable with no assets at all, or on a press before
+                    // `useAssets()` resolves and the effect above has defaulted
+                    // this: the schema refuses an empty id on a type that needs
+                    // one, and without this the summary named highlights that
+                    // did not exist.
+                    invalid={fieldState.invalid}
+                    borderColor={isNewAsset ? 'faint' : 'hairline'}
+                    options={[
+                      { value: 'new', label: t.transaction.newAssetOption },
+                      ...assets.map((a) => ({ value: a.id, label: a.name })),
+                    ]}
+                  />
+                )}
+              />
+            </label>
+          </Reveal>
 
+          {/* A BARE `&&`, AND `Reveal` WAS TRIED HERE AND REVERTED (D129, sixth
+              review round). The observation that started it is real: this panel
+              has an entrance and no exit, and D129 gave `isNewAsset` a second,
+              commoner trigger — the TYPE — so choosing «Внесок» plays the
+              picker's 300ms slide-out directly above a panel that vanishes in
+              the same frame.
+
+              `Reveal` does not fix that, and measured in Chrome it made four
+              things worse. It animates opacity and translate, never HEIGHT: the
+              wrapper held its 593px for the whole exit, so the whole collapse
+              moved from t=0 to a single frame at t=300 — a bigger snap, later.
+              Meanwhile the `!pickedNew` effect fires at t=0 and now lands on
+              live DOM, so the fields visibly blank themselves mid-fade; RHF
+              repaints «Назва» but not «Код», so re-entering inside the window
+              reuses the same nodes and the visible «Код» disagrees with form
+              state — pressing submit then reds a field showing a valid value.
+              And ten controls stay hit-testable and in the tab order while
+              leaving, because `Reveal` marks nothing `inert`.
+
+              A pop is worse than nothing; those four are worse than a pop. The
+              exit this panel wants is a HEIGHT animation plus an `inert`
+              subtree, which belongs in `Reveal` itself and is not D129's to
+              build. Do not re-wrap this without that. */}
           {isNewAsset && (
             <div className="animate-in duration-300 fade-in slide-in-from-top-2">
               {/* Same dashed reveal panel as v1 (design lines 116-124), now
@@ -953,11 +1058,16 @@ export function TransactionPanel() {
           </Button>
           {/* `isNewAsset` GATES THE SUB-FORM'S HALF: its fields are unmounted
               whenever the select holds a real asset, so their errors could put
-              this line on screen with nothing able to carry a highlight. The
-              window is one render frame — the effect above resets the sub-form
-              as soon as the select leaves «+ Новий актив…» — so this closes a
-              flash, not the durable defect. THAT one was every control here
-              lacking an invalid state at all, which is fixed above. */}
+              this line on screen with nothing able to carry a highlight. THE
+              DURABLE DEFECT was every control here lacking an invalid state at
+              all, which is fixed above; this gate closes what is left.
+              It used to say the window was one render frame, because the reset
+              fired the moment the select left «+ Новий актив…». D129 decoupled
+              the two: the reset keys off the PICKER, and `isNewAsset` also goes
+              false when the TYPE stops targeting an asset — so with the picker
+              still on the sentinel the sub-form's errors persist for as long as
+              «Внесок» is selected, unbounded. The gate is what makes that
+              harmless, so it is load-bearing now rather than a nicety. */}
           {(Object.keys(form.formState.errors).length > 0 ||
             (isNewAsset && Object.keys(assetForm.formState.errors).length > 0)) && (
             <p className="text-xs text-neg">{t.transaction.invalid}</p>
@@ -1000,7 +1110,20 @@ export function TransactionPanel() {
           <div className="flex w-0 min-w-full flex-col text-[12.5px]">
             {ledger.length === 0 && <span className="text-muted">{t.transaction.recentEmpty}</span>}
             {ledger.map((tx) => {
-              const asset = assetById.get(tx.assetId);
+              // THE TYPE DECIDES, NOT THE ID (D129). Three doors stopped WRITING
+              // a borrowed asset onto a portfolio-level row; none of them touches
+              // a row already in the store, and nothing migrates it — so every
+              // deposit recorded before 2026-09-02 still names whichever asset
+              // the picker happened to be showing, and this row rendered it:
+              // «Внесок · Inzhur REIT» where the seed's own deposits read
+              // «Внесок · Портфель». Asking the type instead makes the display
+              // right for what is stored today as well as for what is written
+              // from now on.
+              //
+              // `removeTransaction`'s lookup is deliberately left alone:
+              // `rollbackNextCoupon` refuses anything but an `interest_payout`
+              // on its own asset, so a portfolio-level row cannot reach it.
+              const asset = targetsAsset(tx.type) ? assetById.get(tx.assetId) : undefined;
               const asking = confirmingId === tx.id;
               return (
                 <div

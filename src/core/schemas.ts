@@ -6,7 +6,7 @@
 import { z } from 'zod';
 
 import type { Lang } from './money';
-import { movesPosition } from './types';
+import { movesPosition, targetsAsset } from './types';
 
 /**
  * One number, two conventions. A comma is the DECIMAL mark in Ukrainian
@@ -250,9 +250,15 @@ export function assetFormSchema(mode: 'create' | 'edit', lang: Lang) {
   });
 }
 
-type AssetFormObject = ReturnType<typeof assetFormObjectFor>;
-export type AssetFormInput = z.input<AssetFormObject>;
-export type AssetFormValues = z.output<AssetFormObject>;
+// FROM THE SCHEMA THE RESOLVER RUNS, for the reason its transaction twin below
+// spells out: an alias on the bare object keeps compiling while the two diverge.
+// `assetFormSchema` carries only a `superRefine` today, so the shapes coincide —
+// which is exactly the state the transaction pair was in until D129 gave it a
+// `.transform`, and the pair that was NOT derived this way is the one that would
+// have gone wrong quietly. Both twins take the treatment, or the comment would
+// have to explain why one is exempt.
+export type AssetFormInput = z.input<ReturnType<typeof assetFormSchema>>;
+export type AssetFormValues = z.output<ReturnType<typeof assetFormSchema>>;
 
 /**
  * A FACTORY over the language, like `assetFormSchema` is over the mode — and for
@@ -283,7 +289,10 @@ function transactionObjectFor(lang: Lang) {
     ]),
     // 'new' = quick-create; the panel validates its separate AssetForm instance
     // (assetFormSchema above) before recording and swaps in the built asset id.
-    assetId: z.string().min(1),
+    //
+    // NO `.min(1)` HERE, because whether an id is required depends on the type
+    // and this object cannot see one — the rule is in the refinement below.
+    assetId: z.string(),
     amount: positiveNumberInput(groupsWithComma),
     source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
     // ISSUE #31 — units at the point of entry. Optional, and it has to stay
@@ -309,45 +318,75 @@ function transactionObjectFor(lang: Lang) {
   });
 }
 
-/** The shape for TYPES — the language changes a parse rule, never the fields. */
-type TransactionObject = ReturnType<typeof transactionObjectFor>;
-
 export function transactionSchema(lang: Lang) {
-  return transactionObjectFor(lang).superRefine((v, ctx) => {
-    // BOTH WAYS NOW (D124, owner's ruling). A row that moves no position must
-    // not carry units, and a row that DOES move one must carry them.
-    //
-    // The converse used to be deliberately unenforced, on the ground that every
-    // row recorded before #31 lacks a count and demanding one would make an old
-    // habit unenterable. That reasoning protected the wrong thing: it is about
-    // rows already STORED, and this schema only ever sees a row being typed now.
-    // Meanwhile D119 made every coupon figure `rate × units`, so a buy recorded
-    // in the default `total` mode with the quantity left blank produced a bond
-    // whose coupon reads «—» on `/attributes`, drops out of `/seasonality`'s
-    // coupon season, falls back to an `expectedPct` estimate on `/overview` and
-    // prefills nothing in the due card — with nothing anywhere saying why.
-    //
-    // This subsumes the old `priceMode === 'unit'` check: the panel forces
-    // `total` on any type that takes no units, so `unit` implies a moving row.
-    //
-    // THE OTHER DOORS ENFORCE IT TOO, and that is a later ruling than this
-    // block's first draft. D125 put the same rule on the JSON importer and on
-    // `transaction_quantity_required_ck`; D126 removed the backup half and D127
-    // — the owner's — put it back. `Transaction.quantity` stays optional in the
-    // TYPE, because a row that moves no position has none to state.
-    //
-    // What made all three safe is D128: no door can produce a count-less moving
-    // row any more, so there is no legacy population for them to lock out. This
-    // comment used to say storage was deliberately left permissive; that was
-    // true of the branch that wrote it and is not true of the merge.
-    if (movesPosition(v.type) && v.quantity === undefined) {
-      ctx.addIssue({ code: 'custom', path: ['quantity'] });
-    }
-    if (v.quantity !== undefined && !movesPosition(v.type)) {
-      ctx.addIssue({ code: 'custom', path: ['quantity'] });
-    }
-  });
+  return transactionObjectFor(lang)
+    .superRefine((v, ctx) => {
+      // BOTH WAYS NOW (D124, owner's ruling). A row that moves no position must
+      // not carry units, and a row that DOES move one must carry them.
+      //
+      // The converse used to be deliberately unenforced, on the ground that every
+      // row recorded before #31 lacks a count and demanding one would make an old
+      // habit unenterable. That reasoning protected the wrong thing: it is about
+      // rows already STORED, and this schema only ever sees a row being typed now.
+      // Meanwhile D119 made every coupon figure `rate × units`, so a buy recorded
+      // in the default `total` mode with the quantity left blank produced a bond
+      // whose coupon reads «—» on `/attributes`, drops out of `/seasonality`'s
+      // coupon season, falls back to an `expectedPct` estimate on `/overview` and
+      // prefills nothing in the due card — with nothing anywhere saying why.
+      //
+      // This subsumes the old `priceMode === 'unit'` check: the panel forces
+      // `total` on any type that takes no units, so `unit` implies a moving row.
+      //
+      // THE OTHER DOORS ENFORCE IT TOO, and that is a later ruling than this
+      // block's first draft. D125 put the same rule on the JSON importer and on
+      // `transaction_quantity_required_ck`; D126 removed the backup half and D127
+      // — the owner's — put it back. `Transaction.quantity` stays optional in the
+      // TYPE, because a row that moves no position has none to state.
+      //
+      // What made all three safe is D128: no door can produce a count-less moving
+      // row any more, so there is no legacy population for them to lock out. This
+      // comment used to say storage was deliberately left permissive; that was
+      // true of the branch that wrote it and is not true of the merge.
+      if (movesPosition(v.type) && v.quantity === undefined) {
+        ctx.addIssue({ code: 'custom', path: ['quantity'] });
+      }
+      if (v.quantity !== undefined && !movesPosition(v.type)) {
+        ctx.addIssue({ code: 'custom', path: ['quantity'] });
+      }
+
+      // THE ASSET, ONLY WHERE THERE IS ONE (D129). This field used to carry a
+      // bare `.min(1)`, which asked one question of all nine types and made the
+      // form the only door that could not write the portfolio-level shape every
+      // other part of the app already reads. So a deposit had to borrow whichever
+      // asset the select happened to be showing — `derive.ts` calls that id noise
+      // and steps around it — and with no assets yet it could not be recorded at
+      // all, which is the first transaction anyone makes.
+      if (targetsAsset(v.type) && v.assetId === '') {
+        ctx.addIssue({ code: 'custom', path: ['assetId'] });
+      }
+    })
+    .transform((v) =>
+      // THE CONVERSE NORMALIZES RATHER THAN REFUSING, and that is the difference
+      // between this field and the quantity above it. A refusal has to be shown,
+      // and the panel HIDES this control on exactly these types — so the message
+      // would land on something nobody can see. It also cannot be obeyed: the
+      // control is a Radix `Select`, and a value written into one in the same
+      // commit that mounts it is echoed away again (`TransactionPanel`'s own
+      // note), so "leave it empty" is not a state the UI can be held in.
+      //
+      // Blanking here needs no timing to be right and no cooperation from the
+      // panel: whatever the hidden picker still holds, a row that crosses the
+      // portfolio's edge is stored the way the seed writes one.
+      targetsAsset(v.type) ? v : { ...v, assetId: '' },
+    );
 }
 
-export type TransactionFormInput = z.input<TransactionObject>;
-export type TransactionFormValues = z.output<TransactionObject>;
+// BOTH SIDES COME FROM THE SCHEMA THE RESOLVER RUNS, not from the bare object it
+// is built on. D129 gave `transactionSchema` a `.transform`, and an alias
+// pointing at the bare object keeps compiling while the two diverge, because
+// the transform happens to return the same shape today. The argument is
+// symmetric — a `z.preprocess` on the input side would part `TransactionFormInput`
+// from what `zodResolver` actually accepts, with `useForm` none the wiser — so
+// the input takes the same treatment rather than a comment explaining why not.
+export type TransactionFormInput = z.input<ReturnType<typeof transactionSchema>>;
+export type TransactionFormValues = z.output<ReturnType<typeof transactionSchema>>;

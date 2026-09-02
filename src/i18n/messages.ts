@@ -129,6 +129,7 @@ export const en = {
       expectedPositiveAmount: 'expected a positive number',
       unitsOnNonPositionRow: 'only a buy, sell, reinvest or redemption carries units',
       unitsMissingOnPositionRow: 'a buy, sell, reinvest or redemption must state its units',
+      assetMissingOnPositionRow: 'a buy, sell, reinvest or redemption must name an asset',
       invalid: 'invalid value',
     },
     problemCount: (total: number, shown: number) => {
@@ -1160,6 +1161,7 @@ export const uk: Dict = {
       expectedPositiveAmount: 'очікується додатне число',
       unitsOnNonPositionRow: 'одиниці має лише купівля, продаж, реінвест або погашення',
       unitsMissingOnPositionRow: 'купівля, продаж, реінвест і погашення мають вказувати одиниці',
+      assetMissingOnPositionRow: 'купівля, продаж, реінвест і погашення мають вказувати актив',
       invalid: 'некоректне значення',
     },
     problemCount: (total: number, shown: number) => {

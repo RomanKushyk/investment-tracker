@@ -91,6 +91,46 @@ export function movesPosition(type: TxType): boolean {
   return (POSITION_MOVING as readonly TxType[]).includes(type);
 }
 
+/**
+ * The rows that cross the PORTFOLIO's edge rather than an asset's, and so name
+ * no asset at all. `Transaction.assetId` below has documented `''` for them
+ * since P1, `lib/seed.ts` writes exactly that, `backup/json.ts` skips its
+ * referential check for it and the ledger row already labels it «Портфель» —
+ * `derive.ts`'s `portfolioXirr` draws the same line, citing doc §5.1.
+ *
+ * NOT EXPORTED, unlike `POSITION_MOVING`: `targetsAsset` is the whole API, and
+ * a second name for the same fact would only give a caller a way to ask the
+ * question wrongly. Membership is pinned exhaustively in `derive.test.ts`,
+ * which is what stops a tenth `TxType` from defaulting into the other class in
+ * silence — this predicate is a negation, so a new type joins the majority
+ * without anything failing.
+ */
+const PORTFOLIO_LEVEL = ['deposit', 'withdrawal'] as const;
+
+/**
+ * Does this row belong to an asset, and so require one on the form? D129.
+ *
+ * IT IS THE FORM'S QUESTION, not a mirror of the DDL — the difference matters
+ * in one direction only. `transaction_asset_absent_ck` (`infra/schema/user.ts`)
+ * forbids an asset on exactly the two types below, so the schemas agree there.
+ * But `transaction_asset_present_ck` REQUIRES one only on the four
+ * position-moving types, and deliberately permits a `tax`, a `dividend_accrual`
+ * or an `interest_payout` with none — a tax levied on the account rather than
+ * on one payout, say. This form has always asked for an asset on those three
+ * (the field carried a bare `.min(1)` for all nine types before D129), and D129
+ * did not loosen it; that is a narrower rule than the store's, which is a
+ * choice the form is allowed to make and which the store will still accept.
+ *
+ * SO DO NOT REACH FOR IT AT A DOOR THAT GUARDS THE STORE. `backup/json.ts`
+ * requires an asset with `movesPosition`, mirroring the CHECK, and uses this
+ * predicate only for the converse — the half where the two agree. A backup
+ * that refused what the store can hold could not be written at all, since the
+ * export re-reads its own output; that is D126's deadlock.
+ */
+export function targetsAsset(type: TxType): boolean {
+  return !(PORTFOLIO_LEVEL as readonly TxType[]).includes(type);
+}
+
 /** How many units this row ADDS to the position — `sell`/`redemption` remove. */
 export function unitDelta(tx: Transaction): number {
   if (tx.quantity === undefined || !movesPosition(tx.type)) return 0;
@@ -101,7 +141,7 @@ export interface Transaction {
   id: string;
   date: string;
   type: TxType;
-  assetId: string; // '' for portfolio-level rows (deposit)
+  assetId: string; // '' for portfolio-level rows (deposit/withdrawal) — `targetsAsset`
   amount: number;
   source: TxSource;
   // ISSUE #31 — units, at last. Before these existed a `buy` recorded ₴ and

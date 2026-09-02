@@ -98,7 +98,17 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
     // `todos/`, `/loop` and `/schedule` state — stays hidden, because anything left
     // untracked AND unignored also reaches prettier.
     expect(ignoredByGit('.claude/todos/t.json')).toBe(true);
-  });
+    // FOURTH TEST IN THIS REPO TO CARRY ONE, and they all have one cause: a test
+    // that spawns child processes loses the CPU race in a 79-file parallel run
+    // and blows vitest's 5000ms default, intermittently, on an unchanged repo.
+    // The others are the sibling above (`git check-ignore` through the same
+    // helper), the eslint one below, and `infra/src/schema-generated.test.ts`
+    // (`drizzle-kit generate`). This one spawns six children and had no timeout —
+    // the same failure mode at a third the process count, waiting for a slower
+    // machine. If a FIFTH appears, the answer stops being a number here: give the
+    // spawning tests their own vitest project or keep them off the contended
+    // pool, rather than tuning them one at a time.
+  }, 20_000);
 
   it('prettier skips the shared half too — it is committed, not ours to format', async () => {
     // The four negated entries are NOT gitignored, so prettier reads them, and with
@@ -165,7 +175,10 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
     // The shared half is ignored HERE and committed by git — the asymmetry is the
     // decision, so it is pinned rather than left to be rediscovered.
     for (const path of SHARED) expect(await eslint.isPathIgnored(path)).toBe(true);
-  });
+    // Same reason its sibling three tests up carries 20_000: resolving the real
+    // flat config is expensive, and under a full parallel run it misses the
+    // 5000 ms default often enough to redden the gate on an unchanged repo.
+  }, 20_000);
 
   it('vitest hides them — nor does vitest read .gitignore', () => {
     // Its default exclude is only `**/node_modules/**` and `**/.git/**`; everything

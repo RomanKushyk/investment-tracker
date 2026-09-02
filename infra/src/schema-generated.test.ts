@@ -39,4 +39,14 @@ it('regenerating the schema reproduces the committed SQL', () => {
     '\n',
   );
   expect(fresh.trim()).toBe(committed.trim());
-});
+  // A TIMEOUT ITS OWN COST EARNS, the same edit `d5a168d` made to the
+  // scratch-directory guard for the same reason. This spawns `drizzle-kit
+  // generate` as a child process: alone it finishes in about a second, but under
+  // a full parallel run it loses the CPU race against 78 other files and blows
+  // the 5000 ms default — intermittently, so the gate CLAUDE.md requires goes
+  // red without a schema having changed. Measured 2026-09-02: three consecutive
+  // full runs on `dev` failed twice this way, before this branch existed. Three
+  // tests in `src/nested-checkouts.test.ts` carry the same edit for the same
+  // reason; that file's fourth carries the note about what to do if a fifth
+  // appears.
+}, 30_000);

@@ -143,7 +143,9 @@ Asset { id, name, code /*2 letters*/, colorKey, yieldType: 'fixed_coupon'|'divid
 Snapshot { date, quotes: Record<assetId, number>, cash }   // one per day, partial until saved
 Transaction { id, date, type: 'buy'|'sell'|'deposit'|'withdrawal'|'dividend_accrual'
                     |'interest_payout'|'reinvest'|'redemption'|'tax',
-              assetId, amount, source: 'own'|'accrual'|'reinvest_reit'|'reinvest_6475',
+              assetId,             // '' on deposit/withdrawal — those cross the PORTFOLIO's
+                                   // edge, not an asset's (D129, `targetsAsset`)
+              amount, source: 'own'|'accrual'|'reinvest_reit'|'reinvest_6475',
               quantity?, unitPrice? }   // #31/D112 — units are Σ quantity, never a stored
                                         // total. Position-moving types only (buy/sell/
                                         // reinvest/redemption); both absent on every row

@@ -189,14 +189,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 5 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 5)));
+  it('rejects formatVersion 6 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 6)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(5);
+    expect(result.rejection.version).toBe(6);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 5 — this app reads formatVersion 4 only.',
+      'Unsupported formatVersion 6 — this app reads formatVersion 5 only.',
     );
   });
 
@@ -215,7 +215,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 5;
+        env.formatVersion = 6;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -294,6 +294,143 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     if (result.ok || result.rejection.kind !== 'rows') return;
     expect(result.rejection.issues).toEqual([
       { table: 'transactions', at: 'tx-0007', code: 'unknown-asset-id', value: 'a-9' },
+    ]);
+  });
+
+  it('rejects a position-moving row that names no asset (D129)', () => {
+    // `assetId !== ''` used to skip the WHOLE check for an empty id, so this
+    // shape sailed through: legitimate on a deposit, meaningless on a buy, and
+    // the exact row `transaction_asset_present_ck` rejects at migration. It
+    // rendered in the ledger as «Купівля · Портфель».
+    const result = validateImport(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'tx-0008',
+          date: '2026-07-01',
+          type: 'buy',
+          assetId: '',
+          amount: 100,
+          quantity: 1,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'rows') return;
+    expect(result.rejection.issues).toEqual([
+      { table: 'transactions', at: 'tx-0008', code: 'asset-missing-on-position-row' },
+    ]);
+  });
+
+  it('ACCEPTS an empty id wherever the STORE does, which is wider than the form', () => {
+    // `movesPosition`, not `targetsAsset`. The seed's three deposits carry `''`,
+    // so the type question is unavoidable — but the line is drawn at W7's
+    // `transaction_asset_present_ck`, which names only the four moving types.
+    // The form asks for an asset on a `tax` and both payout types as well; a
+    // backup that refused what the store can hold could not be written at all,
+    // because the export re-reads its own output. That is D126's deadlock.
+    for (const type of ['deposit', 'withdrawal', 'tax', 'dividend_accrual', 'interest_payout']) {
+      const result = validateImport(
+        mutated((env) =>
+          (env.transactions as Record<string, unknown>[]).push({
+            id: `tx-${type}`,
+            date: '2026-07-01',
+            type,
+            assetId: '',
+            amount: 100,
+            source: 'own',
+          }),
+        ),
+      );
+      expect(result.ok, type).toBe(true);
+    }
+  });
+
+  it('BLANKS an asset a portfolio-level row names, rather than refusing the file', () => {
+    // The population is a v5 file exported from a store whose deposits predate
+    // D129 — the form filled `assetId` for all nine types, so a deposit carried
+    // whichever asset the picker showed, and those rows are still in the store.
+    // (NOT a pre-D129 FILE: the version gate refuses those first.) Refusing them
+    // would leave such a store unable to back itself up, for a value W7 discards
+    // anyway.
+    for (const type of ['deposit', 'withdrawal']) {
+      const result = validateImport(
+        mutated((env) =>
+          (env.transactions as Record<string, unknown>[]).push({
+            id: `tx-blank-${type}`,
+            date: '2026-07-01',
+            type,
+            assetId: 'reit',
+            amount: 100,
+            source: 'own',
+          }),
+        ),
+      );
+      expect(result.ok, type).toBe(true);
+      if (!result.ok) continue;
+      expect(result.envelope.transactions.find((t) => t.id === `tx-blank-${type}`)?.assetId).toBe(
+        '',
+      );
+    }
+  });
+
+  it('LEAVES the asset alone on every other type, the moving ones included', () => {
+    // The other side of the predicate, and the one an inverted `!` would break
+    // silently: blanking a `tax` or a payout produces an orphaned portfolio row
+    // that no rule refuses, because `asset-missing-on-position-row` only names
+    // the four moving types.
+    for (const type of [
+      'buy',
+      'sell',
+      'reinvest',
+      'redemption',
+      'tax',
+      'dividend_accrual',
+      'interest_payout',
+    ]) {
+      const result = validateImport(
+        mutated((env) =>
+          (env.transactions as Record<string, unknown>[]).push({
+            id: `tx-keep-${type}`,
+            date: '2026-07-01',
+            type,
+            assetId: 'reit',
+            amount: 100,
+            ...(['buy', 'sell', 'reinvest', 'redemption'].includes(type) ? { quantity: 1 } : {}),
+            source: 'own',
+          }),
+        ),
+      );
+      expect(result.ok, type).toBe(true);
+      if (!result.ok) continue;
+      expect(result.envelope.transactions.find((t) => t.id === `tx-keep-${type}`)?.assetId).toBe(
+        'reit',
+      );
+    }
+  });
+
+  it('REPORTS a dangling asset id on a portfolio-level row instead of tidying it', () => {
+    // The blanking runs AFTER `integrityIssues`, never as a row transform. As a
+    // transform it ran first, so this file imported clean: the `unknown-asset-id`
+    // branch was never reached. A dangling id is not a value to discard — it is
+    // evidence the file lost an asset row, which is the whole job of the
+    // referential pass.
+    const result = validateImport(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'tx-0010',
+          date: '2026-07-01',
+          type: 'deposit',
+          assetId: 'a-9',
+          amount: 100,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok || result.rejection.kind !== 'rows') return;
+    expect(result.rejection.issues).toEqual([
+      { table: 'transactions', at: 'tx-0010', code: 'unknown-asset-id', value: 'a-9' },
     ]);
   });
 
@@ -631,6 +768,6 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 4');
+    expect(result.rejection.detail).toContain('formatVersion 5');
   });
 });

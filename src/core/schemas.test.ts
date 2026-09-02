@@ -72,15 +72,16 @@ describe('transactionSchema', () => {
     expect(transactionSchema('en').safeParse({ ...base, assetId: 'new' }).success).toBe(true);
   });
 
-  it('rejects unknown types and an empty assetId', () => {
+  it('rejects unknown types, and an empty assetId on a type that targets an asset', () => {
     expect(transactionSchema('en').safeParse({ ...base, type: 'gift' }).success).toBe(false);
     expect(transactionSchema('en').safeParse({ ...base, assetId: '' }).success).toBe(false);
   });
 
   it("accepts the P1 domain types 'withdrawal' and 'redemption'", () => {
     expect(
-      // `quantity: ''` — a withdrawal moves no position, so it must NOT carry one.
-      transactionSchema('en').safeParse({ ...base, type: 'withdrawal', assetId: 'x', quantity: '' })
+      // `quantity: ''` — a withdrawal moves no position, so it must NOT carry
+      // one; `assetId: ''` — it targets no asset, so it must not name one (D129).
+      transactionSchema('en').safeParse({ ...base, type: 'withdrawal', assetId: '', quantity: '' })
         .success,
     ).toBe(true);
     expect(transactionSchema('en').safeParse({ ...base, type: 'redemption' }).success).toBe(true);
@@ -385,5 +386,69 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
 
   it('defaults priceMode to total', () => {
     expect(transactionSchema('uk').parse(base).priceMode).toBe('total');
+  });
+});
+
+describe('D129 — the asset is required only on the types that target one', () => {
+  const base = {
+    date: '2026-09-02',
+    type: 'deposit' as const,
+    assetId: '',
+    amount: '1 000,00',
+    quantity: '',
+    source: 'own' as const,
+  };
+
+  it('accepts a portfolio-level row with NO asset — the shape the seed writes', () => {
+    // `lib/seed.ts` records its three deposits as `assetId: ''`, `types.ts`
+    // documents that as the portfolio-level shape and `backup/json.ts` skips
+    // the referential check for it. The form's schema was the one door that
+    // refused it, so a deposit could not be recorded without naming an asset it
+    // has nothing to do with — and with no assets yet, could not be recorded at
+    // all, which is the first transaction anyone makes.
+    for (const type of ['deposit', 'withdrawal'] as const) {
+      expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(true);
+      expect(transactionSchema('uk').parse({ ...base, type }).assetId).toBe('');
+    }
+  });
+
+  it('BLANKS an asset on a portfolio-level row rather than refusing it', () => {
+    // The converse, and it is what makes the panel's hiding load-bearing rather
+    // than cosmetic: the hidden picker still holds the last pick, and without
+    // this the row would be stored against an asset nobody chose. `derive.ts`
+    // calls that assetId noise and steps around it; this is the door where the
+    // noise stops being written.
+    //
+    // NORMALIZED, not rejected, and the asymmetry with the quantity rule above
+    // is deliberate — a refusal has to be shown, and this control is not on
+    // screen for these types. The schema's own comment carries the rest.
+    for (const type of ['deposit', 'withdrawal'] as const) {
+      const parsed = transactionSchema('uk').safeParse({ ...base, type, assetId: 'reit' });
+      expect(parsed.success, type).toBe(true);
+      if (!parsed.success) continue;
+      expect(parsed.data.assetId, type).toBe('');
+    }
+    // The quick-create sentinel is blanked with everything else: a row that
+    // targets no asset cannot bring one into existence either.
+    expect(transactionSchema('uk').parse({ ...base, assetId: 'new' }).assetId).toBe('');
+  });
+
+  it('still requires one on every type that DOES target an asset', () => {
+    for (const type of ['buy', 'sell', 'reinvest', 'redemption'] as const) {
+      const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '10' });
+      expect(bad.success, type).toBe(false);
+      if (bad.success) continue;
+      expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('assetId');
+    }
+    for (const type of ['dividend_accrual', 'interest_payout', 'tax'] as const) {
+      expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(false);
+    }
+  });
+
+  it('keeps the quick-create sentinel intact on the types that target an asset', () => {
+    expect(
+      transactionSchema('uk').parse({ ...base, type: 'buy', assetId: 'new', quantity: '10' })
+        .assetId,
+    ).toBe('new');
   });
 });

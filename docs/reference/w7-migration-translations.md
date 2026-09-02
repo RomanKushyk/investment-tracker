@@ -1,8 +1,10 @@
 # W7 migration translations — the app's data, translated for the schema
 
 The user schema (`infra/schema/user.ts`) does not accept `src/lib/seed.ts`'s
-shape as-is. Seven translations are needed, carried here from the hand-written
-migration draft's header before generation retired that header.
+shape as-is. Seven translations are listed here, carried from the hand-written
+migration draft's header before generation retired that header. **Two of the
+seven — items 3 and 4 — are DORMANT rather than owed**, for the one reason the
+block below gives; the numbering never changes, because the items are cited.
 
 > **W7 SEEDS FRESH DEMO DATA — it does not carry the local store across**
 > (owner, 2026-09-01; [`D128`](../decisions/D128.md), recorded under W7 in
@@ -15,14 +17,18 @@ migration draft's header before generation retired that header.
 >   order, nullability, kopecks-vs-decimals. A fresh seed has to satisfy the
 >   schema exactly as any other writer would.
 > - **Translations that exist because a stored row PREDATES a rule do not.**
->   Item 4 below is the whole of that class: `quantity` is unrecoverable only for
->   rows written before it was required, and no such row will be migrated,
+>   Items 3 and 4 below are that class. `quantity` (item 4) is unrecoverable only
+>   for rows written before it was required, and no such row will be migrated,
 >   because none will be migrated at all. The seed carries its own seven counts.
 >   `transaction_quantity_required_ck` therefore owes **no backfill step** — read
->   its comment in `schema/user.ts`, which says the same.
+>   its comment in `schema/user.ts`, which says the same. Item 3 joined the class
+>   on 2026-09-02: [`D129`](../decisions/D129.md) stopped the form writing a
+>   borrowed `assetId` on portfolio-level rows, so only a database seeded before
+>   that date holds one.
 >
 > Nothing below is deleted: the item-4 reasoning is why the counts exist in the
-> seed at all, and it becomes live again the day a real user's data has to move.
+> seed at all, and both dormant items become live again the day a real user's
+> data has to move — a pre-D129 Dexie store still holds the borrowed ids.
 
 ## 1. IDs are slugs today; the schema says UUID
 
@@ -36,16 +42,29 @@ says they cannot be regenerated.
 ## 2. `assetId` is `''` on the seed's portfolio-level rows
 
 In SQL that is NULL. Empty string and NULL are different values; translate,
-do not copy. Measured against `seed.ts` alone — item 3 below is the other
-half, measured against the live app.
+do not copy. Measured against `seed.ts` alone.
 
-## 3. `deposit`/`withdrawal` rows carry a REAL `assetId` today, not `''`
+**OWED, and unchanged by D129.** Item 3 below used to be the other half, because
+the live app wrote a real `assetId` on those rows and the migration had two
+distinct values to recognise. It is dormant now — a store written by any build
+from 2026-09-02 on carries only `''` — but this item is not, and never was,
+about what the form writes: `''` is not a uuid, so a migration that copies
+Dexie's value verbatim fails `transaction_asset_absent_ck` either way.
 
-`schemas.ts` declares `assetId` non-empty for all nine transaction types and
-`TransactionPanel` fills it with `assets[0].id`; `derive.ts` already treats
-that value as noise for a deposit. The migration must NULL it on these two
-types — `transaction_asset_absent_ck` enforces the target state, so an
-unconverted row is rejected rather than silently absorbed.
+## 3. `deposit`/`withdrawal` rows may carry a REAL `assetId` — DORMANT since D129 (2026-09-02)
+
+`schemas.ts` used to declare `assetId` non-empty for all nine transaction types
+while `TransactionPanel` filled it with `assets[0].id`, so every deposit the app
+recorded named an asset it had nothing to do with — a value `derive.ts` already
+treated as noise, and one `transaction_asset_absent_ck` would have rejected at
+migration. [`D129`](../decisions/D129.md) stopped the form writing it: from
+2026-09-02 those two types carry `''`, the shape `seed.ts` always used.
+
+**Dormant, not retired,** on the same footing as item 4 and for the same reason.
+A Dexie store written before that date still holds the borrowed ids, and so does
+any backup taken from one — the importer blanks them on the way in, which is the
+app's own answer, not the migration's. If a real user's data ever moves, this
+item is live and the migration must NULL those ids as well as the empty ones.
 
 ## 4. `Asset.inzhur.units` is the only place unit counts exist today
 

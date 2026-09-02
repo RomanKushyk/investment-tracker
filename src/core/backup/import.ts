@@ -28,6 +28,7 @@ import type { Asset, Snapshot, Transaction } from '../types';
 import {
   BACKUP_FORMAT_VERSION,
   backupEnvelopeSchema,
+  blankPortfolioAssetIds,
   integrityIssues,
   readEnvelopeHead,
   type BackupEnvelope,
@@ -127,7 +128,10 @@ export function validateImport(text: string): ImportValidation {
   }
   const integrity = integrityIssues(parsed.data);
   if (integrity.length > 0) return { ok: false, rejection: rowsRejection(integrity) };
-  return { ok: true, envelope: parsed.data };
+  // D129 — validate as written, then normalize what gets stored. The blanking
+  // must not run before `integrityIssues`, or a deposit naming an asset the file
+  // does not carry is tidied away instead of reported (`blankPortfolioAssetIds`).
+  return { ok: true, envelope: blankPortfolioAssetIds(parsed.data) };
 }
 
 function formatRejection(
