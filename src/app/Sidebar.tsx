@@ -24,26 +24,50 @@ const ANALYTICS = [
   { to: '/allocation', key: 'allocation' },
 ] as const;
 
-// Mark 04: four days, height is value and opacity is age. EVEN bar centres and
-// an even stroke, because a bar spans [x-2, x+2] and only an even x halves to
-// whole device pixels at 16px — the same geometry as public/favicon.svg, which
-// carries the full reasoning. `aria-hidden` because the wordmark beside it says
+// The Quirenote mark (D131): an open Q — an r32 arc gapped at the top-right —
+// whose tail is a sand arrow. `aria-hidden` because the wordmark beside it says
 // "Quirenote" already; labelling the mark too makes a screen reader say the
 // brand twice on every route.
 //
+// The viewBox is CROPPED TO THE INK, and that is the whole geometric argument
+// now that there are no bars to align to a pixel grid. The arc's ink spans
+// [9.5, 86.5] on both axes (centre 48,48 · r32 · stroke 13) and the arrowhead
+// reaches x 87.5 and y 8.5 (tip 86,10 with a 3-wide round join), so the union is
+// exactly 78 × 78 at (9.5, 8.5). Filling that box means a 36px mark is 36px of
+// drawing — the diameter the retired disc had — and in public/favicon.svg it is
+// what puts 2.67px of stroke on a 16px tab instead of 2.17px.
+//
+// Colour is split: the arc takes `currentColor` so it follows the plane it is
+// on, the arrow takes the one brand token. No hex belongs in here — mark.test.ts
+// asserts there is none.
+//
 // KEEP THIS THE ONLY INLINE SVG IN THE FILE — src/app/mark.test.ts pins the mark
-// by reading this source and collecting every path, opacity and stroke width in
-// it, so a second one here would fail the pin rather than the drawing. Icons
-// that arrive as a component (lucide) never appear in this source and are safe.
+// by reading this source and collecting every path and stroke width in it, so a
+// second one here would fail the pin rather than the drawing. Icons that arrive
+// as a component (lucide) never appear in this source and are safe.
 function Mark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden="true">
-      <g fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round">
-        <path d="M6 24v-4" opacity=".45" />
-        <path d="M12 24v-10" opacity=".65" />
-        <path d="M18 24v-6" opacity=".8" />
-        <path d="M24 24v-16" />
-      </g>
+    <svg viewBox="9.5 8.5 78 78" className={className} aria-hidden="true">
+      <path
+        d="M53 16.39A32 32 0 1 0 79.61 42.99"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="13"
+        strokeLinecap="round"
+      />
+      <path
+        className="stroke-brand-sand"
+        d="M52 44 74 22"
+        fill="none"
+        strokeWidth="13"
+        strokeLinecap="round"
+      />
+      <path
+        className="fill-brand-sand stroke-brand-sand"
+        d="M79.78 31.78 64.22 16.22 86 10Z"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -286,16 +310,30 @@ function SidebarPanel({
           16px IBM Plex Sans, so the wordmark ran under the DEMO badge by 5.1px.
           At 244 the plate cannot hold a fifth element in flow. Floating both
           leaves 134.8px for the wordmark and 5.9px of clearance between the brand
-          and the badge — measured, not estimated. */}
+          and the badge — measured, not estimated.
+
+          THOSE TWO FIGURES ARE D66'S AND THE FONT HAS MOVED SINCE (D131). The
+          reasoning stands — floating both ornaments is still what buys the
+          runway — but the runway is now 78.6px wide, and BOTH its edges are
+          pinned: the left by the 15px padding + 36px mark + 10px gap (text
+          starts at x 78), the right by the DEMO badge itself, 32.4px wide after
+          `scale-75` and floated at `right-[38px]`, so its left edge lands at
+          x 156.6. 156.6 − 78 = 78.6. Naming only the left three terms leaves
+          149px of plate and does not reproduce the figure. It is spent
+          differently now, too: JetBrains
+          Mono ExtraBold is a 0.6em monospace, so `Quirenote` inks 9 × 0.58 ×
+          font-size and at 16px measured 83.53px — 4.93px UNDER the badge. Hence
+          the 14px below, which inks 73.09px and leaves 5.5px. Do not "restore"
+          it to 16px without re-measuring that clearance; and note the plate's
+          height changes hands with it, because at 16px the text block was the
+          taller item (36.78px) and at 14px the 36px mark is. */}
       <div className="relative mb-[22px]">
         <div className="flex items-center justify-start gap-2.5 rounded-[14px] bg-sidebar-inset px-[15px] py-2.5">
-          <div className="grid size-9 flex-none place-items-center rounded-full bg-sidebar-text text-sidebar">
-            <Mark className="size-[18px]" />
-          </div>
-          <div className="min-w-0 font-display text-base leading-[1.15] font-semibold">
+          <Mark className="size-9 flex-none text-sidebar-text" />
+          <div className="min-w-0 font-body text-[14px] leading-[1.15] font-extrabold tracking-[-0.02em]">
             Quirenote
             <br />
-            <span className="text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase">
+            <span className="font-display text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase">
               {t.sidebar.brandTagline}
             </span>
           </div>

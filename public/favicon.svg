@@ -1,25 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Quirenote">
-  <!-- Mark 04 "Серія днів": four days, height is value and opacity is age.
-       Bar centres are EVEN (6/12/18/24) with an even stroke (4), which is what
-       actually lands on whole pixels at 16px: a bar spans [x-2, x+2] in user
-       units, halved to device pixels that is [(x-2)/2, (x+2)/2], and both ends
-       are integers only when x is even. Odd centres — the first attempt — put
-       every edge on a half-pixel and rendered the icon blurred across three
-       columns instead of covering two. The bar tops are even for the same
-       reason, since the round caps extend two units past the endpoint.
-       The cost, taken deliberately: with four bars at a pitch of 6 the drawing
-       cannot be both even-aligned and exactly centred, so it sits one unit left
-       of centre — 0.5px at 16px, against a blur that was visible.
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="9.5 8.5 78 78" role="img" aria-label="Quirenote">
+  <!-- The Quirenote mark (D131): an open Q — an r32 arc gapped at the top-right
+       — whose tail is a sand arrow. Same three paths as `Mark` in
+       src/app/Sidebar.tsx, pinned against it by src/app/mark.test.ts.
+
+       THE VIEWBOX IS CROPPED TO THE INK, which is what replaces mark 04's
+       even-bar-centre rule. That rule bought whole-device-pixel edges at 16px,
+       and an arc has no edge to align: every tangent meets the grid at a
+       different angle, so there is no parity to choose. The only lever left is
+       how much of the box the drawing gets, so it gets all of it. The arc's ink
+       spans [9.5, 86.5] on both axes (centre 48,48 · r32 · stroke 13) and the
+       arrowhead reaches x 87.5 and y 8.5 (tip 86,10 with a 3-wide round join),
+       so the union is exactly 78 × 78 at (9.5, 8.5). At 16px that is 2.67px of
+       stroke instead of the 2.17px the owner's padded 96-box would give.
+
        Transparent and theme-aware: the browser paints the tab in its own theme,
-       so a fixed colour would go invisible in one of them. -->
+       so a fixed colour would go invisible in one of them. Four literals, not
+       two, because the arrow is a second colour — the arc's pair is the app's
+       own `sidebar`/`sidebar-text`, the arrow's is the brand sand. The light
+       sand is the DARKER value (4.71:1 on white); in the app the arrow is
+       #d8b494 in both themes, because there its ground is a plate that is dark
+       in both — see the brand-sand token in src/index.css.
+
+       AND THAT SENTENCE IS WHY THE TOKEN IS NAMED WITHOUT ITS DASHES: a double
+       hyphen cannot appear inside an XML comment, so writing the token in full
+       here makes this whole file not well-formed and the icon renders BLANK.
+       Every text assertion in mark.test.ts still passed on the broken file, so
+       that test now checks this rule directly.
+
+       Stroke and fill are separate classes on purpose. CSS beats presentation
+       attributes, so one class carrying `fill` would override the shaft's
+       fill="none" and try to fill a two-point path. -->
   <style>
-    path { stroke: #26262a }
-    @media (prefers-color-scheme: dark) { path { stroke: #e9e8e6 } }
+    .arc { stroke: #26262a }
+    .sand { stroke: #9c683a }
+    .sand-fill { fill: #9c683a }
+    @media (prefers-color-scheme: dark) {
+      .arc { stroke: #e9e8e6 }
+      .sand { stroke: #d8b494 }
+      .sand-fill { fill: #d8b494 }
+    }
   </style>
-  <g fill="none" stroke-width="4" stroke-linecap="round">
-    <path d="M6 24v-4" opacity=".45" />
-    <path d="M12 24v-10" opacity=".65" />
-    <path d="M18 24v-6" opacity=".8" />
-    <path d="M24 24v-16" />
-  </g>
+  <path class="arc" d="M53 16.39A32 32 0 1 0 79.61 42.99" fill="none" stroke-width="13" stroke-linecap="round" />
+  <path class="sand" d="M52 44 74 22" fill="none" stroke-width="13" stroke-linecap="round" />
+  <path class="sand sand-fill" d="M79.78 31.78 64.22 16.22 86 10Z" stroke-width="3" stroke-linejoin="round" />
 </svg>

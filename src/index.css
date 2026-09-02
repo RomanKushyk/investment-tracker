@@ -174,6 +174,20 @@
   --color-sidebar-muted: #96959b;
   --color-sidebar-inset: #333338;
   --color-sidebar-nav: #cfcecb;
+  /* The logo mark's arrow, and the app's first brand colour (D131). It is the
+     SAME VALUE IN BOTH THEMES, on `pos-on-dark`'s precedent and for the same
+     reason: the mark's only plane here is `sidebar-inset`, which is dark in
+     light theme too (#333338 / #1c1c20). A flipped pair would put the owner's
+     light-ground value on the LIGHTER of those two plates — the worst pairing
+     available: #9c683a measures 2.67 : 1 on #333338, under WCAG 1.4.11's 3 : 1
+     for a non-text graphic, where this value measures 6.51. (On the dark
+     theme's #1c1c20 the same #9c683a would have scraped 3.60, which is how a
+     flipped token passes review in one theme and fails in the other.)
+     That light value is not unused: it is the light branch of
+     `public/favicon.svg`, whose ground is the browser's tab strip and genuinely
+     light — 4.71 : 1 on white. The arc needs no token at all; it takes
+     `currentColor` from `sidebar-text` (10.26 here, 14.15 in dark). */
+  --color-brand-sand: #d8b494;
   --color-pos: #5c7355;
   --color-pos-tint: #e3eadf;
   --color-pos-tint-text: #4c5a48;
@@ -245,11 +259,11 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 41 values instead of two that
+   CSS never has to express "system". One list of 42 values instead of two that
    can drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 41 PALETTE tokens are here, and they are the SAME 41 that @theme
+   Only the 42 PALETTE tokens are here, and they are the SAME 42 that @theme
    declares outside the chart aliases — one for one, neither set holding a name
    the other lacks. That equality is the real invariant; the number is just how
    it is counted, and the number is what rots. It read 38 from A9 until
@@ -323,6 +337,10 @@
   --color-sidebar-muted: #8b8a90; /* 5.59 */
   --color-sidebar-inset: #1c1c20;
   --color-sidebar-nav: #c4c3c0; /* 10.86 */
+
+  /* Brand. Repeated at the same value on purpose — see the light block for the
+     measurement; `pos-on-dark` two groups below does the same thing. */
+  --color-brand-sand: #d8b494; /* 8.80 on sidebar-inset */
 
   /* Semantic. `pos-on-dark` is deliberately UNCHANGED: it was always meant for
      a dark plane, and the inverted planes (KpiCard dark, sidebar) still are
