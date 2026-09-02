@@ -1,27 +1,24 @@
 # Plan A — Startable now
 
-> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it, **with one declared exception: W4, whose two rulings are its own first step and not a wait on anyone else (see Section Q, and D130)**. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
+> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
 >
 > **Companion plans:** `PLAN-WAITING.md` (dated, gated on evidence or elapsed time) · `PLAN-OPEN.md` (questions with no answer yet). Parent: `NEXT-PHASE-PLAN.md`. Decisions: `../decisions/README.md`.
 
-Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98):** this file is the index — live task bodies are in the section files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md). **One exception, and it is not optional: `W4` closes to [`../archive/plan-b/`](../archive/plan-b/README.md), never to `plan-a/` — see the closing rule below, and D130 for why.**
+Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98):** this file is the index — live task bodies are in the section files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md). **One exception, and it is not optional: `W4` closed 2026-09-02 and was archived to [`../archive/plan-b/`](../archive/plan-b/README.md) on 2026-09-03, never to `plan-a/` — the exception is exercised and spent; see the closing rule below, and D130 for why.**
 
 ## Status — what is live
 
-Five rows, **two startable** — A54 and A46. **W4 is DONE and awaiting its archive move**, not startable and not in progress; the count and its row must agree, and two earlier versions of this line did not. **A53 closed 2026-09-02** and left for the archive with its ledger row, which is how a task closes here. Section order still decides
-which comes first and it is the order of the rows here. W4 still heads the
-table under Section Q, but it is **finished** rather than the first task: pick
-the first row that is neither done nor denied, which is **A54**. A11 and A52
-keep their places for their reasons rather than their work — A11 is denied,
-A52 is withdrawn — and W4 keeps its place only until its archive move.
+Four rows, **two startable** — A54 and A46. **But they are not the whole of what is startable, and this file cannot show the rest**: `PLAN-WAITING.md` now holds **two items whose gates are MET** — **W7**, whose both halves closed 2026-09-02, and **W15**, ungated the moment W4's Inzhur key was decided. That file's own rule sends a gate-met item here or has it executed there; neither has been done, so a session picking the first non-done row below would miss the largest live work in the project. Read the dated table before treating this list as complete. **W4 closed 2026-09-02 and was archived 2026-09-03** — to `../archive/plan-b/` with its body and both of its rows (D130), taking Section Q with it; the section existed for one row and does not outlive it. The ledger dates the CLOSE by when the work finished, as W1 and W3's rows do, and the move is a separate act. **A53 closed 2026-09-02** and left for the archive with its ledger row, which is how a task closes here. Section order still decides
+which comes first and it is the order of the rows here, so the first task is
+the first row that is neither denied nor withdrawn: **A54**. A11 and A52 keep
+their places for their reasons rather than their work — A11 is denied, A52 is
+withdrawn.
 
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
-| **Section Q** | **The archive schema — W7's own gate** (moved here from `PLAN-WAITING.md` on 2026-09-02, the first item ever to cross between plans; the rule that move created is **D130**). Placed FIRST by this file's own order — deadline pressure, then irreversibility: W4 gates W7 and W15, and a DSQL natural key cannot be migrated, only dropped and recreated. **Its gate was met 2026-08-31**, not today — W3 was read that day and A4 closed 2026-08-11 (D50); the date it used to carry was never its own, and `PLAN-WAITING.md`'s kept W4 row is the canonical account of that. **One caveat against this file's header, which promises no task here is gated on a decision:** W4 owes two, and they are its OWN first step rather than someone else's — it is where they get ruled, not a task waiting on a ruling made elsewhere. Letter Q because A–P are spent | | | |
-| W4 | Inzhur observation schema | `infra/inzhur-observation-schema` | M | **ALL THREE BOXES DONE 2026-09-02 — merged and verified live.** Both rulings taken (D132), `observeInzhur` and `bond_terms` shipped, and the backfill's no-op proved on the cluster: `seen 70, written 70, termsWritten 30`, then the identical call `seen 70, written 0, termsWritten 0`. **It has not yet CLOSED**, because closing is a move and this row belongs in `../archive/plan-b/` with its body (D130) — that is the next task, and it is mechanical. **Consequence: W7's gate is now MET** |
 | **Section C** | **App — pure, independent** | | | |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
-| **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's DATE arrived 2026-09-02 while its gate is still W4, which is Section Q above, and A46 is undated | | | |
+| **Section P** | **W7 preparation — the gate is now MET** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's gate was MET on 2026-09-02 — both halves, W4 included — so Section P is no longer preparation ahead of a gate but the work in front of the phase itself; A46 is undated | | | |
 | A52 | ~~The seed reconciles under the ledger model (D34)~~ | — | — | **not startable — withdrawn to W7 by the review of 2026-08-26.** Three quantities are pinned at once and there is no free variable left: `navigation-map.md` checkpoint 7 fixes the row COUNT at `4/174/18` (so do D10 and D24), and the same checkpoint plus D5 fix **`Deposited 143 176 ₴`**, which D5 derives from the `deposit` rows themselves. So no added row can be net-zero while `derive.ts` still subtracts `withdrawal` and nets `tax` — D34's invariant is a property of the post-migration model. Back to W7's scope, which already lists it. **The ruling it needed — O31 — is given: D133, 2026-09-02**, all three figures may move |
 | A54 | Cognito rehearsal on a throwaway pool | `infra/cognito-pool-rehearsal` | S | **startable, scope corrected** — **`usernameAttributes` is the only immutable parameter** (D36); Essentials tier and token validity are mutable, and token validity is D32's, not D36's. The pool proves what a pool can prove: a duplicate-email sign-up is **refused**, which D36 asserts from AWS's table and nothing here has tested. **The MAU question is not measurable on a free-tier pool — it moved to `PLAN-OPEN.md` O30.** Pool deleted the same day |
 | **Section M** | **Input grammar — from O26, closed by D87 (2026-08-25)** | | | |
@@ -31,13 +28,12 @@ A52 is withdrawn — and W4 keeps its place only until its archive move.
 
 | File | Holds |
 |---|---|
-| [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) | W4 — **a Plan B body**, and it stays there beside W3, whose answered questions are W4's input. See this folder's `README.md` |
 | [`section-c.md`](section-c.md) | A11 |
 | [`section-p.md`](section-p.md) | Section P's preamble, A52 (withdrawn), A54 |
 | [`section-m.md`](section-m.md) | Section M's preamble, A46 |
 
 **Renamed by section, 2026-08-27 (D98)** — the table above runs in Status-table
-order (Q, C, P, M), the same order the Status table itself uses, so there is
+order (C, P, M), the same order the Status table itself uses, so there is
 nothing left for either table to explain about the other.
 
 ## Where the closed work is

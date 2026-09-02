@@ -2,7 +2,7 @@
 
 > **For agentic workers:** nothing here is startable on demand — each item waits on elapsed time, an external event, or another phase. **Check the dated table first every session.** An item whose date has passed moves to `PLAN-NOW.md` or is executed here directly; an item whose date is near needs preparation, not waiting.
 >
-> **A DATE ARRIVING IS NOT A GATE OPENING, and the rule above is about the date only.** Where the `Gate` column names another item, that item must also be done — read both columns before moving anything. **W7 is the live example**: its 2026-09-02 arrived, its gate is `W4 + durability gate passed`, and W4 is not done, so it stays here. Moving it on the date alone is the one mistake this table can invite.
+> **A DATE ARRIVING IS NOT A GATE OPENING, and the rule above is about the date only.** Where the `Gate` column names another item, that item must also be done — read both columns before moving anything. **W7 was the worked example and is now the counter-example**: its 2026-09-02 arrived hours before its gate did, so for part of that day the date said go and the `Gate` column said wait — which is exactly the distinction. Both are met now. Read both columns; moving on the date alone is the one mistake this table can invite.
 >
 > **Companion plans:** `PLAN-NOW.md` (startable today) · `PLAN-OPEN.md` (undecided). Parent: `NEXT-PHASE-PLAN.md`.
 
@@ -22,8 +22,6 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 |---|------|------|----------|-------|-----------------|
 | W1 | ~~Frozen-feed detector on real data~~ | — | **done 2026-08-18** | — | reading was 1 on all five business days; see `infra/README.md` |
 | W2 | ~~DPU measured over a real week~~ | — | **done 2026-08-17** | — | ~1,620 DPU/month — 5× the ~325 projection, **1.6% of DSQL's 100,000 always-free DPU tier**, so the *size* settles nothing. It corrected two figures in D64 (**D90**) and found the number worth knowing before acting: **creating a cluster cost 34,956 DPU in one day**, a third of a month's allowance. **Its headline is now obsolete — re-measured 2026-08-25 (D91), the cost is ~173 DPU/month = 0.17%** at today's archive size, because A20 retired the query that dominated it — an aliased `ORDER BY` was disabling the index (D91). Not comparable to the ~325 year-1 projection, which models a much larger archive. Full working in `infra/README.md` |
-| W3 | ~~Inzhur observation window closes~~ | — | **read 2026-08-31** | — | **five of six questions answered; the outage shape stays open and a healthy 21-day window cannot close it.** 21 consecutive days per source, no gap. Fund NAV never moves into Sunday or Monday; bonds move every calendar day; `returnRates.sell` changed once in 18 transitions (and `returnRates.buy` three times); `payload_sha256` is uninformative for `inzhur` and informative for `nbu_fv` (D28 confirmed). Full working in [`../../infra/docs/w3-window.md`](../../infra/docs/w3-window.md) |
-| W4 | Inzhur observation schema — **row moved, item NOT closed** (deliberately not struck: in this table `~~…~~` means done, which W1, W2 and W3 are and this is not) | W3 + A4 (closed 2026-08-11, D50 — its row is in `../archive/plan-a/`, not in `PLAN-NOW.md`) | **moved to `PLAN-NOW.md` 2026-09-02** | no | **This cell is the canonical account of the date, and the other files point here.** Both halves of the gate were met — A4 closed 2026-08-11 (D50), W3 read 2026-08-31 — so this stopped being a dated item and became a startable one. The 2026-09-02 that stood in the Earliest cell was only ever W3's window-close date; W4 never had one of its own. **The row is kept because W7, W15 and `PLAN-OPEN.md` O5 all cite W4 by bare number.** Its body stays in [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) beside W3 |
 | W5 | **cum/ex boundary on UA4000238976** | the coupon itself | **2026-09-24** | **yes** | **182 days** — next chance 2027-03-24 |
 | W6 | DPU over a real month — **and `BytesRead` against `ClusterStorageSize`** | 30 days of captures | **2026-09-10** | no | **low, but not none.** The scan question is answered (**D91**, not W6). What is lost by skipping W6 is the standing re-read of `BytesRead` / `ClusterStorageSize` — the ratio that exposed a scan three code reviews missed — and confirmation of ~173 DPU/month over a full month rather than seven days |
 | W7 | B3 migration: auth, user schema, HTTP client | W4 + durability gate passed | **GATE MET 2026-09-02.** The date arrived and, later the same day, so did the gate: the durability half passed 2026-08-11 (D49) and W4's three boxes all closed, verified live. This cell kept the two apart while they differed, which is what it was for | no | everything downstream — **it owns the dev/prod database split, USER data only (D63)**, and **it is the gate on resubmitting SES production access**: the request describes a sign-up-then-approve flow that will not exist until this lands (A11 audit, 2026-08-14) |
@@ -34,7 +32,7 @@ Written 2026-08-11. Dates are Europe/Kyiv. "Earliest" is when the gate *opens*, 
 | W12 | UA4000236475 matures | the bond | **2028-09-27** | **yes** | second redemption |
 | W13 | Phase 6: chart analytics | W7 — deferred by judgment, not blocked | after W7 | no | doing it twice |
 | W14 | Phase 7: DB browser | W7 — by construction | after W7 | no | building it twice |
-| W15 | Import the provider's fund NAV history | W4 (it lands in `price_observation`, whose Inzhur key W4 decides) | **still gated on W4**, which is now in `PLAN-NOW.md` | no | none — read up in `docs/reference/INZHUR-FUND-HISTORY.md`, and **D83 now allows fetching the files rather than holding them by hand** |
+| W15 | Import the provider's fund NAV history | ~~W4~~ — closed 2026-09-02, and its Inzhur key is what this waited on | **GATE MET 2026-09-03** — W4 closed and its key is decided | no | none — read up in `docs/reference/INZHUR-FUND-HISTORY.md`, and **D83 now allows fetching the files rather than holding them by hand** |
 | W16 | User profile page and its settings | W7 — there is no user to have a profile until auth lands | **after W7** | no | none — the page has nothing to show today |
 | W17 | How a hand-entered value is MARKED as the user's (D75) | W7 — the mark only exists once `coalesce(user_price, archive)` does | **after W7** | no | none today — nothing is coalesced yet |
 
@@ -49,7 +47,7 @@ files below, and W1 closed to
 
 | File | Holds |
 |---|---|
-| [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) | Phase W-I's remainder (W2/W6), W5, W3/W4, W7, W8. **W4's body is still here** although its row moved to `PLAN-NOW.md` on 2026-09-02 — the same reason W2 stays beside W6 |
+| [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) | Phase W-I's remainder (W2/W6), W5, W7, W8. **W3/W4 left on 2026-09-03** — both closed, so the joined section went to `../archive/plan-b/W03-W04.md` together |
 | [`phase-w-iv-v.md`](phase-w-iv-v.md) | W9, W10/W12, W11, W13, W14, W15, W16, W17 |
 
 Item numbers never change — they are cited from the other plans, from

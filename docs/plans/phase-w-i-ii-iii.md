@@ -1,6 +1,6 @@
 # Plan B — Phases W-I to W-III
 
-> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md) — **except W4, whose ROW moved to [`PLAN-NOW.md`](PLAN-NOW.md) on 2026-09-02 while its body stayed here beside W3.** W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
+> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md). **W3 and W4 closed and left together on 2026-09-03** — [`../archive/plan-b/W03-W04.md`](../archive/plan-b/W03-W04.md). W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
 
 Moved verbatim from `PLAN-WAITING.md` on 2026-08-26 as `W02-W08.md`; renamed by section, 2026-08-27 (D98). **W2 is done and W6 is not** — they were written as one section and stay one, because splitting a measurement from its follow-up would lose what W6 is measuring against.
 
@@ -82,26 +82,15 @@ corroboration rather than the only record.
 
 # Phase W-III — Evidence-gated backend
 
-## W3 / W4 — Inzhur observation window and schema — **W3 READ 2026-08-31; W4 IS IN `PLAN-NOW.md` SINCE 2026-09-02**
+## W3 / W4 — Inzhur observation window and schema — **BOTH CLOSED**
 
-**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage. **That gate is now MET and the window is read** — five of the six answered below, the outage shape left open because a healthy 21-day window cannot close it. **W4 has no date of its own and never did**: its gate is W3 + A4, and A4 closed 2026-08-11 (D50) — its row is in `../archive/plan-a/`, not in `PLAN-NOW.md`, so W4 is open the moment this reading lands. The 2026-09-02 that stood in its Earliest cell was W3's window-close date, inherited — and on 2026-09-02 its row left the dated table for `PLAN-NOW.md`'s Section Q, where it is that file's first task. This body stays here because W3's answers above ARE its input.
-
-**Why this is a gate and not caution.** The archive schema is decided **with evidence in hand** deliberately, and nothing is lost meanwhile because raw payloads regenerate any schema retroactively. DSQL keys are immutable — a wrong natural key is a DROP/CREATE, not a migration.
-
-**What the window is expected to answer** — read 2026-08-31 over 21 consecutive days with no gap in either source, compared pairwise over **18 clean transitions** (both manual-invoke days excluded); **full working, method and one false alarm in [`../../infra/docs/w3-window.md`](../../infra/docs/w3-window.md)**:
-- [x] Does the feed refresh on Saturdays and Sundays? — **split by class.** Bonds move every calendar day, weekends included; **fund NAV never moves into Sunday or Monday.** Each of the three active funds moved on exactly **12 of 18** transitions, and 18 − 6 = 12 with no residue. (A first pass reported one Thursday at 2 of 5; that was an artefact of keeping a manual-invoke day as a term.)
-- [x] How does a public holiday read — same as a weekend, or different? — **CLOSED AS MOOT, [`../decisions/D111.md`](../decisions/D111.md).** NBU published normally on 24 August (200, 185 entries, byte size between its neighbours). For Inzhur the window CANNOT answer it: 2026-08-24 was a Monday, when fund NAV is already static, so the two effects are inseparable. **And the question is largely moot — public holidays are suspended under martial law** (owner, 2026-08-31).
-- [x] Is `returnRates.sell` stable day to day, and does it ever move without the price moving? — **the question asks about the wrong half.** `sell` moved once in 18 transitions; **`buy` moved three times**. The price moved on all three, so no rate moved alone. And one of the three is not a rate change at all: UA4000239016's two-sided quote COLLAPSED — buy and sell rates equal, buy and sell prices equal — and stayed collapsed. 5–6 of 32 bonds carry a zero spread on any day, so single-priced is an existing class it joined.
-- [x] What cadence do fund NAVs follow relative to bond prices? — **different clocks**: bonds seven days a week, funds five. **This does not decide itself:** the funds ARE in every Sunday payload with an unchanged NAV, so W4 must choose write-every-day (≈260 redundant fund rows a year) against write-on-change (every completeness check must then know five funds are legitimately absent two days a week). The key supports both.
-- [x] Are payload bytes stable enough that `payload_sha256` means anything, or is only `quotes_sha256` informative? (The frozen-feed detector already assumes the latter — D28.) — **the two sources are opposites.** The proof is the SAME-DAY repeat runs, where the quotes cannot have changed: `inzhur`'s 5 and 3 same-`as_of` runs produced 5 and 3 distinct hashes, `nbu_fv`'s 6 and 3 produced 1 and 1. So `payload_sha256` moves for `inzhur` when nothing has — D28 confirmed by measurement rather than assumed. `nbu_fv`'s repeats are same-day reruns only.
-- [ ] What does an outage actually look like: 5xx, timeout, truncated body, or a stale-but-valid payload? — **STILL OPEN, and the window cannot close it.** The only failure shape observed is NBU's scheduled **404 on Saturday and Sunday** (`ok=false`, 0 bytes, `payload_sha256` = the empty-string hash), which is a publication calendar rather than a failure; `inzhur` had no failure of any kind in 21 days.
-
-**Then, as W4:**
-- [x] Extend `price_observation` to the Inzhur source, reusing the key A4 pinned for NBU (closed; `../archive/plan-a/`). **NO DDL was needed — D132.**
-- [x] `bond_terms`, versioned and effective-dated, written every run — `migrations/004_bond_terms.sql`, 004 because drafts reserves 003 — reconstructable in principle, but **delisting after maturity destroys the live copy permanently**, which is why it is captured rather than derived.
-- [x] Backfill from stored raw payloads; re-running must be a no-op. **VERIFIED LIVE 2026-09-02** on a one-day range: `seen 70, written 70, termsWritten 30`, then the identical call `seen 70, written 0, termsWritten 0`.
-
-**Explicitly not decided by this window** — see `PLAN-OPEN.md`: the fund T-1 dedup rule (O7) rests on one informative observation and conflates the FX conversion date with the NAV strike date; **do not ship it on this evidence**, more weeks do not automatically fix it.
+**W3 read 2026-08-31; W4 completed and verified live 2026-09-02.** The section
+moved verbatim to [`../archive/plan-b/W03-W04.md`](../archive/plan-b/W03-W04.md)
+on 2026-09-03, both halves at once — the body was one section and stayed joined
+because W3's answers are W4's input. What they produced is live elsewhere:
+`observeInzhur` and `bond_terms` in `../../infra/src/`, the rulings in
+[`../decisions/D132.md`](../decisions/D132.md), and the window's own working in
+[`../../infra/docs/w3-window.md`](../../infra/docs/w3-window.md).
 
 ## W7 — B3 migration
 

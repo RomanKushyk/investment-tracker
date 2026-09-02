@@ -117,14 +117,13 @@ Section P running ahead of Section M already had.
 
 | Plan | Index | Bodies |
 |---|---|---|
-| A | `PLAN-NOW.md` | [`section-c.md`](section-c.md) · [`section-p.md`](section-p.md) · [`section-m.md`](section-m.md) · [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) *(W4 only — a Plan B file; see below)* |
+| A | `PLAN-NOW.md` | [`section-c.md`](section-c.md) · [`section-p.md`](section-p.md) · [`section-m.md`](section-m.md) |
 | B | `PLAN-WAITING.md` | [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) · [`phase-w-iv-v.md`](phase-w-iv-v.md) |
 | C | `PLAN-OPEN.md` | [`still-open.md`](still-open.md) |
 
-**One row crosses that table today**, and the *Crossing between plans* rule
-under **Local rules** below says why: W4 is listed in Plan A's index while its
-body sits in a Plan B file, so `PLAN-NOW.md`'s own section table names
-`phase-w-i-ii-iii.md` too.
+**No row crosses that table today.** W4 did, from 2026-09-02 to 2026-09-03,
+and the *Crossing between plans* rule under **Local rules** below is what it
+left behind — kept because the next crossing should not re-derive it.
 
 ## Local rules
 
@@ -151,8 +150,8 @@ body sits in a Plan B file, so `PLAN-NOW.md`'s own section table names
   measures against. W2 leaves when W6 does.
 - **Crossing between plans moves the ROW; the body moves only if it can stand
   alone ([D130](../decisions/D130.md)).** `PLAN-WAITING.md`'s own rule sends an item whose gate has opened to
-  `PLAN-NOW.md`, and **W4 is the first to go, on 2026-09-02** — its row is now
-  Plan A's Section Q while its body stays in `phase-w-i-ii-iii.md` beside W3,
+  `PLAN-NOW.md`, and **W4 was the first to go, on 2026-09-02** — its row became
+  Plan A's Section Q while its body stayed in `phase-w-i-ii-iii.md` beside W3,
   because W3's answered questions are literally W4's input. That is the W2/W6
   reason above, applied to a move instead of a close: a body written as one
   section with its own evidence is not split from it. **The row it leaves
@@ -161,7 +160,7 @@ body sits in a Plan B file, so `PLAN-NOW.md`'s own section table names
   the first rule here exists to prevent, and in `PLAN-WAITING.md`'s table
   `~~…~~` already means *done*, which a moved item is not. Both indexes name the
   body file.
-- **A moved item closes back to the plan it came FROM ([D130](../decisions/D130.md)).** W4 archives to
+- **A moved item closes back to the plan it came FROM ([D130](../decisions/D130.md)), and W4 did on 2026-09-03, having closed the day before** — the rule is now exercised, not just written. W4 archived to
   [`../archive/plan-b/`](../archive/plan-b/README.md) with its body and both of
   its rows — never to `plan-a/`, although Plan A's index is where it was worked.
   **That is a machine-checked consequence, not a preference:**
