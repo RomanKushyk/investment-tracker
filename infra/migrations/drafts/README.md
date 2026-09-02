@@ -17,6 +17,8 @@ reviewed, and only then promoted.
   W7.
 - **Numbering continues `../`.** `001` and `002` are taken by the applied
   archive migrations, so the draft is `003` — the number it keeps on promotion.
+  **W4's `bond_terms` took `004` rather than `003` for exactly that reason**, so
+  the sequence now reads 001, 002, (003 reserved here), 004.
   Two files under one number is the ambiguity numbering exists to remove, and a
   tool globbing `migrations/**/*.sql` by filename would have run the user schema
   before the archive tables.

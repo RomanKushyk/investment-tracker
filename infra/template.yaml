@@ -387,6 +387,15 @@ Resources:
         - MetricNamespace: Quirenote
           MetricName: ObservationsWritten
           MetricValue: $.value
+          # DIMENSIONED BY SOURCE SINCE W4, and the graph's meaning depends on
+          # it. The rationale above reads "flat through a working week means the
+          # derivation stopped" — true only of ONE source at a time. Undimensioned,
+          # Inzhur's daily rows would fill in NBU's weekend zeros and a dead NBU
+          # observer would look healthy. No DefaultValue, same as SkippedRefs
+          # below: CloudWatch Logs rejects a transformation carrying both.
+          Dimensions:
+            - Key: source
+              Value: $.source
 
   # THE SHAPE OF THE FEED, GRAPHED AND NEVER ALARMED (A20, owner ruling).
   # Both replace the retired UnchangedDays/StalePrices pair, which asked whether

@@ -97,9 +97,9 @@ corroboration rather than the only record.
 - [ ] What does an outage actually look like: 5xx, timeout, truncated body, or a stale-but-valid payload? — **STILL OPEN, and the window cannot close it.** The only failure shape observed is NBU's scheduled **404 on Saturday and Sunday** (`ok=false`, 0 bytes, `payload_sha256` = the empty-string hash), which is a publication calendar rather than a failure; `inzhur` had no failure of any kind in 21 days.
 
 **Then, as W4:**
-- [ ] Extend `price_observation` to the Inzhur source, reusing the key A4 pinned for NBU (closed; `../archive/plan-a/`).
-- [ ] `bond_terms`, versioned and effective-dated, written every run — reconstructable in principle, but **delisting after maturity destroys the live copy permanently**, which is why it is captured rather than derived.
-- [ ] Backfill from stored raw payloads; re-running must be a no-op.
+- [x] Extend `price_observation` to the Inzhur source, reusing the key A4 pinned for NBU (closed; `../archive/plan-a/`). **NO DDL was needed — D132.**
+- [x] `bond_terms`, versioned and effective-dated, written every run — `migrations/004_bond_terms.sql`, 004 because drafts reserves 003 — reconstructable in principle, but **delisting after maturity destroys the live copy permanently**, which is why it is captured rather than derived.
+- [ ] Backfill from stored raw payloads; re-running must be a no-op. **Code done and gated; the LIVE run has not happened** — a wrong row cannot be deleted, so the first `{observe:{source:'inzhur'}}` takes a narrow range.
 
 **Explicitly not decided by this window** — see `PLAN-OPEN.md`: the fund T-1 dedup rule (O7) rests on one informative observation and conflates the FX conversion date with the NAV strike date; **do not ship it on this evidence**, more weeks do not automatically fix it.
 
