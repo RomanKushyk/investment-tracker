@@ -589,8 +589,9 @@
      draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
      the gap D56's concentric rule adds to the segment's radius. Every filled
      track's radius is `segment + padding + 1`, so removing the border as "a
-     border the same colour as the fill" would silently make all SEVEN radii one
-     pixel too large at once (12 → 11, 11 → 10, 7 → 6). The tracks used to carry a
+     border the same colour as the fill" would silently make all SIX radii one
+     pixel too large at once (12 → 11, 11 → 10, 7 → 6) — seven until D116 deleted
+     `KindSegment`, the asset form's Fund/Bond control. The tracks used to carry a
      VISIBLE `border-panel-border`; D114 took the colour, not the box. */
   [data-filled-track] :focus-visible {
     outline-color: var(--color-page);
@@ -616,7 +617,7 @@
      layer: `transition-property` comes from a UTILITY, which wins over `base`
      whatever the specificity — verified, the override was inert. The fix belongs
      in the class string (`transition-[color,background-color,transform]`), which
-     is seven duplicated recipes today and the reason a shared
+     is six duplicated recipes today and the reason a shared
      `SegmentedTrack` is the open proposal. */
 
   /* THE SAME IDEA, ONE LEVEL UP — an inverted plane needs the DARK theme's
