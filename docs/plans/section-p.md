@@ -12,7 +12,10 @@ no phase here) mapped what the B3 migration needs that nothing gates: the
 user-schema DDL is unblocked (Round 1 closed — D30/D32), the seed rewrite waits
 on no observation window, the API contract can be written on paper, and one
 Cognito assumption can be tested where a mistake costs nothing. W7's own gate
-(W4, 2026-09-02) is untouched — these tasks sharpen W7, they do not start it.
+(W4) is untouched — these tasks sharpen W7, they do not start it. **The
+2026-09-02 this sentence used to give as W4's date was never W4's own**; W4's
+row is now `PLAN-NOW.md`'s Section Q, above this one, and `PLAN-WAITING.md`'s
+kept W4 row is where that date is accounted for.
 
 **Letter P, not N.** Plan A has spent A–O; the archive's Section N is the
 owner's idea list of 2026-08-24. Section letters are cited, so a letter is

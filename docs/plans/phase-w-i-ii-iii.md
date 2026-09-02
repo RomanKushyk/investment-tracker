@@ -1,6 +1,6 @@
 # Plan B — Phases W-I to W-III
 
-> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md). W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
+> Bodies of the waiting items in these phases. Dated table and rules: [`PLAN-WAITING.md`](PLAN-WAITING.md) — **except W4, whose ROW moved to [`PLAN-NOW.md`](PLAN-NOW.md) on 2026-09-02 while its body stayed here beside W3.** W1 closed and is in [`../archive/plan-b/`](../archive/plan-b/README.md).
 
 Moved verbatim from `PLAN-WAITING.md` on 2026-08-26 as `W02-W08.md`; renamed by section, 2026-08-27 (D98). **W2 is done and W6 is not** — they were written as one section and stay one, because splitting a measurement from its follow-up would lose what W6 is measuring against.
 
@@ -82,9 +82,9 @@ corroboration rather than the only record.
 
 # Phase W-III — Evidence-gated backend
 
-## W3 / W4 — Inzhur observation window and schema — **W3 READ 2026-08-31; W4 OPEN NOW**
+## W3 / W4 — Inzhur observation window and schema — **W3 READ 2026-08-31; W4 IS IN `PLAN-NOW.md` SINCE 2026-09-02**
 
-**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage. **That gate is now MET and the window is read** — five of the six answered below, the outage shape left open because a healthy 21-day window cannot close it. **W4 has no date of its own and never did**: its gate is W3 + `PLAN-NOW.md` A4, A4 closed 2026-08-11 (D50), so W4 is open the moment this reading lands. The 2026-09-02 that stood in its Earliest cell was W3's window-close date, inherited.
+**Gate:** ~3 weeks of raw captures from 2026-08-11, the restart forced by the stack move — not from the original 2026-08-10 start. Two days cannot show weekend behaviour, holiday behaviour, yield stability, fund NAV cadence, payload byte-stability, or the shape of an outage. **That gate is now MET and the window is read** — five of the six answered below, the outage shape left open because a healthy 21-day window cannot close it. **W4 has no date of its own and never did**: its gate is W3 + A4, and A4 closed 2026-08-11 (D50) — its row is in `../archive/plan-a/`, not in `PLAN-NOW.md`, so W4 is open the moment this reading lands. The 2026-09-02 that stood in its Earliest cell was W3's window-close date, inherited — and on 2026-09-02 its row left the dated table for `PLAN-NOW.md`'s Section Q, where it is that file's first task. This body stays here because W3's answers above ARE its input.
 
 **Why this is a gate and not caution.** The archive schema is decided **with evidence in hand** deliberately, and nothing is lost meanwhile because raw payloads regenerate any schema retroactively. DSQL keys are immutable — a wrong natural key is a DROP/CREATE, not a migration.
 
@@ -97,15 +97,15 @@ corroboration rather than the only record.
 - [ ] What does an outage actually look like: 5xx, timeout, truncated body, or a stale-but-valid payload? — **STILL OPEN, and the window cannot close it.** The only failure shape observed is NBU's scheduled **404 on Saturday and Sunday** (`ok=false`, 0 bytes, `payload_sha256` = the empty-string hash), which is a publication calendar rather than a failure; `inzhur` had no failure of any kind in 21 days.
 
 **Then, as W4:**
-- [ ] Extend `price_observation` to the Inzhur source, reusing the key `PLAN-NOW.md` A4 pinned for NBU.
+- [ ] Extend `price_observation` to the Inzhur source, reusing the key A4 pinned for NBU (closed; `../archive/plan-a/`).
 - [ ] `bond_terms`, versioned and effective-dated, written every run — reconstructable in principle, but **delisting after maturity destroys the live copy permanently**, which is why it is captured rather than derived.
 - [ ] Backfill from stored raw payloads; re-running must be a no-op.
 
 **Explicitly not decided by this window** — see `PLAN-OPEN.md`: the fund T-1 dedup rule (O7) rests on one informative observation and conflates the FX conversion date with the NAV strike date; **do not ship it on this evidence**, more weeks do not automatically fix it.
 
-## W7 — B3 migration — **earliest 2026-09-02**
+## W7 — B3 migration — **gate NOT met: W4**
 
-**Gate:** W4 complete **and** the A3 durability gate passed — **it did, 2026-08-11 (D49)**; A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A51, A53, A54 — bodies in `section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
+**Gate:** W4 complete **and** the A3 durability gate passed — **the durability half did, 2026-08-11 (D49); the W4 half has NOT, and W4 is now `PLAN-NOW.md`'s first row.** W7's own 2026-09-02 is the date arriving, not the gate opening — and it is deliberately no longer in this heading, so that a passed date cannot read as an open gate. A3 left `PLAN-NOW.md` with D95 and its row is in [`../archive/plan-a/README.md`](../archive/plan-a/README.md). ~10–12 days of work per the staging estimate — sized when the scope still included the PWA shell, which D92 removed, so the figure stands as an unadjusted upper bound. **Prep that nothing gates is `PLAN-NOW.md` Section P (A53, A54 — bodies in `section-p.md`; A51 closed 2026-08-26 and is in `../archive/plan-a/section-p.md`)** — the DDL draft, the API contract on paper, the Cognito rehearsal — added 2026-08-26 from the research of 2026-08-25. **The seed rewrite was tried as A52 and withdrawn:** it cannot be pulled in front of this phase, because the row count `4/174/18` and `Deposited 143 176 ₴` are both pinned checkpoints, so no added row is net-zero while `derive.ts` keeps its exclusion rules. The seed rewrite and the `derive.ts` change land **together, here**, and the ruling they need first is `PLAN-OPEN.md` O31.
 
 **Pre-condition, CLEARED 2026-08-27 (D99).** DSQL rejects `USING btree` and
 rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
@@ -238,7 +238,7 @@ and neither can move the original.
 
 **Why it belongs to this phase and not to `feat/dataset-split`.** Today's demo /
 live switch (G4) is a choice between two LOCAL databases — there is no server, no
-account and so no notion of "whose". The moment [`W7`](#w7--b3-migration--earliest-2026-09-02)
+account and so no notion of "whose". The moment [`W7`](#w7--b3-migration--gate-not-met-w4)
 gives every row a `user_id` and the app an authenticated identity, "the demo" has
 to answer a question it has never faced: is it a row set with an owner, or a
 fixture the client materialises? This ruling answers it — **owned, with

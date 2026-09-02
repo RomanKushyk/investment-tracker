@@ -1,24 +1,28 @@
 # Plan A — Startable now
 
-> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
+> **For agentic workers:** every task here is unblocked *today* — no evidence, no decision and no other phase gates it, **with one declared exception: W4, whose two rulings are its own first step and not a wait on anyone else (see Section Q, and D130)**. Pick the first non-done task in section order, branch as named, tick the checkbox, keep the Status table current, gates green per merge (`pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`; `infra/` tasks additionally deploy through `.github/workflows/deploy-backend.yml`).
 >
 > **Companion plans:** `PLAN-WAITING.md` (dated, gated on evidence or elapsed time) · `PLAN-OPEN.md` (questions with no answer yet). Parent: `NEXT-PHASE-PLAN.md`. Decisions: `../decisions/README.md`.
 
-Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98):** this file is the index — live task bodies are in the section files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md).
+Written 2026-08-11. Section order is deadline pressure first, then irreversibility, then value per hour, then size. **Split 2026-08-26 (D95), files renamed by section 2026-08-27 (D98):** this file is the index — live task bodies are in the section files below, and everything closed moved verbatim to [`../archive/plan-a/`](../archive/plan-a/README.md). **One exception, and it is not optional: `W4` closes to [`../archive/plan-b/`](../archive/plan-b/README.md), never to `plan-a/` — see the closing rule below, and D130 for why.**
 
 ## Status — what is live
 
-Five rows, **three startable** — A53, A54, A46. Section order still decides
-which comes first and it is the order of the rows here, but **the first row is
-not the first task**: A11 heads the table and is denied, and A52 is withdrawn.
-Both are kept for their reasons rather than their work. **The first startable row
-is A53**, under Section P.
+Six rows, **four startable** — W4, A53, A54, A46. Section order still decides
+which comes first and it is the order of the rows here, and since 2026-09-02
+**the first row is also the first task**: W4 heads the table under Section Q and
+is startable. That inverts what this paragraph used to say — A11 headed the
+table and is denied — so read the note under Section Q for why the order moved
+rather than assuming it drifted. A11 and A52 keep their places for their
+reasons rather than their work: A11 is denied, A52 is withdrawn.
 
 | # | Phase | Branch | Size | Status |
 |---|-------|--------|------|--------|
+| **Section Q** | **The archive schema — W7's own gate** (moved here from `PLAN-WAITING.md` on 2026-09-02, the first item ever to cross between plans; the rule that move created is **D130**). Placed FIRST by this file's own order — deadline pressure, then irreversibility: W4 gates W7 and W15, and a DSQL natural key cannot be migrated, only dropped and recreated. **Its gate was met 2026-08-31**, not today — W3 was read that day and A4 closed 2026-08-11 (D50); the date it used to carry was never its own, and `PLAN-WAITING.md`'s kept W4 row is the canonical account of that. **One caveat against this file's header, which promises no task here is gated on a decision:** W4 owes two, and they are its OWN first step rather than someone else's — it is where they get ruled, not a task waiting on a ruling made elsewhere. Letter Q because A–P are spent | | | |
+| W4 | Inzhur observation schema | `infra/inzhur-observation-schema` | M | **startable, and its FIRST STEP IS TO ASK — not to write DDL.** Two rulings come before any schema, and Plan C's rule governs both: needing an answer means ask, then record the answer as a `D<n>.md`. They are **write-every-day against write-on-change** (W3 measured different clocks — bonds move every calendar day, fund NAV five days a week) and `PLAN-OPEN.md` **O5**'s non-key columns, which D100 leaves deferrable to an `ALTER TABLE` unless the answer wants `NOT NULL` or a different type — those two are the create-time choices O5 must not assume away. Only then: `bond_terms` versioned and effective-dated, and a backfill from stored raw payloads that re-runs as a no-op. **Branch and Size are assigned here** — Plan B's table has neither column. Body stays with W3 in `phase-w-i-ii-iii.md` |
 | **Section C** | **App — pure, independent** | | | |
 | A11 | SES production access — lead-time insurance | `infra/ses-identity` | S | **denied; audited 2026-08-14, resubmission gated on W7** |
-| **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's gate opens 2026-09-02 and A46 is undated | | | |
+| **Section P** | **W7 preparation — startable ahead of the gate** (research 2026-08-25; D92, O28/O29 — D93/D94 are the width-cap rulings and belong to no phase here). Letter P because A–O are all spent, N included: `../archive/plan-a/README.md` holds a different Section N. Placed above Section M by this file's first rule, deadline pressure — W7's DATE arrived 2026-09-02 while its gate is still W4, which is Section Q above, and A46 is undated | | | |
 | A52 | ~~The seed reconciles under the ledger model (D34)~~ | — | — | **not startable — withdrawn to W7 by the review of 2026-08-26.** Three quantities are pinned at once and there is no free variable left: `navigation-map.md` checkpoint 7 fixes the row COUNT at `4/174/18` (so do D10 and D24), and the same checkpoint plus D5 fix **`Deposited 143 176 ₴`**, which D5 derives from the `deposit` rows themselves. So no added row can be net-zero while `derive.ts` still subtracts `withdrawal` and nets `tax` — D34's invariant is a property of the post-migration model. Back to W7's scope, which already lists it; the ruling it needs first is `PLAN-OPEN.md` **O31** |
 | A53 | The W7 API contract on paper | `docs/w7-api-contract` | M | **startable** — 17 `repo` methods → `GET /state`/`POST /mutations`, the `meta`-key sort, and the endpoint inventory incl. the unplanned W8 admin surface; O28 marked, never decided |
 | A54 | Cognito rehearsal on a throwaway pool | `infra/cognito-pool-rehearsal` | S | **startable, scope corrected** — **`usernameAttributes` is the only immutable parameter** (D36); Essentials tier and token validity are mutable, and token validity is D32's, not D36's. The pool proves what a pool can prove: a duplicate-email sign-up is **refused**, which D36 asserts from AWS's table and nothing here has tested. **The MAU question is not measurable on a free-tier pool — it moved to `PLAN-OPEN.md` O30.** Pool deleted the same day |
@@ -29,19 +33,20 @@ is A53**, under Section P.
 
 | File | Holds |
 |---|---|
+| [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) | W4 — **a Plan B body**, and it stays there beside W3, whose answered questions are W4's input. See this folder's `README.md` |
 | [`section-c.md`](section-c.md) | A11 |
 | [`section-p.md`](section-p.md) | Section P's preamble, A52 (withdrawn), A53, A54 |
 | [`section-m.md`](section-m.md) | Section M's preamble, A46 |
 
 **Renamed by section, 2026-08-27 (D98)** — the table above runs in Status-table
-order (C, P, M), the same order the Status table itself uses, so there is
+order (Q, C, P, M), the same order the Status table itself uses, so there is
 nothing left for either table to explain about the other.
 
 ## Where the closed work is
 
 [`../archive/plan-a/README.md`](../archive/plan-a/README.md) — the ledger of all
 <!--f:plan.closedTasks-->53<!--/f--> closed tasks, and 16 files holding their bodies. **It is a record, not a task
-list**; work that comes out of reading it becomes a new task here.
+list**; work that comes out of reading it becomes a new task here. **Not W4's destination** — see the closing rule below.
 
 ## How this file is split
 
@@ -58,7 +63,12 @@ started with. See `README.md` in this folder.
 - **Splitting moves bodies verbatim.** Tidying in transit is what breaks a
   caller; the drained file keeps the pointer instead.
 - **A task closes by moving to the archive**, ledger row and all — it does not
-  stay here with a tick.
+  stay here with a tick. **To the archive of the plan it came FROM** (D130):
+  Plan A's tasks to `plan-a/`, and **W4 to `plan-b/`** — because
+  `plan.closedTasks` counts `plan-a`'s ledger rows by a pattern matching `W4`
+  as readily as `A20`, so filing it there would move a fact fence three
+  indexes cite and change what it counts. This is the one place in this file
+  that carries the reason; D130 carries the working.
 
 ## Cross-phase rules
 

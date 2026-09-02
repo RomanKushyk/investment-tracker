@@ -113,9 +113,14 @@ Section P running ahead of Section M already had.
 
 | Plan | Index | Bodies |
 |---|---|---|
-| A | `PLAN-NOW.md` | [`section-c.md`](section-c.md) · [`section-p.md`](section-p.md) · [`section-m.md`](section-m.md) |
+| A | `PLAN-NOW.md` | [`section-c.md`](section-c.md) · [`section-p.md`](section-p.md) · [`section-m.md`](section-m.md) · [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) *(W4 only — a Plan B file; see below)* |
 | B | `PLAN-WAITING.md` | [`phase-w-i-ii-iii.md`](phase-w-i-ii-iii.md) · [`phase-w-iv-v.md`](phase-w-iv-v.md) |
 | C | `PLAN-OPEN.md` | [`still-open.md`](still-open.md) |
+
+**One row crosses that table today**, and the *Crossing between plans* rule
+under **Local rules** below says why: W4 is listed in Plan A's index while its
+body sits in a Plan B file, so `PLAN-NOW.md`'s own section table names
+`phase-w-i-ii-iii.md` too.
 
 ## Local rules
 
@@ -140,6 +145,26 @@ Section P running ahead of Section M already had.
   written as one section with W6, which is still dated — splitting a
   measurement from the follow-up it is the baseline for would lose what W6
   measures against. W2 leaves when W6 does.
+- **Crossing between plans moves the ROW; the body moves only if it can stand
+  alone ([D130](../decisions/D130.md)).** `PLAN-WAITING.md`'s own rule sends an item whose gate has opened to
+  `PLAN-NOW.md`, and **W4 is the first to go, on 2026-09-02** — its row is now
+  Plan A's Section Q while its body stays in `phase-w-i-ii-iii.md` beside W3,
+  because W3's answered questions are literally W4's input. That is the W2/W6
+  reason above, applied to a move instead of a close: a body written as one
+  section with its own evidence is not split from it. **The row it leaves
+  behind is kept and NOT struck**, because the number is cited from elsewhere —
+  an ID that resolves to nothing in the file its callers point at is the failure
+  the first rule here exists to prevent, and in `PLAN-WAITING.md`'s table
+  `~~…~~` already means *done*, which a moved item is not. Both indexes name the
+  body file.
+- **A moved item closes back to the plan it came FROM ([D130](../decisions/D130.md)).** W4 archives to
+  [`../archive/plan-b/`](../archive/plan-b/README.md) with its body and both of
+  its rows — never to `plan-a/`, although Plan A's index is where it was worked.
+  **That is a machine-checked consequence, not a preference:**
+  `plan.closedTasks` in `src/facts/facts.ts` counts `docs/archive/plan-a/README.md`
+  rows matching `/^\| [A-Z]\d+ \|/`, which **matches `| W4 |`** — filing a W row
+  there would silently change a fact fence's meaning from "closed Plan A tasks"
+  to "closed rows of any plan", in a number three live indexes cite.
 - **A new section file gets a row in the table above** in the commit that
   creates it. An index that does not list a file is how a body becomes
   unreachable.

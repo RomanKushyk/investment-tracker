@@ -47,7 +47,7 @@ Not a judgment call. It is built directly on the repository write surface, which
 
 Two things already decided that shape it: `deleteAsset` is retired (assets accumulate, nothing is deleted), so the browser may edit but not delete assets; and impact hints are derived from core (`"removes 14 transactions, quotes on 174 days; Income received −₴472,13"`), not counted in the component.
 
-## W15 — Import the provider's fund NAV history — **after W4 (2026-09-02)**
+## W15 — Import the provider's fund NAV history — **still gated: W4 must land first, and W4 is now in `PLAN-NOW.md`**
 
 **What these rows are allowed to become is now settled — D74, closing O21.**
 They are **archived as published and read by no screen.** The read-time
