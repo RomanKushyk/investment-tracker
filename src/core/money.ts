@@ -14,7 +14,7 @@ type Currency = keyof typeof SYMBOL;
 // it, so the sign glyph is pinned in exactly one place: U+2212 minus, never
 // ASCII '-'. The design reference's mock copy prints ASCII hyphens, but v1
 // shipped the U+2212 convention and typography agrees — pinned in
-// docs/decisions/README.md D8. Language-independent, which is why it survived
+// docs/DECISIONS.md D8. Language-independent, which is why it survived
 // Contract 0 as a bare export rather than moving onto the bound object.
 export function signed(n: number, body: string): string {
   return (n < 0 ? '−' : '+') + body;

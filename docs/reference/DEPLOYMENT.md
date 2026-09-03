@@ -1,82 +1,215 @@
 # Deployment — AWS Amplify Hosting via GitHub Actions
 
-Quirenote is a static SPA deployed to **AWS Amplify Hosting** as a **manual-deploy app**
-(created with "Deploy without Git"). GitHub Actions is the entire pipeline: it runs the
-quality gate, builds `dist/`, and pushes the artifact to Amplify. Amplify never builds.
-
-Rationale and the rejected alternatives: `docs/decisions/README.md` D15.
-Design spec: `docs/superpowers/specs/2026-07-29-amplify-hybrid-deploy-design.md`.
-
-Region: **`eu-north-1`** (Europe / Stockholm). App name: `kubushka` in the console
-(cosmetic, see §1.5a in [`deployment/iam-role.md`](deployment/iam-role.md)). Branch label: `dev`.
-
-The design spec proposed `eu-central-1`; the app was created in Stockholm and there is no
-benefit to moving it — CloudFront fronts the content either way, and recreating the app
-would change the `appId` and the site URL. `eu-north-1` is the operative value everywhere:
-the IAM resource ARNs below and the `AWS_REGION` repo variable.
+Quirenote is a static SPA on **AWS Amplify Hosting** as a **manual-deploy app**. GitHub Actions is the entire pipeline: it runs
+the quality gate, builds `dist/`, and pushes the artifact to Amplify — Amplify never builds (rationale: `docs/DECISIONS.md` §
+Deployment). Region: **`eu-north-1`** (Stockholm). App name: `kubushka` in the console — cosmetic.
 
 ## 0. Live app
 
 - **Production:** `https://quirenote.com` (and `www.`) — served from the **`main`** branch
 - **Development:** `https://dev.quirenote.com` — served from the **`dev`** branch
-- App ID: `d17m4jf400my6` (public — it is part of the Amplify URLs, which all keep working:
-  `https://main.d17m4jf400my6.amplifyapp.com`, `https://dev.d17m4jf400my6.amplifyapp.com`)
+- App ID: `d17m4jf400my6` — Amplify URLs also work:
+  `https://main.d17m4jf400my6.amplifyapp.com`, `https://dev.d17m4jf400my6.amplifyapp.com`
 - Region: `eu-north-1`
-- IAM role: `quirenote-frontend-deploy` (ARN held in the `AWS_FRONTEND_ROLE_ARN` secret; the
-  account ID stays out of this file deliberately)
+- IAM role: `quirenote-frontend-deploy` (ARN held in the `AWS_FRONTEND_ROLE_ARN` secret)
 
-## The one-time setup is in `deployment/`
+**Hosting config stays console-managed** — CI has no `UpdateApp`; the SPA rewrite and cache headers live in §1, not the workflow.
 
-**Split 2026-08-26 (D95)** — everything below §0 that is done once and never
-again moved **verbatim** into [`deployment/`](deployment/), so the file you open
-during a deploy is the deploy. Nothing was rewritten, and a rebuild still has
-every step.
+## 0a. The custom domain — `quirenote.com`
 
-| File | Was | Read it when |
+| Record | Name | Value |
 |---|---|---|
-| [`deployment/custom-domain.md`](deployment/custom-domain.md) | §0a | DNS, the certificate or the prod/dev host split is in question |
-| [`deployment/aws-setup.md`](deployment/aws-setup.md) | §1.1–1.4 | Rebuilding the Amplify app, the SPA rewrite, cache headers or the OIDC provider |
-| [`deployment/iam-role.md`](deployment/iam-role.md) | §1.5, §1.5a | The deploy role's trust policy or permissions are the suspect |
-| [`deployment/github-config.md`](deployment/github-config.md) | §2 | A secret or variable the workflow reads is missing |
+| CNAME | `_f2385149c1ffac22fed755635002cfd6` | `_0dee0158e98c51da584fa5373ae2938c.jkddzztszm.acm-validations.aws` |
+| CNAME | `@` (apex) | `d2jaridkoub072.cloudfront.net` |
+| CNAME | `www` | `d2jaridkoub072.cloudfront.net` |
 
-**Hosting config stays console-managed** — CI has no `UpdateApp` (D15). That is
-why the SPA rewrite and the cache headers live in a setup document rather than
-in the workflow.
+DNS is Cloudflare's, not Route 53's — Amplify issues its own free ACM certificate for third-party DNS. **Every HTTP record is
+PROXIED; everything else is DNS-only:**
+
+| Record | Mode | Why |
+|---|---|---|
+| `@`, `www`, `dev` | **proxied** | caches immutable assets, absorbs floods, hides the origin — all three share one CloudFront distribution, so a grey record would publish it for all |
+| `_f2385149…` (ACM validation) | dns-only | a proxied CNAME answers with Cloudflare's own address, so ACM never sees what it asked for |
+| DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP |
+
+`public/robots.txt` carries `User-agent: * / Disallow: /` — production is closed to crawlers until sign-up ships. **Never pair
+`Disallow` with `noindex`** — they cancel: a crawler forbidden to fetch never sees the header. If a URL is ever indexed, the fix
+is the opposite of a stricter rule — allow crawling and serve `X-Robots-Tag: noindex`, the only instrument that removes an entry.
+The SPA rewrite (§1.2) excludes `txt`, so `/robots.txt` is served as a file, not swallowed into `index.html`. **TLS:**
+Cloudflare's Universal SSL certificate to the visitor, ACM `*.quirenote.com` from Cloudflare to CloudFront; the zone's SSL mode
+must be **Full (strict)** — `flexible` would loop, since CloudFront answers plain HTTP with a 301-to-HTTPS.
+
+| Host | Amplify branch | Git branch |
+|---|---|---|
+| `quirenote.com`, `www.quirenote.com` | `main` (stage PRODUCTION) | `main` |
+| `dev.quirenote.com` | `dev` (stage DEVELOPMENT) | `dev` |
+
+**`dev` is behind HTTP basic auth** (Amplify → branch `dev` → Access control), covering both `dev.quirenote.com` and
+`dev.d17m4jf400my6.amplifyapp.com`; credentials live in the Amplify console, not here. Production carries none. **Its protection
+is a pipeline, not a gate:** lint/format/test/build all run before the job assumes any AWS credential; `prod` accepts only `main`;
+the role touches nothing but two Amplify branches; the ruleset blocks force-push/delete on `main`. Egress cost is watched by a $5
+monthly AWS Budget (alerts at $1 and $3 actual, $5 forecast) plus a daily Cost Anomaly Detection subscription, both with a live
+email subscriber — notification only, never an automated shutdown. **The split is the frontend's only:** there is one AWS backend
+stack, and `deploy-backend.yml` triggers on `dev` alone, so the backend a production visitor reaches is whatever `dev` last
+deployed.
+
+## 1. One-time AWS console setup
+
+Done by hand — the CI role has no permission to change hosting configuration.
+
+### 1.1 Create the app
+
+1. Amplify console → **Create new app** → **Deploy without Git** → Next.
+2. App name `quirenote`, branch name `dev`.
+3. Method **Drag and drop**, and upload any placeholder zip (a zip containing a one-line
+   `index.html` is fine). The first workflow run replaces it.
+4. Note the **App ID** (`d…`) from the app's URL or settings, and the resulting site URL
+   `https://dev.<appId>.amplifyapp.com`.
+
+### 1.2 SPA rewrite — mandatory
+
+Left nav → **Hosting** → **Rewrites and redirects**. Use the **JSON editor** and paste exactly this — the source is a regular
+expression and a typo in it silently breaks the site:
+
+```json
+[
+  {
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+    "status": "200",
+    "target": "/index.html",
+    "condition": null
+  }
+]
+```
+
+Without a rewrite, every non-root route (`/overview`, `/payouts`, …) 404s on refresh or a direct link. **Do not use the naive
+`/<*>` → `/index.html` 200 rule** — it also matches `/assets/index-abc123.js`, producing `Content-Type: text/html` on the bundle
+and the console error `Failed to load module script: … MIME type of "text/html"`, while `curl` still reports `200`. The regex
+above rewrites extensionless paths only.
+
+### 1.3 Cache headers
+
+Left nav → **Hosting** → **Custom headers and cache**:
+
+```yaml
+customHeaders:
+  - pattern: '/index.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache'
+  - pattern: '/assets/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=31536000, immutable'
+```
+
+Safe because Vite content-hashes every asset filename.
+
+### 1.4 GitHub OIDC provider
+
+**IAM is a separate AWS service, not part of Amplify** — reach it at `https://console.aws.amazon.com/iam/home#/identity_providers`
+(global, no region). IAM → Identity providers → **Add provider** → OpenID Connect (skip if it already exists):
+
+- Provider URL: `https://token.actions.githubusercontent.com`
+- Audience: `sts.amazonaws.com`
+
+### 1.5 IAM role
+
+Create a role with **Custom trust policy**, name it `quirenote-frontend-deploy`. Trust policy — replace `<account-id>`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:*"
+        }
+      }
+    }
+  ]
+}
+```
+
+**The `sub` is the environment, not the branch** — the token's `sub` claim is `environment:dev`, not `ref:refs/heads/dev`, with
+the repo's immutable numeric ID included (real subject: `repo:RomanKushyk@97728952/investment-tracker@1313804031:environment:dev`;
+§5 has the verification diagnostic). `environment:*` lets a new environment assume the role with no AWS change, but it still needs
+a deployment branch policy (§2).
+
+Inline permission policy — **named `quirenote-frontend-deployPolicy`**. Replace `<account-id>` and `<appId>`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AmplifyManualDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "amplify:CreateDeployment",
+        "amplify:StartDeployment",
+        "amplify:GetBranch",
+        "amplify:GetJob"
+      ],
+      "Resource": [
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/main/*",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev",
+        "arn:aws:amplify:eu-north-1:<account-id>:apps/<appId>/branches/dev/*"
+      ]
+    }
+  ]
+}
+```
+
+**Both resource lines are needed** — `CreateDeployment` authorizes against `…/branches/dev/deployments/*`, `GetJob` against
+`…/branches/dev/jobs/*`, `GetBranch` against `…/branches/dev`. `amplify:UpdateApp` is deliberately absent. **Add a secret, never
+rename one** — a renamed secret is broken until the workflow catches up.
+
+## 2. GitHub repository configuration
+
+Settings → Environments → **`dev`** and **`prod`** — `deploy-frontend.yml` picks the environment from the branch (`github.ref_name
+== 'main' && 'prod' || 'dev'`). **Both environments carry the same three entries**, each scoped to itself; what differs is the
+branch policy (`dev` → `dev`, `prod` → `main`) and the Amplify branch written to:
+
+| Kind | Name | Value |
+|------|------|-------|
+| Variable | `AMPLIFY_APP_ID` | `d17m4jf400my6` |
+| Variable | `AWS_REGION` | `eu-north-1` |
+| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` |
+
+**Deployment branch policy — required, not cosmetic.** Settings → Environments → `<env>` → **Deployment branches and tags** →
+*Selected branches and tags* → add the one branch that environment deploys. Since the IAM trust `sub` keys on the environment
+rather than the branch (§1.5), this is the only thing preventing a job on another branch from assuming the deploy role — set it at
+creation time for every environment added later.
+
+The `gh` CLI works only under the right account: check with `gh auth status`, switch with `gh auth switch --user RomanKushyk`,
+confirm with `gh api repos/RomanKushyk/investment-tracker --jq .permissions` before any write.
 
 ## 3. Deploying
 
-**`dev` is continuous, `main` is a release.** One workflow serves both: it deploys on every
-push to either branch, reads the Amplify branch straight from `github.ref_name`, and picks
-the matching environment. Nothing else distinguishes them — the difference in cadence comes
-from how often a merge into `main` happens, not from a second pipeline that could drift.
+**`dev` is continuous, `main` is a release.** One workflow serves both, deploying on every push and reading the Amplify branch
+from `github.ref_name`. Production is promoted by merging `dev` into `main`, **fast-forward only**, when a version is cut or on
+demand (`docs/reference/VERSIONING.md` defines the bump).
 
-Production is therefore promoted by merging `dev` into `main` and pushing it, **fast-forward
-only**. It happens **when a new stable version is cut — MAJOR, MINOR or PATCH — or on
-demand** (D67; this replaces the "at most weekly" target D59 set). There is no minimum
-interval and no maximum: the gate is a judgment someone already made when they bumped
-`package.json`, not a date that happens to fall. `docs/reference/VERSIONING.md` defines when
-each part bumps, and under this rule that table is what sets production's cadence.
-
-`dev` deploys on every push, **except commits that touch only Markdown or
-`docs/`** — those cannot change `dist/`, so `paths-ignore` skips them. A commit touching both
-docs and code still deploys; `paths-ignore` skips only when every changed file matches.
-**That exclusion bites harder on `main` now:** a release whose only change is documentation
-deploys nothing, so it needs the manual run below.
-
-Concurrency is keyed per branch (`deploy-frontend-${{ github.ref_name }}`), so a dev push
-cannot cancel a production deploy in flight.
-
-Manual re-deploy without a commit — also the way to ship after a docs-only change: Actions →
-**Deploy** → **Run workflow**.
-
-The workflow fails the run if the Amplify job does not reach `SUCCEED`, so a green badge
-means the artifact is live — not merely uploaded.
+`dev` deploys on every push **except commits that touch only Markdown or `docs/`** (via `paths-ignore`, skipped only when every
+changed file matches) — that bites harder on `main`, where a docs-only release deploys nothing and needs a manual run. Concurrency
+is keyed per branch (`deploy-frontend-${{ github.ref_name }}`). Manual re-deploy: Actions → **Deploy** → **Run workflow**. The run
+fails if the Amplify job does not reach `SUCCEED`.
 
 ### 3.1 Verifying a deploy
 
-A green run proves the artifact uploaded, **not that the site works**. Status codes and cache
-headers are both satisfied by a misrouted asset, so check **content types and the browser
-console** too:
+A green run proves the artifact uploaded, **not that the site works** — status codes and cache headers are both satisfied by a
+misrouted asset, so check content types too:
 
 ```bash
 BASE=https://quirenote.com      # or https://dev.quirenote.com for the dev branch
@@ -87,48 +220,30 @@ curl -sSI "$BASE$ASSET" | grep -i 'content-type'                       # MUST be
 curl -sSI "$BASE/index.html" | grep -i 'cache-control'                 # no-cache
 ```
 
-`Content-Type: text/html` on a `.js` asset means the rewrite is swallowing static files
-(§1.2). Finish by loading the site in a **fresh browser profile** and confirming zero console
-errors plus the sidebar version badge — an empty IndexedDB is the only way to exercise the
-seed path, and the console is the only place a MIME-type failure shows up.
+`Content-Type: text/html` on a `.js` asset means the rewrite is swallowing static files (§1.2). Finish with a fresh browser
+profile: zero console errors, sidebar version badge.
 
 ## 4. Rollback
 
-Amplify keeps previous manual deployments per branch. Either:
-
-- **Amplify console** → the app → `dev` → deployment history → redeploy an earlier
-  deployment; or
-- re-run the workflow from the last good commit (Actions → the run → **Re-run all jobs**),
-  which rebuilds and redeploys that tree.
-
-Because assets are content-hashed and immutable while `index.html` is `no-cache`, a rollback
-takes effect on the next page load without a cache purge.
+Amplify keeps previous manual deployments per branch. Either use the **Amplify console** → the app → `dev` → deployment history →
+redeploy an earlier deployment, or re-run the workflow from the last good commit (Actions → the run → **Re-run all jobs**). Assets
+are content-hashed and immutable while `index.html` is `no-cache`, so a rollback takes effect on the next page load with no cache
+purge.
 
 ## 5. Failure playbook
 
-> **Section numbers in this table point outside this file.** §1.2 (SPA rewrite)
-> and §1.3 (cache headers) are in [`deployment/aws-setup.md`](deployment/aws-setup.md);
-> §1.5 and §1.5a (the deploy role) are in [`deployment/iam-role.md`](deployment/iam-role.md).
-> The numbers did not change on the move — only the file did.
-
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Run fails at `configure-aws-credentials` with `Not authorized to perform sts:AssumeRoleWithWebIdentity` | Trust policy `sub` does not match, or `permissions: id-token: write` missing | The job declares `environment: dev`, so the `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev` — **not** `…:ref:refs/heads/dev` (§1.5). Also confirm the workflow declares `id-token: write` |
-| `configure-aws-credentials` **hangs for minutes** instead of failing | The secret holds a role NAME, not a full ARN | Observed 2026-08-11. The step normally takes seconds; the action retries the STS call with backoff, so a bad value looks like a slow runner rather than an error. **A long `configure-aws-credentials` is itself the symptom.** For OIDC the full ARN is required — the action can only expand a bare name when it already has credentials naming the account, and OIDC starts with none. Fix the value to `arn:aws:iam::<account-id>:role/<name>` and **start a new run**: secrets are read when the step executes, so editing one mid-run does not affect it |
-| Same `sts:AssumeRoleWithWebIdentity` error, but the trust policy is verified correct | `AWS_FRONTEND_ROLE_ARN` is empty or set in the wrong scope | **`role-to-assume: ***` in the run log does NOT prove the secret has a value** — masking looks identical for an empty secret. Confirm the secret exists in the `dev` **environment** (not repo-level only, not the `Production` environment) and re-enter its value |
-| Same error with the secret and trust policy both verified | The `sub` claim does not literally equal what the policy expects — most likely the immutable `OWNER@ID/REPO@ID` form (§1.5) | Print the real claim instead of guessing. Add a temporary step **before** `configure-aws-credentials` and compare its `sub` to the policy: `TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \| jq -r .value)`, then base64url-decode the second dot-segment and `jq '{iss,aud,sub}'`. **Print claims only — never the token**, which is a live credential, in a public repo |
-| `AccessDeniedException` on an `amplify:` call | Resource ARN shape — the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message; it states exactly what was wanted. `CreateDeployment` needed `…/branches/dev/deployments/*`, which is why §1.5 grants `…/branches/dev` **and** `…/branches/dev/*` |
+| `configure-aws-credentials` fails or hangs on `sts:AssumeRoleWithWebIdentity` | One of: trust policy `sub` mismatch or missing `id-token: write`; secret holds a role NAME not ARN; `AWS_FRONTEND_ROLE_ARN` empty or wrong scope; the immutable `OWNER@ID/REPO@ID` subject form not matched (§1.5) | Escalate in order: (1) `sub` must be `repo:RomanKushyk/investment-tracker:environment:dev`, **not** `…:ref:refs/heads/dev`, and the workflow must declare `id-token: write`; (2) the value must be a full ARN (`arn:aws:iam::<account-id>:role/<name>`) — a bare name hangs for minutes instead of erroring, and secrets are read when the step executes, so start a new run after fixing it; (3) `role-to-assume: ***` in the run log does NOT prove the secret has a value — confirm it exists in the `dev` **environment** and re-enter it; (4) print the real claim: add a step **before** `configure-aws-credentials`: `TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \| jq -r .value)`, base64url-decode the second dot-segment, `jq '{iss,aud,sub}'` — **print claims only, never the token** |
+| `AccessDeniedException` on an `amplify:` call | Resource ARN shape — the action authorizes against a sub-resource, not the branch | Read the resource ARN out of the error message. `CreateDeployment` needed `…/branches/dev/deployments/*`, which is why §1.5 grants `…/branches/dev` **and** `…/branches/dev/*` |
 | Site returns "Access Denied" | The zip contained the `dist` folder instead of its contents | `cd dist && zip -qr ../dist.zip .` — never `zip -r dist.zip dist` |
-| A non-root route 404s | Missing or wrong rewrite | Re-check §1.2; type must be **200**, not 301/302 |
-| Blank page; console shows `Failed to load module script … MIME type of "text/html"` | The rewrite is matching static assets, so `/assets/*.js` returns `index.html` | The source must be §1.2's regex, **not** `/<*>`. Confirm with `curl -sSI "$BASE/assets/<file>.js" \| grep -i content-type` — anything but `application/javascript` is this bug. Note `curl` reports `200` and the correct `Cache-Control` either way, because header rules match on path regardless of the rewrite |
-| Site serves an old build after a green run | `index.html` cached | Re-check §1.3 |
-| Asset still wrong after fixing a rewrite or header rule | A broken response was cached under `max-age=31536000, immutable` (§1.3), so both CloudFront and every visitor's browser hold it. Query strings do not bust it — Amplify's cache key ignores them for static assets | **CloudFront:** run any deployment; Amplify invalidates the CDN on each one (`X-Cache: Miss` confirms). **Browsers that loaded the broken build:** hard-reload (Ctrl+Shift+R), or wait for the next code change — a new content hash means a new URL, which self-heals. Confirm a real fix with `curl -sSI` on the asset, since a stale entry also returns `200` |
+| A non-root route 404s, or a blank page with `Failed to load module script … MIME type of "text/html"` | Missing/wrong rewrite (404), or the rewrite matching static assets so `/assets/*.js` returns `index.html` (blank page) | Re-check §1.2 — type must be **200**, source must be its regex, not `/<*>`. Confirm with `curl -sSI "$BASE/assets/<file>.js" \| grep -i content-type` — anything but `application/javascript` is the MIME bug |
+| Site serves an old build after a green run, or an asset is still wrong after fixing a rewrite/header rule | `index.html` cached, or a broken response was cached under `max-age=31536000, immutable` (§1.3) — CloudFront and every visitor's browser hold it; query strings do not bust it | Re-check §1.3. **CloudFront:** run any deployment; Amplify invalidates the CDN each time (`X-Cache: Miss` confirms). **Browsers:** hard-reload (Ctrl+Shift+R), or wait for the next code change |
 | `pnpm build` fails in CI on esbuild | `@esbuild/linux-x64` not resolvable from a Windows-generated lockfile | Refresh the lockfile so the Linux optional dependency is present; never drop `--frozen-lockfile` |
 | Deploy step times out | Amplify job stuck | Check the job in the Amplify console; re-run the workflow. Timeout is `POLL_TIMEOUT_SECONDS` (default 600) |
 
 ## 6. Cost
 
-Amplify's free tier is **12 months only** for new accounts (1,000 build min/mo, 15 GB
-served, 5 GB CDN storage) — there is no always-free tier afterwards. Because builds run in
-GitHub Actions (unlimited-free on public repos), Amplify bills only storage
-(~1.8 MB ≈ $0.00004/mo) and transfer ($0.15/GB). Solo use is effectively $0/mo.
+Amplify's free tier is 12 months only (1,000 build min/mo, 15 GB served, 5 GB CDN storage). Builds run in GitHub Actions
+(unlimited-free on public repos), so Amplify bills only storage (~1.8 MB ≈ $0.00004/mo) and transfer ($0.15/GB) — effectively
+$0/mo solo.

@@ -4,7 +4,7 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
 ## How to update
 
-1. Edit `"version"` in `package.json`, **then run `pnpm facts`** and commit what it rewrites. `app.version` is derived from this field and fenced into `docs/plans/NEXT-PHASE-PLAN.md`; a stale fence fails `pnpm test`, so a bump committed without it makes the release commit itself red — and `package.json` escapes `paths-ignore`, so the deploy runs and fails.
+1. Edit `"version"` in `package.json`.
 2. The badge picks it up at build time. The dev server evaluates `define` at config load — **restart `pnpm dev`** to see the new value (HMR alone won't refresh it).
 3. Land the bump on `dev` as part of the release-worthy change (or as a final `chore: bump version to X.Y.Z` commit), then — per the repo's git conventions — cut one **annotated tag `vX.Y.Z`** on the exact release commit. Tag and `package.json` must always agree. **Write a SUBJECT AND A BODY:** the subject becomes the release title, the body becomes the release notes, and there is no second place to write either. A subject-only tag ships a release with nothing in it — `v1.0.0`, `v1.1.0`, `v1.3.0` and `v1.7.0` did exactly that, and their notes had to be hand-written afterwards.
 
@@ -67,9 +67,11 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
    **`GH_CONFIG_DIR` is not optional** — a release permanently stamps its author on a public repo, and the work account has `push: true` here, so the wrong identity succeeds silently (`CLAUDE.md` § Git conventions).
 
-   Added 2026-08-28, when the first fourteen releases were created retroactively from `v1.0.0`…`v1.8.0` — the tags already carried the prose, reachable only by `git for-each-ref`. Four of those tags (`v1.0.0`, `v1.1.0`, `v1.3.0`, `v1.7.0`) had a subject and no body, and their releases say so and list the commit range instead; **write a body** and a future release will not need that apology. Releases are where finished work is visible per version without opening `docs/archive/`.
+   Added 2026-08-28, when the first fourteen releases were created retroactively from `v1.0.0`…`v1.8.0` — the tags already carried the prose, reachable only by `git for-each-ref`. Four of those tags (`v1.0.0`, `v1.1.0`, `v1.3.0`, `v1.7.0`) had a subject and no body, and their releases say so and list the commit range instead; **write a body** and a future release will not need that apology. Releases are where finished work is visible per version. The release note body is the milestone's closed issues: `gh issue list --milestone vX.Y.Z --state closed`.
 
 > **The table below therefore sets production's cadence.** Before D67 a calendar held the line; now this does. A version cut carelessly is a production deploy nobody asked for, and a change worth shipping that never gets a bump never ships at all.
+
+7. Close the milestone and open the next: `gh api -X PATCH repos/RomanKushyk/investment-tracker/milestones/<n> -f state=closed` (find `<n>` with `gh api repos/RomanKushyk/investment-tracker/milestones --jq '.[]|select(.title=="vX.Y.Z")|.number'`), then `gh api -X POST repos/RomanKushyk/investment-tracker/milestones -f title=vX.Y+1.0`.
 
 ## When to bump what (SemVer)
 
@@ -79,7 +81,7 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 | **MINOR** | New user-visible capability: a new screen, chart, flow, or setting (backward-compatible). |
 | **PATCH** | Bug fixes, cosmetic/copy tweaks, dependency bumps with no visible behavior change. |
 
-`1.0.0` (2026-07-28) marks the feature-complete implementation of the README spec — all 7 BUILD-PLAN tasks plus the FOLLOW-UPS sweep.
+`1.0.0` (2026-07-28) marks the feature-complete implementation of the README spec — all 7 BUILD-PLAN tasks plus the outstanding-fixes sweep.
 
 ## Verify after bumping
 

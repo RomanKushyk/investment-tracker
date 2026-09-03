@@ -2,15 +2,15 @@
 
 Drafted 2026-09-03, on the owner's direction of the same day, which superseded a
 drafted ruling that re-affirmed client-side derivation. **This spec exists
-because `PLAN-OPEN.md` O28 may not be answered without one** — the owner ruled
+because `docs/DECISIONS.md` O28 may not be answered without one** — the owner ruled
 "спершу специфікація, потім рішення".
 
-> **RULED 2026-09-03 as [`D136`](../../decisions/D136.md)**, which cites this
+> **RULED 2026-09-03 as [`D136`](../../DECISIONS.md)**, which cites this
 > file as its working. The pinned row `Derivation | 100% client-side` in
 > [`2026-08-04-cloud-stack-and-cost.md`](2026-08-04-cloud-stack-and-cost.md) is
 > **superseded**, not merely questioned. This document is the design; D136 is
-> what binds. A53's
-> [`W7-API-CONTRACT.md`](../../reference/W7-API-CONTRACT.md) **§1 IS changed by
+> what binds.
+> [A53's API contract (#48)](https://github.com/RomanKushyk/investment-tracker/issues/48) **§1 IS changed by
 > this document, in one direction only**: its rows 1–3 (`listAssets`,
 > `listSnapshots`, `listTransactions`) map to `GET /state`, and here they move to
 > `/view` while `/state` narrows to export and import. **The `POST /mutations`
@@ -105,19 +105,19 @@ pre-network rather than a preference.
 argued it cannot: `src/lib/db.ts:64` resolves it synchronously at module init,
 before React exists, because it **binds a Dexie database**. That reasoning holds
 only while there are two local databases to bind — and
-[`phase-w-i-ii-iii.md`](../../plans/phase-w-i-ii-iii.md) says W7 *"retires D2
+the W7 epic (#41) says W7 *"retires D2
 (IndexedDB), D16/G4 (demo+live split) and the dataset guards"*. **The constraint
 dies with the thing that created it**, so `dataset` is an ordinary preference
 and goes to the server with the rest.
 
 **This is about SETTINGS, and A53 §2 is untouched.** The three durable `meta`
 keys — `inzhur:lastFetch`, `inzhur:lastParse`, `nbu:lastRate` — stay per-device
-exactly as `W7-API-CONTRACT.md` §2 pins them (*"None of them becomes server
+exactly as #48 §2 pins them (*"None of them becomes server
 state"*). They are caches of provider payloads, not preferences, and nothing
 here supersedes that.
 
 Everything else durable in the settings object moves to the server, where it
-becomes cross-browser — which is [D92](../../decisions/D92.md)'s stated priority
+becomes cross-browser — which is [D92](../../DECISIONS.md)'s stated priority
 rather than a bonus:
 `defaultCurrency`, `language`, `period`, `autoQuoteSuggest`, `couponSuggest`,
 `remindersEnabled`, `reminderLeadDays`, `dismissedReminders`,
@@ -137,7 +137,7 @@ a reason to refuse it — they are its cost.**
 
 **1. `/view` CANNOT serve the rate from the archive.** This spec's first draft
 said the backend already captures FX and cited D30. **D30 is superseded on
-exactly that point by [D69](../../decisions/D69.md)** (`amends: [D30]`, *"the
+exactly that point by [D69](../../DECISIONS.md)** (`amends: [D30]`, *"the
 provider's FX rate is not stored at all"*), and
 `infra/migrations/001_price_capture.sql:101` says so in capitals — *"THERE IS
 DELIBERATELY NO FX COLUMN HERE … Do not add it."* Worse, the rate recoverable
@@ -214,7 +214,7 @@ today.
 **This spec's first draft said the demo stays entirely local. That was wrong,
 and it was already ruled otherwise** — the correction is the owner's, and the
 ruling it restores is
-[`phase-w-i-ii-iii.md`](../../plans/phase-w-i-ii-iii.md)'s W8 section, owner
+W8's issue (#55), owner
 2026-09-01:
 
 > **THE DEMO PORTFOLIO IS OWNED, AND ONLY THE SUPER-ADMIN OWNS IT.** The seeded
@@ -254,7 +254,7 @@ can move the original.
 
 - **Deletion.** `asset.delete` cascade semantics were O33's when this was
   written and were ruled the same day by
-  [`D137`](../../decisions/D137.md) — a batched application cascade with
+  [`D137`](../../DECISIONS.md) — a batched application cascade with
   non-cascading keys. Nothing in this spec picks or depends on it.
 - **The `/view` payload's field-by-field schema.** §1 pins that it is the union
   of the existing view-model interfaces; the exact JSON, its versioning and its

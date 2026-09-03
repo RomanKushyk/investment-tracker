@@ -1,9 +1,5 @@
 # infra — Role 1, `quirenote-backend-deploy`
 
-> Moved **verbatim** from [`../README.md`](../README.md) on 2026-08-26 (D95). A `### ` section of the README's **Deploying** chapter.
-
-### Role 1 — `quirenote-backend-deploy`
-
 Trust policy:
 
 ```json

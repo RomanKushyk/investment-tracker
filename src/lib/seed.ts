@@ -1,5 +1,5 @@
 // Reference seed dataset — pure data builders, NO db access (repository.ts
-// owns ensureSeeded). Figures reconcile per docs/decisions/README.md D5; the unit
+// owns ensureSeeded). Figures reconcile per docs/DECISIONS.md D5; the unit
 // tests in seed.test.ts enforce every published aggregate.
 import type { Asset, Snapshot, Transaction } from '../core/types';
 

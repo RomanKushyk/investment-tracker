@@ -1,6 +1,6 @@
 // The Inzhur public feed (GET https://www.inzhur.reit/_api/assets), PURE half:
 // a tolerant pick-parse plus portfolio matching. Policy, endpoint constraints
-// and the kopecks unit are recorded in docs/decisions/README.md D19; the network half
+// and the kopecks unit are recorded in docs/DECISIONS.md D19; the network half
 // is src/hooks/useInzhurAssets.ts (core never fetches, G1).
 //
 // TOLERANCE IS THE CONTRACT: the payload is third-party and WILL drift, so
@@ -330,7 +330,7 @@ export function couponForecast(
  * asked for it (D121). Every field is optional: the feed answers what it answers.
  *
  * These three used to be hand-typed, and they are NOT decorative —
- * [`D120`](../../../docs/decisions/D120.md) measured how load-bearing they are:
+ * [`D120`](../../../docs/DECISIONS.md) measured how load-bearing they are:
  * `nextCoupon` anchors the coupon grid and the payout projection, `maturity`
  * stops the ghost accrual and raises the maturity reminder, and
  * `payoutSchedule` is the divisor in `couponPerPayment`. Getting them from the

@@ -112,7 +112,7 @@ nul
 # together and probes each directory at DEPTH as well as at the root.
 
 # Build caches and coverage output. Named here because `SKIP` in
-# src/facts/markdown-files.ts holds them and `src/nested-checkouts.test.ts` requires
+# src/repo-root.ts holds them and `src/nested-checkouts.test.ts` requires
 # all three tools to agree with that list. `coverage/` is not hypothetical: one
 # `vitest --coverage` run leaves an untracked directory and a red `format:check` on
 # generated HTML — the exact failure D109 exists to stop, and it was covered by

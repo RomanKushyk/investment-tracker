@@ -4,7 +4,7 @@ Scope: which stack to use for the cloud move (cloud system of record, auth, one 
 cron, PWA) and what it costs. Three viable options. Schema and lifecycle rules are specified
 separately.
 
-Drafted 2026-08-04. D2 (IndexedDB) and D16 (dual datasets) are retired by the move itself.
+Drafted 2026-08-04. The Persistence today decision (IndexedDB, dual datasets) is retired by the move itself.
 
 > **Verification status.** eu-north-1 figures come from the AWS Price List Bulk API rate cards
 > (`AuroraDSQL/20260714190804`, `AmazonRDS/20260804175057`, `AmazonEC2/current`), not marketing
@@ -17,10 +17,10 @@ Drafted 2026-08-04. D2 (IndexedDB) and D16 (dual datasets) are retired by the mo
 |---|---|
 | Frontend | **Unchanged** — React 19 + Vite 7 + TS + Tailwind 4. No Next.js (see Rejected) |
 | Hosting | AWS Amplify Hosting, kept as-is (~$0.02/mo — no free tier on this account) |
-| PWA | ~~**vite-plugin-pwa** — installable shell, network-required, no offline~~ **[D92, 2026-08-25: removed from W7 — cross-browser beats offline, and install needs no service worker; installability alone is `PLAN-OPEN.md` O29]** |
+| PWA | ~~**vite-plugin-pwa** — installable shell, network-required, no offline~~ **[Removed from W7 per the Cloud target decision — cross-browser beats offline, and install needs no service worker; installability alone is issue [#60](https://github.com/RomanKushyk/investment-tracker/issues/60)]** |
 | Client | `src/lib/repository.ts` becomes an HTTP client behind its existing method signatures |
 | API shape | `GET /state` (whole dataset + version) · `POST /mutations` (one op, `If-Match`) |
-| Derivation | ~~100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates~~ **SUPERSEDED 2026-09-03 by [D136](../../decisions/D136.md)** — derivation moves to the server at W7, as an IMPORT of `src/core/derive.ts` rather than a port. `GET /view` (no parameters, all 6 periods, ₴ + `fx`) plus `/view/series?period` and `/view/balances?page`; `/state` narrows to export and import. The design is [`2026-09-03-w7-read-surface-design.md`](2026-09-03-w7-read-surface-design.md) |
+| Derivation | ~~100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates~~ **SUPERSEDED by the Cloud target decision (`docs/DECISIONS.md`)** — derivation moves to the server at W7, as an IMPORT of `src/core/derive.ts` rather than a port. `GET /view` (no parameters, all 6 periods, ₴ + `fx`) plus `/view/series?period` and `/view/balances?page`; `/state` narrows to export and import. The design is [`2026-09-03-w7-read-surface-design.md`](2026-09-03-w7-read-surface-design.md) |
 | Raw payloads | Every provider payload kept **forever** (~8 MB/yr gzipped), so any lifecycle question stays retroactively re-derivable |
 
 All three land at **~$0.02/month**, which is Amplify Hosting alone. Cost does not decide this.
@@ -65,7 +65,7 @@ exceeded `TransactWriteItems` (100 actions, no two on the same item).
 | | A1 — Aurora DSQL | A2 — DynamoDB | B — Supabase |
 |---|---|---|---|
 | **SQL** | Postgres wire + syntax | None — key-value access patterns | Full Postgres |
-| **Foreign keys** | ~~**Not supported.** `REFERENCES` is absent from the grammar~~ — **false since 2026-08-26**, the day DSQL shipped them (D100 dates it from the release notes): measured that day (**D99**), a composite `FOREIGN KEY … REFERENCES … ON DELETE RESTRICT` is accepted and enforced. The row stands as the reason integrity moved to app code, and app-code integrity is still what ships; whether to adopt them is `docs/plans/PLAN-OPEN.md` **O34** | None | Yes |
+| **Foreign keys** | ~~**Not supported.** `REFERENCES` is absent from the grammar~~ — **false since 2026-08-26**, the day DSQL shipped them, per the User schema and deletes decision: measured that day, a composite `FOREIGN KEY … REFERENCES … ON DELETE RESTRICT` is accepted and enforced. The row stands as the reason integrity moved to app code, and app-code integrity is still what ships; whether to adopt them is `docs/DECISIONS.md` **O34** | None | Yes |
 | **Other constraints** | `CHECK`, `UNIQUE`, `PRIMARY KEY`, `GENERATED` all supported | None | All |
 | **RLS** | No (IAM-scoped, app-level predicates) | No | **Yes** |
 | **jsonb** | Supported, 1 MiB/value — but **cannot be indexed** | Native maps | Supported + indexable |
@@ -125,7 +125,7 @@ Deliberate: the archive schema is decided **with evidence in hand**, and nothing
 because raw payloads regenerate any schema retroactively.
 
 **Phase 3 (~10–12 days).** User schema, Cognito, API Gateway + API Lambda, `repository.ts` → HTTP
-client, ~~PWA shell~~ **[removed by D92, 2026-08-25]**, test repair, cutover.
+client, ~~PWA shell~~ **[removed per the Cloud target decision]**, test repair, cutover.
 
 Accepted costs, both front-loaded rather than standing: **OCC retry handling** (DSQL uses
 optimistic concurrency, so `If-Match` is `UPDATE … WHERE version = $2` + rowcount, and mutations
@@ -133,10 +133,86 @@ must retry on SQLSTATE 40001), and **no local emulator** — local Postgres for 
 the schema deliberately kept inside the DSQL subset so the two agree by construction, real DSQL
 in CI.
 
-## The rest of it is in `cloud-stack/`
+## Cloud stack — risks, and what was rejected
 
-**Split 2026-08-26 (D95)** — moved **verbatim** so no file exceeds 200 lines. Nothing was summarised.
+## Risks
 
-| File | Holds |
+1. ~~**A1's DPU estimate is the weakest number in this document.**~~ **RESOLVED 2026-08-04.**
+   The figure is documented, not estimated: `ReadDPU = max(BytesRead, 2048) × 0.00000183105`
+   ([billing docs](https://docs.aws.amazon.com/aurora-dsql/latest/userguide/billing-metering.html)),
+   i.e. **1.92 DPU per MiB read**, and DSQL bills bytes **scanned**, not rows returned. The formula
+   reproduces a published real bill to three significant figures. For the price archive: ~325
+   DPU/month at year 1, ~6,506 at year 20 — **6.5% of the 100,000 always-free allowance**, and
+   ~$0.09/month even with the free tier deleted. Storage takes ~657 years to reach 1 GB.
+   **[Per the Cloud target decision: neither figure is refuted, and neither should be reused without a plan.
+   One query was measured at 64.989 DPU because an `ORDER BY` bound to its own `to_char()` alias
+   instead of the indexed column, forcing a table scan; naming the column drops it to 9.508. A
+   table scan bills `payload_gzip`, an index path does not, so cost here depends on the PLAN and
+   not on row count. **The one current datum: the nightly capture measures ~173 DPU/month = 0.17%
+   of the tier at 6,664 rows** — a much smaller archive than either projection models, so it
+   replaces neither. `EXPLAIN (ANALYZE, VERBOSE)` prints `Statement DPU Estimate` per statement —
+   size from that.]**
+   Note the earlier "0.5 DPU/s" calibration describes **ComputeDPU only**; read and write DPU have
+   no time dimension at all. Still measure in week 1 — background/system DPU (auto-ANALYZE, index
+   maintenance) is genuinely unmodellable — but no design decision differs across the $0–$2/month
+   spread this could move.
+
+2. **A missed cron day is permanently unrecoverable** — the provider publishes no price history.
+   Monitoring must detect *silence*: CloudWatch alarm on `Invocations < 1` over 24 h with
+   **`treatMissingData: BREACHING`** (the default parks a dead job in INSUFFICIENT_DATA and never
+   alerts), or healthchecks.io in option B.
+
+3. ~~**AWS account deadline.**~~ **RESOLVED 2026-08-10.** The account was created **2026-07-29**
+   (not June, as first assumed) under the post-2025-07-15 Free plan, which closes the account at
+   6 months — 2027-01-29. It was **upgraded to the Paid plan on 2026-08-10**, so no closure
+   deadline remains. Credits: **$119.99**, expiring 2027-07-29 (12 months from creation);
+   $100 initial + $20 earned for creating the cost budget. Burn to date: **$0.01 in ~2 weeks**,
+   so credits were never going to be the binding constraint — only the 6-month clock was.
+
+   Guardrail in place: a $5 monthly cost budget with **absolute** alert thresholds at $1 and $3
+   (actual) and $5 (forecasted), all to the owner's email. Absolute rather than percentage
+   because at a ~$0.02 baseline percentage thresholds fire on noise. No budget *actions* are
+   attached — notification only, never automated shutdown.
+
+4. **AWS standing "no" list.** At a $0.02 baseline only a fixed charge moves the bill: NAT Gateway
+   **$33.58/mo** (`EUN1-NatGateway-Hours` $0.046/hr, confirmed), Aurora Serverless v2 at 0.5 ACU
+   ~$51/mo, Amplify **WAF $15/mo** (one console toggle — the likeliest accident), public IPv4
+   **$3.65/mo** even idle, Lambda provisioned concurrency ~$2.29/mo *and it voids Lambda's free
+   tier*, customer-managed KMS key $1–3/mo, Route 53 zone $0.50/mo, Secrets Manager $0.40/mo. Set
+   an AWS Budget with an **absolute $1** threshold — percentage alerts fire on noise here.
+
+## Rejected
+
+| Option | Why |
 |---|---|
-| [`cloud-stack/risks-and-rejected.md`](cloud-stack/risks-and-rejected.md) | Risks · Rejected |
+| **Aurora Serverless v2** | ~$8.56/mo of ACU-hours **plus** a $3.65–33.58/mo networking tax (public IPv4 or NAT Gateway) — it is a VPC resource, unlike DSQL. ~$12/mo realistic. |
+| **RDS db.t4g.micro** | $14.08/mo. Its 750-hour free tier is the **legacy** program for accounts created before 2025-07-15 — confirmed unavailable here. AWS's free page now lists only "Short-term trial" and "Always free"; the 12-month category no longer exists. |
+| **Amplify Gen 2** | See below — re-examined, still rejected, but on different grounds. |
+| **Next.js** | Delivers none of PWA / sync / cron. Amplify does not support manual deploys for SSR and documents Next only through 15, so `output: 'export'` is forced — which disables Route Handlers and Server Actions, the one reason to migrate. |
+| **Cloudflare Workers + D1** | Free-plan cron capped at **10 ms CPU**; parsing 165 KB through zod likely exceeds it → $5/mo. D1 has no `NUMERIC`. |
+| **Sync engines** (Dexie Cloud, PowerSync, ElectricSQL, InstantDB, Zero) | Moot once offline is dropped and IndexedDB is removed. |
+| **Clerk** | Free plan pins a 7-day session lifetime — fails "same everywhere". |
+| **Self-hosted (PocketBase/Hetzner)** | ~€4–6/mo plus ops; the only non-free option considered. |
+
+### Amplify Gen 2 — re-examined
+
+The original objection was that `AmplifyBackendDeployFullAccess` chains via `sts:AssumeRole` to
+the CDK bootstrap role (`AdministratorAccess` by default), surrendering the Deployment-decision posture that CI
+cannot alter hosting config. **That objection is withdrawn** — it is solvable with a dedicated
+OIDC role, a separate CDK bootstrap qualifier and a scoped cfn-exec policy, and rewriting CI/CD
+is acceptable.
+
+Two facts also came out in Gen 2's favour: `ampx pipeline-deploy --app-id --branch` demonstrably
+works against a "Deploy without Git" manual-deploy app, and `ampx generate outputs --stack` lets
+the backend deploy as a plain CDK stack with no Hosting app involvement at all. Cost is ~$0.03/mo.
+
+**It is still the wrong fit, for a narrower reason:** `defineData` provisions AppSync + one
+DynamoDB table per model, and there is no supported way to get the typed data client without
+AppSync. This app fetches *the entire dataset* and derives every figure client-side — GraphQL's
+selective-field model is unused, and its typed client duplicates zod schemas that already exist
+and are tested. What is left is a CloudFormation pipeline where a one-line schema change is a
+5–15 minute deploy that can roll back, plus sandbox stacks that do not auto-delete, plus
+DynamoDB time-series modelling A1 does not need.
+
+Take Gen 2 only if the typed end-to-end data client is wanted for its own sake, or if this
+project is deliberate AWS practice.

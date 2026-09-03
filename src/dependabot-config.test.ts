@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { REPO } from './facts/markdown-files';
+import { REPO } from './repo-root';
 
 // D104 §2 declined routine version-bump PRs. GitHub's own UI COMMITS the config
 // when version updates are switched on, so the ruling could be reversed by a

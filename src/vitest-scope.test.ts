@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { configDefaults } from 'vitest/config';
 import { describe, expect, it } from 'vitest';
-import { REPO } from './facts/markdown-files';
+import { REPO } from './repo-root';
 import vitestConfig from '../vitest.config';
 import { PARITY } from './scratch-dirs';
 

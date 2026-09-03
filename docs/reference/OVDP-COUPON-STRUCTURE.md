@@ -71,7 +71,7 @@ two different values, while its coupon rate has one for life.
 ## What the app derives from this
 
 **A linked bond needs no rate at all.** `paymentSchedule` carries ₴/unit per date
-directly, and units are `Σ transaction.quantity` ([`D112`](../decisions/D112.md)),
+directly, and units are `Σ transaction.quantity` ([`D112`](../DECISIONS.md)),
 so the position's coupon is `perUnit × units` — which is what
 `couponForecast` already computes.
 

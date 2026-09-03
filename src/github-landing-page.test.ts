@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { REPO } from './facts/markdown-files';
+import { REPO } from './repo-root';
 
 // GitHub renders a README in `.github/` as the repository landing page IN PLACE OF
 // the root one, which here is the product spec. `.github/` documents itself in
@@ -20,7 +20,7 @@ import { REPO } from './facts/markdown-files';
 // this guard along with it.
 describe('a .github README stays absent, whatever it is called', () => {
   // A guard that only ever asserts ABSENCE passes just as well when it is looking
-  // at the wrong place — the failure `markdown-files.ts` warns about, and the
+  // at the wrong place — the failure `repo-root.ts` warns about, and the
   // reason every other check here opens with an anchor.
   it('is looking at the real .github/ — without this it could pass vacuously', () => {
     expect(existsSync(join(REPO, '.github/workflows/deploy-backend.yml'))).toBe(true);

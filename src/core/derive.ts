@@ -1,5 +1,5 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
-// Reference-reconciliation rules are pinned in docs/decisions/README.md D5.
+// Reference-reconciliation rules are pinned in docs/DECISIONS.md D5.
 import { movesPosition, unitDelta, type Asset, type Snapshot, type Transaction } from './types';
 import type { PeriodWindow } from './period';
 import { xirr, type CashFlow } from './xirr';
@@ -298,7 +298,7 @@ export function purchaseUnitPrice(
 /**
  * Units held per asset, as of `asOf` (inclusive; unbounded when omitted) —
  * `units(a, D) = Σ quantity deltas`, which is W7's model
- * (`docs/reference/w7-migration-translations.md` §4) and the answer to #31.
+ * (issue #46 §4) and the answer to #31.
  *
  * ONLY ASSETS WITH AT LEAST ONE RECORDED QUANTITY GET A KEY, and that is the
  * point rather than an optimisation: a position whose ledger carries no

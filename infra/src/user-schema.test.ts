@@ -18,7 +18,7 @@
 // (`infra/migrations/drafts/README.md`); doing only the first still gives a
 // statement the cluster refuses. A DSQL-only rejection stays invisible to this
 // test by construction, so the suite is not a substitute for first contact —
-// which for the DDL has now happened (`infra/docs/dsql-ddl-first-contact.md`),
+// which for the DDL has now happened (`infra/docs/dsql-constraints.md`),
 // and for the migration RUNNER has not.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';

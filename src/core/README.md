@@ -1,6 +1,6 @@
 # src/core/ — pure domain layer
 
-The app's pure domain layer per decision G1 (`docs/plans/NEXT-PHASE-PLAN.md`) and `docs/decisions/README.md` D8. Consolidated in next-phase Phase 1 from v1's `src/lib/{types,derive,format,colors,asset-builder,schemas}` plus `src/screens/shared/` (now dissolved). The v1 pinned contracts ([`docs/archive/build-plan/pinned-contracts.md`](../../docs/archive/build-plan/pinned-contracts.md), moved out of `BUILD-PLAN.md` on 2026-08-26) keep their exact shapes — only module paths changed.
+The app's pure domain layer per decision G1 and `docs/DECISIONS.md` D8. Consolidated in next-phase Phase 1 from v1's `src/lib/{types,derive,format,colors,asset-builder,schemas}` plus `src/screens/shared/` (now dissolved). The v1 pinned contracts keep their exact shapes — only module paths changed.
 
 ## Layout
 

@@ -98,26 +98,10 @@ jobs:
       # same fix, as the `format:check` step below.
       # Runs before any AWS credential exists — a failing test cannot deploy.
       #
-      # THE WHOLE SUITE, not a path-filtered selection. Two earlier versions of
-      # this step named files by hand and both leaked: `src/core/nbu/**` triggered
-      # the workflow with its tests unlisted, and the repository guards
-      # (`github-landing-page`, `dependabot-config`) were unlisted too — so a push
-      # adding `.github/README.md` fired this workflow, passed every step, and
-      # replaced the repo's landing page. Reproduced, both times.
-      # A hand-kept list is a rule someone has to remember; the full run is 6.1s
-      # against 3.2s for the filtered one, and it also covers the doc ratchets
-      # (claim-lint, distillation-lint, docs-line-cap, fences), which never ran on
-      # an infra-only push before. deploy-frontend SKIPS such a push through its
-      # `paths-ignore`, which is why this workflow needs a suite at all.
-      #
-      # THIS WIDENS THE BLAST RADIUS, and the file's header is about the other
-      # direction: the two workflows are separate so a broken SPA BUILD never blocks
-      # the price capture. That still holds — `vite build` is not run here. What the
-      # whole suite adds is that a documentation ratchet (a stale `claim-baseline`
-      # count, a doc over its line cap) can now block a capture deploy. Accepted:
-      # the alternative is a hand-kept file list, which leaked twice, and a stale
-      # ratchet is a real defect rather than an unrelated one. Named here so the two
-      # rationales do not quietly disagree.
+      # THE WHOLE SUITE, not a path-filtered selection: two hand-kept file lists
+      # both leaked (an infra push once replaced the repo landing page with every
+      # step green). The suite also guards `.github/` itself. `vite build` is not
+      # run here, so a broken SPA build still never blocks the price capture.
       - run: pnpm test
 
       # A37 — `prettier --check .` covers infra/ too (its sources, their tests and

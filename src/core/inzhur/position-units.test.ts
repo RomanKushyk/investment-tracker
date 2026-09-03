@@ -15,7 +15,7 @@
 // `derive.ts`'s `unitsByAsset` for `units(a, D) = Σ quantity deltas`, and a third
 // argument on `matchAssets` that carries it. The stale total remains as a
 // fallback for rows recorded before any of this existed — those record ₴ and
-// nothing else, and `w7-migration-translations.md` §4 says their counts are
+// nothing else, and issue #46 §4 says their counts are
 // unrecoverable — so `unitsFrom` reports which of the two answered.
 import { describe, expect, it } from 'vitest';
 

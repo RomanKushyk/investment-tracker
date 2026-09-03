@@ -26,7 +26,7 @@
 // config has a `name` slot), so drizzle derives one —
 // `account_user_id_app_user_user_id_fk`. This file's own header requires
 // constraint names identical to the generated SQL's, and
-// `infra/docs/dsql-alter-limits.md` already records the intended shape as
+// `infra/docs/dsql-constraints.md` already records the intended shape as
 // `account_user_fk`. **One form for all six keeps the names ours and the rule
 // unbroken.** Three API facts, all checked against the installed drizzle:
 //
@@ -78,7 +78,7 @@
 //
 // **And the refusal's SQLSTATE differs by engine:** PGlite/Postgres gives
 // `23001` for `RESTRICT`, while DSQL gives `23503`
-// (`infra/docs/dsql-ddl-first-contact.md`). Anything branching on the code
+// (`infra/docs/dsql-constraints.md`). Anything branching on the code
 // matches on the cluster and misses locally.
 //
 // **`NO ACTION` is out because this repository has never probed it, in any
@@ -89,12 +89,14 @@
 // that shipping form.) So the chosen action still owes a DSQL round in the
 // shape it will actually take — D138 says so, and it is obligation 5 in W7's
 // body.
-// `infra/docs/dsql-alter-limits.md`'s foreign-key section records them and is
-// the provenance. **It attributes `ON DELETE RESTRICT` to D99 round 3
-// explicitly**, which is the measurement this ruling turns on and which D138 and
-// `W7-API-CONTRACT.md` both cite. The rest of that section draws on the page's
-// own rounds 6-7 without splitting them further, so cite the page for anything
-// beyond `RESTRICT`.
+// `infra/docs/dsql-constraints.md`'s foreign-key section records them and is
+// the provenance. **It records that `RESTRICT` was verified inline in `CREATE
+// TABLE`, not yet in the `ALTER TABLE` form drizzle emits**, which is the
+// measurement this ruling turns on and which D138 and
+// `https://github.com/RomanKushyk/investment-tracker/issues/48`
+// both cite. The rest of that section draws on the page's own rounds 6-7
+// without splitting them further, so cite the page for anything beyond
+// `RESTRICT`.
 //
 // **Deletion is a BATCHED application cascade, and step 1 is what makes the
 // self-referential `settles_payout_id` key safe** — first
@@ -131,7 +133,7 @@
 // precondition is met by there being nothing to audit. DSQL environment facts (the two-step index promotion,
 // what ALTER TABLE can and cannot do, replay behaviour) live in
 // `infra/migrations/drafts/README.md`; W7's data-migration notes live in
-// `docs/reference/w7-migration-translations.md`. The PGlite suite this file's
+// issue #46. The PGlite suite this file's
 // constraints run against (`infra/src/user-schema.test.ts`) proves nothing
 // about those translations — they are data problems, not schema ones.
 //
@@ -403,7 +405,7 @@ export const transaction = pgTable(
     //
     // THE MIGRATION IS NOT DISCHARGED BY THAT, and the column's own comment
     // above says why: NULL, never `''`. D129 retires item 3 of
-    // `docs/reference/w7-migration-translations.md` — there is no longer a
+    // issue #46 — there is no longer a
     // borrowed real id to identify and strip — and leaves item 2 exactly where
     // it was: `''` is not a uuid, so a migration that copies Dexie's value
     // verbatim still fails this CHECK. Translate, do not copy.

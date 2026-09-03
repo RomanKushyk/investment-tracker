@@ -109,7 +109,7 @@ export function assetPatchFromForm(
    * REQUIRED rather than optional, for the reason `couponProjection` and
    * `accrualSuggestion` give for their own units parameters: `inzhur` is patched
    * WHOLESALE, so omitting this drops the asset's legacy unit count — a figure
-   * `w7-migration-translations.md` §4 calls unrecoverable. While it defaulted,
+   * issue #46 §4 calls unrecoverable. While it defaulted,
    * the data-losing path was the one a forgetful caller got for free.
    */
   existing: Asset | undefined,

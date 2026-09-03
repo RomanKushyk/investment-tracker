@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import { getFileInfo } from 'prettier';
 import { describe, expect, it } from 'vitest';
-import { REPO, skipped } from './facts/markdown-files';
+import { REPO, skipped } from './repo-root';
 import vitestConfig from '../vitest.config';
 import { PARITY, probesFor } from './scratch-dirs';
 
@@ -24,7 +24,7 @@ import { PARITY, probesFor } from './scratch-dirs';
 // whose verdict depends on background state is not a gate — and every green run
 // recorded while a worktree was open proved less than it appeared to.
 //
-// `src/facts/markdown-files.ts` is the one that got it right: its SKIP set has held
+// `src/repo-root.ts` is the one that got it right: its SKIP set has held
 // `.claude` all along, with a comment about this exact double-count. The TS walk
 // knew; the four config-driven tools did not.
 

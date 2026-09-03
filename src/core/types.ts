@@ -64,7 +64,7 @@ export interface Asset {
   //
   // The FIELD went; the property stays, optional, and is never written again. It
   // is the only unit count an asset linked before this date has —
-  // `w7-migration-translations.md` §4 calls those counts unrecoverable — so
+  // issue #46 §4 calls those counts unrecoverable — so
   // `matchAssets` still falls back to it and nothing regresses before the ledger
   // is backfilled. A new link carries no `units` at all.
   inzhur?: { kind: 'fund' | 'bond'; ref: string; units?: number };
@@ -152,7 +152,7 @@ export interface Transaction {
   // W7's `transaction.quantity` / `transaction.unit_price`, brought forward
   // rather than invented — the target schema has no running-total column on
   // `asset`, because units are a DERIVATION there: `units(a, D) = Σ quantity
-  // deltas` (`docs/reference/w7-migration-translations.md` §4). `derive.ts`'s
+  // deltas` (issue #46 §4). `derive.ts`'s
   // `unitsByAsset` is that sum.
   //
   // BOTH OPTIONAL, and they stay optional: every row recorded before this

@@ -1,10 +1,10 @@
 # Formula audit — WEALTH-MANAGEMENT-ARCHITECTURE reconciliation
 
-The Phase 1 `feat/formula-parity` reconciliation record (NEXT-PHASE-PLAN P1, user
-requirement): every challenge in `docs/reference/WEALTH-MANAGEMENT-ARCHITECTURE.md` (the
+The Phase 1 `feat/formula-parity` reconciliation record (user requirement): every
+challenge in `docs/reference/WEALTH-MANAGEMENT-ARCHITECTURE.md` (the
 user's spreadsheet-era business-logic spec) checked against the app's core
 derivations, gaps implemented, deviations pinned. Companion decision:
-`docs/decisions/README.md` D13. All formulas live in `src/core/derive.ts` unless noted;
+`docs/DECISIONS.md` D13. All formulas live in `src/core/derive.ts` unless noted;
 every validation figure below is enforced by a vitest fixture
 (`src/core/derive.test.ts`, `src/core/xirr.test.ts`, `src/lib/seed.test.ts`).
 

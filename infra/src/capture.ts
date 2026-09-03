@@ -742,8 +742,8 @@ const TRACKED_ABSENT_LIKE = 'tracked ref absent:%';
  * streak query, which ends in `LIMIT 60` — there, naming the column let the
  * planner stop early. There is no early stop to unlock here.
  *
- * MEASURED 2026-08-26 over four rounds — **D97**, working in
- * `infra/docs/replan-a50.md`. The
+ * MEASURED 2026-08-26 over four rounds — **D97**, the decision is in
+ * `docs/DECISIONS.md` [Cloud target]; the working is in git history. The
  * order is mixed-direction (`as_of` ASC, `requested_at` DESC) against ASC/ASC
  * indexes, so whether the index could be used at all was the open question. It
  * can: this now plans as `Incremental Sort` with

@@ -1,6 +1,6 @@
 // The Inzhur feed's network half: a MANUAL-ONLY TanStack query over the public
 // endpoint, plus the last-good payload in the Dexie meta table. Parsing and
-// matching stay pure (core/inzhur/parse.ts); policy is docs/decisions/README.md D19.
+// matching stay pure (core/inzhur/parse.ts); policy is docs/DECISIONS.md D19.
 //
 // Nothing here writes portfolio data (G5): a fetch produces values in memory —
 // only the user's Save/Confirm press in the P3 UI ever records anything.

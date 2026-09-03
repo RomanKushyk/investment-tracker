@@ -1,9 +1,5 @@
 # infra — Role 2, `quirenote-backend-cfn-exec`, and the two traps
 
-> Moved **verbatim** from [`../README.md`](../README.md) on 2026-08-26 (D95). A `### ` section of the README's **Deploying** chapter. **The two traps cost eight CI cycles** — read them before touching the role.
-
-### Role 2 — `quirenote-backend-cfn-exec`
-
 Trust policy — CloudFormation only:
 
 ```json
@@ -125,41 +121,16 @@ Inline permission policy:
 
 ### The two traps, restated because they cost eight CI cycles last time
 
-**`ApplyTheSamTransform` is not optional and is not obvious.**
-`AWS::Serverless-2016-10-31` is a macro CloudFormation expands **as the
-execution role**, not as the principal that ran `sam deploy`. Granting
-`CreateChangeSet` on the transform to the deploy role alone is not enough — it
-must be on this role too, which is why the ARN appears in both policies.
+**`ApplyTheSamTransform` is not optional and is not obvious.** `AWS::Serverless-2016-10-31` is a macro CloudFormation expands **as the execution role**, not as the principal that ran `sam deploy` — granting `CreateChangeSet` on the transform to the deploy role alone is not enough, which is why the ARN appears in both policies. **`RolesTheStackOwns` must match the stack's prefix or nothing deploys** — SAM names the function's execution role after the stack, so a stale prefix here fails the stack on role creation, and the error message names the role, not the policy. Two grants this policy still deliberately withholds: `iam:*` outside the prefix, and anything EC2 or VPC.
 
-**`RolesTheStackOwns` must match the new prefix or nothing deploys.** SAM
-creates the function's execution role named after the stack, so it becomes
-`quirenote-backend-*`. If this statement still said `kubushka-backend-*` the
-stack would fail on role creation — and the message names the role, not the
-policy, which is what makes it slow to diagnose.
+**Expect the first deploy to fail once or twice on `AccessDeniedException`.** Read the resource ARN out of the error — AWS always states exactly what it wanted — and add that ARN, rather than broadening to `*`.
 
-Two grants this policy still deliberately withholds: **`iam:*` outside the
-prefix** (unprefixed IAM write on an execution role is account-admin by another
-name) and **anything EC2 or VPC**.
-
-
-**Expect the first deploy to fail once or twice on `AccessDeniedException`.**
-Read the resource ARN out of the error — AWS always states exactly what it
-wanted — and add that ARN, rather than broadening to `*`. This is the same
-discipline `docs/reference/DEPLOYMENT.md` §5 already documents for the frontend role, and
-it is why the policy above is a starting point rather than a guarantee.
-
-**Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has
-credentials:
+**Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 
 ```bash
 bash infra/scripts/bootstrap-account.sh
 ```
 
-It derives the account ID from `sts get-caller-identity`, creates
-`quirenote-sam-artifacts-<account-id>` in `eu-north-1`, blocks public access, and
-adds a 30-day expiry rule — without which every Lambda bundle ever pushed
-(~330 KB per deploy) accumulates forever. Idempotent, so it is safe to re-run.
+It derives the account ID from `sts get-caller-identity`, creates `quirenote-sam-artifacts-<account-id>` in `eu-north-1`, blocks public access, and adds a 30-day expiry rule. Idempotent, so it is safe to re-run.
 
-**GitHub:** add `AWS_BACKEND_ROLE_ARN` to the `dev` environment's secrets. Use
-the web UI — the local `gh` CLI is authenticated as a different account and
-returns 403 on writes to this repo.
+**GitHub:** add `AWS_BACKEND_ROLE_ARN` to the `dev` environment's secrets. Use the web UI — the local `gh` CLI is authenticated as a different account and returns 403 on writes to this repo.
