@@ -101,7 +101,7 @@ rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
 **twice** — insert `ASYNC`, strip `USING btree`. Measured with it: the whole of
 `003_user_schema.sql` applies to the live cluster and its `CHECK`/`UNIQUE`/`DEFAULT`
 are enforced, so **the DDL is no longer this phase's first contact — the
-migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which opened O34 and **closed it on 2026-08-28 (D101): W7 ships none**, and whether they are ever adopted is O33's to decide.
+migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which opened O34 and **closed it on 2026-08-28 (D101): W7 ships none**. ~~whether they are ever adopted is O33's to decide~~ — **O33 ruled 2026-09-03 (D137), amending D101: W7 DOES take them, `ON DELETE NO ACTION`**, beneath a batched application cascade. The schema task and the third promotion rewrite rule come with it.
 Rules in `infra/migrations/drafts/README.md`, working in
 `infra/docs/dsql-ddl-first-contact.md`.
 

@@ -3,18 +3,31 @@
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
-// two stay comparable statement for statement. **This schema declares no
-// FOREIGN KEY, and that is a ruling, not an omission (D101):** DSQL has had
-// them since 2026-08-26 and they can be added later, so W7 ships without and
-// O33 decides whether they are ever adopted. Do not add one here to "fix" a
-// dangling reference — that is the application's job until O33 says otherwise.
-// **Adding one later is not free, and neither is adding one here.** Later: it
-// arrives `NOT VALID` permanently — every subsequent write is guarded, the rows
-// already present never are, and `VALIDATE CONSTRAINT` is refused — so adopt
-// only behind a clean integrity audit. Here: drizzle emits a `references()` as
-// a bare `ALTER TABLE … ADD CONSTRAINT`, which DSQL refuses outright unless
-// promotion appends `NOT VALID` — a third rewrite rule that does not exist yet
-// (D100). DSQL environment facts (the two-step index promotion,
+// two stay comparable statement for statement. **O33 RULED 2026-09-03 (D137,
+// amending D101): this schema TAKES foreign keys, with `ON DELETE NO ACTION`.**
+// The instruction here used to be the opposite and is retracted, not softened —
+// "declares no FOREIGN KEY … do not add one here to 'fix' a dangling reference"
+// was D101's ruling and D101 is amended.
+//
+// **`NO ACTION`, never `RESTRICT`, and never `CASCADE`.** `CASCADE` is out
+// because AWS's `CREATE TABLE` guidance says cascading actions count towards
+// the transaction modification limit, and DSQL's is 3 000 mutated rows against
+// a `user_price` grain of one row per asset per date. `RESTRICT` is out because
+// it is checked immediately per row: a `tax` row and the payout it settles
+// carry the same `asset_id`, so one `DELETE FROM transaction WHERE asset_id=$1`
+// removes both, and `RESTRICT` refuses the payout `23503` before reaching the
+// tax row. `NO ACTION` defers to end of statement and passes.
+//
+// **Deletion is a BATCHED application cascade** — `user_price`, then
+// `transaction`, both looped under the ceiling, and the asset LAST so a failure
+// midway is resumable. The keys are the invariant beneath it, not the mechanism.
+//
+// **Adding one is not free.** Drizzle emits a `references()` as a bare
+// `ALTER TABLE … ADD CONSTRAINT`, which DSQL refuses unless promotion appends
+// `NOT VALID` — the third rewrite rule, which D137 makes live rather than
+// conditional. At W7 that `ALTER` runs on newly created EMPTY tables and W7
+// seeds fresh data (D128), so the key skips no rows: D101's clean-audit
+// precondition is met by there being nothing to audit. DSQL environment facts (the two-step index promotion,
 // what ALTER TABLE can and cannot do, replay behaviour) live in
 // `infra/migrations/drafts/README.md`; W7's data-migration notes live in
 // `docs/reference/w7-migration-translations.md`. The PGlite suite this file's

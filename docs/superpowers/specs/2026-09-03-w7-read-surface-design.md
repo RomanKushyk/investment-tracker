@@ -252,8 +252,10 @@ can move the original.
 
 ## §6 — What this spec does NOT decide
 
-- **O33, deletion.** `asset.delete` cascade semantics are still O33's, and
-  nothing here picks one.
+- **Deletion.** `asset.delete` cascade semantics were O33's when this was
+  written and were ruled the same day by
+  [`D137`](../../decisions/D137.md) — a batched application cascade with
+  non-cascading keys. Nothing in this spec picks or depends on it.
 - **The `/view` payload's field-by-field schema.** §1 pins that it is the union
   of the existing view-model interfaces; the exact JSON, its versioning and its
   migration story belong to W7's implementation task.

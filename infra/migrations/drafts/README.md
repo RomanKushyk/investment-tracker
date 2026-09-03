@@ -53,10 +53,22 @@ reviewed, and only then promoted.
   W7 — but because AWS prefers `NO ACTION`/`RESTRICT` where child rows are
   unbounded, `RESTRICT` would force `repository.ts`'s `deleteAsset` to reverse
   its delete order, and `CASCADE` would answer **O33** as a side effect.
-  Adoption is now O33's to decide. **If they are ever declared, promotion gains
+  Adoption is now O33's to decide. ~~**If they are ever declared, promotion gains
   a THIRD rewrite rule:** append `NOT VALID` to every generated
   `ADD CONSTRAINT`, or the cluster refuses it. And adopt only behind a clean
-  integrity audit — a late key never validates the rows already there.
+  integrity audit — a late key never validates the rows already there.~~
+  **THEY ARE DECLARED — O33 ruled 2026-09-03
+  ([D137](../../../docs/decisions/D137.md)), which amends D101.** W7 takes
+  foreign keys with **`ON DELETE RESTRICT`**, so **the third rewrite rule is
+  live, not conditional**: append `NOT VALID` to every generated
+  `ALTER TABLE … ADD CONSTRAINT`, or the cluster refuses it. Two of D101's three
+  grounds above no longer hold and D137 says which — the delete-order reversal
+  is required by BATCHING regardless, and the clean-audit precondition is
+  vacuous at W7 because the `ALTER` runs on newly created EMPTY tables and W7
+  seeds fresh data (D128). The third ground stands and is what chose `RESTRICT`
+  over `CASCADE`: AWS's guidance says cascading actions count towards the
+  transaction modification limit, and DSQL's is 3 000 mutated rows against a
+  `user_price` grain of one row per asset per date.
 - **Promotion rewrites every index line TWICE — insert `ASYNC`, strip
   `USING btree` — uniformly or not at all. A RULE over the generated file, not
   a per-line marker.** Measured 2026-08-27 (**D99**): DSQL rejects `USING btree`

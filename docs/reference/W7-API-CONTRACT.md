@@ -5,7 +5,7 @@
 > undecided — O28, the derivation boundary — was ruled on 2026-09-03 by
 > [D136](../decisions/D136.md), and rows 1–3 of §1 moved with it**: the three
 > list reads become `GET /view`, not `GET /state`. The `POST /mutations` op
-> vocabulary did not move. **O33 is still genuinely undecided** — see §4.
+> vocabulary did not move. **O33 closed the same day as [D137](../decisions/D137.md)** — see §4, which now pins `asset.delete`'s semantics.
 >
 > Pinned elsewhere and assumed here: the auth shape (D32/D36/D38/D39), the
 > user schema and its OCC rule ([`../../infra/schema/user.ts`](../../infra/schema/user.ts),
@@ -48,7 +48,7 @@ each other or `derive.ts` produces a figure from mismatched halves.
 | 5 | `recordTransaction` | `POST /mutations` | `transaction.add` **+ optional `asset.add`** | ONE op list, not two requests — the quick-create path creates the asset and the row that needs it together, and half of that landing is a transaction naming an asset that does not exist |
 | 6 | `addAsset` | `POST /mutations` | `asset.add` | |
 | 7 | `updateAsset` | `POST /mutations` | `asset.patch` | patch, not put — `assetPatchFromForm` already sends a subset |
-| 8 | `deleteAsset` | `POST /mutations` | `asset.delete` | **cascade is O33's, not this document's.** The client hand-cascades today — **and that cascade is a live data-loss bug (issue #34):** it deletes by `assetId` rather than by type, so a pre-2026-09-02 deposit that borrowed an asset's id is destroyed with it. Do not port the semantics under O33's cover |
+| 8 | `deleteAsset` | `POST /mutations` | `asset.delete` | **cascade was O33's and is now [D137](../decisions/D137.md)'s** — batched, children first, parent last, with `ON DELETE RESTRICT` keys beneath it. The client hand-cascades today — **and that cascade is a live data-loss bug (issue #34):** it deletes by `assetId` rather than by type, so a pre-2026-09-02 deposit that borrowed an asset's id is destroyed with it. Do not port the semantics under O33's cover |
 | 9 | `updateTransaction` | `POST /mutations` | `transaction.patch` | **THE ONLY UNVALIDATED WRITE PATH — put `transactionSchema` in front of it.** It takes a bare `Partial<Transaction>` with no schema, and D128's *every door is closed* table omits it only because the HOOK has no caller. Building this op without D124's rule reopens the count-less position-moving row |
 | 10 | `deleteTransaction` | `POST /mutations` | `transaction.delete` | |
 | 11 | `deleteSnapshot` | `POST /mutations` | `snapshot.delete` | by date |
@@ -128,7 +128,7 @@ been given an API.
 | `POST /v1/applications` | **none** | sign-up as an application (D38/D39). Route throttling, unique index on email, no email on submission |
 | `GET /v1/prices/{YYYY}.ndjson` | **none, ever** | the public archive. Sealed years serve `immutable` — **and therefore VERSION BY FILENAME** (`2026.v1.ndjson` behind a short-TTL manifest, W9). `immutable` cannot be retracted: a wrong price cached under it persists on every device forever, and a filename bump is the only escape. The path above is the shape, not the whole rule |
 | `GET /admin/users` | `role = super_admin` | W8's table |
-| `POST /admin/users/{id}/approve` · `/reject` · `DELETE` | `role = super_admin` | **approve is a COGNITO WRITE, not a status flip (D39):** it calls `AdminCreateUser`, which is where the MAU is spent and where the invitation — the only email in the flow — reaches the address's owner. An approve that only updates `status` leaves the user with no way to sign in. Delete is scoped to `pending`/`rejected` only; an `active` user owns a ledger, and that cascade is O33's |
+| `POST /admin/users/{id}/approve` · `/reject` · `DELETE` | `role = super_admin` | **approve is a COGNITO WRITE, not a status flip (D39):** it calls `AdminCreateUser`, which is where the MAU is spent and where the invitation — the only email in the flow — reaches the address's owner. An approve that only updates `status` leaves the user with no way to sign in. Delete is scoped to `pending`/`rejected` only; an `active` user owns a ledger, and that cascade is **NOT D137's** — D137 rules the ASSET cascade; deleting a USER has no holder and W8 owes it |
 | `GET /admin/runs?limit=N` | `role = super_admin` | the capture journal, last N runs with errors |
 | `GET /admin/missing-refs` | `role = super_admin` | A12's data — tracked refs absent from a published file |
 | `POST /admin/sources/{source}/enabled` | `role = super_admin` | the source toggle. D35: a toggle is a setting, a field mapping is code |
@@ -164,11 +164,17 @@ been given an API.
   vocabulary is untouched, exactly as this section predicted it would be either
   way. Design:
   [`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md).
-- **O33 — deletion.** `asset.delete` and `transaction.delete` appear above with
-  no cascade semantics on purpose. The client hand-cascades today; whether the
-  server keeps that, adds tombstones, or adopts foreign keys is O33's, and an
-  API document that quietly picked one would be the implicit resolution Plan C
-  forbids.
+- **~~O33 — deletion.~~ CLOSED 2026-09-03 as [D137](../decisions/D137.md).**
+  `asset.delete` and `transaction.delete` appear above with no cascade semantics
+  because the ruling had not been made; it now has. The server performs an
+  application cascade **in batches, children first and the parent last**, and the
+  schema declares foreign keys with **`ON DELETE RESTRICT`** — which amends D101.
+  `CASCADE` was rejected on a measurement: AWS's guidance says cascading actions
+  count towards the transaction modification limit, DSQL's is 3 000 mutated rows,
+  and `user_price` holds one row per asset per date. **The `asset.delete` op's
+  semantics are therefore pinned now**, and #34's field-based cascade must still
+  not be ported — on the target schema it is unreachable anyway, since
+  `asset_id` is NULL on every portfolio-level row.
 - **~~O31 — the seed's row count.~~ CLOSED 2026-09-02 as D133**: all three
   figures may move and the checkpoints are re-derived from the new seed.
   `dataset.replace` and `dataset.clear` still carry whatever the seed produces,

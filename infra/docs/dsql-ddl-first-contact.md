@@ -175,7 +175,8 @@ Accepted, and enforced in both directions: a child row pointing at nothing gave
 none.** The grounds were that it removes the nightly integrity audit
 `../../docs/superpowers/specs/data-model/ledger.md` specifies, that cascade
 behaviour interacts with DSQL's 3,000-row transaction limit, and that a key can
-be added later anyway (D100). Adoption is now **O33**'s to decide.
+be added later anyway (D100). Adoption was **O33**'s and is ruled: **D137,
+2026-09-03 — adopted with `ON DELETE NO ACTION`**, amending D101.
 
 ## Reproduce
 

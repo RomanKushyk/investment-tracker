@@ -9,7 +9,9 @@
 > Run because **O34** asked whether the user schema should declare foreign
 > keys, and that cannot be weighed without knowing whether the answer can be
 > revisited. It can — and O34 was ruled on 2026-08-28 (**D101**): W7 ships
-> none, and adoption folds into O33. None of what is measured here expires.
+> none, and adoption folded into O33 — **which ruled on 2026-09-03 (D137,
+> amending D101): the keys ARE adopted, `ON DELETE NO ACTION`.** None of what is
+> measured here expires, and this page is what D137 read.
 >
 > **This page was wrong twice and is corrected below**, both times the same
 > way: one spelling probed, the general case asserted. See "How this page was
@@ -99,7 +101,8 @@ So uniqueness IS available after creation — as an index, never as a
 
 ## Foreign keys, measured for the shape THIS schema would need
 
-Recorded so O33 decides on evidence rather than on a summary of it. From D99's
+Recorded so O33 decides on evidence rather than on a summary of it — **it did, on
+2026-09-03 (D137), and chose `NO ACTION`**. From D99's
 round 3 and this page's rounds 6–7:
 
 - **A composite key on a NULLABLE column behaves as `transaction` needs.** Under
