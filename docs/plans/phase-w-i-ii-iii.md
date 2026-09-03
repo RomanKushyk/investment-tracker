@@ -101,9 +101,78 @@ rejects a `CREATE INDEX` without `ASYNC`, so promotion rewrites every index line
 **twice** — insert `ASYNC`, strip `USING btree`. Measured with it: the whole of
 `003_user_schema.sql` applies to the live cluster and its `CHECK`/`UNIQUE`/`DEFAULT`
 are enforced, so **the DDL is no longer this phase's first contact — the
-migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which opened O34 and **closed it on 2026-08-28 (D101): W7 ships none**. ~~whether they are ever adopted is O33's to decide~~ — **O33 ruled 2026-09-03 (D137), amending D101: W7 DOES take them, `ON DELETE NO ACTION`**, beneath a batched application cascade. The schema task and the third promotion rewrite rule come with it.
+migration RUNNER is**. DSQL also grew enforced foreign keys on 2026-08-26, which opened O34 and **closed it on 2026-08-28 (D101): W7 ships none**. ~~whether they are ever adopted is O33's to decide~~ — **O33 ruled 2026-09-03 (D137, amending D101): W7 DOES take them — with `ON DELETE RESTRICT`, per D138, which superseded D137's `NO ACTION` the same day**, beneath a batched application cascade. The schema task and the third promotion rewrite rule come with it.
 Rules in `infra/migrations/drafts/README.md`, working in
 `infra/docs/dsql-ddl-first-contact.md`.
+
+**WHAT THE FOREIGN-KEY RULING PUTS ON THIS PHASE** — numbered, deliberately uncounted in this heading (a hand-written total over an edited list went stale five times on the branch that wrote them) — D137 for the
+shape, [D138](../decisions/D138.md) for the action. They are listed here, in the
+phase body, because Plan C's own header forbids implementing from it:
+
+1. **Set the action EXPLICITLY on every key, and GUARD IT WITH A TEXT
+   ASSERTION.** `no action` is drizzle's default, and `schema-generated.test.ts`
+   cannot catch a wrong one — it regenerates the SQL from the schema and compares
+   it to a draft regenerated the same way, so both sides agree. **Assert instead
+   that the generated SQL carries `ON DELETE restrict` on each of the six keys.**
+   **Do NOT reach for a behavioural test on the payout/`tax` pair** — a draft of
+   this item did, and it was measured false: in PGlite, one `DELETE` removing a
+   payout together with its settling `tax` **succeeds under both actions**,
+   because Postgres fires `RESTRICT` as a non-deferrable AFTER-ROW trigger at end
+   of STATEMENT, exactly like `NO ACTION`. A test asserting a difference there
+   fails, and the natural fix is to weaken it into a check that proves nothing.
+2. **Error codes differ by engine, so do not key handling on one.** The same
+   probe gives `RESTRICT` → **`23001`** and `NO ACTION` → `23503` on Postgres,
+   while `infra/docs/dsql-ddl-first-contact.md` records **DSQL returning
+   `23503`** for a `RESTRICT` refusal. Anything branching on the code matches on
+   the cluster and misses in a local PGlite test.
+3. **ONE API form for all six.** `foreignKey({ name, columns, foreignColumns })
+   .onDelete('restrict')`, table-level, including the two single-column keys —
+   the column-level `references()` has no `name` slot, so drizzle would derive
+   `account_user_id_app_user_user_id_fk` and break `user.ts`'s rule that
+   constraint names match the generated SQL. **`asset.user_id → app_user.user_id`
+   is easy to miss** — `asset` is the one per-user table whose `user_id` reaches
+   `app_user` by no path at all.
+4. **`asset.delete` runs D138's sequence**, whose first step NULLS every
+   settlement link into the asset before anything is deleted. The SQL is D138's;
+   do not paraphrase it — the user-scoping, the key-set batching and the
+   one-transaction-per-batch rule all travel with it and not with a summary.
+5. **A failure ANYWHERE restarts at step 1**, never at the failed step: a `tax`
+   inserted between steps re-creates a reference, and resuming mid-sequence
+   spins on `23503` forever.
+6. **Probe TWO things on DSQL, not one.** `WHERE (user_id, id) IN (SELECT …
+   LIMIT $n)` is valid Postgres and unverified on the cluster — and so is
+   **`ON DELETE RESTRICT` on a late `NOT VALID` key**, which is the shape this
+   phase actually ships: D99 probed `RESTRICT` **inline** inside a
+   `CREATE TABLE`, and only the `CASCADE` half was probed post-hoc. D138's
+   tiebreaker rests on that measurement, so the gap is its own to close.
+7. **`transaction.delete` gains a refusal that has no equivalent today, and
+   nothing else records it.** There is no settlement link in the app yet —
+   `settlesPayoutId` appears **nowhere** in `src/`, and `Transaction` carries
+   `id/date/type/assetId/amount/source/quantity?/unitPrice?` and nothing more;
+   the column is W7-schema-only. So `deleteTransaction` cannot orphan anything
+   today, and after W7 the self-referential key makes deleting a payout that a
+   `tax` row settles refuse `23503`. **That is a new control, not a changed
+   one** — and D138 rules the ASSET cascade only, so what `transaction.delete`
+   should do about it is unruled.
+
+8. **One more unknown, from the same page.** Drizzle emits the reference
+   schema-qualified — `REFERENCES "public"."app_user"(…)` — and
+   `infra/docs/dsql-alter-limits.md` records that the statement *"was read, never
+   executed"*, while every probe on that page runs with `public` off the
+   `search_path`. **Whether the qualification is harmless is UNKNOWN**, and it
+   fires the moment the keys are written.
+
+9. **The confirm dialog owes one line, and it is the only user-visible item
+   here.** `cascadeCounts` (`screens/portfolio/portfolio.ts`, called at
+   `AssetDialogs.tsx:48`) counts the target asset's own transactions and
+   snapshot days — nothing else. Step 1 also nulls settlement links on rows
+   belonging to **other** assets, permanently and before anything is deleted.
+   **Porting the dialog verbatim ships that silence**, so the confirmation has
+   to say it.
+
+**Third promotion rewrite rule, now live:** append `NOT VALID` to every generated
+`ALTER TABLE … ADD CONSTRAINT`, beside D99's insert-`ASYNC` and
+strip-`USING btree`.
 
 **W7 SEEDS FRESH DEMO DATA — it does NOT carry the local data across** (owner,
 2026-09-01). There is no live user and therefore no live data, so there is

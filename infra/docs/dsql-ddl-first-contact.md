@@ -176,7 +176,8 @@ none.** The grounds were that it removes the nightly integrity audit
 `../../docs/superpowers/specs/data-model/ledger.md` specifies, that cascade
 behaviour interacts with DSQL's 3,000-row transaction limit, and that a key can
 be added later anyway (D100). Adoption was **O33**'s and is ruled: **D137,
-2026-09-03 — adopted with `ON DELETE NO ACTION`**, amending D101.
+2026-09-03 — adopted, and with `ON DELETE RESTRICT` per D138**, which
+superseded D137's `NO ACTION`. Amends D101.
 
 ## Reproduce
 

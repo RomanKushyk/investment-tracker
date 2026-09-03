@@ -4,25 +4,126 @@
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
 // two stay comparable statement for statement. **O33 RULED 2026-09-03 (D137,
-// amending D101): this schema TAKES foreign keys, with `ON DELETE NO ACTION`.**
+// amending D101, and D138 for the action): this schema IS RULED to take foreign
+// keys with `ON DELETE RESTRICT`, and it DECLARES NONE YET.** There is no
+// foreign key below, so the generated SQL carries no `ADD CONSTRAINT` — that is
+// W7's work, not a broken generator.
 // The instruction here used to be the opposite and is retracted, not softened —
 // "declares no FOREIGN KEY … do not add one here to 'fix' a dangling reference"
 // was D101's ruling and D101 is amended.
 //
-// **`NO ACTION`, never `RESTRICT`, and never `CASCADE`.** `CASCADE` is out
-// because AWS's `CREATE TABLE` guidance says cascading actions count towards
-// the transaction modification limit, and DSQL's is 3 000 mutated rows against
-// a `user_price` grain of one row per asset per date. `RESTRICT` is out because
-// it is checked immediately per row: a `tax` row and the payout it settles
-// carry the same `asset_id`, so one `DELETE FROM transaction WHERE asset_id=$1`
-// removes both, and `RESTRICT` refuses the payout `23503` before reaching the
-// tax row. `NO ACTION` defers to end of statement and passes.
+// **`ON DELETE RESTRICT`, never `CASCADE`** (D137 for the shape, **D138 for the
+// action** — D137 said `NO ACTION` and was superseded). **`CASCADE` is out**
+// because AWS's `CREATE TABLE` guidance says cascading actions count towards the
+// transaction modification limit, and DSQL's is 3 000 mutated rows against a
+// `user_price` grain of one row per asset per date — so it would not have
+// removed the batching it appears to replace.
 //
-// **Deletion is a BATCHED application cascade** — `user_price`, then
-// `transaction`, both looped under the ceiling, and the asset LAST so a failure
-// midway is resumable. The keys are the invariant beneath it, not the mechanism.
+// **USE `foreignKey({ name, columns, foreignColumns }).onDelete('restrict')`
+// FOR ALL SIX — including the two single-column ones.** A draft of this comment
+// prescribed the column-level `references(ref, { onDelete: 'restrict' })` for
+// those two; it works, but it **cannot carry a NAME** (only `foreignKey()`'s
+// config has a `name` slot), so drizzle derives one —
+// `account_user_id_app_user_user_id_fk`. This file's own header requires
+// constraint names identical to the generated SQL's, and
+// `infra/docs/dsql-alter-limits.md` already records the intended shape as
+// `account_user_fk`. **One form for all six keeps the names ours and the rule
+// unbroken.** Three API facts, all checked against the installed drizzle:
 //
-// **Adding one is not free.** Drizzle emits a `references()` as a bare
+//   1. Column-level `references(ref, actions?)` is SINGLE-COLUMN, so it could
+//      not express four of these six anyway. They are composite because
+//      contract 3 leads each per-user PK with `user_id`:
+//        - `transaction.(user_id, asset_id)          -> asset.(user_id, id)`
+//        - `transaction.(user_id, settles_payout_id) -> transaction.(user_id, id)`
+//        - `transaction.(user_id, account_id)        -> account.(user_id, id)`
+//        - `user_price.(user_id, asset_id)           -> asset.(user_id, id)`
+//      Writing `references(() => asset.id, ...)` emits a single-column reference
+//      to `asset("id")`, which has no unique constraint, and the cluster rejects
+//      it `42830`. **TWO of the six are single-column** — `app_user`'s PK is
+//      `(user_id)` alone — and they take the same table-level builder, for the
+//      naming reason above:
+//        - `account.user_id -> app_user.user_id`
+//        - `asset.user_id   -> app_user.user_id`
+//      The second was missing from a first draft of this list. `transaction`
+//      reaches `app_user` through `account` and `user_price` through `asset`,
+//      but **`asset`'s own `user_id` anchors to nothing**, so without it an
+//      asset row for a nonexistent user stays possible after W7 ships.
+//   2. `foreignKey()`'s config takes `name`/`columns`/`foreignColumns` —
+//      **the action is a chained method, not a config field.**
+//   3. A column-level `references()` has no `name` slot at all, which is what
+//      rules it out here even for the two keys it could express.
+//
+// **`no action` IS DRIZZLE'S DEFAULT**, so omitting `.onDelete('restrict')`
+// silently emits `ON DELETE no action`, the action D138 supersedes.
+//
+// **`schema-generated.test.ts` IS NOT A GUARD HERE** — it regenerates the SQL
+// FROM THIS FILE and compares it to the committed `003_user_schema.sql`, which
+// is regenerated whenever the schema changes: omit the action and BOTH sides say
+// `no action`, and it is green. It catches a hand edit of the artifact, never a
+// wrong action in the source.
+//
+// **THE GUARD IS A TEXT ASSERTION OVER THE GENERATED SQL** — assert each of the
+// six keys carries `ON DELETE restrict`. Cheap, deterministic, and it catches
+// exactly the omission above.
+//
+// **DO NOT REACH FOR A BEHAVIOURAL TEST ON THE PAYOUT/`tax` PAIR.** Three drafts
+// of this comment went wrong here in three directions — the last claimed
+// `RESTRICT` and `no action` are distinguishable by one
+// `DELETE FROM transaction WHERE asset_id = $1`. **Measured in PGlite: that
+// statement SUCCEEDS under both.** Postgres fires `RESTRICT` as a
+// non-deferrable AFTER-ROW trigger at end of STATEMENT, exactly like
+// `NO ACTION`; what separates them is deferrability ACROSS statements. A test
+// asserting a difference there fails, and the natural fix is to weaken it into
+// one that proves nothing — the `D43`/`D89` shape `RULES.md` catalogues.
+//
+// **And the refusal's SQLSTATE differs by engine:** PGlite/Postgres gives
+// `23001` for `RESTRICT`, while DSQL gives `23503`
+// (`infra/docs/dsql-ddl-first-contact.md`). Anything branching on the code
+// matches on the cluster and misses locally.
+//
+// **`NO ACTION` is out because this repository has never probed it, in any
+// shape.** `RESTRICT`, the action chosen over it, is probed — but only INLINE,
+// inside a `CREATE TABLE`, and **not** in the post-hoc
+// `ALTER TABLE … ADD CONSTRAINT … NOT VALID` form drizzle emits and this phase
+// ships. (`CASCADE`, which is rejected on other grounds, IS the one measured in
+// that shipping form.) So the chosen action still owes a DSQL round in the
+// shape it will actually take — D138 says so, and it is obligation 5 in W7's
+// body.
+// `infra/docs/dsql-alter-limits.md`'s foreign-key section records them and is
+// the provenance. **It attributes `ON DELETE RESTRICT` to D99 round 3
+// explicitly**, which is the measurement this ruling turns on and which D138 and
+// `W7-API-CONTRACT.md` both cite. The rest of that section draws on the page's
+// own rounds 6-7 without splitting them further, so cite the page for anything
+// beyond `RESTRICT`.
+//
+// **Deletion is a BATCHED application cascade, and step 1 is what makes the
+// self-referential `settles_payout_id` key safe** — first
+// NULL every settlement link pointing INTO this asset, then the asset's
+// transactions, then `user_price`, and the asset LAST so a failure midway is
+// resumable — **and RESUME MEANS RESUME THE SEQUENCE, NOT THE STEP** (D138): a
+// `tax` inserted between step 1's last batch and step 2 re-creates a live
+// reference, so a retry restarting at the failed step spins on `23503` forever.
+// (This comment previously ordered the two children the other way
+// round. **Nothing turns on it** — neither child references the other, so any
+// order satisfies the keys — and the sequence now matches D138's SQL rather
+// than diverging from it silently.) **The exact SQL is D138's and is deliberately NOT copied here** —
+// it has three properties a paraphrase loses: every predicate is USER-SCOPED
+// (`id` is unique only within a user, exactly as `transaction_settles_uq` below
+// argues), each step batches through a key-set sub-select because Postgres
+// accepts no `LIMIT` on `UPDATE`/`DELETE`, and **each batch is its own
+// TRANSACTION**, since DSQL's 3 000-row ceiling is per transaction and a loop
+// inside one would not clear it.
+//
+// **It NULLS the link rather than deleting the settling row, and both halves of
+// that matter** (D138 has the working): an `UPDATE` removes references without
+// removing rows, so a batched step cannot strand a chain — a `tax` settling a
+// `tax` is schema-legal, since `transaction_settles_ck` constrains only the
+// SETTLING row's type — and a `tax` filed against ANOTHER asset that settles
+// this one's payout keeps its amount, losing only the link. Deleting it instead
+// would be issue #34's shape: a row destroyed for carrying a reference.
+//
+// **Adding one is not free.** Drizzle emits a foreign key — the column-level
+// `references()` and the table-level `foreignKey()` builder alike — as a bare
 // `ALTER TABLE … ADD CONSTRAINT`, which DSQL refuses unless promotion appends
 // `NOT VALID` — the third rewrite rule, which D137 makes live rather than
 // conditional. At W7 that `ALTER` runs on newly created EMPTY tables and W7

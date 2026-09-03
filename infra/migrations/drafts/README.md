@@ -38,7 +38,12 @@ reviewed, and only then promoted.
   all work. The list is what was PROBED, not a closed set — `EXCLUDE`,
   `SET SCHEMA`, `SET STORAGE` and deferrability changes have no answer here.
   Working: [`../../docs/dsql-alter-limits.md`](../../docs/dsql-alter-limits.md).
-- **DSQL HAS foreign keys, and this schema declares none.** Measured
+- **DSQL HAS foreign keys. This schema declares none YET — the ruling exists,
+  no key is declared — and under the ruling **all six will be table-level
+  `foreignKey({ name, … }).onDelete('restrict')`**, never a column-level
+  `references()`, because only the former carries a name and this repo requires
+  constraint names to match the generated SQL. So grepping for `references(`
+  proves nothing either way.** Measured
   2026-08-27 (**D99**, working in [`../../docs/dsql-ddl-first-contact.md`](../../docs/dsql-ddl-first-contact.md)):
   a composite `FOREIGN KEY (…) REFERENCES (…) ON DELETE RESTRICT` is accepted
   and enforced both ways. The rule that stood here said `REFERENCES` was absent
@@ -57,18 +62,29 @@ reviewed, and only then promoted.
   a THIRD rewrite rule:** append `NOT VALID` to every generated
   `ADD CONSTRAINT`, or the cluster refuses it. And adopt only behind a clean
   integrity audit — a late key never validates the rows already there.~~
-  **THEY ARE DECLARED — O33 ruled 2026-09-03
-  ([D137](../../../docs/decisions/D137.md)), which amends D101.** W7 takes
-  foreign keys with **`ON DELETE RESTRICT`**, so **the third rewrite rule is
+  **THEY ARE RULED IN, NOT YET WRITTEN — O33 ruled 2026-09-03
+  ([D137](../../../docs/decisions/D137.md)), which amends D101.** The wording
+  here said "THEY ARE DECLARED", which a reader could take as the promotion
+  output already carrying `ADD CONSTRAINT` lines. It does not:
+  [`../../schema/user.ts`](../../schema/user.ts) holds the ruling in comments and
+  no `references()` call, and adding them is W7's work. W7 takes
+  foreign keys with **`ON DELETE RESTRICT`** ([D138](../../../docs/decisions/D138.md)
+  supersedes D137's `NO ACTION`), so **the third rewrite rule is
   live, not conditional**: append `NOT VALID` to every generated
   `ALTER TABLE … ADD CONSTRAINT`, or the cluster refuses it. Two of D101's three
   grounds above no longer hold and D137 says which — the delete-order reversal
   is required by BATCHING regardless, and the clean-audit precondition is
   vacuous at W7 because the `ALTER` runs on newly created EMPTY tables and W7
-  seeds fresh data (D128). The third ground stands and is what chose `RESTRICT`
-  over `CASCADE`: AWS's guidance says cascading actions count towards the
+  seeds fresh data (D128). The third ground stands and is what ruled out
+  `CASCADE`: AWS's guidance says cascading actions count towards the
   transaction modification limit, and DSQL's is 3 000 mutated rows against a
-  `user_price` grain of one row per asset per date.
+  `user_price` grain of one row per asset per date. **It did NOT choose between
+  the two non-cascading actions.** D137 tried to, on the self-referential
+  `settles_payout_id` key, and got it wrong; **D138** settles it — the key is
+  handled by a first step that **NULLS** every settlement link into the asset
+  (an `UPDATE`, never a delete: deleting would strand chains and destroy another
+  asset's `tax` row), which makes both actions safe, and `RESTRICT` then wins
+  because it is the one D99 measured.
 - **Promotion rewrites every index line TWICE — insert `ASYNC`, strip
   `USING btree` — uniformly or not at all. A RULE over the generated file, not
   a per-line marker.** Measured 2026-08-27 (**D99**): DSQL rejects `USING btree`

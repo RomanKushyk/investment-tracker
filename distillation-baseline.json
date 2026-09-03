@@ -88,7 +88,7 @@
   },
   "commentChars": {
     "infra/drizzle.config.ts": 1203,
-    "infra/schema/user.ts": 11619,
+    "infra/schema/user.ts": 18087,
     "infra/src/bind-params.test.ts": 3644,
     "infra/src/bond-terms.test.ts": 397,
     "infra/src/bond-terms.ts": 3064,
@@ -348,11 +348,15 @@
   "docLineCounts": {
     "docs/decisions/D129.md": 206,
     "docs/decisions/D134.md": 216,
-    "docs/plans/phase-w-i-ii-iii.md": 251,
+    "docs/decisions/D138.md": 371,
+    "docs/plans/phase-w-i-ii-iii.md": 320,
     "docs/reference/DEPENDABOT.md": 344,
+    "docs/reference/W7-API-CONTRACT.md": 223,
     "docs/superpowers/plans/2026-08-26-schema-parity-and-knowledge.md": 206,
     "docs/superpowers/specs/2026-09-03-w7-read-surface-design.md": 276,
+    "infra/docs/dsql-alter-limits.md": 208,
     "infra/docs/w3-window.md": 239,
+    "infra/migrations/drafts/README.md": 204,
     "src/distillation/README.md": 203
   }
 }

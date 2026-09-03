@@ -10,7 +10,9 @@
 > keys, and that cannot be weighed without knowing whether the answer can be
 > revisited. It can — and O34 was ruled on 2026-08-28 (**D101**): W7 ships
 > none, and adoption folded into O33 — **which ruled on 2026-09-03 (D137,
-> amending D101): the keys ARE adopted, `ON DELETE NO ACTION`.** None of what is
+> amending D101): the keys ARE adopted, `ON DELETE RESTRICT` — D137 said
+> `NO ACTION` and [D138](../../docs/decisions/D138.md) superseded it, partly
+> BECAUSE this page never measured `NO ACTION`.** None of what is
 > measured here expires, and this page is what D137 read.
 >
 > **This page was wrong twice and is corrected below**, both times the same
@@ -101,9 +103,23 @@ So uniqueness IS available after creation — as an index, never as a
 
 ## Foreign keys, measured for the shape THIS schema would need
 
-Recorded so O33 decides on evidence rather than on a summary of it — **it did, on
-2026-09-03 (D137), and chose `NO ACTION`**. From D99's
-round 3 and this page's rounds 6–7:
+Recorded so O33 decides on evidence rather than on a summary of it. **It did, on
+2026-09-03 (D137), and D138 corrected its action to `ON DELETE RESTRICT` — the
+one measured below.**
+
+**`NO ACTION` was never PROBED.** It does appear on this page — the
+`ON DELETE no action` in the drizzle output further down — which the same
+section says was *read, never executed*: a default in generated text is not a
+measurement. **That default is itself the hazard**, since a `references()` which
+does not set the action explicitly ships it silently. **Four of the
+six keys W7 needs are composite** and take the table-level
+`foreignKey(...).onDelete('restrict')`; the two anchoring `account` and `asset`
+to `app_user` are single-column, but take the SAME table-level builder — the
+column-level `references()` has no `name` slot, and this page's own recorded
+output below names the constraint `account_user_fk`, which drizzle emits only
+from `foreignKey({ name, … })`. **Six of six, one form.**
+
+From D99's round 3 and this page's rounds 6–7:
 
 - **A composite key on a NULLABLE column behaves as `transaction` needs.** Under
   `MATCH SIMPLE` (the default) a row with `asset_id IS NULL` is not checked, so
@@ -112,7 +128,14 @@ round 3 and this page's rounds 6–7:
 - **Self-referential keys work** — `settles_payout_id → transaction(user_id, id)`
   accepted a tax row settling a real payout and refused one pointing at nothing.
 - **`ON DELETE CASCADE` deletes**, including on a key added late as `NOT VALID`;
-  **`ON DELETE RESTRICT` refuses** (D99 round 3).
+  **`ON DELETE RESTRICT` refuses** (D99 round 3). **THE TWO HALVES ARE NOT
+  EQUALLY COVERED, and the asymmetry matters to D138.** The `CASCADE` half was
+  probed on a late `NOT VALID` key; the `RESTRICT` half was probed **inline**, as
+  a `CONSTRAINT … FOREIGN KEY … ON DELETE RESTRICT` inside a `CREATE TABLE`
+  (`dsql-ddl-first-contact.md`). **W7 ships neither shape** — drizzle emits a
+  post-hoc `ALTER TABLE … ADD CONSTRAINT`, which promotion must append
+  `NOT VALID` to. So `RESTRICT`-as-`NOT VALID` is unprobed, and W7's owed DSQL
+  round covers it.
 - **No index is created per foreign key** — `pg_get_indexdef` on the
   FK-carrying table showed only its primary key.
 - **The referenced table must already exist**: `42P01` otherwise.

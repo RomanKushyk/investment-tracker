@@ -46,7 +46,7 @@ to consume 400.
 
 ### Tests that must exist before the change is done
 
-The failing-test-first rule applies, and these are the three the ruling's
+The failing-test-first rule applies, and these are the four the ruling's
 reasoning names:
 
 - [ ] **Both bounds truncating at once continues from the CURSOR, not the

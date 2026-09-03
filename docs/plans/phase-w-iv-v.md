@@ -45,7 +45,7 @@ These two are **not blocked** — they are deferred on purpose, and the reason i
 
 Not a judgment call. It is built directly on the repository write surface, which W7 replaces — building it first means building it twice.
 
-Two things already decided that shape it: `deleteAsset` is retired (assets accumulate, nothing is deleted), so the browser may edit but not delete assets; and impact hints are derived from core (`"removes 14 transactions, quotes on 174 days; Income received −₴472,13"`), not counted in the component.
+Two things already decided that shape it: `deleteAsset` is retired (assets accumulate, nothing is deleted), so the browser may edit but not delete assets — **and that exception survived W7's `asset.delete` op, ruled 2026-09-03 ([D138](../decisions/D138.md)): the op carries the PORTFOLIO dialog across, not a browser control. The line is that the browser deletes ROWS (a transaction, a snapshot) while the portfolio deletes an ENTITY that owns rows, and a row of an asset in a table looks like any other row while costing a year of history**; and impact hints are derived from core (`"removes 14 transactions, quotes on 174 days; Income received −₴472,13"`), not counted in the component.
 
 ## W15 — Import the provider's fund NAV history — **GATE MET 2026-09-03**
 

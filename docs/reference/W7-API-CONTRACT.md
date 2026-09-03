@@ -5,7 +5,7 @@
 > undecided — O28, the derivation boundary — was ruled on 2026-09-03 by
 > [D136](../decisions/D136.md), and rows 1–3 of §1 moved with it**: the three
 > list reads become `GET /view`, not `GET /state`. The `POST /mutations` op
-> vocabulary did not move. **O33 closed the same day as [D137](../decisions/D137.md)** — see §4, which now pins `asset.delete`'s semantics.
+> vocabulary did not move. **O33 closed the same day as [D137](../decisions/D137.md) + [D138](../decisions/D138.md)** — D137 the shape, D138 the action; see §4, which now pins `asset.delete`'s semantics.
 >
 > Pinned elsewhere and assumed here: the auth shape (D32/D36/D38/D39), the
 > user schema and its OCC rule ([`../../infra/schema/user.ts`](../../infra/schema/user.ts),
@@ -48,9 +48,9 @@ each other or `derive.ts` produces a figure from mismatched halves.
 | 5 | `recordTransaction` | `POST /mutations` | `transaction.add` **+ optional `asset.add`** | ONE op list, not two requests — the quick-create path creates the asset and the row that needs it together, and half of that landing is a transaction naming an asset that does not exist |
 | 6 | `addAsset` | `POST /mutations` | `asset.add` | |
 | 7 | `updateAsset` | `POST /mutations` | `asset.patch` | patch, not put — `assetPatchFromForm` already sends a subset |
-| 8 | `deleteAsset` | `POST /mutations` | `asset.delete` | **cascade was O33's and is now [D137](../decisions/D137.md)'s** — batched, children first, parent last, with `ON DELETE RESTRICT` keys beneath it. The client hand-cascades today — **and that cascade is a live data-loss bug (issue #34):** it deletes by `assetId` rather than by type, so a pre-2026-09-02 deposit that borrowed an asset's id is destroyed with it. Do not port the semantics under O33's cover |
+| 8 | `deleteAsset` | `POST /mutations` | `asset.delete` | **This op carries the PORTFOLIO dialog across and creates no new surface** — `NEXT-PHASE-PLAN.md`'s pinned `deleteAsset` row keeps the method and forbids only a NEW dependent, and a delete control on W14's assets tab would be one (owner, 2026-09-03; [D138](../decisions/D138.md)). **cascade was O33's and is now [D137](../decisions/D137.md)'s** — batched, and **step 1 NULLS every settlement link into the asset** (an `UPDATE`, not a delete) before the transactions, then `user_price`, and the asset LAST — with **`ON DELETE RESTRICT`** keys beneath it ([D138](../decisions/D138.md) supersedes D137's action: the order is what makes it safe, and `RESTRICT` is the action D99 measured — **though only INLINE, never on the late `NOT VALID` key W7 emits, so D138 downgrades its own tiebreaker to *measured in a neighbouring shape against measured nowhere at all* and leaves W7 a probe**). The client hand-cascades today — **and that cascade is a live data-loss bug (issue #34):** it deletes by `assetId` rather than by type, so a pre-2026-09-02 deposit that borrowed an asset's id is destroyed with it. Do not port the semantics under O33's cover |
 | 9 | `updateTransaction` | `POST /mutations` | `transaction.patch` | **THE ONLY UNVALIDATED WRITE PATH — put `transactionSchema` in front of it.** It takes a bare `Partial<Transaction>` with no schema, and D128's *every door is closed* table omits it only because the HOOK has no caller. Building this op without D124's rule reopens the count-less position-moving row |
-| 10 | `deleteTransaction` | `POST /mutations` | `transaction.delete` | |
+| 10 | `deleteTransaction` | `POST /mutations` | `transaction.delete` | **The self-referential key reaches this op too, and D138 does not rule it — registered as `PLAN-OPEN.md` O36.** Deleting a payout that a `tax` row settles refuses `23503` under `RESTRICT` — a safe default, not an answer. Same class as the `account.delete` gap D138 names |
 | 11 | `deleteSnapshot` | `POST /mutations` | `snapshot.delete` | by date |
 | 12 | `moveSnapshotDate` | `POST /mutations` | `snapshot.move` | ONE op, not delete+put: the pair is not idempotent under retry, and a retried half leaves the day gone. **Keep the precondition** — the client throws if `to` already holds a snapshot (and if `from` holds none), so a server op without it silently overwrites a day's quotes |
 | 13 | `getMeta` | — | — | **stays local, §2** |
@@ -164,11 +164,40 @@ been given an API.
   vocabulary is untouched, exactly as this section predicted it would be either
   way. Design:
   [`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md).
-- **~~O33 — deletion.~~ CLOSED 2026-09-03 as [D137](../decisions/D137.md).**
+- **~~O33 — deletion.~~ CLOSED 2026-09-03 as [D137](../decisions/D137.md) + [D138](../decisions/D138.md)** — D137 ruled the shape, D138 the action.
   `asset.delete` and `transaction.delete` appear above with no cascade semantics
   because the ruling had not been made; it now has. The server performs an
   application cascade **in batches, children first and the parent last**, and the
-  schema declares foreign keys with **`ON DELETE RESTRICT`** — which amends D101.
+  schema is RULED to take foreign keys with **`ON DELETE RESTRICT`** — which amends D101. **It declares none yet**: `infra/schema/user.ts` holds the ruling in comments and no key, so the generated SQL carries no `ADD CONSTRAINT` until W7 writes them.
+  **[D138](../decisions/D138.md) settled the action after D137 got it wrong:**
+  the self-referential `settles_payout_id` key is handled by ORDER, not by the
+  action. **Step 1 NULLS the settlement link rather than
+  deleting the settling row** — an `UPDATE` nulling every settlement link that
+  points INTO this asset. **[D138](../decisions/D138.md) carries the exact SQL
+  and this document does not copy it**, because three properties travel with it
+  and not with a paraphrase: every predicate is user-scoped, each step batches
+  through a key-set sub-select (Postgres takes no `LIMIT` on `UPDATE`/`DELETE`),
+  and each batch is its own transaction. It also
+  selects by what a row SETTLES, not by its own `asset_id`, because nothing ties
+  the two and a `tax` on asset B may settle asset A's payout. An
+  `UPDATE` removes references without removing rows, so a batched step cannot
+  strand a chain (a `tax` settling a `tax` is schema-legal) and no other asset
+  loses a transaction — deleting one would be issue #34's shape. **No CHECK is
+  owed**;
+  D137's proposed *CHECK mirroring `targetsAsset`* could not have worked, since
+  `targetsAsset('tax')` is `true` and forces some asset, never the same one.
+  D137 had switched to `NO ACTION` on an end-of-*statement* rescue that batching
+  defeats, and `NO ACTION` has never been probed against DSQL while `RESTRICT`
+  has (D99 round 3). **`no action` is drizzle's default emission**, so every
+  key must set the action explicitly. **Four of the
+  SIX are composite** — contract 3 leads every per-user PK with `user_id` — so
+  they need the table-level
+  `foreignKey({ columns, foreignColumns }).onDelete('restrict')`. **Two are
+  single-column** and take the SAME table-level builder, because the column-level
+  `references()` carries no `name` and would break the schema's naming rule: `account.user_id → app_user.user_id` and
+  `asset.user_id → app_user.user_id`, the second of which anchors `asset`, whose
+  `user_id` otherwise reaches `app_user` by no path at all.
+
   `CASCADE` was rejected on a measurement: AWS's guidance says cascading actions
   count towards the transaction modification limit, DSQL's is 3 000 mutated rows,
   and `user_price` holds one row per asset per date. **The `asset.delete` op's
