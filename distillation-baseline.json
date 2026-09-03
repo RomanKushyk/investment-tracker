@@ -328,6 +328,7 @@
     "docs/design-briefs/screen-density-quotes-and-transactions.md": 2,
     "docs/design-briefs/screen-density/findings-and-constraints.md": 2,
     "docs/superpowers/specs/2026-08-26-verifiable-documentation-design.md": 2,
+    "docs/superpowers/specs/2026-09-03-w7-read-surface-design.md": 3,
     "infra/docs/dsql-ddl-first-contact.md": 1,
     "infra/docs/w3-window.md": 1,
     "infra/migrations/drafts/README.md": 1,
@@ -350,6 +351,7 @@
     "docs/plans/phase-w-i-ii-iii.md": 251,
     "docs/reference/DEPENDABOT.md": 344,
     "docs/superpowers/plans/2026-08-26-schema-parity-and-knowledge.md": 206,
+    "docs/superpowers/specs/2026-09-03-w7-read-surface-design.md": 267,
     "infra/docs/w3-window.md": 239,
     "src/distillation/README.md": 203
   }

@@ -37,6 +37,24 @@ against cost — and the balance axis is WHEN it computes, not how much:
 shapes the W7 API surface (`GET /state` vs materialized reads). Decide at W7
 design, with a decision number.
 
+**2026-09-03 — the direction above is SUPERSEDED by the owner, and this
+question is now gated on a spec.** The four-tier rule's tier 2 said user-data
+derivations *may* materialize; the owner's ruling of 2026-09-03 goes further —
+the backend serves **ready data**, endpoints are **grouped rather than one per
+screen**, the client stores **as close to nothing as possible**, and
+`src/core/derive.ts` **runs server-side** (an import, as `infra/src/capture.ts`
+already imports four `src/core/` modules — not a port).
+
+A ruling that re-affirmed client-side derivation was drafted the same day and
+**discarded unmerged** when the direction changed; nothing of it reached `dev`.
+The owner then ruled *спершу специфікація, потім рішення*, so **O28 may not be
+answered except against**
+[`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md),
+which decides the four things the owner named: `/view`'s composition, what the
+client does before the first response, the localStorage→server migration, and
+whether the demo dataset stays local. **The pinned row stays binding until the
+decision entry exists.**
+
 ## O29 — installability without a service worker — open, 2026-08-25
 
 D92 removed the PWA shell (vite-plugin-pwa and its service worker) from W7.
