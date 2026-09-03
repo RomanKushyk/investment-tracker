@@ -79,18 +79,17 @@ Cited from code by bare number (`D5`, `D30`), so numbers never change.
 
 ## Where it is going
 
-[`superpowers/specs/`](superpowers/specs/) holds the design specs. **Two are
-live and load-bearing; the third is a GATE and binds nothing yet:**
+[`superpowers/specs/`](superpowers/specs/) holds the design specs. **All three are live and load-bearing:**
 
 - [`2026-08-04-cloud-stack-and-cost.md`](superpowers/specs/2026-08-04-cloud-stack-and-cost.md)
   — why this stack, what it costs, and the gates on each phase.
 - [`2026-08-04-data-model.md`](superpowers/specs/2026-08-04-data-model.md)
   — what is stored and why, including the columns that cannot be added later.
 - [`2026-09-03-w7-read-surface-design.md`](superpowers/specs/2026-09-03-w7-read-surface-design.md)
-  — **W7's read surface, and it is NOT yet decided.** The owner's direction of
-  2026-09-03 sends the derivation to the server; this spec is what `PLAN-OPEN.md`
-  **O28** must be answered against, and the cloud-stack spec's
-  `Derivation \| 100% client-side` row stays binding until that entry exists.
+  — **W7's read surface, and it IS decided**: `PLAN-OPEN.md` **O28** was ruled
+  against it the same day as [`D136`](decisions/D136.md), which supersedes the
+  cloud-stack spec's `Derivation \| 100% client-side` row. Read the spec for the
+  working, D136 for what binds.
 
 **This folder stays where it is on purpose**: it is written to by tooling, so
 moving it would split new specs from old ones. It is surfaced here instead.

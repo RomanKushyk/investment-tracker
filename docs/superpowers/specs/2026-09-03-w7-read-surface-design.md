@@ -5,10 +5,11 @@ drafted ruling that re-affirmed client-side derivation. **This spec exists
 because `PLAN-OPEN.md` O28 may not be answered without one** — the owner ruled
 "спершу специфікація, потім рішення".
 
-> **Nothing here is decided until O28's decision entry cites it.** The pinned row
-> `Derivation | 100% client-side` in
-> [`2026-08-04-cloud-stack-and-cost.md`](2026-08-04-cloud-stack-and-cost.md)
-> stays binding until then. A53's
+> **RULED 2026-09-03 as [`D136`](../../decisions/D136.md)**, which cites this
+> file as its working. The pinned row `Derivation | 100% client-side` in
+> [`2026-08-04-cloud-stack-and-cost.md`](2026-08-04-cloud-stack-and-cost.md) is
+> **superseded**, not merely questioned. This document is the design; D136 is
+> what binds. A53's
 > [`W7-API-CONTRACT.md`](../../reference/W7-API-CONTRACT.md) **§1 IS changed by
 > this document, in one direction only**: its rows 1–3 (`listAssets`,
 > `listSnapshots`, `listTransactions`) map to `GET /state`, and here they move to
@@ -60,7 +61,7 @@ this session's own earlier claim that the response uniformly shrinks.
 
 | Endpoint | Carries | Parameters |
 |---|---|---|
-| `GET /view` | **everything that collapses** — every KPI and every per-asset row set, **for all 6 `PERIOD_OPTIONS` at once**, in ₴ plus the FX rate | **none** |
+| `GET /view` | **everything that collapses** — every KPI and every per-asset row set, **for all 6 `PERIOD_OPTIONS` at once**, in ₴ plus `fx`, the live NBU rate the server fetches (§3 — **not** from the archive, which has none) | **none** |
 | `GET /view/series` | the yield curve — snapshot-shaped, so one period at a time | `period` |
 | `GET /view/balances` | the Balances table — already paged client-side at 6 rows (`paginateSnapshots`) | `page` |
 | `GET /state` | raw rows, **for export/import and nothing else** (A53 row 15) | none |
@@ -144,19 +145,25 @@ from `payload_gzip` by dividing `buyUAH / buyUSD` is **Inzhur's dealer
 conversion**, not the NBU official rate this field displays; D69 records that it
 is **not one rate** (funds 44.7579 against bonds 44.8305, re-measured 44.8086 /
 44.8568) and **not exact** (jitter in the fourth decimal). Substituting it would
-merge two bases, which `CLAUDE.md` and D26/D27 forbid outright. **So the rate is
-a live NBU fetch, and the only open question is which side makes it** — the
-client as today, or a new server-side fetch. This spec does not pick.
+merge two bases, which `CLAUDE.md` and D26/D27 forbid outright. **So the rate is a live NBU fetch — and the owner ruled which side makes it,
+2026-09-03: the SERVER.** `/view` carries `fx`, the backend fetches
+bank.gov.ua and caches it for the day, so one request serves every viewer and
+no browser depends on NBU's CORS policy. The cost is named rather than hidden:
+**a new outbound call in the backend**, on a path that had none.
 
-**2. It retires a pinned contract, and that needs saying out loud.** «Тягнеться
-з API НБУ» is true and is **manual-only and propose-only**. `useNbuRate.ts:5`:
-*"Nothing here writes settings. A fetch produces a value in memory; only the
-user's press in Settings ever stores it"*; `NbuRateFetch.tsx:3` pins A5/G5:
-*"It PROPOSES … `usdRate` stays exactly what it was — a manual override the user
-owns."* Removing storage therefore **removes the user's ability to pin a rate**,
-and retires A5/G5's propose-only contract. That is a product change, not a
-cleanup, and O28's decision entry should say so rather than let it arrive as a
-side effect.
+**2. It retires a pinned contract — put to the owner, and RULED: retire it.**
+«Тягнеться з API НБУ» is true and is **manual-only and propose-only**.
+`useNbuRate.ts:5`: *"Nothing here writes settings. A fetch produces a value in
+memory; only the user's press in Settings ever stores it"*; `NbuRateFetch.tsx:3`
+pins A5/G5: *"It PROPOSES … `usdRate` stays exactly what it was — a manual
+override the user owns."*
+
+So removing storage **removes the user's ability to pin a rate**. That was
+raised as a product change rather than a cleanup, and the owner ruled it
+anyway, 2026-09-03: **the rate is always the live NBU one.** A5/G5's
+propose-only contract is retired, and the Fetch control goes with the field —
+there is nothing left for it to propose to. **What is bought is that the
+displayed rate can never be last year's**; what is given up is the override.
 
 **The reach, stated accurately because it is what an implementer scopes
 against.** Ten non-test files, not the five the first draft named:

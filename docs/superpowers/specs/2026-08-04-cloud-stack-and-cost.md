@@ -20,7 +20,7 @@ Drafted 2026-08-04. D2 (IndexedDB) and D16 (dual datasets) are retired by the mo
 | PWA | ~~**vite-plugin-pwa** — installable shell, network-required, no offline~~ **[D92, 2026-08-25: removed from W7 — cross-browser beats offline, and install needs no service worker; installability alone is `PLAN-OPEN.md` O29]** |
 | Client | `src/lib/repository.ts` becomes an HTTP client behind its existing method signatures |
 | API shape | `GET /state` (whole dataset + version) · `POST /mutations` (one op, `If-Match`) |
-| Derivation | 100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates **[questioned by `PLAN-OPEN.md` O28, 2026-08-25 — this row stays binding until a decision at W7 design rules]** |
+| Derivation | ~~100% client-side. `src/core/` untouched. Server ships raw rows, never aggregates~~ **SUPERSEDED 2026-09-03 by [D136](../../decisions/D136.md)** — derivation moves to the server at W7, as an IMPORT of `src/core/derive.ts` rather than a port. `GET /view` (no parameters, all 6 periods, ₴ + `fx`) plus `/view/series?period` and `/view/balances?page`; `/state` narrows to export and import. The design is [`2026-09-03-w7-read-surface-design.md`](2026-09-03-w7-read-surface-design.md) |
 | Raw payloads | Every provider payload kept **forever** (~8 MB/yr gzipped), so any lifecycle question stays retroactively re-derivable |
 
 All three land at **~$0.02/month**, which is Amplify Hosting alone. Cost does not decide this.

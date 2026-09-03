@@ -1,8 +1,11 @@
 # W7 — the API contract, on paper
 
 > **A53.** Written before W7 so its design session starts from an inventory
-> rather than an excavation. Nothing here is built yet, and **one column of it
-> is deliberately undecided** — see O28 at the bottom.
+> rather than an excavation. Nothing here is built yet. **The column it left
+> undecided — O28, the derivation boundary — was ruled on 2026-09-03 by
+> [D136](../decisions/D136.md), and rows 1–3 of §1 moved with it**: the three
+> list reads become `GET /view`, not `GET /state`. The `POST /mutations` op
+> vocabulary did not move. **O33 is still genuinely undecided** — see §4.
 >
 > Pinned elsewhere and assumed here: the auth shape (D32/D36/D38/D39), the
 > user schema and its OCC rule ([`../../infra/schema/user.ts`](../../infra/schema/user.ts),
@@ -17,14 +20,24 @@ becomes an HTTP client at W7, and this is what each method turns into.
 > `2026-08-04-cloud-stack-and-cost.md` pins `POST /mutations` as **one op** with
 > `If-Match`; the table below makes it an op LIST. The reason is in rows 5 and
 > 12 — two operations are not decomposable without a torn write — but the row
-> stays binding until a decision says otherwise, exactly as the Derivation row
-> does for O28. **Annotated, not superseded.**
+> stays binding until a decision says otherwise. The Derivation row was the
+> other such annotation and is no longer one — [D136](../decisions/D136.md)
+> **superseded** it. **This row is still annotated, not superseded.**
 
 **Reads collapse into ONE request, writes into one op vocabulary.** Three list
-calls that today hit three Dexie tables become a single `GET /state`, because
+calls that today hit three Dexie tables become a single read, because
 every screen needs all three and three round-trips would buy nothing but
 latency and a torn read — assets, snapshots and transactions must agree with
 each other or `derive.ts` produces a figure from mismatched halves.
+
+> **WHICH read changed on 2026-09-03 ([D136](../decisions/D136.md)).** The
+> torn-read argument above is untouched and is in fact what the ruling leans
+> on; what moved is the endpoint. Rows 1-3 are now **`GET /view`** — the
+> server derives and ships the view model — with `/view/series?period` and
+> `/view/balances?page` beside it for the two surfaces that do not collapse.
+> **`GET /state` survives as export and import only.** The rows below are
+> left as written so the change is visible rather than silent; read this
+> block as amending their `Becomes` column.
 
 | # | `repo` method | Becomes | Mutation op | Notes |
 |---|---|---|---|---|
@@ -83,16 +96,18 @@ super-admin, and an ordinary user gets a device- or session-scoped play copy.
 Whether that makes a second dataset a server concept at all is W8's, not this
 document's — but W7 cannot ship `GET /state` without answering it.
 
-## 2. The `meta` keys, sorted — three stay local, one dies
+## 2. The `meta` keys, sorted — two stay local, two die
 
 `meta` is a key-value table today with four keys in use. **None of them becomes
-server state**, and the reasoning differs per key.
+server state**, and the reasoning differs per key. **Two die rather than two:**
+`seeded` with D2, and `nbu:lastRate` with [D136](../decisions/D136.md) — the
+heading said three-stay-one-dies until 2026-09-03.
 
 | Key | Written by | Fate |
 |---|---|---|
 | `inzhur:lastFetch` | `useInzhurAssets.ts` | **stays local.** A cache of the last provider payload, per device. Two devices fetching at different times is correct, not a conflict to resolve |
 | `inzhur:lastParse` | `useInzhurAssets.ts` | **stays local**, same reason |
-| `nbu:lastRate` | `useNbuRate.ts` | **stays local.** The rate is a display convenience; a stale one on one device costs nothing and syncing it would put a provider read in the mutation path |
+| `nbu:lastRate` | `useNbuRate.ts` | ~~**stays local.** The rate is a display convenience; a stale one on one device costs nothing and syncing it would put a provider read in the mutation path~~ **DIES 2026-09-03 ([D136](../decisions/D136.md)).** `usdRate` is stored nowhere, the SERVER fetches NBU, and `/view` carries `fx` — so this cache has nothing left to cache and `useNbuRate.ts` goes with it. **The old reasoning was not wrong and is kept struck through**: it argued against putting a provider read in the MUTATION path, and the ruling puts it on a READ instead |
 | `seeded` | `db.ts`, `repository.ts` | **dies with D2.** It exists to stop the Dexie store re-seeding itself. After W7 there is no local store to seed, and the demo is a server-side row set with an owner (W8) |
 
 So `getMeta`/`setMeta` do not become endpoints. They keep a local
@@ -138,12 +153,17 @@ been given an API.
 
 ## 4. What this document deliberately does not decide
 
-- **O28 — the server-side derivation boundary.** Every read above is drawn as
-  "the server ships rows, the client derives", which is what the cloud-stack
-  spec still pins. **That row is annotated, not superseded.** If O28 rules that
-  user-data derivations may materialize server-side on mutation, `GET /state`
-  gains a sibling and the ETag covers more — the op vocabulary in §1 does not
-  change. Marked here, decided at W7 design, with a number.
+- **~~O28 — the server-side derivation boundary.~~ CLOSED 2026-09-03 as
+  [D136](../decisions/D136.md), and it went the OTHER way from how §1 draws it.**
+  Every read above is written as "the server ships rows, the client derives";
+  the ruling moves the derivation to the server. **`GET /state` gained two
+  siblings rather than one** — `/view` (no parameters, all 6 periods) plus
+  `/view/series?period` and `/view/balances?page`, because `YieldSeriesPoint`
+  and `BalanceRow` are one value per asset per date and do not collapse. **Rows
+  1–3 above therefore point at the wrong endpoint now**; §1's `POST /mutations`
+  vocabulary is untouched, exactly as this section predicted it would be either
+  way. Design:
+  [`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md).
 - **O33 — deletion.** `asset.delete` and `transaction.delete` appear above with
   no cascade semantics on purpose. The client hand-cascades today; whether the
   server keeps that, adds tombstones, or adopts foreign keys is O33's, and an

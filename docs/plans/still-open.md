@@ -6,55 +6,6 @@ Moved verbatim from `PLAN-OPEN.md` on 2026-08-26 as `O05-O29.md`; renamed by sec
 
 # Still open
 
-## O28 — the server-side derivation boundary — open, 2026-08-25
-
-Raised by the owner while preparing W7, in the same conversation that produced
-D92. Two premises moved: **cross-browser now outranks offline** (D92), which
-removes the offline-PWA argument for keeping every derivation on the client;
-and the capture Lambda already imports `src/core/` modules, so "two derivation
-codebases" was never the strong objection — the same tested code can run on
-either side.
-
-**What it questions:** the cloud-stack spec's pinned row — `Derivation | 100%
-client-side. src/core/ untouched. Server ships raw rows, never aggregates` —
-now carries an in-place annotation pointing here. The row is NOT superseded:
-it stays binding until a decision at W7 design re-affirms or replaces it.
-
-**The direction the owner stated (not yet a ruling):** the backend should
-compute what it reasonably can so the client receives ready data, balanced
-against cost — and the balance axis is WHEN it computes, not how much:
-
-- archive-only derivations, identical for all users → server, once per
-  capture (already the case: `ytm`, `clean_rate`, return rates in
-  `price_observation`);
-- user-data derivations independent of view parameters → MAY materialize
-  server-side on mutation, versioned, ETag-cacheable;
-- view-parameter-dependent derivation (period, currency toggle, date ranges)
-  → stays client-side (combinatorics, and the fluid-motion requirement);
-- per-request aggregation → admin reads only (W8).
-
-**Why an agent must not settle it:** it rewrites a pinned spec contract and
-shapes the W7 API surface (`GET /state` vs materialized reads). Decide at W7
-design, with a decision number.
-
-**2026-09-03 — the direction above is SUPERSEDED by the owner, and this
-question is now gated on a spec.** The four-tier rule's tier 2 said user-data
-derivations *may* materialize; the owner's ruling of 2026-09-03 goes further —
-the backend serves **ready data**, endpoints are **grouped rather than one per
-screen**, the client stores **as close to nothing as possible**, and
-`src/core/derive.ts` **runs server-side** (an import, as `infra/src/capture.ts`
-already imports four `src/core/` modules — not a port).
-
-A ruling that re-affirmed client-side derivation was drafted the same day and
-**discarded unmerged** when the direction changed; nothing of it reached `dev`.
-The owner then ruled *спершу специфікація, потім рішення*, so **O28 may not be
-answered except against**
-[`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md),
-which decides the four things the owner named: `/view`'s composition, what the
-client does before the first response, the localStorage→server migration, and
-whether the demo dataset stays local. **The pinned row stays binding until the
-decision entry exists.**
-
 ## O29 — installability without a service worker — open, 2026-08-25
 
 D92 removed the PWA shell (vite-plugin-pwa and its service worker) from W7.
@@ -110,4 +61,5 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D102 — the decision index sheds its rules | `docs/decisions/RULES.md` created; the length cap counts authored lines; D99's two-command rule reverted in all three instruction sites | — (shipped in the ruling itself) |
 | D134 — «Код» widens to 4, derived from the ISIN | **No plan row, deliberately** (D105): issue [#12](https://github.com/RomanKushyk/investment-tracker/issues/12) takes the default path — its own branch, `Closes #12`. Issue [#13](https://github.com/RomanKushyk/investment-tracker/issues/13) is un-parked rather than answered, and left unscheduled | — (the body moved to [`../archive/plan-c/O27.md`](../archive/plan-c/O27.md)) |
 | D135 — the observe window bounds the statement | **A55**, and a new Section R to hold it — `windowEnd = min(to, from + CAP)` at CAP 1 000 days, `complete`/`nextFrom` re-derived from both bounds, the identical change in `observeInzhur` | `PLAN-NOW.md` A55 ([`section-r.md`](section-r.md)) |
+| D136 — the derivation moves to the server | **No task here, and the absence is deliberate**: the work is W7's own, which lives in `PLAN-WAITING.md`. What the ruling produced is a superseded pinned row, three of A53 §1's rows re-pointed, A5/G5 retired, and an amendment `CLAUDE.md`'s eight-shared-files rule owes | [`../superpowers/specs/2026-09-03-w7-read-surface-design.md`](../superpowers/specs/2026-09-03-w7-read-surface-design.md) |
 
