@@ -8,7 +8,7 @@ Written 2026-08-11. Section order is deadline pressure first, then irreversibili
 
 ## Status — what is live
 
-Four rows, **two startable** — A54 and A46. **But they are not the whole of what is startable, and this file cannot show the rest**: `PLAN-WAITING.md` now holds **two items whose gates are MET** — **W7**, whose both halves closed 2026-09-02, and **W15**, ungated the moment W4's Inzhur key was decided. That file's own rule sends a gate-met item here or has it executed there; neither has been done, so a session picking the first non-done row below would miss the largest live work in the project. Read the dated table before treating this list as complete. **W4 closed 2026-09-02 and was archived 2026-09-03** — to `../archive/plan-b/` with its body and both of its rows (D130), taking Section Q with it; the section existed for one row and does not outlive it. The ledger dates the CLOSE by when the work finished, as W1 and W3's rows do, and the move is a separate act. **A53 closed 2026-09-02** and left for the archive with its ledger row, which is how a task closes here. Section order still decides
+Five rows, **three startable** — A54, A46 and A55. **But they are not the whole of what is startable, and this file cannot show the rest**: `PLAN-WAITING.md` now holds **two items whose gates are MET** — **W7**, whose both halves closed 2026-09-02, and **W15**, ungated the moment W4's Inzhur key was decided. That file's own rule sends a gate-met item here or has it executed there; neither has been done, so a session picking the first non-done row below would miss the largest live work in the project. Read the dated table before treating this list as complete. **W4 closed 2026-09-02 and was archived 2026-09-03** — to `../archive/plan-b/` with its body and both of its rows (D130), taking Section Q with it; the section existed for one row and does not outlive it. The ledger dates the CLOSE by when the work finished, as W1 and W3's rows do, and the move is a separate act. **A53 closed 2026-09-02** and left for the archive with its ledger row, which is how a task closes here. Section order still decides
 which comes first and it is the order of the rows here, so the first task is
 the first row that is neither denied nor withdrawn: **A54**. A11 and A52 keep
 their places for their reasons rather than their work — A11 is denied, A52 is
@@ -23,6 +23,8 @@ withdrawn.
 | A54 | Cognito rehearsal on a throwaway pool | `infra/cognito-pool-rehearsal` | S | **startable, scope corrected** — **`usernameAttributes` is the only immutable parameter** (D36); Essentials tier and token validity are mutable, and token validity is D32's, not D36's. The pool proves what a pool can prove: a duplicate-email sign-up is **refused**, which D36 asserts from AWS's table and nothing here has tested. **The MAU question is not measurable on a free-tier pool — it moved to `PLAN-OPEN.md` O30.** Pool deleted the same day |
 | **Section M** | **Input grammar — from O26, closed by D87 (2026-08-25)** | | | |
 | A46 | The number grammar follows the language, and every field groups as it types (D87) | `feat/number-grammar` | M | **startable** — closes O26 by the owner's ruling 2026-08-25. `GROUPED_INTEGER` becomes **English-only** (not deleted), one shared `NumberField` groups live in both languages, and an unsaved draft is re-formatted on a language switch because `useDraft` stores strings |
+| **Section R** | **The observe window — from O32, closed by D135 (2026-09-03)** | | | |
+| A55 | Bound the observe statement, and derive completeness from both bounds (D135) | `infra/observe-window-bound` | S | **startable** — the SQL side of `observeNbu` has no bound at all today, so `{observe:{}}` plans a full scan over 3 895 days and pulls ~2 666 rows of payload to consume 400. `windowEnd = min(to, from + CAP)` with CAP 1 000 days; `complete = windowEnd >= to && dates < limit`; `nextFrom` from whichever bound bit. `observeInzhur` takes the identical change though it does not need it until 2029, because the file's rule is that two observers that drift are two contracts. **Needs the fifth gate** (`pnpm exec tsc --noEmit -p infra`) |
 
 ## Where the detail is
 
@@ -31,9 +33,10 @@ withdrawn.
 | [`section-c.md`](section-c.md) | A11 |
 | [`section-p.md`](section-p.md) | Section P's preamble, A52 (withdrawn), A54 |
 | [`section-m.md`](section-m.md) | Section M's preamble, A46 |
+| [`section-r.md`](section-r.md) | Section R's preamble, A55 |
 
 **Renamed by section, 2026-08-27 (D98)** — the table above runs in Status-table
-order (C, P, M), the same order the Status table itself uses, so there is
+order (C, P, M, R), the same order the Status table itself uses, so there is
 nothing left for either table to explain about the other.
 
 ## Where the closed work is
