@@ -958,6 +958,10 @@ export const en = {
     lastSaved: (when: string) => `Last saved ${when}`,
     notSavedYet: 'Not saved yet',
     snapshotSavedToast: 'Snapshot saved',
+    // Save refuses what it cannot read instead of writing an empty day (#1).
+    unreadable: 'Enter a number.',
+    unreadableToast: (names: string) => `Not saved — check ${names}.`,
+    nothingToSave: 'Nothing to save — enter at least one quote.',
     // A HEADING NOW, not an inline prefix — so the trailing colon it shipped
     // with had to go (A44, sheet S2).
     yieldSinceStart: 'Yield since start',
@@ -1827,6 +1831,9 @@ export const uk: Dict = {
     lastSaved: (when: string) => `Збережено ${when}`,
     notSavedYet: 'Ще не збережено',
     snapshotSavedToast: 'Зріз збережено',
+    unreadable: 'Вкажіть число.',
+    unreadableToast: (names: string) => `Не збережено — перевірте ${names}.`,
+    nothingToSave: 'Нічого зберігати — введіть хоча б одне котирування.',
     yieldSinceStart: 'Дохідність від початку',
     yieldChartLink: 'Графік дохідності →',
     pendingChange: {

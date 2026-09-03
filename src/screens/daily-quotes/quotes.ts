@@ -8,6 +8,33 @@ function kopiykas(n: number): number {
 }
 import type { Asset, Snapshot } from '../../core/types';
 
+export interface CollectedQuotes {
+  /** Every non-empty draft the schema accepts, by asset id. */
+  quotes: Record<string, number>;
+  /** Ids whose draft is non-empty and refused. Save must not proceed while non-empty. */
+  unreadable: string[];
+}
+
+// THE ONE READING OF THE DRAFTS. The save handler, the "N of M filled" pill and
+// the pending rail all consume this, so a row the schema refuses is named once
+// instead of silently dropped three times — which is how a pasted `4 214,24 грн.`
+// used to save an empty day (#1). A blank draft is not an error; it is nothing.
+export function collectQuotes(
+  drafts: Record<string, string | undefined>,
+  assets: Asset[],
+): CollectedQuotes {
+  const quotes: Record<string, number> = {};
+  const unreadable: string[] = [];
+  for (const a of assets) {
+    const raw = drafts[a.id];
+    if (raw === undefined || raw.trim() === '') continue;
+    const parsed = quoteInputSchema.safeParse(raw);
+    if (parsed.success) quotes[a.id] = parsed.data;
+    else unreadable.push(a.id);
+  }
+  return { quotes, unreadable };
+}
+
 // The latest quote for this asset strictly BEFORE the selected date, WITH its
 // date — the accrual carry-forward needs both (S4: value + how many days ago).
 export function lastQuoteBefore(
@@ -66,14 +93,15 @@ export function pendingChange(
 ): { sum: number; changed: number } {
   let sum = 0;
   let changed = 0;
+  // The screen's own reading, not a second parse of the same string: only what
+  // `collectQuotes` accepts counts, and an unreadable row counts as nothing here.
+  const { quotes } = collectQuotes(drafts, assets);
   for (const a of assets) {
-    // The screen's own parser, not a second reading of the same string: a draft
-    // is whatever was typed, and only what `quoteInputSchema` accepts counts.
-    const parsed = quoteInputSchema.safeParse(drafts[a.id] ?? '');
-    if (!parsed.success) continue;
+    const value = quotes[a.id];
+    if (value === undefined) continue;
     const baseline = yesterdayQuote(snapshots, a.id, selectedDate);
-    if (baseline === undefined || kopiykas(parsed.data) === kopiykas(baseline)) continue;
-    sum += parsed.data - baseline;
+    if (baseline === undefined || kopiykas(value) === kopiykas(baseline)) continue;
+    sum += value - baseline;
     changed += 1;
   }
   return { sum, changed };

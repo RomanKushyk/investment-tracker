@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { amountInputSchema, assetFormSchema, quoteInputSchema, transactionSchema } from './schemas';
+import {
+  amountInputSchema,
+  assetFormSchema,
+  percentInputSchemaFor,
+  quoteInputSchema,
+  transactionSchema,
+} from './schemas';
 
 describe('quoteInputSchema (README §8: inputs accept table format)', () => {
   it('parses comma decimals with NBSP or space thousands', () => {
@@ -48,6 +54,28 @@ describe('quoteInputSchema (README §8: inputs accept table format)', () => {
     expect(quoteInputSchema.safeParse('0').success).toBe(false);
     expect(quoteInputSchema.safeParse('-5').success).toBe(false);
     expect(quoteInputSchema.safeParse('abc').success).toBe(false);
+  });
+
+  // Issue #1's bytes: `4`, U+00A0, `214,24`, a space, `грн.`, a space. The
+  // letters were the rejection, not the NBSP — `\s` already strips that.
+  it('drops a currency token beside the number — the shape a bank page pastes', () => {
+    expect(quoteInputSchema.parse('4 214,24 грн. ')).toBe(4214.24);
+    expect(quoteInputSchema.parse('1 234,56 грн')).toBe(1234.56);
+    expect(quoteInputSchema.parse('1234.56 UAH')).toBe(1234.56);
+    expect(quoteInputSchema.parse('₴68,629.36')).toBe(68629.36);
+    expect(quoteInputSchema.parse('4214,24 ГРН')).toBe(4214.24);
+  });
+
+  it('still refuses letters that are not a currency token, and a token with no number', () => {
+    expect(quoteInputSchema.safeParse('12abc').success).toBe(false);
+    expect(quoteInputSchema.safeParse('12 грн abc').success).toBe(false);
+    expect(quoteInputSchema.safeParse('грн').success).toBe(false);
+    expect(quoteInputSchema.safeParse('₴').success).toBe(false);
+    // A token alone must stay NaN, not become `''` → 0: a field whose floor is 0
+    // (a target share) would otherwise accept `$` as a value.
+    expect(percentInputSchemaFor('uk').safeParse('$').success).toBe(false);
+    expect(percentInputSchemaFor('en').safeParse('грн.').success).toBe(false);
+    expect(amountInputSchema('uk').safeParse('₴').success).toBe(false);
   });
 });
 

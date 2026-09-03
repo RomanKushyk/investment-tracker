@@ -61,17 +61,18 @@ already the per-asset answer. · Re-deriving a schedule the walkers already answ
 one schedule is the failure, not the arithmetic in either.
 
 ## Language, numbers, fonts
-**Decision.** Ukrainian is the default language and English the second; formatting separates
-completely per language, and so does the number grammar — Ukrainian groups on whitespace and reads
-both `,` and `.` as the decimal, English keeps the comma as grouping, and when both marks appear the
-last one is the decimal. Ukrainian tables and inputs read `68 702,10`, English prose and KPIs
-`₴68,629.36`, dates `dd.MM.yyyy`. The ₴/$ toggle converts the DISPLAY of headline KPIs and the
-sidebar capital only; tables stay in ₴. The faces are IBM Plex Sans for headings, buttons and KPI
-numbers, and JetBrains Mono for body and tables.
+**Decision.** Ukrainian is the default language, English the second; formatting and the number
+grammar separate completely per language — Ukrainian groups on whitespace and reads both `,` and
+`.` as the decimal, English keeps the comma as grouping, and when both marks appear the last one
+is the decimal. A currency token beside the number (`₴`, `$`, `грн`, `грн.`, `UAH`, `USD`) is
+dropped before the grammar reads it; a token alone or any other letter is not, so `12abc` stays
+refused. Ukrainian tables and inputs read `68 702,10`, English prose and KPIs `₴68,629.36`, dates
+`dd.MM.yyyy`. The ₴/$ toggle converts the DISPLAY of headline KPIs and the sidebar capital only;
+tables stay in ₴. Faces: IBM Plex Sans for headings, buttons and KPI numbers, JetBrains Mono for
+body and tables.
 **Why.** The reference's brand pair carries no Cyrillic at all, so the app would have dropped to a
-system fallback on every screen the moment the default language applied. The replacement keeps the
-same mono advance, so no width in the reference moves, and its display face has tabular figures by
-default — aligned, rather than aligned-unless-someone-forgets-a-CSS-line.
+system fallback on every screen the moment the default language applied. The replacement keeps
+the same mono advance, so no width moves, and its display face has tabular figures by default.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · The
 keyboard layout as the signal: no browser reports a numeric convention.
 

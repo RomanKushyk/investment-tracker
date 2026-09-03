@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SEED_ASSETS } from '../../lib/seed';
 import type { Snapshot } from '../../core/types';
-import { bondAbbrev, maxSavedAt, pendingChange, yesterdayQuote } from './quotes';
+import { bondAbbrev, collectQuotes, maxSavedAt, pendingChange, yesterdayQuote } from './quotes';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
@@ -121,5 +121,40 @@ describe('pendingChange — what the rail names', () => {
     const fresh: Snapshot = { date: '2026-07-25', cash: 0, quotes: { reit: 68629.36 } };
     const got = pendingChange(assets, { energy: '60000' }, [fresh], on);
     expect(got).toEqual({ sum: 0, changed: 0 });
+  });
+});
+
+describe('collectQuotes — what Save reads, and what it refuses', () => {
+  const assets = SEED_ASSETS;
+
+  it('reads every non-empty draft and reports none unreadable', () => {
+    const out = collectQuotes({ reit: '68 702,10', energy: '60086.09' }, assets);
+    expect(out).toEqual({ quotes: { reit: 68702.1, energy: 60086.09 }, unreadable: [] });
+  });
+
+  it('skips an empty or untouched draft — it is not an error', () => {
+    expect(collectQuotes({ reit: '', energy: '   ' }, assets)).toEqual({
+      quotes: {},
+      unreadable: [],
+    });
+    expect(collectQuotes({}, assets)).toEqual({ quotes: {}, unreadable: [] });
+  });
+
+  it('names the asset it cannot read and still reads the rest', () => {
+    const out = collectQuotes({ reit: '12abc', energy: '60086.09' }, assets);
+    expect(out.unreadable).toEqual(['reit']);
+    expect(out.quotes).toEqual({ energy: 60086.09 });
+  });
+
+  // Issue #1's bytes, read through the screen's own path rather than the schema alone.
+  it("reads the reported paste through the screen's own path", () => {
+    expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets).quotes.energy).toBe(4214.24);
+  });
+
+  it('treats zero and a negative as unreadable, like the schema', () => {
+    expect(collectQuotes({ reit: '0', energy: '-5' }, assets).unreadable).toEqual([
+      'reit',
+      'energy',
+    ]);
   });
 });

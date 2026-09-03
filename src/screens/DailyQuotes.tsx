@@ -17,13 +17,12 @@ import {
   unitsByAsset,
 } from '../core/derive';
 import type { QuoteVerdict } from '../core/inzhur/dcf';
-import { quoteInputSchema } from '../core/schemas';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 import { useDraft } from '../state/draft';
 import { useSettings } from '../state/settings';
 import { CouponDueCard } from './daily-quotes/CouponDueCard';
 import { FetchQuotesButton } from './daily-quotes/FetchQuotesButton';
-import { maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
+import { collectQuotes, maxSavedAt, yesterdayQuote } from './daily-quotes/quotes';
 import {
   accrualSuggestion,
   bondQuoteCheck,
@@ -148,22 +147,25 @@ export function DailyQuotes() {
     }
   }, [todaySnapshot, quotes, setQuote, f]);
 
-  const filledCount = assets.filter(
-    (a) => quoteInputSchema.safeParse(quotes[a.id] ?? '').success,
-  ).length;
+  const collected = collectQuotes(quotes, assets);
+  const filledCount = Object.keys(collected.quotes).length;
 
   function handleSave() {
-    const parsedQuotes: Record<string, number> = {};
-    for (const a of assets) {
-      const parsed = quoteInputSchema.safeParse(quotes[a.id] ?? '');
-      if (parsed.success) parsedQuotes[a.id] = parsed.data;
+    // Refuse before writing: a row that cannot be read must not vanish from the
+    // day silently, and the date-keyed `put` would replace the stored day (#1).
+    if (collected.unreadable.length > 0) {
+      const names = collected.unreadable
+        .map((id) => assets.find((a) => a.id === id)?.name ?? id)
+        .join(', ');
+      toast.error(t.dailyQuotes.unreadableToast(names));
+      return;
+    }
+    if (filledCount === 0) {
+      toast.error(t.dailyQuotes.nothingToSave);
+      return;
     }
     const cash = todaySnapshot?.cash ?? latestCash(snapshots);
-    const snapshot: Snapshot = {
-      date: selectedDate,
-      quotes: parsedQuotes,
-      cash,
-    };
+    const snapshot: Snapshot = { date: selectedDate, quotes: collected.quotes, cash };
     saveSnapshot.mutate(snapshot, {
       onSuccess: () => toast.success(t.dailyQuotes.snapshotSavedToast),
     });

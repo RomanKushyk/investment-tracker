@@ -53,8 +53,23 @@ const GROUPED_INTEGER = /^[+-]?\d{1,3}(,\d{3})+$/;
  * this branch closes the risk it introduces, and does not silently re-decide the
  * fields it did not touch.
  */
+/**
+ * A currency token at either edge of the text — what a bank page or the app's
+ * own prose pastes beside a number. Dropped BEFORE whitespace and before the two
+ * mark rules: `грн.` carries a dot that would otherwise be read as a decimal
+ * mark (issue #1). A closed list on purpose — any other letter still makes the
+ * value unreadable, so `12abc` is refused rather than read as 12. The `g` flag
+ * is what reaches both edges; it also gives the regex a `lastIndex`, so use it
+ * only through `replace()`, never `test()`.
+ */
+const CURRENCY_EDGE = /^\s*(?:₴|\$|грн\.?|uah|usd)\s*|\s*(?:₴|\$|грн\.?|uah|usd)\s*$/giu;
+
 export function normalizeNumberInput(input: string, groupsWithComma: boolean): string {
-  const bare = input.replace(/\s/g, '');
+  const stripped = input.replace(CURRENCY_EDGE, '');
+  // A strip that leaves nothing was a currency alone, not a number beside one.
+  // Keep the original so `Number()` still says NaN — `''` would read as 0, and
+  // a field whose floor is 0 would accept `$` as a value.
+  const bare = (stripped.trim() === '' ? input : stripped).replace(/\s/g, '');
   const comma = bare.lastIndexOf(',');
   const dot = bare.lastIndexOf('.');
   if (comma >= 0 && dot >= 0) {

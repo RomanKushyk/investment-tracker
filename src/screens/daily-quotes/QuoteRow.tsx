@@ -232,6 +232,10 @@ export function QuoteRow({
   // delta and never saves.
   const ghost = raw === undefined || raw.trim() === '' ? suggestion : undefined;
   const ghostId = `quote-${asset.id}-suggested`;
+  // A non-empty draft the schema refuses. Named here so the row says so, instead
+  // of the value silently vanishing from the saved day (#1). A blank is not one.
+  const unreadable = raw !== undefined && raw.trim() !== '' && parsed?.success === false;
+  const errorId = `quote-${asset.id}-error`;
 
   return (
     <Card className="flex animate-in flex-col gap-2 px-5 py-3.5 duration-300 fade-in slide-in-from-bottom-1">
@@ -278,11 +282,13 @@ export function QuoteRow({
             // The 16px type comes from the G-4 rule in index.css, not from here.
             className={
               'h-9 w-full rounded-[9px] border bg-card px-3 text-right font-body text-[13px] transition max-md:h-11 max-md:rounded-[11px] ' +
-              (filled
-                ? 'border-pos-border'
-                : ghost !== undefined
-                  ? 'border-dashed border-faint hover:border-muted'
-                  : 'border-hairline')
+              (unreadable
+                ? 'border-neg'
+                : filled
+                  ? 'border-pos-border'
+                  : ghost !== undefined
+                    ? 'border-dashed border-faint hover:border-muted'
+                    : 'border-hairline')
             }
             value={raw ?? ''}
             placeholder={
@@ -291,7 +297,8 @@ export function QuoteRow({
             onChange={(e) => onChange(e.target.value)}
             inputMode="decimal"
             aria-label={`${asset.name} quote`}
-            aria-describedby={ghost !== undefined ? ghostId : undefined}
+            aria-invalid={unreadable || undefined}
+            aria-describedby={unreadable ? errorId : ghost !== undefined ? ghostId : undefined}
           />
           {ghost !== undefined && (
             <span
@@ -312,6 +319,14 @@ export function QuoteRow({
           {delta === undefined ? '—' : f.pct(delta)}
         </span>
       </div>
+      {unreadable && (
+        <span
+          id={errorId}
+          className="animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+        >
+          {t.dailyQuotes.unreadable}
+        </span>
+      )}
       {verdict !== undefined && <ModelNote verdict={verdict} />}
       {offer !== undefined && (
         <UseFetchedOffer offer={offer} onAccept={onAcceptOffer} onDismiss={onDismissOffer} />
