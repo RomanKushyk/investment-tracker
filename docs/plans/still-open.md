@@ -6,74 +6,6 @@ Moved verbatim from `PLAN-OPEN.md` on 2026-08-26 as `O05-O29.md`; renamed by sec
 
 # Still open
 
-## O27 — How is one ОВДП told apart from another? — open, 2026-08-24
-
-Raised by the owner while grooming the idea list (then
-`USER-FEATURES-DRAFT.md`, since 2026-08-28 GitHub Issues — D103): «Код» could take up
-to 4 (or 6) characters, digits as well as letters — **or** an ОВДП could be
-marked some other way: by colour, by shape (a square), and by printing only the
-last 4 digits of its ISIN. The owner then **parked all of it on this question**,
-because widening a field is pointless until it is settled what the field has to
-distinguish.
-
-**What is true today, measured 2026-08-24 and CORRECTED 2026-08-25 by this
-file's own review — the first draft overstated the constraint.**
-
-- `code` is **editable**. `deriveCode` (`name.trim().slice(0, 2).toUpperCase()`)
-  runs only while the field is untouched (`AssetForm.tsx`), so two bonds can be
-  given two different codes today. The seed proves the field is hand-set and
-  proves the real defect at the same time: both bonds are named
-  `OVDP UA400023xxxx` — Latin, so derivation would yield `OV` — and both are
-  stored as **`code: 'GB'`**, the same two characters twice.
-- So the ceiling is what binds, not the derivation: **1–2 LETTERS**,
-  `/^\p{L}{1,2}$/u`, no digits. Two bonds cannot be told apart by anything
-  shorter than their names unless a human types two distinct pairs of letters
-  and remembers which is which.
-- What separates them on screen is the tint, and the tint is handed out by
-  ARRIVAL ORDER: `COLOR_KEYS[existingAssetCount % COLOR_KEYS.length]` in
-  `core/asset-builder.ts` and `AssetForm.tsx`, plus a THIRD site that cycles on
-  a different count — `TransactionPanel.tsx`'s quick-create avatar preview uses
-  `assets.length`. It repeats from the 5th asset (`ShareBar`'s comment says so)
-  and encodes nothing about the bond. **The `% 4` form quoted in the first draft
-  of this section is a COMMENT in `core/colors.ts`, not the code.**
-- The last four ISIN digits are already this project's informal name for a bond:
-  two of the four palette keys are `ovdp8976` and `ovdp6475`, and O23's evidence
-  table above calls them «OVDP …8976» and «OVDP …6475».
-
-**Why an agent must not settle it.** Two of the four candidates cost a decision
-rather than an edit, and a third costs a data-sourcing choice nobody has made:
-
-1. **A longer code.** At 4 characters this is free: the avatar is a 34 px circle
-   at 12 px, and the mono advance is 0,6em ≈ 7,2 px, so four characters measure
-   28,8 and fit. At **6** they measure 43,2 and do not, and widening the circle
-   into a pill is the one shape D56 forbids outright. **The first draft priced
-   this candidate off the 6 case alone and called it a decision; the 4 case is
-   not one.**
-2. **A square for bonds.** D56 names asset avatars among the four things that
-   stay round, so this is a supersede in writing, not a class change.
-3. **A pickable colour** — the draft's own «a colour selector would not be
-   excessive». The palette is four keys wired to their own Tailwind tint tokens
-   (README §4) and named after assets rather than colours. Renaming them follows
-   through the avatar, `Tag`, `ShareBar`, `ColorDot`, three charts, the three
-   cycling sites above — **and the STORED half the first draft missed**:
-   `colorKey` is a hard `z.enum` in `core/backup/json.ts`, it is a CSV column,
-   and every Dexie row already holds one of the four literals. Renaming without
-   an alias makes every backup taken before the change fail to import.
-4. **The last 4 ISIN digits** — no shape, no palette, and the avatar holds four
-   characters as shown above. But **there is no ISIN to read on most assets**:
-   `Asset.inzhur` is optional (`core/types.ts`), so a bond added without the
-   link carries its ISIN only inside the free-text `name`, and `deriveCode`
-   slices the name, never `ref`. This candidate therefore also decides either
-   parsing an ISIN out of prose or making the Inzhur link mandatory for bonds —
-   plus edits to the three places that pin "2 letters" in writing
-   (`core/types.ts`, README §7's asset shape and README §5's avatar line).
-
-**When it is answered** the two parked lines — issues
-[#12](https://github.com/RomanKushyk/investment-tracker/issues/12) (the «Код»
-field) and [#13](https://github.com/RomanKushyk/investment-tracker/issues/13)
-(the colour selector) — are groomed into `PLAN-NOW.md` and close by `Closes #N`
-in the squash-merge.
-
 ## O28 — the server-side derivation boundary — open, 2026-08-25
 
 Raised by the owner while preparing W7, in the same conversation that produced
@@ -158,4 +90,5 @@ Every closed item that produced work has been filed. Listed here so the trail fr
 | D41 — product renamed, machines not | Shipped in the same commit; no follow-up work | — |
 | D101 — W7 ships no foreign keys | **No task**, and the row is here only so the trail does not stop: the ruling is an absence, and what it produced is a widened question rather than work. The measurements behind it are written up in `infra/docs/dsql-alter-limits.md` | — (the question moved to `PLAN-OPEN.md` O33) |
 | D102 — the decision index sheds its rules | `docs/decisions/RULES.md` created; the length cap counts authored lines; D99's two-command rule reverted in all three instruction sites | — (shipped in the ruling itself) |
+| D134 — «Код» widens to 4, derived from the ISIN | **No plan row, deliberately** (D105): issue [#12](https://github.com/RomanKushyk/investment-tracker/issues/12) takes the default path — its own branch, `Closes #12`. Issue [#13](https://github.com/RomanKushyk/investment-tracker/issues/13) is un-parked rather than answered, and left unscheduled | — (the body moved to [`../archive/plan-c/O27.md`](../archive/plan-c/O27.md)) |
 

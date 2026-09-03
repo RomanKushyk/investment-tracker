@@ -8,9 +8,15 @@
 | O23 — per-asset annualization basis | D85 (2026-08-24) | [`O20-O23.md`](O20-O23.md) |
 | O24 — the window and `Річна`'s basis | D80 (2026-08-24) | [`O24-O25.md`](O24-O25.md) |
 | O25 — may we fetch SMIDA's open-data API | D86 (2026-08-24) | [`O24-O25.md`](O24-O25.md) |
+| O27 — how one ОВДП is told apart from another | D134 (2026-09-03) | [`O27.md`](O27.md) |
 
 The kept text is the **evidence**, not the ruling. A ruling lives in `../../decisions/` and is what binds; these sections are here because the working that produced them is what makes a ruling re-checkable.
 
 **O21 and O22 are absent on purpose.** They closed by D74 and D75 with their whole reasoning in the
 decision, so `PLAN-OPEN.md` carries a Status row for each and there was never a detail section under
 it. `O20-O23.md` is named for the range it spans, not for four sections.
+
+**`O27.md` is named for one question and that is not a departure** — the range
+files are named for what they hold, and this one holds a single body. It also
+carries a claim D134 found wrong; the header says which, and says why it is not
+corrected in place.
