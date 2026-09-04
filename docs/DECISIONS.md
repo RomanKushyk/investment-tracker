@@ -312,13 +312,17 @@ headless Chromium, where lengths are honest and border and outline THICKNESSES a
 calibration probe before recording any figure, disable transitions before reading anything
 animatable, check `document.visibilityState` before believing a motion reading, and reload rather
 than flip `data-theme` or trust CSS after a burst of hot reloads. Read the rendered box, never the
-class list.
+class list. The dev server's port is pinned in `vite.config.ts` with `strictPort`, so a
+conflict refuses to boot instead of drifting to a neighbour — but a pinned port only says where
+THIS checkout binds, so confirm the `Quirenote` title before trusting whatever answers there.
 **Why.** A wrong instrument puts wrong figures through review with full confidence, and the reviewer
 has nothing to check them against but the arithmetic of the classes. A background tab freezes
 transitions and never fires `animationend`, which reads as "the animation is broken". When a reading
 disagrees with the arithmetic of its own classes, the instrument is wrong until proven otherwise.
 **Rejected.** Sampling a property mid-transition: a focus ring answers differently depending on when
 the sample lands. · A live theme flip instead of a reload: utilities resolve against the old state.
+· A dev server free to pick its own port: which instance produced a figure then becomes a guess,
+and the guess is only caught when the figure is wrong.
 
 ## Interaction rules
 **Decision.** Every interaction animates, soft and fluid; nothing pops or snaps. Transitions inherit

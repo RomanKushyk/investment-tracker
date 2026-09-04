@@ -6,7 +6,7 @@ Do not flag the deviations in the last section as bugs.
 
 ## Connecting & resetting
 
-- App runs on http://localhost:3000 (vite.config). The dev server is usually already running — check before starting one. If :3000 is occupied, Vite falls back to :3001+.
+- App runs on the port `vite.config.ts` pins (3300 today), with `strictPort`, so it never drifts to a neighbour. It does NOT follow that whatever answers on that port is this app — another checkout or a stale instance can hold it — so confirm the `Quirenote` title before measuring anything against it. The dev server is usually already running; check before starting one.
 - Checkpoints also run against the deployed site: production `https://quirenote.com` serves `main`, `https://dev.quirenote.com` serves `dev` and is behind HTTP basic auth (credentials not in this repo). Verify a change on dev, confirm a release on production. Use a fresh browser profile when verifying a deploy — the seed only loads into an empty IndexedDB.
 - Two datasets, two Dexie DBs: `quirenote` = demo (reference seed, the app's default) and `quirenote-live` = live (starts and stays empty until the user writes into it — never auto-seeds). The active DB binds at boot from `localStorage['quirenote-settings'] → state.dataset`; flip it on `/settings` → Data (the app reloads). All seed-pinned checkpoints in this file run in DEMO mode — confirm the sidebar DEMO badge before testing.
 - Reset to seed state (demo): `/settings` → Data → "Reset demo data…" (type `demo`, confirm), or DevTools → Application → delete IndexedDB `quirenote` and localStorage keys `quirenote-settings`, `quirenote-draft` → reload. The demo DB reseeds automatically.

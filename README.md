@@ -12,7 +12,7 @@ React 19 · Vite · TypeScript · Tailwind 4 · Dexie.js on IndexedDB · Radix U
 ## Run
 ```sh
 pnpm install
-pnpm dev                                                    # http://localhost:3000
+pnpm dev                                                    # http://localhost:3300
 pnpm lint && pnpm typecheck && pnpm test && pnpm format:check
 ```
 An empty IndexedDB seeds the demo dataset on first load. `/settings → Data` resets it or switches to the live dataset.

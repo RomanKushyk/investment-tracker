@@ -3,7 +3,7 @@
 Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, pnpm. Persistence today is Dexie on IndexedDB. `infra/` is a separate AWS backend (a daily price archive on Aurora DSQL) that the app does not read yet.
 
 ## Commands
-- `pnpm dev` — the owner usually has it running on :3000; check before starting one.
+- `pnpm dev` — port and `strictPort` live in `vite.config.ts`, nowhere else. It refuses to boot on a conflict instead of drifting: check what holds the port, attach if it is this app, else `pnpm dev --port N`. The owner usually has one running.
 - Gates, all four before any merge: `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`.
 - Fifth gate when `infra/` or a shared core file (`src/core/types.ts`, `dates.ts`, `ovdp.ts`, `inzhur/{parse,dcf,ref}.ts`, `nbu/{date,fair-value}.ts`) changes: `npm ci` in `infra/`, then `pnpm exec tsc --noEmit -p infra` from the root.
 
