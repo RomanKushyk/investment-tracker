@@ -83,7 +83,7 @@ const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as con
 // floor applies to the MAIN axis, and there the main axis was vertical.
 function inputClass(invalid: boolean): string {
   return `h-9 min-w-0 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
-    invalid ? 'border-neg' : 'border-hairline hover:border-ink'
+    invalid ? 'border-neg' : 'border-field-border hover:border-ink'
   }`;
 }
 
@@ -782,7 +782,6 @@ export function TransactionPanel() {
                     // one, and without this the summary named highlights that
                     // did not exist.
                     invalid={fieldState.invalid}
-                    borderColor={isNewAsset ? 'faint' : 'hairline'}
                     options={[
                       { value: 'new', label: t.transaction.newAssetOption },
                       ...assets.map((a) => ({ value: a.id, label: a.name })),

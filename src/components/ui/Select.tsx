@@ -4,11 +4,13 @@ import type { ReactNode } from 'react';
 
 import { TAP_44 } from './tap-target';
 
-// Styled to match the app's `.input` shape (README §4) — radius 10, white bg,
-// hairline border. Generic string-value select; Controller-friendly.
-// `borderColor`/`bg` are explicit variants (not className overrides) so
-// callers can't end up with two same-property utilities fighting over
-// generated-CSS order.
+// Styled to match the app's field shape — the `rounded-[9px]` recipe and the
+// `field-border` edge. Generic string-value select; Controller-friendly.
+// `bg` is an explicit variant (not a className override) so callers can't end
+// up with two same-property utilities fighting over generated-CSS order.
+// `borderColor` was a second variant until field-border.dc.html collapsed its
+// two arms onto one token: a prop with one behaviour and two spellings is not
+// a variant.
 export interface SelectOption {
   value: string;
   label: string;
@@ -24,7 +26,6 @@ export function Select({
   options,
   placeholder,
   className = '',
-  borderColor = 'hairline',
   invalid = false,
   bg = 'white',
   onOpenChange,
@@ -39,7 +40,6 @@ export function Select({
   options: SelectOption[];
   placeholder?: string;
   className?: string;
-  borderColor?: 'hairline' | 'faint';
   /**
    * The form-error idiom, the same one the inputs take: border `neg` plus
    * `aria-invalid`. A select had no way to say it was the field at fault, so a
@@ -72,11 +72,7 @@ export function Select({
   /** The element that explains the current selection — e.g. a resolved window. */
   ariaDescribedBy?: string;
 }) {
-  const borderClass = invalid
-    ? 'border-neg'
-    : borderColor === 'faint'
-      ? 'border-faint'
-      : 'border-hairline';
+  const borderClass = invalid ? 'border-neg' : 'border-field-border hover:border-ink';
   // `card`, not the literal white it replaces: a control surface has to invert
   // with the theme, and #ffffff cannot. The two are the same colour in light.
   const bgClass = bg === 'page' ? 'bg-page' : 'bg-card';
@@ -92,7 +88,7 @@ export function Select({
         // reading 16 is the pair looking mismatched on the one screen where the
         // difference shows. It is a button, so it never triggers the iOS zoom
         // itself — this is the drawing's 16px, not the workaround.
-        className={`${borderClass} flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border font-body text-ink hover:border-ink ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+        className={`${borderClass} flex h-9 w-full items-center justify-between gap-2 rounded-[9px] border font-body text-ink ${bgClass} px-3 text-[13px] transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
       >
         {/* THE VALUE TRUNCATES, and it has to. `Дивіденди + капіталізація` is
             25 characters; in the asset form's two-column row at 360 the trigger

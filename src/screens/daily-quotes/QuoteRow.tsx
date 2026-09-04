@@ -80,7 +80,7 @@ function OfferLine({
         className={`${TAP_44} cursor-pointer rounded-[7px] border border-dashed px-3 py-1 text-[11px] transition active:scale-[.97] ${
           stale
             ? 'border-warn text-warn hover:bg-page'
-            : 'border-faint text-ink hover:border-muted hover:bg-page'
+            : 'border-field-border text-ink hover:border-ink hover:bg-page'
         }`}
       >
         {label}
@@ -287,8 +287,8 @@ export function QuoteRow({
                 : filled
                   ? 'border-pos-border'
                   : ghost !== undefined
-                    ? 'border-dashed border-faint hover:border-muted'
-                    : 'border-hairline')
+                    ? 'border-dashed border-field-border hover:border-ink'
+                    : 'border-field-border')
             }
             value={raw ?? ''}
             placeholder={

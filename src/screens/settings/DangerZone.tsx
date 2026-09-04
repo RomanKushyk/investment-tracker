@@ -134,7 +134,7 @@ function ClearDataDialog({
           onChange={(e) => setTyped(e.target.value)}
           autoComplete="off"
           spellCheck={false}
-          className="h-9 w-full rounded-[9px] border border-hairline bg-page px-3 text-[13px] transition hover:border-faint"
+          className="h-9 w-full rounded-[9px] border border-field-border bg-page px-3 text-[13px] transition hover:border-ink"
         />
         <Button
           variant={backedUp ? 'outlineMuted' : 'outline'}

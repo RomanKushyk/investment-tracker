@@ -192,7 +192,7 @@ export function DatePicker({
       // 16px below the breakpoint for the same reason as `Select` — it shows
       // a value, and the drawing sets every value-bearing control on the
       // phone at 16.
-      className={`${invalid ? 'border-neg' : 'border-hairline'} ${bg === 'page' ? 'bg-page' : 'bg-card'} h-9 rounded-[9px] border px-3 font-body text-[13px] text-ink transition hover:border-ink active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
+      className={`${invalid ? 'border-neg' : 'border-field-border hover:border-ink'} ${bg === 'page' ? 'bg-page' : 'bg-card'} h-9 rounded-[9px] border px-3 font-body text-[13px] text-ink transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
     >
       {value ? f.date(value) : <span className="text-muted">{placeholder ?? t.dates.pick}</span>}
     </button>

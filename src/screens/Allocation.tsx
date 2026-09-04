@@ -209,7 +209,7 @@ export function Allocation() {
                             inputMode="decimal"
                             aria-label={t.targets.fieldAria(r.asset.name)}
                             aria-invalid={error}
-                            className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+                            className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
                           />
                           <span className="text-muted">%</span>
                         </>

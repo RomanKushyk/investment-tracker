@@ -302,7 +302,7 @@ function UsdRateField() {
             aria-label={t.settings.rate.ariaLabel}
             aria-invalid={error}
             aria-describedby={error ? USD_RATE_ERROR_ID : undefined}
-            className={`h-9 w-[110px] rounded-[9px] border bg-page px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+            className={`h-9 w-[110px] rounded-[9px] border bg-page px-3 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
           />
           {error && (
             <div
@@ -359,7 +359,7 @@ function LeadDaysField() {
         // The message lives outside the label, so the link has to be explicit —
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
-        className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-hairline hover:border-faint'}`}
+        className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
       />
       {error && (
         <div

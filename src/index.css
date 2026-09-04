@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+/* Test files are not markup. Without this, a guard that mentions a utility in a
+   regex keeps it alive in the bundle — measured: `hover:border-muted` shipped
+   with no component using it, purely because field-border.test.ts names it. */
+@source not '**/*.test.ts';
 @import 'tw-animate-css';
 
 @theme {
@@ -122,6 +126,10 @@
      Second deliberate divergence from the master reference, after D54's fonts. */
   --color-muted: #696865;
   --color-faint: #b3b2ae;
+  /* The control-boundary rank (field-border.dc.html). A third grey rather than
+     a move, because a field edge is neither `faint`'s text rank nor its
+     indicator rank; `field-border.test.ts` holds the ratios. */
+  --color-field-border: #84827d;
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
   --color-panel-border: #dedcd8;
@@ -192,7 +200,7 @@
   --color-pos-tint: #e3eadf;
   --color-pos-tint-text: #4c5a48;
   --color-pos-on-dark: #b9cdb4;
-  --color-pos-border: #c9d4c4;
+  --color-pos-border: #6f8567; /* 3.35 on panel — never weaker than the idle edge */
   --color-neg: #a8695a;
   /* Irreversible-harm family — minted by the P3 design session
      (design/extensions/reminders.dc.html header comment) for the OVERDUE
@@ -259,17 +267,18 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 42 values instead of two that
+   CSS never has to express "system". One list of 43 values instead of two that
    can drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 42 PALETTE tokens are here, and they are the SAME 42 that @theme
+   Only the 43 PALETTE tokens are here, and they are the SAME 43 that @theme
    declares outside the chart aliases — one for one, neither set holding a name
    the other lacks. That equality is the real invariant; the number is just how
    it is counted, and the number is what rots. It read 38 from A9 until
    2026-08-17, correct when written and then quietly wrong three times over: D61
    added `surface-edge`, phase 6 added `scrim` and `drawer-edge`, D68 removed
-   `label`. The 19 --color-chart-* aliases are declared as `var(--color-reit)`
+   `label`, and field-border.dc.html added `field-border`. The 19
+   --color-chart-* aliases are declared as `var(--color-reit)`
    and resolve against whatever wins on the same element, so they follow these
    automatically — verified at runtime by overriding a base token and watching
    the alias move. Redeclaring them would be 19 more values able to disagree
@@ -290,6 +299,7 @@
   --color-ink-hover: #ffffff;
   --color-muted: #9b9a96; /* 6.04 on card */
   --color-faint: #6e6d6a; /* 3.29 on card — decorative only, never body text */
+  --color-field-border: #747169; /* 3.21 on panel · 3.49 on card */
   --color-hairline: #2a2a2e;
   --color-panel: #232327;
   --color-panel-border: #33333a;
@@ -349,7 +359,7 @@
   --color-pos-tint: #22301f;
   --color-pos-tint-text: #a9c79f; /* 7.52 on its tint */
   --color-pos-on-dark: #b9cdb4;
-  --color-pos-border: #3a5233;
+  --color-pos-border: #5c7f53; /* 3.44 on panel */
   --color-neg: #d9907e; /* 6.67 on card */
   --color-neg-tint: #3a211b;
   --color-neg-tint-text: #e5a996; /* 7.39 on its tint */

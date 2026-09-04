@@ -169,7 +169,7 @@ export function CouponDueCard({
         // otherwise assistive tech announces "invalid" with no reason.
         aria-describedby={error ? errorId : undefined}
         className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-          error ? 'border-neg' : 'border-hairline hover:border-faint'
+          error ? 'border-neg' : 'border-field-border hover:border-ink'
         }`}
       />
       {error && (
@@ -229,7 +229,7 @@ export function CouponDueCard({
             aria-invalid={unitsError}
             aria-describedby={unitsError ? unitsErrorId : undefined}
             className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-              unitsError ? 'border-neg' : 'border-hairline hover:border-faint'
+              unitsError ? 'border-neg' : 'border-field-border hover:border-ink'
             }`}
           />
           {unitsError && (
