@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces. Every field below is drawn at the height, radius and
+     type size the app renders it at, because a boundary decision made on a
+     stand-in control is a decision about nothing. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+a{color:#5c7355}a:hover{color:#4c5a48}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+table{border-collapse:collapse}
+td,th{text-align:left;padding:5px 14px 5px 0;font-size:12px;vertical-align:baseline}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#696865;font-weight:400;border-bottom:1px solid #e8e7e4;padding-bottom:7px}
+code{font-size:.95em}
+/* Verdicts carry a GLYPH, not only a colour: `neg` #a8695a is 3.99 on this
+   page and `warn` #8f6b33 is 4.46, both under 4.5 at 12 px — a contrast sheet
+   must not ship the failure it is enforcing (period-and-analytics F-14 already
+   recorded the second). `ink` and `pos-tint-text` both clear it. */
+.no{color:#26262a;font-weight:700}
+.yes{color:#4c5a48;font-weight:700}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+  design/extensions/field-border.dc.html — the field edge, re-derived
+
+  Brief: issue #80 (re-briefed). Implementing task: issue #3. Popover and sheet
+  surfaces are #82; the `Switch` OFF track, the `Scroller` rail and the import
+  dropzone's own rest are #83. The palette itself is src/index.css — README.md
+  has no palette section.
+
+  SUPERSESSION IS WIDER THAN IT LOOKS, AND D14 MAKES THAT MATTER. Ten merged
+  drawings draw a 36 px field with a `hairline` edge, and each holds precedence
+  over its own surfaces until something says otherwise: the master reference,
+  `daily-quotes-live` and `appearance-language`, plus `asset-form` (35 boxes),
+  `where-things-live` (13), `settings` (8 — the targets editor behind
+  `Settings.tsx:305/362`), `automation` (5), `screen-density` (5),
+  `period-and-analytics` (5) and `metrics-exposure` (2). THIS FILE SUPERSEDES
+  THE FIELD EDGE IN ALL TEN and edits none of them. Naming only three would
+  have left `/assets`, `/settings` and `/allocation` with two live authorities.
+
+  MINTS `--color-field-border` AND RE-VALUES `--color-pos-border`. 42 → 43.
+
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+  ★ THE DEFECT IS IN BOTH THEMES.                                          ★
+  ★   hairline #e8e7e4  on panel #eceae7   1.03 : 1   ← the worst reading  ★
+  ★   hairline #e8e7e4  on page  #f6f5f3   1.13 : 1                        ★
+  ★   hairline #e8e7e4  on card  #ffffff   1.24 : 1                        ★
+  ★   hairline #2a2a2e  on panel #232327   1.10 : 1                        ★
+  ★   hairline #2a2a2e  on card  #1c1c1f   1.19 : 1                        ★
+  ★   hairline #2a2a2e  on page  #141416   1.29 : 1                        ★
+  ★ The bar is 3 : 1 — WCAG 1.4.11, which governs "the visual information  ★
+  ★ required to identify user interface components and their states". The  ★
+  ★ owner reported dark; the lowest reading in the survey is a LIGHT one.  ★
+  ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+  Dark has almost nothing to fall back on: `--shadow-card`, `-popover` and
+  `-dialog` are all `0 0 #0000` there, so a field that loses its stroke loses
+  everything. (`--shadow-thumb` survives as a spread shadow used AS an edge; not
+  reused here, because a spread shadow draws ONE colour and a field carries five
+  border states, one of them dashed. T3 draws SIX: the sixth is focus, which
+  is an outline rather than a border and does not move here.)
+
+  THE SAVED EDGE MOVES WITH THE IDLE ONE. `pos-border` is 1.53 on card in light
+  and 1.97 in dark. Repair the idle edge and leave it, and the pair INVERTS: a
+  row appears to lose its boundary at the moment its value is accepted.
+
+      ACROSS THE RESTING STATES — IDLE, GHOST AND SAVED — THE BOUNDARY'S
+      STRENGTH IS CONSTANT WITHIN 1.10x ON THE BINDING SURFACE.
+      HUE AND DASH CARRY THE STATE; RANK DOES NOT.
+
+  Stated as a tolerance because a rule with none would condemn its own values:
+  idle and ghost land 3.20 / 3.21 and saved 3.35 / 3.44 — 1.05x and 1.07x,
+  inside. `pos` at 1.35x and 2.04x is outside, which is why it is refused below.
+  `neg` (3.62 / 6.14) and hover sit above the band deliberately: an error and a
+  pointer response should outrank a resting edge, and both already clear 3 : 1.
+
+  ─────────────────────────────────────────────────────────────────────────
+  WHY A NEW TOKEN, WHEN ITS DARK VALUE LANDS 1.06 : 1 FROM `faint`.
+  This is the question two earlier attempts got wrong in opposite directions,
+  and it is the only interesting decision in the file.
+  ─────────────────────────────────────────────────────────────────────────
+
+  The first attempt minted a grey by searching for the smallest value clearing
+  3 : 1, noticed nothing, and shipped a token sitting 1.06 : 1 from dark
+  `faint` — a duplicate by accident. Correctly rejected.
+
+  The second attempt drew the opposite conclusion — if they coincide, move
+  `faint` and mint nothing — and was carried far enough to find what that costs.
+  Three things, all measured, none recoverable:
+
+    1. IT OVERTURNS A DECISION THAT IS NOT THIS BRIEF'S TO OVERTURN.
+       `Scroller.tsx:47-51` puts the resting thumb DELIBERATELY below 3 : 1 and
+       argues it: "1.4.11 covers information REQUIRED to identify a component or
+       its state, and a scroll region is identified by its content … the passing
+       value arrives when the thumb is actually being used." Moving `faint`
+       silently reverses that, and a sheet about field edges has no mandate to.
+
+    2. IT BREAKS THE DRAWER'S THUMB OUTRIGHT. Once `faint` is a field edge,
+       everything resting on it needs a louder hover than `muted` (which
+       measures 1.45 from the repaired value). The only candidate is `ink` — and
+       `[data-dark-surface]` overrides `panel-border`, `faint` and `muted` but
+       NOT `ink`, so on the sidebar (`Sidebar.tsx:544/577`, with a `Scroller` at
+       `:385`) the dragged thumb becomes #26262a on #26262a: 1.00 : 1, invisible.
+
+    3. IT COMPRESSES THE TEXT LADDER. `faint` and `muted` are 2.63 : 1 apart in
+       light and would be 1.45 : 1 — two adjacent text ranks becoming one.
+
+  All three come from the same place: `faint` carries a TEXT rank and an
+  INDICATOR rank, and a field edge is neither. So the duplication objection is
+  answered rather than dodged:
+
+      TWO TOKENS THAT MUST BE FREE TO MOVE INDEPENDENTLY ARE NOT REDUNDANT
+      BECAUSE THEY HAPPEN TO SHARE A LUMINANCE TODAY.
+
+  1.06 : 1 in dark is a fact about today's values, not about the roles. It is
+  also the inverse of the case `muted-legibility.dc.html` settled: there, two
+  tokens had to hold the SAME luminance to be legible, so they were one step
+  drawn twice and one was retired. Here they must be able to diverge — the next
+  time either rank moves, they will — so they are two steps that currently
+  coincide. In LIGHT they already differ, 1.81 : 1 apart, which is what a
+  coincidence looks like when it is only a coincidence.
+
+  THE VALUES. Binding surface is `panel`: on `/transactions` six fields sit on
+  `card` inside a `panel`, so the stroke is read against #eceae7.
+
+    LIGHT — DARKER than panel #eceae7; 3 : 1 needs L ≤ 0.24149
+      #8d8b87  panel 2.83  FAILS      #868580  panel 3.08  just over the bar
+      #898884  panel 2.96  FAILS      #84827d  CHOSEN 3.20 · page 3.52 · card 3.84
+
+    DARK — LIGHTER than panel #232327; 3 : 1 needs L ≥ 0.15118
+      #6e6d6a  panel 3.03  on the bar #747169  CHOSEN 3.21 · page 3.77 · card 3.49
+      #726f6a  panel 3.13             #75726d  panel 3.27
+
+  Both keep ~0.2 of headroom on the worst surface and land within 0.02 of each
+  other (3.1968 and 3.2131) so neither theme is quietly weaker, and both stay on
+  the palette's warm GREY axis, R > G > B, as #e8e7e4, #dedcd8, #b3b2ae, #696865
+  and #6e6d6a already are. Worth saying plainly, because it is a hue choice and
+  not a neutral one: the dark SURFACES are cool (#141416, #1c1c1f, #232327,
+  #2a2a2e, #33333a) while the dark GREYS drawn on them are warm (`faint`
+  #6e6d6a, `muted` #9b9a96). The new value follows the greys, which is the
+  family it belongs to, not the planes it sits on.
+
+  THE SAVED EDGE, same method, the shipped green's hue held, on `panel`:
+      LIGHT  #7d9374 2.78 F · #788e6f 2.97 F · #748a6b 3.13 · #6f8567 CHOSEN 3.35
+      DARK   #4e6f46 2.75 F · #53744a 2.96 F · #57794e 3.17 · #5c7f53 CHOSEN 3.44
+
+  `--color-pos` is refused though it clears the bar: 4.33 light / 6.55 dark puts
+  the saved edge 1.35x and 2.04x above the idle edge, outside the band, and it
+  is the FIGURE green carrying text and chart marks.
+
+  HOVER. Ten field recipes hover today — seven to `faint`, three to `ink`. From
+  the repaired idle edge, `muted` measures 1.45 light / 1.73 dark. Each is below
+  its OWN theme's weakest shipping hover — 1.55 in light and 2.42 in dark, both
+  `ImportRow.tsx:131`'s `panel-border` → `faint`. (An earlier draft compared the
+  dark figure against the light floor, where 1.73 > 1.55 and the sentence said
+  the opposite of its own arithmetic.) `ink` measures 3.93 / 4.06 — and because the idle
+  edge is no longer invisible, that is GENTLER than the 12.19 the three `ink`
+  sites ship today. So all ten unify on `ink`. Stated honestly, that AMPLIFIES the seven quiet
+  sites — their hover value goes `faint` → `ink` and their step 1.72 → 3.93 —
+  while the three loud sites keep the value they already have. What shrinks for
+  those three, 12.19 → 3.93, is the STEP, and it shrinks because the idle edge
+  they depart from was repaired, not because any hover decision touched them. (An earlier draft asserted "`ink`
+  overshoots a hover" without measuring it. It does not.) No field sits inside
+  `[data-dark-surface]`, so failure 2 above does not apply to this rule.
+
+  WHAT DASH DOES, AND THE ONE PLACE THIS DIVERGES FROM daily-quotes-live.
+  Five things are dashed `faint` today. Two are CONTROLS and take the new token,
+  dashed: the ghost input (`QuoteRow.tsx:290`) and the "Use suggested" pill
+  (`QuoteRow.tsx:83`) — both are operable, both are what 1.4.11 is about, and
+  both also hover to `muted` today, which would become 1.45 and so moves to
+  `ink` with the fields. Three are CONTAINERS and keep `faint` unchanged: the
+  coupon-due card, the import diff panel and the quick-create sub-form. A panel
+  that HOLDS a proposal is not itself proposing, and 1.4.11 does not bind a
+  region's decorative edge. So "dashed is ONE stroke everywhere" narrows to "one
+  stroke on every dashed CONTROL", and the divergence is recorded here rather
+  than discovered later.
+
+  WHAT DOES NOT MOVE, AND THIS IS THE POINT OF CHOOSING A NEW TOKEN:
+  `faint` keeps its value, so the thirteen `text-faint` sites, the `Scroller`
+  thumb and its argued sub-3 : 1 rest, the native scrollbar, the chart's
+  zero-value stub, the three dashed containers, the dropzone's hover and every
+  `faint` figure written into `index.css` and `Scroller.tsx` are all untouched
+  and need no re-measurement. `hairline` keeps dividers, grid lines and the
+  popover and sheet surfaces (#82). `muted`, `ink`, `neg`, `pos`, `page`,
+  `card`, `panel` and every tint family are untouched. No fill, radius, height,
+  spacing or copy changes. The checkboxes are out on a measurement (T1).
+═══════════════════════════════════════════════════════════════════════ -->
+
+<div style="padding:34px 40px 56px;max-width:1220px">
+
+<h1 style="margin:0 0 6px;font-size:26px">The field edge, re-derived</h1>
+<p style="margin:0 0 4px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Mints <code>--color-field-border</code> and re-values <code>--color-pos-border</code>. Every figure is measured on the rendered app through the chrome-devtools MCP at 1440&times;900, dpr&nbsp;1, transitions disabled, each theme reached by reload.</p>
+<p style="margin:0 0 30px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Supersedes the field-edge treatment of <strong>all ten merged drawings that draw one</strong> &mdash; the master reference, <code>daily-quotes-live</code>, <code>appearance-language</code>, <code>asset-form</code>, <code>where-things-live</code>, <code>settings</code>, <code>automation</code>, <code>screen-density</code>, <code>period-and-analytics</code> and <code>metrics-exposure</code>. None of the ten is edited.</p>
+
+<!-- ── T1 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T1 &middot; What fails, and against what</h2>
+<p style="margin:0 0 14px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">A field's stroke is read against its own fill <em>and</em> against the plane behind it. The second is what the survey turned up: on <code>/transactions</code> six fields sit on <code>card</code> inside a <code>panel</code>, so the stroke is read against #eceae7. That is the lowest number in the app, and it is in the light theme. <strong>&#10007;</strong> marks below 3 : 1.</p>
+
+<div style="display:flex;gap:34px;flex-wrap:wrap;margin-bottom:12px">
+  <table>
+    <tr><th>Light &mdash; shipped</th><th>page</th><th>card</th><th>panel</th></tr>
+    <tr><td><code>hairline</code> #e8e7e4 &middot; idle</td><td class="no">&#10007; 1.13</td><td class="no">&#10007; 1.24</td><td class="no">&#10007; 1.03</td></tr>
+    <tr><td><code>pos-border</code> #c9d4c4 &middot; saved</td><td class="no">&#10007; 1.41</td><td class="no">&#10007; 1.53</td><td class="no">&#10007; 1.28</td></tr>
+    <tr><td><code>faint</code> #b3b2ae &middot; ghost</td><td class="no">&#10007; 1.95</td><td class="no">&#10007; 2.12</td><td class="no">&#10007; 1.77</td></tr>
+    <tr><td><code>neg</code> #a8695a &middot; unreadable</td><td class="yes">&#10003; 3.99</td><td class="yes">&#10003; 4.34</td><td class="yes">&#10003; 3.62</td></tr>
+  </table>
+  <table>
+    <tr><th>Dark &mdash; shipped</th><th>page</th><th>card</th><th>panel</th></tr>
+    <tr><td><code>hairline</code> #2a2a2e &middot; idle</td><td class="no">&#10007; 1.29</td><td class="no">&#10007; 1.19</td><td class="no">&#10007; 1.10</td></tr>
+    <tr><td><code>pos-border</code> #3a5233 &middot; saved</td><td class="no">&#10007; 2.13</td><td class="no">&#10007; 1.97</td><td class="no">&#10007; 1.82</td></tr>
+    <tr><td><code>faint</code> #6e6d6a &middot; ghost</td><td class="yes">&#10003; 3.56</td><td class="yes">&#10003; 3.29</td><td class="yes">&#10003; 3.03</td></tr>
+    <tr><td><code>neg</code> #d9907e &middot; unreadable</td><td class="yes">&#10003; 7.22</td><td class="yes">&#10003; 6.67</td><td class="yes">&#10003; 6.14</td></tr>
+  </table>
+</div>
+<p style="margin:0 0 12px;font-size:11.5px;color:#696865;line-height:1.7;max-width:880px">Three readings reproduce <code>appearance-language.dc.html</code> to the digit &mdash; faint 3.29 (line 1035), hairline 1.19 (1036) and neg 6.67 (1064), all on card &mdash; which is how the instrument was checked before anything else was believed.</p>
+
+<div style="border:1px solid #e8e7e4;background:#ffffff;border-radius:12px;padding:12px 16px;font-size:12px;line-height:1.65;max-width:880px;margin-bottom:34px">
+  <strong>THE CHECKBOXES ARE NOT IN THIS TABLE, AND THAT IS A MEASUREMENT RATHER THAN AN OVERSIGHT.</strong> <code>CouponDueCard.tsx:200</code> and <code>ImportDialog.tsx:249</code> read <code>size-4 rounded-[5px] border-panel-border bg-page</code> &mdash; but they carry no border-WIDTH utility, and Tailwind's preflight sets <code>border: 0 solid</code>, so the token paints nothing: rendered, they report <strong><code>border-top-width: 0px</code></strong>. They are also native <code>&lt;input type="checkbox"&gt;</code> with no <code>appearance-none</code> anywhere in <code>src</code>, so at <code>appearance: auto</code> the user agent draws the control and discards the author's border, background and radius &mdash; adding a <code>border</code> class changes nothing, which was tested rather than assumed. Giving them a real edge means <code>appearance-none</code> and a hand-drawn tick: new UI, and its own brief.
+</div>
+
+<!-- ── T2 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T2 &middot; Why a new token and not a move</h2>
+<p style="margin:0 0 14px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">The dark value lands 1.06&nbsp;:&nbsp;1 from <code>faint</code>, so the obvious question is why not move <code>faint</code> instead. That was tried, to the end. What it costs is measured, and none of it is recoverable.</p>
+
+<table style="margin-bottom:14px">
+  <tr><th>If <code>faint</code> moved instead</th><th>Reading</th><th>Why it cannot be paid</th></tr>
+  <tr><td><strong>The <code>Scroller</code> thumb's resting state</strong></td><td>2.12 &rarr; 3.84 on <code>card</code>, the surface <code>Scroller.tsx:41</code> records it on (1.77 &rarr; 3.20 on <code>panel</code>)</td><td><code>Scroller.tsx:47-51</code> puts it below 3 : 1 <strong>deliberately</strong>, with an argument: a scroll region is identified by its content, and "the passing value arrives when the thumb is actually being used". A field-edge sheet has no mandate to reverse that.</td></tr>
+  <tr><td><strong>The drawer's thumb while dragged</strong></td><td class="no">&#10007; 1.00 : 1</td><td>Everything resting on <code>faint</code> would need a louder hover than <code>muted</code> (1.45), i.e. <code>ink</code> &mdash; but <code>[data-dark-surface]</code> overrides <code>panel-border</code>, <code>faint</code> and <code>muted</code> and <strong>not <code>ink</code></strong>, so on the sidebar the thumb becomes #26262a on #26262a.</td></tr>
+  <tr><td><strong>The light text ladder</strong></td><td>2.63 &rarr; 1.45</td><td>Thirteen <code>text-faint</code> sites collapse toward the rank above them &mdash; two adjacent text ranks becoming one.</td></tr>
+</table>
+
+<div style="border:1px dashed #b3b2ae;border-radius:12px;padding:12px 16px;font-size:12px;line-height:1.65;max-width:1120px;margin-bottom:34px">
+  <strong>All three come from one place:</strong> <code>faint</code> carries a TEXT rank and an INDICATOR rank, and a field edge is neither. <strong>Two tokens that must be free to move independently are not redundant because they happen to share a luminance today.</strong> This is the inverse of the case <code>muted-legibility.dc.html</code> settled &mdash; there two tokens had to hold the SAME luminance to be legible, so one was retired into the other. Here they must be able to diverge, and in light they already do, 1.81&nbsp;:&nbsp;1 apart. A coincidence in one theme is not a duplicate.
+</div>
+
+<!-- ── T3 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T3 &middot; The six states, before and after</h2>
+<p style="margin:0 0 16px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">The app's real geometry &mdash; 36&nbsp;px tall, 9&nbsp;px radius, 13&nbsp;px type &mdash; on <code>card</code> inside a <code>panel</code>, the binding case from <code>/transactions</code> for idle, hover, focus and unreadable. <strong>Ghost and saved are <code>QuoteRow</code>-only</strong> &mdash; neither state exists on <code>/transactions</code> &mdash; and are drawn on the same host so the six read as one control; on their real host, <code>card</code> inside a <code>Card</code> on <code>page</code>, they measure 3.84 / 4.02 light and 3.49 / 3.74 dark. <strong>Idle and hover are drawn empty</strong>: the app has no <code>faint</code> placeholder (there is no <code>::placeholder</code> rule and no <code>placeholder:text-*</code> utility in <code>src</code>; they resolve through preflight off <code>text-ink</code>), so the stroke is the only thing that moves in those rows.</p>
+
+<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px">
+
+  <div style="background:#eceae7;border-radius:18px;padding:20px 22px;width:548px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:14px">Light &middot; on card, inside a panel</div>
+    <div style="display:grid;grid-template-columns:96px 1fr 1fr;gap:12px 14px;align-items:center">
+      <div></div>
+      <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#696865">Shipped</div>
+      <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#696865">This ruling</div>
+
+      <div style="font-size:11.5px;color:#26262a">idle</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff"></div>
+      <div style="height:36px;border-radius:9px;border:1px solid #84827d;background:#ffffff"></div>
+
+      <div style="font-size:11.5px;color:#26262a">hover</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #b3b2ae;background:#ffffff"></div>
+      <div style="height:36px;border-radius:9px;border:1px solid #26262a;background:#ffffff"></div>
+
+      <div style="font-size:11.5px;color:#26262a">focus</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #e8e7e4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end;outline:2px solid #26262a;outline-offset:2px">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #84827d;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end;outline:2px solid #26262a;outline-offset:2px">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#26262a">ghost</div>
+      <div style="height:36px;border-radius:9px;border:1px dashed #b3b2ae;background:#ffffff;padding:0 12px;font-size:13px;color:#696865;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px dashed #84827d;background:#ffffff;padding:0 12px;font-size:13px;color:#696865;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#26262a">saved</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #c9d4c4;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #6f8567;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#26262a">unreadable</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #a8695a;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end">12abc</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #a8695a;background:#ffffff;padding:0 12px;font-size:13px;color:#26262a;display:flex;align-items:center;justify-content:flex-end">12abc</div>
+    </div>
+  </div>
+
+  <div style="background:#232327;border-radius:18px;padding:20px 22px;width:548px">
+    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9b9a96;margin-bottom:14px">Dark &middot; on card, inside a panel</div>
+    <div style="display:grid;grid-template-columns:96px 1fr 1fr;gap:12px 14px;align-items:center">
+      <div></div>
+      <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#9b9a96">Shipped</div>
+      <div style="font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#9b9a96">This ruling</div>
+
+      <div style="font-size:11.5px;color:#eceae7">idle</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #2a2a2e;background:#1c1c1f"></div>
+      <div style="height:36px;border-radius:9px;border:1px solid #747169;background:#1c1c1f"></div>
+
+      <div style="font-size:11.5px;color:#eceae7">hover</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #6e6d6a;background:#1c1c1f"></div>
+      <div style="height:36px;border-radius:9px;border:1px solid #eceae7;background:#1c1c1f"></div>
+
+      <div style="font-size:11.5px;color:#eceae7">focus</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #2a2a2e;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end;outline:2px solid #eceae7;outline-offset:2px">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #747169;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end;outline:2px solid #eceae7;outline-offset:2px">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#eceae7">ghost</div>
+      <div style="height:36px;border-radius:9px;border:1px dashed #6e6d6a;background:#1c1c1f;padding:0 12px;font-size:13px;color:#9b9a96;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px dashed #747169;background:#1c1c1f;padding:0 12px;font-size:13px;color:#9b9a96;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#eceae7">saved</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #3a5233;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #5c7f53;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end">15 907,45</div>
+
+      <div style="font-size:11.5px;color:#eceae7">unreadable</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #d9907e;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end">12abc</div>
+      <div style="height:36px;border-radius:9px;border:1px solid #d9907e;background:#1c1c1f;padding:0 12px;font-size:13px;color:#eceae7;display:flex;align-items:center;justify-content:flex-end">12abc</div>
+    </div>
+  </div>
+</div>
+
+<div style="border:1px dashed #b3b2ae;border-radius:12px;padding:12px 16px;font-size:12px;line-height:1.65;max-width:1120px;margin-bottom:34px">
+  <strong>The shipped hover row draws the majority case.</strong> Seven of the ten field hover sites go to <code>faint</code>, which is what is drawn; the other three &mdash; <code>DatePicker.tsx:195</code>, <code>Select.tsx:95</code>, <code>TransactionPanel.tsx:86</code> &mdash; already go to <code>ink</code>, stepping <strong>12.19&nbsp;:&nbsp;1</strong> in light from a <code>hairline</code> idle. Under this ruling every site steps <strong>3.93</strong> / 4.06 instead, because the idle edge it departs from is no longer invisible. The ghost's value text stays <code>muted</code> in both themes, which is what <code>QuoteRow</code> renders; it does not move with the stroke.
+</div>
+
+<!-- ── T4 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T4 &middot; The six rulings</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;max-width:1120px;margin-bottom:34px">
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">1 &middot; The token</div>
+    <p style="margin:0;font-size:12px;line-height:1.65"><code>--color-field-border</code>: <code>#84827d</code> light, <code>#747169</code> dark. The field idle edge points at it, replacing <code>hairline</code>. It is a control-boundary rank, not a text rank &mdash; which is why it is minted rather than folded into <code>faint</code> (T2). Palette 42 &rarr; 43.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">2 &middot; The saved edge</div>
+    <p style="margin:0;font-size:12px;line-height:1.65"><code>--color-pos-border</code>: <code>#6f8567</code> light, <code>#5c7f53</code> dark. It moves because leaving it inverts the pair against the repaired idle edge. <code>pos</code> is refused at 4.33 / 6.55 &mdash; outside the 1.10x band from the other side, and already the figure green.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">3 &middot; Hover goes to <code>ink</code></div>
+    <p style="margin:0;font-size:12px;line-height:1.65">All ten field hover sites, plus the ghost input and the "Use suggested" pill, whose <code>hover:border-muted</code> would measure <strong>1.45</strong> against the new idle edge. <code>muted</code> is refused on that measurement &mdash; smaller than the weakest hover shipping today (1.55, the dropzone). <code>ink</code> steps 3.93 / 4.06, gentler than the 12.19 three sites already ship. <code>QuoteRow</code>'s idle, filled and unreadable branches carry no hover today and gain none: that is behaviour, not colour.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">4 &middot; Dashed: controls move, containers do not</div>
+    <p style="margin:0;font-size:12px;line-height:1.65">Two of the five dashed <code>faint</code> elements are CONTROLS and take the new token, dashed &mdash; the ghost input and the accept pill. Three are CONTAINERS and keep <code>faint</code>: the coupon-due card, the import diff panel and the quick-create sub-form. A panel that HOLDS a proposal is not itself proposing. So <code>daily-quotes-live</code>'s "one stroke everywhere" narrows to <strong>one stroke on every dashed CONTROL</strong>, recorded here rather than discovered later. <strong>The pill has a second branch and it keeps <code>warn</code>:</strong> <code>QuoteRow.tsx:82</code> swaps stroke and label to <code>warn</code> when the fetched quote is stale, and measured that reads <strong>4.05 / 4.86 / 4.46</strong> in light and 6.90 / 7.50 / 8.11 in dark &mdash; already above the bar on every surface, so it does not move. It carries no border hover today and gains none.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">5 &middot; <code>Select</code>'s <code>borderColor</code> prop</div>
+    <p style="margin:0;font-size:12px;line-height:1.65">It declares <code>'hairline' | 'faint'</code> and <code>TransactionPanel.tsx:785</code> passes <code>faint</code> for the new-asset trigger. Both arms now resolve to the same edge, so the prop, its branch and <strong>that one ternary</strong> go. <code>isNewAsset</code> itself STAYS &mdash; it gates the quick-create sub-form at <code>:617</code>, <code>:819</code> and <code>:1072</code> and <code>transaction-form-reset.test.ts:169</code> pins its declaration. The state it encoded was the LOUDER of the two arms &mdash; <code>faint</code> is 1.77 on panel against <code>hairline</code>'s 1.03 in light, 3.03 against 1.10 in dark &mdash; so the new-asset trigger was drawn with a heavier edge, not a fainter one. Either way it is a stroke-weight cue for "proposed", which is the device this ruling replaces with dash; if the state is wanted it returns dashed, in its own task.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">6 &middot; Fills stay where they are</div>
+    <p style="margin:0;font-size:12px;line-height:1.65">Two merged sheets disagree &mdash; <code>appearance-language</code> line 828 says <code>page</code> inside a <code>card</code>, <code>daily-quotes-live</code> draws #fff in #fff &mdash; and the app ships both: seven recipes hard <code>bg-page</code>, two hard <code>bg-card</code>, two parameterised. <strong>This sheet does not close it.</strong> It need not: a fill step measures 1.09 light / 1.08 dark, so the stroke was always the carrier.</p>
+  </div>
+</div>
+
+<!-- ── T5 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T5 &middot; What this costs, and what it deliberately leaves alone</h2>
+<div style="border:1px solid #e8e7e4;background:#ffffff;border-radius:14px;padding:16px 20px;max-width:1120px;margin-bottom:30px">
+  <p style="margin:0 0 10px;font-size:12.5px;line-height:1.7"><strong>The cost is one palette value and one narrowed rule.</strong> The palette goes 42 &rarr; 43, and in dark the new token sits 1.06&nbsp;:&nbsp;1 from <code>faint</code> &mdash; visually the same stroke, for now, on two roles that must be able to part. In light they are already 1.81&nbsp;:&nbsp;1 apart. The narrowed rule is T4-4: dash stays one stroke across CONTROLS, not across containers.</p>
+  <p style="margin:0;font-size:12.5px;line-height:1.7"><strong>What it buys is everything the alternative could not leave alone.</strong> <code>faint</code> keeps its value, so the thirteen <code>text-faint</code> sites, the <code>Scroller</code> thumb and its argued sub-3&nbsp;:&nbsp;1 rest, the native scrollbar, the chart's zero-value stub, the three dashed containers, the dropzone's hover, and every <code>faint</code> figure written into <code>index.css</code> and <code>Scroller.tsx</code> are untouched and need no re-measurement. Three shipped comments DO go stale and are named rather than left: <code>AssetForm.tsx:67</code> ("hover border &rarr; faint"), <code>Select.tsx:8</code> ("hairline border") and <code>Select.tsx:9</code>, which documents the prop T4-5 deletes. Three lines, against the dozen-plus the alternative would have invalidated across <code>index.css</code> and <code>Scroller.tsx</code>.</p>
+</div>
+
+<!-- ── ACCEPTANCE ─────────────────────────────────────────────────────── -->
+<div style="border:1px dashed #b3b2ae;border-radius:16px;padding:16px 20px;max-width:1120px">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:10px">Acceptance &mdash; what the implementing task (#3) must satisfy</div>
+  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.85">
+    <li><code>--color-field-border</code> is <code>#84827d</code> in <code>@theme</code> and <code>#747169</code> in the dark block, and the palette count moves 42 &rarr; 43 in <strong>all three</strong> places it is written &mdash; <code>index.css</code> line 262 once and line 266 twice. That comment lists three previous times the number went stale.</li>
+    <li><code>--color-pos-border</code> is <code>#6f8567</code> light and <code>#5c7f53</code> dark. Re-valued, not added; it does not move the count.</li>
+    <li><strong><code>--color-faint</code> is NOT touched, in either block or under <code>[data-dark-surface]</code>.</strong> A diff that changes it is doing the thing this ruling rejected.</li>
+    <li>All eleven field recipes read <code>border-field-border</code> for idle. A surviving <code>border-hairline</code> on a field is a regression. Grep <code>rounded-[9px]</code> with <code>h-9</code> &mdash; <code>QuoteRow</code> is <code>h-9 rounded-[9px]</code> plus <code>max-md:h-11 max-md:rounded-[11px]</code>, so an <code>h-11</code>-only pattern skips the field that owns <code>pos-border</code>.</li>
+    <li><code>QuoteRow.tsx:290</code> (ghost) and <code>QuoteRow.tsx:83</code> (accept pill) read <code>border-dashed border-field-border</code>. <code>CouponDueCard.tsx:133</code>, <code>ImportDialog.tsx:328</code> and <code>TransactionPanel.tsx:824</code> keep <code>border-dashed border-faint</code>.</li>
+    <li><strong>Twelve hover declarations read <code>hover:border-ink</code>:</strong> the ten field hovers plus those same two controls. <code>ImportRow.tsx:131</code> keeps <code>hover:border-faint</code> &mdash; it is the dropzone, and its rest is <code>panel-border</code>. That rest measures <strong>1.14</strong> on its own <code>panel</code> fill (1.37 against the card behind; 1.25 dark) and is NOT repaired here: it is a non-field control, filed with the others in <strong>#83</strong>.</li>
+    <li><code>Select</code>'s <code>borderColor</code> prop, its branch and the ternary at <code>TransactionPanel.tsx:785</code> are deleted. <strong><code>isNewAsset</code> itself is not</strong> &mdash; it is used at <code>:617</code>, <code>:819</code> and <code>:1072</code> and pinned by <code>transaction-form-reset.test.ts:169</code>.</li>
+    <li>The two checkboxes are not touched, and neither is the <code>Scroller</code>, the native scrollbar, the chart or any <code>text-faint</code> site.</li>
+    <li><strong>Three shipped comments are corrected with the code they describe:</strong> <code>AssetForm.tsx:67</code> ("hover border &rarr; faint" &rarr; ink), <code>Select.tsx:8</code> ("hairline border" &rarr; the field-edge token) and <code>Select.tsx:9</code>, which documents the <code>borderColor</code> variant being removed. A comment that contradicts its own line is the failure this ruling spent its argument avoiding elsewhere.</li>
+    <li><code>QuoteRow.tsx:82</code>&mdash;the pill's stale branch&mdash;keeps <code>border-warn</code> and gains no hover. It already measures 4.05 on panel in light.</li>
+    <li>Re-measured on the RENDERED app in both themes, at 1440 and at 360: <strong>no field edge below 3 : 1</strong> against its own fill or the plane behind it, in every state. The ghost included; it is not an exemption, it is the same token dashed.</li>
+    <li>The saved edge measures at least as strong as the idle edge on every surface, and within 1.10x of it.</li>
+    <li>No fill, radius, height, spacing or copy changes, and no pinned demo figure moves (<em>Derived figures and the seed</em>) &mdash; colour only.</li>
+  </ul>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>
