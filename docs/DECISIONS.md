@@ -258,6 +258,8 @@ root-cause comment on the issue comes first. The gates are lint, typecheck, test
 which skips Markdown on purpose, plus `tsc --noEmit -p infra` when `infra/` or a shared core file
 changes. Tests are vitest over pure logic with `fake-indexeddb` for the repository's write surface,
 and a nested checkout under `.claude/` stays invisible to git, eslint, vitest and prettier alike.
+The skill frontmatter those three skip keeps one guard in `src/`: a description is a QUOTED YAML
+scalar, because an unquoted one ends at the first ` #` and the harness never receives the rest.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
 happens to be running is not a gate, and prettier re-pads every table cell it is let near.

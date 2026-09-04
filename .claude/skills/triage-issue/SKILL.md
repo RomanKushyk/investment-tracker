@@ -1,6 +1,6 @@
 ---
 name: triage-issue
-description: Turn a raw GitHub issue (Project Status "Triage") into a Ready one — reproduce, write the standard body with acceptance criteria, set labels, relations and milestone, move it to Ready. Use at session start when the Triage column is non-empty, or when asked to triage, groom or refine an issue. Never writes code.
+description: 'Turn a raw GitHub issue (Project Status "Triage") into a Ready one — reproduce, write the standard body with acceptance criteria, set labels, relations and milestone, move it to Ready. Use at session start when the Triage column is non-empty, or when asked to triage, groom or refine an issue. Never writes code.'
 ---
 
 # Triage an issue

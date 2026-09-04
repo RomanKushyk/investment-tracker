@@ -1,6 +1,6 @@
 ---
 name: plan-epic
-description: Use when the owner hands over a multi-part ask — a pre-plan, a feature paragraph, "let's build X", a list of wishes — that will not fit one issue and one branch, or asks to plan, decompose, or turn something into an epic; also when triage finds an issue whose parts need research or sequencing (a plain two-way split stays triage-issue's step 3). Not for a single bug or a one-branch change (that is triage-issue) and not for executing an issue (work-issue).
+description: 'Use when the owner hands over a multi-part ask — a pre-plan, a feature paragraph, "let''s build X", a list of wishes — that will not fit one issue and one branch, or asks to plan, decompose, or turn something into an epic; also when triage finds an issue whose parts need research or sequencing (a plain two-way split stays triage-issue''s step 3). Not for a single bug or a one-branch change (that is triage-issue) and not for executing an issue (work-issue).'
 ---
 
 # Plan an epic

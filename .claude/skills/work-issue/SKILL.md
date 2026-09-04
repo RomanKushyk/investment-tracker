@@ -1,6 +1,6 @@
 ---
 name: work-issue
-description: End-to-end path for a Ready GitHub issue — move to In progress, branch, failing test, implement, gates, /code-review within the round cap, squash-merge with Closes #N. Use for "work on #3", "fix #1", "take the next bug" or a pasted issue URL. Not for triage (that is triage-issue).
+description: 'End-to-end path for a Ready GitHub issue — move to In progress, branch, failing test, implement, gates, /code-review within the round cap, squash-merge with Closes #N. Use for "work on #3", "fix #1", "take the next bug" or a pasted issue URL. Not for triage (that is triage-issue).'
 ---
 
 # Work an issue
