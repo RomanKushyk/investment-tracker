@@ -62,10 +62,12 @@ export const CHART = {
 // tooltip background at all, so the white was a library default and not a
 // designed value. Adopting the token in both themes puts the tooltip inside the
 // app's surface vocabulary instead of adding a theme-conditional colour.
+// `toast-edge`: this tooltip carries no shadow in EITHER theme, so its stroke
+// was always the whole boundary. Light is the `panel-border` it already shipped.
 export const CHART_TOOLTIP = {
   borderRadius: 16,
   background: 'var(--color-panel)',
-  border: `1px solid var(--color-panel-border)`,
+  border: `1px solid var(--color-toast-edge)`,
   color: 'var(--color-ink)',
   fontSize: 12,
 };

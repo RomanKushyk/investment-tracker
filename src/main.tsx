@@ -102,15 +102,13 @@ void ensureSeeded().then(() => {
               // #ededed edge, the one surface that never turned. Painting it
               // from the palette instead makes it follow the theme through the
               // same tokens as everything else, with no second source of truth
-              // for which theme is on. `panel-border` is also the edge the dark
-              // theme needs once --shadow-popover is zeroed.
+              // for which theme is on.
               background: 'var(--color-card)',
               color: 'var(--color-ink)',
-              // `panel-border`, not `surface-edge`: the toast HAD an edge in
-              // light already (sonner's own #ededed), so the light value must
-              // stay visible — and surface-edge is transparent there by
-              // definition, for surfaces that carry a shadow instead.
-              border: '1px solid var(--color-panel-border)',
+              // `toast-edge`, not `surface-edge`: the toast HAD a light edge
+              // (sonner's own), so its light value must stay visible, and
+              // surface-edge is transparent there by definition.
+              border: '1px solid var(--color-toast-edge)',
             },
           }}
         />

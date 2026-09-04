@@ -133,6 +133,14 @@
   --color-hairline: #e8e7e4;
   --color-panel: #eceae7;
   --color-panel-border: #dedcd8;
+  /* A floating surface's edge, for the two popovers and the date sheet. Light is
+     the `hairline` they already drew: repairing light is a design session, #86.
+     `popover-edge.test.ts` holds the ratios for all three edge tokens. */
+  --color-popover-edge: var(--color-hairline);
+  /* The same, for the toast and the chart tooltip. A second NAME rather than a
+     second value because they need a visible light edge where the popovers take
+     the drawings' fainter one — sonner and recharts each arrived with their own. */
+  --color-toast-edge: var(--color-panel-border);
   /* THE SWITCH'S OFF STATE, which `--shadow-thumb`'s comment admits it never
      fixed: measured in dark, the knob sat at 1.19:1 on its own track AND the
      track at 1.19:1 on the card behind it, so the whole control was a rumour.
@@ -267,22 +275,20 @@
    THIS IS THE ONLY DARK BLOCK, and there is no `prefers-color-scheme` copy of
    it. The head script in index.html resolves the preference — light / dark /
    system — and stamps the ANSWER on the root as data-theme="light"|"dark", so
-   CSS never has to express "system". One list of 43 values instead of two that
-   can drift apart, and the media query stays where it belongs: in the one place
+   CSS never has to express "system". ONE list of values instead of two that can
+   drift apart, and the media query stays where it belongs: in the one place
    that reads it, next to the matchMedia listener that keeps it live.
 
-   Only the 43 PALETTE tokens are here, and they are the SAME 43 that @theme
-   declares outside the chart aliases — one for one, neither set holding a name
-   the other lacks. That equality is the real invariant; the number is just how
-   it is counted, and the number is what rots. It read 38 from A9 until
-   2026-08-17, correct when written and then quietly wrong three times over: D61
-   added `surface-edge`, phase 6 added `scrim` and `drawer-edge`, D68 removed
-   `label`, and field-border.dc.html added `field-border`. The 19
-   --color-chart-* aliases are declared as `var(--color-reit)`
-   and resolve against whatever wins on the same element, so they follow these
-   automatically — verified at runtime by overriding a base token and watching
-   the alias move. Redeclaring them would be 19 more values able to disagree
-   with the ones above.
+   Only PALETTE tokens are here, and they are the same set @theme declares
+   outside the chart aliases — one for one, neither block holding a name the
+   other lacks. That equality is the invariant, and `popover-edge.test.ts` now
+   asserts it: the COUNT used to be written here three times, was wrong three
+   times, and is gone because a figure kept by hand is a figure that rots — the
+   same reason the chart aliases are no longer counted here either. Those are
+   declared as `var(--color-reit)` and resolve against whatever wins on the same
+   element, so they follow these automatically — verified at runtime by
+   overriding a base token and watching the alias move. Redeclaring them would
+   be that many more values able to disagree with the ones above.
 
    Unlayered on purpose: Tailwind puts @theme in `@layer theme`, and an
    unlayered rule beats a layered one regardless of source order, so this cannot
@@ -303,6 +309,11 @@
   --color-hairline: #2a2a2e;
   --color-panel: #232327;
   --color-panel-border: #33333a;
+  /* Dark leaves these surfaces no shadow and, inside a Dialog, no surface step
+     either, so all three edges converge on `field-border` — the palette's
+     control-boundary rank — and differ only in light. */
+  --color-popover-edge: var(--color-field-border);
+  --color-toast-edge: var(--color-field-border);
   /* The OFF track goes from `hairline` to a real mid-grey, which takes the
      TRACK from 1.19:1 to 1.94:1 against the card behind it — the half D57 never
      named. The KNOB stays `card` and measures 1.94:1 too; the two ratios are one
@@ -313,11 +324,13 @@
      (owner's ruling after seeing a white one): on this track it reads, and a
      knob that changes colour with the state looks like two controls. */
   --color-switch-track: #4a4a55;
-  /* Dark is where this token earns its keep. The rail goes DARKER than the page
-     (#0f0f11 on #141416 — the two planes meet at 1.1:1) and every shadow above
-     is zeroed, so the dialog floats over the scrim with no boundary at all.
-     One hairline, `panel-border`'s own value, gives both their edge back. */
-  --color-surface-edge: #33333a;
+  /* Dark is where this token earns its keep: the rail goes darker than the page
+     and the dialog floats over the scrim, and the shadows above are zeroed, so
+     neither has a boundary otherwise. `panel-border`'s value gave both an edge
+     that did not clear the bar, which `mobile.dc.html` had already refused for
+     the drawer. Supersedes the dialog's and the rail's edge in every merged
+     sheet that draws one, and edits none of them. */
+  --color-surface-edge: var(--color-field-border);
 
   /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
      anyone moving the alpha. The drawer (`sidebar` #0f0f11) is DARKER than the
@@ -330,10 +343,12 @@
      mistake D57 records for the Dialog overlay.
      So the value below keeps the veil doing the job a veil can still do —
      dimming what is behind — and the drawer takes an EDGE instead. Measured
-     against #111113: hairline 1.32, panel-border and surface-edge 1.50 (D61 is
-     NOT enough here), faint 3.65, sidebar-muted 5.51. `sidebar-muted` is the
-     one used: it belongs to the drawer's own family and clears the bar with
-     room, where a brighter option would read as a stroke rather than an edge. */
+     against #111113: hairline 1.32, panel-border 1.50, faint 3.65,
+     sidebar-muted 5.51. `sidebar-muted` is the one used: it belongs to the
+     drawer's own family and clears the bar with room, where a brighter option
+     would read as a stroke rather than an edge. (`surface-edge` was the 1.50
+     here, and the reading is why it has since moved off `panel-border`; the
+     drawer keeps its own edge because that one is family, not strength.) */
   --color-scrim: rgba(15, 15, 17, 0.55);
   /* 5.51:1 against the composited scrim — the measurement in the block above.
      Read through the alias rather than repeated as #8b8a90, so it cannot drift

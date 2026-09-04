@@ -300,11 +300,22 @@ references, which are prototype runtime only. A merged drawing is immutable; a n
 own file under `design/extensions/`. The pipeline is brief → a separate design session that turns it
 into an extension → the UI task, which may not start before its extension merges. A merged drawing
 wins a layout dispute, the brief wins copy and behaviour, and colours come only from theme tokens.
+3 : 1 (WCAG 1.4.11) is the bar a boundary that identifies a component or its state is HELD to, in
+both themes — not a claim that every surface clears it. A region's decorative edge and furniture that
+identifies nothing fall outside the bar, and anything still under it carries its reason or its open
+issue where the value is declared, so the shortfall is recorded at the value rather than in prose.
+Dark takes its elevation from the surface step and zeroes its shadows bar one, so a component's
+stroke there is usually the whole boundary — the fill step carries almost none of it. How much
+process a colour needs follows the theme it moves in: a dark-only repair ships as a plain fix, a
+light move goes through a session.
 **Why.** The drawing owns the RESULT and the code owns the mechanism: a static sheet has no
 intermediate widths, no viewport height and no second language, so where it is silent the code
-decides — and says where it decided. "It renders the same" is a claim to check at every width.
+decides — and says where it decided. "It renders the same" is a claim to check at every width. The
+reference draws light, so a light value moving is a drawing being superseded; a dark one is not.
 **Rejected.** Editing a merged drawing to match a later ruling: it destroys the only record of what
 changed. · A hex picked inside a component: a token family is minted by a design session or not at all.
+· Exempting a boundary because its surface is not a field: 1.4.11 binds the component, not the class
+of token it happens to read. A region's decorative edge is what falls outside it.
 
 ## Measurement
 **Decision.** Geometry and colour are read through the chrome-devtools MCP, never Playwright's

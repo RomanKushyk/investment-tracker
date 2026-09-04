@@ -36,7 +36,36 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
-const CSS = read('index.css');
+/** COMMENTS OUT BEFORE ANY TOKEN IS READ. `token()` below takes the first match
+ *  in a block, and this stylesheet's comments quote declarations constantly —
+ *  including retired values it tells you not to re-mint — so a comment could
+ *  satisfy an assertion the CSS fails, or fail one it passes. Quote-aware, not
+ *  `strip` above: `index.css` line 5 holds `/*` inside a string, and the naive
+ *  regex swallows from there to the first real terminator, taking `@theme` with
+ *  it. `popover-edge.test.ts` carries the same reader for the same reason. */
+const CSS = (() => {
+  const src = read('index.css');
+  let out = '';
+  let quote = '';
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (quote) {
+      out += c;
+      if (c === '\\') out += src[++i] ?? '';
+      else if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      out += c;
+    } else if (c === '/' && src[i + 1] === '*') {
+      const end = src.indexOf('*/', i + 2);
+      if (end === -1) throw new Error('index.css has an unterminated /* comment');
+      i = end + 1;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+})();
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
@@ -157,8 +186,15 @@ const FIELD_LINE = (line: string) => /rounded-\[9px\]/.test(line) && /\bh-9\b/.t
 const FIELD_EDGE = /\bborder-(field-border|neg|pos-border|warn)\b/;
 
 /** The palette's other border colours. One of these in a field's colour arm is
- *  the defect this file exists to catch. */
-const OTHER_EDGE = /\bborder-(hairline|faint|panel-border|muted|surface-edge)\b/;
+ *  the defect this file exists to catch, so a token that can be spelled
+ *  `border-*` and is not a field state belongs here — a field on `toast-edge`
+ *  reads 1.19 : 1 on `card` in light and would otherwise be invisible to this
+ *  file AND to `popover-edge.test.ts`, whose lines carry no popover shadow.
+ *  Hand-kept because the palette gives no way to tell a border rank from a text
+ *  one by name; the four floating-surface edges are listed after the four greys
+ *  so the next one added has an obvious place to go. */
+const OTHER_EDGE =
+  /\bborder-(hairline|faint|panel-border|muted|surface-edge|popover-edge|toast-edge|drawer-edge)\b/;
 
 /** A COLOUR ARM: a quoted string of only border/hover utilities — the arm of an
  *  `invalid ? … : …`. A full `className` carrying layout utilities is not one,
