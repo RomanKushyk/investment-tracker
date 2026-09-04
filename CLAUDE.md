@@ -9,7 +9,7 @@ Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. 
 
 ## Workflow
 1. Session start: read the Project's `Triage` column (`gh project item-list 2 --owner RomanKushyk --format json`). Non-empty → run the `triage-issue` skill first. Nothing is coded against an untriaged issue.
-2. Pick a `Ready` issue with no open blocker from the open version milestone; a `bug` goes first. Move it to `In progress` — that column must be empty before. One issue at a time.
+2. Pick a `Ready` issue with no open blocker from the open version milestone; a `bug` goes first. Move it to `In progress` — that column must be empty before. One issue at a time. A multi-part ask that will not fit one issue goes through the `plan-epic` skill first and lands as an epic with `Ready` sub-issues to pick from.
 3. Branch `<type>/<kebab-title>` from `dev`. Always a branch, however small the diff; `dependabot/…` is the one naming exception.
 4. Failing test first, then the change, then the gates.
 5. `/code-review` on the branch diff. One round is the norm. A second or third only when a fix changed behaviour in `src/core/**`, `src/lib/repository.ts`, `src/lib/seed.ts`, `infra/**` or `.github/workflows/**`, or the review found a defect class. Three is the cap; a fourth wanted means the branch is wrong — write a root-cause comment on the issue, then split or redesign.
