@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces. Every switch below is drawn at the width, height, radius,
+     padding and knob size the app renders it at — 40 x 22, r6, 2px padding, a
+     16px knob at r4 — because a boundary decision made on a stand-in control is
+     a decision about nothing. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f5f3;color:#26262a;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#26262a}
+a{color:#5c7355}a:hover{color:#4c5a48}
+:focus-visible{outline:2px solid #26262a;outline-offset:2px}
+::selection{background:#e3eadf}
+table{border-collapse:collapse}
+td,th{text-align:left;padding:5px 14px 5px 0;font-size:12px;vertical-align:baseline}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#696865;font-weight:400;border-bottom:1px solid #e8e7e4;padding-bottom:7px}
+code{font-size:.95em}
+/* Verdicts carry a GLYPH, not only a colour — the rule `field-border.dc.html`
+   states: a contrast sheet must not ship the failure it is enforcing. `ink` and
+   `pos-tint-text` both clear 4.5 at 12px on this page. */
+.no{color:#26262a;font-weight:700}
+.yes{color:#4c5a48;font-weight:700}
+.mi{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#696865;border:1px dashed #b3b2ae;border-radius:6px;padding:2px 7px;display:inline-block}
+.plate{border-radius:16px;padding:16px 18px}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     design/extensions/switch-border.dc.html — the switch's boundary, re-derived
+
+     Brief: issue #83. Implementing task: issue #87.
+     Not this file's: the import dropzone, which #83's body puts out of scope
+     and `field-border.dc.html` twice filed IN — it is #88 now, so it is owned
+     rather than named twice and owned nowhere. The light popover edge is #86.
+     Every field edge is #80, implemented by #3.
+
+     ───────────────────────────────────────────────────────────────────────
+     SUPERSESSION IS NARROW HERE, AND THAT IS ITSELF THE FINDING.
+
+     Two merged drawings draw a switch and no others do — checked with four
+     independent signatures across the master reference, `Tracker Options` and
+     the SIXTEEN merged extensions — this file is the seventeenth and draws eight
+     boxes of its own, so a later reader re-running the survey must exclude it to
+     reach the same answer:
+
+       asset-form.dc.html   :137 create / Inzhur off  :227 edit / group on
+                            :274 fund fragment        :430 quick-create
+       automation.dc.html   :96  S7 default           :292 :303 :314 the S8 rows
+                            :365 reminders off        :414 at 360
+
+     Ten boxes — and only THREE of them draw the OFF edge: `asset-form:137`,
+     `asset-form:430` and `automation:365`, each `background:#e8e7e4` with
+     `border:1px solid #dedcd8`. The other seven are ON, `background:#26262a`,
+     and declare no border literal at all. So THIS FILE SUPERSEDES THE SWITCH'S
+     OFF EDGE IN THOSE THREE BOXES AND EDITS NEITHER FILE. The two prose specs
+     that state the recipe go with them — `asset-form:132-134` and
+     `automation:48-50`, whose token list at `:36-38` names `panel-border
+     #dedcd8`.
+
+     Two negatives, each of which saves a reader a wrong chase:
+       · `settings.dc.html` draws NO switch, though `automation.dc.html:48`
+         credits it with the anatomy. The drawn origin is `asset-form:132-134`.
+       · `appearance-language.dc.html` — the ONLY sheet that draws dark — draws
+         none either. So the dark half of this ruling supersedes nothing drawn,
+         which is exactly why it is the LIGHT half that forces a session:
+         *Design pipeline*, "the reference draws light, so a light value moving
+         is a drawing being superseded; a dark one is not."
+
+     MINTS `--color-switch-border` AS A NAME, NOT A VALUE. Palette 45 -> 46.
+     No hex is minted, so there is no fourth grey.
+
+     ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+     ★ THE DEFECT IS IN BOTH THEMES, AND IT IS THE EDGE.                    ★
+     ★   panel-border #dedcd8 on panel #eceae7    1.14 : 1   light          ★
+     ★   panel-border #dedcd8 on card  #ffffff    1.37 : 1   light          ★
+     ★   panel-border #33333a on panel #232327    1.25 : 1   dark           ★
+     ★   panel-border #33333a on card  #1c1c1f    1.36 : 1   dark           ★
+     ★   and the knob's ring, which IS that token through --shadow-thumb,   ★
+     ★   1.36 : 1 against the knob in dark.                                 ★
+     ★                                                                      ★
+     ★ The bar is 3 : 1 — WCAG 1.4.11, "the visual information required to  ★
+     ★ identify user interface components AND THEIR STATES". An OFF switch  ★
+     ★ is a state of a component, so it is squarely in scope. #83 reported  ★
+     ★ the FILL at 1.03; the fill is not the boundary, and the boundary is  ★
+     ★ worse off than the report.                                           ★
+     ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+     `docs/DECISIONS.md` closes the easy exit before it opens: "Exempting a
+     boundary because its surface is not a field: 1.4.11 binds the component,
+     not the class of token it happens to read." #83 is right that a switch may
+     not INHERIT a field token by assumption — and the answer to that is a
+     derivation that ends on its own name, not a shrug.
+
+     ───────────────────────────────────────────────────────────────────────
+     WHY A NAME, WHEN ITS VALUE IS `field-border` IN BOTH THEMES. This is the
+     only interesting decision in the file, and the one a reviewer will press,
+     because it is the mirror image of the question `field-border.dc.html`
+     answered. There, two values differed in light (1.81 : 1 apart) and the
+     argument was that they must be free to diverge. Here they are identical in
+     BOTH themes, so that escape hatch is unavailable: this is one step spelled
+     twice, and it has to be defended as such.
+
+     THE VALUE IS NOT A CHOICE. `index.css:129-132` already names
+     `field-border` "the control-boundary rank" — a rank, not a field's private
+     colour. A switch's OFF edge is an idle control boundary, on the same three
+     planes, held to the same bar. Deriving a fresh grey from a THRESHOLD
+     instead of from the palette's STRUCTURE is precisely what got #80's first
+     design session rejected: it landed 1.06 : 1 from `faint` and changed
+     nothing a viewer could see. The structure already has the step. Minting a
+     46th value beside it would repeat the rejected move with a new name on it.
+
+     THE NAME IS THE CHOICE, and the precedent is three deep in the same file:
+       · `--color-toast-edge` (`:140-143`) — "A second NAME rather than a second
+         value because they need a visible light edge where the popovers take
+         the drawings' fainter one."
+       · `--color-drawer-edge` (`:178-186`) — "AN ALIAS, NOT A COLOUR ... It
+         names nothing new."
+       · `--color-surface-edge` (`:154-159`) — offered there as the same shape.
+     And #82's ruling in as many words: "EVERY VALUE IS AN ALIAS — no hex is
+     minted, so there is no fourth grey." `popover-edge` and `toast-edge`
+     ALREADY both resolve to `field-border` in dark (`:312-316`), so a third
+     name on that rank is the third instance of an established species.
+
+     AND THE PRECEDENT IS WEAKER THAN THAT SENTENCE SOUNDS, which this file says
+     itself rather than wait to be told. All four aliases carry DIFFERENT values
+     per theme — `popover-edge` hairline/field-border, `toast-edge`
+     panel-border/field-border, `surface-edge` and `drawer-edge` transparent/a
+     token — so for every one of them the dark declaration is load-bearing
+     precisely BECAUSE it differs. This token is `var(--color-field-border)` in
+     both blocks, and since `@theme` and the dark block both land on the same
+     root element, the light declaration already resolves to the dark value at
+     use time. SO THE DARK DECLARATION IS A FUNCTIONAL NO-OP, kept only so the
+     one-for-one palette invariant holds. That is a real cost, it is the honest
+     price of the name, and no precedent in the file has this shape: what is
+     bought is that the switch's reason lives beside the switch's value; what is
+     paid is one redundant declaration a reader could mistake for a second.
+
+     THE COUNTER-DOCTRINE, CONCEDED RATHER THAN DODGED. `index.css:160-166`
+     retired `--color-label` into `muted` and ruled: "Two tokens that must hold
+     one value to be legible are one step drawn twice. ... Do not re-mint." A
+     reviewer will quote that sentence at this file. The distinguisher is the
+     word MUST. `label` and `muted` were FORCED onto one luminance by a single
+     shared constraint — both were text on `panel`, so solving either solved
+     the other and the second name could never move again. The switch edge and
+     the field edge are not forced together; they are held to the same BAR by
+     two independent measurements against two different fills, and they part
+     the moment either control's fill moves. That is a claim about the future,
+     and it is stated here as a claim so that the day one of them moves, this
+     paragraph is the record of why the name was there to move.
+
+     WHAT WOULD BE WRONG IS THE SHORTCUT. `Switch.tsx` could simply read
+     `border-field-border` and no test in the repo would fail — `FIELD_FILES`
+     in `field-border.test.ts` is computed from `rounded-[9px]` with `h-9` and
+     `Switch.tsx` is `rounded-[6px] h-[22px]`, so it is never scanned. The
+     alternative is silently legal, which is exactly why it has to be refused in
+     writing instead of by a red test. `index.css:151-152` is the cautionary
+     case: "light — which the reference draws — does not move; only dark does"
+     was true of the two values it annotates, and it still let the light theme go
+     unmeasured against 1.4.11 for as long as it stood. That is what a
+     value-sharing shortcut decays into once the reason for the sharing no longer
+     lives anywhere near the value.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE TRACK DOES NOT MOVE, IN EITHER THEME, AND THE ARITHMETIC CLOSES IT.
+     #83 asks for new values for `switch-track` and its border, OR a measured
+     reason the 1.03 stands. The reason is that the fill is not the boundary —
+     and the fill CANNOT become the boundary without spending the state cue:
+
+       LIGHT — 3 : 1 on panel #eceae7 (L 0.82448) needs the fill at
+         L <= 0.24149. A LIGHTER fill would need L >= 2.573, which does not
+         exist. At the threshold the fill is about #878787 and the OFF<->ON
+         separation against `ink` collapses from 12.19 : 1 to 4.20 : 1.
+       DARK — 3 : 1 on panel #232327 (L 0.01706) needs L >= 0.15118, the same
+         figure `field-border.dc.html` derives. `field-border` itself clears it
+         as a fill — and then OFF<->ON goes 7.28 -> 4.06 and the fill/edge step
+         is 1.00 : 1, i.e. the control loses its inner shape entirely.
+
+     So a compliant FILL costs two thirds of the state distinction in light and
+     the whole silhouette in dark. The 2026-09-01 ruling that lightened the dark
+     track chose against the brighter candidates for this exact reason and
+     recorded it — "OFF must stay clearly distinct from ON (#eceae7), and this
+     keeps 7.28 : 1". That decision is not this brief's to overturn, and it does
+     not need overturning: the edge is the cheaper carrier and the correct one.
+     The sentence at `:151-152` is AMENDED rather than called false — it is
+     scoped to the two values it annotates and both of them still stand. What it
+     lacks is the other half: the switch's light EDGE does move, so "light does
+     not move" has stopped being a safe summary of the CONTROL while remaining a
+     correct statement about the TRACK. It gains that half; it does not lose the
+     half it had.
+
+     THE KNOB. `--shadow-thumb` in dark is `0 0 0 1px var(--color-panel-border)`
+     — a spread-only shadow used AS the boundary, 1.36 : 1 on the knob. The
+     `Switch` is the last control whose WHOLE boundary — edge and ring both —
+     rests on the value #82 moved away from; `panel-border` still bounds
+     `outlineMuted`, the two checkboxes and the import dropzone (#88), and keeps
+     its value for all of them. The ring re-points to `switch-border`: 1.36 ->
+     3.49 on the knob. It stays a shadow and
+     stays dark's ONE sanctioned shadow (*Design pipeline*, "zeroes its shadows
+     bar one"), with one call site, read through the token so it cannot drift
+     from the value above it. LIGHT'S KNOB IS NOT GIVEN ONE: there the token is
+     a 6%-alpha drop shadow and the knob reads 1.24 : 1 on its own track. That
+     shortfall is deliberate and it is recorded at the value, because after this
+     ruling the STATE is carried by the fill pair at 12.19 : 1 and the COMPONENT
+     by the edge at 3.20 on panel — the knob's own contrast is required for
+     neither. `index.css:99-100`'s "1.19 : 1 on its off track in dark" has been
+     stale since the track moved and is corrected with it.
+
+     AND THE RING IS ON THE KNOB IN BOTH STATES, which the first draft of this
+     sheet drew and then mislabelled "ON · unchanged". `Switch.tsx:43` applies
+     `shadow-(--shadow-thumb)` unconditionally, so re-pointing the token moves
+     the CHECKED knob's halo too: against the ON track `ink` #eceae7 it goes from
+     10.44 : 1 to 4.06 : 1 in dark. That is a visible change to a state this file
+     otherwise leaves alone, so it is ruled on rather than absorbed. IT IS
+     ACCEPTED, on two measurements: 4.06 still clears the bar, and the ON knob
+     never depended on its ring — `card` #1c1c1f on an `ink` track is 14.16 : 1,
+     so there the halo is elevation and not identification. A per-state ring was
+     considered and refused: it needs a second shadow token or a `data-state`
+     branch, and it would make the knob change appearance with the state, which
+     is the exact thing the owner's ONE KNOB COLOUR ruling reverted a white knob
+     for. One ring, both states, and the ON figure recorded because it moved.
+
+     AND THE ONE CLAUSE THAT DOES NOT TRANSPLANT. `field-border.dc.html`'s
+     acceptance demands no field edge below 3 : 1 "against its own fill OR the
+     plane behind it". On the switch the new edge is 3.10 against its own track
+     in light but 1.79 in dark, and it must not be chased: 3 : 1 against
+     #4a4a55 needs L >= 0.31028, where the nearest palette value is `muted`
+     #9b9a96 — 3.10 on the track and only 2.35 : 1 from `ink`, so the OFF edge
+     would stop being distinguishable from the ON edge. The bar and the state
+     cue point opposite ways and the state cue wins. The settling fact is that
+     the CHECKED state already reads 1.00 : 1 against its own fill in both
+     themes — `border-ink` on `bg-ink` — and nobody has ever called the ON
+     switch invisible, because it reads 12.55 / 13.04 on panel. A switch's
+     identifying boundary is its SILHOUETTE AGAINST THE PLANE, in both states.
+     "Against its own fill" is a field's rule, and it is a field's rule because
+     a field's fill is near-white and carries nothing.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE RAIL IS RE-AFFIRMED, AND ITS ARGUMENT IS REPAIRED RATHER THAN ITS
+     VALUE. Nothing about the `Scroller` moves — not `Scroller.tsx:92`, not the
+     diagram at `:11`, and not one of the six RAIL literals in
+     `scroll-surface.dc.html` (`:148 :173 :238 :255 :326 :355`, legend `:152`,
+     colour block `:119`, which records "rail panel-border 1.37 : 1 on card
+     (dark 1.36 on #1c1c1f)" — the figure this file re-affirms). Measured on the
+     rendered app, on four planes:
+
+       rail panel-border on card   1.37 light  ·  1.36 dark
+       and on the sidebar plane    1.20 (light theme, #26262a)
+                                   1.53 (dark theme,  #0f0f11)
+
+     a 1.20-1.53 band with no outlier, so there is no worst case the old
+     recording missed. The floor is the sidebar plane's 1.20 and NOT the 1.14
+     `panel-border` reads on `panel`: every `Scroller` call site sits on `card`
+     or on the sidebar plane and none is inside a `bg-panel` region, so 1.14 is
+     the switch's figure from T1 and never the rail's. It falls under *Design pipeline*'s carve-out — "A
+     region's decorative edge and furniture that identifies nothing fall outside
+     the bar" — and three further facts support it: Radix's scrollbar emits no
+     `role="scrollbar"` and no `aria-*` at all, just a div with
+     `data-orientation`; the app's accessible scroll path is the VIEWPORT, which
+     `Scroller.tsx:215-218` gives `tabIndex` for exactly that reason (WCAG
+     2.1.1); and `type="auto"` means the rail exists only while the region
+     overflows, so it cannot be REQUIRED to identify a component that is
+     identified by the overflow which summons it.
+
+     WHAT IS DELETED IS A CIRCULARITY, AND IT IS THE POINT OF THIS HALF.
+     `Scroller.tsx:50-51` exempts the resting thumb partly because "the rail
+     already marks where the control is" — while the rail's own exemption, if
+     asked, would lean on the thumb being the state. Each vouches for the other.
+     The clause goes, and the exemption is left resting on its sound half alone:
+     A SCROLL REGION IS IDENTIFIED BY ITS CONTENT. That one reason exempts both
+     parts of the furniture, which is why it is the right ground.
+
+     Two consequences, both named so neither dangles:
+       · `index.css:671-672` points at `Scroller.tsx` for the sidebar rail's
+         1.20 — "non-text furniture that 1.4.11 does not bind at all". The
+         exemption must SURVIVE the edit; only the circular half goes.
+       · `Scroller.tsx:24-26` says something sharper than the deleted clause:
+         "The rail is the affordance, the thumb is the state." Deleting `:50-51`
+         alone would relocate the contradiction rather than remove it, so this
+         file takes the position outright: AN AFFORDANCE IS NOT AN
+         IDENTIFICATION REQUIREMENT. 1.4.11 governs information REQUIRED to
+         identify a component or its state; a region identified by its content
+         is identified whether or not the rail advertises that it scrolls. That
+         is a claim, it is this file's, and the same sentence stands unedited in
+         `mobile.dc.html:859-860`. THIS FILE
+         SUPERSEDES ONE CLAUSE OF `scroll-surface.dc.html:126` — repeated at
+         `mobile.dc.html:900` — AND NOT ONE PIXEL OF EITHER.
+
+     One reading worth pulling forward, because it is what makes the exemption
+     load-bearing: the rail against ITS OWN THUMB. `mobile.dc.html:895` already
+     records the light pair — "1.55 : 1 and 2.51 : 1 against its own rail", at
+     rest and in use — so this is a citation, not a discovery; the dark REST
+     figure, which no sheet carried, is 2.42 : 1. Rail and thumb are barely separable from each
+     other, so re-affirming the rail re-affirms the thumb's rest in the same
+     breath — which is the decision #80 already made when it refused to move
+     `faint`, on the stated ground that a field-edge sheet had no mandate to
+     reverse `Scroller.tsx`. #83's body says the opposite ("#80 moves
+     `--color-faint` ... take #80's value as given"); it was written from #80's
+     brief, and the session refused. `faint` is unchanged and pinned in all
+     three blocks by `field-border.test.ts`.
+
+     ───────────────────────────────────────────────────────────────────────
+     AN INSTRUMENT NOTE, recorded because it cost real time and would have put a
+     wrong figure through with total confidence. With transitions collapsed to
+     0.01ms the CSS timeline does not ADVANCE in a CDP-driven tab:
+     `getAnimations()` reports `playState: "running"` at `currentTime: 0`
+     indefinitely, so a colour read after a state change returns the PRE-change
+     value forever. Measured that way an OFF switch reports `background:
+     rgb(38, 38, 42)` — `ink` — with `bg-switch-track` correctly in its class
+     list, which reads exactly like a rendering bug and is not one. Force the
+     transitions to finish before reading. Motion must still be killed at
+     0.01ms rather than with `animation: none`, which stops Radix's
+     unmount-on-`animationend` and leaves `body { pointer-events: none }`
+     swallowing every click. Both traps are now in #87's verification section.
+
+     Instrument checked before anything was believed: the calibration probe read
+     `#e8e7e4` / `#dedcd8` / 1px back exactly, and the light fill's
+     1.13 / 1.24 / 1.03 reproduces `field-border.dc.html`'s own `hairline` row
+     to the digit — the same hex, measured twice by two sessions.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<div style="padding:34px 40px 56px;max-width:1220px">
+
+<h1 style="margin:0 0 6px;font-size:26px">The switch's boundary, re-derived</h1>
+<p style="margin:0 0 4px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Mints <code>--color-switch-border</code> as a <strong>name</strong> &mdash; <code>var(--color-field-border)</code> in both themes, no hex, palette 45&nbsp;&rarr;&nbsp;46 &mdash; re-points dark's <code>--shadow-thumb</code>, and leaves <code>--color-switch-track</code> and the whole <code>Scroller</code> exactly where they are. Every figure is measured on the rendered app through the chrome-devtools MCP at 1440&times;900 and a true 360, dpr&nbsp;1, transitions disabled and forced to finish, each theme reached by reload.</p>
+<p style="margin:0 0 30px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Supersedes the switch's OFF edge in the <strong>three boxes that draw one</strong> &mdash; <code>asset-form</code> <code>:137</code> and <code>:430</code>, <code>automation</code> <code>:365</code> &mdash; and the two prose specs that state the recipe. Neither file is edited. Ten boxes draw a switch across the two sheets; the other seven are ON and declare no edge at all. It also supersedes <strong>one clause</strong> of <code>scroll-surface.dc.html:126</code>'s argument, and not one pixel of it.</p>
+
+<!-- ── T1 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T1 &middot; What fails, and against what</h2>
+<p style="margin:0 0 14px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Every switch in the app is drawn on <code>card</code> &mdash; the <code>/settings</code> Automation rows inside a <code>Card</code>, the <code>AssetForm</code> inside a <code>Dialog</code>, the quick-create inside its own <code>bg-card</code> box &mdash; so <code>card</code> is the plane it occupies and <code>panel</code> is the conservative one the repo's guards measure anyway. The edge fails on <strong>both</strong>, in both themes. <strong>&#10007;</strong> marks below 3&nbsp;:&nbsp;1.</p>
+
+<div style="display:flex;gap:34px;flex-wrap:wrap;margin-bottom:12px">
+  <table>
+    <tr><th>Light &mdash; shipped</th><th>page</th><th>card</th><th>panel</th></tr>
+    <tr><td><code>panel-border</code> #dedcd8 &middot; OFF edge</td><td class="no">&#10007; 1.26</td><td class="no">&#10007; 1.37</td><td class="no">&#10007; 1.14</td></tr>
+    <tr><td><code>switch-track</code> #e8e7e4 &middot; OFF fill</td><td class="no">&#10007; 1.13</td><td class="no">&#10007; 1.24</td><td class="no">&#10007; 1.03</td></tr>
+    <tr><td><code>ink</code> #26262a &middot; ON edge + fill</td><td class="yes">&#10003; 13.84</td><td class="yes">&#10003; 15.07</td><td class="yes">&#10003; 12.55</td></tr>
+  </table>
+  <table>
+    <tr><th>Dark &mdash; shipped</th><th>page</th><th>card</th><th>panel</th></tr>
+    <tr><td><code>panel-border</code> #33333a &middot; OFF edge</td><td class="no">&#10007; 1.47</td><td class="no">&#10007; 1.36</td><td class="no">&#10007; 1.25</td></tr>
+    <tr><td><code>switch-track</code> #4a4a55 &middot; OFF fill</td><td class="no">&#10007; 2.10</td><td class="no">&#10007; 1.94</td><td class="no">&#10007; 1.79</td></tr>
+    <tr><td><code>ink</code> #eceae7 &middot; ON edge + fill</td><td class="yes">&#10003; 15.32</td><td class="yes">&#10003; 14.16</td><td class="yes">&#10003; 13.04</td></tr>
+  </table>
+</div>
+
+<table style="margin-bottom:12px">
+  <tr><th>After &mdash; <code>switch-border</code></th><th>page</th><th>card</th><th>panel</th><th>on its own track</th><th>knob ring</th></tr>
+  <tr><td>Light #84827d</td><td class="yes">&#10003; 3.52</td><td class="yes">&#10003; 3.84</td><td class="yes">&#10003; 3.20</td><td class="yes">&#10003; 3.10</td><td class="no">&#10007; 1.24 &mdash; drop shadow, unchanged (T4-3)</td></tr>
+  <tr><td>Dark #747169</td><td class="yes">&#10003; 3.77</td><td class="yes">&#10003; 3.49</td><td class="yes">&#10003; 3.21</td><td class="no">&#10007; 1.79 &mdash; refused (T5)</td><td class="yes">&#10003; 1.36 &rarr; 3.49</td></tr>
+</table>
+
+<p style="margin:0 0 12px;font-size:11.5px;color:#696865;line-height:1.7;max-width:880px"><strong>The ring is unconditional</strong> (<code>Switch.tsx:43</code>), so the dark ON knob's halo moves with it as well &mdash; 10.44&nbsp;&rarr;&nbsp;4.06 against the <code>ink</code> track, accepted and ruled on in T4-3. The light OFF fill's <strong>1.13 / 1.24 / 1.03</strong> reproduces <code>field-border.dc.html</code>'s own <code>hairline</code> row to the digit &mdash; the same #e8e7e4, measured independently by two sessions &mdash; which is how the instrument was checked before anything else was believed.</p>
+
+<div class="plate" style="border:1px solid #e8e7e4;background:#ffffff;font-size:12px;line-height:1.65;max-width:880px;margin-bottom:34px">
+  <strong>THE FILL IS NOT THE BOUNDARY, WHICH IS WHY THE REPORTED 1.03 IS NOT THE NUMBER THAT MOVES.</strong> #83 reports <code>switch-track</code> at 1.03 on <code>panel</code>. That reading is correct and it stands (T4-2): a compliant <em>fill</em> is arithmetically unaffordable. 3&nbsp;:&nbsp;1 on light <code>panel</code> needs L&nbsp;&le;&nbsp;0.24149 &mdash; a <em>lighter</em> fill would need L&nbsp;&ge;&nbsp;2.573, which does not exist &mdash; and at that threshold the OFF&harr;ON separation falls from <strong>12.19&nbsp;:&nbsp;1 to 4.20</strong>. In dark the threshold is L&nbsp;&ge;&nbsp;0.15118; <code>field-border</code> clears it as a fill and takes OFF&harr;ON from <strong>7.28 to 4.06</strong> while flattening the fill/edge step to 1.00. The edge is the cheaper carrier and the correct one.
+</div>
+
+<!-- ── T2 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T2 &middot; Why a name, and why not simply <code>border-field-border</code></h2>
+<p style="margin:0 0 14px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">The value is not a choice &mdash; the palette already carries a control-boundary rank, and a switch's OFF edge is a control boundary. The <em>name</em> is the choice, and it is the mirror image of the question <code>field-border.dc.html</code> answered: there the two values differed in light, so "they must be free to diverge" was available. Here they are identical in both themes, so the case has to be made without it.</p>
+
+<table style="margin-bottom:14px">
+  <tr><th>The three options</th><th>Cost</th><th>Verdict</th></tr>
+  <tr><td><strong>Mint a new hex</strong> at the same bar</td><td>A 46th palette value beside one that already clears 3&nbsp;:&nbsp;1 on all three planes in both themes</td><td class="no">&#10007; The exact move #80's first session was rejected for &mdash; a threshold search landing 1.06&nbsp;:&nbsp;1 from a value already there, "a ghost move that changes nothing a viewer can see".</td></tr>
+  <tr><td><strong>Point the markup at <code>field-border</code></strong></td><td>One line; no new name; no test fails, because <code>Switch.tsx</code> is not a <code>FIELD_FILE</code> &mdash; <code>FIELD_LINE</code> needs <code>rounded-[9px]</code> with <code>h-9</code> and the switch is <code>rounded-[6px] h-[22px]</code></td><td class="no">&#10007; Silently legal, which is the reason it needs refusing in writing rather than by a red test. It leaves the switch's reason living inside a comment about fields, and <code>index.css:151-152</code> is what that decays into.</td></tr>
+  <tr><td><strong>Mint a NAME</strong>, <code>var(--color-field-border)</code> in both blocks</td><td>One entry in the one-for-one palette set, one entry in an edge blocklist</td><td class="yes">&#10003; Third instance of an established species: <code>toast-edge</code>, <code>drawer-edge</code> and <code>surface-edge</code> are all aliases, and <code>popover-edge</code>/<code>toast-edge</code> already both resolve to <code>field-border</code> in dark.</td></tr>
+</table>
+
+<div class="plate" style="border:1px dashed #b3b2ae;font-size:12px;line-height:1.65;max-width:1120px;margin-bottom:34px">
+  <strong>The counter-doctrine, conceded rather than dodged.</strong> <code>index.css:160-166</code> retired <code>--color-label</code> into <code>muted</code> and ruled: "Two tokens that must hold one value to be legible are one step drawn twice. &hellip; Do not re-mint." The distinguisher is the word <strong>must</strong>. <code>label</code> and <code>muted</code> were <em>forced</em> onto one luminance by a single shared constraint &mdash; both were text on <code>panel</code>, so solving either solved the other and the second name could never move again. The switch edge and the field edge are held to the same <em>bar</em> by two independent measurements against two different fills, and they part the moment either control's fill moves. <strong>That is a claim about the future, and it is stated as a claim</strong> &mdash; so that the day one of them moves, this paragraph is the record of why the name was there to move.
+</div>
+
+<!-- ── T3 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T3 &middot; The control, before and after, both themes</h2>
+<p style="margin:0 0 16px;font-size:12.5px;color:#696865;line-height:1.7;max-width:880px">Real geometry, on the plane the control actually occupies: 40&times;22 at radius 6, a 1&nbsp;px edge, 2&nbsp;px padding and a 16&nbsp;px knob at radius 4 sitting 3&nbsp;px in. The two radii are <em>proportional</em> and derived independently &mdash; <code>round(22&nbsp;&times;&nbsp;.26)&nbsp;=&nbsp;6</code> and <code>round(16&nbsp;&times;&nbsp;.26)&nbsp;=&nbsp;4</code> &mdash; not concentric, and nothing here touches them. <strong>The ON state is drawn to show that it does not move:</strong> it carries <code>border-ink</code> on <code>bg-ink</code>, a 1&nbsp;px geometric spacer that draws nothing, and it already reads 1.00&nbsp;:&nbsp;1 against its own fill.</p>
+
+<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">
+  <div class="plate" style="background:#ffffff;border:1px solid #e8e7e4">
+    <div class="mi" style="margin-bottom:12px">light &middot; on card &middot; shipped</div>
+    <div style="display:flex;gap:26px;align-items:center">
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #dedcd8;background:#e8e7e4;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#ffffff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></div></div>
+        <div style="font-size:10px;color:#696865;margin-top:7px">OFF &middot; edge <span class="no">&#10007; 1.37</span></div>
+      </div>
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #26262a;background:#26262a;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#ffffff;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-left:18px"></div></div>
+        <div style="font-size:10px;color:#696865;margin-top:7px">ON &middot; edge <span class="yes">&#10003; 15.07</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="plate" style="background:#ffffff;border:1px solid #e8e7e4">
+    <div class="mi" style="margin-bottom:12px">light &middot; on card &middot; after</div>
+    <div style="display:flex;gap:26px;align-items:center">
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #84827d;background:#e8e7e4;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#ffffff;box-shadow:0 1px 3px rgba(38,38,42,.06)"></div></div>
+        <div style="font-size:10px;color:#696865;margin-top:7px">OFF &middot; edge <span class="yes">&#10003; 3.84</span></div>
+      </div>
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #26262a;background:#26262a;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#ffffff;box-shadow:0 1px 3px rgba(38,38,42,.06);margin-left:18px"></div></div>
+        <div style="font-size:10px;color:#696865;margin-top:7px">ON &middot; unchanged</div>
+      </div>
+    </div>
+  </div>
+  <div class="plate" style="background:#1c1c1f;border:1px solid #33333a">
+    <div class="mi" style="margin-bottom:12px;color:#9b9a96;border-color:#747169">dark &middot; on card &middot; shipped</div>
+    <div style="display:flex;gap:26px;align-items:center">
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #33333a;background:#4a4a55;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#1c1c1f;box-shadow:0 0 0 1px #33333a"></div></div>
+        <div style="font-size:10px;color:#9b9a96;margin-top:7px">OFF &middot; edge <span style="color:#eceae7;font-weight:700">&#10007; 1.36</span></div>
+      </div>
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #eceae7;background:#eceae7;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#1c1c1f;box-shadow:0 0 0 1px #33333a;margin-left:18px"></div></div>
+        <div style="font-size:10px;color:#9b9a96;margin-top:7px">ON &middot; edge &#10003; 14.16 &middot; ring 10.44</div>
+      </div>
+    </div>
+  </div>
+  <div class="plate" style="background:#1c1c1f;border:1px solid #747169">
+    <div class="mi" style="margin-bottom:12px;color:#9b9a96;border-color:#747169">dark &middot; on card &middot; after</div>
+    <div style="display:flex;gap:26px;align-items:center">
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #747169;background:#4a4a55;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#1c1c1f;box-shadow:0 0 0 1px #747169"></div></div>
+        <div style="font-size:10px;color:#9b9a96;margin-top:7px">OFF &middot; edge <span style="color:#eceae7;font-weight:700">&#10003; 3.49</span> &middot; ring 3.49</div>
+      </div>
+      <div>
+        <div style="width:40px;height:22px;border-radius:6px;border:1px solid #eceae7;background:#eceae7;padding:2px"><div style="width:16px;height:16px;border-radius:4px;background:#1c1c1f;box-shadow:0 0 0 1px #747169;margin-left:18px"></div></div>
+        <div style="font-size:10px;color:#9b9a96;margin-top:7px">ON &middot; ring 10.44 &rarr; &#10003; 4.06</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin:0 0 34px;font-size:11.5px;color:#696865;line-height:1.7;max-width:1120px">At 360 the drawn box is unchanged and <code>TAP_44</code> puts the hit area on an <code>::after</code> pseudo-element &mdash; measured, <code>44px&times;44px</code> with the box still 40&times;22. Hit area is never geometry, so nothing in this sheet moves below the breakpoint.</p>
+
+<!-- ── T4 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T4 &middot; The four rulings</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;max-width:1120px;margin-bottom:34px">
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">1 &middot; The name</div>
+    <p style="margin:0;font-size:12px;line-height:1.65"><code>--color-switch-border</code>, declared <code>var(--color-field-border)</code> in <strong>both</strong> blocks. No hex, so no fourth grey; palette 45&nbsp;&rarr;&nbsp;46. The OFF edge points at it, replacing <code>panel-border</code>. It exists as a name because the switch's reason must live beside the switch's value, not inside a comment about fields (T2).</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">2 &middot; The track does not move</div>
+    <p style="margin:0;font-size:12px;line-height:1.65"><code>switch-track</code> keeps <code>#e8e7e4</code> and <code>#4a4a55</code>. The fill is not the identifying boundary, and a compliant fill costs two thirds of the state cue in light (12.19&nbsp;&rarr;&nbsp;4.20) and the whole silhouette in dark (7.28&nbsp;&rarr;&nbsp;4.06, fill/edge 1.00). #83's 1.03 stands, with that arithmetic as its reason &mdash; and <code>index.css:151-152</code> is <em>replaced</em> by it, not deleted.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">3 &middot; The knob's ring, dark only</div>
+    <p style="margin:0;font-size:12px;line-height:1.65">Dark's <code>--shadow-thumb</code> re-points to the new name: <strong>1.36&nbsp;&rarr;&nbsp;3.49</strong>. It stays a spread-only shadow, stays dark's one sanctioned shadow, keeps its single call site and still reads through the token. <strong>Light gets no ring</strong> &mdash; its knob is 1.24 on its own track, and that shortfall is recorded at the value, because the state is carried by the fill pair and the component by the edge. <strong>The ring is on the knob in BOTH states</strong>, so the ON halo moves too, 10.44&nbsp;&rarr;&nbsp;4.06 against the <code>ink</code> track: accepted, since it still clears the bar and that knob reads 14.16 against its track without any ring at all.</p>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e8e7e4;border-radius:14px;padding:14px 17px">
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:5px">4 &middot; The rail, re-affirmed</div>
+    <p style="margin:0;font-size:12px;line-height:1.65">1.37 light / 1.36 dark on <code>card</code>, 1.20 and 1.53 on the sidebar plane &mdash; furniture that identifies nothing, and a rail that exists only while the region overflows. <strong>Nothing moves.</strong> One clause goes: "the rail already marks where the control is", because it makes the rail and the thumb vouch for each other. The exemption then rests on <em>a scroll region is identified by its content</em> alone, which covers both.</p>
+  </div>
+</div>
+
+<div class="plate" style="border:1px dashed #b3b2ae;font-size:12px;line-height:1.65;max-width:1120px;margin-bottom:34px">
+  <strong>AN AFFORDANCE IS NOT AN IDENTIFICATION REQUIREMENT</strong>, and this file has to say so rather than leave it implied. <code>Scroller.tsx:24-26</code> reads "The rail is the affordance, the thumb is the state" &mdash; sharper than the clause T4-4 deletes, so deleting only that clause would relocate the contradiction instead of removing it. WCAG&nbsp;1.4.11 governs information <em>required</em> to identify a component or its state; a region identified by its content is identified whether or not its rail advertises that it scrolls. The same sentence stands unedited in <code>mobile.dc.html:859-860</code>, and <code>index.css:671-672</code>'s <code>(see Scroller.tsx)</code> must still resolve to a standing exemption after the edit.
+</div>
+
+<!-- ── T5 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T5 &middot; What this costs, and what it deliberately leaves alone</h2>
+<div style="border:1px solid #e8e7e4;background:#ffffff;border-radius:14px;padding:16px 20px;max-width:1120px;margin-bottom:30px">
+  <p style="margin:0 0 10px;font-size:12.5px;line-height:1.7"><strong>The cost is one palette name, one redundant declaration and one claim.</strong> The palette goes 45&nbsp;&rarr;&nbsp;46 with no new value, so the name is a synonym today and is defended as one (T2) &mdash; the claim being that these two boundaries are free to part, which is unfalsifiable until one of them moves. Unlike the four aliases it stands beside, all of which differ per theme, this one is identical in both blocks, so its <em>dark</em> declaration is a functional no-op kept purely to satisfy the one-for-one palette invariant: no precedent in the file has that shape, and a reader could mistake it for a second value. A third cost is the ON knob's halo, 10.44&nbsp;&rarr;&nbsp;4.06 (T4-3), which moves because the ring is unconditional. The second cost is honest and small: in dark the new edge sits <strong>1.79&nbsp;:&nbsp;1 against its own track</strong>, and that is refused rather than fixed, because reaching 3&nbsp;:&nbsp;1 there needs L&nbsp;&ge;&nbsp;0.31028 &mdash; nearest is <code>muted</code> #9b9a96, which is only 2.35&nbsp;:&nbsp;1 from <code>ink</code> and would make the OFF edge indistinguishable from the ON one. The <code>field-border</code> sheet's "or against its own fill" clause therefore does <em>not</em> transplant, and the settling fact is that the CHECKED state already reads 1.00&nbsp;:&nbsp;1 against its own fill in both themes and has never been called invisible. A switch is identified by its silhouette against the plane.</p>
+  <p style="margin:0;font-size:12.5px;line-height:1.7"><strong>What it buys is everything the alternatives could not leave alone.</strong> <code>switch-track</code> keeps both values, so the 2026-09-01 ruling and its 7.28&nbsp;:&nbsp;1 state cue stand. <code>panel-border</code> keeps its value, so the rail, the two <code>bg-panel</code> regions, the table rules, the <code>outlineMuted</code> button, the two checkboxes, <strong>the import dropzone (#88)</strong> and light's <code>toast-edge</code> alias are untouched and need no re-measurement. <code>faint</code> keeps its value, so the <code>Scroller</code> thumb, the native scrollbar and every <code>text-faint</code> site are untouched &mdash; and the sub-3&nbsp;:&nbsp;1 rest that #80 declined to overturn is now argued for on ground that does not depend on the rail. Five shipped comments go stale and are <em>named</em> rather than left: <code>index.css:418-419</code>, <code>:99-100</code>, <code>:95-96</code>, <code>:151-152</code> and <code>Switch.tsx:7-8</code>, plus <code>Switch.tsx:41</code>'s "the OFF fix is the TRACK's alone", which this ruling makes false while leaving the ONE KNOB COLOUR ruling it sits in perfectly intact.</p>
+</div>
+
+<!-- ── ACCEPTANCE ─────────────────────────────────────────────────────── -->
+<div style="border:1px dashed #b3b2ae;border-radius:16px;padding:16px 20px;max-width:1120px">
+  <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#696865;margin-bottom:10px">Acceptance &mdash; what the implementing task (#87) must satisfy</div>
+  <ul style="margin:0;padding-left:18px;font-size:12.5px;line-height:1.85">
+    <li><code>--color-switch-border</code> is declared <code>var(--color-field-border)</code> in <code>@theme</code> <strong>and</strong> in the dark block &mdash; a NAME, not a value. A diff that inlines <code>#84827d</code> or <code>#747169</code> is doing the thing T2 refused.</li>
+    <li><code>Switch.tsx</code>'s unchecked arm reads <code>border-switch-border</code>. The checked arm keeps <code>border-ink bg-ink</code>: a 1&nbsp;px geometric spacer, and the seven ON boxes in the drawings never drew an edge to move.</li>
+    <li><strong><code>--color-switch-track</code> is NOT touched in either block</strong> &mdash; exactly <code>#e8e7e4</code> and <code>#4a4a55</code> &mdash; and the OFF&harr;ON separation against <code>ink</code> stays 12.19&nbsp;:&nbsp;1 light and 7.28&nbsp;:&nbsp;1 dark.</li>
+    <li>The sentence at <code>index.css:151-152</code> is <strong>replaced</strong> by T4-2's reason, not deleted. It is the sentence #83 quotes back as the defect.</li>
+    <li>Dark's <code>--shadow-thumb</code> reads <code>0 0 0 1px var(--color-switch-border)</code> &mdash; through the token, never a copy of the hex. Light's <code>0 1px 3px rgba(38, 38, 42, 0.06)</code> is unchanged, and it is still dark's one sanctioned shadow with one call site. <strong>It is on the knob in BOTH states</strong> (<code>Switch.tsx:43</code> applies it unconditionally), so the CHECKED knob's halo moves with it, 10.44&nbsp;&rarr;&nbsp;4.06 against the <code>ink</code> track. That is expected and ruled on in T4-3 &mdash; it must <em>not</em> be "corrected" with a second shadow token or a <code>data-state</code> branch, which would make the knob change appearance with the state.</li>
+    <li>The light knob's <strong>1.24&nbsp;:&nbsp;1</strong> carries its reason beside <code>--shadow-thumb</code> at <code>index.css:106</code> &mdash; the shortfall is recorded at the value, not in prose.</li>
+    <li><strong><code>--color-faint</code> and <code>--color-panel-border</code> are NOT touched</strong>, in either block or under <code>[data-dark-surface]</code>. Every remaining reader keeps its value: the rail (<code>Scroller.tsx:92</code>), the two <code>bg-panel</code> regions (<code>Allocation.tsx:265</code>, <code>TransactionPanel.tsx:707</code>), the two table rules (<code>Portfolio.tsx:201</code> and <code>:261</code>), <code>outlineMuted</code> (<code>button-variants.ts:59</code>), the two checkboxes (<code>CouponDueCard.tsx:200</code>, <code>ImportDialog.tsx:249</code>), <strong>the import dropzone (<code>ImportRow.tsx:131</code> &mdash; #88, and the one site the first draft of this list omitted)</strong>, the thumb, the native scrollbar and light's <code>toast-edge</code> alias.</li>
+    <li><code>Scroller.tsx:50-51</code>'s clause "and the rail already marks where the control is" is deleted; the exemption survives, and <code>index.css:671-672</code>'s <code>(see Scroller.tsx)</code> still resolves to it. <code>Scroller.tsx:92</code>, the diagram at <code>:11</code> and the colour block at <code>:40-45</code> are otherwise untouched.</li>
+    <li>Five stale comment figures are corrected with the code they describe &mdash; <code>index.css:418-419</code> ("reads panel-border at runtime", 1.36), <code>:99-100</code> (the knob's "1.19&nbsp;:&nbsp;1", stale since the track moved and already contradicted by <code>:319-321</code>), <code>:95-96</code>, <code>:151-152</code> and <code>Switch.tsx:7-8</code> ("off <code>hairline</code> fill + <code>panel-border</code> edge"). <strong><code>Switch.tsx:41</code>'s "The OFF fix is the TRACK's alone" goes</strong>; the ONE KNOB COLOUR ruling around it stands.</li>
+    <li>A new self-contained guard, <code>src/switch-border.test.ts</code>, carrying its own <code>stripCss</code> / <code>luminance</code> / <code>ratio</code> / <code>ruleBody</code> &mdash; the house idiom, three copies and not a shared helper. Shaped like <code>field-border.test.ts:72-137</code>: <code>SURFACES = ['page','card','panel']</code> &times; both themes, ratios recomputed from <code>index.css</code> source text, resolved through a <code>var()</code>-following <code>resolve()</code> because a literal-hex <code>token()</code> would see nothing &mdash; copy that one from <code>popover-edge.test.ts:180</code>. <em>Self-contained is the house idiom rather than an oversight</em> (<code>popover-edge.test.ts:39-42</code> says so, and <code>d0661a2</code> declined extracting the shared helpers); folding these assertions into <code>field-border.test.ts</code> instead would put the switch inside the FIELD guard, which is the single distinction this whole ruling rests on.</li>
+    <li>That guard pins, at minimum: the edge &ge;&nbsp;3&nbsp;:&nbsp;1 on all three surfaces in both themes (3.52 / 3.84 / 3.20 and 3.77 / 3.49 / 3.21); the token declared as <code>var(--color-&hellip;)</code> in both blocks and resolving to the same value as <code>field-border</code>; the track's two exact hexes and a &ge;&nbsp;7&nbsp;:&nbsp;1 state gap &mdash; <em>the assertion that fails if a later tidy darkens the track to clear 3&nbsp;:&nbsp;1 and silently spends the state cue</em>; <code>Switch.tsx</code> naming <code>border-switch-border</code> and no longer <code>border-panel-border</code> on that ternary; dark's <code>--shadow-thumb</code> matching the new token; and <strong>the rail still on <code>border-panel-border</code></strong>, so a later pass cannot "finish the job" without a ruling.</li>
+    <li><code>field-border.test.ts</code>'s <code>OTHER_EDGE</code> gains <code>switch-border</code>, per that file's own rule that "a token that can be spelled <code>border-*</code> and is not a field state belongs here" &mdash; without it, a field arm reading <code>border-switch-border</code> passes where <code>border-panel-border</code> fails today, in the two files that are field files <em>and</em> render a <code>&lt;Switch&gt;</code>. Correct <code>:202</code>'s stated reason while there: the switch's arms are out of scope because <code>Switch.tsx</code> carries no <code>rounded-[9px] h-9</code> line, not because they carry layout utilities.</li>
+    <li><strong>#83's AC4 is met with NO edit to another ruling's guard.</strong> <code>popover-edge.test.ts:262-279</code> derives the <code>--color-*</code> names of both blocks and asserts set equality, so declaring <code>switch-border</code> in <code>@theme</code> <em>and</em> the dark block is checked automatically &mdash; declaring it in one block alone fails there with "declared in @theme, missing in dark". The hand-kept count was deleted in <code>d0661a2</code> ("a figure kept by hand is a figure that rots"), so that equality <strong>is</strong> the invariant and no number is written into <code>index.css</code>. Do <strong>not</strong> append the token to the <code>for (const name of &hellip;)</code> list at <code>:291</code>: that list is documented as the names <em>#82's</em> ruling depends on, and mixing a second ruling's tokens into it buys nothing the equality does not already give. Nor does it go into <code>PLANES</code>, from which <code>EDGES</code> is derived.</li>
+    <li>The guard is <strong>proven by injection</strong> rather than by argument. The Tailwind hazard behind that rule is already closed and must stay closed: <code>index.css:5</code> is <code>@source not '**/*.test.ts'</code>, added because <code>hover:border-muted</code> once shipped with no component using it, purely because a test named it. Do not remove that line, and do not add contortions against a problem it already solves.</li>
+    <li>Re-measured on the RENDERED app in both themes at 1440 and a true 360: <strong>no switch OFF edge below 3&nbsp;:&nbsp;1</strong> against any plane it is drawn on, and the state separation unchanged. Force running transitions to <code>finish()</code> before reading &mdash; a 0.01&nbsp;ms transition never advances in a CDP-driven tab and returns the pre-change colour, which reads exactly like a rendering bug.</li>
+    <li>No fill, radius, height, spacing, motion or copy changes. The two D56 radii, <code>TAP_44</code> and the 2&nbsp;px padding are untouched, and no pinned demo figure moves (<em>Derived figures and the seed</em>) &mdash; colour only.</li>
+    <li>No route's expected values move, so <code>navigation-map.md</code> is untouched; <code>:36</code> describes the rail geometrically with no token, and <code>:227</code>'s dropzone is <strong>#88</strong>.</li>
+  </ul>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>
