@@ -92,17 +92,21 @@
      while their track was `panel` and the step inverted; on an `ink` track a
      `card` chip is ~14:1 either way, so the cue is redundant — and on the
      price-mode track, whose padding is 2px, a 1px outward spread filled half
-     the gap it was meant to sit in. The Switch keeps it: its OFF knob is the
-     one case still resting on a near neighbour.
+     the gap it was meant to sit in. The Switch keeps it: in LIGHT its OFF knob
+     is the one case still resting on a near neighbour.
 
      Named for the THUMB rather than the segment, because the Switch knob has
      the same defect and the reference does not mention it: measured, the knob
-     sits at 1.19:1 on its off track in dark. That is barely worse than the
-     1.24:1 it has in LIGHT — which is the point. The light theme was already
-     leaning on the shadow to separate them, so removing the shadow is what
-     breaks it, and the same edge is the same fix. ONE call site since 2026-09-01 (D114) — it read four
-     while the segmented thumbs shared it, and the paragraph above is what
-     changed that. */
+     sits at 1.24:1 on its own off track here, and this drop shadow is the whole
+     of what separates them. THAT SHORTFALL IS DELIBERATE (#87): once the
+     switch's EDGE was repaired, the STATE is carried by the fill pair at
+     12.19:1 and the COMPONENT by the edge at 3.20 on panel, so the knob's own
+     contrast is required for neither — and light mints no ring, because the
+     surfaces here still carry real shadows. Dark is the other half of this
+     token and there it IS a ring: see the dark block, where it reads
+     `switch-border` at 3.49:1. ONE call site (D114) — it read four while the
+     segmented thumbs shared it, and the paragraph above is what changed
+     that. */
   --shadow-thumb: 0 1px 3px rgba(38, 38, 42, 0.06);
 
   --color-page: #f6f5f3;
@@ -148,9 +152,22 @@
      `card`. A white knob was tried the same day and reverted, because a knob
      that changes colour with the state makes one control look like two; the
      dark block below carries the measured figures.
-     Both values here are what the light theme already renders, so light — which
-     the reference draws — does not move; only dark does. */
+     Both values here are what the light theme already renders, so the TRACK in
+     light — which the reference draws — does not move; only dark's does. That
+     stopped being a safe summary of the CONTROL: #87 moves the switch's light
+     EDGE too, from 1.26/1.37/1.14 on page/card/panel to 3.52/3.84/3.20. The
+     sentence still holds for the two values it annotates, and this ruling
+     freezes both — the arithmetic is in the dark block and
+     `switch-border.test.ts` pins them against a later tidy. */
   --color-switch-track: #e8e7e4;
+  /* THE OFF STATE'S EDGE (switch-border.dc.html, #87). A NAME, NOT A VALUE: a
+     switch's boundary is the palette's control-boundary rank, so it reads
+     `field-border` rather than minting a fourth grey — and it is its own name
+     because the switch's reason has to live beside the switch's value, not
+     inside a comment about fields. Replaces `panel-border`, which left the OFF
+     state under WCAG 1.4.11 on every surface in both themes; here it goes
+     1.26/1.37/1.14 → 3.52/3.84/3.20, and 1.11 → 3.10 on its own track. */
+  --color-switch-border: var(--color-field-border);
   /* The edge a surface needs when its SHADOW cannot draw one — the same trade
      --shadow-thumb above makes, for the surfaces whose shadow is a plain drop
      rather than a separator. Transparent in light on purpose: the rail is
@@ -324,6 +341,17 @@
      (owner's ruling after seeing a white one): on this track it reads, and a
      knob that changes colour with the state looks like two controls. */
   --color-switch-track: #4a4a55;
+  /* The same name and the same rank in dark: 3.77/3.49/3.21 on page/card/panel
+     against `panel-border`'s 1.47/1.36/1.25.
+     THE ONE REFUSED SHORTFALL, RECORDED AT THE VALUE. Against its OWN track
+     this edge reads 1.79:1. Clearing 3:1 there needs L ≥ 0.31028, and the
+     nearest palette value above that is `muted` #9b9a96 at L 0.32282 — which
+     sits only 2.35:1 from `ink`, so the OFF edge would stop being
+     distinguishable from the ON one. Refused on that trade rather than
+     overlooked, and it is an improvement on the 1.43 that shipped, not a
+     regression: what identifies the component is the boundary against the
+     surfaces behind it, and that clears the bar on all three. */
+  --color-switch-border: var(--color-field-border);
   /* Dark is where this token earns its keep: the rail goes darker than the page
      and the dialog floats over the scrim, and the shadows above are zeroed, so
      neither has a boundary otherwise. `panel-border`'s value gave both an edge
@@ -415,9 +443,17 @@
   /* The one exception, and the reference's own sanctioned one (FINDING 2): a
      thumb keeps its elevation cue, because its surface step is the one that
      inverts here. A spread-only shadow IS the 1px edge — no border, so no box
-     to re-measure — and it reads panel-border at runtime rather than repeating
-     #33333a, so it cannot drift from the token above it. 1.36:1 on the thumb. */
-  --shadow-thumb: 0 0 0 1px var(--color-panel-border);
+     to re-measure — and it reads switch-border at runtime rather than repeating
+     a hex, so it cannot drift from the edge it matches. 3.49:1 on the OFF knob,
+     against the 1.36 `panel-border` gave it (#87).
+     IT IS ON THE KNOB IN BOTH STATES — `Switch.tsx` applies it unconditionally
+     — so the CHECKED knob's halo moves with it: 10.44 → 4.06 against the `ink`
+     track. Expected and accepted: 4.06 clears the bar, and that knob reads
+     14.16 on its own track with no ring at all. It must not be "corrected" with
+     a second shadow token or a `data-state` branch, which would make the knob
+     change appearance with the state — the thing the 2026-09-01 ONE KNOB COLOUR
+     ruling reverted a white knob for. */
+  --shadow-thumb: 0 0 0 1px var(--color-switch-border);
 }
 
 /* The theme cross-fade (Phase 5): 200ms linear, ONCE, on exactly the four

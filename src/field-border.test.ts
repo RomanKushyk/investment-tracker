@@ -191,16 +191,20 @@ const FIELD_EDGE = /\bborder-(field-border|neg|pos-border|warn)\b/;
  *  reads 1.19 : 1 on `card` in light and would otherwise be invisible to this
  *  file AND to `popover-edge.test.ts`, whose lines carry no popover shadow.
  *  Hand-kept because the palette gives no way to tell a border rank from a text
- *  one by name; the four floating-surface edges are listed after the four greys
- *  so the next one added has an obvious place to go. */
+ *  one by name; the order is the four greys, then the control edge that is not
+ *  a field's (`switch-border`, #87), then the four floating-surface edges, so
+ *  the next one added has an obvious place to go. */
 const OTHER_EDGE =
-  /\bborder-(hairline|faint|panel-border|muted|surface-edge|popover-edge|toast-edge|drawer-edge)\b/;
+  /\bborder-(hairline|faint|panel-border|muted|switch-border|surface-edge|popover-edge|toast-edge|drawer-edge)\b/;
 
 /** A COLOUR ARM: a quoted string of only border/hover utilities — the arm of an
  *  `invalid ? … : …`. A full `className` carrying layout utilities is not one,
- *  which is how the dashed CONTAINERS, legitimately still `faint`, and the
- *  `Switch`'s own arms stay out of scope. Measured: twenty strings across the
- *  nine field files, and every one is a field state. */
+ *  which is how the dashed CONTAINERS, legitimately still `faint`, stay out of
+ *  scope. The `Switch`'s arms are out for a different reason, and the
+ *  difference matters: its arm IS a bare colour arm, but `Switch.tsx` carries
+ *  no `rounded-[9px] h-9` line, so it never enters `FIELD_FILES` and nothing
+ *  here reads it. Measured: twenty strings across the nine field files, and
+ *  every one is a field state. */
 const colourArms = (src: string) =>
   (src.match(/'[^']*'/g) ?? [])
     .map((s) => s.slice(1, -1))

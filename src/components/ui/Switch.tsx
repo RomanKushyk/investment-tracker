@@ -4,8 +4,10 @@ import { TAP_44 } from './tap-target';
 
 // The app's one switch anatomy (P2 asset-form.dc.html "Link to Inzhur" toggle,
 // reused verbatim by the P3 Settings→Automation rows, automation.dc.html S8):
-// track 40 × 22 radius 6 — off `hairline` fill + `panel-border` edge, on
-// `ink`; 16px `card` thumb, radius 4, with the card shadow.
+// track 40 × 22 radius 6 — off `switch-track` fill + `switch-border` edge, on
+// `ink`; 16px `card` thumb, radius 4, with the card shadow. The drawings show
+// the fill as `hairline` and the edge as `panel-border`; both moved because the
+// OFF state read under 3 : 1 (*Interaction rules*, then #87).
 // Both radii are D56 PROPORTIONAL and derived independently — round(22 × .26)
 // = 6 and round(16 × .26) = 4 — not concentric. The thumb sits 3px in (2px
 // padding + the 1px border), so a concentric reading would give 4 + 3 = 7 for
@@ -32,13 +34,15 @@ export function Switch({
       // radii above are keyed to the DRAWN height, so growing the box would move
       // them both — which is exactly what `TAP_44` exists to avoid.
       className={`h-[22px] w-10 flex-none cursor-pointer rounded-[6px] border p-[2px] transition active:scale-[.97] ${TAP_44} ${
-        checked ? 'border-ink bg-ink' : 'border-panel-border bg-switch-track'
+        checked ? 'border-ink bg-ink' : 'border-switch-border bg-switch-track'
       }`}
     >
-      {/* ONE KNOB COLOUR, BOTH STATES — owner's ruling, 2026-09-01, after
-          seeing a white one: `card` on the lightened OFF track reads fine, and
+      {/* ONE KNOB COLOUR, BOTH STATES — owner's ruling after seeing a white
+          one: `card` on the lightened OFF track reads fine, and
           a knob that changes colour with the state makes the state look like
-          two different controls. The OFF fix is the TRACK's alone. */}
+          two different controls. `--shadow-thumb` is applied unconditionally
+          here for the same reason, and #87's re-pointing of it in dark moves
+          the CHECKED knob's halo too — expected, and argued at the token. */}
       <RadixSwitch.Thumb
         className={`block size-4 rounded-[4px] bg-card shadow-(--shadow-thumb) transition-transform ${
           checked ? 'translate-x-[18px]' : 'translate-x-0'

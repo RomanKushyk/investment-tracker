@@ -47,8 +47,8 @@
 // The resting thumb is deliberately below the 3:1 WCAG 1.4.11 asks of a
 // non-text indicator: 1.4.11 covers information REQUIRED to identify a component
 // or its state, and a scroll region is identified by its content — position is
-// carried by the content moving too, and the rail already marks where the
-// control is. The passing value arrives when the thumb is actually being used.
+// carried by the content moving too. The passing value arrives when the thumb
+// is actually being used.
 import { ScrollArea } from 'radix-ui';
 import type { CSSProperties, ReactNode } from 'react';
 
