@@ -581,7 +581,13 @@ export const en = {
       // as one.
       xirrAnn: 'XIRR (ann.)',
     },
-    balances: { pending: 'pending' },
+    balances: {
+      pending: 'pending',
+      // The legend the mark points at, and the marked cell's own `title`. It
+      // names the RECORDED first purchase, not the asset's true history —
+      // whether those differ is the asset record's problem, not this row's.
+      earlyQuote: 'Quote saved for a date before the first purchase recorded for this asset.',
+    },
     attributes: {
       ytmAtPurchase: 'YTM at purchase',
       coupon: 'Coupon',
@@ -1528,7 +1534,10 @@ export const uk: Dict = {
       xirr: 'XIRR',
       xirrAnn: 'XIRR (річн.)',
     },
-    balances: { pending: 'очікується' },
+    balances: {
+      pending: 'очікується',
+      earlyQuote: 'Котирування збережене на дату, ранішу за записану першу купівлю цього активу.',
+    },
     attributes: {
       ytmAtPurchase: 'YTM на купівлі',
       coupon: 'Купон',

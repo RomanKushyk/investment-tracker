@@ -5,6 +5,7 @@ import {
   balanceChartData,
   buildBalanceRow,
   completeSnapshots,
+  pageHasEarlyQuote,
   paginateSnapshots,
 } from './balances';
 
@@ -87,5 +88,43 @@ describe('paginateSnapshots', () => {
   it('last page has the remaining rows ending at the oldest = 03.02', () => {
     const { rows } = paginateSnapshots(snaps, 28);
     expect(rows[rows.length - 1].date).toBe('2026-02-03');
+  });
+});
+
+describe('a quote stored before the asset was first purchased', () => {
+  // The reported case (#2): …8976 declares 05.02 and a quote is saved on 04.02.
+  // `/`'s date picker accepts any day, so the row exists and every other reader
+  // of a snapshot already counts it.
+  const early = () => {
+    const base = snaps.find((s) => s.date === '2026-02-04')!;
+    return { ...base, quotes: { ...base.quotes, ovdp8976: 15390 } };
+  };
+
+  it('shows the stored value, marked, instead of "—"', () => {
+    const row = buildBalanceRow(early(), SEED_ASSETS);
+    expect(row.cells[2]).toEqual({ status: 'value', amount: 15390, beforeFirstPurchase: true });
+  });
+
+  // Holds while every quote key belongs to a listed asset. A quote left behind
+  // by a deleted one is counted by `totalCapital` with no cell to show it — the
+  // same symptom from the other end, and #34's.
+  it('adds up: the cells it shows plus its cash equal the total it prints', () => {
+    const row = buildBalanceRow(early(), SEED_ASSETS);
+    const shown = row.cells.reduce((sum, c) => sum + (c.status === 'value' ? c.amount : 0), 0);
+    expect(row.total).not.toBeNull();
+    expect(shown + row.cash).toBeCloseTo(row.total!, 2);
+  });
+
+  it('is what the page footnote keys off, and only that', () => {
+    const marked = buildBalanceRow(early(), SEED_ASSETS);
+    const plain = buildBalanceRow(
+      snaps.find((s) => s.date === '2026-07-25')!,
+      SEED_ASSETS,
+    );
+    expect(pageHasEarlyQuote([plain, marked])).toBe(true);
+    expect(pageHasEarlyQuote([plain])).toBe(false);
+    // A 'none' cell is not a mark: 03.02 predates both bonds and holds no quote.
+    expect(pageHasEarlyQuote([buildBalanceRow(snaps[0], SEED_ASSETS)])).toBe(false);
+    expect(pageHasEarlyQuote([])).toBe(false);
   });
 });

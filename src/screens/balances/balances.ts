@@ -33,7 +33,12 @@ export function balanceChartData(snapshots: Snapshot[], assets: Asset[]): Balanc
 }
 
 export type BalanceCell =
-  { status: 'value'; amount: number } | { status: 'pending' } | { status: 'none' }; // asset didn't exist yet on this date
+  // `beforeFirstPurchase` flags a stored quote dated earlier than the asset's
+  // own «Перша купівля» — two stored facts that disagree, which the row states
+  // rather than resolves.
+  | { status: 'value'; amount: number; beforeFirstPurchase?: true }
+  | { status: 'pending' }
+  | { status: 'none' }; // no quote, and the asset did not exist yet on this date
 
 export interface BalanceRow {
   date: string;
@@ -44,17 +49,28 @@ export interface BalanceRow {
 
 export function buildBalanceRow(snapshot: Snapshot, assets: Asset[]): BalanceRow {
   const cells = assets.map((a): BalanceCell => {
-    if (a.firstPurchase > snapshot.date) return { status: 'none' };
+    // A stored quote is never hidden: `totalCapital` counts every one of them,
+    // so a cell that withheld one printed a total its own row could not make.
     const amount = snapshot.quotes[a.id];
-    return amount === undefined ? { status: 'pending' } : { status: 'value', amount };
+    const early = a.firstPurchase > snapshot.date;
+    if (amount === undefined) return early ? { status: 'none' } : { status: 'pending' };
+    return early
+      ? { status: 'value', amount, beforeFirstPurchase: true }
+      : { status: 'value', amount };
   });
-  const complete = cells.every((c) => c.status !== 'pending');
+  // The same predicate the chart filters on — named once so the two cannot drift.
+  const complete = isCompleteSnapshot(snapshot, assets);
   return {
     date: snapshot.date,
     cells,
     cash: snapshot.cash,
     total: complete ? totalCapital(snapshot) : null,
   };
+}
+
+/** Whether a page carries a marked cell — the only question the footnote asks. */
+export function pageHasEarlyQuote(rows: BalanceRow[]): boolean {
+  return rows.some((r) => r.cells.some((c) => c.status === 'value' && c.beforeFirstPurchase));
 }
 
 export interface SnapshotPage {

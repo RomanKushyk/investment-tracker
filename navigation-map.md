@@ -137,6 +137,7 @@ On seed:
 - Snapshot table, newest first: 27.07 row shows `68 702,10` then "pending" ×3, cash `7,75`, total "—"; 25.07 row total `148 943,62`; rows continue 24.07 → 21.07 (no 26.07 row).
 - Footer: "Showing last 6 snapshots · 174 total since 03.02.2026" + Prev/Next pagination over the full history.
 - After saving all 4 quotes on `/` for today: the pending cells fill and the row total computes.
+- A quote saved on `/` for a day before that asset's own first purchase is shown, not withheld: save `15 390,00` for …8976 on 04.02 and the last page's 04.02 row reads `64 648,47 · 59 214,04 · 15 390,00* · — · 7,75 · 139 260,26` — it adds up, and one footnote under the table explains the `*`. The footnote is absent on a page with no such cell.
 
 ## `/payouts`
 

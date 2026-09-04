@@ -7,11 +7,20 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots } from '../hooks/queries';
-import { balanceChartData, buildBalanceRow, paginateSnapshots } from './balances/balances';
+import {
+  balanceChartData,
+  buildBalanceRow,
+  pageHasEarlyQuote,
+  paginateSnapshots,
+} from './balances/balances';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
+
+// One source for the glyph: the cell that wears it and the legend that explains
+// it must never be able to disagree.
+const EARLY_MARK = '*';
 
 export function Balances() {
   const f = useFormat();
@@ -24,6 +33,10 @@ export function Balances() {
   const chartData = balanceChartData(snapshots, assets);
   const { rows, page: currentPage, totalPages, total } = paginateSnapshots(snapshots, page);
   const earliest = [...snapshots].sort((a, b) => a.date.localeCompare(b.date))[0]?.date;
+  // Derived once for both forms: the footnote has to know whether this page
+  // holds a marked cell before either form has drawn one.
+  const built = rows.map((s) => buildBalanceRow(s, assets));
+  const hasEarlyQuote = pageHasEarlyQuote(built);
 
   // The pagination strip belongs to the screen, not to either form of the data,
   // so it is written once and placed under whichever one is on screen.
@@ -50,6 +63,14 @@ export function Balances() {
           {t.analytics.next}
         </Button>
       </div>
+    </div>
+  );
+
+  // The legend for the mark, written once like the pager and placed under
+  // whichever form is on screen.
+  const note = hasEarlyQuote && (
+    <div className="text-[11.5px] text-muted">
+      {EARLY_MARK} {t.analytics.balances.earlyQuote}
     </div>
   );
 
@@ -98,38 +119,53 @@ export function Balances() {
                     </td>
                   </tr>
                 )}
-                {rows.map((s) => {
-                  const row = buildBalanceRow(s, assets);
-                  return (
-                    <tr
-                      key={s.date}
-                      className="border-t border-hairline transition-colors hover:bg-page/60"
-                    >
-                      <td className="py-2 font-semibold whitespace-nowrap">{f.date(s.date)}</td>
-                      {row.cells.map((cell, i) => (
-                        <td key={assets[i].id} className="py-2 text-right">
-                          {cell.status === 'value' && f.num(cell.amount)}
-                          {cell.status === 'pending' && (
-                            <span className="text-faint">{t.analytics.balances.pending}</span>
-                          )}
-                          {cell.status === 'none' && '—'}
-                        </td>
-                      ))}
-                      <td className="py-2 text-right">{f.num(row.cash)}</td>
-                      <td className="py-2 text-right font-bold">
-                        {row.total === null ? (
-                          <span className="text-faint">—</span>
-                        ) : (
-                          f.num(row.total)
+                {built.map((row) => (
+                  <tr
+                    key={row.date}
+                    className="border-t border-hairline transition-colors hover:bg-page/60"
+                  >
+                    <td className="py-2 font-semibold whitespace-nowrap">{f.date(row.date)}</td>
+                    {row.cells.map((cell, i) => (
+                      <td
+                        key={assets[i].id}
+                        className="py-2 text-right"
+                        title={
+                          cell.status === 'value' && cell.beforeFirstPurchase
+                            ? t.analytics.balances.earlyQuote
+                            : undefined
+                        }
+                      >
+                        {cell.status === 'value' && f.num(cell.amount)}
+                        {cell.status === 'pending' && (
+                          <span className="text-faint">{t.analytics.balances.pending}</span>
+                        )}
+                        {cell.status === 'none' && '—'}
+                        {/* A FIXED SLOT, not an appended glyph: the column is
+                          right-aligned, so hanging the mark off the digits would
+                          push a marked row out of line. Every cell gets the slot
+                          or none does, and only a page with a mark has one. */}
+                        {hasEarlyQuote && (
+                          <span className="inline-block w-2 text-left text-muted">
+                            {cell.status === 'value' && cell.beforeFirstPurchase ? EARLY_MARK : ''}
+                          </span>
                         )}
                       </td>
-                    </tr>
-                  );
-                })}
+                    ))}
+                    <td className="py-2 text-right">{f.num(row.cash)}</td>
+                    <td className="py-2 text-right font-bold">
+                      {row.total === null ? (
+                        <span className="text-faint">—</span>
+                      ) : (
+                        f.num(row.total)
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </Scroller>
 
+          {note && <div className="mt-2.5">{note}</div>}
           <div className="mt-2.5">{pager}</div>
         </Card>
       ) : (
@@ -144,33 +180,43 @@ export function Balances() {
               <div className="text-center text-muted">{t.analytics.empty.table}</div>
             </Card>
           )}
-          {rows.map((s, i) => {
-            const row = buildBalanceRow(s, assets);
-            return (
-              <RecordCard key={s.date} index={i} title={f.date(s.date)}>
-                {row.cells.map((cell, ci) => (
-                  <Fact key={assets[ci].id} label={assets[ci].name}>
-                    {cell.status === 'value' && f.num(cell.amount)}
-                    {/* A partial row keeps its treatment exactly: `pending` in
+          {built.map((row, i) => (
+            <RecordCard key={row.date} index={i} title={f.date(row.date)}>
+              {row.cells.map((cell, ci) => (
+                <Fact key={assets[ci].id} label={assets[ci].name}>
+                  {/* The same mark in both shells (D66), and it names itself —
+                      a glyph with nothing in the accessible tree behind it is
+                      not a message. */}
+                  {cell.status === 'value' && (
+                    <span
+                      title={cell.beforeFirstPurchase ? t.analytics.balances.earlyQuote : undefined}
+                    >
+                      {f.num(cell.amount)}
+                      {cell.beforeFirstPurchase && (
+                        <span className="font-normal text-muted">{EARLY_MARK}</span>
+                      )}
+                    </span>
+                  )}
+                  {/* A partial row keeps its treatment exactly: `pending` in
                       `faint`, and the total `—` rather than a number that would
                       read as complete. */}
-                    {cell.status === 'pending' && (
-                      <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
-                    )}
-                    {cell.status === 'none' && '—'}
-                  </Fact>
-                ))}
-                <Fact label={t.analytics.cash}>{f.num(row.cash)}</Fact>
-                <Fact label={t.analytics.totalUah}>
-                  {row.total === null ? (
-                    <span className="font-normal text-faint">—</span>
-                  ) : (
-                    f.num(row.total)
+                  {cell.status === 'pending' && (
+                    <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
                   )}
+                  {cell.status === 'none' && '—'}
                 </Fact>
-              </RecordCard>
-            );
-          })}
+              ))}
+              <Fact label={t.analytics.cash}>{f.num(row.cash)}</Fact>
+              <Fact label={t.analytics.totalUah}>
+                {row.total === null ? (
+                  <span className="font-normal text-faint">—</span>
+                ) : (
+                  f.num(row.total)
+                )}
+              </Fact>
+            </RecordCard>
+          ))}
+          {note && <div className="px-1">{note}</div>}
           <div className="px-1">{pager}</div>
         </div>
       )}
