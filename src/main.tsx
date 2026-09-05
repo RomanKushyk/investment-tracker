@@ -105,10 +105,11 @@ void ensureSeeded().then(() => {
               // for which theme is on.
               background: 'var(--color-card)',
               color: 'var(--color-ink)',
-              // `toast-edge`, not `surface-edge`: the toast HAD a light edge
-              // (sonner's own), so its light value must stay visible, and
-              // surface-edge is transparent there by definition.
-              border: '1px solid var(--color-toast-edge)',
+              // The palette's control-boundary rank, which #98 retired the
+              // toast's own edge name into — sonner's default and the
+              // `panel-border` that replaced it both left this `card`-on-`page`
+              // surface under 1.4.11.
+              border: '1px solid var(--color-field-border)',
             },
           }}
         />

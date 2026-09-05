@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 //
 // The second half is a MIGRATION GUARD and its list is closed. `parchment-5h`
 // re-valued every token in both blocks, and the way that goes wrong is not a
-// missing name — `popover-edge.test.ts` catches those — but a value left behind,
+// missing name — `floating-edges.test.ts` catches those — but a value left behind,
 // in a declaration or in a sentence about one.
 //
 // SELF-CONTAINED ON PURPOSE, the house idiom — `field-border.test.ts:72` gives
@@ -29,7 +29,7 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
 /** CSS comments out, quote-aware. `index.css` line 5 holds a literal comment
  *  opener inside a string, so a regex strip swallows `@theme` with it. Copied
- *  from `popover-edge.test.ts:45`, which learned that by failing. */
+ *  from `floating-edges.test.ts`'s `stripCss()`, which learned that by failing. */
 function stripCss(source: string, what: string): string {
   let out = '';
   let quote = '';

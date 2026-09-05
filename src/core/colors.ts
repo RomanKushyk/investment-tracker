@@ -62,12 +62,14 @@ export const CHART = {
 // tooltip background at all, so the white was a library default and not a
 // designed value. Adopting the token in both themes puts the tooltip inside the
 // app's surface vocabulary instead of adding a theme-conditional colour.
-// `toast-edge`: this tooltip carries no shadow in EITHER theme, so its stroke
-// was always the whole boundary. Light is the `panel-border` it already shipped.
+// This tooltip carries no shadow in EITHER theme and renders inside a `bg-card`
+// Card at all four of its consumers, so its stroke was always the whole
+// boundary and `panel-border` was never enough of one. #98 moved it to the
+// palette's control-boundary rank; `floating-edges.test.ts` holds the ratios.
 export const CHART_TOOLTIP = {
   borderRadius: 16,
   background: 'var(--color-panel)',
-  border: `1px solid var(--color-toast-edge)`,
+  border: `1px solid var(--color-field-border)`,
   color: 'var(--color-ink)',
   fontSize: 12,
 };

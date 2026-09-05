@@ -306,7 +306,11 @@ wins a layout dispute, the brief wins copy and behaviour, and colours come only 
 3 : 1 (WCAG 1.4.11) is the bar a boundary that identifies a component or its state is HELD to, in
 both themes — not a claim that every surface clears it. A region's decorative edge and furniture that
 identifies nothing fall outside the bar, and anything still under it carries its reason or its open
-issue where the value is declared, so the shortfall is recorded at the value rather than in prose.
+issue where the value is declared, so the shortfall is recorded at the value rather than in prose —
+or, where a SHARED RANK clears the bar and one surface reading it does not, at that surface. A
+boundary token is minted only when it would hold a value, or a record, that the rank does not — and a
+name left holding the rank's own value in BOTH themes, once a contrast ruling has moved it there, is
+one step drawn twice and is retired into the rank rather than kept as an alias.
 Dark takes its elevation from the surface step and zeroes its shadows bar one, so a component's
 stroke there is usually the whole boundary — the fill step carries almost none of it. Every colour
 move goes through a design session, in either theme — the asymmetry that let a dark-only repair ship

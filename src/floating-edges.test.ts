@@ -3,15 +3,14 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE FLOATING SURFACES' BOUNDARY, PINNED AT THE SAME BAR AS THE FIELD EDGE.
+// THE FLOATING SURFACES' BOUNDARY, PINNED AT THE SAME BAR AS THE FIELD EDGE —
+// AND ON THE SAME TOKEN, WHICH IS THE RULING (floating-edges.dc.html T4).
 //
-// Dark zeroes `--shadow-popover`, so a popover is `card` on `card` with a
-// `hairline` edge and nothing else — a boundary in name only. The worst case is
-// not that: an
-// `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover lands on
-// a `bg-card` plane — a 1.00 : 1 fill step. WCAG 1.4.11 governs "the visual
-// information required to identify user interface components", and a listbox
-// popover is a component.
+// A popover is `card` on `card` with a faint edge and nothing else — a boundary
+// in name only. The worst case is not even that: an `AssetForm` `Select` opens
+// INSIDE a `Dialog`, so a `bg-card` popover lands on a `bg-card` plane — a
+// 1.00 : 1 fill step. WCAG 1.4.11 governs "the visual information required to
+// identify user interface components", and a listbox popover is a component.
 //
 // Two halves need pinning and neither catches the other — the split
 // `field-border.test.ts` records. THE CSS HALF is arithmetic on the tokens:
@@ -21,21 +20,28 @@ import { describe, expect, it } from 'vitest';
 // fourth floating surface added by copying a third lands on whatever the third
 // used — which is exactly how the toast ended up on its own edge.
 //
-// THE VALUES ARE ALIASES, AND THAT IS THE POINT. Not one declaration holds a
-// hex, so no grey is minted and no boundary can drift from the token it was
-// measured as — the trade `--color-drawer-edge` states in the same words.
-// `resolve()` is the one helper here that is new, and it exists for exactly
-// that: `field-border.test.ts`'s `token()` matches a literal hex and would see
-// nothing.
+// THERE IS NO FLOATING-EDGE FAMILY ANY MORE, AND THE ORDER OF THE ARGUMENT IS
+// EASY TO GET BACKWARDS. `popover-edge`, `toast-edge` and `surface-edge` each
+// held TWO values — a light one and `field-border` in dark — so the redundancy
+// was not the premise. The premise is 1.4.11: light needed an opaque 3 : 1
+// stroke on these surfaces, and `field-border` is the only rung that clears it.
+// Moving light there is what left all three holding one value in both blocks,
+// and only then does `index.css`'s retired `--color-label` comment bite — "Two
+// tokens that must hold the same value to be legible are one step drawn twice …
+// Do not re-mint." Hence retired rather than kept as three aliases of one rank.
+// `--color-drawer-edge` survives the same test because its light value never had
+// to move; `--color-switch-border` because its name holds a recorded shortfall.
 //
-// THREE NAMES, ONE DARK VALUE, THREE LIGHT ONES. That is the ruling and not an
-// accident: in dark none of these surfaces has a shadow left, so all three take
-// `field-border`; in light they differ, and each keeps exactly what it already
-// drew — the drawings' `hairline` for the popovers and the date sheet,
-// `panel-border` for the toast and the chart tooltip, which arrived with edges
-// of their own from sonner and recharts, and `transparent` for the `Dialog`
-// panel and the rail, which have a real shadow there. So light does not move at
-// all, which is what makes this a plain fix rather than a design session.
+// `resolve()` follows a `var()` chain because a PLANE may be one — `field-border`
+// and the four surfaces are hexes today, and #92 re-planes the sidebar.
+// `field-border.test.ts`'s `token()` matches a literal hex and would see nothing.
+//
+// THE RAIL IS READ FROM `@theme`, and it carries `data-dark-surface`. That block
+// overrides `panel-border`, `faint` and `muted` — not `field-border` — so the
+// rail's edge takes the light value, which is what the sheet costed. Declaring
+// the token under any scope that contains the rail would move that edge while
+// every assertion here went on reading `@theme`; the guard below closes that
+// rather than this paragraph merely naming it.
 //
 // SELF-CONTAINED ON PURPOSE, which is the house idiom rather than a technical
 // necessity: `filled-track.test.ts` and `field-border.test.ts` already each
@@ -129,9 +135,15 @@ const CSS = stripCss(read('index.css'), 'index.css');
 
 /* ─────────────────────────── the CSS half ─────────────────────────── */
 
+/** `#rrggbb` → the three channels, 0-255, and back. Both exist for the overlay
+ *  composite below; nothing else here needs to take a colour apart. */
+const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const rgbHex = (ch: number[]) =>
+  '#' + ch.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+
 /** sRGB → relative luminance, WCAG 2.x. */
 function luminance(hex: string): number {
-  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const ch = channels(hex).map((c) => c / 255);
   const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
   return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
 }
@@ -192,65 +204,146 @@ function resolve(block: string, name: string, seen: string[] = []): string {
   return hex;
 }
 
-const SURFACES = ['page', 'card', 'panel'] as const;
-/** `surface-edge` is worn by two things and neither sits on those three: the
- *  desktop rail is a `sidebar` plane, and `Dialog` floats over the scrim. The
- *  rail's boundary is read against its OWN fill, so `sidebar` has to be in the
- *  set or lightening it would erase that edge from the inside, silently. */
-const PLANES = {
-  'popover-edge': SURFACES,
-  'toast-edge': SURFACES,
-  'surface-edge': [...SURFACES, 'sidebar'],
+/** TWO GROUPS, not three and not one. T4 left a single token, so the old
+ *  per-name split had two of its three entries asserting the same thing — but
+ *  collapsing to one union list is the opposite error: it would demand the rank
+ *  clear the bar on `sidebar` for surfaces never drawn there and on `card` for a
+ *  rail that never touches it, so #92 re-planing `sidebar` would fail this test
+ *  in the name of six surfaces it cannot affect.
+ *
+ *  `card` binds twice over — a popover's own fill AND, inside a `Dialog`, the
+ *  plane behind it. `panel` is the weakest plane a popover opens over. `sidebar`
+ *  is the rail's own wall, read from the inside so lightening it cannot erase
+ *  that edge silently. */
+const DRAWN_ON = {
+  'the floating surfaces': ['page', 'card', 'panel'],
+  'the desktop rail': ['sidebar'],
 } as const;
-/** Derived, so a fourth edge cannot be given planes and then never measured. */
-const EDGES = Object.keys(PLANES) as (keyof typeof PLANES)[];
+const THEMES = ['light', 'dark'] as const;
+/** The names T4 retired. Not a token list — a list of what must NOT come back. */
+const RETIRED = ['popover-edge', 'toast-edge', 'surface-edge'] as const;
 
-describe('a floating surface clears 3 : 1 in dark, where its shadow is zeroed', () => {
-  // `card` binds twice over: it is the popover's own fill AND, inside a Dialog,
-  // the plane behind it. `panel` is the weakest plane a popover opens over.
-  for (const edge of EDGES) {
-    it(`dark \`${edge}\` is at or above 3 : 1 on every plane it is drawn on`, () => {
-      const value = resolve(BLOCKS.dark, edge);
-      for (const surface of PLANES[edge]) {
-        expect(
-          ratio(value, resolve(BLOCKS.dark, surface)),
-          `${edge} on ${surface}`,
-        ).toBeGreaterThanOrEqual(3);
+describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => {
+  // BOTH THEMES, where this file used to assert dark only. Light was the half
+  // #86 deliberately left and #98 closed, so there is no longer an asymmetry for
+  // a theme-shaped `it` to describe.
+  for (const theme of THEMES) {
+    for (const group of Object.keys(DRAWN_ON) as (keyof typeof DRAWN_ON)[]) {
+      it(`${theme}: the rank clears the bar under ${group}`, () => {
+        const value = resolve(BLOCKS[theme], 'field-border');
+        for (const surface of DRAWN_ON[group]) {
+          expect(
+            ratio(value, resolve(BLOCKS[theme], surface)),
+            `field-border on ${surface}`,
+          ).toBeGreaterThanOrEqual(3);
+        }
+      });
+    }
+  }
+
+  // THE OVERLAY ADJACENCY IS THE HALF THIS RULING DID NOT REPAIR. The `Dialog`
+  // panel and the mobile date sheet float over the overlay, so their stroke's
+  // outward adjacency is against that composite and not against any plane above
+  // — the reason the `it` above cannot speak for them. In light it is under
+  // 3 : 1 and #99 owns closing it.
+  //
+  // A FLOOR, NOT A BAND, and the difference is the whole design of this test: an
+  // upper bound would pin the SHORTFALL as the expected state, so whoever closes
+  // #99 — or #92, which re-planes `sidebar`, of which the overlay is 40 % —
+  // would land an accessibility improvement and get a red suite for it.
+  //
+  // WHAT THE FLOOR CATCHES IS THE BOUNDARY VANISHING. Light's reading is near
+  // the minimum of the ratio curve already: the composite sits close to the
+  // stroke's own luminance, so moving the veil in EITHER direction raises the
+  // number, and only converging on the stroke lowers it. That convergence is the
+  // one change that would leave the panel with no outward boundary at all
+  // — verified by injection at a 45 % veil, which lands the composite on
+  // `field-border` itself. Dark is held to the real bar, which it already clears
+  // outward; only light is a shortfall.
+  //
+  // The token and the alpha are read from the components, never typed, and BOTH
+  // overlays are read because `Dialog`'s `OVERLAY_CLASS` is not exported and
+  // `DatePicker` hand-copies the same string — so this covers the sheet it
+  // claims to. Read through `source()`, the same stripped text every assertion
+  // in the markup half uses — so a `bg-<token>/<n>` written in a comment cannot
+  // be matched instead of the class, and there is no second stripping path that
+  // could drift from the one the rest of the file trusts.
+  //
+  // Compositing is plain sRGB and that is exact: Tailwind mixes in oklab, but
+  // mixing with `transparent` only sets alpha, and the blend against the
+  // backdrop happens in the device space either way — verified against the
+  // browser's own rendering, which gave the same three composites.
+  const overlayOf = (file: string) => {
+    const m = source(file).match(/bg-([a-z-]+)\/(\d+)/);
+    expect(m, `${file} no longer paints an overlay this can read`).not.toBeNull();
+    return { token: m![1], alpha: Number(m![2]) / 100 };
+  };
+
+  it('the panel and the date sheet paint one veil, so one reading covers both', () => {
+    expect(overlayOf('components/ui/Dialog.tsx')).toEqual(
+      overlayOf('components/ui/DatePicker.tsx'),
+    );
+  });
+
+  for (const theme of THEMES) {
+    it(`${theme}: the overlay adjacency behind the panel and the date sheet`, () => {
+      const { token, alpha } = overlayOf('components/ui/Dialog.tsx');
+      const veil = channels(resolve(BLOCKS[theme], token));
+      const edge = resolve(BLOCKS[theme], 'field-border');
+      for (const plane of ['page', 'card', 'panel'] as const) {
+        const behind = channels(resolve(BLOCKS[theme], plane));
+        const reading = ratio(
+          edge,
+          rgbHex(veil.map((c, i) => c * alpha + behind[i] * (1 - alpha))),
+        );
+        // Light's floor sits just under today's worst so a move down fails and a
+        // repair does not; dark is held to the bar itself.
+        expect(reading, `the stroke on the overlay over ${plane} got worse`).toBeGreaterThanOrEqual(
+          theme === 'dark' ? 3 : 1.15,
+        );
       }
     });
   }
 
-  // LIGHT DOES NOT MOVE AT ALL, and that is the whole reason there are three
-  // names for one dark grey. Each group keeps the light value it already
-  // shipped, so this is a dark-only repair — which is what makes it a plain fix
-  // rather than a design session (*Design pipeline*). Repairing light means an
-  // opaque 3 : 1 stroke on surfaces ten merged drawings draw, and that is #86.
+  // THE RETIREMENT GUARD, and the reason this file kept a CSS half at all once
+  // the arithmetic above collapsed onto one token. Three names for one step is
+  // what T4 ruled out, and nothing else in the repo would fail if a later
+  // "give the toast its own edge" edit put one back — it would simply be a
+  // second name holding a third copy of the same value.
   //
-  // A `toBe` against the token it must equal, not a hex: the assertion is "this
-  // did not move", and it stays true if `hairline` or `panel-border` is itself
-  // re-derived later for its own reasons.
-  it('light keeps every group on the value it already had', () => {
-    expect(resolve(BLOCKS.light, 'popover-edge'), 'the popovers and the date sheet').toBe(
-      resolve(BLOCKS.light, 'hairline'),
-    );
-    expect(resolve(BLOCKS.light, 'toast-edge'), 'the toast and the chart tooltip').toBe(
-      resolve(BLOCKS.light, 'panel-border'),
-    );
-    // `Dialog` and the rail carry a real shadow in light, so an outline there is
-    // decoration nothing asked for — the reason this one is half transparent.
-    expect(declared(BLOCKS.light, 'surface-edge'), 'the Dialog panel and the rail').toBe(
-      'transparent',
-    );
+  // THE WHOLE STYLESHEET, not the two palette blocks: `[data-dark-surface]`
+  // already overrides three tokens of its own, and a re-mint there — or in
+  // `:root`, or under a media query — would be just as real and invisible to a
+  // two-block check.
+  it('does not re-mint the three names T4 retired, anywhere in the stylesheet', () => {
+    for (const name of RETIRED) {
+      expect(CSS, `--color-${name} is declared again`).not.toMatch(
+        new RegExp(`--color-${name}\\s*:`),
+      );
+    }
   });
 
-  // The three are one value in dark and three in light, so a "tidy the palette"
-  // pass that collapses them would silently move a light edge. Pinned as the
-  // shape of the ruling rather than as three hexes.
-  it('is one stroke in dark and three in light, which is why the names differ', () => {
-    const dark = EDGES.map((e) => resolve(BLOCKS.dark, e));
-    expect(new Set(dark).size, `dark should be one value, got ${dark.join(', ')}`).toBe(1);
-    const light = EDGES.map((e) => declared(BLOCKS.light, e));
-    expect(new Set(light).size, `light should be three values, got ${light.join(', ')}`).toBe(3);
+  // THE RAIL'S BLOCK, closed rather than described. `[data-dark-surface]` gives
+  // the dark wall dark-appropriate values for the three tokens drawn INSIDE it;
+  // the rail's own edge faces outward at the page and takes `@theme`'s, which is
+  // the pair the sheet costed. Overriding `field-border` there would
+  // move that edge silently — every ratio above resolves against `@theme` and
+  // would go on asserting a value the browser no longer paints for the rail.
+  it('leaves the rail edge to `@theme`, not to a scope that contains the rail', () => {
+    // THE WHOLE STYLESHEET, for the reason the guard above gives. `ruleBody`
+    // finds the FIRST `[data-dark-surface] {`, so a second block — or a
+    // differently spelled scope that still contains the rail — would move the
+    // edge with every ratio here still resolving `@theme`. Any declaration of
+    // this token outside the two palette blocks is the defect, whatever selector
+    // carries it.
+    const palette = [BLOCKS.light, BLOCKS.dark];
+    const strays = [...CSS.matchAll(/([^{}]*)\{([^{}]*--color-field-border\s*:[^{}]*)\}/g)]
+      .filter((m) => !palette.some((block) => block.includes(m[2])))
+      .map((m) => m[1].trim().split('\n').pop()!.trim());
+    expect(
+      strays,
+      'the rail reads `field-border` from `@theme`; declaring it elsewhere moves that edge',
+    ).toEqual([]);
   });
 
   // THE PALETTE'S OWN INVARIANT, ENFORCED AT LAST. `index.css` calls the
@@ -290,15 +383,14 @@ describe('a floating surface clears 3 : 1 in dark, where its shadow is zeroed', 
     expect(light.length, 'the palette suddenly has almost nothing in it').toBeGreaterThanOrEqual(
       60,
     );
-    // The names this ruling actually depends on, including the three light
-    // values the edges alias — deleting `hairline` would take a light edge with
-    // it and the set equality would not notice. The parchment families are here
+    // The names this ruling actually depends on. `field-border` is the whole of
+    // it now — the three edge names were here too until T4 retired them, and
+    // `RETIRED` above is what watches that side. The parchment families are here
     // for the opposite reason: NOTHING RENDERS THEM YET, so until #92, #93 and
     // #95 arrive there is no component to notice their deletion, and the floor
     // above would not either. One name per family is enough — the set equality
     // catches a half-deleted family, and a whole one going is what this stops.
     for (const name of [
-      ...EDGES,
       'hairline',
       'panel-border',
       'field-border',
@@ -314,26 +406,6 @@ describe('a floating surface clears 3 : 1 in dark, where its shadow is zeroed', 
       'sb-label',
     ])
       expect(light).toContain(name);
-  });
-
-  // Inlining the hex would still pass the ratios above and then stop tracking
-  // `field-border` the next time it moves. The alias IS the guard — so what is
-  // pinned is that the value is READ and not copied, not the exact spelling of
-  // the chain, which `resolve()` is deliberately relaxed about.
-  it('reads the repaired edge through a token, never as a copy of its hex', () => {
-    for (const name of EDGES) {
-      expect(declared(BLOCKS.dark, name), `dark ${name} inlines a hex`).toMatch(
-        /^var\(--color-[a-z0-9-]+\)$/,
-      );
-      expect(resolve(BLOCKS.dark, name)).toBe(resolve(BLOCKS.dark, 'field-border'));
-      // Light is read through a token too, so the group it belongs to can be
-      // re-derived once without three call sites having to be found again.
-      if (declared(BLOCKS.light, name) !== 'transparent') {
-        expect(declared(BLOCKS.light, name), `light ${name} inlines a hex`).toMatch(
-          /^var\(--color-[a-z0-9-]+\)$/,
-        );
-      }
-    }
   });
 });
 
@@ -401,10 +473,14 @@ describe('the floating surfaces point at the token', () => {
     ).toBeGreaterThanOrEqual(3);
   });
 
-  it('names `popover-edge` on every one of them', () => {
-    const missing = POPOVERS.filter(
-      (p) => !/\bborder-popover-edge\b/.test(p.line) && !DEFERS(p.line),
-    ).map((p) => `${p.file}: ${p.line.trim().slice(0, 90)}`);
+  // NO `DEFERS` EXEMPTION HERE ANY MORE. It was the escape hatch for a line that
+  // composes its className elsewhere, and the assertion below establishes that
+  // no floating surface uses one — so exempting them here could only hide, from
+  // this test, the very surface that one is failing about.
+  it('names `field-border` on every one of them', () => {
+    const missing = POPOVERS.filter((p) => !/\bborder-field-border\b/.test(p.line)).map(
+      (p) => `${p.file}: ${p.line.trim().slice(0, 90)}`,
+    );
     expect(missing).toEqual([]);
   });
 
@@ -415,12 +491,29 @@ describe('the floating surfaces point at the token', () => {
   // is live here rather than hypothetical.
   it.each(POPOVER_FILES)('%s names the token somewhere, however it composes', (file) => {
     expect(source(file), `${file} holds a floating surface but never names the token`).toMatch(
-      /\bborder-popover-edge\b/,
+      /\bborder-field-border\b/,
     );
   });
 
+  // AND THE COMPENSATOR IS WEAKER THAN IT LOOKS SINCE #98, which this asserts
+  // rather than hides. `Select.tsx` and `DatePicker.tsx` hold a trigger FIELD on
+  // the same shared rank, so if a listbox ever deferred its className the
+  // per-file check above would be satisfied by the trigger and a popover with no
+  // boundary at all would pass — the hole `field-border.test.ts` closed in the
+  // mirror direction. Nothing defers today, so the per-line check covers all
+  // three; when one does, this fails and says the check needs strengthening
+  // before the escape hatch can be used.
+  it('has no floating surface relying on the escape hatch', () => {
+    const deferring = POPOVERS.filter((p) => DEFERS(p.line)).map((p) => p.file);
+    expect(
+      deferring,
+      'a floating surface defers its edge — the per-file check cannot tell it from a field',
+    ).toEqual([]);
+  });
+
   // `hairline` keeps dividers and grid lines. On a floating surface it is the
-  // defect: it reads 1.19 : 1 on card once the shadow is gone.
+  // defect: once the shadow is gone it is far under the bar on every plane,
+  // which is why the popovers left it.
   it('leaves none of them on `hairline`', () => {
     const stale = POPOVERS.filter((p) => /\bborder-hairline\b/.test(p.line)).map(
       (p) => `${p.file}: ${p.line.trim().slice(0, 90)}`,
@@ -436,41 +529,57 @@ describe('the floating surfaces point at the token', () => {
     expect(main, 'the toast no longer reads the popover shadow').toContain(
       "boxShadow: 'var(--shadow-popover)'",
     );
-    expect(main).toContain("border: '1px solid var(--color-toast-edge)'");
+    expect(main).toContain("border: '1px solid var(--color-field-border)'");
     // Anchored to the DECLARATION, not the file: a sonner action button that
     // legitimately reads `panel-border` must not fail as a border regression.
-    expect(main, 'the toast is back on its own edge').not.toContain(
+    expect(main, 'the toast is back on the rank it left').not.toContain(
       "border: '1px solid var(--color-panel-border)'",
     );
     expect(source('core/colors.ts'), 'the chart tooltip lost the token').toContain(
-      '1px solid var(--color-toast-edge)',
+      '1px solid var(--color-field-border)',
     );
   });
 
-  it('keeps at least the five sites the ruling named', () => {
-    expect(
-      (ALL_SOURCE.match(/--color-(?:popover|toast)-edge|\bborder-popover-edge\b/g) ?? []).length,
-    ).toBeGreaterThanOrEqual(5);
+  // Neither is a popover, but both ride the token this branch moves them to, so
+  // a silent drift off it would put them back under the bar with no test
+  // failing. ON THE ELEMENT, not merely in the file: `Sidebar.tsx` is 590 lines,
+  // and a whole-file match would stay green with the token on any sibling of the
+  // rail.
+  //
+  // The `Dialog` panel is repaired INWARD only, against its own `card` fill.
+  // Outward against the overlay it still fails, and that is #99's — the two
+  // overlay assertions in the CSS half hold those readings.
+  // EVERY matching line for the panel, ANY of them for the rail, and the
+  // asymmetry is deliberate rather than an oversight. `PANEL_CLASS` is consumed
+  // twice — by `Dialog` and by `AlertDialog` — so if it is ever split per dialog
+  // kind, "one of the panels has an edge" is not the invariant; all of them
+  // must. The rail's anchor is a WIDTH, which `Sidebar.tsx` writes on the rail
+  // and could legitimately write on a sibling that needs no edge.
+  const PANEL_AND_RAIL: [string, RegExp, 'every' | 'some'][] = [
+    ['components/ui/Dialog.tsx', /shadow-\(--shadow-dialog\)/, 'every'],
+    ['app/Sidebar.tsx', /w-\[244px\]/, 'some'],
+  ];
+  it.each(PANEL_AND_RAIL)('keeps %s on `field-border`', (file, anchor, quantifier) => {
+    const lines = source(file)
+      .split('\n')
+      .filter((l) => anchor.test(l));
+    expect(lines.length, `the ${file} line vanished`).toBeGreaterThan(0);
+    const named = lines.filter((l) => /\bborder-field-border\b/.test(l)).length;
+    expect(named, `${file} left the token`).toBeGreaterThan(0);
+    if (quantifier === 'every') {
+      expect(named, `${file} has a panel line without the token`).toBe(lines.length);
+    }
   });
 
-  // Neither is a popover, but both ride the token this branch re-values, so a
-  // silent drift off it would put them back under the bar with no test failing.
-  // ON THE ELEMENT, not merely in the file: `Sidebar.tsx` is 590 lines, and a
-  // whole-file match would stay green with the token on any sibling of the rail.
-  it('keeps the `Dialog` panel and the rail on `surface-edge`', () => {
-    const panel = source('components/ui/Dialog.tsx')
-      .split('\n')
-      .filter((l) => /shadow-\(--shadow-dialog\)/.test(l));
-    expect(panel.length, 'the Dialog panel line vanished').toBeGreaterThan(0);
-    for (const line of panel) expect(line).toMatch(/\bborder-surface-edge\b/);
-
-    const rail = source('app/Sidebar.tsx')
-      .split('\n')
-      .filter((l) => /w-\[244px\]/.test(l));
-    expect(rail.length, 'the rail line vanished').toBeGreaterThan(0);
-    expect(
-      rail.some((l) => /\bborder-surface-edge\b/.test(l)),
-      'the rail left the token',
-    ).toBe(true);
+  // The markup half of the retirement guard — the CSS half is the palette one
+  // above. Comments are stripped from `ALL_SOURCE`, so this is about what the
+  // app READS: a component cannot point at a name the palette no longer
+  // declares, which renders as no border at all rather than as a failure.
+  it('reads none of the three retired names', () => {
+    for (const name of RETIRED) {
+      expect(ALL_SOURCE, `something still reads \`${name}\``).not.toMatch(
+        new RegExp(`\\bborder-${name}\\b|--color-${name}\\b`),
+      );
+    }
   });
 });

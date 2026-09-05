@@ -33,9 +33,11 @@ Do not flag the deviations in the last section as bugs.
 
 ## Shell
 
-**At and above 768px** (`md`, the app's one breakpoint): dark **244px** sidebar, padding 16, right edge rounded **30** (concentric with the logo card's 14). The aside does not scroll with the page; it is three bands — lockup, scrolling nav, pinned cluster — so the currency toggle and capital card stay on screen at 740px and 640px of viewport height. On a short window a **12px rail** appears in the nav band, 8px in from its edge, narrowing the nav by 28.
+**At and above 768px** (`md`, the app's one breakpoint): dark **244px** sidebar, padding 16, right edge rounded **30** (concentric with the logo card's 14), and a **1px `field-border` stroke on that right edge only** in both themes — visible against the light page, which is #98's one accepted cost. The aside does not scroll with the page; it is three bands — lockup, scrolling nav, pinned cluster — so the currency toggle and capital card stay on screen at 740px and 640px of viewport height. On a short window a **12px rail** appears in the nav band, 8px in from its edge, narrowing the nav by 28.
 
 **Below 768px there is no rail at all** — see Mobile shell below.
+
+**Floating surfaces** (every route): the `Select` listbox, both `DatePicker` variants, the `Dialog` panel, the toast and the chart tooltip each carry a **1px `field-border` stroke** in both themes — since #98 they read the same control-boundary rank as a field, and in light this is a boundary they previously drew faintly or not at all. The `Dialog` panel and the mobile date sheet are repaired against their own fill only; in light they still read under 3 : 1 against the overlay behind them, which is #99's; dark clears it there.
 
 **Shapes:** nothing in the app is a capsule. Controls take `round(min(w,h) × 0.26)` — badges 5-6, segments 7, small buttons 8, inputs and nav pills 9, larger buttons and segmented boxes 10, plus 4 and 7 (the price-mode toggle's 15px segments round to 4, its track to 4+3=7). Only asset avatars, colour dots and the decorative blob stay round — the logo mark's arc is drawn, not a radius. A `rounded-full` capsule anywhere is a regression.
 

@@ -21,9 +21,9 @@ import { describe, expect, it } from 'vitest';
 // standing between a re-valued token and a boundary under the bar.
 //
 // SELF-CONTAINED ON PURPOSE — the house idiom, not an oversight.
-// `field-border.test.ts`, `popover-edge.test.ts` and `filled-track.test.ts` each
+// `field-border.test.ts`, `floating-edges.test.ts` and `filled-track.test.ts` each
 // carry their own reader, so a guard can be read without opening another one.
-// `resolve()` is copied from `popover-edge.test.ts:180` because a literal-hex
+// `resolve()` is copied from `floating-edges.test.ts` because a literal-hex
 // reader sees nothing through a `var()`. Folding these into
 // `field-border.test.ts` instead would put the switch inside the FIELD guard,
 // which is the single distinction this whole ruling rests on.
@@ -120,7 +120,7 @@ function declared(block: string, name: string): string {
 
 /** Follows a `var(--color-x)` chain to the hex at the end of it, THE WAY THE
  *  CASCADE DOES — a name the dark block does not override resolves against
- *  `@theme`. Copied from `popover-edge.test.ts:180`; `field-border.test.ts`'s
+ *  `@theme`. Copied from `floating-edges.test.ts`'s `resolve()`; `field-border.test.ts`'s
  *  hex-matching `token()` would see nothing here, because every declaration this
  *  file cares about is an alias. */
 function resolve(block: string, name: string, seen: string[] = []): string {
@@ -180,7 +180,7 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
     });
   }
 
-  // Declared in BOTH blocks. `popover-edge.test.ts:262-279` derives the palette
+  // Declared in BOTH blocks. `floating-edges.test.ts`'s palette-parity test derives the names
   // of each block and asserts set equality, so this is belt and braces for the
   // token this file owns — and it names which block is missing it.
   it('declares `switch-border` in `@theme` AND in the dark block', () => {

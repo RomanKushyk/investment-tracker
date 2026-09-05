@@ -541,9 +541,14 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
           while `p-4` gives 16 — the lockup, the nav pills and the currency
           toggle would sit under the notch and the rounded corner. It resolves to
           16 everywhere else, so nothing moves on a desktop. */}
+      {/* `border-r`, not `border`: the rail is flush to the viewport on the
+          other three sides, so those edges would separate nothing and the wall
+          would wear a frame against the browser chrome. Only the right edge is
+          an adjacency — the wall against `page` — and it is the one #98 costed.
+          `SidebarDrawer` below draws its own edge the same way. */}
       <div
         data-dark-surface
-        className="relative h-full w-[244px] rounded-r-[30px] border border-surface-edge bg-sidebar p-4 pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
+        className="relative h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sidebar p-4 pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
       >
         <SidebarDecor />
         <SidebarPanel variant="rail" onCollapse={onCollapse} />

@@ -402,10 +402,14 @@ export function DatePicker({
               `Scroller` WITHOUT a `radius`, on purpose — the 28px gutter is then
               reserved only while a rail is actually up, so a month that fits
               keeps its full 44.3px columns and only a clipped one narrows.
-              `sr-only` is absolutely positioned, so the title takes no row. */}
+              `sr-only` is absolutely positioned, so the title takes no row.
+              `border-field-border` repairs this sheet INWARD only, exactly as it
+              does the `Dialog` panel — the two are identical in fill, backdrop
+              and both readings, which is why no exemption could be written for
+              one and not the other. The overlay adjacency is #99's. */}
           <RadixDialog.Content
             aria-describedby={undefined}
-            className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-popover-edge bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+            className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           >
             {/* The sheet shows a month caption, not a title, so the accessible
                 name is given to screen readers only rather than drawn twice. */}
@@ -426,7 +430,7 @@ export function DatePicker({
         <Popover.Content
           align="end"
           sideOffset={8}
-          className="z-50 animate-in rounded-2xl border border-popover-edge bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+          className="z-50 animate-in rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
         >
           {calendar}
         </Popover.Content>

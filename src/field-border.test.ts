@@ -42,7 +42,7 @@ const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*
  *  satisfy an assertion the CSS fails, or fail one it passes. Quote-aware, not
  *  `strip` above: `index.css` line 5 holds `/*` inside a string, and the naive
  *  regex swallows from there to the first real terminator, taking `@theme` with
- *  it. `popover-edge.test.ts` carries the same reader for the same reason. */
+ *  it. `floating-edges.test.ts` carries the same reader for the same reason. */
 const CSS = (() => {
   const src = read('index.css');
   let out = '';
@@ -192,15 +192,15 @@ const FIELD_EDGE = /\bborder-(field-border|neg|pos-border|warn)\b/;
 
 /** The palette's other border colours. One of these in a field's colour arm is
  *  the defect this file exists to catch, so a token that can be spelled
- *  `border-*` and is not a field state belongs here — a field on `toast-edge`
- *  reads 1.19 : 1 on `card` in light and would otherwise be invisible to this
- *  file AND to `popover-edge.test.ts`, whose lines carry no popover shadow.
+ *  `border-*` and is not a field state belongs here — a field on `panel-border`
+ *  reads 1.44 : 1 on `panel` in light, its worst plane, and would otherwise be
+ *  invisible to this file AND to `floating-edges.test.ts`, whose lines carry no
+ *  popover shadow.
  *  Hand-kept because the palette gives no way to tell a border rank from a text
  *  one by name; the order is the four greys, then the control edge that is not
- *  a field's (`switch-border`, #87), then the four floating-surface edges, so
- *  the next one added has an obvious place to go. */
-const OTHER_EDGE =
-  /\bborder-(hairline|faint|panel-border|muted|switch-border|surface-edge|popover-edge|toast-edge|drawer-edge)\b/;
+ *  a field's (`switch-border`, #87), then the one floating-surface edge left
+ *  after #98, so the next one added has an obvious place to go. */
+const OTHER_EDGE = /\bborder-(hairline|faint|panel-border|muted|switch-border|drawer-edge)\b/;
 
 /** A COLOUR ARM: a quoted string of only border/hover utilities — the arm of an
  *  `invalid ? … : …`. A full `className` carrying layout utilities is not one,
@@ -220,7 +220,35 @@ const FIELD_FILES = sourceFiles(here)
   .map((f) => relative(here, f).split(sep).join('/'))
   .filter((f) => strip(read(f)).split('\n').some(FIELD_LINE));
 
-const ALL_FIELD_SOURCE = FIELD_FILES.map((f) => strip(read(f))).join('\n');
+/** FLOATING-SURFACE LINES OUT, and this is #98's doing rather than a nicety.
+ *  `field-border` is the palette's control-boundary RANK, not a field's private
+ *  colour, and #98 retired the three floating-surface edge names into it — so
+ *  `Select`'s listbox and both `DatePicker` surfaces now name the token in files
+ *  that are also field files, and reading the name stopped meaning a FIELD reads
+ *  it (the count went 13 → 16 with no field added). A floating surface is the
+ *  one that names the shadow dark zeroes, which is `floating-edges.test.ts`'s
+ *  own signature; EVERYTHING in this file reads the filtered source, so a field
+ *  cannot be satisfied by a popover sharing its file.
+ *
+ *  A HEURISTIC, AND A PARTIAL ONE. The narrower definition — the token on a
+ *  `FIELD_LINE` or inside a `colourArms()` string — looks more principled and is
+ *  wrong: it finds ten of the thirteen, because `CouponDueCard` and two arms
+ *  that carry layout name the token by neither route. And a shadow signature
+ *  cannot see the desktop rail, which names the token with no shadow at all; the
+ *  rail's file has no field today, so the counts hold, and that is luck rather
+ *  than design. Both shadows are matched so the `Dialog` panel is covered.
+ *
+ *  THE ROOT CAUSE IS THAT THESE COUNTS ARE NO LONGER WELL DEFINED: they count a
+ *  token that stopped being a field's private colour, and every fix for that is
+ *  a heuristic. Raised rather than patched further. */
+const EXCLUDED = (line: string) =>
+  /shadow-\(--shadow-(popover|dialog)\)/.test(line) || /\bw-\[244px\]\b/.test(line);
+const fieldSource = (f: string) =>
+  strip(read(f))
+    .split('\n')
+    .filter((l) => !EXCLUDED(l))
+    .join('\n');
+const ALL_FIELD_SOURCE = FIELD_FILES.map(fieldSource).join('\n');
 
 describe('every field points at the token', () => {
   it('finds the field files by walking, not from a list', () => {
@@ -233,10 +261,39 @@ describe('every field points at the token', () => {
 
   // INJECTION-VERIFIED: a new `src/screens/Goals.tsx` with one field on
   // `hairline` fails here. The previous hard-coded file list could not see it.
+  //
+  // `fieldSource`, not the whole file: since #98 both `Select.tsx` and
+  // `DatePicker.tsx` hold a floating surface reading the same token, and reading
+  // the raw file would let a listbox stand in for a trigger that had lost its
+  // edge entirely — the one guard meant to be per-file, blind in exactly the two
+  // files that changed.
   it.each(FIELD_FILES)('%s carries the token', (file) => {
-    expect(strip(read(file)), `${file} has a field but never names the token`).toMatch(
+    expect(fieldSource(file), `${file} has a field but never names the token`).toMatch(
       /\bborder-field-border\b/,
     );
+  });
+
+  // THE EXCLUSION'S OWN GUARD. `EXCLUDED` is a heuristic borrowed from another
+  // file's signature, so what it removes is checked rather than trusted: if a
+  // floating surface stops naming `--shadow-popover` — an extracted class
+  // constant, a different shadow, a reflow that splits the border off the line —
+  // this says so, where the counts below would otherwise fail with a message
+  // about hovers.
+  //
+  // A FLOOR, and for both of this file's usual reasons. An exact list would be
+  // "a census wearing a floor's name", failing on a correctly-styled FOURTH
+  // floating surface whose only fix is editing a number — and #84's shared
+  // recipe would add several at once. It would also be ORDER-DEPENDENT: the
+  // walk is `readdirSync` with no sort, which is alphabetical on NTFS and hash
+  // order on the ext4 the deploy gate runs on, so an exact array would go red on
+  // CI alone.
+  it('still finds the floating-surface lines it excludes', () => {
+    for (const file of ['components/ui/Select.tsx', 'components/ui/DatePicker.tsx']) {
+      expect(
+        strip(read(file)).split('\n').filter(EXCLUDED).length,
+        `${file}'s floating surfaces stopped matching — the counts below are now wrong`,
+      ).toBeGreaterThanOrEqual(1);
+    }
   });
 
   // INJECTION-VERIFIED with `border-panel-border` as well as `border-hairline`.

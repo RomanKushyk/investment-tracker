@@ -120,19 +120,17 @@
   --color-faint: #b4aa9a;
   /* The control-boundary rank (field-border.dc.html). A third grey rather than
      a move, because a field edge is neither `faint`'s text rank nor its
-     indicator rank; `field-border.test.ts` holds the ratios. */
+     indicator rank; `field-border.test.ts` holds the ratios.
+     A RANK, NOT A FIELD'S PRIVATE COLOUR, which is what let #98 retire the three
+     floating-surface edge names into it: the switch's OFF edge, the two
+     popovers, the date sheet, the toast, the chart tooltip, the `Dialog` panel
+     and the desktop rail are all component boundaries held to the same bar on
+     the same planes. `floating-edges.test.ts` holds the surfaces' ratios,
+     `sidebar` among them. */
   --color-field-border: #847e77;
   --color-hairline: #ddd5c8;
   --color-panel: #e7e0d5;
   --color-panel-border: #c6bbab;
-  /* A floating surface's edge, for the two popovers and the date sheet. Light is
-     the `hairline` they already drew: repairing light is a design session, #86.
-     `popover-edge.test.ts` holds the ratios for all three edge tokens. */
-  --color-popover-edge: var(--color-hairline);
-  /* The same, for the toast and the chart tooltip. A second NAME rather than a
-     second value because they need a visible light edge where the popovers take
-     the drawings' fainter one — sonner and recharts each arrived with their own. */
-  --color-toast-edge: var(--color-panel-border);
   /* THE SWITCH'S OFF STATE, which `--shadow-thumb`'s comment admits it never
      fixed: in dark the knob sat on its own track, and the track on the card
      behind it, at the same near-nothing — the whole control was a rumour. The
@@ -154,18 +152,20 @@
      state under WCAG 1.4.11 on every surface in both themes;
      `switch-border.test.ts` holds the ratios. */
   --color-switch-border: var(--color-field-border);
-  /* The edge a surface needs when its SHADOW cannot draw one — the same trade
-     --shadow-thumb above makes, for the surfaces whose shadow is a plain drop
-     rather than a separator. Transparent in light on purpose: the rail is a
-     dark wall on a light page and the dialog carries --shadow-dialog, so an
-     outline there is decoration nothing asked for. */
-  --color-surface-edge: transparent;
   /* `--color-label` stood here, for transaction-panel field labels, and was
      RETIRED INTO `muted` (D68) rather than re-derived beside it: it failed the
      same backdrop and only that one, and solving both against `panel` put them
      on one luminance. Two tokens that must hold the same value to be legible
      are one step drawn twice. Its thirteen call sites read `text-muted`.
-     Do not re-mint. */
+     Do not re-mint.
+     THREE MORE LEFT BY THAT RULE (#98, floating-edges.dc.html T4):
+     `--color-popover-edge`, `--color-toast-edge` and `--color-surface-edge`.
+     THE ORDER MATTERS AND IS EASY TO INVERT: each held two values, light and
+     dark, until 1.4.11 forced light onto this rank — `hairline` read 1.11 on
+     `panel`, `panel-border` 1.44, and `surface-edge` was transparent. Only
+     AFTER that move did the three hold one value in both blocks, and the rule
+     above then applies to what the move had made redundant. Their call sites
+     read `field-border`; `floating-edges.test.ts` fails if any comes back. */
   /* The veil behind the mobile drawer (G-7). Nothing in the palette was a
      translucent film, so this mints an ALPHA rather than a hue — `ink` at 50%.
      The drawer clears 1.4.11's 3 : 1 against what that composites to over
@@ -182,9 +182,13 @@
      theme and not the other (see --color-scrim), and the two ways of saying so
      are this or a `dark:` variant on the component. Phase 5 chose token
      redefinition precisely so no component has to know which theme is on, and a
-     variant here would be the first crack in that. Same shape as
-     `--color-surface-edge` (D61), which is transparent in light for the same
-     kind of reason. */
+     variant here would be the first crack in that.
+     AND THAT PER-THEME DIFFERENCE IS WHY #98 KEPT IT. The three floating edges
+     it retired also held two values each until the ruling moved their light one
+     onto `field-border`; this one's light value is not required to move at all,
+     because the drawer clears 1.4.11 against the composited scrim with no
+     stroke — which is what `--color-scrim` above is for. So it still holds two
+     after the ruling, where they held one. */
   --color-drawer-edge: transparent;
   /* THE DARK WALL, IN THE LIGHT BLOCK TOO, until #92 moves the consumers onto
      `sb-*` and retires these five — flipping the plane first would break
@@ -372,7 +376,7 @@
 
    Only PALETTE tokens are here, and they are the same set @theme declares
    outside the chart aliases — one for one, neither block holding a name the
-   other lacks. That equality is the invariant, and `popover-edge.test.ts` now
+   other lacks. That equality is the invariant, and `floating-edges.test.ts` now
    asserts it: the COUNT used to be written here three times, was wrong three
    times, and is gone because a figure kept by hand is a figure that rots — the
    same reason the chart aliases are no longer counted here either. Those are
@@ -400,11 +404,6 @@
   --color-hairline: #2a282c;
   --color-panel: #201f22;
   --color-panel-border: #3a373c;
-  /* Dark leaves these surfaces no shadow and, inside a Dialog, no surface step
-     either, so all three edges converge on `field-border` — the palette's
-     control-boundary rank — and differ only in light. */
-  --color-popover-edge: var(--color-field-border);
-  --color-toast-edge: var(--color-field-border);
   /* The OFF track is a real mid-grey rather than a `hairline`, so the control
      has a visible shape and not just a visible knob — the half D57 never named.
      Chosen against a third constraint the brighter candidates lose: OFF must
@@ -422,13 +421,6 @@
      identifies the component is the boundary against the surfaces behind it,
      and that clears the bar on all three. */
   --color-switch-border: var(--color-field-border);
-  /* Dark is where this token earns its keep: the rail goes darker than the page
-     and the dialog floats over the scrim, and the shadows above are zeroed, so
-     neither has a boundary otherwise. `panel-border`'s value gave both an edge
-     that did not clear the bar, which `mobile.dc.html` had already refused for
-     the drawer. Supersedes the dialog's and the rail's edge in every merged
-     sheet that draws one, and edits none of them. */
-  --color-surface-edge: var(--color-field-border);
 
   /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
      anyone moving the alpha. The drawer (`sidebar`) is DARKER than the page

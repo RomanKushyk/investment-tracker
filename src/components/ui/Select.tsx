@@ -113,7 +113,7 @@ export function Select({
           // the 1px border), so this is the concentric case — 9 + 5. The
           // DatePicker next door keeps 16 because its only corner-adjacent
           // child is an absolutely-placed arrow, not a box that hugs all four.
-          className="z-50 animate-in overflow-hidden rounded-[14px] border border-popover-edge bg-card shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
+          className="z-50 animate-in overflow-hidden rounded-[14px] border border-field-border bg-card shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           style={{ width: 'var(--radix-select-trigger-width)' }}
         >
           <RadixSelect.Viewport className={scrollList ? 'max-h-60 overflow-y-auto p-1' : 'p-1'}>

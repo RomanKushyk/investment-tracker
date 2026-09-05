@@ -22,9 +22,6 @@ export const DialogTitle = RadixDialog.Title;
 // again when #92 re-planes the wall.
 const OVERLAY_CLASS =
   'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
-// The border is transparent in light (the shadow separates it there) and a
-// hairline in dark, where --shadow-dialog is zeroed and the panel would
-// otherwise meet the scrim with no edge at all.
 // C5 — `dvh`, not `vh`. `100vh` on a mobile browser is the height the viewport
 // has with the toolbars RETRACTED, so `85vh` is 85% of a taller box than the one
 // on screen and a full dialog runs under the chrome at the bottom. `dvh` follows
@@ -49,8 +46,13 @@ const OVERLAY_CLASS =
 // opacity modifier and would cut the expression in half at the wrong seam.
 // Both fall back to 0px, so a desktop — where nothing publishes an inset —
 // compiles to exactly the `85dvh` and `-50%` that were here before.
+//
+// `border-field-border` repairs this panel INWARD only — #98 retired the token
+// that used to carry that reservation. In LIGHT it is still under 1.4.11
+// against the overlay above, which is #99's; dark clears it there.
+// `floating-edges.test.ts` holds both readings.
 const PANEL_CLASS =
-  'border-surface-edge border bg-card fixed top-1/2 left-1/2 z-50 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] w-[calc(100vw-32px)] -translate-x-1/2 translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
+  'border-field-border border bg-card fixed top-1/2 left-1/2 z-50 max-h-[calc((100dvh-var(--keyboard-inset,0px))*0.85)] w-[calc(100vw-32px)] -translate-x-1/2 translate-y-[calc(-50%-var(--keyboard-inset,0px)*0.5)] grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-3xl shadow-(--shadow-dialog) data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=closed]:duration-220';
 
 // THE PANEL IS THREE BANDS AND ONLY THE MIDDLE ONE SCROLLS. A title that slides
 // away takes the answer to "what am I confirming" with it, and a Save button
