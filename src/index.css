@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 /* Test files are not markup. Without this, a guard that mentions a utility in a
-   regex keeps it alive in the bundle — measured: `hover:border-muted` shipped
-   with no component using it, purely because field-border.test.ts names it. */
+   regex keeps it alive in the bundle — measured on a class no component used at
+   the time, kept alive purely because a guard named it. */
 @source not '**/*.test.ts';
 @import 'tw-animate-css';
 
@@ -126,7 +126,13 @@
      popovers, the date sheet, the toast, the chart tooltip, the `Dialog` panel
      and the desktop rail are all component boundaries held to the same bar on
      the same planes. `floating-edges.test.ts` holds the surfaces' ratios,
-     `sidebar` among them. */
+     `sidebar` among them.
+     THE IMPORT DROPZONE JOINS THEM (#88, dropzone-edge.dc.html), reading the
+     rank directly rather than taking a name: it holds no shortfall and no
+     per-theme difference, and a name for it would be this value drawn twice.
+     It is the one consumer scored on TWO planes rather than three — `bg-panel`
+     inside a `card`, never on `page`. `dropzone-edge.test.ts` holds its ratios
+     and the ordering of its three states. */
   --color-field-border: #847e77;
   --color-hairline: #ddd5c8;
   --color-panel: #e7e0d5;

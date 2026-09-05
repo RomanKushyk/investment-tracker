@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces, not the ones #94 will bring. The specimens are drawn on
+     the plane the app renders them on and inside the surface behind that plane,
+     because this box has TWO adjacencies and a boundary judged on one of them
+     is a judgement about half the object. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#efeae2;color:#1c1a19;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#1c1a19}
+:focus-visible{outline:2px solid #1c1a19;outline-offset:2px}
+::selection{background:rgba(216,180,148,0.45)}
+table{border-collapse:collapse;margin-bottom:14px}
+td,th{text-align:left;padding:5px 14px 5px 0;font-size:12px;vertical-align:baseline}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#5e5955;font-weight:400;border-bottom:1px solid #ddd5c8;padding-bottom:7px}
+code{font-size:.95em}
+/* EVERY VERDICT CARRIES A GLYPH, on the figures and not only on a pass column —
+   `.no` is the body colour, so an unglyphed number is invisible to a greyscale
+   reader. An unmarked figure is one this file passes no judgement on. */
+.no{color:#1c1a19;font-weight:700}
+.yes{color:#2f6b3f;font-weight:700}
+.mi{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#5e5955;border:1px dashed #b4aa9a;border-radius:6px;padding:2px 7px;display:inline-block;background:#efeae2}
+.plate{border-radius:16px;padding:16px 18px}
+.wrap{max-width:1060px;margin:0 auto;padding:34px 26px 60px}
+.note{font-size:12px;line-height:1.65;max-width:920px}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     design/extensions/dropzone-edge.dc.html — the import dropzone's rest edge, into the rank
+
+     Brief: issue #88. Implementing task: issue #88. The owner ruled one branch
+     and two commits, so the brief and the implementing task are one number.
+
+     Not this file's: every field edge, #80 implemented by #3 · the `Switch` OFF
+     edge and the `Scroller` rail, #83 implemented by #87 · the seven floating
+     surfaces, #86 implemented by #98 · the whole palette, #89's epic · the
+     `Dialog` panel against its own overlay, #99 · the dashed CONTAINERS, which
+     `field-border.dc.html` T4-4 deliberately keeps on `faint`.
+
+     WHY IT NEEDED ITS OWN FILE. The box was named four times and owned nowhere:
+     `field-border.dc.html:38-39` and `:369` filed it into #83, #83's body put it
+     out of scope, `switch-border.dc.html:40-42` found it orphaned and named it
+     #88, and #98 excluded it by name. Every number those files print for it is
+     also pre-parchment.
+
+     EVERY FIGURE IS STATED ONCE, which is #86's lesson bought with three failed
+     review rounds and two root-cause comments. Where a merged sheet already
+     publishes a reading, this file cites it rather than restating it.
+═══════════════════════════════════════════════════════════════════════ -->
+
+<div class="wrap">
+
+<h1 style="margin:0 0 6px;font-size:26px">The import dropzone's rest edge, into the rank</h1>
+<p class="note" style="margin:0 0 30px;color:#5e5955">
+Brief #88 &middot; implemented by #88 &middot; supersedes the drop target's TOKEN ASSIGNMENT in
+<code>data-portability.dc.html</code> &mdash; seven boxes, enumerated in T6. Its hexes were
+already superseded wholesale by <code>parchment-5h.dc.html</code>.
+</p>
+
+<!-- ── T1 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T1 &middot; What fails, and the ladder it climbs</h2>
+<p class="note" style="margin:0 0 12px">
+<code>ImportRow.tsx:131</code> draws the drop target <code>border-panel-border bg-panel</code>,
+hover <code>faint</code>, inside the Settings <strong>Data</strong> card. So it has exactly two
+adjacencies and <code>page</code> is not one of them: <strong>inward</strong> against its own
+<code>panel</code> fill, <strong>outward</strong> against the <code>card</code> behind it. Both
+are scored; the worst is what binds.
+</p>
+
+<table>
+  <tr><th rowspan="2">rest edge</th><th colspan="3">light</th><th colspan="3">dark</th><th rowspan="2">worst<br>that binds</th><th rowspan="2">3 : 1</th></tr>
+  <tr><th>in &middot; panel</th><th>out &middot; card</th><th>(page)</th><th>in &middot; panel</th><th>out &middot; card</th><th>(page)</th></tr>
+  <tr><td><strong>today &mdash; <code>panel-border</code></strong> #c6bbab / #3a373c</td><td>1.44</td><td>1.74</td><td>1.58</td><td>1.40</td><td>1.51</td><td>1.61</td><td class="no">1.40</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>faint</code> #b4aa9a / #6e6a65 &mdash; the next rung</td><td>1.75</td><td>2.11</td><td>1.92</td><td>3.06</td><td>3.30</td><td>3.52</td><td class="no">1.75</td><td class="no">&#10007;</td></tr>
+  <tr><td><strong><code>field-border</code> #847e77 / #7a7674</strong></td><td><strong>3.06</strong></td><td><strong>3.69</strong></td><td>3.35</td><td><strong>3.65</strong></td><td><strong>3.94</strong></td><td>4.20</td><td class="yes">3.06</td><td class="yes">&#10003;</td></tr>
+  <tr><td><code>muted</code> #5e5955 / #a3a19e</td><td>5.28</td><td>6.36</td><td>5.78</td><td>6.36</td><td>6.87</td><td>7.33</td><td class="yes">5.28</td><td class="yes">&#10003;</td></tr>
+</table>
+<p class="note" style="margin:0 0 12px">
+The <code>page</code> columns are <strong>parenthesised because this box is never drawn there</strong>
+&mdash; the brief asks for all three content planes, so all three are printed, but the worst column
+is taken over the two planes the dropzone actually has. They change no verdict: every candidate
+lands between its own inward and outward readings, and the rung that clears the bar on
+<code>panel</code> and <code>card</code> clears it on <code>page</code> with more room.
+</p>
+
+<p class="note" style="margin:0 0 12px">
+<strong>The issue's own figures are pre-parchment and every one of them is wrong now</strong> &mdash;
+it reports 1.14 / 1.37 / 1.25 for a border-and-fill pair the palette no longer contains, both of
+them retired hexes. The defect survives the re-measurement; its arithmetic does not.
+<strong>The ladder needs no re-deriving here</strong>, because two merged sheets already publish
+it: <code>floating-edges.dc.html:81-89</code> scores <code>panel-border</code> at 1.44 and
+<code>field-border</code> at 3.06 on this same <code>panel</code>, and
+<code>parchment-5h.dc.html</code> records <em>this exact grey</em> &mdash; the session's own
+<code>border-strong</code> &mdash; at <strong>1.44 light and 1.40 dark</strong>, and rules on it:
+the two greys below the rank <em>&ldquo;stay decorative, which is what they already are&rdquo;</em>.
+</p>
+
+<div class="plate" style="border:1px solid #ddd5c8;background:#f8f5ef;margin-bottom:32px">
+<p class="note" style="margin:0">
+<strong>The same hole, and the same binary.</strong> Nothing sits between <code>faint</code> and
+<code>field-border</code>, because the parchment session mints no fourth grey. So this file offers
+no fifth candidate either: one would be a new grey, and minting a grey is a palette decision it
+has no standing to make. <strong>The one thing this ladder settles that the others did not:</strong>
+in dark <code>faint</code> would clear the bar at 3.06 / 3.30 and in light it would not, and a
+token holds one name across both themes &mdash; so the light column decides for both, and no
+per-theme split is available.
+</p>
+</div>
+
+<!-- ── T2 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T2 &middot; Whether the bar binds a box two files call a container</h2>
+<p class="note" style="margin:0 0 12px">
+This is the file's one real decision, and it is not arithmetic. <em>Design pipeline</em> holds a
+boundary to 3 : 1 only where it <em>&ldquo;identifies a component or its state&rdquo;</em>, and
+keeps one exemption open beside it: <em>&ldquo;a region's decorative edge and furniture that
+identifies nothing fall outside the bar&rdquo;</em>. The dropzone has a real claim on that
+exemption, and the claim has to be answered rather than waved past.
+</p>
+
+<table>
+  <tr><th>for the exemption</th><th>and why it does not carry</th></tr>
+  <tr>
+    <td>Both the drawing and the code call it a container: <em>&ldquo;the panel is a container, not a pressable &mdash; no lift, no scale&rdquo;</em> (<code>data-portability.dc.html:436</code>, <code>ImportRow.tsx:112-115</code>).</td>
+    <td>Neither sentence is about identification. Both are about <strong>press</strong> affordance, and they are the reason it takes no lift and no scale &mdash; not a finding that it bounds nothing.</td>
+  </tr>
+  <tr>
+    <td>It is not focusable: no <code>role</code>, no <code>tabIndex</code>, no <code>onClick</code>, and it adds no second tab stop.</td>
+    <td>1.4.11 is not scoped to what the keyboard reaches. It binds what the <strong>pointer</strong> must find, and a drop is a pointer gesture aimed at a region.</td>
+  </tr>
+  <tr>
+    <td>The affordance is stated in words &mdash; <em>&ldquo;Drop a .json or .csv file here&rdquo;</em> &mdash; so the boundary is not the only thing that says so.</td>
+    <td>The copy says <strong>what</strong>, and the boundary says <strong>where</strong>. Those are different facts and only one of them is written down. A drag carrying a file has to be released inside an extent the copy never states.</td>
+  </tr>
+  <tr>
+    <td>The operable control inside it, <code>Choose file&hellip;</code>, is <code>border-ink</code> and identified many times over.</td>
+    <td>That is the keyboard path. It is the reason the box needs no <em>second</em> tab stop, and no reason at all for the pointer path to go unbounded.</td>
+  </tr>
+</table>
+
+<p class="note" style="margin:0 0 12px">
+<strong>Two tests settle it.</strong> Furniture that identifies nothing has <strong>no states</strong>
+&mdash; this box has three, and two of them are drawn as moves of the very border under
+discussion, which is a border doing identifying work by the drawing's own hand. And the one
+furniture exemption this app has granted, the <code>Scroller</code> rail's, rests on a sentence
+with no analogue here: <em>a scroll region is identified by its content</em>. An empty drop region
+has no content to be identified by. That is the whole of what it is.
+</p>
+<p class="note" style="margin:0 0 32px">
+<em>Design pipeline</em> also forecloses the shortcut this box invites, in terms: rejected is
+<em>&ldquo;exempting a boundary because its surface is not a field &mdash; 1.4.11 binds the
+component, not the class of token it happens to read&rdquo;</em>. Being a non-field is what the
+dropzone has been filed under four times. It is not a reason. <strong>The bar binds.</strong>
+</p>
+
+<p class="note" style="margin:0 0 32px">
+<strong>And the same test says two of its neighbours keep <code>panel-border</code>, which is the
+other half of this ruling rather than an unfinished job.</strong>
+<code>Allocation.tsx:265</code> and <code>TransactionPanel.tsx:707</code> are the app's only other
+<code>bg-panel</code> boxes carrying a <code>panel-border</code> stroke on a <code>card</code>, at
+the identical 1.44 / 1.40 T1 marks &#10007;. They are named here so the question is not asked a
+fifth time: <strong>both are static containers &mdash; no hover, no drag, no state at all</strong>
+&mdash; so the two tests above return the opposite answer, and they are what <em>Design
+pipeline</em> means by a region's decorative edge. The dropzone is not repaired because it is
+`panel` on `card`; it is repaired because it is the one of the three that a pointer has to find.
+</p>
+
+<!-- ── T3 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T3 &middot; The ruling &mdash; the rest joins the rank, and nothing is minted</h2>
+
+<table>
+  <tr><th>arm</th><th>today</th><th>after</th><th>its fill</th><th>light in / out</th><th>dark in / out</th></tr>
+  <tr><td>rest</td><td><code>border-panel-border</code></td><td><strong><code>border-field-border</code></strong></td><td><code>panel</code></td><td class="yes">3.06 / 3.69 &#10003;</td><td class="yes">3.65 / 3.94 &#10003;</td></tr>
+  <tr><td>hover</td><td><code>hover:border-faint</code></td><td><strong><code>hover:border-muted</code></strong></td><td><code>panel</code></td><td>5.28 / 6.36</td><td>6.36 / 6.87</td></tr>
+  <tr><td>drag-over</td><td><code>border-ink</code></td><td>unchanged</td><td><code>hairline</code></td><td>11.91 / 15.93</td><td>12.16 / 14.74</td></tr>
+</table>
+<p class="note" style="margin:0 0 12px">
+No radius, size, spacing or copy moves. <strong>The box is repaired on both adjacencies in both
+themes</strong> &mdash; unlike #98's two overlay surfaces, this one has no side left failing,
+because what is behind it is an ordinary content plane and not a scrim.
+<strong>Each row is read against the fill its own state paints</strong>, which is why the
+drag-over row carries a fill column: that arm swaps <code>panel</code> for <code>hairline</code>,
+and scoring its <code>ink</code> edge against <code>panel</code> would give 13.23 / 13.66 &mdash;
+a reading of a surface that state never shows. The measured figures are the ones printed.
+</p>
+<div class="plate" style="border:1px solid #ddd5c8;background:#f8f5ef;margin-bottom:32px">
+<p class="note" style="margin:0">
+<strong>No token is minted, and the test for that is written down.</strong> <em>Design pipeline</em>:
+<em>&ldquo;a boundary token is minted only when it would hold a value, or a record, that the rank
+does not&rdquo;</em>. <code>switch-border</code> earned its name by holding the dark OFF edge's
+2.05 shortfall, which had nowhere else to live. This edge holds no shortfall and differs in
+neither theme, so a name for it would be the rank's own value drawn a second time &mdash; exactly
+what <code>--color-label</code>'s retirement comment forbids and what #98 retired three names for.
+The dropzone reads <code>field-border</code> directly, as #98's seven consumers do. The palette
+stays at <strong>71</strong> names per block and no hex moves anywhere in <code>index.css</code>.
+</p>
+</div>
+
+<!-- ── T4 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T4 &middot; The hover cannot stay, and why it lands on <code>muted</code></h2>
+<p class="note" style="margin:0 0 12px">
+A hover that is <em>weaker</em> than the rest it replaces is the defect
+<code>field-border.dc.html</code> T4-3 refused <code>muted</code> over. Measured from a
+<code>field-border</code> rest, <code>faint</code> is that defect: it lies on the wrong side of the
+edge in both themes, so the box would go <strong>quieter</strong> under the pointer.
+</p>
+
+<table>
+  <tr><th>hover candidate</th><th>step from the rest, light</th><th>dark</th><th>direction</th></tr>
+  <tr><td><code>faint</code> &mdash; what ships</td><td>1.75</td><td>1.19</td><td class="no">INVERTS &#10007;</td></tr>
+  <tr><td><strong><code>muted</code></strong></td><td>1.72</td><td>1.74</td><td class="yes">away from the fill &#10003;</td></tr>
+  <tr><td><code>ink</code> &mdash; the twelve field hovers</td><td>4.32</td><td>3.74</td><td class="yes">away from the fill &#10003;</td></tr>
+</table>
+
+<p class="note" style="margin:0 0 12px">
+<strong><code>muted</code>, because <code>ink</code> is spoken for.</strong> <code>ink</code> is
+the drag-over arm's own colour; taking it for hover leaves the two states sharing a border and
+distinguished only by fill, copy, weight and icon &mdash; a distinction removed rather than a
+stroke added, which is the cost #86 learned to name. And the reason fields need <code>ink</code>
+does not reach here: a field is focusable, so its hover competes with a 2px <code>ink</code> focus
+ring and has to be loud enough to be told apart from it. This box takes no focus. Three states stay
+strictly ordered on both adjacencies in both themes &mdash; inward, each on its own fill,
+3.06 &lt; 5.28 &lt; 11.91 in light and 3.65 &lt; 6.36 &lt; 12.16 in dark &mdash; which is the
+property worth holding, not any one of the numbers.
+</p>
+<p class="note" style="margin:0 0 32px">
+<strong>Stated because it is the honest half:</strong> in light the hover step improves,
+1.21 &rarr; 1.72; in <strong>dark it narrows, 2.18 &rarr; 1.74</strong>. Accepted, because a step
+is a comparison between two states and the reading against the surface is what a user has to see:
+the hovered edge goes 1.51 &rarr; 6.87 outward in dark, from invisible to unmistakable, and both
+states now clear the bar where neither did. <strong>A consequence that lands outside this file:</strong>
+<code>field-border.dc.html:165</code> derives the fields' <code>ink</code> hover from a floor
+&mdash; <em>&ldquo;the weakest shipping hover, 1.55 light and 2.42 dark, both
+<code>ImportRow.tsx:131</code>&rdquo;</em> &mdash; whose only member was this dropzone. After this
+branch that floor has no member, and its figures were pre-parchment besides. The fields' ruling is
+untouched; the sentence that justified it is superseded, and <code>field-border.test.ts</code>
+carries a copy of it that #88 corrects.
+</p>
+
+<!-- ── T5 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T5 &middot; The specimens</h2>
+<p class="note" style="margin:0 0 14px">
+Radius 16 on its own <code>panel</code> fill, inside the <code>card</code> it actually sits in, at
+the padding it actually has. Before and after, three arms, both themes.
+</p>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+  <div class="plate" style="background:#f8f5ef;border:1px solid #ddd5c8;min-width:300px">
+    <div class="mi" style="margin-bottom:12px;background:#f8f5ef">light &middot; before</div>
+    <div style="background:#e7e0d5;border:1px solid #c6bbab;border-radius:16px;padding:20px;text-align:center;font-size:12px">rest &middot; 1.44 in, 1.74 out</div>
+    <div style="height:11px"></div>
+    <div style="background:#e7e0d5;border:1px solid #b4aa9a;border-radius:16px;padding:20px;text-align:center;font-size:12px">hover &middot; 1.75 in</div>
+  </div>
+  <div class="plate" style="background:#f8f5ef;border:1px solid #ddd5c8;min-width:300px">
+    <div class="mi" style="margin-bottom:12px;background:#f8f5ef">light &middot; after</div>
+    <div style="background:#e7e0d5;border:1px solid #847e77;border-radius:16px;padding:20px;text-align:center;font-size:12px">rest &middot; 3.06 in, 3.69 out</div>
+    <div style="height:11px"></div>
+    <div style="background:#e7e0d5;border:1px solid #5e5955;border-radius:16px;padding:20px;text-align:center;font-size:12px">hover &middot; 5.28 in</div>
+    <div style="height:11px"></div>
+    <div style="background:#ddd5c8;border:1px solid #1c1a19;border-radius:16px;padding:20px;text-align:center;font-size:12px;font-weight:600">drag-over &middot; unchanged</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:32px">
+  <div class="plate" style="background:#19181a;border:1px solid #2a282c;min-width:300px">
+    <div class="mi" style="margin-bottom:12px;color:#a3a19e;border-color:#6e6a65;background:#19181a">dark &middot; before</div>
+    <div style="background:#201f22;border:1px solid #3a373c;border-radius:16px;padding:20px;text-align:center;font-size:12px;color:#eceae7">rest &middot; 1.40 in, 1.51 out</div>
+    <div style="height:11px"></div>
+    <div style="background:#201f22;border:1px solid #6e6a65;border-radius:16px;padding:20px;text-align:center;font-size:12px;color:#eceae7">hover &middot; 3.06 in</div>
+  </div>
+  <div class="plate" style="background:#19181a;border:1px solid #2a282c;min-width:300px">
+    <div class="mi" style="margin-bottom:12px;color:#a3a19e;border-color:#6e6a65;background:#19181a">dark &middot; after</div>
+    <div style="background:#201f22;border:1px solid #7a7674;border-radius:16px;padding:20px;text-align:center;font-size:12px;color:#eceae7">rest &middot; 3.65 in, 3.94 out</div>
+    <div style="height:11px"></div>
+    <div style="background:#201f22;border:1px solid #a3a19e;border-radius:16px;padding:20px;text-align:center;font-size:12px;color:#eceae7">hover &middot; 6.36 in</div>
+    <div style="height:11px"></div>
+    <div style="background:#2a282c;border:1px solid #eceae7;border-radius:16px;padding:20px;text-align:center;font-size:12px;color:#eceae7;font-weight:600">drag-over &middot; unchanged</div>
+  </div>
+</div>
+
+<!-- ── T6 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T6 &middot; What the code half must move, and what this supersedes</h2>
+
+<table>
+  <tr><th>#88 changes</th><th>what</th></tr>
+  <tr><td><code>src/screens/settings/ImportRow.tsx:131</code></td><td>the rest arm, one line: <code>border-panel-border bg-panel hover:border-faint</code> &rarr; <code>border-field-border bg-panel hover:border-muted</code>. The drag arm is untouched</td></tr>
+  <tr><td><code>src/index.css</code></td><td>a COMMENT only &mdash; the rank's consumer enumeration gains the dropzone. No value moves, no name is minted, 71 names per block stand</td></tr>
+  <tr><td><code>src/dropzone-edge.test.ts</code></td><td>new and self-contained, the idiom #87 set: hexes parsed out of <code>index.css</code> at test time, never hard-coded. It holds the two rest readings, the rung ORDERING rather than a hand-kept hover number, and the markup</td></tr>
+  <tr><td><code>src/field-border.test.ts</code></td><td>its dropzone pin (<em>&ldquo;keeps its <code>faint</code> hover &mdash; its rest is <code>panel-border</code>&rdquo;</em>) is false in both clauses and leaves for the new file, and its copy of T4's superseded floor sentence is corrected. Its two counts do not move: <code>ImportRow.tsx</code> carries no <code>rounded-[9px] h-9</code> line, so it is not a <code>FIELD_FILE</code></td></tr>
+  <tr><td><code>navigation-map.md</code></td><td>the Data &rarr; Import row, <em>&ldquo;solid <code>panel-border</code>, never dashed, radius 16&rdquo;</em> &rarr; <code>field-border</code>. Solid, never dashed, and 16 all stand</td></tr>
+</table>
+
+<table>
+  <tr><th>superseded &mdash; the TOKEN ASSIGNMENT, never a hex</th><th>where</th></tr>
+  <tr><td><code>data-portability.dc.html</code>, the rest edge &mdash; 5 boxes</td><td><code>:196</code> (S1 demo) &middot; <code>:365</code> (S1 live) &middot; <code>:471</code> (reading) &middot; <code>:485</code> (focus-visible) &middot; <code>:533</code> (the 360 variant)</td></tr>
+  <tr><td>the same file, the hover edge &mdash; 1 box</td><td><code>:441</code></td></tr>
+  <tr><td>the same file, the prose that assigns them</td><td><code>:84</code> (<em>&ldquo;a SOLID panel-border frame on panel&rdquo;</em>) &middot; <code>:181-190</code> (the S1 spec comment and its D7 line)</td></tr>
+  <tr><td><code>field-border.dc.html</code></td><td><code>:165</code> (the hover floor, T4 above) &middot; <code>:192</code> (<em>&ldquo;the dropzone's hover &hellip; untouched&rdquo;</em>) &middot; <code>:369</code> (the 1.14 acceptance bullet that files it into #83)</td></tr>
+  <tr><td><code>switch-border.dc.html</code></td><td><code>:203</code> and <code>:484</code>, which enumerate <code>panel-border</code>'s remaining readers and name the dropzone among them. <code>panel-border</code> still keeps its value and its other readers &mdash; only this one leaves</td></tr>
+</table>
+
+<p class="note" style="margin:0">
+<strong>Seven boxes, one sheet, and the survey is re-runnable:</strong> an inline style carrying all
+five of <code>border:1px solid #</code>, <code>border-radius:16px</code>,
+<code>flex-direction:column</code>, <code>align-items:center</code> and
+<code>text-align:center</code>. <strong>The last two clauses are load-bearing</strong> &mdash;
+without them the signature also sweeps the danger-zone sub-panel, which is a 1px r16 box centred
+the same way, three times over. It is structural rather than copy-based on purpose, because one of
+the seven is the <em>reading</em> arm and carries no drop copy at all.
+It finds seven in <code>data-portability.dc.html</code> and <strong>none anywhere else</strong>
+&mdash; <code>import-dialog.dc.html:29</code> and <code>:88</code> name the drop target only to
+point at its own sheet, and the master reference draws no import row. Of the seven, five are the
+rest edge and one the hover, all superseded; the seventh, <code>:455</code>, is the drag-over arm
+and is <strong>not</strong>, which is the reason to state the composition rather than the file.
+<strong>This file draws NONE of its own</strong> &mdash; its specimens are centred plates without
+the flex column &mdash; so a reader re-running the survey subtracts nothing. Nothing here
+supersedes geometry, copy, motion or any state machine, and it edits none of them.
+</p>
+
+</div>
+</x-dc>
+</body>
+</html>

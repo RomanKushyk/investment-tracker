@@ -331,17 +331,28 @@ describe('every field points at the token', () => {
 });
 
 describe('hover leaves the resting edge behind', () => {
-  // From the repaired idle edge, `muted` measures 1.45 in light — below the
-  // weakest hover shipping today (1.55, the dropzone). `ink` measures 3.93,
-  // GENTLER than the 12.19 the three `ink` sites stepped from a `hairline` idle.
+  // A FIELD HOVERS TO `ink` BECAUSE A FIELD TAKES FOCUS: its hover has to be
+  // told apart from a 2px `ink` focus ring sitting on the same edge, and only
+  // the top of the ladder manages that.
+  //
+  // THE ORIGINAL ARGUMENT IS SUPERSEDED, and saying so is the point of this
+  // note. `field-border.dc.html:165` ruled `muted` out by a floor — "the weakest
+  // hover shipping today, 1.55 light and 2.42 dark" — whose only member was the
+  // import dropzone. #88 moved that box onto the rank with a `muted` hover, so
+  // the floor has no member left, and its figures were pre-parchment besides.
+  // The ruling stands on focus, which is the reason that survives; the dropzone
+  // is not a field, takes no focus, and its own guard is `dropzone-edge.test.ts`.
+  //
+  // THAT BAN AND THE DROPZONE'S GUARD CAN COLLIDE. This reads the whole source
+  // of every FIELD_FILE, and `dropzone-edge.test.ts` REQUIRES `hover:border-muted`
+  // in `ImportRow.tsx`. They coexist only because that file carries no
+  // `rounded-[9px] h-9` line. Give the import row a field — #84's shared recipe
+  // would — and the two become unsatisfiable together; the fix is to scope this
+  // to field LINES, which is issue 100's subject.
   it.each(FIELD_FILES)('%s hovers to neither `faint` nor `muted`', (file) => {
     const src = strip(read(file));
     expect(src, `${file} still hovers to faint`).not.toMatch(/hover:border-faint/);
     expect(src, `${file} still hovers to muted`).not.toMatch(/hover:border-muted/);
-  });
-
-  it('the dropzone keeps its `faint` hover — its rest is `panel-border`, not a field', () => {
-    expect(strip(read('screens/settings/ImportRow.tsx'))).toMatch(/hover:border-faint/);
   });
 
   // NAMED RATHER THAN PINNED SILENTLY: thirteen edge sites, twelve hovers. The

@@ -112,7 +112,9 @@ export function ImportRow() {
       {/* SOLID border, never dashed: a dashed affordance would read as a
           machine's guess (P3's dashed = proposed rule). The panel is a
           container, not a pressable — no lift, no scale, and it adds no second
-          tab stop (drop is a pointer-only enhancement). */}
+          tab stop (drop is a pointer-only enhancement).
+          It still wears the control-boundary rank, because the copy says WHAT
+          and only this border says WHERE (#88, dropzone-edge.dc.html). */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -128,7 +130,7 @@ export function ImportRow() {
           if (!busy) void handleFiles(Array.from(e.dataTransfer.files));
         }}
         className={`mt-3 flex flex-col items-center gap-1.5 rounded-2xl border p-5 text-center transition duration-150 max-sm:p-4 ${
-          dragOver ? 'border-ink bg-hairline' : 'border-panel-border bg-panel hover:border-faint'
+          dragOver ? 'border-ink bg-hairline' : 'border-field-border bg-panel hover:border-muted'
         }`}
       >
         {busy ? (
