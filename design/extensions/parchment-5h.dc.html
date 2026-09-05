@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The faces THIS PALETTE names, linked and not embedded. The session's own
+     file carried 42 embedded `data:font/woff2` faces — 683 KB of a 746 KB file, 2.7x
+     the largest sheet here — and no sibling embeds a font. Manrope is the UI
+     face the tokens ask for (--qn-font-ui); JetBrains Mono is the one the app
+     already ships and this file draws every figure in. -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+html{background:#101113}
+body{margin:0;background:#101113;color:#eceae7;font-family:'Manrope',system-ui,sans-serif;font-weight:500;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.55}
+.mono{font-family:'JetBrains Mono',monospace}
+h1,h2,h3{margin:0}
+.top{padding:48px 56px 28px;display:flex;align-items:baseline;gap:20px;flex-wrap:wrap}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#d8b494}
+h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.meta{font-size:14px;color:#8a8886}
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid #26272b;border-bottom:1px solid #26272b}
+.theme{padding:32px 40px 40px;display:flex;flex-direction:column;gap:28px;min-width:0}
+.theme.dark{border-right:1px solid #26272b}
+.th{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.th h2{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.th-note{font-size:13px;color:var(--t2)}
+.theme h3{font-size:14px;font-weight:700;margin-bottom:10px}
+.blk.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.logo-row{border:1px solid;border-radius:12px;padding:20px;display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+.mono-fb{margin-left:auto;display:flex;align-items:flex-end;gap:12px;padding-left:18px;border-left:1px solid var(--b)}
+.cap{font-size:11px;color:var(--t3);align-self:center;margin-right:4px}
+.app-row{display:flex;align-items:center;gap:18px;margin-top:12px;flex-wrap:wrap}
+.tile{width:96px;height:96px;border-radius:22px;display:flex;align-items:center;justify-content:center}
+.lockup{display:flex;align-items:center;gap:12px}
+.wm{font-size:26px;font-weight:600;letter-spacing:-.04em}
+.tab{display:flex;align-items:center;gap:8px;border-radius:8px;padding:8px 12px;font-size:13px}
+.tokgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 16px;margin-top:12px}
+.sw{display:flex;gap:10px;align-items:center;min-width:0}
+.chip{width:30px;height:30px;border-radius:8px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.light .chip{box-shadow:inset 0 0 0 1px rgba(60,40,20,.14)}
+.sw-l{font-size:12px;color:var(--t2)}
+.sw-h{font-family:'JetBrains Mono',monospace;font-size:12px}
+em{font-style:normal;margin-left:6px;padding:1px 5px;border-radius:4px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:500}
+.dark em.ok{background:rgba(134,185,143,.16);color:#86b98f}.dark em.mid{background:rgba(217,165,95,.16);color:#d9a55f}.dark em.low{background:rgba(217,119,106,.16);color:#d9776a}
+.light em.ok{background:rgba(47,107,63,.12);color:#2f6b3f}.light em.mid{background:rgba(138,90,26,.12);color:#8a5a1a}.light em.low{background:rgba(160,60,48,.12);color:#a03c30}
+.sw-h i{font-style:normal;color:var(--t3);font-size:11px}
+.layers{border:1px solid;border-radius:12px;padding:14px}
+.layer{border:1px solid;border-radius:10px;padding:14px;margin-top:10px}
+.lyr-l{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2)}
+.txt{border:1px solid;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.sem-demo{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip-s{font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px}
+.bars{border:1px solid;border-radius:12px;padding:18px 18px 14px;display:flex;align-items:flex-end;gap:10px;height:120px;box-sizing:border-box}
+.bar{flex:1;border-radius:6px 6px 3px 3px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;font-size:11px;color:rgba(0,0,0,.55)}
+.sb-stage{display:grid;grid-template-columns:232px 56px 1fr;gap:16px;border-radius:14px;padding:16px;overflow:hidden}
+.sb{border:1px solid;border-radius:12px;padding:10px 8px 8px;display:flex;flex-direction:column;gap:2px;font-size:13px;font-weight:600}
+.sb-head{display:flex;align-items:center;gap:8px;padding:6px 8px 12px;font-size:15px}
+.sb-field{display:flex;align-items:center;gap:8px;border:1px solid;border-radius:8px;padding:7px 10px;margin:0 2px 10px;font-size:12px;font-weight:500}
+.kbd{margin-left:auto;font-size:10px;border:1px solid;border-radius:4px;padding:1px 5px}
+.sb-label{font-size:11px;font-weight:600;letter-spacing:.02em;padding:10px 10px 4px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px}
+.sb-item span:nth-child(2){flex:1}
+.sb-badge{font-size:10px;font-weight:600;padding:1px 7px;border-radius:999px}
+.sb-div{height:1px;margin:8px 10px}
+.sb-foot{margin-top:auto;border-top:1px solid;border-radius:0 0 10px 10px;margin:14px -8px -8px;padding:8px 8px 8px}
+.sb-user{display:flex;align-items:center;gap:10px;padding:8px 10px;font-size:13px}
+.sb-user span:nth-child(2){flex:1}
+.avatar{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.rail{border:1px solid;border-radius:12px;padding:12px 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.rail .sb-div{width:24px;margin:6px 0}
+.rail-item{width:40px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.sb-content{display:flex;flex-direction:column;gap:12px;min-width:0}
+.sb-card{border:1px solid;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.demo{border:1px solid;border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.d-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.d-brand{display:flex;align-items:center;gap:8px;font-size:15px}
+.d-tabs{display:flex;gap:14px;font-size:13px}.d-tabs span{padding-bottom:4px}
+.d-total{font-size:28px;font-weight:600;letter-spacing:-.04em}
+.d-chips{display:flex;gap:8px;flex-wrap:wrap}
+.spark{width:100%;height:70px;display:block}
+.d-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;font-size:13px;padding-top:8px;border-top:1px solid}
+.d-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.d-input{border:1px solid;border-radius:8px;padding:9px 12px;font-size:13px;display:flex;justify-content:space-between}
+.d-btn{border:1px solid transparent;border-radius:8px;padding:9px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.d-btn.ghost{background:transparent}
+.shared{padding:40px 56px;border-bottom:1px solid #26272b;max-width:1200px}
+.shared h3,.rules-s h3{font-size:15px;font-weight:700;margin-bottom:10px}
+.lead{margin:0 0 18px;color:#c9c7c3;max-width:78ch;text-wrap:pretty}
+.ramp{display:flex;height:40px;border-radius:10px;overflow:hidden;margin-bottom:16px}
+.ramp span{flex:1}
+.scale{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.scale-step{display:grid;grid-template-columns:34px 1fr;gap:4px 10px;align-items:center;font-size:12px}
+.scale-chip{width:34px;height:34px;border-radius:9px;grid-row:1/3}
+.dim{color:#8a8886}
+.use{grid-column:1/-1;color:#a3a19e;font-size:12px;line-height:1.4}
+.rules-s{padding:40px 56px;border-bottom:1px solid #26272b}
+.rules-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 28px;max-width:1500px;color:#c9c7c3;font-size:13px;text-wrap:pretty}
+.rules-g b{color:#eceae7}
+.code-s{padding:40px 56px 64px;max-width:1200px}
+.code-s h3{font-size:15px;font-weight:700;margin-bottom:10px}
+.code-s p{margin:0 0 14px;color:#c9c7c3;max-width:78ch}
+pre{margin:0;background:#18191c;border:1px solid #26272b;border-radius:14px;padding:20px 22px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;color:#c9c7c3;overflow:auto;white-space:pre}
+pre .c{color:#6f6b70}
+@media (max-width:1200px){.themes{grid-template-columns:1fr}.theme.dark{border-right:0;border-bottom:1px solid #26272b}.rules-g{grid-template-columns:1fr 1fr}}
+@media (max-width:720px){.top,.theme,.shared,.rules-s,.code-s{padding-left:20px;padding-right:20px}.sb-stage{grid-template-columns:1fr}.rail{flex-direction:row;padding:0 12px;justify-content:center}.rail .sb-div{width:1px;height:24px;margin:0 6px}.blk.two,.rules-g{grid-template-columns:1fr}.d-form{grid-template-columns:1fr}}
+</style>
+<style>
+.map-s{padding:32px 40px 40px;border-top:1px solid #26272b}
+.map-s h3{font-size:16px;font-weight:700;margin:0 0 10px}
+.map-s h4{font-size:13px;font-weight:700;margin:28px 0 8px;color:#d8b494}
+.map-s .lead{max-width:920px;color:#a3a19e;font-size:13px;margin:0 0 14px}
+table.map{border-collapse:collapse;width:100%;margin-bottom:6px}
+table.map th{text-align:left;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#7a7674;font-weight:500;border-bottom:1px solid #26272b;padding:0 14px 7px 0}
+table.map td{text-align:left;padding:6px 14px 6px 0;font-size:12px;vertical-align:top;border-bottom:1px solid #1c1a1c}
+.map-s code{font-family:'JetBrains Mono',monospace;font-size:11.5px}
+.map-s .m-dim{color:#7a7674}
+.map-s .m-note{color:#a3a19e;max-width:560px;line-height:1.5}
+.map-list{font-size:11.5px;color:#a3a19e;line-height:1.9;max-width:920px}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     design/extensions/parchment-5h.dc.html — the parchment palette and the 5h mark
+
+     Brief: issue #89. Implementing task: issue #91.
+     Not this file's: the sidebar's markup is #92, the mark's three files are
+     #93, the face is #94, the accent's non-sidebar sites are #95. The light
+     floating edges are #86 and the import dropzone is #88, both re-derived on
+     these planes rather than the old ones.
+
+     ───────────────────────────────────────────────────────────────────────
+     WHAT THIS FILE IS. The design session's own output (its eyebrow: Turn 16),
+     re-wrapped in the house idiom and nothing else redrawn: every swatch, every
+     ratio, both sidebar stages, the portfolio mock and the seven usage rules are
+     the session's. THREE things were changed and each is recorded below — the
+     fonts are linked rather than embedded, every icon is lucide's, and the mark
+     is inlined at all 28 sites instead of referenced out of a `<defs>`.
+
+     THE MARK, INLINED. The session drew it once offscreen and pointed 28
+     `<use href="#qn-*">` at it. The reason is the README's own rule — "ALL
+     styles inline, every exact color/size/spacing literal in the markup" — and
+     this was the only one of eighteen sheets that reached out of the markup for
+     a drawing at all. Same three paths, same viewBox, same strokes, no `<defs>`.
+     Verified after the change: 28 marks, 3 paths each, strokes
+     #d8b494 / #ece1d2 / #b07a52 in the dark stage.
+
+     IT DOES NOT SILENCE THE CONSOLE, and the first version of this note claimed
+     it did — measured after a reload, where the warning does not re-fire. On a
+     FIRST load Chrome logs "Unsafe attempt to load URL … 'file:' URLs are
+     treated as unique security origins" for any same-document fragment
+     reference, and two remain that cannot be inlined: `url(#fill-dark)` and
+     `url(#fill-light)`, the two sparkline gradients, which have to live in a
+     `<defs>` to be referenced at all. Both paint — 388 × 64 of fill, two stops
+     each, verified — and so did the marks before. The warning is a `file://`
+     artefact, not a rendering fault; the inlining stands on the idiom, not on it.
+
+     ITS INK IS 89 × 81, NOT THE 76 × 68 A BBOX REPORTS, and #93 needs the
+     difference. `getBBox()` measures geometry and ignores stroke: the paths span
+     x[20,96] and y[20,88], but the loop is stroked 11 and the pills 15 with round
+     caps, so the painted union is x[14.5,103.5] × y[14.5,95.5]. `Sidebar.tsx:32-38`
+     crops the SHIPPED mark's viewBox to its ink measured the other way — "the
+     arc's ink spans [9.5, 86.5] … (centre 48,48 · r32 · stroke 13)" — so a
+     viewBox taken off the bbox here would be 13 units short on both axes and clip
+     the arrowhead and the loop's caps.
+
+     The CSS-токени block at the foot is the session's `quirenote-tokens.css`
+     verbatim, and it is the TOKEN RECORD: no `.css` file is added under
+     `design/`, because a stylesheet here would be a second authority beside
+     `src/index.css` with nothing keeping the two in step.
+
+     ───────────────────────────────────────────────────────────────────────
+     NOT SHIPPED, AND NOT A REQUIREMENT.
+
+     The session drew a sidebar richer than the app's. SIX pieces of furniture
+     below have never existed in Quirenote, are drawn because the session drew
+     them, and reading any of them as a requirement would be reading this file
+     wrongly:
+
+       ⌘K search field      the sidebar has no search, and no command palette
+       user footer + avatar single-user local app; there is no account
+       the count badge      no nav item carries a count
+       the icon rail        collapsed is `w-0` — the narrow rail was refused
+                            outright (*Two shells, one breakpoint*)
+       «Податки» nav item   no such route; the app has eleven and they are
+                            listed in the ICONS table at the foot
+       the portfolio mock   the largest divergence on the page, and the
+                            easiest to copy by accident: it is drawn in
+                            USD over US equities and BTC — $128 430.22,
+                            NVDA, TLT, AAPL, Дивіденд 12.09. Quirenote
+                            tracks ОВДП and Inzhur funds, its tables stay
+                            in ₴ and its dates are dd.MM.yyyy (CLAUDE.md).
+                            The mock is a COLOUR demonstration; read the
+                            hues off it and nothing else.
+
+     A LAYOUT QUIRK IN THAT FURNITURE, since it is drawn and someone will
+     wonder: `.sb-foot` sets `margin-top:auto` and then overwrites it with a
+     `margin` shorthand on the same line, so the footer sits under the last item
+     instead of pinned to the bottom. The session's CSS, left as drawn — a
+     re-wrap does not correct a drawing, and this is furniture that does not ship.
+
+     They are kept rather than deleted for the reason `design/extensions/README.md`
+     gives at length for `kubushka-mirror.json`: a reference is the record of what
+     was drawn, and a divergence recorded is worth more than a divergence tidied
+     away. Adding any of them to the app is a new brief.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE GLYPHS ARE LUCIDE'S OWN, AND THAT IS THE ONE REDRAWING.
+
+     The session hand-drew its nine icons. They are replaced here with the path
+     data of `lucide-react` (installed, 1.27.0 — the set shadcn ships and the set
+     `Sidebar.tsx:1` already imports two chevrons from), copied out of
+     `node_modules/lucide-react/dist/esm/icons/<name>.mjs`, at lucide's own
+     weight: `viewBox 0 0 24 24`, stroke 2, round caps and joins. The session
+     drew 1.75 and its own approximations — an `rx 1.5` grid where lucide's is
+     `rx 1`, a nine-o'clock pie where lucide's opens at three.
+
+     WHY IT MATTERS THAT THEY ARE THE SAME OBJECT: an icon drawn here and an icon
+     imported there are otherwise two things that look alike, and the second one
+     is picked inside a component — the failure *Design pipeline* names for hexes
+     and which is no different for glyphs. The nine, in drawing order:
+
+       Пошук          Search             Розподіл        ChartPie
+       Огляд          LayoutGrid         Прибутковість   ChartLine
+       Позиції        List               Податки         FileText
+       Угоди          ArrowDownUp        Налаштування    Settings
+       Дивіденди      CircleDollarSign
+
+     — the ITEMS, not the group headers. «Портфель» and «Аналітика» are
+     `sb-label`s and carry no glyph, which is what the ICONS table at the foot
+     says of group headers generally: the app draws a chevron there and a chevron
+     is a control, not a label.
+
+     `Sidebar.tsx:45-47` already sanctions this direction and says why it is
+     safe: `mark.test.ts` pins the mark by collecting every inline SVG in that
+     file, so a hand-inlined icon there would fail the pin — "icons that arrive
+     as a component (lucide) never appear in this source and are safe." This
+     sheet creates no such hazard, because what it hands over is an import name.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE SESSION IS SILENT ON HALF THE PALETTE, AND THAT IS WHAT THE MAPPING IS FOR.
+
+     `src/index.css` declares 46 `--color-*` and 4 `--shadow-*` per theme (plus 19
+     `chart-*` aliases, declared once and following their base token through
+     `var()`). The session names about thirty of them. The rest — `faint`,
+     `ink-hover`, `switch-track`, `pos-border`, `pos-on-dark`, every
+     `*-tint-text`, the four asset hues with their tints, the three light shadows
+     — are derived in the MAPPING section at the foot, here, at a design session,
+     because the alternative is each one being picked inside the component that
+     needs it first.
+
+     THE FINDING THAT SHAPES IT: the session's own boundary greys cannot carry a
+     component boundary on its own planes. `border-strong` reads 1.44 : 1 on the
+     light panel and 1.40 : 1 on the dark one, against the 3 : 1 that WCAG 1.4.11
+     — and `field-border.test.ts` and `popover-edge.test.ts` after it — hold six
+     tokens to. What does clear it is the session's THIRD TEXT STEP, `text-3`:
+     3.35 / 3.69 / 3.06 in light and 4.20 / 3.94 / 3.65 in dark on page / card /
+     panel, with nothing minted. So the app's control-boundary rank takes it, and
+     the two boundary greys below it stay decorative, which is what they already
+     are.
+
+     ONE PLANE IS THE SESSION'S SILENCE AND THE OWNER'S CALL: light `panel`. It is
+     a RECESS in light and a STEP UP in dark — the asymmetry `index.css:138` and
+     `:327` already carry — and the session names three light layers going up and
+     none going down. Light `panel` takes `bg-hover` #e7e0d5, a step below canvas.
+     It binds: it is the darkest light plane, so every ratio above is scored on it.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE ICONS ARE DRAWN WITH EXPLICIT STROKES; THE TOKEN RECORD DRIVES THEM
+     THROUGH `currentColor`. Both are here and they cannot both be the
+     mechanism: every icon in the drawing hard-codes `stroke="#…"` so the sheet
+     renders standalone with no cascade to lean on, while the CSS at the foot
+     says `.sidebar a svg { color: var(--qn-sb-icon) }` and re-points it on the
+     active item. THE RECORD IS THE CONTRACT and the drawing shows the result —
+     an implementer wires `currentColor` and lets the item's own colour reach the
+     glyph. Two consequences worth naming: as written, `.sidebar a svg` pins the
+     glyph hard enough that the hover rule beside it cannot reach it; and the
+     drawing paints ONE icon at `sb-item-hover`, a fourth state the sidebar rule
+     does not name — it names only `sb-icon` and `sb-icon-active`.
+
+     ───────────────────────────────────────────────────────────────────────
+     ONE OF THE SEVEN RULES HAS NO CONSUMER TODAY. «Сайдбар — на крок глибше за
+     канвас» ends "іконки одноколірні (sb-icon), забарвлюється лише активна" —
+     and the app's nav has no icons at all, only two chevrons on the group
+     headers. The rule is kept verbatim because it is the session's, and named
+     here so a later reader does not go looking for the icons it governs. Whether
+     the nav gains them is #92's question and this file does not answer it.
+
+     ───────────────────────────────────────────────────────────────────────
+     WHAT IT SUPERSEDES: every colour in every merged drawing, which is the whole
+     point of it — the master reference draws the light palette and
+     `appearance-language.dc.html` the dark one, and both are re-valued here.
+     Precedence is D14's: this is the newer reference for colour and it edits none
+     of them. It supersedes NO geometry, NO copy and NO state machine; where this
+     file and an older sheet disagree about a size, the older sheet still wins.
+     `field-border.dc.html`, `switch-border.dc.html` and `muted-legibility.dc.html`
+     keep their RULINGS — the bar, the ranks, why a name and not a value — and
+     lose only their numbers, which are re-derived below on these planes.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<div class="top">
+  <div class="eyebrow">Turn 16</div>
+  <h1>Пергамент × 5h — повна палітра для темної і світлої тем</h1>
+  <div class="meta">одна родина кольорів · два набори токенів · контраст до власного фону в кожній парі</div>
+</div>
+<div class="themes">
+
+<section class="theme dark" style="background:#111110;color:#eceae7;--b:#2a282c;--t2:#a3a19e;--t3:#7a7674;--s:#19181a">
+  <header class="th">
+    <h2>Темна тема</h2>
+    <div class="th-note">канвас теплий, зсунутий у бік піску: #111110 замість нейтрального #101113</div>
+  </header>
+
+  <div class="blk">
+    <h3>Логотип 5h</h3>
+    <div class="logo-row" style="background:#19181a;border-color:#2a282c"><svg viewBox="0 0 120 120" style="width:16px;height:16px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:24px;height:24px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:32px;height:32px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:48px;height:48px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:96px;height:96px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><div class="mono-fb"><div class="cap">одноколірний фолбек</div><svg viewBox="0 0 120 120" style="width:16px;height:16px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:24px;height:24px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:32px;height:32px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#d8b494" stroke-width="15" stroke-linecap="round"/></svg></div></div>
+    <div class="app-row">
+      <div class="tile" style="background:#19181a"><svg viewBox="0 0 120 120" style="width:64px;height:64px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg></div>
+      <div class="lockup"><svg viewBox="0 0 120 120" style="width:36px;height:36px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="mono wm">quirenote</span></div>
+      <div class="tab" style="background:#201f22;color:#a3a19e"><svg viewBox="0 0 120 120" style="width:18px;height:18px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="mono">quirenote.sh — Portfolio</span></div>
+    </div>
+    <div class="tokgrid"><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">logo-outline</div><div class="sw-h">#d8b494 <em class="ok">9.8:1</em></div></div></div><div class="sw"><span class="chip" style="background:#ece1d2"></span><div><div class="sw-l">logo-pill-a</div><div class="sw-h">#ece1d2 <em class="ok">14.6:1</em></div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">logo-pill-b</div><div class="sw-h">#b07a52 <em class="ok">5.2:1</em></div></div></div><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">logo-mono</div><div class="sw-h">#d8b494 <em class="ok">9.8:1</em> <i>фавікон, друк</i></div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Шари фону</h3>
+<div class="layers" style="background:#111110;border-color:#2a282c">
+  <div class="lyr-l">bg-canvas #111110</div>
+  <div class="layer" style="background:#19181a;border-color:#2a282c"><div class="lyr-l">bg-surface #19181a · border #2a282c</div>
+    <div class="layer" style="background:#201f22;border-color:#3a373c"><div class="lyr-l">bg-raised #201f22 · border-strong #3a373c</div>
+      <div class="layer" style="background:#27262a;border-color:transparent"><div class="lyr-l">bg-hover #27262a</div></div>
+    </div>
+  </div>
+</div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#111110"></span><div><div class="sw-l">bg-canvas</div><div class="sw-h">#111110</div></div></div><div class="sw"><span class="chip" style="background:#19181a"></span><div><div class="sw-l">bg-surface</div><div class="sw-h">#19181a</div></div></div><div class="sw"><span class="chip" style="background:#201f22"></span><div><div class="sw-l">bg-raised</div><div class="sw-h">#201f22</div></div></div><div class="sw"><span class="chip" style="background:#27262a"></span><div><div class="sw-l">bg-hover</div><div class="sw-h">#27262a</div></div></div><div class="sw"><span class="chip" style="background:#2a282c"></span><div><div class="sw-l">border</div><div class="sw-h">#2a282c</div></div></div><div class="sw"><span class="chip" style="background:#3a373c"></span><div><div class="sw-l">border-strong</div><div class="sw-h">#3a373c</div></div></div></div></div>
+    <div><h3>Текст</h3>
+<div class="txt" style="background:#19181a;border-color:#2a282c">
+  <div style="color:#eceae7;font-size:15px;font-weight:700">text — заголовки, суми, назви позицій <em class="ok">14.7:1</em></div>
+  <div style="color:#a3a19e">text-2 — підписи, дати, вторинні значення <em class="ok">6.9:1</em></div>
+  <div style="color:#7a7674">text-3 — плейсхолдери, вимкнене <em class="mid">3.9:1</em></div>
+  <div class="mono" style="color:#d8b494">accent як текст — посилання, активна вкладка <em class="ok">9.2:1</em></div>
+</div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#eceae7"></span><div><div class="sw-l">text</div><div class="sw-h">#eceae7 <em class="ok">15.7:1</em></div></div></div><div class="sw"><span class="chip" style="background:#a3a19e"></span><div><div class="sw-l">text-2</div><div class="sw-h">#a3a19e <em class="ok">7.3:1</em></div></div></div><div class="sw"><span class="chip" style="background:#7a7674"></span><div><div class="sw-l">text-3</div><div class="sw-h">#7a7674 <em class="mid">4.2:1</em></div></div></div><div class="sw"><span class="chip" style="background:#1c1a19"></span><div><div class="sw-l">text-inverse</div><div class="sw-h">#1c1a19 <em class="ok">9.0:1</em> <i>на accent</i></div></div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Акцент бренду</h3><div class="tokgrid"><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">accent</div><div class="sw-h">#d8b494 <em class="ok">9.8:1</em></div></div></div><div class="sw"><span class="chip" style="background:#e2c4a8"></span><div><div class="sw-l">accent-hover</div><div class="sw-h">#e2c4a8 <em class="ok">11.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#c49a74"></span><div><div class="sw-l">accent-pressed</div><div class="sw-h">#c49a74 <em class="ok">7.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#1c1a19"></span><div><div class="sw-l">accent-fg</div><div class="sw-h">#1c1a19 <em class="ok">9.0:1</em> <i>на accent</i></div></div></div><div class="sw"><span class="chip" style="background:rgba(216,180,148,0.14)"></span><div><div class="sw-l">accent-tint</div><div class="sw-h">rgba(216,180,148,0.14) <i>тло чипів, selection</i></div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">accent-2</div><div class="sw-h">#b07a52 <em class="ok">5.2:1</em> <i>декор, графіки, пілюля</i></div></div></div></div></div>
+    <div><h3>Семантика</h3><div class="tokgrid"><div class="sw"><span class="chip" style="background:#86b98f"></span><div><div class="sw-l">gain</div><div class="sw-h">#86b98f <em class="ok">8.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#d9776a"></span><div><div class="sw-l">loss</div><div class="sw-h">#d9776a <em class="ok">6.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:#d9a55f"></span><div><div class="sw-l">warn</div><div class="sw-h">#d9a55f <em class="ok">8.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#93a4b5"></span><div><div class="sw-l">info</div><div class="sw-h">#93a4b5 <em class="ok">7.4:1</em></div></div></div></div>
+      <div class="sem-demo"><span class="chip-s mono" style="background:rgba(134,185,143,0.14);color:#86b98f">+2.41%</span><span class="chip-s mono" style="background:rgba(217,119,106,0.14);color:#d9776a">−1.08%</span><span class="chip-s" style="background:rgba(217,165,95,0.14);color:#d9a55f">Скоро дивіденд</span><span class="chip-s" style="background:rgba(147,164,181,0.14);color:#93a4b5">Курс оновлено</span></div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <h3>Сайдбар</h3>
+    
+<div class="sb-stage" style="background:#111110">
+  <aside class="sb" style="background:#0d0d0c;border-color:#26232a">
+    <div class="sb-head"><svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="mono" style="color:#eceae7;font-weight:600;letter-spacing:-.03em">quirenote</span></div>
+    <div class="sb-field" style="background:#161515;border-color:#26232a;color:#7a7674"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><span>Пошук</span><span class="mono kbd" style="border-color:#1c1a1c">⌘K</span></div>
+    <div class="sb-label" style="color:#7a7674">Портфель</div>
+    <div class="sb-item" style="background:rgba(216,180,148,0.12);color:#d8b494;box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div>
+    <div class="sb-item" style="background:rgba(236,234,231,0.05);color:#eceae7"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#eceae7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/></svg><span>Позиції</span></div>
+    <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Угоди</span></div>
+    <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Дивіденди</span><span class="sb-badge mono" style="background:rgba(216,180,148,0.14);color:#d8b494">3</span></div>
+    <div class="sb-div" style="background:#1c1a1c"></div>
+    <div class="sb-label" style="color:#7a7674">Аналітика</div>
+    <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div>
+    <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Прибутковість</span></div>
+    <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Податки</span></div>
+    <div class="sb-foot" style="background:#131312;border-color:#1c1a1c">
+      <div class="sb-item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Налаштування</span></div>
+      <div class="sb-user"><span class="avatar" style="background:rgba(216,180,148,0.14);color:#d8b494">R</span><span style="color:#a3a19e">Roman</span><span class="sb-badge mono" style="background:rgba(216,180,148,0.14);color:#d8b494">Pro</span></div>
+    </div>
+  </aside>
+  <aside class="rail" style="background:#0d0d0c;border-color:#26232a">
+    <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg>
+    <div class="rail-item" style="background:rgba(216,180,148,0.12);box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></div>
+    <div class="sb-div" style="background:#1c1a1c"></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+  </aside>
+  <div class="sb-content">
+    <div class="sb-card" style="background:#19181a;border-color:#2a282c;box-shadow:0 8px 24px rgba(0,0,0,.40);color:#eceae7">
+      <div style="color:#a3a19e;font-size:12px">Вартість портфеля</div>
+      <div class="mono" style="font-size:22px;font-weight:600;letter-spacing:-.04em">$128 430<span style="color:#a3a19e">.22</span></div>
+      <div class="mono" style="color:#86b98f;font-size:12px">+2.41% сьогодні</div>
+    </div>
+    <div class="sb-card" style="background:#19181a;border-color:#2a282c;box-shadow:0 8px 24px rgba(0,0,0,.40);color:#eceae7">
+      <div style="color:#a3a19e;font-size:12px">Готівка</div>
+      <div class="mono" style="font-size:22px;font-weight:600;letter-spacing:-.04em">$4 120<span style="color:#a3a19e">.00</span></div>
+      <div style="color:#7a7674;font-size:12px">3.2% портфеля</div>
+    </div>
+  </div>
+</div>
+    <div class="tokgrid"><div class="sw"><span class="chip" style="background:#0d0d0c"></span><div><div class="sw-l">sb-bg</div><div class="sw-h">#0d0d0c <i>на крок глибше за канвас</i></div></div></div><div class="sw"><span class="chip" style="background:#26232a"></span><div><div class="sw-l">sb-border</div><div class="sw-h">#26232a</div></div></div><div class="sw"><span class="chip" style="background:#1c1a1c"></span><div><div class="sw-l">sb-divider</div><div class="sw-h">#1c1a1c</div></div></div><div class="sw"><span class="chip" style="background:#161515"></span><div><div class="sw-l">sb-field</div><div class="sw-h">#161515 <i>пошук</i></div></div></div><div class="sw"><span class="chip" style="background:#a3a19e"></span><div><div class="sw-l">sb-item</div><div class="sw-h">#a3a19e <em class="ok">7.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#eceae7"></span><div><div class="sw-l">sb-item-hover</div><div class="sw-h">#eceae7 <em class="ok">16.2:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(236,234,231,0.05)"></span><div><div class="sw-l">sb-item-hover-bg</div><div class="sw-h">rgba(236,234,231,0.05)</div></div></div><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">sb-item-active</div><div class="sw-h">#d8b494 <em class="ok">10.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(216,180,148,0.12)"></span><div><div class="sw-l">sb-item-active-bg</div><div class="sw-h">rgba(216,180,148,0.12)</div></div></div><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">sb-indicator</div><div class="sw-h">#d8b494 <em class="ok">10.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:#8a8886"></span><div><div class="sw-l">sb-icon</div><div class="sw-h">#8a8886 <em class="ok">5.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">sb-icon-active</div><div class="sw-h">#d8b494 <em class="ok">10.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:#7a7674"></span><div><div class="sw-l">sb-label</div><div class="sw-h">#7a7674 <em class="mid">4.3:1</em></div></div></div><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">sb-badge</div><div class="sw-h">#d8b494 <em class="ok">10.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(216,180,148,0.14)"></span><div><div class="sw-l">sb-badge-bg</div><div class="sw-h">rgba(216,180,148,0.14)</div></div></div><div class="sw"><span class="chip" style="background:#131312"></span><div><div class="sw-l">sb-footer-bg</div><div class="sw-h">#131312</div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Серії графіків</h3><div class="bars" style="background:#19181a;border-color:#2a282c"><div class="bar" style="background:#d8b494;height:84px"><span class="mono">1</span></div><div class="bar" style="background:#b07a52;height:74px"><span class="mono">2</span></div><div class="bar" style="background:#ece1d2;height:64px"><span class="mono">3</span></div><div class="bar" style="background:#8a8886;height:54px"><span class="mono">4</span></div><div class="bar" style="background:#93a4b5;height:44px"><span class="mono">5</span></div><div class="bar" style="background:#9c8a9d;height:34px"><span class="mono">6</span></div></div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#d8b494"></span><div><div class="sw-l">chart-1</div><div class="sw-h">#d8b494</div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">chart-2</div><div class="sw-h">#b07a52</div></div></div><div class="sw"><span class="chip" style="background:#ece1d2"></span><div><div class="sw-l">chart-3</div><div class="sw-h">#ece1d2</div></div></div><div class="sw"><span class="chip" style="background:#8a8886"></span><div><div class="sw-l">chart-4</div><div class="sw-h">#8a8886</div></div></div><div class="sw"><span class="chip" style="background:#93a4b5"></span><div><div class="sw-l">chart-5</div><div class="sw-h">#93a4b5</div></div></div><div class="sw"><span class="chip" style="background:#9c8a9d"></span><div><div class="sw-l">chart-6</div><div class="sw-h">#9c8a9d</div></div></div></div></div>
+    <div><h3>Екран портфеля</h3>
+<div class="demo" style="background:#19181a;border-color:#2a282c;box-shadow:0 8px 24px rgba(0,0,0,.40);color:#eceae7">
+  <div class="d-top">
+    <div class="d-brand"><svg viewBox="0 0 120 120" style="width:20px;height:20px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="mono" style="font-weight:600;letter-spacing:-.03em">quirenote</span></div>
+    <div class="d-tabs" style="color:#a3a19e"><span style="color:#d8b494;border-bottom:2px solid #d8b494">Портфель</span><span>Угоди</span><span>Звіти</span></div>
+  </div>
+  <div class="d-total mono">$128 430<span style="color:#a3a19e">.22</span></div>
+  <div class="d-chips">
+    <span class="chip-s mono" style="background:rgba(134,185,143,0.14);color:#86b98f">+2.41% сьогодні</span>
+    <span class="chip-s mono" style="background:rgba(216,180,148,0.14);color:#d8b494">USD</span>
+    <span class="chip-s" style="background:rgba(217,165,95,0.14);color:#d9a55f">Дивіденд 12.09</span>
+  </div>
+  <svg viewBox="0 0 400 70" class="spark" preserveAspectRatio="none">
+    <defs><linearGradient id="fill-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8b494" stop-opacity=".28"/><stop offset="1" stop-color="#d8b494" stop-opacity="0"/></linearGradient></defs>
+    <path d="M0 52 L36 46 L72 50 L108 36 L144 41 L180 26 L216 32 L252 20 L288 24 L324 12 L360 16 L400 6 V70 H0 Z" fill="url(#fill-dark)"/>
+    <path d="M0 52 L36 46 L72 50 L108 36 L144 41 L180 26 L216 32 L252 20 L288 24 L324 12 L360 16 L400 6" fill="none" stroke="#d8b494" stroke-width="2"/>
+  </svg>
+  <div class="d-row" style="border-color:#2a282c"><span class="mono">NVDA</span><span style="color:#a3a19e">42 шт · $60 118</span><span class="mono" style="color:#86b98f">+5.12%</span></div>
+  <div class="d-row" style="border-color:#2a282c"><span class="mono">TLT</span><span style="color:#a3a19e">120 шт · $11 208</span><span class="mono" style="color:#d9776a">−1.08%</span></div>
+  <div class="d-row" style="border-color:#2a282c"><span class="mono">BTC</span><span style="color:#a3a19e">0.42 · $27 431</span><span class="mono" style="color:#86b98f">+0.64%</span></div>
+  <div class="d-form">
+    <div class="d-input" style="background:#201f22;border-color:#d8b494;box-shadow:0 0 0 2px rgba(216,180,148,0.14);color:#eceae7"><span>AAPL</span><span style="color:#7a7674">тикер</span></div>
+    <div class="d-input" style="background:#201f22;border-color:#3a373c;color:#7a7674">кількість</div>
+    <button class="d-btn" style="background:#d8b494;color:#1c1a19">Додати актив</button>
+    <button class="d-btn ghost" style="border-color:#3a373c;color:#a3a19e">Скасувати</button>
+  </div>
+</div></div>
+  </div>
+</section>
+
+<section class="theme light" style="background:#efeae2;color:#1c1a19;--b:#ddd5c8;--t2:#5e5955;--t3:#847e77;--s:#f8f5ef">
+  <header class="th">
+    <h2>Світла тема</h2>
+    <div class="th-note">канвас — пергамент #efeae2, картки світліші за канвас; пісок стає тлом, а не фарбою</div>
+  </header>
+
+  <div class="blk">
+    <h3>Логотип 5h</h3>
+    <div class="logo-row" style="background:#f8f5ef;border-color:#ddd5c8"><svg viewBox="0 0 120 120" style="width:16px;height:16px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:24px;height:24px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:32px;height:32px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:48px;height:48px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:96px;height:96px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><div class="mono-fb"><div class="cap">одноколірний фолбек</div><svg viewBox="0 0 120 120" style="width:16px;height:16px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:24px;height:24px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/></svg><svg viewBox="0 0 120 120" style="width:32px;height:32px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#8a5a3a" stroke-width="15" stroke-linecap="round"/></svg></div></div>
+    <div class="app-row">
+      <div class="tile" style="background:#fdfbf8"><svg viewBox="0 0 120 120" style="width:64px;height:64px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg></div>
+      <div class="lockup"><svg viewBox="0 0 120 120" style="width:36px;height:36px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="mono wm">quirenote</span></div>
+      <div class="tab" style="background:#f8f5ef;color:#5e5955"><svg viewBox="0 0 120 120" style="width:18px;height:18px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="mono">quirenote.sh — Portfolio</span></div>
+    </div>
+    <div class="tokgrid"><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">logo-outline</div><div class="sw-h">#8a5a3a <em class="ok">4.9:1</em></div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">logo-pill-a</div><div class="sw-h">#b07a52 <em class="mid">3.0:1</em></div></div></div><div class="sw"><span class="chip" style="background:#5c3a26"></span><div><div class="sw-l">logo-pill-b</div><div class="sw-h">#5c3a26 <em class="ok">8.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">logo-mono</div><div class="sw-h">#8a5a3a <em class="ok">4.9:1</em> <i>фавікон, друк</i></div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Шари фону</h3>
+<div class="layers" style="background:#efeae2;border-color:#ddd5c8">
+  <div class="lyr-l">bg-canvas #efeae2</div>
+  <div class="layer" style="background:#f8f5ef;border-color:#ddd5c8"><div class="lyr-l">bg-surface #f8f5ef · border #ddd5c8</div>
+    <div class="layer" style="background:#fdfbf8;border-color:#c6bbab"><div class="lyr-l">bg-raised #fdfbf8 · border-strong #c6bbab</div>
+      <div class="layer" style="background:#e7e0d5;border-color:transparent"><div class="lyr-l">bg-hover #e7e0d5</div></div>
+    </div>
+  </div>
+</div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#efeae2"></span><div><div class="sw-l">bg-canvas</div><div class="sw-h">#efeae2</div></div></div><div class="sw"><span class="chip" style="background:#f8f5ef"></span><div><div class="sw-l">bg-surface</div><div class="sw-h">#f8f5ef</div></div></div><div class="sw"><span class="chip" style="background:#fdfbf8"></span><div><div class="sw-l">bg-raised</div><div class="sw-h">#fdfbf8</div></div></div><div class="sw"><span class="chip" style="background:#e7e0d5"></span><div><div class="sw-l">bg-hover</div><div class="sw-h">#e7e0d5</div></div></div><div class="sw"><span class="chip" style="background:#ddd5c8"></span><div><div class="sw-l">border</div><div class="sw-h">#ddd5c8</div></div></div><div class="sw"><span class="chip" style="background:#c6bbab"></span><div><div class="sw-l">border-strong</div><div class="sw-h">#c6bbab</div></div></div></div></div>
+    <div><h3>Текст</h3>
+<div class="txt" style="background:#f8f5ef;border-color:#ddd5c8">
+  <div style="color:#1c1a19;font-size:15px;font-weight:700">text — заголовки, суми, назви позицій <em class="ok">15.9:1</em></div>
+  <div style="color:#5e5955">text-2 — підписи, дати, вторинні значення <em class="ok">6.4:1</em></div>
+  <div style="color:#847e77">text-3 — плейсхолдери, вимкнене <em class="mid">3.7:1</em></div>
+  <div class="mono" style="color:#8a5a3a">accent як текст — посилання, активна вкладка <em class="ok">5.4:1</em></div>
+</div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#1c1a19"></span><div><div class="sw-l">text</div><div class="sw-h">#1c1a19 <em class="ok">14.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#5e5955"></span><div><div class="sw-l">text-2</div><div class="sw-h">#5e5955 <em class="ok">5.8:1</em></div></div></div><div class="sw"><span class="chip" style="background:#847e77"></span><div><div class="sw-l">text-3</div><div class="sw-h">#847e77 <em class="mid">3.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#f8f5ef"></span><div><div class="sw-l">text-inverse</div><div class="sw-h">#f8f5ef <em class="ok">5.4:1</em> <i>на accent</i></div></div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Акцент бренду</h3><div class="tokgrid"><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">accent</div><div class="sw-h">#8a5a3a <em class="ok">4.9:1</em></div></div></div><div class="sw"><span class="chip" style="background:#74482c"></span><div><div class="sw-l">accent-hover</div><div class="sw-h">#74482c <em class="ok">6.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#5c3a26"></span><div><div class="sw-l">accent-pressed</div><div class="sw-h">#5c3a26 <em class="ok">8.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:#f8f5ef"></span><div><div class="sw-l">accent-fg</div><div class="sw-h">#f8f5ef <em class="ok">5.4:1</em> <i>на accent</i></div></div></div><div class="sw"><span class="chip" style="background:rgba(138,90,58,0.12)"></span><div><div class="sw-l">accent-tint</div><div class="sw-h">rgba(138,90,58,0.12) <i>тло чипів, selection</i></div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">accent-2</div><div class="sw-h">#b07a52 <em class="mid">3.0:1</em> <i>декор, графіки, пілюля</i></div></div></div></div></div>
+    <div><h3>Семантика</h3><div class="tokgrid"><div class="sw"><span class="chip" style="background:#2f6b3f"></span><div><div class="sw-l">gain</div><div class="sw-h">#2f6b3f <em class="ok">5.3:1</em></div></div></div><div class="sw"><span class="chip" style="background:#a03c30"></span><div><div class="sw-l">loss</div><div class="sw-h">#a03c30 <em class="ok">5.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#8a5a1a"></span><div><div class="sw-l">warn</div><div class="sw-h">#8a5a1a <em class="ok">4.9:1</em></div></div></div><div class="sw"><span class="chip" style="background:#4a6178"></span><div><div class="sw-l">info</div><div class="sw-h">#4a6178 <em class="ok">5.4:1</em></div></div></div></div>
+      <div class="sem-demo"><span class="chip-s mono" style="background:rgba(47,107,63,0.12);color:#2f6b3f">+2.41%</span><span class="chip-s mono" style="background:rgba(160,60,48,0.12);color:#a03c30">−1.08%</span><span class="chip-s" style="background:rgba(138,90,26,0.12);color:#8a5a1a">Скоро дивіденд</span><span class="chip-s" style="background:rgba(74,97,120,0.12);color:#4a6178">Курс оновлено</span></div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <h3>Сайдбар</h3>
+    
+<div class="sb-stage" style="background:#efeae2">
+  <aside class="sb" style="background:#e8e1d6;border-color:#d6cdbf">
+    <div class="sb-head"><svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="mono" style="color:#1c1a19;font-weight:600;letter-spacing:-.03em">quirenote</span></div>
+    <div class="sb-field" style="background:#f3eee6;border-color:#d6cdbf;color:#847e77"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><span>Пошук</span><span class="mono kbd" style="border-color:#dcd3c5">⌘K</span></div>
+    <div class="sb-label" style="color:#847e77">Портфель</div>
+    <div class="sb-item" style="background:rgba(138,90,58,0.12);color:#8a5a3a;box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div>
+    <div class="sb-item" style="background:rgba(28,26,25,0.05);color:#1c1a19"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#1c1a19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/></svg><span>Позиції</span></div>
+    <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Угоди</span></div>
+    <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Дивіденди</span><span class="sb-badge mono" style="background:rgba(138,90,58,0.12);color:#8a5a3a">3</span></div>
+    <div class="sb-div" style="background:#dcd3c5"></div>
+    <div class="sb-label" style="color:#847e77">Аналітика</div>
+    <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div>
+    <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Прибутковість</span></div>
+    <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg><span>Податки</span></div>
+    <div class="sb-foot" style="background:#e1d9cc;border-color:#dcd3c5">
+      <div class="sb-item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>Налаштування</span></div>
+      <div class="sb-user"><span class="avatar" style="background:rgba(138,90,58,0.12);color:#8a5a3a">R</span><span style="color:#5e5955">Roman</span><span class="sb-badge mono" style="background:rgba(138,90,58,0.12);color:#8a5a3a">Pro</span></div>
+    </div>
+  </aside>
+  <aside class="rail" style="background:#e8e1d6;border-color:#d6cdbf">
+    <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg>
+    <div class="rail-item" style="background:rgba(138,90,58,0.12);box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></div>
+    <div class="sb-div" style="background:#dcd3c5"></div>
+    <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+  </aside>
+  <div class="sb-content">
+    <div class="sb-card" style="background:#f8f5ef;border-color:#ddd5c8;box-shadow:0 8px 24px rgba(60,40,20,.12);color:#1c1a19">
+      <div style="color:#5e5955;font-size:12px">Вартість портфеля</div>
+      <div class="mono" style="font-size:22px;font-weight:600;letter-spacing:-.04em">$128 430<span style="color:#5e5955">.22</span></div>
+      <div class="mono" style="color:#2f6b3f;font-size:12px">+2.41% сьогодні</div>
+    </div>
+    <div class="sb-card" style="background:#f8f5ef;border-color:#ddd5c8;box-shadow:0 8px 24px rgba(60,40,20,.12);color:#1c1a19">
+      <div style="color:#5e5955;font-size:12px">Готівка</div>
+      <div class="mono" style="font-size:22px;font-weight:600;letter-spacing:-.04em">$4 120<span style="color:#5e5955">.00</span></div>
+      <div style="color:#847e77;font-size:12px">3.2% портфеля</div>
+    </div>
+  </div>
+</div>
+    <div class="tokgrid"><div class="sw"><span class="chip" style="background:#e8e1d6"></span><div><div class="sw-l">sb-bg</div><div class="sw-h">#e8e1d6 <i>на крок глибше за канвас</i></div></div></div><div class="sw"><span class="chip" style="background:#d6cdbf"></span><div><div class="sw-l">sb-border</div><div class="sw-h">#d6cdbf</div></div></div><div class="sw"><span class="chip" style="background:#dcd3c5"></span><div><div class="sw-l">sb-divider</div><div class="sw-h">#dcd3c5</div></div></div><div class="sw"><span class="chip" style="background:#f3eee6"></span><div><div class="sw-l">sb-field</div><div class="sw-h">#f3eee6 <i>пошук</i></div></div></div><div class="sw"><span class="chip" style="background:#5e5955"></span><div><div class="sw-l">sb-item</div><div class="sw-h">#5e5955 <em class="ok">5.3:1</em></div></div></div><div class="sw"><span class="chip" style="background:#1c1a19"></span><div><div class="sw-l">sb-item-hover</div><div class="sw-h">#1c1a19 <em class="ok">13.4:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(28,26,25,0.05)"></span><div><div class="sw-l">sb-item-hover-bg</div><div class="sw-h">rgba(28,26,25,0.05)</div></div></div><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">sb-item-active</div><div class="sw-h">#8a5a3a <em class="mid">4.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(138,90,58,0.12)"></span><div><div class="sw-l">sb-item-active-bg</div><div class="sw-h">rgba(138,90,58,0.12)</div></div></div><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">sb-indicator</div><div class="sw-h">#8a5a3a <em class="mid">4.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#6f6a64"></span><div><div class="sw-l">sb-icon</div><div class="sw-h">#6f6a64 <em class="mid">4.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">sb-icon-active</div><div class="sw-h">#8a5a3a <em class="mid">4.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:#847e77"></span><div><div class="sw-l">sb-label</div><div class="sw-h">#847e77 <em class="mid">3.1:1</em></div></div></div><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">sb-badge</div><div class="sw-h">#8a5a3a <em class="mid">4.5:1</em></div></div></div><div class="sw"><span class="chip" style="background:rgba(138,90,58,0.12)"></span><div><div class="sw-l">sb-badge-bg</div><div class="sw-h">rgba(138,90,58,0.12)</div></div></div><div class="sw"><span class="chip" style="background:#e1d9cc"></span><div><div class="sw-l">sb-footer-bg</div><div class="sw-h">#e1d9cc</div></div></div></div>
+  </div>
+
+  <div class="blk two">
+    <div><h3>Серії графіків</h3><div class="bars" style="background:#f8f5ef;border-color:#ddd5c8"><div class="bar" style="background:#8a5a3a;height:84px"><span class="mono">1</span></div><div class="bar" style="background:#b07a52;height:74px"><span class="mono">2</span></div><div class="bar" style="background:#c49a74;height:64px"><span class="mono">3</span></div><div class="bar" style="background:#6f6b70;height:54px"><span class="mono">4</span></div><div class="bar" style="background:#4a6178;height:44px"><span class="mono">5</span></div><div class="bar" style="background:#6d5a6f;height:34px"><span class="mono">6</span></div></div><div class="tokgrid"><div class="sw"><span class="chip" style="background:#8a5a3a"></span><div><div class="sw-l">chart-1</div><div class="sw-h">#8a5a3a</div></div></div><div class="sw"><span class="chip" style="background:#b07a52"></span><div><div class="sw-l">chart-2</div><div class="sw-h">#b07a52</div></div></div><div class="sw"><span class="chip" style="background:#c49a74"></span><div><div class="sw-l">chart-3</div><div class="sw-h">#c49a74</div></div></div><div class="sw"><span class="chip" style="background:#6f6b70"></span><div><div class="sw-l">chart-4</div><div class="sw-h">#6f6b70</div></div></div><div class="sw"><span class="chip" style="background:#4a6178"></span><div><div class="sw-l">chart-5</div><div class="sw-h">#4a6178</div></div></div><div class="sw"><span class="chip" style="background:#6d5a6f"></span><div><div class="sw-l">chart-6</div><div class="sw-h">#6d5a6f</div></div></div></div></div>
+    <div><h3>Екран портфеля</h3>
+<div class="demo" style="background:#f8f5ef;border-color:#ddd5c8;box-shadow:0 8px 24px rgba(60,40,20,.12);color:#1c1a19">
+  <div class="d-top">
+    <div class="d-brand"><svg viewBox="0 0 120 120" style="width:20px;height:20px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="mono" style="font-weight:600;letter-spacing:-.03em">quirenote</span></div>
+    <div class="d-tabs" style="color:#5e5955"><span style="color:#8a5a3a;border-bottom:2px solid #8a5a3a">Портфель</span><span>Угоди</span><span>Звіти</span></div>
+  </div>
+  <div class="d-total mono">$128 430<span style="color:#5e5955">.22</span></div>
+  <div class="d-chips">
+    <span class="chip-s mono" style="background:rgba(47,107,63,0.12);color:#2f6b3f">+2.41% сьогодні</span>
+    <span class="chip-s mono" style="background:rgba(138,90,58,0.12);color:#8a5a3a">USD</span>
+    <span class="chip-s" style="background:rgba(138,90,26,0.12);color:#8a5a1a">Дивіденд 12.09</span>
+  </div>
+  <svg viewBox="0 0 400 70" class="spark" preserveAspectRatio="none">
+    <defs><linearGradient id="fill-light" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a3a" stop-opacity=".28"/><stop offset="1" stop-color="#8a5a3a" stop-opacity="0"/></linearGradient></defs>
+    <path d="M0 52 L36 46 L72 50 L108 36 L144 41 L180 26 L216 32 L252 20 L288 24 L324 12 L360 16 L400 6 V70 H0 Z" fill="url(#fill-light)"/>
+    <path d="M0 52 L36 46 L72 50 L108 36 L144 41 L180 26 L216 32 L252 20 L288 24 L324 12 L360 16 L400 6" fill="none" stroke="#8a5a3a" stroke-width="2"/>
+  </svg>
+  <div class="d-row" style="border-color:#ddd5c8"><span class="mono">NVDA</span><span style="color:#5e5955">42 шт · $60 118</span><span class="mono" style="color:#2f6b3f">+5.12%</span></div>
+  <div class="d-row" style="border-color:#ddd5c8"><span class="mono">TLT</span><span style="color:#5e5955">120 шт · $11 208</span><span class="mono" style="color:#a03c30">−1.08%</span></div>
+  <div class="d-row" style="border-color:#ddd5c8"><span class="mono">BTC</span><span style="color:#5e5955">0.42 · $27 431</span><span class="mono" style="color:#2f6b3f">+0.64%</span></div>
+  <div class="d-form">
+    <div class="d-input" style="background:#fdfbf8;border-color:#8a5a3a;box-shadow:0 0 0 2px rgba(138,90,58,0.12);color:#1c1a19"><span>AAPL</span><span style="color:#847e77">тикер</span></div>
+    <div class="d-input" style="background:#fdfbf8;border-color:#c6bbab;color:#847e77">кількість</div>
+    <button class="d-btn" style="background:#8a5a3a;color:#f8f5ef">Додати актив</button>
+    <button class="d-btn ghost" style="border-color:#c6bbab;color:#5e5955">Скасувати</button>
+  </div>
+</div></div>
+  </div>
+</section>
+</div>
+
+<section class="shared">
+  <h3>Родина бренду · спільна для обох тем</h3>
+  <p class="lead">Одна шкала від крему до найтемнішої міді. Темна тема бере акцент із середини (sand-400), світла — з копера (copper-600); обидві теми користуються одними й тими ж кроками, тому знак, кнопки й графіки в обох темах — одна родина, а не дві палітри.</p>
+  <div class="ramp"><span style="background:#f6efe6"></span><span style="background:#ece1d2"></span><span style="background:#e2c4a8"></span><span style="background:#d8b494"></span><span style="background:#c49a74"></span><span style="background:#b07a52"></span><span style="background:#8a5a3a"></span><span style="background:#5c3a26"></span><span style="background:#3a2418"></span></div>
+  <div class="scale"><div class="scale-step"><span class="scale-chip" style="background:#f6efe6"></span><div class="mono">sand-100</div><div class="mono dim">#f6efe6</div><div class="use">кремове тло чипів, підсвітка (світла тема)</div></div><div class="scale-step"><span class="scale-chip" style="background:#ece1d2"></span><div class="mono">sand-200</div><div class="mono dim">#ece1d2</div><div class="use">пілюля A логотипа (темна тема), 3-я серія графіка</div></div><div class="scale-step"><span class="scale-chip" style="background:#e2c4a8"></span><div class="mono">sand-300</div><div class="mono dim">#e2c4a8</div><div class="use">hover акценту (темна тема)</div></div><div class="scale-step"><span class="scale-chip" style="background:#d8b494"></span><div class="mono">sand-400</div><div class="mono dim">#d8b494</div><div class="use">акцент бренду · знак, CTA, курсор графіка (темна тема)</div></div><div class="scale-step"><span class="scale-chip" style="background:#c49a74"></span><div class="mono">sand-500</div><div class="mono dim">#c49a74</div><div class="use">pressed акценту (темна тема), 3-я серія (світла)</div></div><div class="scale-step"><span class="scale-chip" style="background:#b07a52"></span><div class="mono">copper-500</div><div class="mono dim">#b07a52</div><div class="use">другий колір · пілюля B (темна), пілюля A (світла), 2-а серія</div></div><div class="scale-step"><span class="scale-chip" style="background:#8a5a3a"></span><div class="mono">copper-600</div><div class="mono dim">#8a5a3a</div><div class="use">акцент бренду на світлому · знак, CTA, посилання</div></div><div class="scale-step"><span class="scale-chip" style="background:#5c3a26"></span><div class="mono">copper-700</div><div class="mono dim">#5c3a26</div><div class="use">пілюля B (світла), pressed на світлому</div></div><div class="scale-step"><span class="scale-chip" style="background:#3a2418"></span><div class="mono">copper-800</div><div class="mono dim">#3a2418</div><div class="use">найтемніший тон родини · тіні на світлому</div></div></div>
+</section>
+
+<section class="rules-s">
+  <h3>Як використовувати</h3>
+  <div class="rules-g">
+    <div><b>60 / 30 / 10.</b> Канвас і поверхні — 60; текст, межі, серії графіків — 30; акцент — 10: знак, один головний CTA на екран, активна вкладка, курсор і лінія графіка, фокус. Якщо на екрані три пісочні речі одразу — одна зайва.</div>
+    <div><b>Пісок у світлій темі — тло, не фарба.</b> #d8b494 на пергаменті дає 1.6:1, тому на світлому він живе лише як заливка (selection, чипи, тінт) і як логотип на темних плитках. Усе клікабельне і текстове — copper-600.</div>
+    <div><b>Прибуток і збиток не належать бренду.</b> gain і loss — тільки для дельт, стрілок і чипів P&amp;L. Ніколи для кнопок, вкладок чи брендових елементів; так знак і CTA не «кажуть» плюс чи мінус.</div>
+    <div><b>Логотип має три токени й фолбек.</b> Контур — accent теми, пілюля A — світлий тон другого кольору, пілюля B — темний. Там, де один колір (фавікон 16px, друк, вишивка) — logo-mono. На фото та відео — тільки на плитці bg-surface.</div>
+    <div><b>Стан — це крок по шкалі.</b> Hover і pressed не змішують з білим чи чорним: у темній темі hover світліший на один крок (sand-300), pressed темніший (sand-500); у світлій навпаки — copper-600 → 700.</div>
+    <div><b>Сайдбар — на крок глибше за канвас.</b> Він не поверхня, а стіна: у темній темі #0d0d0c під канвасом #111110, у світлій #e8e1d6 під #efeae2, тож картки контенту читаються як найближчий шар. Активний пункт — тінт акценту плюс 2px індикатор по лівому краю, ніколи не суцільна пісочна заливка; іконки одноколірні (sb-icon), забарвлюється лише активна. Бейджі — тільки accent-tint; про попередження каже warn, не бренд.</div>
+    <div><b>Серії графіків стартують із бренду.</b> Перша серія — accent, друга — copper, далі тони родини й дві холодні приглушені (slate, plum), щоб алокацію з шести позицій можна було читати без легенди й без зелено-червоних асоціацій.</div>
+  </div>
+</section>
+<section class="code-s">
+  <h3>CSS-токени</h3>
+  <p>Той самий набір лежить окремим файлом <span class="mono">quirenote-tokens.css</span>. Перемикання теми — <span class="mono">&lt;html data-theme="light"&gt;</span>; без атрибута застосовується темна.</p>
+  <pre><span class="c">/* Quirenote · Пергамент × 5h · design tokens */</span>
+<span class="c">/* Тема перемикається атрибутом data-theme на &lt;html&gt;; без атрибута — темна. */</span>
+
+:root {
+  --qn-sand-100: #f6efe6;
+  --qn-sand-200: #ece1d2;
+  --qn-sand-300: #e2c4a8;
+  --qn-sand-400: #d8b494;
+  --qn-sand-500: #c49a74;
+  --qn-copper-500: #b07a52;
+  --qn-copper-600: #8a5a3a;
+  --qn-copper-700: #5c3a26;
+  --qn-copper-800: #3a2418;
+  --qn-font-ui: &quot;Manrope&quot;, system-ui, sans-serif;
+  --qn-font-mono: &quot;JetBrains Mono&quot;, ui-monospace, monospace;
+}
+
+:root, :root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+  --qn-bg-canvas: #111110;
+  --qn-bg-surface: #19181a;
+  --qn-bg-raised: #201f22;
+  --qn-bg-hover: #27262a;
+  --qn-border: #2a282c;
+  --qn-border-strong: #3a373c;
+  --qn-text: #eceae7;
+  --qn-text-2: #a3a19e;
+  --qn-text-3: #7a7674;
+  --qn-text-inverse: #1c1a19;
+  --qn-accent: #d8b494;
+  --qn-accent-hover: #e2c4a8;
+  --qn-accent-pressed: #c49a74;
+  --qn-accent-fg: #1c1a19;
+  --qn-accent-tint: rgba(216,180,148,0.14);
+  --qn-accent-2: #b07a52;
+  --qn-gain: #86b98f;
+  --qn-gain-tint: rgba(134,185,143,0.14);
+  --qn-loss: #d9776a;
+  --qn-loss-tint: rgba(217,119,106,0.14);
+  --qn-warn: #d9a55f;
+  --qn-warn-tint: rgba(217,165,95,0.14);
+  --qn-info: #93a4b5;
+  --qn-info-tint: rgba(147,164,181,0.14);
+  --qn-focus: #d8b494;
+  --qn-selection: rgba(216,180,148,0.28);
+  --qn-scrim: rgba(17,17,16,0.64);
+  --qn-shadow: 0 8px 24px rgba(0,0,0,.40);
+  --qn-logo-outline: #d8b494;
+  --qn-logo-pill-a: #ece1d2;
+  --qn-logo-pill-b: #b07a52;
+  --qn-logo-mono: #d8b494;
+  --qn-sb-bg: #0d0d0c;
+  --qn-sb-border: #26232a;
+  --qn-sb-divider: #1c1a1c;
+  --qn-sb-field: #161515;
+  --qn-sb-item: #a3a19e;
+  --qn-sb-item-hover: #eceae7;
+  --qn-sb-item-hover-bg: rgba(236,234,231,0.05);
+  --qn-sb-item-active: #d8b494;
+  --qn-sb-item-active-bg: rgba(216,180,148,0.12);
+  --qn-sb-indicator: #d8b494;
+  --qn-sb-icon: #8a8886;
+  --qn-sb-icon-active: #d8b494;
+  --qn-sb-label: #7a7674;
+  --qn-sb-badge: #d8b494;
+  --qn-sb-badge-bg: rgba(216,180,148,0.14);
+  --qn-sb-footer-bg: #131312;
+  --qn-chart-1: #d8b494;
+  --qn-chart-2: #b07a52;
+  --qn-chart-3: #ece1d2;
+  --qn-chart-4: #8a8886;
+  --qn-chart-5: #93a4b5;
+  --qn-chart-6: #9c8a9d;
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+  --qn-bg-canvas: #efeae2;
+  --qn-bg-surface: #f8f5ef;
+  --qn-bg-raised: #fdfbf8;
+  --qn-bg-hover: #e7e0d5;
+  --qn-border: #ddd5c8;
+  --qn-border-strong: #c6bbab;
+  --qn-text: #1c1a19;
+  --qn-text-2: #5e5955;
+  --qn-text-3: #847e77;
+  --qn-text-inverse: #f8f5ef;
+  --qn-accent: #8a5a3a;
+  --qn-accent-hover: #74482c;
+  --qn-accent-pressed: #5c3a26;
+  --qn-accent-fg: #f8f5ef;
+  --qn-accent-tint: rgba(138,90,58,0.12);
+  --qn-accent-2: #b07a52;
+  --qn-gain: #2f6b3f;
+  --qn-gain-tint: rgba(47,107,63,0.12);
+  --qn-loss: #a03c30;
+  --qn-loss-tint: rgba(160,60,48,0.12);
+  --qn-warn: #8a5a1a;
+  --qn-warn-tint: rgba(138,90,26,0.12);
+  --qn-info: #4a6178;
+  --qn-info-tint: rgba(74,97,120,0.12);
+  --qn-focus: #8a5a3a;
+  --qn-selection: rgba(216,180,148,0.45);
+  --qn-scrim: rgba(28,26,25,0.5);
+  --qn-shadow: 0 8px 24px rgba(60,40,20,.12);
+  --qn-logo-outline: #8a5a3a;
+  --qn-logo-pill-a: #b07a52;
+  --qn-logo-pill-b: #5c3a26;
+  --qn-logo-mono: #8a5a3a;
+  --qn-sb-bg: #e8e1d6;
+  --qn-sb-border: #d6cdbf;
+  --qn-sb-divider: #dcd3c5;
+  --qn-sb-field: #f3eee6;
+  --qn-sb-item: #5e5955;
+  --qn-sb-item-hover: #1c1a19;
+  --qn-sb-item-hover-bg: rgba(28,26,25,0.05);
+  --qn-sb-item-active: #8a5a3a;
+  --qn-sb-item-active-bg: rgba(138,90,58,0.12);
+  --qn-sb-indicator: #8a5a3a;
+  --qn-sb-icon: #6f6a64;
+  --qn-sb-icon-active: #8a5a3a;
+  --qn-sb-label: #847e77;
+  --qn-sb-badge: #8a5a3a;
+  --qn-sb-badge-bg: rgba(138,90,58,0.12);
+  --qn-sb-footer-bg: #e1d9cc;
+  --qn-chart-1: #8a5a3a;
+  --qn-chart-2: #b07a52;
+  --qn-chart-3: #c49a74;
+  --qn-chart-4: #6f6b70;
+  --qn-chart-5: #4a6178;
+  --qn-chart-6: #6d5a6f;
+}
+
+<span class="c">/* приклад застосування */</span>
+body { background: var(--qn-bg-canvas); color: var(--qn-text); font-family: var(--qn-font-ui); }
+.card { background: var(--qn-bg-surface); border: 1px solid var(--qn-border); box-shadow: var(--qn-shadow); }
+.btn-primary { background: var(--qn-accent); color: var(--qn-accent-fg); }
+.btn-primary:hover { background: var(--qn-accent-hover); }
+.btn-primary:active { background: var(--qn-accent-pressed); }
+:focus-visible { outline: 2px solid var(--qn-focus); outline-offset: 2px; }
+::selection { background: var(--qn-selection); }
+.delta-up { color: var(--qn-gain); } .delta-down { color: var(--qn-loss); }
+.sidebar { background: var(--qn-sb-bg); border-right: 1px solid var(--qn-sb-border); }
+.sidebar a { color: var(--qn-sb-item); } .sidebar a svg { color: var(--qn-sb-icon); }
+.sidebar a:hover { color: var(--qn-sb-item-hover); background: var(--qn-sb-item-hover-bg); }
+.sidebar a[aria-current] { color: var(--qn-sb-item-active); background: var(--qn-sb-item-active-bg); box-shadow: inset 2px 0 0 var(--qn-sb-indicator); }
+.sidebar a[aria-current] svg { color: var(--qn-sb-icon-active); }</pre>
+</section>
+<section class="map-s">
+  <h3>Mapping — every token <code>src/index.css</code> declares</h3>
+  <p class="lead">The session names about thirty of the app's fifty. The rest are derived here, at
+  the session, because the alternative is each one being picked inside the component that needs it
+  first. Ratios are on <b>page / card / panel</b>, light first then dark, computed from the values
+  in this table and not from the rendered sheet.</p>
+  <p class="lead"><b>THE VALUES ARE NOT THE WHOLE JOB.</b> <code>src/index.css</code> annotates its
+  declarations inline — <code>--color-pos: #8fb184; /* 7.12 on card */</code> and about
+  twenty-three more like it, plus roughly as many ratios again inside the block comments. Every one
+  of them describes a pair this table retires. <i>Design pipeline</i> puts the reason at the value,
+  so re-deriving those annotations is part of applying this mapping and not a tidy-up afterwards;
+  the figures to write them with are in the last column here. Three rows say so explicitly because a
+  TEST pins them and the gate would catch it — the prose has no such tripwire, which is exactly why
+  it ships wrong.</p>
+  <p class="lead"><b>AND THE HUNT DOES NOT STOP AT THE STYLESHEET.</b> Four components argue their
+  token choice from a fact this palette makes false — that light <code>sidebar</code> is
+  <code>#26262a</code>, identical to <code>ink</code>, so the choice is a no-op there:
+  <code>Sidebar.tsx:90-92</code> (the active pill's <code>text-sidebar</code>),
+  <code>Dialog.tsx:17-20</code> (<code>bg-sidebar/40</code> as the overlay),
+  <code>KpiCard.tsx:10-13</code> (the dark tone's fill) and <code>core/colors.ts:55-60</code>,
+  which pins the chart tooltip at "13.04 : 1 for ink on it" (new: 13.66) and at recharts' white
+  against <code>panel</code> <code>#eceae7</code>. Light <code>sidebar</code> becomes
+  <code>#0d0d0c</code> and light <code>ink</code> <code>#1c1a19</code>; they are no longer equal
+  and the stated no-op is gone. <code>field-border.dc.html</code> named its three stale component
+  comments in its acceptance and this file names these four in the same spirit.</p>
+
+  <table class="map">
+    <tr><th>token</th><th>from</th><th>light</th><th>dark</th><th>reading, and why</th></tr>
+<tr><td><code>--color-page</code></td><td class="m-dim">bg-canvas</td><td><code>#efeae2</code></td><td><code>#111110</code></td><td class="m-note">page→card is a 1.10 step in light and 1.07 in dark — elevation is the STEP, and dark has almost none of it left once the shadows are zeroed, which is why a dark component leans on its stroke</td></tr>
+<tr><td><code>--color-card</code></td><td class="m-dim">bg-surface</td><td><code>#f8f5ef</code></td><td><code>#19181a</code></td><td class="m-note">card→panel 1.20 light (downward, a recess) and 1.08 dark (upward)</td></tr>
+<tr><td><code>--color-panel</code></td><td class="m-dim">bg-hover ↓ · bg-raised ↑</td><td><code>#e7e0d5</code></td><td><code>#201f22</code></td><td class="m-note">a RECESS in light (index.css:138), a step UP in dark (:327) — the asymmetry the palette already carries. The session names three light layers going up and none going down; the owner ruled bg-hover. It BINDS: it is the darkest light plane, so every ratio in this table is scored on it and not on card.</td></tr>
+<tr><td><code>--color-ink</code></td><td class="m-dim">text</td><td><code>#1c1a19</code></td><td><code>#eceae7</code></td><td class="m-note">14.48 / 15.93 / 13.23 · 15.74 / 14.74 / 13.66</td></tr>
+<tr><td><code>--color-ink-hover</code></td><td class="m-dim">DERIVED</td><td><code>#38332f</code></td><td><code>#f6efe6</code></td><td class="m-note">one step along the scale, never mixed with white or black (rule 5). Light is 1.39 from ink, matching the 1.40 the shipped pair has. Dark takes sand-100 and the step is small, 1.05 — the cost of the rule, recorded rather than fixed with #ffffff. ON ITS OWN GROUND, which is the filled button it hovers: accent-fg over it reads 11.47 light and 15.20 dark, so the label survives the hover in both.</td></tr>
+<tr><td><code>--color-muted</code></td><td class="m-dim">text-2</td><td><code>#5e5955</code></td><td><code>#a3a19e</code></td><td class="m-note">5.78 / 6.36 / 5.28 · 7.33 / 6.87 / 6.36 — D68 asks 4.5 on panel and both clear it</td></tr>
+<tr><td><code>--color-faint</code></td><td class="m-dim">DERIVED</td><td><code>#b4aa9a</code></td><td><code>#6e6a65</code></td><td class="m-note">the TEXT-and-INDICATOR rank, and the session has no fourth grey. Derived to hold the readings the two consumers were chosen against: 2.11 on light card (shipped 2.12) and 3.30 on dark card (3.29). Light MUST stay under 3 — Scroller.tsx:47-51 rests its thumb below the bar deliberately and argues it. GUARDED BY HEX, NOT BY RATIO: field-border.test.ts:160-164 pins this token with an exact toBe in THREE places — @theme, the dark block and [data-dark-surface] — so all three move together and the pin is re-written to these values.</td></tr>
+<tr><td><code>--color-field-border</code></td><td class="m-dim">text-3</td><td><code>#847e77</code></td><td><code>#7a7674</code></td><td class="m-note">3.35 / 3.69 / 3.06 · 4.20 / 3.94 / 3.65 — the control-boundary rank. The session's own border greys cannot carry it: border-strong reads 1.44 light and 1.40 dark on panel.</td></tr>
+<tr><td><code>--color-hairline</code></td><td class="m-dim">border</td><td><code>#ddd5c8</code></td><td><code>#2a282c</code></td><td class="m-note">1.22 / 1.34 / 1.11 · 1.29 / 1.21 / 1.12 — decorative, outside the bar</td></tr>
+<tr><td><code>--color-panel-border</code></td><td class="m-dim">border-strong</td><td><code>#c6bbab</code></td><td><code>#3a373c</code></td><td class="m-note">1.58 / 1.74 / 1.44 · 1.61 / 1.51 / 1.40 — decorative, outside the bar; the Scroller rail and the two checkboxes read it</td></tr>
+<tr><td><code>--color-popover-edge</code></td><td class="m-dim">a NAME</td><td><code>var(--color-hairline)</code></td><td><code>var(--color-field-border)</code></td><td class="m-note">unchanged shape — popover-edge.test.ts:231-243 pins light to hairline by NAME, so it follows</td></tr>
+<tr><td><code>--color-toast-edge</code></td><td class="m-dim">a NAME</td><td><code>var(--color-panel-border)</code></td><td><code>var(--color-field-border)</code></td><td class="m-note">the same, pinned to panel-border by name</td></tr>
+<tr><td><code>--color-surface-edge</code></td><td class="m-dim">a NAME</td><td><code>transparent</code></td><td><code>var(--color-field-border)</code></td><td class="m-note">light keeps transparent: these surfaces carry a real shadow here too</td></tr>
+<tr><td><code>--color-drawer-edge</code></td><td class="m-dim">a NAME</td><td><code>transparent</code></td><td><code>var(--color-sidebar-muted)</code></td><td class="m-note">the alias is UNCHANGED — index.css:384 already reads sidebar-muted, and its stated reason survives the re-value: it belongs to the drawer's own family and clears the bar with room (4.20 against the page behind the scrim) where a brighter option reads as a stroke rather than an edge. sidebar-nav would give 7.33 and be that brighter option. EIGHT NAMES LAND ON ONE HEX IN DARK — #7a7674 is field-border, switch-border, popover-edge, toast-edge, surface-edge, sidebar-muted, this (which aliases it), and sb-label — which is the question switch-border.dc.html was made to answer and it is answered the same way: they are held to the same BAR by independent measurements, not forced onto one luminance by one shared constraint, and they part the moment any of their fills moves. What does go is a distinction index.css:377-379 drew, drawer-edge against surface-edge; in dark they are now one stroke, and no test would catch it because popover-edge.test.ts excludes drawer-edge from EDGES.</td></tr>
+<tr><td><code>--color-switch-track</code></td><td class="m-dim">DERIVED</td><td><code>#efeae2</code></td><td><code>#4a4650</code></td><td class="m-note">ON ITS OWN GROUND — the reading that matters for a fill, and the one a plane cannot give: the OFF edge reads 3.35 : 1 on this track in light (the shipped pair reads 3.10, and index.css:181-183 records 1.11 → 3.10 as #87's win) and 2.05 in dark. Light takes bg-canvas, NOT the session's border: on border #ddd5c8 the edge falls to 2.76 and turns that repair back into a 1.4.11 failure, which is how this row read until the ground was scored. On card the OFF fill is a 1.10 step, the same near-nothing the shipped #e8e7e4 is on white — deliberate, because #87 ruled the control is identified by its EDGE and not its fill. DARK CANNOT BE REPAIRED THE SAME WAY, and now the refusal has a proper reason: 3 : 1 there needs the track at L ≤ 0.02785, darker than `card` itself, so the OFF fill would read 1.31 against the card behind it and the control would lose the fill cue to save the edge. 2.05 is an improvement on the 1.79 index.css:344-353 records, and that paragraph — whose search cites muted #9b9a96 at L 0.32282, a value this table replaces with #a3a19e at L 0.35745 — is re-derived with it. GUARDED TWICE: switch-border.test.ts pins the OFF↔ON separation against ink at 7 : 1 (honoured — 14.48 light, 7.66 dark) AND pins both hexes with an exact toBe. #87 froze the SHIPPED pair against the SHIPPED palette and what it protected is the cue, not the digits; the pin is re-written, and a commit that moves the palette and leaves it alone fails the gate.</td></tr>
+<tr><td><code>--color-switch-border</code></td><td class="m-dim">a NAME</td><td><code>var(--color-field-border)</code></td><td><code>var(--color-field-border)</code></td><td class="m-note">#87's ruling stands: a NAME, not a value, so it inherits every figure above</td></tr>
+<tr><td><code>--color-scrim</code></td><td class="m-dim">scrim</td><td><code>rgba(28, 26, 25, 0.5)</code></td><td><code>rgba(17, 17, 16, 0.64)</code></td><td class="m-note">BOTH DRAWER RULINGS WERE ARGUED FROM COMPOSITES THIS ROW MOVES, so both figures are re-derived here and index.css:184-193 and :374-381 are rewritten with them. Light composites to #86827e over page (was #989899) and the drawer reads 5.10 on it (was 5.23) — "in LIGHT the scrim IS the separation and the drawer draws no edge" survives, with a new number. Dark composites to #111110, and the four-way comparison that picked the drawer's edge becomes hairline 1.29 · panel-border 1.61 · faint 3.52 · sidebar-muted 4.20, so the choice stands and every figure in it moves.</td></tr>
+<tr><td><code>--color-sidebar</code></td><td class="m-dim">sb-bg, DARK in both</td><td><code>#0d0d0c</code></td><td><code>#0d0d0c</code></td><td class="m-note">the five legacy tokens keep the DARK wall in BOTH blocks until #92 moves their consumers — flipping the light plane first breaks text-white on the capital card and every bg-sidebar/40 overlay</td></tr>
+<tr><td><code>--color-sidebar-text</code></td><td class="m-dim">sb-item-hover, dark</td><td><code>#eceae7</code></td><td><code>#eceae7</code></td><td class="m-note">16.19 on the wall</td></tr>
+<tr><td><code>--color-sidebar-muted</code></td><td class="m-dim">sb-label, dark</td><td><code>#7a7674</code></td><td><code>#7a7674</code></td><td class="m-note">ON ITS OWN GROUND, the wall: 4.33 — AND THAT IS UNDER 4.5. Its consumers are TEXT, 9.5-10 px uppercase: the nav group headers (Sidebar.tsx:213, :336), the version badge (:471), the collapse control (:495) and KpiCard’s dark-tone label. The shipped pair reads 5.07 light and 5.59 dark, so this is a regression against WCAG 1.4.3 and it is the SESSION’S value, not a derivation — see FOUR RECORDED SHORTFALLS below the tables — the owner ruled the value stands and the figure is recorded at it.</td></tr>
+<tr><td><code>--color-sidebar-inset</code></td><td class="m-dim">sb-field, dark</td><td><code>#161515</code></td><td><code>#161515</code></td><td class="m-note">1.07 on the wall — an inset, not a step; the capital card sits on it and its text reads 15.18</td></tr>
+<tr><td><code>--color-sidebar-nav</code></td><td class="m-dim">sb-item, dark</td><td><code>#a3a19e</code></td><td><code>#a3a19e</code></td><td class="m-note">7.55</td></tr>
+<tr><td><code>--color-brand-sand</code></td><td class="m-dim">accent, DARK in both</td><td><code>#d8b494</code></td><td><code>#d8b494</code></td><td class="m-note">ONE VALUE IN BOTH THEMES, unchanged, and the flip is REFUSED rather than overlooked. index.css:210-222 argues it in writing: the mark's only plane is sidebar-inset, which this table holds DARK in both themes until #92, so a per-theme pair would put the light value on the darker plate — #8a5a3a on #161515 is 3.13 : 1, scraping WCAG 1.4.11 with 0.13 to spare, where #d8b494 reads 9.44. The flip becomes available only when the wall follows the theme, and #93 retires the token for the three logo ones before that matters.</td></tr>
+<tr><td><code>--color-pos</code></td><td class="m-dim">gain</td><td><code>#2f6b3f</code></td><td><code>#86b98f</code></td><td class="m-note">5.86 · 7.88 on card</td></tr>
+<tr><td><code>--color-pos-tint</code></td><td class="m-dim">gain-tint over card</td><td><code>#e0e4da</code></td><td><code>#282f2a</code></td><td class="m-note">the session states its tints as rgba; the app declares them opaque, so each is composited onto card</td></tr>
+<tr><td><code>--color-pos-tint-text</code></td><td class="m-dim">gain</td><td><code>#2f6b3f</code></td><td><code>#86b98f</code></td><td class="m-note">4.94 · 6.11 on its own tint — the hue already clears 4.5, so no second value is minted</td></tr>
+<tr><td><code>--color-pos-on-dark</code></td><td class="m-dim">gain, dark</td><td><code>#86b98f</code></td><td><code>#86b98f</code></td><td class="m-note">ON ITS OWN GROUND: 8.11 on sb-field, the capital card’s fill, which is what this token exists for — the one plane that is dark in both themes</td></tr>
+<tr><td><code>--color-pos-border</code></td><td class="m-dim">DERIVED</td><td><code>#3d8c52</code></td><td><code>#5e8264</code></td><td class="m-note">3.46 / 3.81 / 3.16 · 4.37 / 4.09 / 3.79. Derived AT the idle edge's luminance, not from gain: field-border.test.ts:137-149 holds the saved edge within 1.10x of the idle one and the session's gain is 1.7x away. Bands land at 1.03 and 1.04.</td></tr>
+<tr><td><code>--color-neg</code></td><td class="m-dim">loss</td><td><code>#a03c30</code></td><td><code>#d9776a</code></td><td class="m-note">6.06 · 5.73</td></tr>
+<tr><td><code>--color-neg-tint</code></td><td class="m-dim">loss-tint over card</td><td><code>#eddfd8</code></td><td><code>#342525</code></td><td class="m-note">a tint is a GROUND: what it owes is 4.5 to its own -tint-text, which the row below measures</td></tr>
+<tr><td><code>--color-neg-tint-text</code></td><td class="m-dim">loss</td><td><code>#a03c30</code></td><td><code>#d9776a</code></td><td class="m-note">5.07 · 4.73</td></tr>
+<tr><td><code>--color-warn</code></td><td class="m-dim">warn</td><td><code>#8a5a1a</code></td><td><code>#d9a55f</code></td><td class="m-note">4.93 / 5.42 / 4.5027 · 8.00 on card. F-14 reported the shipped light warn at 4.46 on page and failing 1.4.3; like for like this reads 4.93 there. ON THE BINDING PLANE IT CLEARS 4.5 BY 0.003 — recorded because that is no margin at all: any later nudge to warn or to panel, in either direction, puts the text on that chip back under the bar. A SECOND SHORTFALL, AND IT IS THE SHARPER ONE: in light this sits 1.013 : 1 from the minted accent #8a5a3a. They are the same colour. index.css:243-246 requires every caution — the Σ≠100 pill, the DEMO badge, the ledger-drift chip, the stale chips — to use only this family, and the sb-badge-bg row below rests on "a caution says warn, never the brand"; once #95 gives the accent its consumers that distinction is invisible in light. Dark is fine at 1.15. Recorded at the value, unresolved, and it is the one thing in this table that wants a ruling before #95.</td></tr>
+<tr><td><code>--color-warn-tint</code></td><td class="m-dim">warn-tint over card</td><td><code>#ebe2d5</code></td><td><code>#342c24</code></td><td class="m-note">the same — the pair is scored together, never the fill alone</td></tr>
+<tr><td><code>--color-warn-tint-text</code></td><td class="m-dim">warn</td><td><code>#8a5a1a</code></td><td><code>#d9a55f</code></td><td class="m-note">4.60 · 6.20</td></tr>
+<tr><td><code>--color-reit</code></td><td class="m-dim">chart-2</td><td><code>#b07a52</code></td><td><code>#b07a52</code></td><td class="m-note">page/card/panel 3.05 / 3.36 / 2.79 · 5.17 / 4.85 / 4.49. THE ONE HUE THAT DOES NOT CLEAR THE BAR ON EVERY PLANE: 2.79 on the light panel. AND IT COLLIDES LIKE energy DOES: #b07a52 is also accent-2, chart-2, logo-pill-b in dark and logo-pill-a in light — 1.00 : 1 — so a REIT legend dot is the mark’s own arrowhead colour. Same class, same deferral as the energy row. The exemption at index.css:413-422 is NARROWED, not retired — it recorded 2.77 on white for this hue and the other three now clear 3 : 1 everywhere, so what is left is one hue on one plane. ColorDot and ShareBar paint the bare hue and do appear inside panels, so it stays a live shortfall and is recorded at the value.</td></tr>
+<tr><td><code>--color-reit-tint</code></td><td class="m-dim">DERIVED</td><td><code>#efe6dc</code></td><td><code>#2e2622</code></td><td class="m-note">the hue at the theme's tint alpha over card</td></tr>
+<tr><td><code>--color-reit-tint-text</code></td><td class="m-dim">DERIVED</td><td><code>#895f40</code></td><td><code>#bb8157</code></td><td class="m-note">4.51 · 4.51 — the hue itself lands under 4.5 on its own tint, so this pair is walked along its own axis</td></tr>
+<tr><td><code>--color-energy</code></td><td class="m-dim">chart-1</td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">4.87 / 5.35 / 4.45 · 9.78 / 9.16 / 8.49 — clears on every plane in both themes. IT IS BYTE-IDENTICAL TO THE ACCENT, in both themes, and in dark to brand-sand as well: 1.00 : 1. That is the session's own rule 7 working as intended ("серії графіків стартують із бренду"), but the app also paints chart-1 as an ASSET hue, so on /allocation in dark a legend dot, the mark, the active nav item and the primary CTA are one colour — which rule 1 calls one sand thing too many. Recorded here rather than resolved: whether the asset family starts at chart-2 is #13's question (six ColorKeys, a picker) and giving the accent its consumers is #95's.</td></tr>
+<tr><td><code>--color-energy-tint</code></td><td class="m-dim">DERIVED</td><td><code>#ebe2d9</code></td><td><code>#342e2b</code></td><td class="m-note">the hue at the theme alpha (12 % light, 14 % dark) over card, the construction the session uses for its own tints</td></tr>
+<tr><td><code>--color-energy-tint-text</code></td><td class="m-dim">chart-1</td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">4.55 · 6.92</td></tr>
+<tr><td><code>--color-ovdp8976</code></td><td class="m-dim">chart-5</td><td><code>#4a6178</code></td><td><code>#93a4b5</code></td><td class="m-note">5.36 / 5.90 / 4.90 · 7.39 / 6.92 / 6.42 — clears on every plane in both themes</td></tr>
+<tr><td><code>--color-ovdp8976-tint</code></td><td class="m-dim">DERIVED</td><td><code>#e3e3e1</code></td><td><code>#2a2c30</code></td><td class="m-note">the same construction</td></tr>
+<tr><td><code>--color-ovdp8976-tint-text</code></td><td class="m-dim">chart-5</td><td><code>#4a6178</code></td><td><code>#93a4b5</code></td><td class="m-note">4.99 · 5.47</td></tr>
+<tr><td><code>--color-ovdp6475</code></td><td class="m-dim">chart-4</td><td><code>#6f6b70</code></td><td><code>#8a8886</code></td><td class="m-note">4.37 / 4.81 / 3.99 · 5.35 / 5.01 / 4.64 — clears on every plane in both themes</td></tr>
+<tr><td><code>--color-ovdp6475-tint</code></td><td class="m-dim">DERIVED</td><td><code>#e8e4e0</code></td><td><code>#292829</code></td><td class="m-note">the same construction</td></tr>
+<tr><td><code>--color-ovdp6475-tint-text</code></td><td class="m-dim">DERIVED</td><td><code>#686569</code></td><td><code>#918f8d</code></td><td class="m-note">4.54 · 4.56</td></tr>
+  </table>
+
+  <h4>Shadows</h4>
+  <p class="lead">The session states one warm shadow, <code>0 8px 24px rgba(60, 40, 20, 0.12)</code>.
+  The app has three depths and they stay: what changes is the hue, from the neutral
+  <code>rgba(38,38,42,·)</code> to the session's warm one. Dark keeps its elevation in the surface
+  step and zeroes all three, bar the knob's ring. <b>Light <code>--shadow-thumb</code> is pinned to
+  its exact string</b> by <code>switch-border.test.ts</code>, and what that assertion protects is
+  that light's thumb is still a DROP shadow and not a ring — re-hueing keeps it one, and keeps it
+  identical to <code>--shadow-card</code> as <code>index.css:88</code> requires, so the pin is
+  re-written rather than worked around.</p>
+  <table class="map">
+    <tr><th>token</th><th>light</th><th>dark</th></tr>
+    <tr><td><code>--shadow-card</code></td><td><code>0 1px 3px rgba(60, 40, 20, 0.06)</code></td><td><code>0 0 #0000</code></td></tr>
+    <tr><td><code>--shadow-popover</code></td><td><code>0 4px 16px rgba(60, 40, 20, 0.12)</code></td><td><code>0 0 #0000</code></td></tr>
+    <tr><td><code>--shadow-dialog</code></td><td><code>0 12px 40px rgba(60, 40, 20, 0.18)</code></td><td><code>0 0 #0000</code></td></tr>
+    <tr><td><code>--shadow-thumb</code></td><td><code>0 1px 3px rgba(60, 40, 20, 0.06)</code></td><td><code>0 0 0 1px var(--color-switch-border)</code></td></tr>
+  </table>
+
+  <h4>FOUR RECORDED SHORTFALLS — the owner's ruling, and it is to accept them</h4>
+  <p class="lead">Scoring every token against the ground it is actually drawn on — rather than
+  against the three planes, which is what the first cut of this table did — turns up four readings
+  that are <b>the session's own values failing against the app's own text sizes</b>. Moving them
+  means moving the palette the session shipped, so it went to the owner. <b>The ruling is that the
+  values stand and the figures are recorded at them</b>, the same way <code>reit</code>'s 2.79 and
+  the switch's dark 2.05 are recorded: the palette stays exactly what the session drew, and the cost
+  is stated here rather than discovered later. The cost is real and it is live text — the sidebar's
+  group headers and labels ship under WCAG 1.4.3, where the retired palette had them at 5.07 and
+  5.59.</p>
+  <table class="map">
+    <tr><th>reading</th><th>where</th><th>what it costs</th></tr>
+    <tr><td><code>sb-label</code> <b>3.09</b> light</td><td class="m-dim">nav group headers, 9.5–10 px uppercase (<code>Sidebar.tsx:213</code>, <code>:336</code>)</td><td class="m-note">a third under WCAG 1.4.3's 4.5. Dark is 4.33, also under.</td></tr>
+    <tr><td><code>sidebar-muted</code> <b>4.33</b></td><td class="m-dim">the version badge, the collapse control, <code>KpiCard</code>'s dark label</td><td class="m-note">the shipped pair reads 5.07 / 5.59, so this is a regression on live text</td></tr>
+    <tr><td>light <code>accent</code> <b>4.45</b> on panel</td><td class="m-dim">usage rule 2 makes it every link and active tab in light</td><td class="m-note">under 4.5 on the plane this file declares binding; fine as a fill</td></tr>
+    <tr><td>light <code>warn</code> <b>1.013</b> from <code>accent</code></td><td class="m-dim">the Σ≠100 pill, the DEMO badge, the drift chip, stale chips</td><td class="m-note">a caution and the brand are the same colour once #95 lands</td></tr>
+  </table>
+  <p class="lead">Two alternatives were costed and declined. <b>Darkening the two sidebar greys and
+  light <code>accent</code> a step</b> would have put <code>sb-label</code> at 4.52 and taken the
+  accent off <code>warn</code> at the same time, but the sidebar family was drawn as a set and this
+  file has no standing to redraw it. <b>Ruling the tokens are never small text and moving the
+  consumers onto <code>sb-item</code></b> (5.33 / 7.55) would have cleared the two grey readings and
+  left the <code>warn</code> collision exactly where it is, while contradicting usage rule 2, which
+  makes the accent everything textual in light. Neither is free, and the owner took the third.</p>
+  <p class="lead">WHAT THAT MEANS FOR THE TASKS DOWNSTREAM: #92 adopts the <code>sb-*</code> family
+  knowing the group headers read 3.09, and does not "fix" it in passing — a value with a recorded
+  reason is not a defect to be tidied. #95 wires the accent knowing it is 1.013 from
+  <code>warn</code> in light, so the caution family cannot be told from the brand there by colour
+  alone; if a caution has to be distinguishable it needs a second cue, which is a brief and not a
+  hex. The day any of this is revisited it supersedes this sheet, it does not edit it.</p>
+
+  <h4>The other declaration sites — <code>[data-dark-surface]</code>, and two mirrors of <code>page</code></h4>
+  <p class="lead"><code>index.css:716-720</code> redeclares <code>panel-border</code>,
+  <code>faint</code> and <code>muted</code> for the one plane that is dark in BOTH themes — the
+  desktop rail's <code>Scroller</code>. It mints nothing: it borrows the DARK column of the table
+  above, so those three move with it, to <code>#3a373c</code>, <code>#6e6a65</code> and
+  <code>#a3a19e</code>. Left alone it would keep three orphaned values from the retired palette on a
+  wall this file re-values to <code>#0d0d0c</code>. <code>field-border.test.ts</code> reads this
+  block by name, so its silence would not be merely documentary.</p>
+  <p class="lead"><b>THE WALL MOVES TOO, AND THAT IS WHAT MAKES THE BLOCK'S OWN FIGURES STALE.</b>
+  Its comment records the rail at 1.20, the thumb at 2.90 at rest and 5.29 in use, all measured on
+  the old light sidebar <code>#26262a</code>. On <code>#0d0d0c</code> the same three read
+  <b>1.66 / 3.62 / 7.55</b>, and the resting thumb is now OVER 3 : 1 rather than under it. That is
+  not a defect — <code>Scroller.tsx:47-51</code> argues the resting thumb needs no 3 : 1 at all, and
+  the deliberate sub-bar rest it defends is the one on <code>card</code>, which this table leaves at
+  2.11 in light. What it does mean is that the paragraph, and the D65 range it cites as its
+  sanction, are re-derived with the values rather than carried over.</p>
+  <p class="lead"><b>AND <code>page</code> HAS TWO MIRRORS OUTSIDE THE STYLESHEET.</b>
+  <code>src/app/theme.ts:9-12</code> declares <code>CHROME = { light: '#f6f5f3', dark: '#141416' }</code>
+  — its own comment says "the <code>page</code> token in each theme" — and
+  <code>index.html:25</code> seeds <code>&lt;meta name="theme-color" content="#f6f5f3"&gt;</code>
+  for the first paint. Both are the retired hexes and both must become
+  <code>#efeae2</code> / <code>#111110</code>. NOTHING BINDS THEM TO THE TOKEN, so a mapping
+  applied to <code>index.css</code> alone ships a parchment page under a neutral-grey browser
+  chrome in both themes with every gate green; #91 owes a test that reads both out of the
+  stylesheet.</p>
+
+  <h4>The faces — published by the token record, owned by another task</h4>
+  <table class="map">
+    <tr><th>token</th><th>value</th><th>reading, and why</th></tr>
+    <tr><td><code>--font-display</code></td><td><code>'Manrope', sans-serif</code></td><td class="m-note">the session's <code>--qn-font-ui</code>. IT CARRIES A CONSTRAINT THE SESSION DOES NOT MENTION: <code>index.css:45-50</code> chose IBM Plex Sans because its figures are TABULAR BY DEFAULT — "a <code>tnum</code> font only manages while every call site sets <code>font-variant-numeric</code>" — and Manrope's are proportional. So the swap owes one base rule, <code>body { font-variant-numeric: tabular-nums }</code>, and that is #94's, not this file's.</td></tr>
+    <tr><td><code>--font-body</code></td><td><code>'JetBrains Mono', monospace</code></td><td class="m-note">unchanged — the session names the face the app already ships</td></tr>
+  </table>
+
+  <h4>The literals that belong to no family — the sheet's own chrome</h4>
+  <p class="lead">The README rule is "every literal color maps to an existing token or to a token the
+  header explicitly mints". These do not, and listing them is cheaper than pretending otherwise. All
+  of them paint THE SHEET, never a surface of the app, and none is a proposal:</p>
+  <p class="lead"><code>rgba(0, 0, 0, 0.55)</code> — the numerals inside the chart bars, and the one
+  that is genuinely uncomfortable: composited they read <b>2.21–3.55 : 1</b> on the six light series
+  and 3.02–4.47 on the dark ones, under the bar this file enforces everywhere else. ·
+  <code>#101113</code> — the page behind both stages, and it is the NEUTRAL canvas the dark stage's
+  own subtitle says this palette replaces ("#111110 замість нейтрального #101113"); the sheet frames
+  its two themes in the colour one of them argues against. · <code>#26272b</code> the section rules ·
+  <code>#18191c</code> the token-record block · <code>#c9c7c3</code> the lead paragraphs ·
+  <code>rgba(0, 0, 0, 0.15)</code> and <code>rgba(60, 40, 20, 0.14)</code> the inset ring on every
+  swatch chip · and the three the dark ratio badges paint,
+  <code>rgba(134, 185, 143, 0.16)</code>, <code>rgba(217, 165, 95, 0.16)</code> and
+  <code>rgba(217, 119, 106, 0.16)</code> — <b>0.16 where the palette's own tint alphas are 0.12
+  light and 0.14 dark</b>, so they look like the tint idiom and are the likeliest thing on the page
+  to be copied into the stylesheet as if they were tokens. Their light siblings correctly use 0.12.
+  Left as drawn, because correcting a drawing is not what a re-wrap does — but named,
+  because "no ad-hoc hex" is a rule this file would otherwise be quietly breaking ten times.</p>
+
+  <h4>The chart aliases follow, and are not re-declared</h4>
+  <p class="lead">Declared once in <code>@theme</code> as <code>var(--color-&lt;base&gt;)</code> and
+  resolved against whatever wins on the same element, so they move with the table above by
+  themselves. This is why <code>popover-edge.test.ts:262-279</code> exempts them from the
+  one-for-one palette invariant, and re-declaring any of them would be one more value able to
+  disagree.</p>
+  <p class="mono map-list">--color-chart-reit · --color-chart-reit-tint · --color-chart-reit-tint-text · --color-chart-energy · --color-chart-energy-tint · --color-chart-energy-tint-text · --color-chart-ovdp8976 · --color-chart-ovdp8976-tint · --color-chart-ovdp8976-tint-text · --color-chart-ovdp6475 · --color-chart-ovdp6475-tint · --color-chart-ovdp6475-tint-text · --color-chart-pos · --color-chart-pos-tint · --color-chart-neg · --color-chart-hairline · --color-chart-faint · --color-chart-muted · --color-chart-ink</p>
+  <p class="lead">TWO OF THE SESSION'S SIX SERIES HAVE NO CONSUMER. The record declares
+  <code>--qn-chart-3</code> and <code>--qn-chart-6</code> and the stages draw them, but the app has
+  four <code>ColorKey</code>s and the mapping spends chart-1, 2, 4 and 5 on them. They are drawn
+  because the session drew six, and they are where a fifth and sixth asset colour come from on the
+  day #13 gives the palette a picker — not a proposal to add two now. Light <code>chart-3</code>
+  #c49a74 would need a floor first: it reads 2.35 : 1 on card, under the bar every hue with a
+  consumer clears.</p>
+  <p class="lead">TWO BACKGROUND LAYERS ARE ORPHANED THE SAME WAY, and by this mapping rather than
+  by the session: <code>panel</code> takes <code>bg-hover</code> in light and
+  <code>bg-raised</code> in dark, so light <code>--qn-bg-raised</code> #fdfbf8 and dark
+  <code>--qn-bg-hover</code> #27262a are spent on nothing. The stages draw both — the light field
+  fill is #fdfbf8 and the dark tab is #27262a — so the drawing shows a layer above
+  <code>surface</code> that the app has no token for. Where it would go if it ever needs one is a
+  raised field fill, and that is #84's territory, not this file's.</p>
+
+  <h4>Minted by the implementing task — the families the app has no name for yet</h4>
+  <table class="map">
+    <tr><th>token</th><th>light</th><th>dark</th><th>reading, and why</th></tr>
+    <tr><td><code>--color-accent</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">ON ALL THREE PLANES, because usage rule 2 makes it TEXT in light («усе клікабельне і текстове — copper-600»): 4.87 / 5.35 / 4.45 light, 9.78 / 9.16 / 8.49 dark. ON PANEL IT IS 4.45 — under 4.5. The session states 4.9, which is the canvas figure; on the plane this file declares binding a link or an active tab fails 1.4.3. The session’s value — see FOUR RECORDED SHORTFALLS below the tables — the owner ruled the value stands and the figure is recorded at it. As a non-text fill it is fine everywhere, and accent-fg reads 5.35 · 8.98 on it.</td></tr>
+    <tr><td><code>--color-accent-hover</code></td><td><code>#74482c</code></td><td><code>#e2c4a8</code></td><td class="m-note">a step along the scale — copper-600→700 light, sand-400→300 dark</td></tr>
+    <tr><td><code>--color-accent-pressed</code></td><td><code>#5c3a26</code></td><td><code>#c49a74</code></td><td class="m-note">9.24 · 6.93 on card — a step DOWN the scale in light and UP in dark, rule 5 in both directions</td></tr>
+    <tr><td><code>--color-accent-fg</code></td><td><code>#f8f5ef</code></td><td><code>#1c1a19</code></td><td class="m-note">ON ITS OWN GROUND, which is the accent fill and nothing else: 5.35 · 8.98</td></tr>
+    <tr><td><code>--color-accent-tint</code></td><td><code>rgba(138, 90, 58, 0.12)</code></td><td><code>rgba(216, 180, 148, 0.14)</code></td><td class="m-note">chip grounds. Declared as the alpha, not composited, because it lies over more than one plane. NOT ::selection — see the row below; the session mints a separate token for that and this row used to claim it wrongly.</td></tr>
+    <tr><td><code>--color-selection</code></td><td><code>rgba(216, 180, 148, 0.45)</code></td><td><code>rgba(216, 180, 148, 0.28)</code></td><td class="m-note">the session's --qn-selection. SAND IN BOTH THEMES at different alphas, and it is the one place light keeps sand — usage rule 2 names selection as one of its two remaining jobs there ("пісок у світлій темі — тло, не фарба"). THE THIRD RULE-3 SITE: index.css:722 paints ::selection in pos-tint today, alongside ReminderStrip and QuoteRow below, and gain does not belong to a text selection either. Minted rather than aliased to accent-tint, which is copper at 12 % in light and would put the selection on the wrong side of rule 2.</td></tr>
+    <tr><td><code>--color-focus</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">the session's --qn-focus, and the app has no focus token at all — index.css:559 outlines in `ink`. Minted with the accent family for #95 to wire; 1.4.11 binds a focus indicator at 3 : 1, which the accent row above already clears on all three planes in both themes.</td></tr>
+    <tr><td><code>--color-info</code></td><td><code>#4a6178</code></td><td><code>#93a4b5</code></td><td class="m-note">THE APP HAS NO info TODAY — ReminderStrip.tsx:23 paints the info severity in pos-tint and QuoteRow.tsx:28-30 paints freshness the same way. Rule 3 forbids it: gain and loss belong to deltas.</td></tr>
+    <tr><td><code>--color-info-tint</code></td><td><code>#e3e3e1</code></td><td><code>#2a2c30</code></td><td class="m-note">identical to ovdp8976-tint, because info and that asset hue are the same slate — deliberate, and the reason info needs no new hue</td></tr>
+    <tr><td><code>--color-info-tint-text</code></td><td><code>#4a6178</code></td><td><code>#93a4b5</code></td><td class="m-note">4.99 · 5.47</td></tr>
+    <tr><td><code>--color-logo-outline</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">the loop</td></tr>
+    <tr><td><code>--color-logo-pill-a</code></td><td><code>#b07a52</code></td><td><code>#ece1d2</code></td><td class="m-note">the shaft</td></tr>
+    <tr><td><code>--color-logo-pill-b</code></td><td><code>#5c3a26</code></td><td><code>#b07a52</code></td><td class="m-note">the head</td></tr>
+    <tr><td><code>--color-logo-mono</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">the fallback — a 16px favicon, print, one thread</td></tr>
+  </table>
+
+  <h4>The sidebar family — sixteen names, drawn above in both themes</h4>
+  <p class="lead">Minted in BOTH blocks by the implementing task, and consumed by nothing until the
+  sidebar is re-planed: the five legacy <code>sidebar-*</code> tokens keep the DARK wall in both
+  themes until then, because flipping the light plane before its consumers move breaks
+  <code>text-white</code> on the capital card and every <code>bg-sidebar/40</code> overlay.</p>
+  <table class="map">
+    <tr><th>token</th><th>light</th><th>dark</th><th>reading, and why</th></tr>
+    <tr><td><code>--color-sb-bg</code></td><td><code>#e8e1d6</code></td><td><code>#0d0d0c</code></td><td class="m-note">a step deeper than the canvas — a wall, not a surface</td></tr>
+    <tr><td><code>--color-sb-border</code></td><td><code>#d6cdbf</code></td><td><code>#26232a</code></td><td class="m-note">1.21 · 1.26 on the wall — the wall against the canvas is the boundary; this is furniture on top of it</td></tr>
+    <tr><td><code>--color-sb-divider</code></td><td><code>#dcd3c5</code></td><td><code>#1c1a1c</code></td><td class="m-note">1.14 · 1.12</td></tr>
+    <tr><td><code>--color-sb-field</code></td><td><code>#f3eee6</code></td><td><code>#161515</code></td><td class="m-note">1.12 · 1.07 — the search box here; in the app, the capital card and the currency track</td></tr>
+    <tr><td><code>--color-sb-item</code></td><td><code>#5e5955</code></td><td><code>#a3a19e</code></td><td class="m-note">5.33 · 7.55 on the wall</td></tr>
+    <tr><td><code>--color-sb-item-hover</code></td><td><code>#1c1a19</code></td><td><code>#eceae7</code></td><td class="m-note">ON ITS OWN GROUND: the hovered label sits on the 5 % tint, #ded7cd light and #181817 dark — 12.14 · 14.80, against 13.35 · 16.19 on the bare wall. Both clear everything; hover is a ground and the state is the text lifting to this value.</td></tr>
+    <tr><td><code>--color-sb-item-hover-bg</code></td><td><code>rgba(28, 26, 25, 0.05)</code></td><td><code>rgba(236, 234, 231, 0.05)</code></td><td class="m-note">a 5 % text tint — hover is a ground, and the state is the text lifting to sb-item-hover</td></tr>
+    <tr><td><code>--color-sb-item-active</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">ON ITS OWN GROUND, not the bare wall: the active label sits on its own 12 % tint, which composites to #ddd1c3 light and #25211c dark, and there it reads 3.88 · 8.28 — not the 4.49 · 10.07 the wall gives. Light is under 4.5 for a nav label. The INDICATOR is what keeps the state identifiable either way (1.4.1 asks for more than colour), and it is measured against the wall because that is what it is drawn on.</td></tr>
+    <tr><td><code>--color-sb-item-active-bg</code></td><td><code>rgba(138, 90, 58, 0.12)</code></td><td><code>rgba(216, 180, 148, 0.12)</code></td><td class="m-note">the tint half of the active state; the indicator is the other half, and 1.4.1 needs both</td></tr>
+    <tr><td><code>--color-sb-indicator</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">4.49 · 10.07 on the wall, which IS its ground — the 2 px inset left edge is drawn on the item, past the tint. Non-text, so 1.4.11’s 3 : 1 binds and both clear it; it is the half of the active state that survives a colour-blind reading.</td></tr>
+    <tr><td><code>--color-sb-icon</code></td><td><code>#6f6a64</code></td><td><code>#8a8886</code></td><td class="m-note">4.12 · 5.51 — monochrome, only the active one takes colour. NO CONSUMER TODAY: the app's nav has no icons.</td></tr>
+    <tr><td><code>--color-sb-icon-active</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">the same value as sb-item-active — the icon takes the item colour rather than having one of its own</td></tr>
+    <tr><td><code>--color-sb-label</code></td><td><code>#847e77</code></td><td><code>#7a7674</code></td><td class="m-note">ON THE WALL: 3.09 light · 4.33 dark, and group headers are 9.5-10 px TEXT, so light is a third under 4.5 and dark is under it too. Worse than the reit shortfall this table labels live, and unlike reit these are letters. The session’s value — see FOUR RECORDED SHORTFALLS below the tables — the owner ruled the value stands and the figure is recorded at it.</td></tr>
+    <tr><td><code>--color-sb-badge</code></td><td><code>#8a5a3a</code></td><td><code>#d8b494</code></td><td class="m-note">ON ITS OWN GROUND: the badge text sits on badge-bg, which composites to #ddd1c3 light and #29241f dark — 3.88 · 7.96, not the wall’s 4.49 · 10.07. Light is under 4.5 and the app has no consumer for it today.</td></tr>
+    <tr><td><code>--color-sb-badge-bg</code></td><td><code>rgba(138, 90, 58, 0.12)</code></td><td><code>rgba(216, 180, 148, 0.12)</code></td><td class="m-note">accent tint only; a caution says warn, never the brand</td></tr>
+    <tr><td><code>--color-sb-footer-bg</code></td><td><code>#e1d9cc</code></td><td><code>#131312</code></td><td class="m-note">1.08 · 1.05 — a band, not a plane, and the app has no footer to put on it</td></tr>
+  </table>
+</section>
+
+<section class="map-s">
+  <h3>Icons — the app's eleven routes, in lucide</h3>
+  <p class="lead">The sidebar drawn above is the session's mock and its items are not the app's. If
+  the nav ever takes icons — #92's question, not this file's — these are the ones, from the set the
+  app already ships (<code>lucide-react</code> 1.27.0, the same set shadcn uses). Named rather than
+  drawn, so the sheet hands over an import and not a shape to copy.</p>
+  <table class="map">
+    <tr><th>route</th><th>nav key</th><th>lucide</th></tr>
+    <tr><td><code>/</code></td><td class="m-dim">Daily quotes</td><td><code>CalendarDays</code></td></tr>
+    <tr><td><code>/transactions</code></td><td class="m-dim">Transactions</td><td><code>ArrowDownUp</code></td></tr>
+    <tr><td><code>/overview</code></td><td class="m-dim">Overview</td><td><code>LayoutGrid</code></td></tr>
+    <tr><td><code>/balances</code></td><td class="m-dim">Balances</td><td><code>Wallet</code></td></tr>
+    <tr><td><code>/payouts</code></td><td class="m-dim">Payouts</td><td><code>CircleDollarSign</code></td></tr>
+    <tr><td><code>/yield</code></td><td class="m-dim">Yield</td><td><code>ChartLine</code></td></tr>
+    <tr><td><code>/attributes</code></td><td class="m-dim">Attributes</td><td><code>Tags</code></td></tr>
+    <tr><td><code>/seasonality</code></td><td class="m-dim">Seasonality</td><td><code>CalendarRange</code></td></tr>
+    <tr><td><code>/portfolio</code></td><td class="m-dim">Portfolio</td><td><code>Table</code></td></tr>
+    <tr><td><code>/allocation</code></td><td class="m-dim">Allocation</td><td><code>ChartPie</code></td></tr>
+    <tr><td><code>/settings</code></td><td class="m-dim">Settings</td><td><code>Settings</code></td></tr>
+  </table>
+  <p class="lead">The two the session drew that the app has no route for keep theirs:
+  <code>Search</code> for ⌘K and <code>FileText</code> for «Податки». Group headers take no icon —
+  the app draws a chevron there and that is a control, not a label.</p>
+</section>
+</x-dc>
+</body>
+</html>
