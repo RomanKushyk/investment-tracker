@@ -33,15 +33,17 @@ import { describe, expect, it } from 'vitest';
 // to move; `--color-switch-border` because its name holds a recorded shortfall.
 //
 // `resolve()` follows a `var()` chain because a PLANE may be one — `field-border`
-// and the four surfaces are hexes today, and #92 re-planes the sidebar.
-// `field-border.test.ts`'s `token()` matches a literal hex and would see nothing.
+// and the four surfaces are hexes today, and `drawer-edge` is an alias of this
+// very rank in dark. `field-border.test.ts`'s `token()` matches a literal hex
+// and would see nothing.
 //
-// THE RAIL IS READ FROM `@theme`, and it carries `data-dark-surface`. That block
-// overrides `panel-border`, `faint` and `muted` — not `field-border` — so the
-// rail's edge takes the light value, which is what the sheet costed. Declaring
-// the token under any scope that contains the rail would move that edge while
-// every assertion here went on reading `@theme`; the guard below closes that
-// rather than this paragraph merely naming it.
+// THE RAIL'S EDGE IS READ FROM `@theme`, and nothing scopes it any more: #92
+// retired `[data-dark-surface]`, the one block that re-valued surface furniture
+// under the rail, because its premise was a dark plane inside a light theme and
+// the wall follows the theme now. Declaring the token under any scope that
+// contains the rail would move that edge while every assertion here went on
+// reading `@theme`; the guard below closes that rather than this paragraph
+// merely naming it, and it is written for ANY such scope rather than that one.
 //
 // SELF-CONTAINED ON PURPOSE, which is the house idiom rather than a technical
 // necessity: `filled-track.test.ts` and `field-border.test.ts` already each
@@ -207,17 +209,19 @@ function resolve(block: string, name: string, seen: string[] = []): string {
 /** TWO GROUPS, not three and not one. T4 left a single token, so the old
  *  per-name split had two of its three entries asserting the same thing — but
  *  collapsing to one union list is the opposite error: it would demand the rank
- *  clear the bar on `sidebar` for surfaces never drawn there and on `card` for a
- *  rail that never touches it, so #92 re-planing `sidebar` would fail this test
- *  in the name of six surfaces it cannot affect.
+ *  clear the bar on the wall for surfaces never drawn there and on `card` for a
+ *  rail that never touches it, so #92 re-planing the wall would have failed this
+ *  test in the name of six surfaces it cannot affect. It did re-plane it, the
+ *  split held, and the group moved by one token name.
  *
  *  `card` binds twice over — a popover's own fill AND, inside a `Dialog`, the
- *  plane behind it. `panel` is the weakest plane a popover opens over. `sidebar`
+ *  plane behind it. `panel` is the weakest plane a popover opens over. `sb-bg`
  *  is the rail's own wall, read from the inside so lightening it cannot erase
- *  that edge silently. */
+ *  that edge silently — which is no longer hypothetical: light IS the lighter
+ *  half of that token now, and this is the assertion that costed it. */
 const DRAWN_ON = {
   'the floating surfaces': ['page', 'card', 'panel'],
-  'the desktop rail': ['sidebar'],
+  'the desktop rail': ['sb-bg'],
 } as const;
 const THEMES = ['light', 'dark'] as const;
 /** The names T4 retired. Not a token list — a list of what must NOT come back. */
@@ -241,42 +245,72 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     }
   }
 
-  // THE OVERLAY ADJACENCY IS THE HALF THIS RULING DID NOT REPAIR. The `Dialog`
-  // panel and the mobile date sheet float over the overlay, so their stroke's
-  // outward adjacency is against that composite and not against any plane above
-  // — the reason the `it` above cannot speak for them. In light it is under
-  // 3 : 1 and #99 owns closing it.
+  // THE OVERLAY ADJACENCY IS A SEPARATE READING, not a plane above. The `Dialog`
+  // panel and the mobile date sheet float over the overlay, so what they are
+  // identified against is that composite — the reason the `it` above cannot
+  // speak for them.
   //
-  // A FLOOR, NOT A BAND, and the difference is the whole design of this test: an
-  // upper bound would pin the SHORTFALL as the expected state, so whoever closes
-  // #99 — or #92, which re-planes `sidebar`, of which the overlay is 40 % —
-  // would land an accessibility improvement and get a red suite for it.
+  // IT USED TO BE A SPLIT FLOOR AND IS NOW THE BAR, because #92 moved the veil
+  // and moving it exposed that the old test was measuring the wrong thing. It
+  // read the STROKE only, and held light to a floor under its own worst reading
+  // because the stroke had never cleared 3 : 1 there. Then both overlays went
+  // from 40 % of a wall that was dark in both themes to `scrim`, and the two
+  // readings moved in opposite directions: the fill step went 2.85 / 2.65 / 3.08
+  // -> 3.50 / 3.25 / 3.75 over page / card / panel and started clearing where
+  // two of three had failed, while the stroke went 1.294 / 1.394 / 1.200 ->
+  // 1.053 / 1.134 / 1.016 and stopped reading at all. Dark barely moved
+  // (4.27 / 4.10 / 3.95 -> 4.20 / 4.10 / 4.03) and is carried by its stroke,
+  // its fill being 1.02-1.07.
   //
-  // WHAT THE FLOOR CATCHES IS THE BOUNDARY VANISHING. Light's reading is near
-  // the minimum of the ratio curve already: the composite sits close to the
-  // stroke's own luminance, so moving the veil in EITHER direction raises the
-  // number, and only converging on the stroke lowers it. That convergence is the
-  // one change that would leave the panel with no outward boundary at all
-  // — verified by injection at a 45 % veil, which lands the composite on
-  // `field-border` itself. Dark is held to the real bar, which it already clears
-  // outward; only light is a shortfall.
+  // Keeping the stroke-only shape would have meant a light floor of 1.01 against
+  // a worst of 1.016 — 0.6 % of headroom, which cannot tell a drift from the
+  // status quo and is the "census wearing a floor's name" this file's parity
+  // guard argues against. So the assertion asks the question 1.4.11 actually
+  // asks — is the component identifiable — and takes the better of the two
+  // boundaries at the real bar, which holds in both themes on all three planes.
+  // #99 keeps the design question the arithmetic cannot answer: whether a border
+  // reading 1.05 against its own backdrop should stay in light at all.
   //
-  // The token and the alpha are read from the components, never typed, and BOTH
-  // overlays are read because `Dialog`'s `OVERLAY_CLASS` is not exported and
-  // `DatePicker` hand-copies the same string — so this covers the sheet it
-  // claims to. Read through `source()`, the same stripped text every assertion
-  // in the markup half uses — so a `bg-<token>/<n>` written in a comment cannot
-  // be matched instead of the class, and there is no second stripping path that
-  // could drift from the one the rest of the file trusts.
+  // The token is read from the components, never typed, and BOTH overlays are
+  // read because `Dialog`'s `OVERLAY_CLASS` is not exported and `DatePicker`
+  // hand-copies the same string — so this covers the sheet it claims to. Read
+  // through `source()`, the same stripped text every assertion in the markup
+  // half uses — so a `bg-<token>` written in a comment cannot be matched instead
+  // of the class, and there is no second stripping path that could drift from
+  // the one the rest of the file trusts.
+  //
+  // THE ALPHA MOVED FROM THE CLASS INTO THE TOKEN (#92). It used to be
+  // `bg-sidebar/40`, a utility-level opacity over an opaque hue, and this read
+  // the `/40`; `scrim` carries its own per-theme alpha instead, so the veil is
+  // an `rgba(…)` and the reading takes both halves from one declaration. Which
+  // is the better shape for what it measures — a veil whose density differs by
+  // theme cannot be said in a utility without a `dark:` variant.
   //
   // Compositing is plain sRGB and that is exact: Tailwind mixes in oklab, but
   // mixing with `transparent` only sets alpha, and the blend against the
   // backdrop happens in the device space either way — verified against the
   // browser's own rendering, which gave the same three composites.
+  // ANCHORED ON `inset-0`, not on the first `bg-` in the file. While the veil
+  // was `bg-<token>/<n>` the alpha made the class unique; `bg-scrim` is not, and
+  // a bare `bg-` match reads `DatePicker`'s `hover:bg-page` three hundred lines
+  // above the overlay — which it did, silently, until this line was anchored.
+  // An overlay is the thing that covers the viewport, so that is what it is
+  // identified by. Either quote, because `Dialog` holds its string in a const
+  // and `DatePicker` writes the attribute inline.
   const overlayOf = (file: string) => {
-    const m = source(file).match(/bg-([a-z-]+)\/(\d+)/);
+    const m = source(file).match(/['"][^'"]*\binset-0\b[^'"]*['"]/);
     expect(m, `${file} no longer paints an overlay this can read`).not.toBeNull();
-    return { token: m![1], alpha: Number(m![2]) / 100 };
+    const token = m![0].match(/\bbg-([a-z-]+)\b/);
+    expect(token, `${file}'s overlay names no fill`).not.toBeNull();
+    return token![1];
+  };
+
+  /** The veil's own channels and alpha, from an `rgba(…)` declaration. */
+  const veilOf = (theme: (typeof THEMES)[number], token: string) => {
+    const value = declared(BLOCKS[theme], token);
+    const m = value.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/);
+    expect(m, `--color-${token} is not an rgba(…) veil (got ${value})`).not.toBeNull();
+    return { ch: [+m![1], +m![2], +m![3]], alpha: +m![4] };
   };
 
   it('the panel and the date sheet paint one veil, so one reading covers both', () => {
@@ -285,22 +319,36 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     );
   });
 
+  // EITHER BOUNDARY, AT THE REAL BAR — which is what this became once #92 moved
+  // the veil, and it is a better test than the split floor it replaces. 1.4.11
+  // asks for the visual information that IDENTIFIES a component, not for a
+  // stroke specifically, and a panel offers two candidates: its own FILL against
+  // the composite, and its STROKE. The denser veil moves them in opposite
+  // directions — light identifies by fill (3.50 / 3.25 / 3.75 over page / card /
+  // panel, where it was 2.85 / 2.65 / 3.08 and two of three failed), dark by
+  // stroke (4.20 / 4.10 / 4.03, its fill being 1.02-1.07). Neither alone holds
+  // in both themes; the max of the two holds in both, on every plane, at 3.
+  //
+  // THE SPLIT FLOOR THIS REPLACES WAS A CENSUS. It read the stroke only, so
+  // after the move its light arm had to sit at 1.01 against a worst reading of
+  // 1.016 — 0.6% of headroom, which cannot tell a drift from the status quo and
+  // is exactly what this file's own parity comment calls "a census wearing a
+  // floor's name". The bar here is 3 in both themes because the invariant is now
+  // true at 3 in both themes, and #99 is the open question of whether the light
+  // stroke should stay at all given the fill carries it.
   for (const theme of THEMES) {
-    it(`${theme}: the overlay adjacency behind the panel and the date sheet`, () => {
-      const { token, alpha } = overlayOf('components/ui/Dialog.tsx');
-      const veil = channels(resolve(BLOCKS[theme], token));
+    it(`${theme}: the panel and the date sheet stay identifiable on their veil`, () => {
+      const { ch, alpha } = veilOf(theme, overlayOf('components/ui/Dialog.tsx'));
       const edge = resolve(BLOCKS[theme], 'field-border');
+      const fill = resolve(BLOCKS[theme], 'card');
       for (const plane of ['page', 'card', 'panel'] as const) {
         const behind = channels(resolve(BLOCKS[theme], plane));
-        const reading = ratio(
-          edge,
-          rgbHex(veil.map((c, i) => c * alpha + behind[i] * (1 - alpha))),
-        );
-        // Light's floor sits just under today's worst so a move down fails and a
-        // repair does not; dark is held to the bar itself.
-        expect(reading, `the stroke on the overlay over ${plane} got worse`).toBeGreaterThanOrEqual(
-          theme === 'dark' ? 3 : 1.15,
-        );
+        const veil = rgbHex(ch.map((c, i) => c * alpha + behind[i] * (1 - alpha)));
+        const best = Math.max(ratio(fill, veil), ratio(edge, veil));
+        expect(
+          best,
+          `neither the panel's fill nor its stroke identifies it over ${plane}`,
+        ).toBeGreaterThanOrEqual(3);
       }
     });
   }
@@ -311,10 +359,11 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
   // "give the toast its own edge" edit put one back — it would simply be a
   // second name holding a third copy of the same value.
   //
-  // THE WHOLE STYLESHEET, not the two palette blocks: `[data-dark-surface]`
-  // already overrides three tokens of its own, and a re-mint there — or in
-  // `:root`, or under a media query — would be just as real and invisible to a
-  // two-block check.
+  // THE WHOLE STYLESHEET, not the two palette blocks: a re-mint under `:root`,
+  // under a media query or inside a new scope would be just as real and
+  // invisible to a two-block check. `[data-dark-surface]` was the standing
+  // example until #92 retired it, which is the case for keeping the guard
+  // scope-agnostic rather than naming the scopes it knows about.
   it('does not re-mint the three names T4 retired, anywhere in the stylesheet', () => {
     for (const name of RETIRED) {
       expect(CSS, `--color-${name} is declared again`).not.toMatch(
@@ -323,19 +372,16 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     }
   });
 
-  // THE RAIL'S BLOCK, closed rather than described. `[data-dark-surface]` gives
-  // the dark wall dark-appropriate values for the three tokens drawn INSIDE it;
-  // the rail's own edge faces outward at the page and takes `@theme`'s, which is
-  // the pair the sheet costed. Overriding `field-border` there would
-  // move that edge silently — every ratio above resolves against `@theme` and
-  // would go on asserting a value the browser no longer paints for the rail.
+  // THE RAIL'S EDGE, CLOSED RATHER THAN DESCRIBED. It faces outward at the page
+  // and takes `@theme`'s value, which is the pair the sheet costed. Overriding
+  // `field-border` under any scope containing the rail would move that edge
+  // silently — every ratio above resolves against `@theme` and would go on
+  // asserting a value the browser no longer paints for the rail.
   it('leaves the rail edge to `@theme`, not to a scope that contains the rail', () => {
-    // THE WHOLE STYLESHEET, for the reason the guard above gives. `ruleBody`
-    // finds the FIRST `[data-dark-surface] {`, so a second block — or a
-    // differently spelled scope that still contains the rail — would move the
-    // edge with every ratio here still resolving `@theme`. Any declaration of
-    // this token outside the two palette blocks is the defect, whatever selector
-    // carries it.
+    // THE WHOLE STYLESHEET, for the reason the guard above gives. A block that
+    // contains the rail — however its selector is spelled — would move the edge
+    // with every ratio here still resolving `@theme`. Any declaration of this
+    // token outside the two palette blocks is the defect, whatever carries it.
     const palette = [BLOCKS.light, BLOCKS.dark];
     const strays = [...CSS.matchAll(/([^{}]*)\{([^{}]*--color-field-border\s*:[^{}]*)\}/g)]
       .filter((m) => !palette.some((block) => block.includes(m[2])))
@@ -375,10 +421,11 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     // other, so the equality above needs something under it. It is deliberately
     // NOT a completeness check: what stops a live token being deleted from both
     // blocks is something rendering it, not a number here, and a number here
-    // would be the hand-kept figure this test exists to replace. #91 added 28
-    // names and took the count to 74; the floor moved to 60 rather than to 70,
-    // because #92 retires the five `sidebar-*` and 70 would fail on a planned
-    // retirement for a reason that has nothing to do with the invariant. A
+    // would be the hand-kept figure this test exists to replace. #91 set it to
+    // 60 rather than 70 precisely because #92 was going to retire the five
+    // `sidebar-*` and `pos-on-dark`, and 70 would have failed on a planned
+    // retirement for a reason with nothing to do with the invariant. It did,
+    // the floor absorbed it, and that is the argument for leaving it here: a
     // floor sits FAR below the count or it is a census wearing a floor's name.
     expect(light.length, 'the palette suddenly has almost nothing in it').toBeGreaterThanOrEqual(
       60,

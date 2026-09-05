@@ -270,10 +270,14 @@ describe('the recorded readings still read as recorded', () => {
       3.091,
     ],
     ['sb-label on its wall, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
-    // Both blocks, because #91 puts the dark wall in both. When #92 re-planes
-    // light, the light reading moves and this is what says so.
-    ['sidebar-muted on the wall, light', 'light', 'sidebar-muted', 'sidebar', 4.325],
-    ['sidebar-muted on the wall, dark', 'dark', 'sidebar-muted', 'sidebar', 4.325],
+    // #92 RE-PLANED THE MARK'S GROUND AND #93 HAS NOT MOVED THE MARK YET. The
+    // arrow was drawn for a plate that was dark in both themes; in light it is
+    // now sand on parchment, under 1.4.11's 3 : 1 for a non-text graphic. Ruled
+    // to wait rather than be re-valued by a branch that does not own the mark —
+    // the three per-theme `logo-*` names are declared and #93 maps them. This
+    // row goes with `brand-sand` when it does.
+    ['brand-sand on the wall, light', 'light', 'brand-sand', 'sb-bg', 1.487],
+    ['brand-sand on the wall, dark', 'dark', 'brand-sand', 'sb-bg', 10.07],
     // Two more the sheet records at their values.
     [
       'reit on panel — ColorDot and ShareBar paint the bare hue there',

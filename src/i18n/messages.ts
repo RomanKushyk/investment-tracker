@@ -70,7 +70,6 @@ export const en = {
     expandGroup: (group: string) => `Expand ${group}`,
   },
   sidebar: {
-    brandTagline: 'Invest tracker',
     totalCapital: 'Total capital',
     demoBadge: 'DEMO',
     demoTitle: 'Demo dataset — reference data. Switch in Settings → Data.',
@@ -1111,7 +1110,6 @@ export const uk: Dict = {
     expandGroup: (group: string) => `Розгорнути групу «${group}»`,
   },
   sidebar: {
-    brandTagline: 'Інвест-трекер',
     totalCapital: 'Загальний капітал', // ✎
     // A dataset marker, not prose: it stays readable as the same token in both
     // languages, the way the ₴/$ segment labels do.

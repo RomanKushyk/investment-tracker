@@ -204,21 +204,16 @@ describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes',
     expect(Number(r.toFixed(2))).toBe(expected);
   });
 
-  // THE RANK IS NOT RE-VALUED ON A DARK SURFACE, AND THE HOVER IS. `index.css`'s
-  // `[data-dark-surface]` block overrides `muted`, `faint` and `panel-border` but
-  // not `field-border`, so before this ruling the dropzone's rest and hover moved
-  // there TOGETHER (`panel-border` and `faint`) and now only the hover does. The
-  // box is not drawn on such a surface today; if it ever is, this pairing has to
-  // be re-derived rather than assumed, and this assertion is what makes the
-  // asymmetry visible instead of latent.
-  it('leaves the rank alone under `[data-dark-surface]`, where the hover does move', () => {
-    const scoped = ruleBody(CSS, '[data-dark-surface]');
-    expect(
-      scoped,
-      'the rank gained a dark-surface value — the ruling needs re-deriving',
-    ).not.toMatch(/--color-field-border:/);
-    expect(scoped, '`muted` stopped being re-valued there').toMatch(/--color-muted:/);
-  });
+  // THE ASYMMETRY THIS RECORDED HAS NO SCOPE LEFT TO RECORD IT IN. `index.css`
+  // used to carry a `[data-dark-surface]` block overriding `muted`, `faint` and
+  // `panel-border` but NOT `field-border`, so the dropzone's rest and its hover
+  // would have moved apart on such a surface — and an assertion here kept that
+  // visible rather than latent. #92 retired the block along with the plane that
+  // needed it: the sidebar was the only dark surface inside a light theme, and
+  // the wall follows the theme now. There is no scope to assert about, and a
+  // guard that the block stays absent already lives in `sidebar-plane.test.ts`,
+  // where the retirement was ruled. The box is still drawn on `panel` inside a
+  // `card` and nowhere else, which the two adjacencies above cover.
 });
 
 describe('hover leaves the rest behind, and drag-over leaves hover behind', () => {

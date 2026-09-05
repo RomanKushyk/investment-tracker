@@ -33,9 +33,10 @@ const ANALYTICS = [
 // now that there are no bars to align to a pixel grid. The arc's ink spans
 // [9.5, 86.5] on both axes (centre 48,48 · r32 · stroke 13) and the arrowhead
 // reaches x 87.5 and y 8.5 (tip 86,10 with a 3-wide round join), so the union is
-// exactly 78 × 78 at (9.5, 8.5). Filling that box means a 36px mark is 36px of
-// drawing — the diameter the retired disc had — and in public/favicon.svg it is
-// what puts 2.67px of stroke on a 16px tab instead of 2.17px.
+// exactly 78 × 78 at (9.5, 8.5). Filling that box means the mark is as many
+// pixels of drawing as the caller asks for, with no transparent margin spending
+// them — which is what lets it drop from 36 to the sheet's 22 and stay legible,
+// and what gives public/favicon.svg a thicker stroke on a 16px tab.
 //
 // Colour is split: the arc takes `currentColor` so it follows the plane it is
 // on, the arrow takes the one brand token. No hex belongs in here — mark.test.ts
@@ -81,19 +82,30 @@ function Mark({ className = '' }: { className?: string }) {
 // two radii at 10 and 9 rather than both becoming 11.
 function pillClass(padY: string, radius: string) {
   return ({ isActive }: { isActive: boolean }) =>
-    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left text-[13.5px] transition select-none hover:opacity-85 active:scale-[.97] ` +
+    `block w-full ${radius} ${TAP_44} px-3.5 ${padY} text-left text-[13.5px] transition select-none active:scale-[.97] ` +
     (isActive
-      ? // `text-sidebar`, NOT `text-ink` — this is a LIGHT CHIP ON A DARK RAIL,
-        // a third double-duty family beside the two the Phase 5 reference
-        // enumerated (FINDING 3). The fill `sidebar-text` stays light in both
-        // themes, so the label has to stay DARK in both; `ink` inverts in dark
-        // and paints the fill onto itself — an empty lozenge with the route
-        // name gone. Since #91 `sidebar` is the dark wall in BOTH themes, so
-        // this is no longer the near-no-op in light it used to be: the two
-        // tokens are now genuinely different values and the distinction is
-        // load-bearing in either theme.
-        'bg-sidebar-text font-bold text-sidebar'
-      : 'bg-transparent font-normal text-sidebar-nav');
+      ? // SAID TWICE, WHICH IS THE WHOLE POINT: a tint AND a 2px inset left
+        // edge. WCAG 1.4.1 does not accept a state carried by colour alone, and
+        // the light lozenge this replaces carried it that way in both themes.
+        //
+        // `shadow-[inset …]` rather than a pseudo-element, and not for taste:
+        // `TAP_44` already owns `::after` on every pill below `md`. An inset
+        // shadow also costs no layout, where a real left border would move the
+        // label 2px and break the radii D56 derived.
+        //
+        // The label reads UNDER 4.5 in light on its own tint — 3.88, the sheet's
+        // own figure — and that is why the indicator is not decoration. It is
+        // the half that survives a colour-blind reading, and 1.4.11 binds it at
+        // 3 : 1, which both themes clear on the wall.
+        'bg-sb-item-active-bg font-bold text-sb-item-active shadow-[inset_2px_0_0_var(--color-sb-indicator)]'
+      : // HOVER LIVES IN THIS ARM ONLY, and putting it in the shared prefix was
+        // a defect rather than a tidiness. `hover:` is one specificity class
+        // higher than the plain utilities beside it and Tailwind emits it later,
+        // so on the shared string it beat the active arm: pointing at the route
+        // you are already on repainted it `sb-item-hover-bg` + `sb-item-hover`
+        // and took away both halves of the state. The old `opacity-85` composed
+        // with whatever was underneath and never collided this way.
+        'bg-transparent font-normal text-sb-item hover:bg-sb-item-hover-bg hover:text-sb-item-hover');
 }
 
 /**
@@ -131,7 +143,7 @@ function pillClass(padY: string, radius: string) {
  *
  * RADIUS 9, BORROWED FROM THE NAV PILL rather than derived — the extension's
  * one deliberate D56 exception, argued there. The row draws no fill and no
- * border in any state (its hover is the pill's own `opacity-85`), so the
+ * border in any state (its hover is a text lift, like the pill's), so the
  * proportional rule has no box to read, and deriving it would give two values
  * for one row (5 at ≥ md, 11 at 44). Do not "fix" it.
  */
@@ -212,23 +224,28 @@ function NavGroup({
         // rather than overlapping it, which is what tap-target.ts requires of a
         // box-less control. `TAP_44_BOX` itself is wrong here — it squares the
         // box, and this one has a label to hold.
-        className={`mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[10px] tracking-[.12em] text-sidebar-muted uppercase transition select-none hover:opacity-85 active:scale-[.97] max-md:h-11 ${className}`}
+        className={`group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[10px] tracking-[.12em] text-sb-label uppercase transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11 ${className}`}
       >
         {label}
         <ChevronDown
           size={14}
           strokeWidth={2}
           aria-hidden
-          // `text-sidebar-nav`, BRIGHTER than the label it sits beside, and the
+          // `text-sb-item`, STRONGER than the label it sits beside, and the
           // extension argues why: the label is a caption, the chevron is a
           // control, and the brief asks it to read at the same weight as the
-          // D66 glyph "and no lighter" — brighter than the label, on the rail.
+          // D66 glyph "and no lighter".
           //
-          // `transition-[rotate]`, not `transition-transform`: Tailwind v4 compiles
+          // IT FOLLOWS THE LABEL ON HOVER, via the `group` on the button, and it
+          // has to: the old `opacity-85` faded the whole row so the two moved
+          // together, and lifting only the label inverted the very relationship
+          // the paragraph above states — the caption would out-read its control.
+          //
+          // `transition-[rotate,color]`, not `transition-transform`: Tailwind v4 compiles
           // `-rotate-90` to the standalone `rotate` property, which `transform`
           // does not cover — the first draft rotated instantly while claiming
           // 220 ms.
-          className={`ml-auto text-sidebar-nav transition-[rotate] duration-220 ease-soft ${collapsed ? '-rotate-90' : ''}`}
+          className={`ml-auto text-sb-item transition-[rotate,color] duration-220 ease-soft group-hover:text-sb-item-hover ${collapsed ? '-rotate-90' : ''}`}
         />
       </button>
 
@@ -253,7 +270,7 @@ function NavGroup({
 function SidebarDecor() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[30px]">
-      <div className="absolute -right-[70px] -bottom-[60px] size-[200px] rounded-full bg-sidebar-inset opacity-70" />
+      <div className="absolute -right-[70px] -bottom-[60px] size-[200px] rounded-full bg-sb-field opacity-70" />
     </div>
   );
 }
@@ -301,63 +318,51 @@ function SidebarPanel({
   return (
     <div className="relative grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
       {/* ── band 1 — the lockup, fixed ─────────────────────────────────── */}
-      {/* THE PLATE KEEPS ITS FULL WIDTH AND BOTH ORNAMENTS FLOAT OVER IT, which
-          is what the 768 sketch draws and what the arithmetic forces. The brief's
-          "outside the lockup plate" is about the plate's BOX — its 14px radius is
-          the fixed inner term of the concentric chain (14 + 16 padding = the
-          shell's 30, F2) — and both of these are siblings of it, so that box is
-          untouched.
-          A row of [plate][button] was tried first and measured: taking 34px out
-          of the plate leaves line 1 with 68.4px, and `Quirenote` is 73.5px at
-          16px IBM Plex Sans, so the wordmark ran under the DEMO badge by 5.1px.
-          At 244 the plate cannot hold a fifth element in flow. Floating both
-          leaves 134.8px for the wordmark and 5.9px of clearance between the brand
-          and the badge — measured, not estimated.
-
-          THOSE TWO FIGURES ARE D66'S AND THE FONT HAS MOVED SINCE (D131). The
-          reasoning stands — floating both ornaments is still what buys the
-          runway — but the runway is now 78.6px wide, and BOTH its edges are
-          pinned: the left by the 15px padding + 36px mark + 10px gap (text
-          starts at x 78), the right by the DEMO badge itself, 32.4px wide after
-          `scale-75` and floated at `right-[38px]`, so its left edge lands at
-          x 156.6. 156.6 − 78 = 78.6. Naming only the left three terms leaves
-          149px of plate and does not reproduce the figure. It is spent
-          differently now, too: JetBrains
-          Mono ExtraBold is a 0.6em monospace, so `Quirenote` inks 9 × 0.58 ×
-          font-size and at 16px measured 83.53px — 4.93px UNDER the badge. Hence
-          the 14px below, which inks 73.09px and leaves 5.5px. Do not "restore"
-          it to 16px without re-measuring that clearance; and note the plate's
-          height changes hands with it, because at 16px the text block was the
-          taller item (36.78px) and at 14px the 36px mark is. */}
+      {/* ONE ROW, NO PLATE, AND THE BADGE IS IN IT. The lockup used to be a
+          filled 14px card with two ornaments floating over it, and everything
+          that made that necessary is gone: the plate was the inner term of a
+          concentric chain, the wordmark ran two lines because a tagline sat
+          under it, and the badge had to float because at 244 the plate could not
+          hold a fifth element in flow. The sheet draws a flex row — mark,
+          wordmark — so the badge is simply its third child and the arithmetic
+          that placed it goes with the box it was measured against.
+          The collapse control still floats, so the row reserves its corner
+          rather than laying it out: it is positioned against this container and
+          would otherwise sit on top of the badge. 38 is that control's own
+          arithmetic — 6 inset + 26 button + 6 gap — the figure the badge used
+          while it was pinned to the corner too. Measured at 32 first, which put
+          the badge's right edge on the button's left edge exactly. */}
       <div className="relative mb-[22px]">
-        <div className="flex items-center justify-start gap-2.5 rounded-[14px] bg-sidebar-inset px-[15px] py-2.5">
-          <Mark className="size-9 flex-none text-sidebar-text" />
-          <div className="min-w-0 font-body text-[14px] leading-[1.15] font-extrabold tracking-[-0.02em]">
-            Quirenote
-            <br />
-            <span className="font-display text-[9.5px] font-normal tracking-[.12em] text-sidebar-muted uppercase">
-              {t.sidebar.brandTagline}
-            </span>
-          </div>
-        </div>
-        {demo && (
-          // Pinned to the plate's top-right corner, inset by the plate's own
-          // padding (15) so it sits on the same margin as everything else — and
-          // stepped left to 38 when the collapse control shares that corner
-          // (6 inset + 26 button + 6 gap). Shrunk to 0.75 by transform rather
-          // than by dividing every metric: scaling keeps the badge's proportions
-          // exact, including the radius-to-height ratio D56 fixed.
-          // `origin-top-right` so it shrinks INTO the corner it is pinned to
-          // instead of away from it.
-          <span
-            title={t.sidebar.demoTitle}
-            className={`absolute top-2.5 origin-top-right scale-75 animate-in rounded-[5px] bg-warn-tint px-2 py-[3px] font-body text-[10px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in ${
-              rail && onCollapse !== undefined ? 'right-[38px]' : 'right-[15px]'
-            }`}
-          >
-            {t.sidebar.demoBadge}
+        <div
+          className={`flex items-center gap-2 ${
+            rail && onCollapse !== undefined ? 'pr-[38px]' : ''
+          }`}
+        >
+          <Mark className="size-[22px] flex-none text-ink" />
+          <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
+            quirenote
           </span>
-        )}
+          {demo && (
+            // `warn-tint`, NOT the accent tint the sheet gives every other badge:
+            // its own rule says a caution speaks with `warn` and never with the
+            // brand, and a dataset that is not the user's data is a caution.
+            // `ml-auto` so it sits at the row's end whatever the wordmark does;
+            // no `scale-75` any more, which existed only to shrink an ornament
+            // pinned to a corner rather than laid out in a row.
+            //
+            // THE OUTLINE IS WHAT MAKES IT A CHIP HERE. On the old dark plate the
+            // tint alone was a visible box; on the wall it is 1.01 : 1 and the
+            // badge would render as bare floating text. `warn` gives it an edge
+            // at 4.55 light and 8.79 dark without leaving the family the caution
+            // rule names.
+            <span
+              title={t.sidebar.demoTitle}
+              className="ml-auto animate-in rounded-[5px] border border-warn bg-warn-tint px-1.5 py-[2px] font-body text-[9px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in"
+            >
+              {t.sidebar.demoBadge}
+            </span>
+          )}
+        </div>
         {rail && onCollapse !== undefined && (
           // 26px box, radius 7 — D56 on a control that IS standalone and DOES
           // have a designed short side: round(26 × 0.26) = 7. It exists only at
@@ -372,7 +377,7 @@ function SidebarPanel({
             id={SIDEBAR_COLLAPSE_ID}
             onClick={onCollapse}
             aria-label={t.nav.collapseNav}
-            className="absolute top-1/2 right-[6px] grid size-[26px] -translate-y-1/2 cursor-pointer place-items-center rounded-[7px] border border-sidebar-muted text-sidebar-nav transition hover:opacity-85 active:scale-[.97]"
+            className="absolute top-1/2 right-[6px] grid size-[26px] -translate-y-1/2 cursor-pointer place-items-center rounded-[7px] border border-field-border text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
           >
             <ChevronLeft size={14} strokeWidth={2} aria-hidden />
           </button>
@@ -417,20 +422,31 @@ function SidebarPanel({
 
       {/* ── band 3 — the cluster, pinned ────────────────────────────────── */}
       <div className="pt-2.5">
-        {/* THE ONE CONTROL THAT KEEPS THE OLD ORIENTATION, and it is a ruling
-            rather than an oversight (owner, 2026-09-01). Everywhere else D114
-            fills the track — `ink` — and slides a `card` chip. Here the rail's
-            NAV language wins instead: `pillClass` paints the ACTIVE route
-            `bg-sidebar-text` with `text-sidebar`, so a filled track made the
-            UNSELECTED currency read exactly like a selected route, twenty pixels
-            under a list of them, while the selected one took the rail's own fill
-            — an inactive pill's treatment. Light means SELECTED in this plane,
-            and one control cannot say otherwise.
+        {/* THE EXCEPTION IS SPENT, AND WHAT REPLACED IT IS NOT THE GENERAL RULE
+            EITHER. D114 fills a track with the plane's foreground and slides a
+            background chip; the rail was exempted because `pillClass` painted the
+            active route a light lozenge, so a filled track made the UNSELECTED
+            currency read exactly like a selected route. That premise went with
+            the lozenge — the active route is a tint and an indicator now.
+            What the rail runs instead is its own field rank: a recessed
+            `sb-field` track with a SOLID accent thumb. A solid fill no longer
+            means a route anywhere in this plane, so it can mean the selected
+            segment without collision, and it keeps the sliding chip that a tint
+            would have flattened into the nav's own language.
 
-            No `data-filled-track` with it: on a dark track the ring wants to
-            stay light, which is what `[data-dark-surface] :focus-visible`
-            already gives it. */}
-        <div className="relative mb-2.5 flex gap-1 rounded-[13px] bg-sidebar-inset p-1.5">
+            The thumb is `accent` and its label `accent-fg` — ONE PAIR, from one
+            family. `sb-item-active` holds the same value in both themes and was
+            the first choice, but it is the nav label's FOREGROUND rank: pairing
+            it with `accent-fg` takes the two halves of a fill from two families,
+            and re-valuing the active label — which ships at 3.88 in light and
+            may not stay there — would silently repaint this thumb. `sb-bg` for
+            the label was the other first choice and reads 4.489 on the fill, a
+            hundredth under 1.4.3 on 12px bold text.
+
+            No `data-filled-track`: that attribute puts the focus ring on `page`
+            for a track painted in the plane's foreground, and this track is a
+            recess. The base `ink` ring reads on it in either theme. */}
+        <div className="relative mb-2.5 flex gap-1 rounded-[13px] bg-sb-field p-1.5">
           {/* sliding thumb (D7): shares the two buttons' geometry (p-1.5 + gap-1)
               so translateX(100% + gap) lands it exactly under the other segment.
               The width encodes that geometry as 50% − (padding + half the gap),
@@ -439,7 +455,7 @@ function SidebarPanel({
           <div
             aria-hidden
             data-owns-motion
-            className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-8px)] rounded-[7px] bg-sidebar-text transition-transform duration-300 ease-soft"
+            className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-8px)] rounded-[7px] bg-accent transition-transform duration-300 ease-soft"
             style={{
               transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))',
             }}
@@ -448,7 +464,7 @@ function SidebarPanel({
             type="button"
             aria-pressed={currency === 'UAH'}
             onClick={() => setCurrency('UAH')}
-            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'UAH' ? 'text-sidebar' : 'text-sidebar-nav hover:opacity-85'}`}
+            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
           >
             ₴ UAH
           </button>
@@ -456,7 +472,7 @@ function SidebarPanel({
             type="button"
             aria-pressed={currency === 'USD'}
             onClick={() => setCurrency('USD')}
-            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'USD' ? 'text-sidebar' : 'text-sidebar-nav hover:opacity-85'}`}
+            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
           >
             $ USD
           </button>
@@ -470,7 +486,7 @@ function SidebarPanel({
 
         {/* (no sidebar Backup pill — relocated to Settings→Data in P2, S7) */}
 
-        <div className="mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sidebar-muted uppercase">
+        <div className="mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sb-label uppercase">
           v{__APP_VERSION__}
         </div>
       </div>
@@ -493,16 +509,17 @@ function CapitalCard() {
     // two sit together as one bottom cluster, and a shared radius reads as a
     // pair. The cost is that this corner alone is not concentric with the
     // shell's.
-    <div className="rounded-[13px] bg-sidebar-inset px-4 py-3.5">
-      <div className="text-[10px] tracking-[.12em] text-sidebar-muted uppercase">
+    <div className="rounded-[13px] bg-sb-field px-4 py-3.5">
+      <div className="text-[10px] tracking-[.12em] text-sb-item uppercase">
         {t.sidebar.totalCapital}
       </div>
-      {/* Literal white SURVIVES the Phase 5 purge, on purpose: the sidebar is an
-          inverted plane in both themes, so white is correct on it. Swapping it
-          for `sidebar-text` would take the figure OFF white in both, which A9
-          must not do. Same reasoning as `KpiCard` dark. */}
-      <div className="font-display text-[21px] font-semibold text-white">{capital.value}</div>
-      <div className="text-[11px] font-semibold text-pos-on-dark">
+      {/* `ink` and `pos`, where this was a literal white and `pos-on-dark`. Both
+          existed because the card sat on a plane that was dark in EITHER theme
+          and so could not invert with one; the wall follows the theme now, so
+          the figure and its gain read the app's own ranks like every other
+          number in it. */}
+      <div className="font-display text-[21px] font-semibold text-ink">{capital.value}</div>
+      <div className="text-[11px] font-semibold text-pos">
         {capital.pct === undefined
           ? '—'
           : `${capital.pct}${capital.counter === undefined ? '' : ` · ${capital.counter}`}`}
@@ -546,10 +563,7 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
           would wear a frame against the browser chrome. Only the right edge is
           an adjacency — the wall against `page` — and it is the one #98 costed.
           `SidebarDrawer` below draws its own edge the same way. */}
-      <div
-        data-dark-surface
-        className="relative h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sidebar p-4 pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text"
-      >
+      <div className="relative h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pl-[max(16px,env(safe-area-inset-left))] text-ink">
         <SidebarDecor />
         <SidebarPanel variant="rail" onCollapse={onCollapse} />
       </div>
@@ -571,7 +585,8 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
  * on its own, and an outline there is decoration. In DARK the scrim cannot
  * separate them at all — the wall is darker than the page it veils, which
  * `--color-scrim` argues in full — so `--color-drawer-edge` turns on. That is
- * an ALIAS and not a new colour: transparent in light, `sidebar-muted` in dark.
+ * an ALIAS and not a new colour: transparent in light, and the
+ * control-boundary rank's own value in dark.
  */
 export function SidebarDrawer() {
   const t = useT();
@@ -581,9 +596,8 @@ export function SidebarDrawer() {
       {/* z-40, one step under the app's dialogs at z-50: a drawer is chrome and a
           dialog is a question, so if the two ever coexist the question is on top. */}
       <RadixDialog.Content
-        data-dark-surface
         aria-describedby={undefined}
-        className="fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r border-drawer-edge bg-sidebar pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-sidebar-text data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
+        className="fixed top-0 left-0 z-40 h-dvh w-[280px] overflow-hidden rounded-r-[30px] border-r border-drawer-edge bg-sb-bg pt-[max(16px,env(safe-area-inset-top))] pr-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink data-[state=closed]:animate-drawer-out data-[state=open]:animate-drawer-in"
       >
         {/* Radix needs a title for the dialog's accessible name; the drawer shows
             the wordmark instead, so the name is given to screen readers only

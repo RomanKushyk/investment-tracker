@@ -45,7 +45,7 @@ function sourceFiles(dir: string): string[] {
  *  the pairing — measured, that removes one `<div>` mention each from
  *  `AssetForm.tsx`, `Select.tsx` and `TransactionPanel.tsx` and two from
  *  `RecordCard.tsx`. (It is NOT the rail that needs this: the rail's track is
- *  `bg-sidebar-inset`, never the fill pair, and its comment sits between
+ *  `bg-sb-field`, never the fill pair, and its comment sits between
  *  elements rather than inside a tag.) */
 const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
 

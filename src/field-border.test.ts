@@ -101,7 +101,6 @@ function ruleBody(source: string, opener: string): string {
 const BLOCKS = {
   light: ruleBody(CSS, '@theme'),
   dark: ruleBody(CSS, "[data-theme='dark']"),
-  darkSurface: ruleBody(CSS, '[data-dark-surface]'),
 };
 
 function token(block: string, name: string): string {
@@ -158,14 +157,17 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
   // `faint` is a TEXT and INDICATOR rank, not a control boundary, and LIGHT
   // MUST STAY UNDER 3 : 1: `Scroller.tsx` rests its thumb below the bar
   // deliberately and argues it, so lifting this token reverses that and blanks
-  // the drawer's dragged thumb — `[data-dark-surface]` overrides `faint` but
-  // not `ink`. Pinned by hex rather than by ratio for exactly that reason, and
-  // in all three places at once so they cannot drift apart. The parchment
-  // palette re-derived the three to hold the same readings (#91).
-  it('leaves `faint` at the rank it was derived for, in all three places', () => {
+  // the drawer's dragged thumb. Pinned by hex rather than by ratio for exactly
+  // that reason. The parchment palette re-derived both to hold the same
+  // readings (#91).
+  // TWO PLACES, WHERE THIS PINNED THREE. The third was `[data-dark-surface]`,
+  // which gave the rail the dark values while the app was in light; #92 retired
+  // the scope with the plane that needed it, so the drawer's thumb now reads
+  // whichever of these two its theme declares — which is what every other
+  // surface in the app already did.
+  it('leaves `faint` at the rank it was derived for, in both blocks', () => {
     expect(token(BLOCKS.light, 'faint')).toBe('#b4aa9a');
     expect(token(BLOCKS.dark, 'faint')).toBe('#6e6a65');
-    expect(token(BLOCKS.darkSurface, 'faint')).toBe('#6e6a65');
   });
 });
 

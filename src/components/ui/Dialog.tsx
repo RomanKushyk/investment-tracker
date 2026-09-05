@@ -14,14 +14,15 @@ import { Scroller } from './Scroller';
 // Every dialog renders a <DialogTitle> for a11y.
 export const DialogTitle = RadixDialog.Title;
 
-// An INVERTED PLANE, like `KpiCard` dark (FINDING 3): a scrim has to darken
-// what is behind it in BOTH themes. `ink` inverts to near-white in dark and
-// would turn the scrim into a white wash; `sidebar` is the dark wall in either
-// theme. Since #91 that wall is darker than the `ink` this once matched in
-// light, so the light overlay is denser than it was — deliberate, and it moves
-// again when #92 re-planes the wall.
+// `scrim`, THE APP'S ONE VEIL, since #92. This was 40% of the sidebar's wall
+// because a scrim has to darken what is behind it in BOTH themes and that wall
+// was the only plane that stayed dark in either — `ink` inverts to near-white in
+// dark and would wash the page rather than dim it. The wall follows the theme
+// now, so 40% of it would LIGHTEN a light backdrop, and the property the choice
+// rested on is exactly the one that went. `scrim` keeps a per-theme alpha over a
+// fixed dark hue, which is what the job always needed.
 const OVERLAY_CLASS =
-  'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
+  'bg-scrim fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
 // C5 — `dvh`, not `vh`. `100vh` on a mobile browser is the height the viewport
 // has with the toolbars RETRACTED, so `85vh` is 85% of a taller box than the one
 // on screen and a full dialog runs under the chrome at the bottom. `dvh` follows

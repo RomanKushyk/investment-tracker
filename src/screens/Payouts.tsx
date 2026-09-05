@@ -68,11 +68,11 @@ export function Payouts() {
 
         <div className="flex flex-col gap-3.5">
           <KpiCard
-            tone="dark"
+            tone="wall"
             className="animate-in duration-300 fade-in"
             label={t.analytics.receivedTotal}
             value={f.money(income.total)}
-            subClassName="text-pos-on-dark"
+            subClassName="text-pos"
             sub={t.analytics.prose.dividendsAndCoupons(
               f.money(income.dividends),
               f.money(income.coupons),

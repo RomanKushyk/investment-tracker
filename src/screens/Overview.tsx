@@ -184,12 +184,12 @@ export function Overview() {
           container itself drops below 200px (360px shell fix, item 1) */}
       <div className="mb-[26px] grid grid-cols-[repeat(auto-fit,minmax(min(200px,100%),1fr))] gap-3.5">
         <KpiCard
-          tone="dark"
+          tone="wall"
           className="animate-in duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.totalCapital}
           value={capital.value}
           sub={capital.sub}
-          subClassName="text-pos-on-dark"
+          subClassName="text-pos"
         />
         {/* S9a relabel (D13): capital-gain family — value/sub D5-pinned, label only. */}
         <KpiCard

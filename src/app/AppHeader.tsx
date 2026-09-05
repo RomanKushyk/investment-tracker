@@ -41,10 +41,10 @@ const TRIGGER_CLASS =
  * while the rail is collapsed — this is not a second permanent bar.
  *
  * A LIGHT SURFACE, deliberately: `page` / `ink` / `muted` / `pos` / `neg` /
- * `hairline`, and never the `sidebar-*` family, which would make it read as a
- * detached piece of the drawer. The same reasoning is why `[data-dark-surface]`
- * is absent here — the focus ring on this trigger must be the ink one, and that
- * is correct rather than an oversight (register D6).
+ * `hairline`, and never the wall's own `sb-*` family, which would make it read
+ * as a detached piece of the drawer. The focus ring on this trigger is the ink
+ * one, which since #92 is the app's only one — the sidebar used to override it
+ * on its own plane and no longer does.
  *
  * SQUARE CORNERS. The proportional rule reads `round(min(w, h) × 0.26)` off two
  * DESIGNED dimensions; this bar's short side is its height and its long side

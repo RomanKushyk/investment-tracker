@@ -177,14 +177,15 @@
      The drawer clears 1.4.11's 3 : 1 against what that composites to over
      `page`, so in LIGHT the scrim IS the separation and the drawer draws no
      edge.
-     It is deliberately NOT the Dialog's overlay (`sidebar/40`, D-d): that one
-     is an INVERTED PLANE in both themes by design (D57), which is exactly the
-     property this ink-based light value does not have. One veil token would
-     have to pick a theme to be wrong in. */
+     IT IS THE APP'S ONLY VEIL SINCE #92, where it used to be one of two. The
+     `Dialog` and the mobile date sheet opened on `sidebar/40` because the rail
+     was an inverted plane in both themes and `ink` was not; now that the wall
+     follows the theme, 40% of it would LIGHTEN a light backdrop, and the
+     property that argued for the second veil is the one that went. */
   --color-scrim: rgba(28, 26, 25, 0.5);
   /* AN ALIAS, NOT A COLOUR — which is what lets it exist at all beside G-7's
      "phase 6 mints exactly one token". It names nothing new: transparent here,
-     and `sidebar-muted`'s own value in dark. The drawer needs an edge in ONE
+     and the control-boundary rank's own value in dark. The drawer needs an edge in ONE
      theme and not the other (see --color-scrim), and the two ways of saying so
      are this or a `dark:` variant on the component. Phase 5 chose token
      redefinition precisely so no component has to know which theme is on, and a
@@ -194,39 +195,31 @@
      onto `field-border`; this one's light value is not required to move at all,
      because the drawer clears 1.4.11 against the composited scrim with no
      stroke — which is what `--color-scrim` above is for. So it still holds two
-     after the ruling, where they held one. */
+     after the ruling, where they held one.
+     RECORDED SHORTFALL, and it is #92 that spent the margin: light used to
+     identify the drawer by its FILL, 5.10 against the composited scrim, which
+     is the reading #98 used to rule that light needs no stroke. The wall
+     follows the theme now, so that fill is 2.94 — under 1.4.11's 3 : 1 by two
+     per cent, on a surface a metre wide. The owner ruled the value stands
+     rather than putting an `ink` hairline round a parchment drawer;
+     `sidebar-plane.test.ts` records it at its value. */
   --color-drawer-edge: transparent;
-  /* THE DARK WALL, IN THE LIGHT BLOCK TOO, until #92 moves the consumers onto
-     `sb-*` and retires these five — flipping the plane first would break
-     `text-white` on the capital card and every `bg-sidebar/40` overlay.
-     Two readings come with that and are recorded rather than discovered:
-     · `-muted` is 4.33 on the wall, under 1.4.3's 4.5, on 10px nav group
-       headers and every dark KPI label. The owner ruled the value stands (#90);
-       the retired palette read 5.07.
-     · the inset-on-wall step is 1.07 here where light used to have 1.20, so the
-       lockup card, the currency track and the capital card read as their own
-       plane only just — which is what dark has always looked like. #92 gives
-       light its own wall and the step comes back. */
-  --color-sidebar: #0d0d0c;
-  --color-sidebar-text: #eceae7;
-  --color-sidebar-muted: #7a7674;
-  --color-sidebar-inset: #161515;
-  --color-sidebar-nav: #a3a19e;
-  /* The logo mark's arrow, and the app's first brand colour (D131). It is the
-     SAME VALUE IN BOTH THEMES, on `pos-on-dark`'s precedent and for the same
-     reason: the mark's only plane here is `sidebar-inset`, which is dark in
-     both. A flipped pair would put the owner's light-ground value on the
-     lighter plate and take it under WCAG 1.4.11's 3 : 1 for a non-text graphic
-     — which is how a flipped token passes review in one theme and fails in the
-     other. That light value is not unused: it is the light branch of
-     `public/favicon.svg`, whose ground is the browser's tab strip and genuinely
-     light. The arc needs no token at all; it takes `currentColor` from
-     `sidebar-text`. */
+  /* The logo mark's arrow, and the app's first brand colour (D131). ONE VALUE IN
+     BOTH THEMES, and #92 spent the reason it was safe: the mark's only plane
+     used to be dark in both, and the wall now follows the theme, so this sand
+     sits on parchment in light where it was drawn for a dark plate. It stays
+     one value here only because #93 owns the mark — the three per-theme
+     `logo-*` names below are already declared for it. The arc takes
+     `currentColor` from `ink`.
+     RECORDED SHORTFALL: 1.49 on the light wall, against 1.4.11's 3 : 1 for a
+     non-text graphic, where dark reads 10.07. The owner ruled it waits for #93
+     rather than being re-valued here by a branch that would be picking one of
+     the sheet's three logo values without the mapping #93 does properly.
+     `palette-mirror.test.ts` records it at its value. */
   --color-brand-sand: #d8b494;
   --color-pos: #2f6b3f;
   --color-pos-tint: #e0e4da;
   --color-pos-tint-text: #2f6b3f;
-  --color-pos-on-dark: #86b98f;
   --color-pos-border: #3d8c52; /* never weaker than the idle edge */
   --color-neg: #a03c30;
   /* Irreversible-harm family — minted by the P3 design session
@@ -271,10 +264,10 @@
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
 
-  /* MINTED HERE, CONSUMED LATER (parchment-5h.dc.html). Nothing on this branch
-     reads the accent, the logo or the sixteen `sb-*`: #95 wires the accent, #93
-     the mark, #92 the wall. Declared now so both blocks move once, together,
-     and a consumer arrives to a name that already answers in either theme.
+  /* MINTED BY #91, CONSUMED SINCE (parchment-5h.dc.html). #92 wired the wall;
+     the accent and the logo are still waiting, for #95 and #93. Declared in one
+     go so both blocks move together, and a consumer arrives to a name that
+     already answers in either theme.
 
      TWO IDENTITIES ARE ALREADY SPENT, recorded rather than resolved — the sheet
      draws them and #91 has no standing to redraw a palette:
@@ -316,12 +309,15 @@
   --color-logo-outline: #8a5a3a;
   --color-logo-pill-a: #b07a52;
   --color-logo-pill-b: #5c3a26;
-  /* THE WALL AND ITS FURNITURE. Sixteen names because the rail carries states
-     the five `sidebar-*` above cannot express — a tint plus an indicator for
-     active, a 5% ground for hover. Light here is a LIGHT wall, which is exactly
-     the half the five do not have yet: flipping their plane before #92 moves
-     the consumers would break `text-white` on the capital card and every
-     `bg-sidebar/40` overlay. So this family waits, declared, until #92. */
+  /* THE WALL AND ITS FURNITURE, and the wall follows the theme: a step deeper
+     than the canvas rather than a dark plane inside a light app. Sixteen names
+     because the rail carries states the retired `sidebar-*` five could not
+     express — a tint plus an indicator for active, a 5% ground for hover.
+     Seven have no consumer in this app and are kept rather than trimmed, each
+     for a reason the sheet gives: `sb-icon`/`-icon-active` govern nav icons the
+     app has none of, `sb-badge`/`-badge-bg` a count badge it does not draw,
+     `sb-divider` a rule between groups, `sb-footer-bg` a user footer, and
+     `sb-border` furniture on a wall whose boundary is the rank #98 put it on. */
   --color-sb-bg: #e8e1d6;
   --color-sb-border: #d6cdbf;
   --color-sb-divider: #dcd3c5;
@@ -329,6 +325,14 @@
   --color-sb-item: #5e5955;
   --color-sb-item-hover: #1c1a19;
   --color-sb-item-hover-bg: rgba(28, 26, 25, 0.05);
+  /* RECORDED SHORTFALL, and it is the one #92 introduced rather than adopted:
+     the active route's label sits on its own 12% tint, not the bare wall, and
+     there it reads 3.88 in light against 1.4.3's 4.5 for 13.5px text (dark
+     8.28). The lozenge it replaced cleared the bar with room. It is the sheet's
+     own value and the sheet prints the figure; what buys it is 1.4.1, which the
+     lozenge failed outright by saying the state in colour alone — the 2px
+     indicator is the half that answers that, and it does nothing for 1.4.3.
+     `sidebar-plane.test.ts` records both readings at their values. */
   --color-sb-item-active: #8a5a3a;
   --color-sb-item-active-bg: rgba(138, 90, 58, 0.12);
   /* The half of the active state that survives a colour-blind reading — 1.4.1
@@ -336,9 +340,11 @@
   --color-sb-indicator: #8a5a3a;
   --color-sb-icon: #6f6a64;
   --color-sb-icon-active: #8a5a3a;
-  /* RECORDED SHORTFALL: 3.09 here and 4.33 in dark, on nav group headers that
-     are 9.5-10px text. The owner ruled the value stands (#90) and #92 adopts it
-     knowing this; the retired palette read 5.07. */
+  /* RECORDED SHORTFALL: 3.09 here and 4.33 in dark, on the nav group headers
+     and the version badge, which are 9.5-10px text. The owner ruled the value
+     stands (#90) and #92 adopted it knowing this; the retired palette read
+     5.07. `sidebar-plane.test.ts` deliberately holds no floor over it —
+     `palette-mirror.test.ts` records it at its value instead. */
   --color-sb-label: #847e77;
   --color-sb-badge: #8a5a3a;
   --color-sb-badge-bg: rgba(138, 90, 58, 0.12);
@@ -429,47 +435,28 @@
   --color-switch-border: var(--color-field-border);
 
   /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
-     anyone moving the alpha. The drawer (`sidebar`) is DARKER than the page
-     here — D57 made it so on purpose — so a darkening scrim moves the
-     background TOWARDS the drawer instead of away from it, and the two become
-     one field. An ink-based scrim is worse, not better: `ink` inverts to
-     near-white in dark, so a veil of it is a grey wash over the app — the same
-     mistake D57 records for the Dialog overlay.
+     anyone moving the alpha. The drawer's wall is DARKER than the page here —
+     a step deeper than the canvas, which is the rule in both themes — so a
+     darkening scrim moves the background TOWARDS the drawer instead of away
+     from it, and the two become one field. An ink-based scrim is worse, not
+     better: `ink` inverts to near-white in dark, so a veil of it is a grey wash
+     over the app.
      So the value below keeps the veil doing the job a veil can still do —
-     dimming what is behind — and the drawer takes an EDGE instead.
-     `sidebar-muted` is the one used: of the four candidates it is the only one
-     that both belongs to the drawer's own family and clears 1.4.11 against the
-     composited veil, where a brighter option would read as a stroke rather than
-     an edge. */
+     dimming what is behind — and the drawer takes an EDGE instead, at the
+     control-boundary rank: it clears 1.4.11 against the composited veil, where
+     a brighter option would read as a stroke rather than an edge. */
   --color-scrim: rgba(17, 17, 16, 0.64);
   /* Read through the alias rather than repeated as a hex, so it cannot drift
      from the token it was measured as — the block above is the reasoning. */
-  --color-drawer-edge: var(--color-sidebar-muted);
+  --color-drawer-edge: var(--color-field-border);
 
-  /* Sidebar. The wall goes DARKER than the page, not lighter, or it stops
-     reading as its own plane. IDENTICAL TO THE LIGHT BLOCK until #92: the five
-     carry the dark wall in both themes, because flipping the light plane before
-     the consumers move breaks `text-white` on the capital card and every
-     `bg-sidebar/40` overlay. `sb-*` above holds the light wall meanwhile.
-     RECORDED SHORTFALL on `-muted`: 4.33 on the wall, under 1.4.3's 4.5, and
-     the version badge and every dark KPI label read it. Owner ruled (#90). */
-  --color-sidebar: #0d0d0c;
-  --color-sidebar-text: #eceae7;
-  --color-sidebar-muted: #7a7674;
-  --color-sidebar-inset: #161515;
-  --color-sidebar-nav: #a3a19e;
-
-  /* Brand. Repeated at the same value on purpose — see the light block for the
-     reason; `pos-on-dark` two groups below does the same thing. */
+  /* Brand. Repeated at the same value on purpose — see the light block. */
   --color-brand-sand: #d8b494;
 
-  /* Semantic. `pos-on-dark` is one value in both blocks: it was always meant
-     for a dark plane, and the inverted planes (KpiCard dark, sidebar) are still
-     one in either theme. */
+  /* Semantic. */
   --color-pos: #86b98f;
   --color-pos-tint: #282f2a;
   --color-pos-tint-text: #86b98f;
-  --color-pos-on-dark: #86b98f;
   --color-pos-border: #5e8264; /* never weaker than the idle edge */
   --color-neg: #d9776a;
   --color-neg-tint: #342525;
@@ -717,21 +704,6 @@
     background: transparent;
   }
 
-  /* The ink ring IS the sidebar's own colour — 1.00:1 against `sidebar`, and
-     barely more against `sidebar-inset`, i.e. keyboard focus was invisible on
-     every nav pill and both toggles. `sidebar-text` clears the 3:1 that WCAG
-     1.4.11 asks of a non-text indicator on both, with room.
-     It is right for the ACTIVE pill too, light background and all: the 2px
-     offset draws the ring OUTSIDE the control, on the dark rail behind it.
-
-     Keyed to `[data-dark-surface]`, NOT to `aside`: the app has a second
-     <aside> — the Daily-quotes transaction column — which sits on white, so a
-     tag-name selector moved the invisible ring there instead of removing it.
-     Any future dark panel opts in by carrying the attribute. */
-  [data-dark-surface] :focus-visible {
-    outline-color: var(--color-sidebar-text);
-  }
-
   /* A TRACK PAINTED IN ITS PLANE'S FOREGROUND NEEDS THE RING IN THE BACKGROUND.
      The segmented controls' track is `ink` (2026-09-01) and the base rule two
      blocks up paints the ring `var(--color-ink)` — so the ring was ink on an
@@ -746,11 +718,10 @@
      in the repo.
 
      `page` rather than a fixed value, so it inverts with the theme the way the
-     track does. Opt-in by attribute, the same shape `[data-dark-surface]` above
-     uses, because only a filled track needs it — a control on `panel` or `card`
-     is already served by the base rule, and so is the rail's currency toggle,
-     which keeps a DARK track by ruling (D114) and therefore wants the light ring
-     the rule above already gives it. */
+     track does. Opt-in by attribute, because only a filled track needs it: a
+     control on `panel` or `card` is already served by the base rule, and so is
+     the rail's currency toggle, whose track is `sb-field` rather than a fill —
+     the wall follows the theme now, and `ink` reads on it in either. */
   /* WHY THE FILLED TRACKS CARRY `border border-ink` ON A `bg-ink` FILL — it
      draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
      the gap D56's concentric rule adds to the segment's radius. Every filled
@@ -785,33 +756,6 @@
      in the class string (`transition-[color,background-color,transform]`), which
      is six duplicated recipes today and the reason a shared
      `SegmentedTrack` is the open proposal. */
-
-  /* THE SAME IDEA, ONE LEVEL UP — an inverted plane needs the DARK theme's
-     surface furniture even while the app is in LIGHT. Found by measurement when
-     the mobile drawer's nav first overflowed (phase 6, S1): the `Scroller`'s
-     colours were chosen against `card`, and on the sidebar's wall the very same
-     tokens read many times their intended weight, so the quietest furniture in
-     the app became a bright stick down the primary mobile surface. It is a
-     pre-existing gap in D65 rather than something the drawer introduced; the
-     drawer is only where it became unavoidable, because a 640 px-tall phone
-     always overflows this nav.
-
-     NO COLOUR IS MINTED HERE. These are the values the palette already chose
-     FOR A DARK PLANE, borrowed on the one plane that is dark in both themes —
-     the same move `pos-on-dark` exists to make. It is non-text furniture, which
-     1.4.11 does not bind at all (see Scroller.tsx). In the dark theme these
-     three are already these values, so the block is a literal no-op there and
-     nothing branches at runtime.
-
-     Nothing else under `[data-dark-surface]` reads them today — the sidebar
-     paints from its own `sidebar-*` family throughout — so the blast radius is
-     the rail. And if something later does, a dark plane is exactly where these
-     readings are the correct ones. */
-  [data-dark-surface] {
-    --color-panel-border: #3a373c;
-    --color-faint: #6e6a65;
-    --color-muted: #a3a19e;
-  }
 
   /* Its own token, not `accent-tint`: selection is sand in both themes and the
      accent is copper in light. Gain does not belong to a text selection any

@@ -374,9 +374,9 @@ export function DatePicker({
   // A Dialog rather than a Popover, because a sheet anchored to the VIEWPORT is
   // what a dialog is: it brings the scrim, the focus trap and the scroll lock
   // that a floating popover over a scrollable page does not have. Its overlay is
-  // the app Dialog's `sidebar/40` and NOT `--color-scrim` (D-d): the drawer's
-  // scrim is `ink`-based and would turn into a grey wash in dark, while
-  // `sidebar` is an inverted plane in both themes.
+  // the app Dialog's, which is `--color-scrim` since #92 — the two used to
+  // differ because one veiled a plane that was dark in both themes and the other
+  // did not, and re-planing the wall collapsed that distinction.
   //
   // WIDTH IS 328, NOT THE DRAWING'S 312, and the arithmetic is why. 312 is
   // 360 − 2×24, and 312 ÷ 7 = 44.6 is where the drawing gets its ">44px cells" —
@@ -390,7 +390,7 @@ export function DatePicker({
       <RadixDialog.Root open={open} onOpenChange={openChange}>
         <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>
         <RadixDialog.Portal>
-          <RadixDialog.Overlay className="fixed inset-0 z-50 bg-sidebar/40 data-[state=open]:animate-in data-[state=open]:duration-200 data-[state=open]:fade-in" />
+          <RadixDialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:duration-200 data-[state=open]:fade-in" />
           {/* BOUNDED AND SCROLLABLE, because the sheet is taller than a
               landscape phone. 44px day cells make a six-week month 343.6px
               tall; measured at 568 x 320 (landscape iPhone SE) the sheet was

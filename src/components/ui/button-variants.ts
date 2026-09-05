@@ -36,8 +36,8 @@ export const buttonVariants = cva(
         // dark text and the label vanished into it. `ink-hover` is the fill's
         // own token and moves with it in both themes.
         primary: 'border-transparent bg-ink text-page hover:bg-ink-hover',
-        // The hover fill was `sidebar-text`, a RAIL token borrowed onto a light
-        // surface. Here `text-ink` is right and must invert — so in dark the
+        // The hover fill was a RAIL token borrowed onto a light surface, from
+        // the family #92 retired. Here `text-ink` is right and must invert — so in dark the
         // label and the hover fill went to the same near-white together, and
         // the button emptied on hover. `panel` is the surface-step token this
         // always wanted, and it moves with the theme where a rail token does

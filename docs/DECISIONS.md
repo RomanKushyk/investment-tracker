@@ -127,10 +127,14 @@ through the infrastructure, so no identifier anything addresses still carries th
 is the Q-arrow mark — an open arc whose tail is a sand arrow — and it lives in THREE files that must
 change together: `src/app/Sidebar.tsx`, `public/favicon.svg` and `public/apple-touch-icon.png`.
 Nothing sits behind it — the mark IS the circle — and its brand token is one value in both themes.
+The sidebar LOCKUP is that mark at 22px beside a lowercase `quirenote` in the mono face at 600 and
+-3%: one row, no plate behind it and no tagline under it, with the dataset badge as the row's third
+member rather than an ornament floating over a box.
 **Why.** Every precise word was taken in every zone, so the name is a compound, and the collision
 audit killed better candidates than the availability sweep did — half the neighbours of a mined
-ending are financial. The mark's only plane is dark in BOTH themes, so a per-theme pair would put
-the light value on the lighter plate, where it fails contrast.
+ending are financial. The brand token stayed one value because the mark's only plane was dark in
+both themes; the wall follows the theme now, which spends that reason and is why the per-theme logo
+tokens exist for the mark to take.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free. ·
 Leaving the machines named for the old product: the rename is cheapest while the archive is young.
 
@@ -353,18 +357,25 @@ target never moves under a hovering pointer. A destructive clear is armed by typ
 name, and offers a backup first. Reminders derive their ids and write nothing, so a dismissal expires
 when its occurrence stops being produced. The theme is ONE list of values redefined per theme,
 stamped as an answer. A segmented control's track takes its plane's FOREGROUND and its chip the
-background — `ink` and `card` everywhere but the sidebar, whose currency toggle is a ruled exception:
-a light lozenge there already means a selected route. `muted` is derived against its worst surface.
+background — `ink` and `card` everywhere but the sidebar, whose currency toggle runs the wall's own
+field rank instead: a recessed track and a solid accent thumb. The sidebar's ACTIVE ROUTE is a tint
+plus a 2px inset left indicator, never a fill, so a state is never colour alone; a solid fill
+therefore means a selected segment there and nothing else. `muted` is derived against its worst
+surface.
 Gain and loss belong to DELTAS: an informational chip reads `info`, a text selection reads
 `selection`, and neither borrows `pos`. Partly done — the reminder strip, the fresh-quote chip, the
 `/` progress pill and the NBU rate have moved; eight surfaces have not, and #97 carries the two
 groups that need an answer rather than a swap.
 **Why.** A dismissal on `animationend` never lands in a throttled tab, so it commits on a timer. A
-`card` chip reads as raised in one theme and as a recess in the other; a filled track inverts. A
-green highlight on a reminder, a fresh quote or a run of selected text says "up" about something
-that has no direction.
+`card` chip reads as raised in one theme and as a recess in the other; a filled track inverts. WCAG
+1.4.1 does not accept a state said in colour alone, and the rail's old light lozenge said it that
+way — so the indicator is the half that survives a colour-blind reading, and it is what frees a
+solid fill to mean something else twenty pixels below a list of routes. A green highlight on a
+reminder, a fresh quote or a run of selected text says "up" about something that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it. ·
 Resolving `system` at write time: it would decay into whatever the system was when the user looked.
+· Giving the currency toggle the general `ink` track once its exception lapsed: a near-black slab
+inside a parchment wall, against the 60/30/10 the palette is built on.
 
 ## Forms and layout
 **Decision.** `/` and `/transactions` are composed the way `/payouts` is — main's own width, a
