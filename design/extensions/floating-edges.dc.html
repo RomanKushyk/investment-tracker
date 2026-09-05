@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces, not the ones #94 will bring. Every surface below is drawn
+     at the radius AND on the plane the app renders it at — a boundary decision
+     made on a stand-in is a decision about nothing, and that applies to what is
+     behind the box as much as to the box. -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#efeae2;color:#1c1a19;font-family:"JetBrains Mono",ui-monospace,monospace}
+body *{font-family:inherit;box-sizing:border-box}
+h1,h2{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;color:#1c1a19}
+:focus-visible{outline:2px solid #1c1a19;outline-offset:2px}
+::selection{background:rgba(216,180,148,0.45)}
+table{border-collapse:collapse;margin-bottom:14px}
+td,th{text-align:left;padding:5px 14px 5px 0;font-size:12px;vertical-align:baseline}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#5e5955;font-weight:400;border-bottom:1px solid #ddd5c8;padding-bottom:7px}
+code{font-size:.95em}
+/* EVERY VERDICT CARRIES A GLYPH. `field-border.dc.html` set the rule, and three
+   review rounds on this file's own first draft proved it needs enforcing on the
+   FIGURES and not only on a pass/fail column: `.no` is the body colour, so
+   without a glyph a marked number is invisible to a greyscale reader. An
+   unmarked figure is one this file passes no judgement on. */
+.no{color:#1c1a19;font-weight:700}
+.yes{color:#2f6b3f;font-weight:700}
+.mi{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#5e5955;border:1px dashed #b4aa9a;border-radius:6px;padding:2px 7px;display:inline-block;background:#efeae2}
+.plate{border-radius:16px;padding:16px 18px}
+.wrap{max-width:1060px;margin:0 auto;padding:34px 26px 60px}
+.note{font-size:12px;line-height:1.65;max-width:920px}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     design/extensions/floating-edges.dc.html — the floating-surface edge, retired into the rank
+
+     Brief: issue #86. Implementing task: issue #98.
+     Not this file's: every field edge, #80 implemented by #3 · the `Switch` OFF
+     edge and the `Scroller` rail, #83 implemented by #87 · the import dropzone,
+     #88 · the whole palette, #89's epic · the `Dialog` panel's own fill step
+     against its overlay, #99.
+
+     WHY THIS FILE EXISTS, GIVEN #90 WAS ADOPTED AS #86's SESSION. #90's Mapping
+     addresses these tokens only to preserve their SHAPE — "unchanged shape …
+     so it follows". That is a mapping decision, not an answer to whether 1.4.11
+     binds a light popover whose shadow does draw. This file answers it.
+
+     THIS IS THE SECOND DRAFT AND THE FIRST IS DELETED. The first ran to 490
+     lines, tried three times to justify exempting `surface-edge`, and failed
+     review three times — twice on the argument, once for stamping a pass on
+     surfaces whose binding adjacency still failed. The root cause is recorded in
+     two comments on #86 and is not repeated here, because the fix for a file
+     that argued itself into contradictions is a shorter file. Every figure below
+     is stated ONCE.
+═══════════════════════════════════════════════════════════════════════ -->
+
+<div class="wrap">
+
+<h1 style="margin:0 0 6px;font-size:26px">The floating-surface edge, retired into the rank</h1>
+<p class="note" style="margin:0 0 30px;color:#5e5955">
+Brief #86 &middot; implemented by #98 &middot; supersedes <code>parchment-5h.dc.html</code>'s
+mapping of <code>popover-edge</code>, <code>toast-edge</code> and <code>surface-edge</code>.
+</p>
+
+<!-- ── T1 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T1 &middot; What fails, and the ladder it could climb</h2>
+<p class="note" style="margin:0 0 12px">
+Scored on <code>page</code>, <code>card</code> and <code>panel</code> &mdash; the three CONTENT
+planes, of which <code>panel</code> is the darkest and so the one that binds. Stated carefully,
+because light has two backdrops darker than <code>panel</code> that are not content planes: the
+sidebar wall, and the <code>bg-sidebar/40</code> overlay. Those are scored in T5, and the
+<em>worst</em> column here is the worst <strong>on a plane</strong>.
+</p>
+
+<table>
+  <tr><th>light value</th><th>page</th><th>card</th><th>panel</th><th>worst</th><th>3 : 1</th></tr>
+  <tr><td><code>popover-edge</code> &rarr; <code>hairline</code> #ddd5c8</td><td>1.22</td><td>1.34</td><td>1.11</td><td>1.11</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>toast-edge</code> &rarr; <code>panel-border</code> #c6bbab</td><td>1.58</td><td>1.74</td><td>1.44</td><td>1.44</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>surface-edge</code> &rarr; <code>transparent</code></td><td colspan="4">no boundary at all</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>faint</code> #b4aa9a &mdash; the next rung up</td><td>1.92</td><td>2.11</td><td>1.75</td><td>1.75</td><td class="no">&#10007;</td></tr>
+  <tr><td><strong><code>field-border</code> #847e77</strong></td><td><strong>3.35</strong></td><td><strong>3.69</strong></td><td><strong>3.06</strong></td><td><strong>3.06</strong></td><td class="yes">&#10003;</td></tr>
+  <tr><td><code>muted</code> #5e5955</td><td>5.78</td><td>6.36</td><td>5.28</td><td>5.28</td><td class="yes">&#10003;</td></tr>
+</table>
+
+<div class="plate" style="border:1px solid #ddd5c8;background:#f8f5ef;margin-bottom:32px">
+<p class="note" style="margin:0">
+<strong>The ladder has a hole in it.</strong> Nothing sits between <code>faint</code> 1.75 and
+<code>field-border</code> 3.06, because the parchment session mints no fourth grey. The choice is
+binary, and no sixth candidate is offered: one would be a new grey, and minting a grey is a palette
+decision this file has no standing to make.
+</p>
+</div>
+
+<!-- ── T2 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T2 &middot; The shadow cannot carry it</h2>
+<p class="note" style="margin:0 0 12px">
+#86 offers "no change, the shadow is the separation" as the honest alternative. Composited, it is
+not available as a 1.4.11 argument. <strong>These are UPPER BOUNDS</strong>: each is a plane
+composited with the shadow's full nominal alpha, which is the alpha <em>under</em> the occluded
+box. Outside the edge, with the blur and offset each shadow actually has, the visible step is
+roughly half &mdash; near 1.12 for <code>--shadow-popover</code>, near 1.17 for
+<code>--shadow-dialog</code>. The bound is the direction that flatters the alternative, which is
+why the bound is what is printed.
+</p>
+
+<table>
+  <tr><th>shadow</th><th>bound on the step it buys</th><th>3 : 1</th></tr>
+  <tr><td><code>--shadow-popover</code> <code>0 4px 16px rgba(60, 40, 20, 0.12)</code></td><td>1.24 &ndash; 1.25</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>--shadow-dialog</code> <code>0 12px 40px rgba(60, 40, 20, 0.18)</code></td><td>1.39 &ndash; 1.41</td><td class="no">&#10007;</td></tr>
+</table>
+<p class="note" style="margin:0 0 32px">
+The veil is worth about what the stroke it would excuse is worth. So the shadow describes what a
+sighted user perceives and is never a finding of conformance. "No change" survives only as a
+recorded non-conformance &mdash; and unlike <code>reit</code>'s 2.79 or the switch's dark 2.05,
+this one has a remedy inside the palette: row five of T1.
+</p>
+
+<!-- ── T3 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T3 &middot; Two surfaces with nothing to fall back on</h2>
+<table>
+  <tr><th>case</th><th>fill step</th><th>stroke, light now</th><th>same case, dark</th></tr>
+  <tr><td>a <code>Select</code> opened inside a <code>Dialog</code> &mdash; <code>card</code> on <code>card</code></td><td class="no">1.00 &#10007;</td><td class="no">1.34 &#10007;</td><td class="yes">3.94 &#10003;</td></tr>
+  <tr><td>the chart tooltip &mdash; <code>panel</code> fill over <code>card</code>, <strong>no shadow in either theme</strong></td><td class="no">1.20 &#10007;</td><td class="no">1.44 &#10007;</td><td class="yes">3.65 &#10003;</td></tr>
+</table>
+<p class="note" style="margin:0 0 32px">
+The first is the case #86 singles out: both surfaces are <code>card</code>, so the fill step is
+1.00 <em>by construction</em> and the stroke is the whole boundary. The second forecloses "no
+change": <code>CHART_TOOLTIP</code> renders inside a <code>bg-card</code> <code>Card</code> at all
+four of its consumers &mdash; <code>PayoutsBars</code>, <code>BalancesArea</code>,
+<code>SeasonalityBars</code>, <code>YieldLines</code> &mdash; and its own comment already says
+"this tooltip carries no shadow in EITHER theme, so its stroke was always the whole boundary."
+There is nothing to argue from, and dark already clears the bar through the token proposed here.
+</p>
+
+<!-- ── T4 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T4 &middot; The ruling &mdash; the three names are retired, not re-valued</h2>
+<p class="note" style="margin:0 0 12px">
+The first draft re-pointed three aliases at <code>field-border</code> and kept the names. Review
+asked the question that ruling implies and the draft never answered it: if all three hold one value
+in <strong>both</strong> themes, they are one step drawn three times, and <code>index.css</code>'s
+own retired <code>--color-label</code> comment rules on exactly that &mdash; "Two tokens that must
+hold the same value to be legible are one step drawn twice. &hellip; Do not re-mint." So they are
+retired instead.
+</p>
+
+<table>
+  <tr><th>token</th><th>light</th><th>dark</th><th>after</th></tr>
+  <tr><td><code>--color-popover-edge</code></td><td><code>var(--color-hairline)</code></td><td><code>var(--color-field-border)</code></td><td><strong>retired</strong> &mdash; consumers read the rank</td></tr>
+  <tr><td><code>--color-toast-edge</code></td><td><code>var(--color-panel-border)</code></td><td><code>var(--color-field-border)</code></td><td><strong>retired</strong></td></tr>
+  <tr><td><code>--color-surface-edge</code></td><td><code>transparent</code></td><td><code>var(--color-field-border)</code></td><td><strong>retired</strong></td></tr>
+  <tr><td><code>--color-drawer-edge</code></td><td><code>transparent</code></td><td><code>var(--color-sidebar-muted)</code></td><td>kept &mdash; T5</td></tr>
+</table>
+
+<p class="note" style="margin:0 0 12px">
+The palette goes 74 &rarr; <strong>71</strong> names per block. No hex is minted; three names leave
+and their seven consumers read the rank directly. <code>index.css</code> already calls
+<code>field-border</code> "the control-boundary rank" &mdash; a rank, not a field's private colour
+&mdash; and a floating surface's edge is a component boundary held to the same bar on the same
+planes.
+</p>
+
+<div class="plate" style="border:1px dashed #b4aa9a;margin-bottom:32px">
+<p class="note" style="margin:0">
+<strong>WHY <code>--color-switch-border</code> IS NOT RETIRED WITH THEM</strong>, since it is also
+<code>var(--color-field-border)</code> in both blocks and the question is fair. Its name carries a
+reading that has nowhere else to live: the dark OFF edge against its own track, 2.05 : 1, a
+recorded shortfall <code>index.css</code> states beside that declaration and
+<code>switch-border.test.ts</code> pins. Retiring the name deletes the only place that reading is
+attached to. The three retired here carry no such record &mdash; nothing is written at their names
+that is not already written at <code>field-border</code>'s &mdash; so there is nothing at them to
+keep.
+</p>
+</div>
+
+<!-- ── T5 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T5 &middot; What it costs, and the one edge kept</h2>
+<p class="note" style="margin:0 0 12px">
+Every surface gains a stroke. Two readings are reported for each, because a stroke has two
+adjacencies and for surfaces over an overlay they disagree &mdash; <strong>inward</strong> against
+the surface's own fill, <strong>outward</strong> against what it is drawn over.
+</p>
+
+<table>
+  <tr><th>surface</th><th>fill step before</th><th>stroke, inward</th><th>stroke, outward</th></tr>
+  <tr><td><code>Select</code> in a <code>Dialog</code></td><td class="no">1.00 &#10007;</td><td class="yes">3.69 &#10003;</td><td class="yes">3.69 &#10003;</td></tr>
+  <tr><td>chart tooltip, in a <code>Card</code></td><td class="no">1.20 &#10007;</td><td class="yes">3.06 &#10003;</td><td class="yes">3.69 &#10003;</td></tr>
+  <tr><td>toast, over <code>page</code></td><td class="no">1.10 &#10007;</td><td class="yes">3.69 &#10003;</td><td class="yes">3.35 &#10003;</td></tr>
+  <tr><td>anchored date popover, over a plane</td><td class="no">1.10 &ndash; 1.20 &#10007;</td><td class="yes">3.69 &#10003;</td><td class="yes">3.06 &ndash; 3.35 &#10003;</td></tr>
+  <tr><td>mobile date sheet, over the overlay</td><td class="no">2.65 &#10007;</td><td class="yes">3.69 &#10003;</td><td class="no">1.20 &ndash; 1.39 &#10007;</td></tr>
+  <tr><td><code>Dialog</code> panel, over the overlay</td><td class="no">2.65 &#10007;</td><td class="yes">3.69 &#10003;</td><td class="no">1.20 &ndash; 1.39 &#10007;</td></tr>
+  <tr><td>desktop rail, the wall on <code>page</code></td><td class="yes">16.24 &#10003;</td><td>4.84</td><td>3.35 &mdash; <strong>THE COST</strong></td></tr>
+</table>
+
+<div class="plate" style="border:1px solid #ddd5c8;background:#f8f5ef;margin-bottom:20px">
+<p class="note" style="margin:0 0 8px">
+<strong>THE TWO OVERLAY SURFACES ARE NOT FULLY REPAIRED, and the table says so rather than
+stamping them.</strong> They gain an identifiable boundary inward at 3.69, where before they had
+only a 2.65 fill step and a shadow worth about 1.17. Outward against the overlay the stroke is
+1.20&ndash;1.39 on every plane, so the adjacency that separates them from the page behind still
+fails. That reading is <strong>#99</strong>'s: closing it means moving the overlay or the panel,
+and #92 moves <code>sidebar</code>, which the overlay is 40 % of, so it may resolve there.
+</p>
+<p class="note" style="margin:0">
+<strong>THE COST IS THE RAIL.</strong> A stroke there reads 3.35 outward on a plane already at
+16.24 &mdash; a visible light outline down the sidebar, which <code>index.css</code> calls
+"decoration nothing asked for" and this file overrules rather than agrees with. It is accepted
+because the alternative is an exemption and an exemption cannot be written: the <code>Dialog</code>
+panel and the mobile date sheet are identical in fill, backdrop, fill step and both stroke readings
+while reading different tokens, so no rule about the surfaces can bound one family and not the
+other. That is what the first draft died of, and retiring the names removes the families it turned
+on.
+</p>
+</div>
+
+<div class="plate" style="border:1px dashed #b4aa9a;margin-bottom:32px">
+<p class="note" style="margin:0">
+<strong><code>--color-drawer-edge</code> IS KEPT</strong>, the only floating edge left with a light
+value of its own. It has one consumer, the mobile drawer &mdash; the sidebar wall over
+<code>--color-scrim</code>, which is <em>not</em> the <code>Dialog</code>'s
+<code>bg-sidebar/40</code>, a distinction <code>--color-scrim</code>'s own comment is at pains to
+draw. Composited per plane the drawer reads 5.50 / 5.10 / <strong>4.77</strong>, so its binding
+figure is 4.77 and it is identified without a stroke. It also differs per theme &mdash;
+transparent in light, <code>sidebar-muted</code> in dark &mdash; so unlike the three retired here
+it is not one step drawn twice.
+</p>
+</div>
+
+<!-- ── T6 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T6 &middot; The specimens</h2>
+<p class="note" style="margin:0 0 14px">
+Each on the plane it occupies and at its own radius. <span class="mi">light</span>
+</p>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
+  <div class="plate" style="background:#e7e0d5;border:1px solid #ddd5c8;min-width:250px">
+    <div class="mi" style="margin-bottom:12px;background:#e7e0d5">Select &middot; over panel, r14</div>
+    <div style="border-radius:14px;background:#f8f5ef;border:1px solid #ddd5c8;box-shadow:0 4px 16px rgba(60,40,20,0.12);padding:11px 13px;font-size:12px">before &middot; 1.11</div>
+    <div style="height:11px"></div>
+    <div style="border-radius:14px;background:#f8f5ef;border:1px solid #847e77;box-shadow:0 4px 16px rgba(60,40,20,0.12);padding:11px 13px;font-size:12px">after &middot; 3.06</div>
+  </div>
+  <div class="plate" style="background:#f8f5ef;border:1px solid #ddd5c8;min-width:250px">
+    <div class="mi" style="margin-bottom:12px;background:#f8f5ef">tooltip &middot; over card, r16, no shadow</div>
+    <div style="border-radius:16px;background:#e7e0d5;border:1px solid #c6bbab;padding:11px 13px;font-size:12px">before &middot; 1.44 inward</div>
+    <div style="height:11px"></div>
+    <div style="border-radius:16px;background:#e7e0d5;border:1px solid #847e77;padding:11px 13px;font-size:12px">after &middot; 3.06 inward</div>
+  </div>
+  <div class="plate" style="background:#efeae2;border:1px solid #ddd5c8;min-width:250px">
+    <div class="mi" style="margin-bottom:12px">toast &middot; over page, r13</div>
+    <div style="border-radius:13px;background:#f8f5ef;border:1px solid #c6bbab;box-shadow:0 4px 16px rgba(60,40,20,0.12);padding:11px 13px;font-size:12px">before &middot; 1.58</div>
+    <div style="height:11px"></div>
+    <div style="border-radius:13px;background:#f8f5ef;border:1px solid #847e77;box-shadow:0 4px 16px rgba(60,40,20,0.12);padding:11px 13px;font-size:12px">after &middot; 3.35</div>
+  </div>
+</div>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:32px">
+  <div class="plate" style="background:#efeae2;border:1px solid #ddd5c8;min-width:250px;position:relative">
+    <!-- The overlay is painted the way the app paints it — `sidebar` at 40 % over
+         the plane — not as its composited hex, so every literal stays a token. -->
+    <div style="position:absolute;inset:0;background:rgba(13,13,12,0.40);border-radius:16px"></div>
+    <div style="position:relative">
+      <div class="mi" style="margin-bottom:12px">Dialog &middot; over its overlay, r20</div>
+      <div style="border-radius:20px;background:#f8f5ef;box-shadow:0 12px 40px rgba(60,40,20,0.18);padding:11px 13px;font-size:12px">before &middot; fill step only</div>
+      <div style="height:11px"></div>
+      <div style="border-radius:20px;background:#f8f5ef;border:1px solid #847e77;box-shadow:0 12px 40px rgba(60,40,20,0.18);padding:11px 13px;font-size:12px">after &middot; 3.69 in, 1.29 out</div>
+    </div>
+  </div>
+  <div class="plate" style="background:#efeae2;border:1px solid #ddd5c8;min-width:250px">
+    <div class="mi" style="margin-bottom:12px">the rail &middot; THE COST</div>
+    <div style="display:flex;gap:12px;align-items:stretch;height:88px">
+      <div style="width:42px;border-radius:0 14px 14px 0;background:#0d0d0c"></div>
+      <div style="width:42px;border-radius:0 14px 14px 0;background:#0d0d0c;border:1px solid #847e77;border-left:0"></div>
+      <div class="note" style="align-self:center">before &middot; none<br>after &middot; 3.35 out<br>on a plane at 16.24</div>
+    </div>
+  </div>
+  <div class="plate" style="background:#19181a;border:1px solid #2a282c;min-width:250px">
+    <div class="mi" style="margin-bottom:12px;color:#a3a19e;border-color:#6e6a65;background:#19181a">dark &mdash; unchanged, shown for the convergence</div>
+    <div style="border-radius:14px;background:#19181a;border:1px solid #7a7674;padding:11px 13px;font-size:12px;color:#eceae7">already 3.94</div>
+  </div>
+</div>
+
+<!-- ── T7 ─────────────────────────────────────────────────────────────── -->
+<h2 style="font-size:19px;margin:0 0 4px">T7 &middot; What #98 must move, and what this supersedes</h2>
+
+<table>
+  <tr><th>#98 changes</th><th>what</th></tr>
+  <tr><td><code>src/index.css</code></td><td>the three declarations leave both blocks, 74 &rarr; 71 names</td></tr>
+  <tr><td>seven consumers read the rank directly</td><td><code>Select.tsx</code> &middot; <code>DatePicker.tsx</code> &times;2 &middot; <code>Dialog.tsx</code> &middot; <code>Sidebar.tsx</code> (the rail) &middot; <code>main.tsx</code> (the toast) &middot; <code>core/colors.ts</code> (<code>CHART_TOOLTIP</code>)</td></tr>
+  <tr><td><code>src/popover-edge.test.ts</code></td><td>the file is <em>about</em> these three names; it is re-aimed at <code>field-border</code> on the planes each surface is drawn on, and its header, its <code>PLANES</code> map and its light and dark assertions move together</td></tr>
+  <tr><td>comments that become false</td><td>every one arguing from a retired name &mdash; in <code>index.css</code>, <code>Dialog.tsx</code>, <code>main.tsx</code>, <code>core/colors.ts</code>, <code>field-border.test.ts</code>'s edge list and <code>popover-edge.test.ts</code>'s header. #98 finds them by grepping the three names, which is exact where a hand-kept list is not &mdash; and a hand-kept list is what this file's first draft got wrong twice</td></tr>
+</table>
+
+<table>
+  <tr><th>superseded</th><th>where</th></tr>
+  <tr><td><code>parchment-5h.dc.html</code>'s three Mapping rows</td><td>its <code>drawer-edge</code> row stands</td></tr>
+  <tr><td>the old light <code>hairline</code> #e8e7e4, 9 boxes</td><td><code>asset-form:309</code> &middot; <code>automation:130 :144 :178 :204 :217</code> &middot; <code>metrics-exposure:350</code> &middot; <code>period-and-analytics:1661</code> &middot; <code>mobile:961</code></td></tr>
+  <tr><td>the old light <code>panel-border</code> #dedcd8, 2 boxes</td><td><code>mobile:999</code> (the toast) &middot; <code>mobile:1069</code> (the tooltip)</td></tr>
+</table>
+
+<p class="note" style="margin:0">
+<strong>Eleven boxes, five sheets, and the survey that found them is re-runnable:</strong> an
+inline style with a 1px hex border AND a radius of 10&ndash;24px AND either absolute/fixed
+positioning or a box-shadow whose <strong>blur is 8px or more</strong>. The blur floor is
+load-bearing &mdash; sibling sheets' own annotation cards carry <code>--shadow-card</code>'s 3px
+blur, and without the floor the signature sweeps them in as if they were app surfaces. Two further
+matches are excluded with reasons: <code>scroll-surface:171</code> is a scrollport diagram frame,
+<code>appearance-language:1327</code> is dark. The master reference draws <strong>zero</strong>
+light floating surfaces and is untouched. This file draws <strong>five</strong> boxes of its own
+by that signature &mdash; its Select and toast pairs plus the <code>Dialog</code> "after" &mdash;
+so a reader re-running it subtracts five. That figure is computed from the file rather than
+counted by eye, which is how its first draft got the same number wrong twice. Nothing here supersedes geometry, copy or any
+dark value, and it edits none of them.
+</p>
+
+</div>
+</x-dc>
+</body>
+</html>
