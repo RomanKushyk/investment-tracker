@@ -165,10 +165,11 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
     });
   }
 
-  // A NAME, NOT A VALUE. Inlining `#84827d` or `#747169` would still pass the
-  // ratios above and then stop tracking the control-boundary rank the next time
-  // it moves — the thing the ruling refused. What is pinned is that the value is
-  // READ, not the spelling of the chain, which `resolve()` is relaxed about.
+  // A NAME, NOT A VALUE. Inlining the control-boundary rank's hex would still
+  // pass the ratios above and then stop tracking it the next time it moves —
+  // the thing the ruling refused, and #91 is the move that proved it right.
+  // What is pinned is that the value is READ, not the spelling of the chain,
+  // which `resolve()` is relaxed about.
   for (const theme of THEMES) {
     it(`${theme} reads the edge through a token, never as a copy of its hex`, () => {
       expect(
@@ -194,8 +195,8 @@ describe('the track is frozen, and the state gap is what freezes it', () => {
   // is the argument: OFF must stay clearly distinct from ON (`ink`), and a track
   // moved far enough to clear 3 : 1 against the card behind it spends that gap.
   it('keeps `switch-track` on the two values the ruling froze', () => {
-    expect(resolve(BLOCKS.light, 'switch-track')).toBe('#e8e7e4');
-    expect(resolve(BLOCKS.dark, 'switch-track')).toBe('#4a4a55');
+    expect(resolve(BLOCKS.light, 'switch-track')).toBe('#efeae2');
+    expect(resolve(BLOCKS.dark, 'switch-track')).toBe('#4a4650');
   });
 
   it.each(THEMES)('%s keeps at least 7 : 1 between the OFF and ON fills', (theme) => {
@@ -207,19 +208,18 @@ describe('the track is frozen, and the state gap is what freezes it', () => {
 describe("the dark knob's ring is the same boundary", () => {
   // Dark zeroes its shadows bar this one, so the ring IS the knob's boundary — a
   // spread-only shadow used as a 1px edge. Through the token, never a copy of
-  // the hex, so it cannot drift from the value above it: 1.36 → 3.49.
+  // the hex, so it cannot drift from the value above it.
   it('points dark `--shadow-thumb` at `switch-border`', () => {
     expect(shadowIn(BLOCKS.dark, 'thumb')).toBe('0 0 0 1px var(--color-switch-border)');
   });
 
   // THE RING HAS TWO BACKDROPS, because it is applied in BOTH states: the `card`
-  // knob it rings (3.49) and the track it sits over — `ink` when checked (4.06).
-  // The second is the figure this ruling accepts as a REGRESSION from 10.44, so
-  // it is the one that must not live only in a comment: `field-border` is the
-  // shared control-boundary rank and a later session re-valuing it lighter for
-  // its own reasons would take the ON knob's halo under the bar with every other
+  // knob it rings and the track it sits over, `ink` when checked. The second is
+  // the one that must not live only in a comment: `field-border` is the shared
+  // control-boundary rank, and a later session re-valuing it lighter for its own
+  // reasons would take the ON knob's halo under the bar with every other
   // assertion in this file still green. The OFF track is the recorded shortfall
-  // (1.79) and is deliberately absent from here — its reason is at the value.
+  // and is deliberately absent from here — its reason is at the value.
   it('clears 3 : 1 on the knob it rings and on the ON track it sits over', () => {
     const ring = resolve(BLOCKS.dark, 'switch-border');
     expect(ratio(ring, resolve(BLOCKS.dark, 'card')), 'ring on the knob').toBeGreaterThanOrEqual(3);
@@ -228,10 +228,18 @@ describe("the dark knob's ring is the same boundary", () => {
     );
   });
 
-  // Light's is a drop shadow and not an edge, and it does not move. Named here
-  // because the two halves of this one token are easy to "unify" by accident.
-  it('leaves light `--shadow-thumb` the drop shadow it was', () => {
-    expect(shadowIn(BLOCKS.light, 'thumb')).toBe('0 1px 3px rgba(38, 38, 42, 0.06)');
+  // Light's is a drop shadow and not an edge. Named here because the two halves
+  // of this one token are easy to "unify" by accident.
+  //
+  // AGAINST `--shadow-card`, NOT AGAINST A COPY OF ITS SPELLING — the same
+  // correction the `switch-border` assertions above make. The invariant
+  // `index.css` states beside the value is byte-identity with the card shadow
+  // ("Identical to --shadow-card in light, so nothing there moves"), so a
+  // session that re-values only `--shadow-card` must fail here; a hard-coded
+  // string would stay green while the knob kept the old drop and every card
+  // took the new one.
+  it('leaves light `--shadow-thumb` the card shadow, not a ring', () => {
+    expect(shadowIn(BLOCKS.light, 'thumb')).toBe(shadowIn(BLOCKS.light, 'card'));
   });
 });
 

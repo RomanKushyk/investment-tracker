@@ -74,7 +74,8 @@ export function Select({
 }) {
   const borderClass = invalid ? 'border-neg' : 'border-field-border hover:border-ink';
   // `card`, not the literal white it replaces: a control surface has to invert
-  // with the theme, and #ffffff cannot. The two are the same colour in light.
+  // with the theme, and a literal cannot. `card` is the warm off-white the
+  // parchment palette gives it, which is not white in either theme.
   const bgClass = bg === 'page' ? 'bg-page' : 'bg-card';
   return (
     <RadixSelect.Root value={value} onValueChange={onValueChange} onOpenChange={onOpenChange}>

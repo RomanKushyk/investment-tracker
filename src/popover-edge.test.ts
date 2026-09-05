@@ -5,8 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 // THE FLOATING SURFACES' BOUNDARY, PINNED AT THE SAME BAR AS THE FIELD EDGE.
 //
-// Dark zeroes `--shadow-popover`, so a popover is #1c1c1f on #1c1c1f with a
-// #2a2a2e edge at 1.19 : 1 and nothing else. The worst case is not that: an
+// Dark zeroes `--shadow-popover`, so a popover is `card` on `card` with a
+// `hairline` edge and nothing else — a boundary in name only. The worst case is
+// not that: an
 // `AssetForm` `Select` opens INSIDE a `Dialog`, so a `bg-card` popover lands on
 // a `bg-card` plane — a 1.00 : 1 fill step. WCAG 1.4.11 governs "the visual
 // information required to identify user interface components", and a listbox
@@ -281,14 +282,37 @@ describe('a floating surface clears 3 : 1 in dark, where its shadow is zeroed', 
     // other, so the equality above needs something under it. It is deliberately
     // NOT a completeness check: what stops a live token being deleted from both
     // blocks is something rendering it, not a number here, and a number here
-    // would be the hand-kept figure this test exists to replace.
+    // would be the hand-kept figure this test exists to replace. #91 added 28
+    // names and took the count to 74; the floor moved to 60 rather than to 70,
+    // because #92 retires the five `sidebar-*` and 70 would fail on a planned
+    // retirement for a reason that has nothing to do with the invariant. A
+    // floor sits FAR below the count or it is a census wearing a floor's name.
     expect(light.length, 'the palette suddenly has almost nothing in it').toBeGreaterThanOrEqual(
-      40,
+      60,
     );
     // The names this ruling actually depends on, including the three light
     // values the edges alias — deleting `hairline` would take a light edge with
-    // it and the set equality would not notice.
-    for (const name of [...EDGES, 'hairline', 'panel-border', 'field-border'])
+    // it and the set equality would not notice. The parchment families are here
+    // for the opposite reason: NOTHING RENDERS THEM YET, so until #92, #93 and
+    // #95 arrive there is no component to notice their deletion, and the floor
+    // above would not either. One name per family is enough — the set equality
+    // catches a half-deleted family, and a whole one going is what this stops.
+    for (const name of [
+      ...EDGES,
+      'hairline',
+      'panel-border',
+      'field-border',
+      'accent',
+      'accent-fg',
+      'selection',
+      'info',
+      'info-tint-text',
+      'logo-outline',
+      'sb-bg',
+      'sb-item-active',
+      'sb-indicator',
+      'sb-label',
+    ])
       expect(light).toContain(name);
   });
 

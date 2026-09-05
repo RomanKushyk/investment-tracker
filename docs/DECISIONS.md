@@ -295,23 +295,29 @@ validation record: the answer becomes the edge's own address and the certificate
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the
-markup — read it for any exact colour, size or spacing, and ignore `support.js` and the `_ds/`
-references, which are prototype runtime only. A merged drawing is immutable; a new surface gets its
-own file under `design/extensions/`. The pipeline is brief → a separate design session that turns it
-into an extension → the UI task, which may not start before its extension merges. A merged drawing
+markup — read it for any exact size or spacing, and ignore `support.js` and the `_ds/` references,
+which are prototype runtime only. COLOUR IS THE ONE THING IT NO LONGER OWNS:
+`design/extensions/parchment-5h.dc.html` is the colour reference for BOTH themes and supersedes
+every colour in every merged drawing, geometry and copy in none of them. A merged drawing is
+immutable; a new surface gets its own file under `design/extensions/`. The pipeline is brief → a
+separate design session that turns it into an extension → the UI task, which may not start before
+its extension merges. A merged drawing
 wins a layout dispute, the brief wins copy and behaviour, and colours come only from theme tokens.
 3 : 1 (WCAG 1.4.11) is the bar a boundary that identifies a component or its state is HELD to, in
 both themes — not a claim that every surface clears it. A region's decorative edge and furniture that
 identifies nothing fall outside the bar, and anything still under it carries its reason or its open
 issue where the value is declared, so the shortfall is recorded at the value rather than in prose.
 Dark takes its elevation from the surface step and zeroes its shadows bar one, so a component's
-stroke there is usually the whole boundary — the fill step carries almost none of it. How much
-process a colour needs follows the theme it moves in: a dark-only repair ships as a plain fix, a
-light move goes through a session.
+stroke there is usually the whole boundary — the fill step carries almost none of it. Every colour
+move goes through a design session, in either theme — the asymmetry that let a dark-only repair ship
+as a plain fix was a property of the reference, not of the work, and it ended when one extension
+started supplying both planes.
 **Why.** The drawing owns the RESULT and the code owns the mechanism: a static sheet has no
 intermediate widths, no viewport height and no second language, so where it is silent the code
 decides — and says where it decided. "It renders the same" is a claim to check at every width. The
-reference draws light, so a light value moving is a drawing being superseded; a dark one is not.
+master reference drew light only, so for as long as it was the colour source a light value moving
+superseded a drawing and a dark one superseded nothing; the parchment extension draws both, so a
+move in either theme now supersedes it and needs the same session to authorise it.
 **Rejected.** Editing a merged drawing to match a later ruling: it destroys the only record of what
 changed. · A hex picked inside a component: a token family is minted by a design session or not at all.
 · Exempting a boundary because its surface is not a field: 1.4.11 binds the component, not the class
@@ -345,8 +351,14 @@ when its occurrence stops being produced. The theme is ONE list of values redefi
 stamped as an answer. A segmented control's track takes its plane's FOREGROUND and its chip the
 background — `ink` and `card` everywhere but the sidebar, whose currency toggle is a ruled exception:
 a light lozenge there already means a selected route. `muted` is derived against its worst surface.
+Gain and loss belong to DELTAS: an informational chip reads `info`, a text selection reads
+`selection`, and neither borrows `pos`. Partly done — the reminder strip, the fresh-quote chip, the
+`/` progress pill and the NBU rate have moved; eight surfaces have not, and #97 carries the two
+groups that need an answer rather than a swap.
 **Why.** A dismissal on `animationend` never lands in a throttled tab, so it commits on a timer. A
-`card` chip reads as raised in one theme and as a recess in the other; a filled track inverts.
+`card` chip reads as raised in one theme and as a recess in the other; a filled track inverts. A
+green highlight on a reminder, a fresh quote or a run of selected text says "up" about something
+that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it. ·
 Resolving `system` at write time: it would decay into whatever the system was when the user looked.
 

@@ -19,8 +19,11 @@ import { useT } from '../../i18n/useT';
 // content on `/` and `/overview`. Severity IS the container: a tint background
 // with its -tint-text carrying icon, text and ✕; no border, no shadow.
 // `neg-tint` is minted for the overdue severity and used nowhere else.
+// `info` reads the INFO family, not the gain one (#91): gain and loss belong to
+// deltas, and a reminder is not a delta. It borrowed `pos-tint` only because the
+// palette had no informational rank until the parchment session minted one.
 const SEVERITY_PAINT: Record<ReminderSeverity, string> = {
-  info: 'bg-pos-tint text-pos-tint-text',
+  info: 'bg-info-tint text-info-tint-text',
   warn: 'bg-warn-tint text-warn-tint-text',
   overdue: 'bg-neg-tint text-neg-tint-text',
 };

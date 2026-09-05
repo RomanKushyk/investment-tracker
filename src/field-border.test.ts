@@ -115,7 +115,9 @@ const THEMES = ['light', 'dark'] as const;
 
 describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
   // `panel` binds: on /transactions six fields sit on `card` inside a `panel`,
-  // so the stroke is read against #eceae7 and not the card behind it.
+  // so the stroke is read against `panel` and not the card behind it. Named,
+  // not quoted as a hex — a hex here goes stale the moment the plane moves, and
+  // it did.
   for (const theme of THEMES) {
     for (const edge of ['field-border', 'pos-border'] as const) {
       it(`${theme} \`${edge}\` is at or above 3 : 1 on page, card and panel`, () => {
@@ -153,14 +155,17 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
     expect(BLOCKS.dark).toMatch(/--color-field-border:\s*#[0-9a-fA-F]{6}/);
   });
 
-  // `faint` is a TEXT and INDICATOR rank, not a control boundary. Moving it was
-  // tried and rejected: it reverses `Scroller.tsx`'s deliberate sub-3 : 1
-  // resting thumb, and blanks the drawer's dragged thumb, because
-  // `[data-dark-surface]` overrides `faint` but not `ink`.
-  it('leaves `faint` where it was, in all three places it is declared', () => {
-    expect(token(BLOCKS.light, 'faint')).toBe('#b3b2ae');
-    expect(token(BLOCKS.dark, 'faint')).toBe('#6e6d6a');
-    expect(token(BLOCKS.darkSurface, 'faint')).toBe('#6e6d6a');
+  // `faint` is a TEXT and INDICATOR rank, not a control boundary, and LIGHT
+  // MUST STAY UNDER 3 : 1: `Scroller.tsx` rests its thumb below the bar
+  // deliberately and argues it, so lifting this token reverses that and blanks
+  // the drawer's dragged thumb — `[data-dark-surface]` overrides `faint` but
+  // not `ink`. Pinned by hex rather than by ratio for exactly that reason, and
+  // in all three places at once so they cannot drift apart. The parchment
+  // palette re-derived the three to hold the same readings (#91).
+  it('leaves `faint` at the rank it was derived for, in all three places', () => {
+    expect(token(BLOCKS.light, 'faint')).toBe('#b4aa9a');
+    expect(token(BLOCKS.dark, 'faint')).toBe('#6e6a65');
+    expect(token(BLOCKS.darkSurface, 'faint')).toBe('#6e6a65');
   });
 });
 

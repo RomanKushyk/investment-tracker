@@ -24,28 +24,24 @@ export const buttonVariants = cva(
         // FILLED EMPHASIS (appearance-language.dc.html FINDING 3): `bg-ink` is
         // correct in both themes — a dark fill in light, a light fill in dark.
         // The bug was the paired `text-white`, a literal that cannot invert
-        // with it. `text-page` does, and in dark it gives #141416 on #eceae7 =
-        // 15.32:1, the reference's own figure, reproduced.
-        // In LIGHT the swap costs #ffffff -> #f6f5f3, which is 15.07:1 -> 13.84:1
-        // on `ink`. The reference calls that "0.4% of luminance"; measured, the
-        // relative luminance drop is 8.63%. The decision stands either way —
-        // 13.84:1 has an enormous margin — but the figure does not, so the
-        // measured pair is recorded here rather than the quoted one.
+        // with it. `text-page` does, and both themes keep an enormous margin on
+        // `ink` — the swap costs a sliver of luminance in light and nothing that
+        // any reader can see.
         // Not to be confused with the inverted planes (`KpiCard` dark, the
         // `Dialog` overlay), which keep white and change their FILL instead.
         // The hover fill was `sidebar-hover`, a RAIL token — the same borrowing
         // the outline variant below was already fixed for. In light it happened
         // to read as "ink, a little lighter"; in dark the rail token is DARK
-        // while `bg-ink` is near-white, so hovering flipped the fill to #26262b
-        // under #141416 text and the label vanished into it. `ink-hover` is the
-        // fill's own token and moves with it in both themes.
+        // while `bg-ink` is near-white, so hovering flipped the fill dark under
+        // dark text and the label vanished into it. `ink-hover` is the fill's
+        // own token and moves with it in both themes.
         primary: 'border-transparent bg-ink text-page hover:bg-ink-hover',
         // The hover fill was `sidebar-text`, a RAIL token borrowed onto a light
         // surface. Here `text-ink` is right and must invert — so in dark the
-        // label went to #eceae7 and the hover fill went to #eceae7 with it, and
+        // label and the hover fill went to the same near-white together, and
         // the button emptied on hover. `panel` is the surface-step token this
-        // always wanted: #eceae7 light (vs the #e9e8e6 it replaces — three
-        // units of grey, below the threshold of sight) and #232327 in dark.
+        // always wanted, and it moves with the theme where a rail token does
+        // not.
         outline: 'border-ink bg-transparent text-ink hover:bg-panel',
         ghost: 'border-transparent bg-transparent text-ink hover:opacity-85',
         // Destructive pair (design/extensions/settings.dc.html S6): the

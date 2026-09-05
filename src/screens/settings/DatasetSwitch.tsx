@@ -51,8 +51,9 @@ export function DatasetSwitch() {
       // their chips sit at offset 0. The currency pair gets away with flex only
       // because «₴ UAH» and «$ USD» are the same length.
       //
-      // It was invisible until D114: a `card` chip on a `panel` track sat at
-      // 1.09:1 and hid the misalignment; at 14.16:1 it does not.
+      // It was invisible until D114: a `card` chip on a `panel` track was
+      // nearly the same colour and hid the misalignment; on an `ink` track it
+      // does not.
       data-filled-track
       className={`relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1 transition ${switching ? 'opacity-50' : ''}`}
     >

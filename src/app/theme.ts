@@ -7,8 +7,8 @@ export type ResolvedTheme = 'light' | 'dark';
 
 /** The `page` token in each theme — the browser chrome is matched to it. */
 const CHROME: Record<ResolvedTheme, string> = {
-  light: '#f6f5f3',
-  dark: '#141416',
+  light: '#efeae2',
+  dark: '#111110',
 };
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';

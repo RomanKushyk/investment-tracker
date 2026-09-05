@@ -7,10 +7,12 @@ type Tone = 'dark' | 'tint' | 'default';
 // It must stay dark in BOTH themes — its label is `sidebar-muted` and callers
 // put `pos-on-dark` on the sub-line, a token the Phase 5 sheet deliberately
 // leaves unchanged "because it was always for a dark plane". So the fill is
-// `sidebar`, not `ink`: in light the two are both #26262a, making this a
-// pixel-for-pixel no-op, and in dark `sidebar` goes to #0f0f11 while `ink`
-// would invert to #eceae7 and render white-on-white.
-// `text-white` STAYS white here for the same reason — 19.15:1 on #0f0f11.
+// `sidebar`, not `ink`: `sidebar` is the dark wall in both themes, while `ink`
+// inverts to near-white in dark and would render white-on-white. Since #91 the
+// wall is darker than `ink` in light too, so this card is no longer the
+// pixel-for-pixel no-op it was there — it darkens, and `text-white` gains
+// contrast rather than losing it.
+// `text-white` STAYS white here for the same reason.
 // Contrast the filled-emphasis case (primary Button, Switch, DatePicker
 // selected day), where `bg-ink` is right in both themes and it is the paired
 // `text-white` that has to become `text-page`.

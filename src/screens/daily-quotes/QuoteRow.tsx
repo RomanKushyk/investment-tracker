@@ -16,7 +16,9 @@ import { useT } from '../../i18n/useT';
 // S2 — provenance of the row's CURRENT draft value: `auto` (a fetch filled
 // it), `manual` (the user's own — a fetch never overwrites it) or the amber
 // `as of dd.MM` stale chip when the value came from the last-good cache.
-// Geometry is one pill for all three; only the paint tokens differ.
+// Geometry is one pill for all three; only the paint tokens differ. `auto` is
+// the INFO family and not the gain one (#91) — a fetched value is a provenance,
+// not a gain.
 // The three titles, S2's accrual entry (S4 mints that microcopy) and the S4
 // input tooltip all live in the dictionary now — `t.dailyQuotes.provenance`.
 
@@ -25,7 +27,7 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
   const t = useT();
   const paint =
     chip.chip === 'auto'
-      ? 'bg-pos-tint text-pos-tint-text'
+      ? 'bg-info-tint text-info-tint-text'
       : chip.chip === 'stale'
         ? 'bg-warn-tint text-warn-tint-text'
         : 'bg-panel text-muted';

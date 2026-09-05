@@ -37,12 +37,11 @@
 // the mobile header and action bars raise, with the opposite answer: those bars
 // end at the viewport and have nothing to round, while these ends are free.
 //
-// COLOUR, measured on `card` rather than picked: rail `panel-border` 1.37:1,
-// thumb `faint` 2.12:1 at rest and `muted` 5.57:1 while dragging (dark: 1.36,
-// 3.29, 6.04 — still stronger, so nothing branches on theme). The dragging
-// figure was 3.46 until D68 re-derived `muted` for legibility; that decision
-// changes the number here and leaves the argument below untouched, because the
-// value it lifted is the one that was already the passing one.
+// COLOUR, measured on `card` rather than picked: the rail is `panel-border`,
+// the thumb `faint` at rest and `muted` while dragging, and dark reads stronger
+// on all three, so nothing branches on theme. `field-border.test.ts` pins
+// `faint` — deliberately BELOW 3 : 1 in light, which the argument below is
+// about — and the other two are decorative furniture 1.4.11 does not bind.
 //
 // The resting thumb is deliberately below the 3:1 WCAG 1.4.11 asks of a
 // non-text indicator: 1.4.11 covers information REQUIRED to identify a component

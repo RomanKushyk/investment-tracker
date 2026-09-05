@@ -15,9 +15,11 @@ import { Scroller } from './Scroller';
 export const DialogTitle = RadixDialog.Title;
 
 // An INVERTED PLANE, like `KpiCard` dark (FINDING 3): a scrim has to darken
-// what is behind it in BOTH themes. `ink` inverts to #eceae7 in dark and would
-// turn the scrim into a white wash; `sidebar` is #26262a in light — identical
-// to `ink`, so this is a no-op there — and #0f0f11 in dark.
+// what is behind it in BOTH themes. `ink` inverts to near-white in dark and
+// would turn the scrim into a white wash; `sidebar` is the dark wall in either
+// theme. Since #91 that wall is darker than the `ink` this once matched in
+// light, so the light overlay is denser than it was — deliberate, and it moves
+// again when #92 re-planes the wall.
 const OVERLAY_CLASS =
   'bg-sidebar/40 fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-300 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-220';
 // The border is transparent in light (the shadow separates it there) and a

@@ -86,10 +86,12 @@ function pillClass(padY: string, radius: string) {
       ? // `text-sidebar`, NOT `text-ink` — this is a LIGHT CHIP ON A DARK RAIL,
         // a third double-duty family beside the two the Phase 5 reference
         // enumerated (FINDING 3). The fill `sidebar-text` stays light in both
-        // themes, so the label has to stay DARK in both; `ink` inverts to
-        // #eceae7 and paints #eceae7 on #eceae7 — an empty white lozenge with
-        // the route name gone. `sidebar` is #26262a in light, identical to
-        // `ink`, so this is a no-op there, and #0f0f11 in dark = 19.15:1.
+        // themes, so the label has to stay DARK in both; `ink` inverts in dark
+        // and paints the fill onto itself — an empty lozenge with the route
+        // name gone. Since #91 `sidebar` is the dark wall in BOTH themes, so
+        // this is no longer the near-no-op in light it used to be: the two
+        // tokens are now genuinely different values and the distinction is
+        // load-bearing in either theme.
         'bg-sidebar-text font-bold text-sidebar'
       : 'bg-transparent font-normal text-sidebar-nav');
 }
@@ -220,7 +222,7 @@ function NavGroup({
           // `text-sidebar-nav`, BRIGHTER than the label it sits beside, and the
           // extension argues why: the label is a caption, the chevron is a
           // control, and the brief asks it to read at the same weight as the
-          // D66 glyph "and no lighter" (9.55:1 against 5.06:1 on the rail).
+          // D66 glyph "and no lighter" — brighter than the label, on the rail.
           //
           // `transition-[rotate]`, not `transition-transform`: Tailwind v4 compiles
           // `-rotate-90` to the standalone `rotate` property, which `transform`
@@ -496,10 +498,9 @@ function CapitalCard() {
         {t.sidebar.totalCapital}
       </div>
       {/* Literal white SURVIVES the Phase 5 purge, on purpose: the sidebar is an
-          inverted plane in both themes (#26262a light, #0f0f11 dark), so white is
-          correct on it — 19.15:1 in dark. Swapping it for `sidebar-text` would
-          change the LIGHT theme, #ffffff to #e9e8e6, which A9 must not do. Same
-          reasoning as `KpiCard` dark. */}
+          inverted plane in both themes, so white is correct on it. Swapping it
+          for `sidebar-text` would take the figure OFF white in both, which A9
+          must not do. Same reasoning as `KpiCard` dark. */}
       <div className="font-display text-[21px] font-semibold text-white">{capital.value}</div>
       <div className="text-[11px] font-semibold text-pos-on-dark">
         {capital.pct === undefined
@@ -561,9 +562,10 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
  * the scroll POSITION restored on close. Writing those by hand would be a
  * second, untested copy of a dependency the app already ships.
  *
- * In LIGHT it draws no edge: the scrim gives 5.23:1 against the drawer's fill,
- * and an outline there is decoration. In DARK the scrim cannot separate them at
- * all — 1.02:1, see `--color-scrim` — so `--color-drawer-edge` turns on. That is
+ * In LIGHT it draws no edge: the scrim clears 1.4.11 against the drawer's fill
+ * on its own, and an outline there is decoration. In DARK the scrim cannot
+ * separate them at all — the wall is darker than the page it veils, which
+ * `--color-scrim` argues in full — so `--color-drawer-edge` turns on. That is
  * an ALIAS and not a new colour: transparent in light, `sidebar-muted` in dark.
  */
 export function SidebarDrawer() {

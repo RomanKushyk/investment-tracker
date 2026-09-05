@@ -126,7 +126,7 @@ export function Yield() {
                       {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
                     </td>
                     {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a
-                      reader who cannot separate #696865 from #26262a (WCAG
+                      reader who cannot separate `muted` from `ink` (WCAG
                       1.4.1). The legend in the footnote explains the grey but
                       nothing in the accessible tree says WHICH cells are grey,
                       so the marked ones name themselves (A41 review). */}

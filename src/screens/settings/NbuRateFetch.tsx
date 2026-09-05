@@ -80,7 +80,10 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
 
       {!disabled && shown !== undefined && (
         <div className="flex animate-in items-center gap-2 text-[11px] duration-200 fade-in slide-in-from-top-1">
-          <span className={isStale ? 'text-muted' : 'text-pos-tint-text'}>
+          {/* INFO, not gain (#91): a rate that is merely current has no
+              direction. `stale` stays `muted` — absence of freshness is not a
+              caution here, the word already says it. */}
+          <span className={isStale ? 'text-muted' : 'text-info-tint-text'}>
             {t.nbu.shown(f.units(shown.rate), f.date(shown.date))}
             {isStale && t.nbu.stale}
           </span>
@@ -94,7 +97,9 @@ export function NbuRateFetch({ onApply, children }: NbuRateFetchProps) {
                 // same number look like a different one (Contract 0).
                 toast.success(t.nbu.applied(f.units(shown.rate)));
               }}
-              className="text-pos underline underline-offset-2 transition duration-200 hover:text-pos-tint-text"
+              // See `ParseSkips.tsx` — `info` and `info-tint-text` are one value,
+              // so the hover has to be carried by something other than hue.
+              className="text-info underline underline-offset-2 transition duration-200 hover:opacity-85"
             >
               {t.nbu.useIt}
             </button>

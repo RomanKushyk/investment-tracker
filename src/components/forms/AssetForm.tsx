@@ -63,8 +63,8 @@ function Field({
   );
 }
 
-// Inputs sit on `page` bg inside both hosts (white dialog card and the white
-// dashed quick-create panel — master inversion rule); hover border → ink.
+// Inputs sit on `page` bg inside both hosts (the `card` dialog and the dashed
+// quick-create panel — master inversion rule); hover border → ink.
 function inputClass(invalid: boolean): string {
   return `h-9 rounded-[9px] border bg-page px-3 font-body text-[13px] text-ink transition ${
     invalid ? 'border-neg' : 'border-field-border hover:border-ink'

@@ -52,12 +52,12 @@ export const CHART = {
 // which paints its own #ffffff and would leave a white slab over a dark chart.
 // `panel`, NOT `card`, and that is the reference's own choice (Phase 5 S4): in
 // dark `panel` is the highest plane, so the tooltip lifts off the card it
-// covers instead of merging with it — 13.04:1 for `ink` on it. The same tokens
-// in light give the white-on-white-card look the master reference already has.
+// covers instead of merging with it. In light it is a recess instead, which is
+// the asymmetry the palette carries on purpose.
 // These are the plain palette tokens, not the `chart-*` aliases: the tooltip is
 // HTML, and only SVG props need the aliases. There is deliberately no
 // `chart-panel`.
-// This DOES move the light theme, from recharts' #ffffff to `panel` #eceae7,
+// This DOES move the light theme, off recharts' own white and onto `panel`,
 // and that is deliberate rather than overlooked: the app never specified a
 // tooltip background at all, so the white was a library default and not a
 // designed value. Adopting the token in both themes puts the tooltip inside the

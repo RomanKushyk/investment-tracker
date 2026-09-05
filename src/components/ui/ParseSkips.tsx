@@ -58,7 +58,11 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="text-[11px] text-warn underline underline-offset-2 transition duration-200 hover:text-warn-tint-text"
+        // `opacity`, not `-tint-text`: the parchment palette gives `warn` and
+        // `warn-tint-text` one value, so the old hover animated between two
+        // identical colours. `hover:opacity-85` is what the ghost button and
+        // the nav pills already use for a text-only hover.
+        className="text-[11px] text-warn underline underline-offset-2 transition duration-200 hover:opacity-85"
       >
         {t.parse.failed(count)}
         {' · '}

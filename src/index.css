@@ -63,7 +63,7 @@
      shadows are not symmetric in Tailwind 4, and the difference is the whole
      mechanism: `.bg-page` emits `background-color:var(--color-page)`, a runtime
      reference, but `.shadow-card` emits the value INLINED —
-     `--tw-shadow:0 1px 3px var(--tw-shadow-color,#26262a0f)` — so redefining
+     `--tw-shadow:0 1px 3px var(--tw-shadow-color,rgba(60,40,20,.06))` — so redefining
      the token in the dark block would change nothing at all. Verified by
      building and reading the emitted CSS, not assumed. The arbitrary-property
      form emits `--tw-shadow:var(--shadow-card)`, which is the seam this needs.
@@ -72,71 +72,59 @@
      five-part box-shadow list, and `none` is not legal as a list item, so it
      would invalidate the whole declaration. That happens to hide the shadow
      too, but by breaking the property rather than by setting it. */
-  --shadow-card: 0 1px 3px rgba(38, 38, 42, 0.06);
-  --shadow-popover: 0 4px 16px rgba(38, 38, 42, 0.12);
-  --shadow-dialog: 0 12px 40px rgba(38, 38, 42, 0.18);
+  --shadow-card: 0 1px 3px rgba(60, 40, 20, 0.06);
+  --shadow-popover: 0 4px 16px rgba(60, 40, 20, 0.12);
+  --shadow-dialog: 0 12px 40px rgba(60, 40, 20, 0.18);
   /* FINDING 2, from the Phase 5 reference. `panel` swaps elevation role between
      themes: light is page -> card(raised) -> panel(recessed), dark is
      page -> card -> panel(HIGHEST). The chart tooltip relies on that and is
      right to, but it inverts the segmented control, whose track is `panel` and
      thumb `card` — in dark the selected chip becomes the LOWER plane and the
-     step falls to 1.09:1 (1.20:1 in light). The prescribed fix is a 1px
-     `panel-border` edge "in place of the light theme's shadow".
+     step nearly vanishes. The prescribed fix is a 1px `panel-border` edge
+     "in place of the light theme's shadow".
      Expressed as a token rather than the theme-conditional className the
      reference describes, because it assumes ONE segmented component and the app
      has three copies of it — a conditional would be repeated three times and
      forgotten on a fourth. Identical to --shadow-card in light, so nothing
      there moves; box-shadow also costs no layout, which a real border would.
 
-     ONLY THE SWITCH USES IT SINCE 2026-09-01. The segmented thumbs took it
-     while their track was `panel` and the step inverted; on an `ink` track a
-     `card` chip is ~14:1 either way, so the cue is redundant — and on the
-     price-mode track, whose padding is 2px, a 1px outward spread filled half
-     the gap it was meant to sit in. The Switch keeps it: in LIGHT its OFF knob
-     is the one case still resting on a near neighbour.
+     ONLY THE SWITCH USES IT. The segmented thumbs took it while their track was
+     `panel` and the step inverted; on an `ink` track a `card` chip is far past
+     the bar either way, so the cue is redundant — and on the price-mode track,
+     whose padding is 2px, a 1px outward spread filled half the gap it was meant
+     to sit in.
 
-     Named for the THUMB rather than the segment, because the Switch knob has
-     the same defect and the reference does not mention it: measured, the knob
-     sits at 1.24:1 on its own off track here, and this drop shadow is the whole
-     of what separates them. THAT SHORTFALL IS DELIBERATE (#87): once the
-     switch's EDGE was repaired, the STATE is carried by the fill pair at
-     12.19:1 and the COMPONENT by the edge at 3.20 on panel, so the knob's own
-     contrast is required for neither — and light mints no ring, because the
-     surfaces here still carry real shadows. Dark is the other half of this
-     token and there it IS a ring: see the dark block, where it reads
-     `switch-border` at 3.49:1. ONE call site (D114) — it read four while the
-     segmented thumbs shared it, and the paragraph above is what changed
-     that. */
-  --shadow-thumb: 0 1px 3px rgba(38, 38, 42, 0.06);
+     Named for the THUMB rather than the segment, because the Switch knob rests
+     on a near neighbour and this drop shadow is the whole of what separates
+     them. THAT SHORTFALL IS DELIBERATE (#87): the STATE is carried by the fill
+     pair and the COMPONENT by the edge, so the knob's own contrast is required
+     for neither — and light mints no ring, because the surfaces here still
+     carry real shadows. Dark is the other half of this token and there it IS a
+     ring, reading `switch-border`. ONE call site (D114). */
+  --shadow-thumb: 0 1px 3px rgba(60, 40, 20, 0.06);
 
-  --color-page: #f6f5f3;
-  --color-ink: #26262a;
+  --color-page: #efeae2;
+  --color-ink: #1c1a19;
   /* The filled button's hover. It must move WITH `ink` — a filled button that
-     hovers toward a fixed colour inverts in one of the two themes. The light
-     value is the #3d3d42 this always used (via the sidebar's hover token); the
-     dark one lifts the near-white fill instead of dropping it to a rail grey. */
-  --color-ink-hover: #3d3d42;
-  --color-card: #ffffff;
-  /* RE-DERIVED AGAINST `panel`, NOT `card` (D68). The master reference's
-     #8b8a86 measured 2.88 : 1 on `panel`, 3.17 on `page` and 3.46 on `card`
-     across 258 rendered elements — every one of them 9.5–13 px at weight 400,
-     so WCAG 1.4.3 asks 4.5 : 1 and not one reaches the large-text exemption.
-     `panel` is the binding backdrop: at L 0.82448 it needs the text at
-     L ≤ 0.14433, and this value sits at L 0.13843 — 4.64 / 5.11 / 5.57 on
-     panel / page / card. #6b6a67 was rejected for landing exactly ON 4.50.
-     The warm axis is kept (R 105 > G 104 > B 101, same ordering as #8b8a86),
-     so no neutral grey enters the palette. The cost is real and D68 states it:
-     the step down from `ink` narrows from 4.36 : 1 to 2.71 : 1.
-     Second deliberate divergence from the master reference, after D54's fonts. */
-  --color-muted: #696865;
-  --color-faint: #b3b2ae;
+     hovers toward a fixed colour inverts in one of the two themes. Light steps
+     one down the scale and dark one up — the same step read from either end,
+     never mixed with white or black. */
+  --color-ink-hover: #38332f;
+  --color-card: #f8f5ef;
+  /* DERIVED AGAINST `panel`, NOT `card` (D68). Its 258 consumers are 9.5–13 px
+     at weight 400, so WCAG 1.4.3 asks 4.5 : 1 and not one reaches the
+     large-text exemption — and `panel` is the darkest light plane, so it is the
+     backdrop that binds. The warm axis is kept, so no neutral grey enters the
+     palette. */
+  --color-muted: #5e5955;
+  --color-faint: #b4aa9a;
   /* The control-boundary rank (field-border.dc.html). A third grey rather than
      a move, because a field edge is neither `faint`'s text rank nor its
      indicator rank; `field-border.test.ts` holds the ratios. */
-  --color-field-border: #84827d;
-  --color-hairline: #e8e7e4;
-  --color-panel: #eceae7;
-  --color-panel-border: #dedcd8;
+  --color-field-border: #847e77;
+  --color-hairline: #ddd5c8;
+  --color-panel: #e7e0d5;
+  --color-panel-border: #c6bbab;
   /* A floating surface's edge, for the two popovers and the date sheet. Light is
      the `hairline` they already drew: repairing light is a design session, #86.
      `popover-edge.test.ts` holds the ratios for all three edge tokens. */
@@ -146,52 +134,48 @@
      the drawings' fainter one — sonner and recharts each arrived with their own. */
   --color-toast-edge: var(--color-panel-border);
   /* THE SWITCH'S OFF STATE, which `--shadow-thumb`'s comment admits it never
-     fixed: measured in dark, the knob sat at 1.19:1 on its own track AND the
-     track at 1.19:1 on the card behind it, so the whole control was a rumour.
-     Owner's ruling, 2026-09-01: lighter grey track — and the knob STAYS
-     `card`. A white knob was tried the same day and reverted, because a knob
-     that changes colour with the state makes one control look like two; the
-     dark block below carries the measured figures.
-     Both values here are what the light theme already renders, so the TRACK in
-     light — which the reference draws — does not move; only dark's does. That
-     stopped being a safe summary of the CONTROL: #87 moves the switch's light
-     EDGE too, from 1.26/1.37/1.14 on page/card/panel to 3.52/3.84/3.20. The
-     sentence still holds for the two values it annotates, and this ruling
-     freezes both — the arithmetic is in the dark block and
-     `switch-border.test.ts` pins them against a later tidy. */
-  --color-switch-track: #e8e7e4;
+     fixed: in dark the knob sat on its own track, and the track on the card
+     behind it, at the same near-nothing — the whole control was a rumour. The
+     ruling: a lighter grey track, and the knob STAYS `card`. A white knob was
+     tried and reverted, because a knob that changes colour with the state makes
+     one control look like two.
+     Light is FROZEN at what the canvas happens to read, not bound to it — a
+     literal and not `var(--color-page)`, because the value was chosen against
+     the OFF↔ON gap `switch-border.test.ts` pins at 7 : 1 and must not follow
+     `page` wherever a later session takes it. That leaves the whole OFF cue on
+     the edge below. Dark's is derived, and its OFF edge on this track is a
+     recorded shortfall (#90). */
+  --color-switch-track: #efeae2;
   /* THE OFF STATE'S EDGE (switch-border.dc.html, #87). A NAME, NOT A VALUE: a
      switch's boundary is the palette's control-boundary rank, so it reads
      `field-border` rather than minting a fourth grey — and it is its own name
      because the switch's reason has to live beside the switch's value, not
      inside a comment about fields. Replaces `panel-border`, which left the OFF
-     state under WCAG 1.4.11 on every surface in both themes; here it goes
-     1.26/1.37/1.14 → 3.52/3.84/3.20, and 1.11 → 3.10 on its own track. */
+     state under WCAG 1.4.11 on every surface in both themes;
+     `switch-border.test.ts` holds the ratios. */
   --color-switch-border: var(--color-field-border);
   /* The edge a surface needs when its SHADOW cannot draw one — the same trade
      --shadow-thumb above makes, for the surfaces whose shadow is a plain drop
-     rather than a separator. Transparent in light on purpose: the rail is
-     #26262a on a #f6f5f3 page and the dialog carries --shadow-dialog, so an
+     rather than a separator. Transparent in light on purpose: the rail is a
+     dark wall on a light page and the dialog carries --shadow-dialog, so an
      outline there is decoration nothing asked for. */
   --color-surface-edge: transparent;
-  /* `--color-label` #6f6e6a stood here, for transaction-panel field labels.
+  /* `--color-label` stood here, for transaction-panel field labels, and was
      RETIRED INTO `muted` (D68) rather than re-derived beside it: it failed the
-     same backdrop and only that one (4.25 on `panel`), and solving both against
-     `panel` put them on the same luminance. Two tokens that must hold one value
-     to be legible are one step drawn twice. Its thirteen call sites now read
-     `text-muted`; darkening `muted` alone would have left `label` LIGHTER than
-     it, inverting the relationship the pair existed to express. Do not re-mint. */
-  /* The one token phase 6 mints (G-7): the veil behind the mobile drawer.
-     Nothing in the palette was a translucent film, so this mints an ALPHA
-     rather than a hue — `ink` at 45%. Over `page` it composites to #989899,
-     against which the drawer's own #26262a is 5.23:1, well past the 3:1 WCAG
-     1.4.11 asks of a non-text boundary. So in LIGHT the scrim IS the
-     separation and the drawer draws no edge.
+     same backdrop and only that one, and solving both against `panel` put them
+     on one luminance. Two tokens that must hold the same value to be legible
+     are one step drawn twice. Its thirteen call sites read `text-muted`.
+     Do not re-mint. */
+  /* The veil behind the mobile drawer (G-7). Nothing in the palette was a
+     translucent film, so this mints an ALPHA rather than a hue — `ink` at 50%.
+     The drawer clears 1.4.11's 3 : 1 against what that composites to over
+     `page`, so in LIGHT the scrim IS the separation and the drawer draws no
+     edge.
      It is deliberately NOT the Dialog's overlay (`sidebar/40`, D-d): that one
      is an INVERTED PLANE in both themes by design (D57), which is exactly the
      property this ink-based light value does not have. One veil token would
      have to pick a theme to be wrong in. */
-  --color-scrim: rgba(38, 38, 42, 0.45);
+  --color-scrim: rgba(28, 26, 25, 0.5);
   /* AN ALIAS, NOT A COLOUR — which is what lets it exist at all beside G-7's
      "phase 6 mints exactly one token". It names nothing new: transparent here,
      and `sidebar-muted`'s own value in dark. The drawer needs an edge in ONE
@@ -202,31 +186,39 @@
      `--color-surface-edge` (D61), which is transparent in light for the same
      kind of reason. */
   --color-drawer-edge: transparent;
-  --color-sidebar: #26262a;
-  --color-sidebar-text: #e9e8e6;
-  --color-sidebar-muted: #96959b;
-  --color-sidebar-inset: #333338;
-  --color-sidebar-nav: #cfcecb;
+  /* THE DARK WALL, IN THE LIGHT BLOCK TOO, until #92 moves the consumers onto
+     `sb-*` and retires these five — flipping the plane first would break
+     `text-white` on the capital card and every `bg-sidebar/40` overlay.
+     Two readings come with that and are recorded rather than discovered:
+     · `-muted` is 4.33 on the wall, under 1.4.3's 4.5, on 10px nav group
+       headers and every dark KPI label. The owner ruled the value stands (#90);
+       the retired palette read 5.07.
+     · the inset-on-wall step is 1.07 here where light used to have 1.20, so the
+       lockup card, the currency track and the capital card read as their own
+       plane only just — which is what dark has always looked like. #92 gives
+       light its own wall and the step comes back. */
+  --color-sidebar: #0d0d0c;
+  --color-sidebar-text: #eceae7;
+  --color-sidebar-muted: #7a7674;
+  --color-sidebar-inset: #161515;
+  --color-sidebar-nav: #a3a19e;
   /* The logo mark's arrow, and the app's first brand colour (D131). It is the
      SAME VALUE IN BOTH THEMES, on `pos-on-dark`'s precedent and for the same
      reason: the mark's only plane here is `sidebar-inset`, which is dark in
-     light theme too (#333338 / #1c1c20). A flipped pair would put the owner's
-     light-ground value on the LIGHTER of those two plates — the worst pairing
-     available: #9c683a measures 2.67 : 1 on #333338, under WCAG 1.4.11's 3 : 1
-     for a non-text graphic, where this value measures 6.51. (On the dark
-     theme's #1c1c20 the same #9c683a would have scraped 3.60, which is how a
-     flipped token passes review in one theme and fails in the other.)
-     That light value is not unused: it is the light branch of
+     both. A flipped pair would put the owner's light-ground value on the
+     lighter plate and take it under WCAG 1.4.11's 3 : 1 for a non-text graphic
+     — which is how a flipped token passes review in one theme and fails in the
+     other. That light value is not unused: it is the light branch of
      `public/favicon.svg`, whose ground is the browser's tab strip and genuinely
-     light — 4.71 : 1 on white. The arc needs no token at all; it takes
-     `currentColor` from `sidebar-text` (10.26 here, 14.15 in dark). */
+     light. The arc needs no token at all; it takes `currentColor` from
+     `sidebar-text`. */
   --color-brand-sand: #d8b494;
-  --color-pos: #5c7355;
-  --color-pos-tint: #e3eadf;
-  --color-pos-tint-text: #4c5a48;
-  --color-pos-on-dark: #b9cdb4;
-  --color-pos-border: #6f8567; /* 3.35 on panel — never weaker than the idle edge */
-  --color-neg: #a8695a;
+  --color-pos: #2f6b3f;
+  --color-pos-tint: #e0e4da;
+  --color-pos-tint-text: #2f6b3f;
+  --color-pos-on-dark: #86b98f;
+  --color-pos-border: #3d8c52; /* never weaker than the idle edge */
+  --color-neg: #a03c30;
   /* Irreversible-harm family — minted by the P3 design session
      (design/extensions/reminders.dc.html header comment) for the OVERDUE
      reminder severity, and WIDENED by P4 (D25, restated verbatim in
@@ -236,29 +228,111 @@
      `neg` text on `card`), never for numbers, deltas or counts, never for a
      routine control or a pressable's own fill. Exactly three sites today: the
      overdue reminder banner, the S3 import replace banner, the S8 danger-zone
-     panel. Banner text is always -tint-text (6.08:1 on the tint); raw `neg` on
-     it would be 2.97:1. Values unchanged — P4 mints nothing. */
-  --color-neg-tint: #f0cec7;
-  --color-neg-tint-text: #693f35;
+     panel. Banner text is always -tint-text — the name that answers on the
+     tint, even where the parchment palette gives it and `neg` one value.
+     OPEN, #96: this tint, `warn-tint` and `info-tint` are within 1.014 : 1 of
+     each other in light, so `ReminderStrip`'s "severity IS the container" is
+     carried by the icon and the text hue alone. The values are the design
+     session's and #91 has no standing to redraw them, so the reading is
+     recorded here and the ruling is #96's. */
+  --color-neg-tint: #eddfd8;
+  --color-neg-tint-text: #a03c30;
   /* Caution family — minted by the P2 design session (design/extensions/
      settings.dc.html header comment, brief phase-2 "Global constraints").
      Every caution state uses ONLY these: Σ≠100 pill (S4), DEMO badge (S5),
-     ledger-drift chip (S9d), stale chips — never pos/neg/asset hues. */
-  --color-warn: #8f6b33;
-  --color-warn-tint: #f0e6cb;
-  --color-warn-tint-text: #6b5527;
-  --color-reit: #8ba283;
-  --color-reit-tint: #e3eadf;
-  --color-reit-tint-text: #4c5a48;
-  --color-energy: #c2a189;
-  --color-energy-tint: #efe4e0;
-  --color-energy-tint-text: #6d5a53;
-  --color-ovdp8976: #98a3ad;
-  --color-ovdp8976-tint: #e4e8eb;
-  --color-ovdp8976-tint-text: #525c64;
-  --color-ovdp6475: #5f5e5a;
-  --color-ovdp6475-tint: #e8e7e4;
-  --color-ovdp6475-tint-text: #5f5e5a;
+     ledger-drift chip (S9d), stale chips — never pos/neg/asset hues.
+     NO MARGIN AT ALL on the binding plane: this clears 1.4.3's 4.5 on `panel`
+     by 0.003, so any later nudge to `warn` OR to `panel`, in either direction,
+     puts those four surfaces under the bar. `palette-mirror.test.ts` asserts
+     it, which is the only reason the figure is safe to rely on. */
+  --color-warn: #8a5a1a;
+  --color-warn-tint: #ebe2d5;
+  --color-warn-tint-text: #8a5a1a;
+  --color-reit: #b07a52;
+  --color-reit-tint: #efe6dc;
+  --color-reit-tint-text: #895f40;
+  --color-energy: #8a5a3a;
+  --color-energy-tint: #ebe2d9;
+  --color-energy-tint-text: #8a5a3a;
+  --color-ovdp8976: #4a6178;
+  --color-ovdp8976-tint: #e3e3e1;
+  --color-ovdp8976-tint-text: #4a6178;
+  --color-ovdp6475: #6f6b70;
+  --color-ovdp6475-tint: #e8e4e0;
+  --color-ovdp6475-tint-text: #686569;
+
+  /* MINTED HERE, CONSUMED LATER (parchment-5h.dc.html). Nothing on this branch
+     reads the accent, the logo or the sixteen `sb-*`: #95 wires the accent, #93
+     the mark, #92 the wall. Declared now so both blocks move once, together,
+     and a consumer arrives to a name that already answers in either theme.
+
+     TWO IDENTITIES ARE ALREADY SPENT, recorded rather than resolved — the sheet
+     draws them and #91 has no standing to redraw a palette:
+     · `accent` IS `energy` in both themes, and `brand-sand` too in dark, so on
+       /allocation in dark a legend dot, the mark, the active nav item and the
+       primary CTA are one colour once #95 lands.
+     · `logo-pill-a` (light) and `logo-pill-b` (dark) ARE `reit`, so a REIT
+       legend dot is the mark's own pill colour.
+     Both are read by #95 and #93, and #13's colour picker inherits the first. */
+  /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and the
+     sheet's usage rule makes the accent every link and active tab in light. The
+     owner ruled the value stands (#90); as a non-text fill it clears
+     everywhere. It also lands 1.013 from `warn`, so once #95 wires it a caution
+     and the brand cannot be told apart by colour alone — a distinguishable
+     caution needs a second cue, which is a brief and not a hex. */
+  --color-accent: #8a5a3a;
+  --color-accent-hover: #74482c;
+  --color-accent-pressed: #5c3a26;
+  --color-accent-fg: #f8f5ef;
+  /* An ALPHA, not a composited hex: the chip lies over more than one plane. */
+  --color-accent-tint: rgba(138, 90, 58, 0.12);
+  /* Sand in BOTH themes, at different alphas — the one place light keeps sand
+     as a ground rather than a paint. Not `accent-tint`, which is copper here
+     and would put a text selection on the wrong side of that rule. */
+  --color-selection: rgba(216, 180, 148, 0.45);
+  /* The informational rank the app never had. Gain and loss belong to deltas,
+     so a reminder and a fresh quote could not keep borrowing `pos`.
+     IT IS `ovdp8976` OUTRIGHT — the hue AND its tint, in both themes — which is
+     deliberate in the sheet (info and that asset hue are one slate), with a
+     consequence the sheet does not carry:
+     on `/` a status chip sits inside the …8976 row, beside that asset's avatar,
+     wearing the asset's identity tint. Recorded at the value; a status that
+     must be told from its row needs a second cue, which is a brief. */
+  --color-info: #4a6178;
+  --color-info-tint: #e3e3e1;
+  --color-info-tint-text: #4a6178;
+  /* The 5h mark's three parts. `Mark` still paints from `currentColor` and
+     `brand-sand` until #93 moves it. */
+  --color-logo-outline: #8a5a3a;
+  --color-logo-pill-a: #b07a52;
+  --color-logo-pill-b: #5c3a26;
+  /* THE WALL AND ITS FURNITURE. Sixteen names because the rail carries states
+     the five `sidebar-*` above cannot express — a tint plus an indicator for
+     active, a 5% ground for hover. Light here is a LIGHT wall, which is exactly
+     the half the five do not have yet: flipping their plane before #92 moves
+     the consumers would break `text-white` on the capital card and every
+     `bg-sidebar/40` overlay. So this family waits, declared, until #92. */
+  --color-sb-bg: #e8e1d6;
+  --color-sb-border: #d6cdbf;
+  --color-sb-divider: #dcd3c5;
+  --color-sb-field: #f3eee6;
+  --color-sb-item: #5e5955;
+  --color-sb-item-hover: #1c1a19;
+  --color-sb-item-hover-bg: rgba(28, 26, 25, 0.05);
+  --color-sb-item-active: #8a5a3a;
+  --color-sb-item-active-bg: rgba(138, 90, 58, 0.12);
+  /* The half of the active state that survives a colour-blind reading — 1.4.1
+     asks for more than colour, and the 2px inset edge is the more. */
+  --color-sb-indicator: #8a5a3a;
+  --color-sb-icon: #6f6a64;
+  --color-sb-icon-active: #8a5a3a;
+  /* RECORDED SHORTFALL: 3.09 here and 4.33 in dark, on nav group headers that
+     are 9.5-10px text. The owner ruled the value stands (#90) and #92 adopts it
+     knowing this; the retired palette read 5.07. */
+  --color-sb-label: #847e77;
+  --color-sb-badge: #8a5a3a;
+  --color-sb-badge-bg: rgba(138, 90, 58, 0.12);
+  --color-sb-footer-bg: #e1d9cc;
 
   /* Chart paint aliases — core/colors.ts emits var(--color-chart-*) for SVG
      fill/stroke. They point at the palette tokens above (visual no-op today)
@@ -316,41 +390,37 @@
   /* Surfaces and text. `card` stays LIGHTER than `page` exactly as in the light
      theme — inverting that relationship is the commonest dark-theme mistake and
      it silently breaks every elevation cue in the app. */
-  --color-page: #141416;
-  --color-card: #1c1c1f;
-  --color-ink: #eceae7; /* 15.32 on page · 14.16 on card */
-  --color-ink-hover: #ffffff;
-  --color-muted: #9b9a96; /* 6.04 on card */
-  --color-faint: #6e6d6a; /* 3.29 on card — decorative only, never body text */
-  --color-field-border: #747169; /* 3.21 on panel · 3.49 on card */
-  --color-hairline: #2a2a2e;
-  --color-panel: #232327;
-  --color-panel-border: #33333a;
+  --color-page: #111110;
+  --color-card: #19181a;
+  --color-ink: #eceae7;
+  --color-ink-hover: #f6efe6;
+  --color-muted: #a3a19e;
+  --color-faint: #6e6a65; /* decorative only, never body text */
+  --color-field-border: #7a7674;
+  --color-hairline: #2a282c;
+  --color-panel: #201f22;
+  --color-panel-border: #3a373c;
   /* Dark leaves these surfaces no shadow and, inside a Dialog, no surface step
      either, so all three edges converge on `field-border` — the palette's
      control-boundary rank — and differ only in light. */
   --color-popover-edge: var(--color-field-border);
   --color-toast-edge: var(--color-field-border);
-  /* The OFF track goes from `hairline` to a real mid-grey, which takes the
-     TRACK from 1.19:1 to 1.94:1 against the card behind it — the half D57 never
-     named. The KNOB stays `card` and measures 1.94:1 too; the two ratios are one
-     number because the knob is that colour — the control now has a visible shape, not just a
-     visible knob. Chosen against a third constraint the brighter candidates
-     lose: OFF must stay clearly distinct from ON (#eceae7), and this keeps
-     7.28:1 between the two states. The knob stays `card` in both states
-     (owner's ruling after seeing a white one): on this track it reads, and a
-     knob that changes colour with the state looks like two controls. */
-  --color-switch-track: #4a4a55;
-  /* The same name and the same rank in dark: 3.77/3.49/3.21 on page/card/panel
-     against `panel-border`'s 1.47/1.36/1.25.
+  /* The OFF track is a real mid-grey rather than a `hairline`, so the control
+     has a visible shape and not just a visible knob — the half D57 never named.
+     Chosen against a third constraint the brighter candidates lose: OFF must
+     stay clearly distinct from ON, and `switch-border.test.ts` pins that gap at
+     7 : 1. The knob stays `card` in both states (owner's ruling after seeing a
+     white one): on this track it reads, and a knob that changes colour with the
+     state looks like two controls. */
+  --color-switch-track: #4a4650;
+  /* The same name and the same rank in dark; `switch-border.test.ts` holds the
+     ratios against the three planes.
      THE ONE REFUSED SHORTFALL, RECORDED AT THE VALUE. Against its OWN track
-     this edge reads 1.79:1. Clearing 3:1 there needs L ≥ 0.31028, and the
-     nearest palette value above that is `muted` #9b9a96 at L 0.32282 — which
-     sits only 2.35:1 from `ink`, so the OFF edge would stop being
-     distinguishable from the ON one. Refused on that trade rather than
-     overlooked, and it is an improvement on the 1.43 that shipped, not a
-     regression: what identifies the component is the boundary against the
-     surfaces behind it, and that clears the bar on all three. */
+     this edge reads 2.05 : 1. Clearing 3 : 1 there needs a track darker than
+     `card`, which would flatten the OFF fill and stop the two states being
+     distinguishable — refused on that trade rather than overlooked. What
+     identifies the component is the boundary against the surfaces behind it,
+     and that clears the bar on all three. */
   --color-switch-border: var(--color-field-border);
   /* Dark is where this token earns its keep: the rail goes darker than the page
      and the dialog floats over the scrim, and the shadows above are zeroed, so
@@ -361,77 +431,114 @@
   --color-surface-edge: var(--color-field-border);
 
   /* THE DARK SCRIM CANNOT CARRY THE DRAWER'S BOUNDARY, and it fails without
-     anyone moving the alpha. The drawer (`sidebar` #0f0f11) is DARKER than the
-     page (#141416) here — D57 made it so on purpose — so a darkening scrim
-     moves the background TOWARDS the drawer instead of away from it: 55% of
-     #0f0f11 over #141416 gives #111113, and the drawer against that is
-     1.02:1. Invisible.
-     An ink-based scrim is worse, not better: `ink` inverts to #eceae7, so 45%
-     of it over the dark page is #757474 — a grey wash over the app, the same
+     anyone moving the alpha. The drawer (`sidebar`) is DARKER than the page
+     here — D57 made it so on purpose — so a darkening scrim moves the
+     background TOWARDS the drawer instead of away from it, and the two become
+     one field. An ink-based scrim is worse, not better: `ink` inverts to
+     near-white in dark, so a veil of it is a grey wash over the app — the same
      mistake D57 records for the Dialog overlay.
      So the value below keeps the veil doing the job a veil can still do —
-     dimming what is behind — and the drawer takes an EDGE instead. Measured
-     against #111113: hairline 1.32, panel-border 1.50, faint 3.65,
-     sidebar-muted 5.51. `sidebar-muted` is the one used: it belongs to the
-     drawer's own family and clears the bar with room, where a brighter option
-     would read as a stroke rather than an edge. (`surface-edge` was the 1.50
-     here, and the reading is why it has since moved off `panel-border`; the
-     drawer keeps its own edge because that one is family, not strength.) */
-  --color-scrim: rgba(15, 15, 17, 0.55);
-  /* 5.51:1 against the composited scrim — the measurement in the block above.
-     Read through the alias rather than repeated as #8b8a90, so it cannot drift
-     from the token it was measured as. */
+     dimming what is behind — and the drawer takes an EDGE instead.
+     `sidebar-muted` is the one used: of the four candidates it is the only one
+     that both belongs to the drawer's own family and clears 1.4.11 against the
+     composited veil, where a brighter option would read as a stroke rather than
+     an edge. */
+  --color-scrim: rgba(17, 17, 16, 0.64);
+  /* Read through the alias rather than repeated as a hex, so it cannot drift
+     from the token it was measured as — the block above is the reasoning. */
   --color-drawer-edge: var(--color-sidebar-muted);
 
-  /* Sidebar. In light it is already dark against a light page; in dark it goes
-     DARKER than the page, not lighter, or it stops reading as its own plane. */
-  --color-sidebar: #0f0f11;
-  --color-sidebar-text: #eceae7; /* 15.95 */
-  --color-sidebar-muted: #8b8a90; /* 5.59 */
-  --color-sidebar-inset: #1c1c20;
-  --color-sidebar-nav: #c4c3c0; /* 10.86 */
+  /* Sidebar. The wall goes DARKER than the page, not lighter, or it stops
+     reading as its own plane. IDENTICAL TO THE LIGHT BLOCK until #92: the five
+     carry the dark wall in both themes, because flipping the light plane before
+     the consumers move breaks `text-white` on the capital card and every
+     `bg-sidebar/40` overlay. `sb-*` above holds the light wall meanwhile.
+     RECORDED SHORTFALL on `-muted`: 4.33 on the wall, under 1.4.3's 4.5, and
+     the version badge and every dark KPI label read it. Owner ruled (#90). */
+  --color-sidebar: #0d0d0c;
+  --color-sidebar-text: #eceae7;
+  --color-sidebar-muted: #7a7674;
+  --color-sidebar-inset: #161515;
+  --color-sidebar-nav: #a3a19e;
 
   /* Brand. Repeated at the same value on purpose — see the light block for the
-     measurement; `pos-on-dark` two groups below does the same thing. */
-  --color-brand-sand: #d8b494; /* 8.80 on sidebar-inset */
+     reason; `pos-on-dark` two groups below does the same thing. */
+  --color-brand-sand: #d8b494;
 
-  /* Semantic. `pos-on-dark` is deliberately UNCHANGED: it was always meant for
-     a dark plane, and the inverted planes (KpiCard dark, sidebar) still are
-     one in this theme — 11.36 on #0f0f11. */
-  --color-pos: #8fb184; /* 7.12 on card */
-  --color-pos-tint: #22301f;
-  --color-pos-tint-text: #a9c79f; /* 7.52 on its tint */
-  --color-pos-on-dark: #b9cdb4;
-  --color-pos-border: #5c7f53; /* 3.44 on panel */
-  --color-neg: #d9907e; /* 6.67 on card */
-  --color-neg-tint: #3a211b;
-  --color-neg-tint-text: #e5a996; /* 7.39 on its tint */
-  --color-warn: #d1a55f; /* 7.50 on card */
-  --color-warn-tint: #332714;
-  --color-warn-tint-text: #dcbb80; /* 7.95 on its tint */
+  /* Semantic. `pos-on-dark` is one value in both blocks: it was always meant
+     for a dark plane, and the inverted planes (KpiCard dark, sidebar) are still
+     one in either theme. */
+  --color-pos: #86b98f;
+  --color-pos-tint: #282f2a;
+  --color-pos-tint-text: #86b98f;
+  --color-pos-on-dark: #86b98f;
+  --color-pos-border: #5e8264; /* never weaker than the idle edge */
+  --color-neg: #d9776a;
+  --color-neg-tint: #342525;
+  --color-neg-tint-text: #d9776a;
+  --color-warn: #d9a55f;
+  --color-warn-tint: #342c24;
+  --color-warn-tint-text: #d9a55f;
 
   /* Asset hues. These are never text — verified across the codebase, they
      appear only as bg-* fills, and text always uses the -tint-text variants —
-     so the requirement on them is WCAG 1.4.11 (3:1, non-text), not 4.5. The
-     values clear 4.5 anyway. Note the light theme does NOT meet even 3:1 here
-     (reit 2.77, energy 2.40, ovdp8976 2.57 on white); that is inherited from
-     the immutable master reference and is out of scope, so do not read this
-     sheet as a regression against a light theme that was the weaker of the two.
-     Colour alone never distinguishes the four in EITHER theme — pairwise
-     luminance separation is 1.02-1.33 here — so every chart, legend and donut
-     must keep its non-colour distinguisher. */
-  --color-reit: #9dbb93; /* 8.07 on card */
-  --color-reit-tint: #22301f;
-  --color-reit-tint-text: #a9c79f; /* 7.52 */
-  --color-energy: #d8b394; /* 8.74 */
-  --color-energy-tint: #33261d;
-  --color-energy-tint-text: #e0bfa4; /* 8.47 */
-  --color-ovdp8976: #a8b6c2; /* 8.20 */
-  --color-ovdp8976-tint: #20272d;
-  --color-ovdp8976-tint-text: #b3c1cd; /* 8.22 */
-  --color-ovdp6475: #a3a19b; /* 6.58 */
-  --color-ovdp6475-tint: #26262a;
-  --color-ovdp6475-tint-text: #adaba5; /* 6.56 */
+     so the requirement on them is WCAG 1.4.11 (3:1, non-text), not 4.5.
+     THE BLANKET LIGHT EXEMPTION IS NARROWED, NOT INHERITED. It cited the
+     immutable master reference, whose colours parchment-5h.dc.html supersedes
+     in both themes, and three of the four now clear 3 : 1 on every plane in
+     both. RECORDED SHORTFALL: `reit` alone reads 2.79 on the light `panel`,
+     which is the plane that binds because `ColorDot` and `ShareBar` paint the
+     bare hue inside panels.
+     Colour alone never distinguishes the four in EITHER theme, so every chart,
+     legend and donut must keep its non-colour distinguisher. */
+  --color-reit: #b07a52;
+  --color-reit-tint: #2e2622;
+  --color-reit-tint-text: #bb8157;
+  --color-energy: #d8b494;
+  --color-energy-tint: #342e2b;
+  --color-energy-tint-text: #d8b494;
+  --color-ovdp8976: #93a4b5;
+  --color-ovdp8976-tint: #2a2c30;
+  --color-ovdp8976-tint-text: #93a4b5;
+  --color-ovdp6475: #8a8886;
+  --color-ovdp6475-tint: #292829;
+  --color-ovdp6475-tint-text: #918f8d;
+
+  /* Minted for #92/#93/#95; see the light block for why each exists. */
+  --color-accent: #d8b494;
+  --color-accent-hover: #e2c4a8;
+  --color-accent-pressed: #c49a74;
+  --color-accent-fg: #1c1a19;
+  --color-accent-tint: rgba(216, 180, 148, 0.14);
+  --color-selection: rgba(216, 180, 148, 0.28);
+  --color-info: #93a4b5;
+  --color-info-tint: #2a2c30;
+  --color-info-tint-text: #93a4b5;
+  --color-logo-outline: #d8b494;
+  --color-logo-pill-a: #ece1d2;
+  --color-logo-pill-b: #b07a52;
+  --color-sb-bg: #0d0d0c;
+  --color-sb-border: #26232a;
+  --color-sb-divider: #1c1a1c;
+  --color-sb-field: #161515;
+  --color-sb-item: #a3a19e;
+  --color-sb-item-hover: #eceae7;
+  --color-sb-item-hover-bg: rgba(236, 234, 231, 0.05);
+  --color-sb-item-active: #d8b494;
+  --color-sb-item-active-bg: rgba(216, 180, 148, 0.12);
+  --color-sb-indicator: #d8b494;
+  --color-sb-icon: #8a8886;
+  --color-sb-icon-active: #d8b494;
+  --color-sb-label: #7a7674;
+  --color-sb-badge: #d8b494;
+  /* 0.14, NOT the 0.12 the sheet's Mapping row prints: its swatch grid and its
+     token record — the session's own file, verbatim — both say 0.14, so the
+     Mapping is the transcription that slipped. Recorded because a merged
+     drawing is immutable and cannot be corrected in place. Light is 0.12 in all
+     three, and keeping dark at 0.12 would also collapse this onto
+     `sb-item-active-bg`, an identity the sheet does not have. */
+  --color-sb-badge-bg: rgba(216, 180, 148, 0.14);
+  --color-sb-footer-bg: #131312;
 
   /* Elevation comes from the surface step (page -> card -> panel), never from
      shadow: a light shadow is invisible on a dark surface and deepening it only
@@ -444,12 +551,12 @@
      thumb keeps its elevation cue, because its surface step is the one that
      inverts here. A spread-only shadow IS the 1px edge — no border, so no box
      to re-measure — and it reads switch-border at runtime rather than repeating
-     a hex, so it cannot drift from the edge it matches. 3.49:1 on the OFF knob,
-     against the 1.36 `panel-border` gave it (#87).
+     a hex, so it cannot drift from the edge it matches (#87).
      IT IS ON THE KNOB IN BOTH STATES — `Switch.tsx` applies it unconditionally
-     — so the CHECKED knob's halo moves with it: 10.44 → 4.06 against the `ink`
-     track. Expected and accepted: 4.06 clears the bar, and that knob reads
-     14.16 on its own track with no ring at all. It must not be "corrected" with
+     — so the CHECKED knob's halo moves with it, and reads weaker on the `ink`
+     track than it did. Expected and accepted: it still clears the bar there,
+     and that knob is far past it on its own track with no ring at all.
+     `switch-border.test.ts` holds both. It must not be "corrected" with
      a second shadow token or a `data-state` branch, which would make the knob
      change appearance with the state — the thing the 2026-09-01 ONE KNOB COLOUR
      ruling reverted a white knob for. */
@@ -612,10 +719,10 @@
     background: transparent;
   }
 
-  /* The ink ring IS the sidebar's own colour — 1.00:1 against `sidebar` and
-     1.20:1 against `sidebar-inset`, i.e. keyboard focus was invisible on every
-     nav pill and both toggles. `sidebar-text` gives 12.31:1 and 10.26:1, past
-     the 3:1 that WCAG 1.4.11 asks of a non-text indicator.
+  /* The ink ring IS the sidebar's own colour — 1.00:1 against `sidebar`, and
+     barely more against `sidebar-inset`, i.e. keyboard focus was invisible on
+     every nav pill and both toggles. `sidebar-text` clears the 3:1 that WCAG
+     1.4.11 asks of a non-text indicator on both, with room.
      It is right for the ACTIVE pill too, light background and all: the 2px
      offset draws the ring OUTSIDE the control, on the dark rail behind it.
 
@@ -634,9 +741,9 @@
      not. Focus was invisible wherever it landed.
 
      An earlier draft of this comment blamed `currentColor` and said the idle
-     segments were fine at 13.84:1. Both were artefacts of measuring an
-     animated property: Tailwind's `transition` covers `outline-color`, so a
-     sample taken inside 300ms catches the ring in flight, and 13.84 is in fact
+     segments were already fine. Both were artefacts of measuring an animated
+     property: Tailwind's `transition` covers `outline-color`, so a sample taken
+     inside 300ms catches the ring in flight, and the figure it read was in fact
      this rule's own AFTER number. There is no `currentColor` outline anywhere
      in the repo.
 
@@ -660,11 +767,11 @@
        The base offset of 2 puts a 2px ring at 2→4px from the segment's edge,
        and the tightest filled track — the price-mode toggle, `p-[2px]` plus a
        1px border — leaves only 3. Measured in Chrome before this line: the
-       inner half of the ring sat on the track at 15.32:1 and the outer half
-       fell past it onto `panel` at 1.18:1, so a 2px ring read as 1px and
-       reached into the 4px gap toward its neighbour. Offset 1 gives a reach of
-       3, which the tightest track contains exactly and every wider one to
-       spare. */
+       inner half of the ring sat on the track with full contrast and the outer
+       half fell past it onto `panel`, where it all but vanished, so a 2px ring
+       read as 1px and reached into the 4px gap toward its neighbour. Offset 1
+       gives a reach of 3, which the tightest track contains exactly and every
+       wider one to spare. */
     outline-offset: 1px;
   }
 
@@ -684,43 +791,35 @@
   /* THE SAME IDEA, ONE LEVEL UP — an inverted plane needs the DARK theme's
      surface furniture even while the app is in LIGHT. Found by measurement when
      the mobile drawer's nav first overflowed (phase 6, S1): the `Scroller`'s
-     colours were chosen against `card`, and on the sidebar's #26262a the very
-     same tokens read
-
-         rail   panel-border #dedcd8   10.98 : 1   (chosen as 1.37 : 1)
-         thumb  faint        #b3b2ae    7.08 : 1   (chosen as 2.12 : 1)
-
-     — eight times the intended weight, so the quietest furniture in the app
-     became a bright white stick down the primary mobile surface. It is a
+     colours were chosen against `card`, and on the sidebar's wall the very same
+     tokens read many times their intended weight, so the quietest furniture in
+     the app became a bright stick down the primary mobile surface. It is a
      pre-existing gap in D65 rather than something the drawer introduced; the
      drawer is only where it became unavoidable, because a 640 px-tall phone
      always overflows this nav.
 
-     NO COLOUR IS MINTED HERE. These are the values the Phase 5 session already
-     chose and measured FOR A DARK PLANE, borrowed on the one plane that is dark
-     in both themes — the same move `pos-on-dark` exists to make. Re-measured on
-     #26262a: rail 1.20 : 1, thumb 2.90 : 1 at rest, 5.29 : 1 in use. The first
-     two sit inside the range D65 sanctions across the two themes (1.36–1.37,
-     2.12–3.29); the in-use thumb now sits 0.28 UNDER its floor, because D68
-     lifted the LIGHT theme's in-use thumb from 3.46 to 5.57 while this plane
-     goes on borrowing the dark theme's #9b9a96 — the range moved, not the
-     value. Nothing to correct: it is non-text furniture that 1.4.11 does not
-     bind at all (see Scroller.tsx), and it is still the strong end of D65's
-     rest-to-drag pair. In the dark theme these three are already these values,
-     so the block is a literal no-op there and nothing branches at runtime.
+     NO COLOUR IS MINTED HERE. These are the values the palette already chose
+     FOR A DARK PLANE, borrowed on the one plane that is dark in both themes —
+     the same move `pos-on-dark` exists to make. It is non-text furniture, which
+     1.4.11 does not bind at all (see Scroller.tsx). In the dark theme these
+     three are already these values, so the block is a literal no-op there and
+     nothing branches at runtime.
 
      Nothing else under `[data-dark-surface]` reads them today — the sidebar
      paints from its own `sidebar-*` family throughout — so the blast radius is
      the rail. And if something later does, a dark plane is exactly where these
      readings are the correct ones. */
   [data-dark-surface] {
-    --color-panel-border: #33333a;
-    --color-faint: #6e6d6a;
-    --color-muted: #9b9a96;
+    --color-panel-border: #3a373c;
+    --color-faint: #6e6a65;
+    --color-muted: #a3a19e;
   }
 
+  /* Its own token, not `accent-tint`: selection is sand in both themes and the
+     accent is copper in light. Gain does not belong to a text selection any
+     more than it belongs to a reminder — the same rule that moved those. */
   ::selection {
-    background: var(--color-pos-tint);
+    background: var(--color-selection);
   }
 
   /* Motion kill-switch (D7 a11y): reduced motion collapses all animation */

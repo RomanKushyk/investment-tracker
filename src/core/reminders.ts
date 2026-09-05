@@ -18,7 +18,7 @@ import type { Asset, Snapshot, Transaction } from './types';
 
 export type ReminderKind = 'quote-missing' | 'coupon' | 'coupon-overdue' | 'maturity';
 
-/** Severity token → the strip's tint family (info `pos-tint`, warn `warn-tint`, overdue `neg-tint`). */
+/** Severity token → the strip's tint family (info `info-tint`, warn `warn-tint`, overdue `neg-tint`). */
 export type ReminderSeverity = 'info' | 'warn' | 'overdue';
 
 /** PINNED PHASE-3 CONTRACT — the reminder shape every S6 surface consumes. */

@@ -302,7 +302,7 @@ export function DailyQuotes() {
           <h2 className="text-[26px]">{t.screen.dailyQuotes.title}</h2>
           <span
             key={filledCount}
-            className="animate-in rounded-[6px] bg-pos-tint px-3 py-1 text-xs font-semibold text-pos-tint-text duration-150 zoom-in-95"
+            className="animate-in rounded-[6px] bg-info-tint px-3 py-1 text-xs font-semibold text-info-tint-text duration-150 zoom-in-95"
           >
             {t.dailyQuotes.filled(filledCount, assets.length)}
           </span>
