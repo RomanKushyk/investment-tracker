@@ -113,7 +113,8 @@ describe('the browser chrome mirrors `--color-page`, in both themes', () => {
 });
 
 // EVERY VALUE THE PARCHMENT PALETTE REPLACED, and the list is CLOSED — a record
-// of one migration, not a register to append to. Only `#d8b494` (`brand-sand`)
+// of one migration, not a register to append to. Only `#d8b494` (then
+// `brand-sand`, since #93 the dark `accent` and `logo-outline`)
 // and `#eceae7` (dark `ink`) came through unchanged, so this is the whole of the
 // previous palette as it was declared, plus the two chrome mirrors of the old
 // `page`.
@@ -192,10 +193,14 @@ describe('the palette and its two mirrors carry no retired value', () => {
   //
   // THE THREE FILES ARE THE WHOLE SCOPE, and the title says so rather than
   // claiming the repo. `public/favicon.svg`, `scripts/build-touch-icon.mjs` and
-  // `src/app/mark.test.ts` still hold `#26262a` / `#e9e8e6` on purpose: the
-  // mark is drawn art with its own hexes, not a token consumer, and #93
-  // redraws it. Widening this list before then would fail on a file this
-  // branch has no mandate to touch.
+  // `src/app/mark.test.ts` held `#26262a` / `#e9e8e6` while the Q-arrow did,
+  // and #93 redrew the mark, so they carry no retired value any more and the
+  // exemption they had is spent. Widening the sweep onto them is deliberately
+  // NOT done here — the owner ruled it its own issue, since it guards a
+  // different thing from the palette's two mirrors and would arrive with no
+  // failing case behind it. `mark.test.ts` is what keeps those three files
+  // honest meanwhile, and it reads their colours out of `index.css` rather
+  // than freezing them.
   it.each(Object.keys(FILES) as (keyof typeof FILES)[])('%s holds none of them', (file) => {
     const source = FILES[file].toLowerCase();
     const found = RETIRED.filter((hex) => source.includes(hex));
@@ -270,14 +275,13 @@ describe('the recorded readings still read as recorded', () => {
       3.091,
     ],
     ['sb-label on its wall, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
-    // #92 RE-PLANED THE MARK'S GROUND AND #93 HAS NOT MOVED THE MARK YET. The
-    // arrow was drawn for a plate that was dark in both themes; in light it is
-    // now sand on parchment, under 1.4.11's 3 : 1 for a non-text graphic. Ruled
-    // to wait rather than be re-valued by a branch that does not own the mark —
-    // the three per-theme `logo-*` names are declared and #93 maps them. This
-    // row goes with `brand-sand` when it does.
-    ['brand-sand on the wall, light', 'light', 'brand-sand', 'sb-bg', 1.487],
-    ['brand-sand on the wall, dark', 'dark', 'brand-sand', 'sb-bg', 10.07],
+    // THE SUCCESSOR OF THE `brand-sand` ROW, and the improvement is most of the
+    // way rather than all of it. That sand read 1.487 on the light wall because
+    // it was drawn for a plate dark in both themes; the mark takes the three
+    // per-theme `logo-*` names now, and five of its six readings clear — 4.49
+    // and 7.74 in light, 10.07 / 15.06 / 5.33 in dark. The lighter pill in
+    // light does not, and it is the same `reit` hue as the row below.
+    ['logo-pill-a on the wall, light', 'light', 'logo-pill-a', 'sb-bg', 2.812],
     // Two more the sheet records at their values.
     [
       'reit on panel — ColorDot and ShareBar paint the bare hue there',
@@ -313,6 +317,22 @@ describe('the recorded readings still read as recorded', () => {
     expect(ratio(resolve('light', 'warn'), resolve('light', 'panel'))).toBeGreaterThanOrEqual(4.5);
   });
 
+  // THE OTHER FIVE PARTS OF THE MARK, and a floor rather than five readings —
+  // `index.css` says they clear, and one recorded shortfall is the whole of
+  // what the mark is allowed. Without this the stylesheet's sentence is the
+  // only thing holding it, and a re-valued `sb-bg` could put a second part
+  // under 1.4.11 with every gate green. `logo-pill-a` in light is the
+  // exception, recorded above at its value.
+  it.each([
+    ['logo-outline', 'light'],
+    ['logo-pill-b', 'light'],
+    ['logo-outline', 'dark'],
+    ['logo-pill-a', 'dark'],
+    ['logo-pill-b', 'dark'],
+  ] as [string, keyof typeof BLOCKS][])('`%s` clears 3 : 1 on the wall in %s', (name, block) => {
+    expect(ratio(resolve(block, name), resolve(block, 'sb-bg'))).toBeGreaterThanOrEqual(3);
+  });
+
   // The identities `index.css` records beside the minted families. They are the
   // sheet's own and were declined for resolution there, so what is guarded is
   // that they stay KNOWN — a later session that separates them should have to
@@ -320,7 +340,8 @@ describe('the recorded readings still read as recorded', () => {
   it.each([
     ['accent', 'energy', 'light'],
     ['accent', 'energy', 'dark'],
-    ['accent', 'brand-sand', 'dark'],
+    ['accent', 'logo-outline', 'light'],
+    ['accent', 'logo-outline', 'dark'],
     ['logo-pill-a', 'reit', 'light'],
     ['logo-pill-b', 'reit', 'dark'],
     ['info', 'ovdp8976', 'light'],

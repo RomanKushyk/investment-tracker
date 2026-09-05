@@ -82,8 +82,8 @@ keyboard layout as the signal: no browser reports a numeric convention.
 `outer = inner + gap`, the gap being padding plus any border. A segmented control is both at once —
 segment proportional, track concentric. Surfaces keep the reference's 16 / 20 / 24, and a full-bleed
 bar takes square corners. Only asset avatars, colour dots and the decorative blob stay round; the
-mark's own arc is drawn, not a radius. Measure the RENDERED height — `text-[11px]` sets a font size,
-not a line height.
+mark is drawn geometry — its loop and pills are strokes, not radii. Measure the RENDERED height —
+`text-[11px]` sets a font size, not a line height.
 **Why.** Proportional describes an object, concentric describes containment, and reaching for the
 wrong one gives an answer that looks derived while being arbitrary. A panel's width is a layout
 consequence rather than a designed size, so a radius scaled from it cuts across the corners of what
@@ -124,19 +124,31 @@ table forms and hiding one: the phone still builds and derives the table it cann
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`; the rename went all the way
 through the infrastructure, so no identifier anything addresses still carries the old name. The logo
-is the Q-arrow mark — an open arc whose tail is a sand arrow — and it lives in THREE files that must
-change together: `src/app/Sidebar.tsx`, `public/favicon.svg` and `public/apple-touch-icon.png`.
-Nothing sits behind it — the mark IS the circle — and its brand token is one value in both themes.
-The sidebar LOCKUP is that mark at 22px beside a lowercase `quirenote` in the mono face at 600 and
--3%: one row, no plate behind it and no tagline under it, with the dataset badge as the row's third
-member rather than an ornament floating over a box.
+is the 5h mark — a rounded loop with a small second bay, and two pills falling from its right edge,
+all stroke and no fill — and it SHIPS in three files: `src/app/Sidebar.tsx`, `public/favicon.svg`
+and `public/apple-touch-icon.png`. The raster is generated, so the drawing is DRAWN in four — the
+fourth being `scripts/build-touch-icon.mjs`, which the mark's test reads as a first-class copy and
+against which it checks the committed PNG. Edit the mark and all four move. Nothing sits behind it.
+Its three parts take three PER-THEME tokens — `logo-outline`, `logo-pill-a`, `logo-pill-b` — so
+the mark inverts with the app; the two files that cannot read a token hold the same values as
+literals, and the favicon's light trio is its default branch because Safari ignores the colour-scheme
+query. The box is the design sheet's own and is not cropped to the ink. The sidebar LOCKUP is that
+mark at 22px beside a lowercase `quirenote` in the mono face at 600 and -3%: one row, no plate behind
+it and no tagline under it, with the dataset badge as the row's third member rather than an ornament
+floating over a box.
 **Why.** Every precise word was taken in every zone, so the name is a compound, and the collision
 audit killed better candidates than the availability sweep did — half the neighbours of a mined
-ending are financial. The brand token stayed one value because the mark's only plane was dark in
-both themes; the wall follows the theme now, which spends that reason and is why the per-theme logo
-tokens exist for the mark to take.
+ending are financial. One brand sand served both themes only because the mark's only plane was dark
+in both; re-planing the wall onto the theme spent that reason and left the sand under 1.4.11 on
+parchment. Cropping a mark to its ink was the retired drawing's argument, and it bought that drawing
+a thicker stroke on a 16px tab; this one is set out on a padded box that the sheet itself renders the
+lockup on at the size the app draws it, so taking the box is taking the drawing as drawn — and a box
+measured off the geometry rather than the paint clips the loop's caps, since a bbox ignores stroke.
 **Rejected.** A hosted DNS zone: a standing monthly charge for records any registrar serves free. ·
-Leaving the machines named for the old product: the rename is cheapest while the archive is young.
+Leaving the machines named for the old product: the rename is cheapest while the archive is young. ·
+The sheet's own one-colour fallback for a 16px tab: the full mark reads on both chromes, and a
+second drawing is a fourth copy to keep in step. It stays documented, unminted, until something
+needs one thread or one ink.
 
 ## The price archive
 **Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet. It buys,

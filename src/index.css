@@ -204,19 +204,6 @@
      rather than putting an `ink` hairline round a parchment drawer;
      `sidebar-plane.test.ts` records it at its value. */
   --color-drawer-edge: transparent;
-  /* The logo mark's arrow, and the app's first brand colour (D131). ONE VALUE IN
-     BOTH THEMES, and #92 spent the reason it was safe: the mark's only plane
-     used to be dark in both, and the wall now follows the theme, so this sand
-     sits on parchment in light where it was drawn for a dark plate. It stays
-     one value here only because #93 owns the mark — the three per-theme
-     `logo-*` names below are already declared for it. The arc takes
-     `currentColor` from `ink`.
-     RECORDED SHORTFALL: 1.49 on the light wall, against 1.4.11's 3 : 1 for a
-     non-text graphic, where dark reads 10.07. The owner ruled it waits for #93
-     rather than being re-valued here by a branch that would be picking one of
-     the sheet's three logo values without the mapping #93 does properly.
-     `palette-mirror.test.ts` records it at its value. */
-  --color-brand-sand: #d8b494;
   --color-pos: #2f6b3f;
   --color-pos-tint: #e0e4da;
   --color-pos-tint-text: #2f6b3f;
@@ -264,19 +251,20 @@
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
 
-  /* MINTED BY #91, CONSUMED SINCE (parchment-5h.dc.html). #92 wired the wall;
-     the accent and the logo are still waiting, for #95 and #93. Declared in one
-     go so both blocks move together, and a consumer arrives to a name that
-     already answers in either theme.
+  /* MINTED BY #91, CONSUMED SINCE (parchment-5h.dc.html). #92 wired the wall and
+     #93 the mark; the accent is still waiting, for #95. Declared in one go so
+     both blocks move together, and a consumer arrives to a name that already
+     answers in either theme.
 
      TWO IDENTITIES ARE ALREADY SPENT, recorded rather than resolved — the sheet
-     draws them and #91 has no standing to redraw a palette:
-     · `accent` IS `energy` in both themes, and `brand-sand` too in dark, so on
-       /allocation in dark a legend dot, the mark, the active nav item and the
-       primary CTA are one colour once #95 lands.
+     draws them and #91 had no standing to redraw a palette:
+     · `accent` IS `energy` in both themes, and `logo-outline` in both as well,
+       so on /allocation in EITHER theme a legend dot, the mark's loop, the
+       active nav item and the primary CTA are one colour once #95 lands. It was
+       dark alone while the mark held `brand-sand`, which matched there only.
      · `logo-pill-a` (light) and `logo-pill-b` (dark) ARE `reit`, so a REIT
        legend dot is the mark's own pill colour.
-     Both are read by #95 and #93, and #13's colour picker inherits the first. */
+     The first is read by #95, and #13's colour picker inherits it. */
   /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and the
      sheet's usage rule makes the accent every link and active tab in light. The
      owner ruled the value stands (#90); as a non-text fill it clears
@@ -304,8 +292,19 @@
   --color-info: #4a6178;
   --color-info-tint: #e3e3e1;
   --color-info-tint-text: #4a6178;
-  /* The 5h mark's three parts. `Mark` still paints from `currentColor` and
-     `brand-sand` until #93 moves it. */
+  /* The 5h mark's three parts — the loop, then the two pills. All three copies
+     of the mark read them: `Mark` in Sidebar.tsx through Tailwind, and
+     public/favicon.svg and scripts/build-touch-icon.mjs as literals, since
+     neither a tab icon nor a headless render page has a token to resolve.
+     They replaced `brand-sand`, one value in both themes because the mark's
+     only plane used to be dark in both — a reason #92 spent, and which left
+     that sand well under 1.4.11 on the light wall.
+     RECORDED SHORTFALL, and it is the successor of that one: `logo-pill-a`
+     reads 2.81 on the light wall, still under 1.4.11's 3 : 1 for a non-text
+     graphic, where the mark's other five readings clear. It is the sheet's own
+     value for the lighter pill and the same `reit` hue recorded on `panel`
+     below; re-valuing it is a brief, not a hex. `palette-mirror.test.ts`
+     records it at its value. */
   --color-logo-outline: #8a5a3a;
   --color-logo-pill-a: #b07a52;
   --color-logo-pill-b: #5c3a26;
@@ -449,9 +448,6 @@
   /* Read through the alias rather than repeated as a hex, so it cannot drift
      from the token it was measured as — the block above is the reasoning. */
   --color-drawer-edge: var(--color-field-border);
-
-  /* Brand. Repeated at the same value on purpose — see the light block. */
-  --color-brand-sand: #d8b494;
 
   /* Semantic. */
   --color-pos: #86b98f;

@@ -1,46 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="9.5 8.5 78 78" role="img" aria-label="Quirenote">
-  <!-- The Quirenote mark (D131): an open Q — an r32 arc gapped at the top-right
-       — whose tail is a sand arrow. Same three paths as `Mark` in
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Quirenote">
+  <!-- The Quirenote mark: the 5h mark, a rounded loop and two pills, all stroke
+       and no fill. Same three paths and the same box as `Mark` in
        src/app/Sidebar.tsx, pinned against it by src/app/mark.test.ts.
 
-       THE VIEWBOX IS CROPPED TO THE INK, which is what replaces mark 04's
-       even-bar-centre rule. That rule bought whole-device-pixel edges at 16px,
-       and an arc has no edge to align: every tangent meets the grid at a
-       different angle, so there is no parity to choose. The only lever left is
-       how much of the box the drawing gets, so it gets all of it. The arc's ink
-       spans [9.5, 86.5] on both axes (centre 48,48 · r32 · stroke 13) and the
-       arrowhead reaches x 87.5 and y 8.5 (tip 86,10 with a 3-wide round join),
-       so the union is exactly 78 × 78 at (9.5, 8.5). At 16px that is 2.67px of
-       stroke instead of the 2.17px the owner's padded 96-box would give.
+       THE BOX IS THE SHEET'S and is deliberately not cropped to the ink, even
+       for a 16px tab: the sheet renders the mark at that size on this box, and
+       cropping here would put a second box beside the one it was drawn on. A
+       box measured off the geometry clips the loop's caps and the lower pill,
+       since a bounding box ignores stroke.
 
        Transparent and theme-aware: the browser paints the tab in its own theme,
-       so a fixed colour would go invisible in one of them. Four literals, not
-       two, because the arrow is a second colour — the arc's pair is the app's
-       own `sidebar`/`sidebar-text`, the arrow's is the brand sand. The light
-       sand is the DARKER value (4.71:1 on white); in the app the arrow is
-       #d8b494 in both themes, because there its ground is a plate that is dark
-       in both — see the brand-sand token in src/index.css.
+       so a fixed colour would go invisible in one of them. SIX literals, three
+       per branch, since each part of the mark carries its own logo token. The
+       light trio is the DEFAULT branch and has to be — Safari ignores the query
+       altogether, so whatever sits outside it is what that chrome draws.
 
-       AND THAT SENTENCE IS WHY THE TOKEN IS NAMED WITHOUT ITS DASHES: a double
-       hyphen cannot appear inside an XML comment, so writing the token in full
-       here makes this whole file not well-formed and the icon renders BLANK.
-       Every text assertion in mark.test.ts still passed on the broken file, so
-       that test now checks this rule directly.
+       AND THAT SENTENCE IS WHY THE TOKENS ARE NAMED WITHOUT THEIR DASHES: a
+       double hyphen cannot appear inside an XML comment, so writing a custom
+       property in full here makes this whole file not well-formed and the icon
+       renders BLANK. Every text assertion in mark.test.ts still passed on the
+       broken file, so that test now checks this rule directly.
 
-       Stroke and fill are separate classes on purpose. CSS beats presentation
-       attributes, so one class carrying `fill` would override the shaft's
-       fill="none" and try to fill a two-point path. -->
+       One class per part rather than one shared: they take three different
+       values in each branch, and nothing here needs a fill. -->
   <style>
-    .arc { stroke: #26262a }
-    .sand { stroke: #9c683a }
-    .sand-fill { fill: #9c683a }
+    .loop { stroke: #8a5a3a }
+    .pill-a { stroke: #b07a52 }
+    .pill-b { stroke: #5c3a26 }
     @media (prefers-color-scheme: dark) {
-      .arc { stroke: #e9e8e6 }
-      .sand { stroke: #d8b494 }
-      .sand-fill { fill: #d8b494 }
+      .loop { stroke: #d8b494 }
+      .pill-a { stroke: #ece1d2 }
+      .pill-b { stroke: #b07a52 }
     }
   </style>
-  <path class="arc" d="M53 16.39A32 32 0 1 0 79.61 42.99" fill="none" stroke-width="13" stroke-linecap="round" />
-  <path class="sand" d="M52 44 74 22" fill="none" stroke-width="13" stroke-linecap="round" />
-  <path class="sand sand-fill" d="M79.78 31.78 64.22 16.22 86 10Z" stroke-width="3" stroke-linejoin="round" />
+  <path class="loop" d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+  <path class="pill-a" d="M72 48 V70" fill="none" stroke-width="15" stroke-linecap="round" />
+  <path class="pill-b" d="M96 70 V88" fill="none" stroke-width="15" stroke-linecap="round" />
 </svg>

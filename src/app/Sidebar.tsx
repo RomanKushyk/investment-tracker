@@ -24,23 +24,22 @@ const ANALYTICS = [
   { to: '/allocation', key: 'allocation' },
 ] as const;
 
-// The Quirenote mark (D131): an open Q — an r32 arc gapped at the top-right —
-// whose tail is a sand arrow. `aria-hidden` because the wordmark beside it says
+// The Quirenote mark: the 5h mark, transcribed from the sheet — a rounded loop
+// with a small second bay, and two pills falling away from its right edge. All
+// stroke and no fill. `aria-hidden` because the wordmark beside it says
 // "Quirenote" already; labelling the mark too makes a screen reader say the
 // brand twice on every route.
 //
-// The viewBox is CROPPED TO THE INK, and that is the whole geometric argument
-// now that there are no bars to align to a pixel grid. The arc's ink spans
-// [9.5, 86.5] on both axes (centre 48,48 · r32 · stroke 13) and the arrowhead
-// reaches x 87.5 and y 8.5 (tip 86,10 with a 3-wide round join), so the union is
-// exactly 78 × 78 at (9.5, 8.5). Filling that box means the mark is as many
-// pixels of drawing as the caller asks for, with no transparent margin spending
-// them — which is what lets it drop from 36 to the sheet's 22 and stay legible,
-// and what gives public/favicon.svg a thicker stroke on a 16px tab.
+// THE BOX IS THE SHEET'S OWN and is deliberately not cropped to the ink: the
+// sheet renders the lockup on that box at the size below, so taking the box is
+// taking the drawing as drawn. Re-cropping it is the one edit to think twice
+// about — mark.test.ts asserts the box still contains every painted stroke,
+// because a box measured off the geometry clips the caps.
 //
-// Colour is split: the arc takes `currentColor` so it follows the plane it is
-// on, the arrow takes the one brand token. No hex belongs in here — mark.test.ts
-// asserts there is none.
+// EVERY PART IS A TOKEN, so the mark inverts with the app. Nothing here takes
+// `currentColor` any more: that existed to let one brand sand serve a plane that
+// was dark in both themes, and the wall follows the theme now. No hex belongs in
+// here — mark.test.ts asserts there is none.
 //
 // KEEP THIS THE ONLY INLINE SVG IN THE FILE — src/app/mark.test.ts pins the mark
 // by reading this source and collecting every path and stroke width in it, so a
@@ -48,26 +47,28 @@ const ANALYTICS = [
 // as a component (lucide) never appear in this source and are safe.
 function Mark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="9.5 8.5 78 78" className={className} aria-hidden="true">
+    <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
       <path
-        d="M53 16.39A32 32 0 1 0 79.61 42.99"
+        className="stroke-logo-outline"
+        d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70"
         fill="none"
-        stroke="currentColor"
-        strokeWidth="13"
+        strokeWidth="11"
         strokeLinecap="round"
-      />
-      <path
-        className="stroke-brand-sand"
-        d="M52 44 74 22"
-        fill="none"
-        strokeWidth="13"
-        strokeLinecap="round"
-      />
-      <path
-        className="fill-brand-sand stroke-brand-sand"
-        d="M79.78 31.78 64.22 16.22 86 10Z"
-        strokeWidth="3"
         strokeLinejoin="round"
+      />
+      <path
+        className="stroke-logo-pill-a"
+        d="M72 48 V70"
+        fill="none"
+        strokeWidth="15"
+        strokeLinecap="round"
+      />
+      <path
+        className="stroke-logo-pill-b"
+        d="M96 70 V88"
+        fill="none"
+        strokeWidth="15"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -338,7 +339,9 @@ function SidebarPanel({
             rail && onCollapse !== undefined ? 'pr-[38px]' : ''
           }`}
         >
-          <Mark className="size-[22px] flex-none text-ink" />
+          {/* No `text-ink`: no part of the mark inherits `currentColor` since
+              the three logo tokens replaced the one brand sand. */}
+          <Mark className="size-[22px] flex-none" />
           <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
             quirenote
           </span>
