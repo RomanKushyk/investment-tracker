@@ -64,6 +64,11 @@ export const en = {
     openNav: 'Open navigation',
     closeNav: 'Close navigation',
     collapseNav: 'Collapse navigation',
+    expandNav: 'Expand navigation',
+    // The rail's currency box SHOWS a state rather than offering two, so its
+    // name has to say which one is shown — «₴» alone tells a screen reader
+    // nothing. It is not a toggle: the choice lives on the expanded track.
+    currencyShown: (code: string) => `Currency: ${code}`,
     // A33 — read by assistive tech only; the visible label is the group's own.
     collapseGroup: (group: string) => `Collapse ${group}`,
     expandGroup: (group: string) => `Expand ${group}`,
@@ -1100,6 +1105,8 @@ export const uk: Dict = {
     openNav: 'Відкрити навігацію', // ✎
     closeNav: 'Закрити навігацію', // ✎
     collapseNav: 'Згорнути навігацію', // ✎
+    expandNav: 'Розгорнути навігацію',
+    currencyShown: (code: string) => `Валюта: ${code}`,
     // «Згорнути Аналітика» is the nominative sitting in an accusative slot.
     // Naming the GROUP first keeps the case on a word this template owns, so
     // the splice stays nominative and no per-group form is needed — the same

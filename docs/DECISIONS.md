@@ -101,22 +101,29 @@ it contains.
 **Decision.** Nothing scrolls with the platform's bar — every constrained box goes through
 `Scroller`. The rail is 12 across (`2+2+4+2+2`), thumb r1 and rail r5, with a margin of 8 equal on
 all four sides and a reserved gutter of `2m + 12`; `max(8, ceil(R × (1 − 1/√2)))` guards a corner
-rounder than any the app has. The gutter is the ScrollArea ROOT's padding, both inline sides, fixed.
+rounder than any the app has. The gutter is the ScrollArea ROOT's padding, both inline sides, fixed. One column is too narrow to
+hold it — the collapsed rail has 40 of content against a 28 reserve — and passes `overlay`, which
+floats the bar at the edge on a 2px margin instead.
 Ask for both orientations on content you did not author — the axis you omit is `overflow: hidden`,
 not merely unscrollable — and give a scrolling band `min-h-0` AND `min-w-0`. A dialog is three bands
 and only the middle one scrolls. `Select` keeps the styled native bar.
 **Why.** A square-cornered platform track cuts a rounded panel's corner, and takes layout width on
 one OS and none on another, so a screen reflows differently per platform. Padding on the scrolling
-element is INSIDE the scroll box: away from the ends of the range, content slides under the rail.
+element is INSIDE the scroll box: away from the ends of the range, content slides under the rail. The
+one floating case is allowed because its item has no row to read across — a single 18px glyph centred
+in 40, which the bar clears — while reserving there would leave 12px for a 40px item.
 **Rejected.** Insets concentric with the parent's corner: invisible on a shape this thin, and the
 real estate is not free. · Gating the gutter on whether a rail is showing: the panel then flips
-between symmetric and lopsided as its content grows.
+between symmetric and lopsided as its content grows — which `overlay` is not, being a fixed property
+of one caller's width rather than of its content.
 
 ## Two shells, one breakpoint
 **Decision.** Two layouts and one switch — `md`, 768px. Below it the sidebar is an off-canvas 280px
 drawer, a Radix `Dialog`, so the focus trap, Escape, scroll lock and focus return are the library's,
-and the header carries the capital; at and above it the 244px rail sits in flow beside a collapse
-control that hands the header the same job. The breakpoint is written twice — in the markup and in
+and the header carries the capital; at and above it the sidebar is 244px in flow or a 56px icon
+rail, and the choice persists. Collapsed, the rail owns the control that expands it and the header
+carries the figure and the dataset caution — the two things a 56px shell cannot hold. The breakpoint
+is written twice — in the markup and in
 `useIsDesktop` — and the two must stay one number. 44 × 44 is HIT AREA, never geometry: a transparent
 centred overlay grows the pressable region and leaves every radius where the shape system put it.
 Exactly one branch mounts per shell.
@@ -124,8 +131,12 @@ Exactly one branch mounts per shell.
 an accessibility fix. A control with no drawn box gets real padding instead, because an overlay
 reaching past its own control hands the tap to the neighbour — and a text field can never take one,
 since an `<input>` renders no pseudo-element at all.
-**Rejected.** A third geometry: the old narrow rail has no job once a drawer exists. · Rendering both
-table forms and hiding one: the phone still builds and derives the table it cannot show.
+**Rejected.** A rail that only hides: collapsing to nothing leaves an absence rather than a place,
+which is why that state was never worth keeping across a reload and this one is. · A theme control
+in the rail: one glyph cannot show the two states it is not in, and there it would be the only theme
+control on screen; currency survives the same test because the box shows the state you are in. ·
+Rendering both table forms and hiding one: the phone still builds and derives the table it cannot
+show.
 
 ## Brand
 **Decision.** The product is Quirenote and the domain is `quirenote.com`; the rename went all the way

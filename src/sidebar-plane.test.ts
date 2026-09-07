@@ -259,6 +259,43 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
 // above notices: those arms composite over `sb-bg` and would go on reading 3.88
 // for ever while the app painted 3.62. That is the failure mode this file warns
 // about two describes up — a pin that keeps passing about a plane nothing uses.
+// A GLYPH THAT STANDS ALONE IS BOUND BY 1.4.11, and this file said so: the note
+// at the top of it records that `sb-icon` and `sb-icon-active` take no floor
+// while every glyph sits beside its own visible label, and that "#108 is where
+// it does, a glyph standing alone on the collapsed rail, and that issue carries
+// the 3 : 1 test". This is that test. The rail's items have no labels — the name
+// is an `aria-label` and the tooltip is for the pointer — so the glyph is the
+// whole of what identifies a route, and non-text is held to 3.
+describe('the rail draws its glyphs alone, so they are held to 1.4.11', () => {
+  it.each(THEMES)('%s: an idle rail glyph clears 3 : 1 on the wall', (theme) => {
+    expect(
+      ratio(resolve(BLOCKS[theme], 'sb-icon'), resolve(BLOCKS[theme], 'sb-bg')),
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  // The current route's glyph sits on the same 12% tint the expanded pill wears,
+  // so it is read composited rather than against the bare wall.
+  it.each(THEMES)('%s: the active glyph clears 3 : 1 on its tint', (theme) => {
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS[theme], 'sb-bg'));
+    expect(ratio(resolve(BLOCKS[theme], 'sb-icon-active'), ground)).toBeGreaterThanOrEqual(3);
+  });
+
+  // Hover is a 5% ground under the same glyph, and the rail has no label to
+  // carry the state instead.
+  it.each(THEMES)('%s: a hovered rail glyph clears 3 : 1 on its ground', (theme) => {
+    const ground = over(tint(BLOCKS[theme], 'sb-item-hover-bg'), resolve(BLOCKS[theme], 'sb-bg'));
+    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), ground)).toBeGreaterThanOrEqual(3);
+  });
+
+  // The rail's currency box shows a value rather than offering two, so its
+  // symbol is TEXT on the tint and asks 4.5 — which is why it reads `ink` and
+  // not the `sb-item` the expanded track's idle symbol takes at 4.30.
+  it.each(THEMES)('%s: the rail currency symbol clears 4.5 : 1 on its tint', (theme) => {
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), resolve(BLOCKS[theme], 'sb-bg'));
+    expect(ratio(resolve(BLOCKS[theme], 'ink'), ground)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('the footer band is a second ground, and the eleventh route reads on it', () => {
   const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS[theme], 'sb-footer-bg');
 

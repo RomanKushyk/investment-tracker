@@ -86,7 +86,7 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 ## Verify after bumping
 
 - Sidebar bottom shows `V X.Y.Z` (micro-label style, muted) in BOTH shells — the
-  244px rail at and above `md`, and the 280px drawer below it. The narrow
-  136px rail this line used to name was retired by A17/D66; there is no third
-  place to check.
+  244px panel at and above `md`, and the 280px drawer below it. The COLLAPSED
+  56px rail carries none by ruling — the badge does not fit its column. Expand
+  it, or read it in the drawer, and do not file the absence.
 - `pnpm build` green — `tsc --noEmit` also type-checks `vite.config.ts`'s `package.json` import (`resolveJsonModule`).

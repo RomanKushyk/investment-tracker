@@ -2,6 +2,8 @@ import { Dialog as RadixDialog } from 'radix-ui';
 import type { ReactNode } from 'react';
 
 import { useCapitalCard } from '../hooks/useCapitalCard';
+import { NAV_TRIGGER_ID } from './nav-ids';
+import { useDataset } from '../state/settings';
 import { useT } from '../i18n/useT';
 
 /**
@@ -20,15 +22,6 @@ function MenuGlyph() {
     </span>
   );
 }
-
-/**
- * Collapsing the rail makes the control that did it `inert`, and expanding it
- * unmounts the one that did THAT — so in both directions the activated element
- * disappears and focus falls to `<body>`. `Layout` moves it to whichever trigger
- * replaced it, and these two ids are how it finds them.
- */
-export const NAV_TRIGGER_ID = 'app-nav-trigger';
-export const SIDEBAR_COLLAPSE_ID = 'app-sidebar-collapse';
 
 const TRIGGER_CLASS =
   'grid size-11 flex-none cursor-pointer place-items-center rounded-[11px] text-ink transition hover:opacity-85 active:scale-[.97]';
@@ -59,57 +52,43 @@ const TRIGGER_CLASS =
  * is never a second derivation of the headline.
  */
 export function AppHeader({
-  mode,
+  desktop,
   open,
-  onExpand,
 }: {
   /**
-   * `drawer` — below the breakpoint; the trigger opens the off-canvas sidebar
-   * and Radix supplies its own `aria-expanded` / `aria-controls` / `aria-haspopup`.
-   * `expand` — at and above it; the trigger puts the collapsed rail back in flow.
+   * At and above the breakpoint the header carries the FIGURE and nothing else:
+   * the rail owns the control that expands it, because a control that expands
+   * the rail belongs to the rail. Below it there is no rail, so the header keeps
+   * the burger that opens the drawer.
+   *
+   * The trigger is RENDERED conditionally and never merely hidden. `Layout`
+   * finds it by id and `getElementById` returns the first match, so a hidden
+   * copy here would take `NAV_TRIGGER_ID` from the rail's own.
    */
-  mode: 'drawer' | 'expand';
-  /** Drawer state, for the trigger's label only — always false in `expand`. */
+  desktop: boolean;
+  /** Drawer state, for the trigger's label only. */
   open: boolean;
-  onExpand: () => void;
 }) {
   const t = useT();
   const capital = useCapitalCard();
+  const demo = useDataset() === 'demo';
   const empty = capital.net === undefined;
   // Radix publishes `aria-expanded` on the trigger, so the NAME has to agree
   // with it: a control announced as expanded while still called "Open
   // navigation" is a contradiction a screen reader reads out in full.
   const triggerLabel = open ? t.nav.closeNav : t.nav.openNav;
 
-  const trigger: ReactNode =
-    mode === 'drawer' ? (
-      // `asChild`, so the button IS the trigger: Radix then returns focus to it
-      // when the drawer closes by Escape, by the scrim, or by a route change.
-      // Its ARIA is Radix's — setting `aria-expanded` here would silently win
-      // over the live one, because Slot lets the child's props take precedence.
-      <RadixDialog.Trigger asChild>
-        <button
-          type="button"
-          id={NAV_TRIGGER_ID}
-          aria-label={triggerLabel}
-          className={TRIGGER_CLASS}
-        >
-          <MenuGlyph />
-        </button>
-      </RadixDialog.Trigger>
-    ) : (
-      <button
-        type="button"
-        id={NAV_TRIGGER_ID}
-        onClick={onExpand}
-        aria-label={triggerLabel}
-        aria-expanded={false}
-        aria-controls="app-sidebar"
-        className={TRIGGER_CLASS}
-      >
+  const trigger: ReactNode = desktop ? null : (
+    // `asChild`, so the button IS the trigger: Radix then returns focus to it
+    // when the drawer closes by Escape, by the scrim, or by a route change.
+    // Its ARIA is Radix's — setting `aria-expanded` here would silently win
+    // over the live one, because Slot lets the child's props take precedence.
+    <RadixDialog.Trigger asChild>
+      <button type="button" id={NAV_TRIGGER_ID} aria-label={triggerLabel} className={TRIGGER_CLASS}>
         <MenuGlyph />
       </button>
-    );
+    </RadixDialog.Trigger>
+  );
 
   return (
     <header
@@ -121,27 +100,53 @@ export function AppHeader({
       //
       // The entry animation is `md:`-only on purpose. Below the breakpoint the
       // header is always mounted, so an entry there would replay on nothing; at
-      // and above it, the header mounts exactly when the rail collapses, which
-      // is the moment S2's motion table describes.
+      // and above it, it mounts when the rail collapses, which is the moment
+      // S2's motion table describes — and once on load, for someone who left
+      // the rail collapsed. Suppressing that would need a first-paint flag; one
+      // fade on a cold load is not what the rule is about.
       className="sticky top-0 z-30 animate-in border-b border-hairline bg-page pt-[env(safe-area-inset-top)] md:duration-220 md:fade-in md:slide-in-from-top-1"
     >
       <div className="flex h-14 items-center gap-2.5 px-2.5">
         {trigger}
+        {/* `truncate` ON BOTH LINES, the pair `CapitalBand` carries for the same
+            reason: the row is over-subscribed at 360 once the badge takes its
+            slot, and a `min-w-0` block with nothing to clip it overflows the
+            viewport instead of ellipsising. No route may scroll sideways. */}
         <div className="min-w-0">
-          <div className="text-[9.5px] tracking-[.12em] text-muted uppercase">
+          <div className="truncate text-[9.5px] tracking-[.12em] text-muted uppercase">
             {t.sidebar.totalCapital}
           </div>
           <div
-            className={`font-display text-[18px] leading-[1.15] font-bold ${empty ? 'text-faint' : ''}`}
+            className={`truncate font-display text-[18px] leading-[1.15] font-bold ${empty ? 'text-faint' : ''}`}
           >
             {capital.value}
           </div>
         </div>
-        {/* The delta stacks rather than running on one line as the sidebar card
-            does: at 360 the bar has ~150 px left after the trigger and the
-            figure, and `+3,08 % · 3 324,03 $` is 20 characters — 144 px at the
-            0.6 em advance, before the gap. Two lines fit the 56 px it already
-            has. */}
+        {demo && (
+          // THE CAUTION FOLLOWS THE FIGURE. The badge is wider than a 56px
+          // rail's column, so it comes here — which is exactly where the header
+          // exists: while the rail is collapsed, and below the breakpoint. A
+          // caution that disappears when a rail narrows is one nobody can rely
+          // on. The sidebar keeps its own in both its shells; with the drawer
+          // open this one is behind the scrim and `aria-hidden`, so one is
+          // announced and the other is dimmed furniture, like the figure above
+          // it.
+          //
+          // `warn` on `page` rather than on the wall, which is a plane the
+          // sheet's own table does not read; `palette-mirror.test.ts` records it.
+          // It is outside the `sb-*` family this surface refuses, which is the
+          // rule that matters here.
+          <span
+            title={t.sidebar.demoTitle}
+            className="ml-2.5 flex-none animate-in rounded-[5px] border border-warn bg-warn-tint px-1.5 py-[2px] font-body text-[9px] font-bold tracking-[.08em] text-warn-tint-text uppercase duration-200 zoom-in-95 fade-in"
+          >
+            {t.sidebar.demoBadge}
+          </span>
+        )}
+        {/* The delta STACKS rather than running on one line as the sidebar card
+            does: at 360 the row has little left after the trigger, the figure
+            and the badge, and `+3,08 % · 3 324,03 $` does not fit that on one
+            line. Two lines fit the height the bar already has. */}
         <div className="ml-auto pr-1 text-right text-[11px] leading-[1.35]">
           {empty ? (
             <span className="text-faint">—</span>

@@ -19,6 +19,7 @@ const DEFAULTS: PersistedSettings = {
   reminderLeadDays: 7,
   dismissedReminders: [],
   collapsedNavGroups: [],
+  sidebarCollapsed: false,
   period: 'all',
 };
 
@@ -361,6 +362,36 @@ describe('currency: the session value and the persisted default', () => {
 // A33 — the collapsed nav groups. PERSISTED, which is the opposite of the call
 // A21 made for the currency glance, so the tests that matter are the ones about
 // surviving a rehydrate.
+// #108 — the desktop rail's collapsed state. PERSISTED, and the reversal is the
+// point: it was per-session while collapsing meant the navigation went AWAY, and
+// an absence is not a choice anyone wants restored. A rail is a place.
+//
+// A boolean needs no whitelist, unlike `period` — only the `typeof` arm, which
+// is what the three switches above already use.
+describe('sidebarCollapsed', () => {
+  it('survives a rehydrate — a rail is a place, so choosing it is a preference', () => {
+    const merged = mergeSettings({ sidebarCollapsed: true }, useSettings.getState());
+    expect(merged.sidebarCollapsed).toBe(true);
+  });
+
+  it('defaults to expanded and keeps an explicit collapse', () => {
+    expect(migrateSettings({}).sidebarCollapsed).toBe(false);
+    expect(migrateSettings({ sidebarCollapsed: true }).sidebarCollapsed).toBe(true);
+  });
+
+  it('ignores a non-boolean, the way the other switches do', () => {
+    expect(migrateSettings({ sidebarCollapsed: 'yes' })).toEqual(DEFAULTS);
+    expect(migrateSettings({ sidebarCollapsed: 1 })).toEqual(DEFAULTS);
+  });
+
+  it('is written by its setter', () => {
+    useSettings.getState().setSidebarCollapsed(true);
+    expect(useSettings.getState().sidebarCollapsed).toBe(true);
+    useSettings.getState().setSidebarCollapsed(false);
+    expect(useSettings.getState().sidebarCollapsed).toBe(false);
+  });
+});
+
 describe('collapsedNavGroups', () => {
   const reset = () => useSettings.setState({ collapsedNavGroups: [] });
 

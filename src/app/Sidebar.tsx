@@ -19,7 +19,7 @@ import { Children, isValidElement, type ReactNode } from 'react';
 import { matchPath, NavLink, useLocation } from 'react-router';
 
 import { useT } from '../i18n/useT';
-import { SIDEBAR_COLLAPSE_ID } from './AppHeader';
+import { SIDEBAR_COLLAPSE_ID } from './nav-ids';
 import { useDataset, useSettings } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
@@ -28,7 +28,7 @@ import { TAP_44 } from '../components/ui/tap-target';
 // Route -> dictionary KEY, not route -> label: the label is language-dependent
 // and the key is not, so the list stays a constant and the text is looked up at
 // render. The keys are checked against the dictionary by the compiler.
-const ANALYTICS = [
+export const ANALYTICS = [
   { to: '/overview', key: 'overview', Icon: LayoutGrid },
   { to: '/balances', key: 'balances', Icon: Wallet },
   { to: '/payouts', key: 'payouts', Icon: CircleDollarSign },
@@ -60,7 +60,7 @@ const ANALYTICS = [
 // by reading this source and collecting every path and stroke width in it, so a
 // second one here would fail the pin rather than the drawing. Icons that arrive
 // as a component (lucide) never appear in this source and are safe.
-function Mark({ className = '' }: { className?: string }) {
+export function Mark({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 120" className={className} aria-hidden="true">
       <path
@@ -250,8 +250,11 @@ function NavGroup({
             `grid-rows-[0fr]` + `overflow-hidden` clips PAINT and nothing else,
             so every link stayed in the tab order and in the accessibility tree
             — the focus ring walked off-screen for eight stops under a button
-            announcing `aria-expanded="false"`. The shell collapse two hundred
-            lines below already had this exact fix; the group did not. */}
+            announcing `aria-expanded="false"`.
+            THE SHELL NO LONGER NEEDS THE SAME FIX and this one still does: #108
+            made collapsing the shell a rail that is on screen and meant to be
+            reached, so there is nothing hidden there to make inert. A folded
+            GROUP is still clipped paint over live links. */}
         <div
           inert={collapsed || undefined}
           className="flex min-h-0 flex-col gap-[3px] overflow-hidden max-md:gap-2"
@@ -345,7 +348,7 @@ function SidebarPanel({
   variant,
   onCollapse,
 }: {
-  variant: 'rail' | 'drawer';
+  variant: 'panel' | 'drawer';
   onCollapse?: () => void;
 }) {
   const t = useT();
@@ -355,7 +358,7 @@ function SidebarPanel({
   // preference this falls back to.
   const { currency, setCurrency } = useSettings();
   const demo = useDataset() === 'demo';
-  const rail = variant === 'rail';
+  const panel = variant === 'panel';
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
@@ -379,6 +382,11 @@ function SidebarPanel({
           <span className="font-body text-[15px] font-semibold tracking-[-0.03em] text-ink">
             quirenote
           </span>
+          {/* BOTH SHELLS DRAW IT — the drawer is this panel in another box, and
+              a lockup row that loses its caution below the breakpoint is a row
+              that differs for no drawn reason. The header carries one too
+              wherever it is mounted; with the drawer open the header is behind
+              the scrim and `aria-hidden`, so exactly one is announced. */}
           {demo && (
             // `warn-tint`, NOT the accent tint the sheet gives every other badge:
             // its own rule says a caution speaks with `warn` and never with the
@@ -405,7 +413,7 @@ function SidebarPanel({
             truths about one figure — which is also why both read the same
             `useCapitalCard`. `Layout.tsx:154` already arranges the handoff, so
             nothing there moves. */}
-        {rail && <CapitalBand onCollapse={onCollapse} />}
+        {panel && <CapitalBand onCollapse={onCollapse} />}
       </div>
 
       {/* ── band 2 — the navigation, the only part that scrolls ─────────── */}
@@ -653,10 +661,18 @@ function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
 }
 
 /**
- * The DESKTOP shell — in flow, 244 px, exactly as before, plus a collapse
- * control. It stays mounted while collapsed so the width can animate (260 ms,
- * S1's motion table); `inert` is what stops a 0-width box from still holding
- * eleven focusable links a keyboard could walk into.
+ * The DESKTOP shell — in flow, and two widths. Expanded it is the 244 panel;
+ * collapsed it is the 56 px rail, which arrives as `children` so this file never
+ * imports `SidebarRail` and `SidebarRail` can import the route table from here
+ * without the two forming a cycle. The shell stays mounted across the flip so
+ * the width can animate (260 ms, S1's motion table).
+ *
+ * NO `inert` ANY MORE. It existed because collapsing left a 0-width box still
+ * holding eleven focusable links a keyboard could walk into; a rail is on screen
+ * and is meant to be reached, and the panel it replaces is not rendered at all.
+ * The content swaps instantly while the width eases — which is what the mask did
+ * in reverse, and cross-fading would need both mounted and one of them inert,
+ * reintroducing exactly what this removes.
  *
  * The shell's 30 is CHOSEN, not derived, and the sentence that used to derive it
  * was stale: `outer = inner + gap` needs an inner term, and the 14px lockup plate
@@ -666,33 +682,57 @@ function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
  * it meets. The proportional rule is still the wrong tool here — it gave 63 px,
  * because a full-height panel has no designed short side to scale.
  */
-export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onCollapse: () => void }) {
+export function Sidebar({
+  collapsed,
+  onCollapse,
+  children,
+}: {
+  collapsed: boolean;
+  onCollapse: () => void;
+  children: ReactNode;
+}) {
   return (
     <aside
       id="app-sidebar"
-      inert={collapsed || undefined}
       className={`sticky top-0 h-dvh flex-none overflow-hidden transition-[width] duration-[260ms] ease-soft ${
-        collapsed ? 'w-0' : 'w-[244px]'
+        collapsed ? 'w-[calc(56px+env(safe-area-inset-left))]' : 'w-[244px]'
       }`}
     >
-      {/* The inner box keeps its full 244 while the outer one narrows, so the
-          rail slides out under a mask instead of having its contents squeezed
-          through the last few pixels. */}
-      {/* The LEFT inset is paid here and not on the content column, because
-          this rail is that column's SIBLING and sits flush against the page's
+      {collapsed ? (
+        // THE RAIL WEARS THE WALL, and it has to be said here rather than in the
+        // rail: the fill, the right edge and the corner belong to the SHELL, and
+        // the expanded branch below carries the identical four. Rendered bare,
+        // the rail drew on `page` with no edge and a foot band still concentric
+        // with a 30 nothing painted.
+        // The width is FIXED here, spelled out rather than inherited: `w-full`
+        // resolves against a box easing from 244 to 56, so every centred item
+        // would slide 94px leftwards for the whole 260ms instead of the rail
+        // arriving whole under the mask.
+        // The inset is ADDED to the width rather than eaten out of it: 56 has no
+        // room to give, and a notched phone in landscape is wide enough to be
+        // this shell.
+        <div className="h-full w-[calc(56px+env(safe-area-inset-left))] rounded-r-[30px] border-r border-field-border bg-sb-bg pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] text-ink">
+          {children}
+        </div>
+      ) : (
+        <>
+          {/* The LEFT inset is paid here and not on the content column, because
+          this panel is that column's SIBLING and sits flush against the page's
           left edge. `viewport-fit=cover` extends the page under the cutout, so
           in landscape on a notched device `env(safe-area-inset-left)` is ~59px
           while `p-4` gives 16 — the lockup, the nav pills and the currency
           toggle would sit under the notch and the rounded corner. It resolves to
           16 everywhere else, so nothing moves on a desktop. */}
-      {/* `border-r`, not `border`: the rail is flush to the viewport on the
+          {/* `border-r`, not `border`: the panel is flush to the viewport on the
           other three sides, so those edges would separate nothing and the wall
           would wear a frame against the browser chrome. Only the right edge is
           an adjacency — the wall against `page` — and it is the one #98 costed.
           `SidebarDrawer` below draws its own edge the same way. */}
-      <div className="h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink">
-        <SidebarPanel variant="rail" onCollapse={onCollapse} />
-      </div>
+          <div className="h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink">
+            <SidebarPanel variant="panel" onCollapse={onCollapse} />
+          </div>
+        </>
+      )}
     </aside>
   );
 }

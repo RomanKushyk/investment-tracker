@@ -29,6 +29,13 @@
  *   redraw. Give it a REAL 44 px box (`max-md:size-11`, or a min-height) and let
  *   layout account for it. Nothing moves visually, because nothing was drawn,
  *   and the neighbours are pushed apart instead of being overlapped.
+ * · A control whose SMALL BOX IS ITSELF A DRAWN VALUE takes the overlay, even
+ *   though it draws no fill: growing it would move the drawing. The rail's
+ *   burger is the case — its 14 x 12 is derived from ink weight against eleven
+ *   outline glyphs, and its head's 46 px is a term in the rail's height budget,
+ *   so a real box would spend 24 px of a clearance the sheet bought on purpose.
+ *   `TAP_RAIL` below is that overlay, unprefixed because the rail exists only at
+ *   and above the breakpoint, where `TAP_44` is inert by construction.
  * · An inline link inside a sentence gets NEITHER. An absolutely positioned
  *   pseudo-element resolves against the first line box of an inline element, so
  *   on a wrapped link the overlay lands somewhere nobody predicted; and WCAG
@@ -80,3 +87,18 @@ export const TAP_44 =
  * where it was.
  */
 export const TAP_44_BOX = 'max-md:grid max-md:size-11 max-md:place-items-center';
+
+/**
+ * The rail's own reach: 40 x 36, which is the rail ITEM's drawn box, so the
+ * burger's region tiles with the ten below it instead of overlapping them. Both
+ * dimensions clear WCAG 2.5.8's 24 on size rather than on the spacing exception;
+ * the 44 the platform guidance wants is unreachable inside 56 px of shell, and
+ * the ten items answer that the same way.
+ *
+ * It reaches 12 up, which lands on the 22 px mark above it — `aria-hidden` and
+ * not a control, so a press there hits the only control in the head, which is a
+ * bigger target rather than a misrouted one.
+ */
+export const TAP_RAIL =
+  'relative after:absolute after:top-1/2 after:left-1/2 after:h-9 after:w-10 ' +
+  'after:-translate-x-1/2 after:-translate-y-1/2 after:content-[""]';

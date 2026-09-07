@@ -74,6 +74,7 @@ import type { CSSProperties, ReactNode } from 'react';
 // any drawn yet — past R 27 the floor overtakes 8 and takes over.
 const RAIL_MARGIN = 8;
 const RAIL_WIDTH = 12;
+const OVERLAY_MARGIN = 2;
 // A scrollport clips ink overflow, and a focus ring is ink overflow: `:focus-visible`
 // is a 2px outline at 2px offset, so a `w-full` control flush with the viewport's
 // box — every sidebar nav pill, every dialog input — loses the ring on both sides.
@@ -141,6 +142,21 @@ export interface ScrollerProps {
    * lines up with the body's.
    */
   radius?: number;
+  /**
+   * A COLUMN TOO NARROW TO RESERVE. The reserve is 28 and the collapsed rail
+   * has 40 of content, so reserving leaves 12 — less than the item, less than
+   * its glyph. Passed here the bar floats at the edge on a 2px margin instead,
+   * over the outer tint of an item whose 18px glyph is centred in 40.
+   *
+   * IT IS NOT A PREFERENCE. The rule it suspends — no row is ever read through
+   * a bar — is about content with something to read across; a rail item's ink
+   * is one centred glyph and the bar clears it. Anywhere text or a value runs
+   * to the edge, the reserve is the point and this flag is the wrong answer.
+   *
+   * It also owns the ring allowance the reserve normally pays back, and it
+   * SUPERSEDES `radius`, which only ever widens a reserve there is none of.
+   */
+  overlay?: boolean;
 }
 
 export function Scroller({
@@ -148,9 +164,14 @@ export function Scroller({
   orientation = 'vertical',
   className = '',
   radius,
+  overlay = false,
 }: ScrollerProps) {
-  const inset =
-    radius === undefined
+  // A floating bar keeps the 12px construction and drops the margin to 2: the
+  // margin is the distance to the content the bar was pushing aside, and there
+  // is nothing beside it any more — 8 there would put the bar over the glyph.
+  const inset = overlay
+    ? OVERLAY_MARGIN
+    : radius === undefined
       ? RAIL_MARGIN
       : Math.max(RAIL_MARGIN, Math.ceil(radius * (1 - Math.SQRT1_2)));
   // The gutter rides on a custom property because the number is computed per
@@ -187,7 +208,7 @@ export function Scroller({
       // of automatic height it resolves to auto and changes nothing, which is
       // the max-h-on-the-viewport case.
       className={
-        'relative h-full overflow-hidden has-[>[data-orientation=horizontal]]:pb-(--rail-gutter) ' +
+        'relative h-full overflow-hidden ' +
         // THE GUTTER IS THE ROOT'S PADDING, NEVER THE VIEWPORT'S. Padding on
         // the viewport lives INSIDE the scroll box, so it only guarantees a gap
         // at the END of the scroll range: at every other position the content
@@ -204,9 +225,19 @@ export function Scroller({
         // panel jump between symmetric and lopsided as content grew past the
         // fold. Everyone else reserves only while the rail is up, so a list that
         // fits keeps its full width.
-        (radius === undefined
-          ? 'has-[>[data-orientation=vertical]]:pr-(--rail-gutter)'
-          : 'px-(--rail-gutter)')
+        // `-mx-1` IS THE RING ALLOWANCE, AND IT BELONGS TO THE FLAG. The
+        // viewport's `px-1` is paid for out of the gutter for everyone else;
+        // with no gutter to pay it from, a 40px column loses 8 of 40 and clips
+        // its items. Reclaiming it here rather than at the caller is what keeps
+        // the next narrow caller from rediscovering that clip.
+        // BOTH AXES STAND DOWN TOGETHER: a float on one and a reserve on the
+        // other is neither of the two things.
+        (overlay
+          ? '-mx-1'
+          : 'has-[>[data-orientation=horizontal]]:pb-(--rail-gutter) ' +
+            (radius === undefined
+              ? 'has-[>[data-orientation=vertical]]:pr-(--rail-gutter)'
+              : 'px-(--rail-gutter)'))
       }
     >
       {/* The viewport is the scroller — and it is what the reserved strip is

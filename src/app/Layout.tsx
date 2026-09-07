@@ -5,9 +5,12 @@ import { Outlet, useLocation } from 'react-router';
 import { useDbSync } from '../hooks/useDbSync';
 import { subscribeToBreakpoint, useIsDesktop } from '../hooks/useIsDesktop';
 import { useReminderToast } from '../hooks/useReminders';
-import { AppHeader, NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from './AppHeader';
+import { AppHeader } from './AppHeader';
+import { NAV_TRIGGER_ID, SIDEBAR_COLLAPSE_ID } from './nav-ids';
 import { Sidebar, SidebarDrawer } from './Sidebar';
+import { SidebarRail } from './SidebarRail';
 import { useDocumentLang } from '../i18n/useDocumentLang';
+import { useSettings } from '../state/settings';
 import { useTheme } from './theme';
 
 /** Marks the one history entry the drawer pushes, so Back can be told apart. */
@@ -38,11 +41,18 @@ export function Layout() {
   // is actually mounted.
   const desktop = useIsDesktop();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // NOT PERSISTED, deliberately. Nothing in the brief asks for it, and a stored
-  // collapse would mean a new settings field, its `partialize` entry and its
-  // migration — scope this phase was not given. It is a per-session choice and
-  // it behaves like one.
-  const [collapsed, setCollapsed] = useState(false);
+  // PERSISTED SINCE #108, and the reversal is the point rather than an
+  // oversight. It was per-session while collapsing meant the navigation went
+  // AWAY: an absence is not a choice anyone wants restored on the next load. A
+  // rail is a place, so choosing it is the same kind of durable preference
+  // `collapsedNavGroups` already is — keep what was chosen, drop what was
+  // passed through.
+  //
+  // `persist` reads localStorage synchronously, so the first render already
+  // carries the stored value and the focus effect below sees no change — it
+  // does not steal focus on load with the rail collapsed.
+  const collapsed = useSettings((s) => s.sidebarCollapsed);
+  const setCollapsed = useSettings((s) => s.setSidebarCollapsed);
 
   // D1 — a route change closes the drawer. Tapping a nav pill and being left
   // looking at the nav is the commonest way a drawer feels broken.
@@ -159,20 +169,21 @@ export function Layout() {
           has with the toolbars RETRACTED, so a `min-h-screen` shell is taller
           than what is actually visible and its bottom sits under the chrome. */}
       <div className="flex min-h-dvh">
-        {desktop && <Sidebar collapsed={collapsed} onCollapse={() => setCollapsed(true)} />}
+        {desktop && (
+          <Sidebar collapsed={collapsed} onCollapse={() => setCollapsed(true)}>
+            {/* The rail arrives as children so `Sidebar` never imports it and it
+                can import the route table from `Sidebar` — the two would
+                otherwise form a cycle. */}
+            <SidebarRail onExpand={() => setCollapsed(false)} />
+          </Sidebar>
+        )}
         {/* The safe-area insets live on this column, once, rather than on the
             header and every screen separately: `viewport-fit=cover` extends the
             page under a notch, so the inline edges have to be paid back exactly
             where the content column begins. The header is then full-bleed WITHIN
             the safe area, which is where a header belongs. */}
         <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
-          {showHeader && (
-            <AppHeader
-              mode={desktop ? 'expand' : 'drawer'}
-              open={drawerOpen}
-              onExpand={() => setCollapsed(false)}
-            />
-          )}
+          {showHeader && <AppHeader desktop={desktop} open={drawerOpen} />}
           <main className="min-w-0 flex-1 px-9 pt-8 pb-12 max-md:px-3 max-md:pt-4">
             {/* keyed by route so every screen change animates in softly (D7) */}
             <div key={pathname} className="animate-in duration-300 fade-in slide-in-from-bottom-2">

@@ -327,6 +327,15 @@ describe('the recorded readings still read as recorded', () => {
     expect(ratio(resolve(block, a), resolve(block, b))).toBeCloseTo(expected, 2);
   });
 
+  // The DEMO badge is on `page` as well as on the wall, since the header
+  // carries one wherever it is mounted. Neither the sheet's table (which reads
+  // it on `sb-bg`) nor the arm below (which reads `panel`) covers that plane,
+  // and the badge's edge is what makes it a chip rather than floating text —
+  // 1.4.11 binds that at 3.
+  it.each(['light', 'dark'] as const)('%s: the DEMO edge identifies itself on `page`', (block) => {
+    expect(ratio(resolve(block, 'warn'), resolve(block, 'page'))).toBeGreaterThanOrEqual(3);
+  });
+
   // NOT a shortfall — the opposite, and that is why it needs pinning. `warn`
   // clears 1.4.3 on the binding plane by 0.003, so a nudge to EITHER token in
   // EITHER direction puts the Σ≠100 pill, the DEMO badge, the drift chip and

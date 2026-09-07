@@ -54,6 +54,18 @@ interface SettingsState {
    * times: keep what was chosen, drop what was passed through.
    */
   collapsedNavGroups: string[];
+
+  /**
+   * Whether the desktop sidebar shows its 56px rail instead of the 244 panel
+   * (#108). PERSISTED, on the same rule as `collapsedNavGroups` above: keep what
+   * was chosen, drop what was passed through. It was per-session while
+   * collapsing meant the navigation went AWAY — an absence nobody would want
+   * restored on the next load. A rail is a place, so choosing it is a durable
+   * choice about one's own tool.
+   *
+   * Read only at and above the breakpoint; below it the drawer is the shell.
+   */
+  sidebarCollapsed: boolean;
   /**
    * The window every analytics screen reads (A38, extension D-2). PERSISTED,
    * and it is not a free-standing preference — D-1 DEPENDS on it. Splitting one
@@ -64,6 +76,7 @@ interface SettingsState {
   period: PeriodOption;
   /** Session only — the sidebar toggle. Gone on reload, by design. */
   setCurrency: (c: 'UAH' | 'USD') => void;
+  setSidebarCollapsed: (sidebarCollapsed: boolean) => void;
   /**
    * The preference. Moves the session with it, because a default that does not
    * visibly take effect until the next reload reads as a control that does
@@ -114,6 +127,7 @@ export interface PersistedSettings {
   // A33. The standing invariant is that a new persisted field enters
   // `partialize` in the SAME commit — see the doctrine block below.
   collapsedNavGroups: string[];
+  sidebarCollapsed: boolean;
   // A38, and the same invariant. `state/settings.ts` names `partialize` as the
   // one that gets forgotten, and the extension's D-2 repeats the warning
   // because splitting the control across three screens depends on it.
@@ -132,6 +146,7 @@ const PERSISTED_DEFAULTS: PersistedSettings = {
   reminderLeadDays: DEFAULT_LEAD_DAYS,
   dismissedReminders: [],
   collapsedNavGroups: [],
+  sidebarCollapsed: false,
   period: 'all',
 };
 
@@ -211,6 +226,12 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     collapsedNavGroups: Array.isArray(p.collapsedNavGroups)
       ? p.collapsedNavGroups.filter((k): k is string => typeof k === 'string')
       : [...PERSISTED_DEFAULTS.collapsedNavGroups],
+    // A boolean needs only the `typeof` arm — no whitelist, unlike `period`
+    // below, and no filter, unlike the array above.
+    sidebarCollapsed:
+      typeof p.sidebarCollapsed === 'boolean'
+        ? p.sidebarCollapsed
+        : PERSISTED_DEFAULTS.sidebarCollapsed,
     // A WHITELIST HERE, unlike `collapsedNavGroups` three lines above, and the
     // difference is what the value does. An unknown group key collapses a group
     // that does not exist — harmless. An unknown period reaches `resolveWindow`,
@@ -274,6 +295,7 @@ export const useSettings = create<SettingsState>()(
       reminderLeadDays: DEFAULT_LEAD_DAYS,
       dismissedReminders: [],
       collapsedNavGroups: [],
+      sidebarCollapsed: false,
       period: 'all',
       setCurrency: (currency) => set({ currency }),
       setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
@@ -318,6 +340,7 @@ export const useSettings = create<SettingsState>()(
       // Idempotent per key, like `dismissReminder`: a group is in the list once
       // or not at all.
       setPeriod: (period) => set({ period }),
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       toggleNavGroup: (key) =>
         set((s) => ({
           collapsedNavGroups: s.collapsedNavGroups.includes(key)
@@ -344,6 +367,7 @@ export const useSettings = create<SettingsState>()(
         reminderLeadDays: s.reminderLeadDays,
         dismissedReminders: s.dismissedReminders,
         collapsedNavGroups: s.collapsedNavGroups,
+        sidebarCollapsed: s.sidebarCollapsed,
         period: s.period,
       }),
     },
