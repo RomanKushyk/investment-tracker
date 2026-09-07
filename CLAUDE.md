@@ -34,7 +34,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - Nothing scrolls with the platform bar: every constrained box goes through `src/components/ui/Scroller.tsx`. [Scrolling]
 - Two shells, one breakpoint: `md` = 768 px, written in Tailwind and in `src/hooks/useIsDesktop.ts` — keep them equal. 44 × 44 is hit area, never geometry. [Two shells, one breakpoint]
 - The logo ships in three places and is drawn in four, all changing together: `src/app/Sidebar.tsx`, `public/favicon.svg`, `public/apple-touch-icon.png` and the script that writes it (`node scripts/build-touch-icon.mjs`). [Brand]
-- Fonts are IBM Plex Sans + JetBrains Mono because Ukrainian is the default language. Number grammar follows the language; tables stay in ₴; dates `dd.MM.yyyy`. [Language, numbers, fonts]
+- Fonts are Manrope + JetBrains Mono because Ukrainian is the default language. Manrope's figures are proportional, so `body` sets `font-variant-numeric: tabular-nums` — one declaration, and every KPI column depends on it. Number grammar follows the language; tables stay in ₴; dates `dd.MM.yyyy`. [Language, numbers, fonts]
 - Every interaction has fluid, soft motion; `prefers-reduced-motion` is respected. [Interaction rules]
 - Measure in the chrome-devtools MCP, never Playwright's headless Chromium. Calibrate a probe first, disable transitions, check `document.visibilityState`, reload rather than flip the theme, and measure the rendered height — `text-[11px]` sets no line height. [Measurement]
 - The design reference is `design/Investment Tracker.dc.html`, styles inline (ignore `support.js` and `_ds/`); colours come from the Tailwind theme tokens, never ad-hoc hex. [Design pipeline]

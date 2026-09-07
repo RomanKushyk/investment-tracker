@@ -1,12 +1,14 @@
-// Cyrillic-capable, and that is why they are these two. Space Grotesk and
-// Spline Sans Mono carry 1 of the 67 characters Ukrainian needs — the one being
-// the apostrophe — so making Ukrainian the default language (D54) dropped the
-// whole app into a system fallback. Each fontsource stylesheet below declares
-// every subset behind its own `unicode-range`, so the browser fetches Cyrillic
-// only for the pages that use it.
-import '@fontsource/ibm-plex-sans/500.css';
-import '@fontsource/ibm-plex-sans/600.css';
-import '@fontsource/ibm-plex-sans/700.css';
+// Cyrillic-capable, and that is the first thing asked of either face —
+// Ukrainian is the default language, so a face without it drops the whole app
+// into a system fallback [Language, numbers, fonts]. Each fontsource stylesheet
+// below is the aggregate for its weight: six `@font-face` blocks, each behind
+// its own `unicode-range`, so the browser fetches Cyrillic only for the pages
+// that use it — which is also why 500 stays although every display site today
+// asks for 600 or 700: it is the face an unweighted `font-display` element
+// would match, and an unfetched declaration costs a reader nothing.
+import '@fontsource/manrope/500.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import '@fontsource/jetbrains-mono/600.css';

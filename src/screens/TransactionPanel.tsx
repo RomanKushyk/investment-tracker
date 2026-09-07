@@ -1192,7 +1192,7 @@ export function TransactionPanel() {
                           answering for the asset. */}
                       {movesPosition(tx.type) && (
                         <span
-                          className="whitespace-nowrap text-muted tabular-nums"
+                          className="whitespace-nowrap text-muted"
                           title={t.transaction.quantity}
                         >
                           {tx.quantity === undefined ? '—' : f.units(tx.quantity)}

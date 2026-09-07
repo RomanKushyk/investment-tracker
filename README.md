@@ -7,7 +7,7 @@ A single-user tracker for a Ukrainian portfolio: government bonds (ОВДП) and
 Live: https://quirenote.com (`main`) · https://dev.quirenote.com (`dev`, behind basic auth).
 
 ## Stack
-React 19 · Vite · TypeScript · Tailwind 4 · Dexie.js on IndexedDB · Radix UI · vitest · IBM Plex Sans + JetBrains Mono. Backend in `infra/`: AWS SAM, Lambda, Aurora DSQL — a daily price archive the app does not read yet.
+React 19 · Vite · TypeScript · Tailwind 4 · Dexie.js on IndexedDB · Radix UI · vitest · Manrope + JetBrains Mono. Backend in `infra/`: AWS SAM, Lambda, Aurora DSQL — a daily price archive the app does not read yet.
 
 ## Run
 ```sh

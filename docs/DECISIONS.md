@@ -68,13 +68,19 @@ is the decimal. A currency token beside the number (`₴`, `$`, `грн`, `гр�
 dropped before the grammar reads it; a token alone or any other letter is not, so `12abc` stays
 refused. Ukrainian tables and inputs read `68 702,10`, English prose and KPIs `₴68,629.36`, dates
 `dd.MM.yyyy`. The ₴/$ toggle converts the DISPLAY of headline KPIs and the sidebar capital only;
-tables stay in ₴. Faces: IBM Plex Sans for headings, buttons and KPI numbers, JetBrains Mono for
-body and tables.
-**Why.** The reference's brand pair carries no Cyrillic at all, so the app would have dropped to a
-system fallback on every screen the moment the default language applied. The replacement keeps
-the same mono advance, so no width moves, and its display face has tabular figures by default.
+tables stay in ₴. Faces: Manrope for headings, buttons and KPI numbers, JetBrains Mono for body
+and tables — and `body` sets `font-variant-numeric: tabular-nums`, which is part of the face
+decision rather than a detail under it.
+**Why.** A face without Cyrillic drops the app into a system fallback on every screen the moment
+the default language applies, so that is the first thing either face is asked for. Only the mono
+advance is fixed, so only the tables and body copy are width-stable; every display-face figure and
+label moved when the face did, and the browser is where that is checked. Manrope's figures are
+proportional and it ships `tnum`, so the one rule on `body` is what buys the aligned KPI column —
+and `src/ui-face.test.ts` fails if the face and the rule are ever separated, because either alone
+is wrong.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · The
-keyboard layout as the signal: no browser reports a numeric convention.
+keyboard layout as the signal: no browser reports a numeric convention. · `font-variant-numeric`
+per call site: it holds only while every site that ever shows a number remembers it.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes

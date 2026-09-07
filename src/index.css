@@ -42,13 +42,14 @@
     }
   }
 
-  /* Cyrillic-capable replacements, chosen by measurement (D54). JetBrains Mono
-     keeps the 0.6em advance of Spline Sans Mono exactly, so no column, table or
-     sidebar width moves. IBM Plex Sans is the display face because its figures
-     are TABULAR BY DEFAULT — a KPI column stays aligned with no CSS to
-     remember, which a `tnum` font only manages while every call site sets
-     `font-variant-numeric`. */
-  --font-display: 'IBM Plex Sans', sans-serif;
+  /* Both Cyrillic-capable, which Ukrainian as the default language asks of them
+     first [Language, numbers, fonts]. JetBrains Mono holds a 0.6em advance, and
+     the estimates that ride on it are written where they are used.
+     Manrope is the display face the parchment sheet draws, and its figures are
+     PROPORTIONAL — every digit a different advance. It ships `tnum`, so `body`
+     below asks for it once and every KPI column is exact; delete that one
+     declaration and they all wobble. `ui-face.test.ts` holds the two together. */
+  --font-display: 'Manrope', sans-serif;
   --font-body: 'JetBrains Mono', monospace;
   /* Elevation, as three tokens rather than nine copied literals. The values are
      the reference's own (README §4 card shadow, and the two overlay depths the
@@ -633,6 +634,11 @@
     color: var(--color-ink);
     font-family: var(--font-body);
     font-size: 13px;
+    /* The one call site. `--font-display` is a `tnum` face with proportional
+       figures by default, so this is what keeps a KPI column aligned — here
+       rather than per component, because the alternative is remembering it at
+       every site that ever shows a number. */
+    font-variant-numeric: tabular-nums;
   }
 
   h1,
