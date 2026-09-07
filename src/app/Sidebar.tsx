@@ -1,4 +1,19 @@
-import { ChevronDown, ChevronLeft } from 'lucide-react';
+import {
+  ArrowDownUp,
+  CalendarDays,
+  CalendarRange,
+  ChartLine,
+  ChartPie,
+  ChevronDown,
+  ChevronLeft,
+  CircleDollarSign,
+  LayoutGrid,
+  type LucideIcon,
+  Settings,
+  Table,
+  Tags,
+  Wallet,
+} from 'lucide-react';
 import { Dialog as RadixDialog } from 'radix-ui';
 import { Children, isValidElement, type ReactNode } from 'react';
 import { matchPath, NavLink, useLocation } from 'react-router';
@@ -14,14 +29,14 @@ import { TAP_44 } from '../components/ui/tap-target';
 // and the key is not, so the list stays a constant and the text is looked up at
 // render. The keys are checked against the dictionary by the compiler.
 const ANALYTICS = [
-  { to: '/overview', key: 'overview' },
-  { to: '/balances', key: 'balances' },
-  { to: '/payouts', key: 'payouts' },
-  { to: '/yield', key: 'yield' },
-  { to: '/attributes', key: 'attributes' },
-  { to: '/seasonality', key: 'seasonality' },
-  { to: '/portfolio', key: 'portfolio' },
-  { to: '/allocation', key: 'allocation' },
+  { to: '/overview', key: 'overview', Icon: LayoutGrid },
+  { to: '/balances', key: 'balances', Icon: Wallet },
+  { to: '/payouts', key: 'payouts', Icon: CircleDollarSign },
+  { to: '/yield', key: 'yield', Icon: ChartLine },
+  { to: '/attributes', key: 'attributes', Icon: Tags },
+  { to: '/seasonality', key: 'seasonality', Icon: CalendarRange },
+  { to: '/portfolio', key: 'portfolio', Icon: Table },
+  { to: '/allocation', key: 'allocation', Icon: ChartPie },
 ] as const;
 
 // The Quirenote mark: the 5h mark, transcribed from the sheet — a rounded loop
@@ -107,6 +122,44 @@ function pillClass(padY: string, radius: string) {
         // and took away both halves of the state. The old `opacity-85` composed
         // with whatever was underneath and never collided this way.
         'bg-transparent font-normal text-sb-item hover:bg-sb-item-hover-bg hover:text-sb-item-hover');
+}
+
+// The glyph takes its colour ON ITSELF, not from the pill: the record names
+// `sb-icon` and `sb-icon-active` and no third, so the pill's hover must reach
+// the label alone (`parchment-5h.dc.html:272-282`). It eases on its own too —
+// `transition-property` does not inherit onto an svg, and without it the colour
+// snaps while the tint beside it fades. One site draws all eleven, so the
+// anatomy cannot drift per item; `aria-hidden` because the label already names
+// the link.
+//
+// The label fills and ellipsises as drawn (`parchment-5h.dc.html:66`,
+// `parchment-sidebar.dc.html:67`). One consequence is measured and deliberate:
+// `nowrap` makes the label's min-content its whole string, and the Scroller
+// wraps this column in a `display: table` box that sizes to min-content, so on
+// the one route whose group is unfolded the pills grow ~5 off the drawn 203 and
+// that route's own label stays readable; folded, they sit at 203 and the one
+// long label ellipsises. Clamping instead holds 203 everywhere but breaks the
+// label at a word — «Щоденні…» — which reads worse. What this COSTS is #117's.
+function NavItem({
+  Icon,
+  label,
+  isActive,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <Icon
+        size={16}
+        strokeWidth={2}
+        aria-hidden
+        className={`flex-none transition-colors ${isActive ? 'text-sb-icon-active' : 'text-sb-icon'}`}
+      />
+      <span className="flex-1 truncate">{label}</span>
+    </span>
+  );
 }
 
 /**
@@ -396,19 +449,23 @@ function SidebarPanel({
         <div className="flex flex-col gap-[3px] max-md:gap-2">
           <NavGroup groupKey="entry" label={t.nav.groupEntry}>
             <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-              {t.nav.dailyQuotes}
+              {({ isActive }) => (
+                <NavItem Icon={CalendarDays} label={t.nav.dailyQuotes} isActive={isActive} />
+              )}
             </NavLink>
             {/* A32 — the group's second item. `end` is not needed:
                 `/transactions` is not a prefix of any other route. */}
             <NavLink to="/transactions" className={pillClass('py-[9px]', 'rounded-[10px]')}>
-              {t.nav.transactions}
+              {({ isActive }) => (
+                <NavItem Icon={ArrowDownUp} label={t.nav.transactions} isActive={isActive} />
+              )}
             </NavLink>
           </NavGroup>
 
           <NavGroup groupKey="analytics" label={t.nav.groupAnalytics} className="mt-4">
-            {ANALYTICS.map(({ to, key }) => (
+            {ANALYTICS.map(({ to, key, Icon }) => (
               <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
-                {t.nav[key]}
+                {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
               </NavLink>
             ))}
           </NavGroup>
@@ -417,7 +474,9 @@ function SidebarPanel({
               pill anatomy — same motion, same active treatment. */}
           <NavGroup groupKey="settings" label={t.nav.groupSettings} className="mt-4">
             <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
-              {t.nav.settings}
+              {({ isActive }) => (
+                <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />
+              )}
             </NavLink>
           </NavGroup>
         </div>

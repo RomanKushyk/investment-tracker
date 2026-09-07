@@ -32,9 +32,14 @@ import { describe, expect, it } from 'vitest';
 // the sheet telling #92 by name to adopt it and not "fix" it in passing.
 // `palette-mirror.test.ts` records it AT its value, which is where a shortfall
 // with a reason belongs; a floor here would be this branch quietly overruling
-// that. Same for `sb-border`, `sb-icon`, `sb-icon-active`, `sb-divider`,
-// `sb-badge`, `sb-badge-bg` and `sb-footer-bg`: declared, and this app has
-// nothing to draw with them.
+// that. Same for `sb-border`, `sb-divider`, `sb-badge`, `sb-badge-bg` and
+// `sb-footer-bg`: declared, and this app has nothing to draw with them.
+// `sb-icon` and `sb-icon-active` left that list with #105 — the nav items draw
+// them now — and they still take no floor here, deliberately: a glyph beside
+// its own visible label is decorative, so 1.4.11 does not bind on it. #108 is
+// where it does, a glyph standing alone on the collapsed rail, and that issue
+// carries the 3 : 1 test. `nav-glyphs.test.ts` pins the two names to the two
+// states.
 //
 // SELF-CONTAINED ON PURPOSE, the house idiom — the primitives below are the
 // same ones `floating-edges.test.ts` carries, copied rather than shared.

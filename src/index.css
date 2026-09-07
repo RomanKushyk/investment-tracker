@@ -325,11 +325,12 @@
      than the canvas rather than a dark plane inside a light app. Sixteen names
      because the rail carries states the retired `sidebar-*` five could not
      express — a tint plus an indicator for active, a 5% ground for hover.
-     Seven have no consumer in this app and are kept rather than trimmed, each
-     for a reason the sheet gives: `sb-icon`/`-icon-active` govern nav icons the
-     app has none of, `sb-badge`/`-badge-bg` a count badge it does not draw,
-     `sb-divider` a rule between groups, `sb-footer-bg` a user footer, and
-     `sb-border` furniture on a wall whose boundary is the rank #98 put it on. */
+     Five have no consumer in this app and are kept rather than trimmed, each
+     for a reason the sheet gives: `sb-badge`/`-badge-bg` a count badge it does
+     not draw, `sb-divider` a rule between groups, `sb-footer-bg` a user footer,
+     and `sb-border` furniture on a wall whose boundary is the rank #98 put it
+     on. `sb-icon`/`-icon-active` left that list with #105 — the nav items draw
+     them, one glyph per route. */
   --color-sb-bg: #e8e1d6;
   --color-sb-border: #d6cdbf;
   --color-sb-divider: #dcd3c5;
