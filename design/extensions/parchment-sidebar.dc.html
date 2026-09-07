@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<x-dc>
+<helmet>
+<!-- The SHIPPED faces, linked and not embedded, and it is the pair the app now
+     asks for: Manrope is the display face #94 put the UI on and JetBrains Mono
+     is the body one, both Cyrillic-capable, which is what Ukrainian as the
+     default language asks of them first (`index.css:45-53`). Every figure and
+     every microlabel below is drawn in the face the app draws it in. -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html{background:#101113}
+body{margin:0;background:#101113;color:#eceae7;font-family:'Manrope',system-ui,sans-serif;font-weight:500;-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.55}
+body *{box-sizing:border-box}
+.wrap{max-width:1360px;margin:0 auto;padding:34px 26px 72px}
+h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:19px;font-weight:600;margin:0 0 4px}
+h3{font-size:14px;font-weight:600;margin:26px 0 8px}
+.eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8a8886;margin-bottom:10px}
+.meta{font-size:12.5px;color:#a3a19e;margin:0 0 34px}
+.note{font-size:12.5px;line-height:1.7;color:#c9c7c3;max-width:920px;margin:0 0 14px}
+.note b{color:#eceae7}
+.sec{border-top:1px solid #26272b;padding-top:26px;margin-top:38px}
+.frames{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:10px}
+.fr-l{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8a8886;margin-bottom:8px}
+.fr{border:1px solid #26272b;border-radius:12px;overflow:hidden;display:flex}
+.fr-cap{margin:8px 0 0;font-size:11.5px;line-height:1.6;color:#8a8886}
+.mi{display:inline-block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#8a8886;border:1px dashed #6e6a65;border-radius:6px;padding:2px 7px;background:#101113}
+.stub{flex:1;min-width:0;padding:18px 22px}
+.stub h4{font-family:'Manrope',sans-serif;font-size:20px;font-weight:600;margin:0 0 4px}
+.stub p{margin:0;font-size:11.5px}
+table{border-collapse:collapse;margin:0 0 16px;font-family:'JetBrains Mono',monospace}
+td,th{text-align:left;padding:5px 16px 5px 0;font-size:11.5px;vertical-align:baseline}
+th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#8a8886;font-weight:400;border-bottom:1px solid #26272b;padding-bottom:7px}
+code{font-family:'JetBrains Mono',monospace;font-size:.95em}
+.ok{color:#86b98f;font-weight:700;font-style:normal}
+.no{color:#eceae7;font-weight:700;font-style:normal}
+.dim{color:#8a8886}
+.plate{border:1px solid #26272b;background:#18191c;border-radius:14px;padding:16px 18px;margin-bottom:16px}
+.plate .note{margin:0}
+/* the drawn sidebar — geometry only; every colour is a literal in the markup */
+.fr{font-family:'JetBrains Mono',monospace}
+.sbw{position:relative;flex:none;overflow:hidden;border-radius:0 30px 30px 0;height:100%}
+.sbw-244{width:244px;padding:16px}
+.sbw-56{width:56px;padding:16px 8px}
+.sbcol{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%}
+.lock{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.wordmark{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;letter-spacing:-.03em}
+.badge{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.08em;border:1px solid;border-radius:5px;padding:2px 6px}
+.capband{display:flex;align-items:center;gap:10px;height:56px;margin:0 -16px 14px;padding:0 0 0 34px}
+.capband .cap-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.capband > svg{margin-left:auto;margin-right:-2px}
+.capband .cv{display:flex;align-items:baseline;gap:10px}
+.capband .cap-l{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase}
+.capband .v{font-family:'Manrope',sans-serif;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.capband .d{font-size:11px;font-weight:600}
+.nav{display:flex;flex-direction:column;gap:3px}
+.grp{display:flex;align-items:center;height:18px;margin:0 14px 6px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.grp svg{margin-left:auto}
+.item{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:13.5px;border-radius:10px}
+.item.sm{padding:8px 14px;border-radius:9px}
+.item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.div{height:1px;margin:8px 14px}
+.sbtgl{display:flex;gap:8px;margin-bottom:8px}
+.segd{display:inline-flex;flex:1;gap:1px;padding:2px;border-radius:8px}
+.seg{display:flex;align-items:center;justify-content:center;flex:1;height:22px;border-radius:6px;font-size:10.5px;font-weight:600;letter-spacing:.02em}
+.seg.cur{font-size:13px}
+.rail-cur{width:40px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin:0 auto}
+.foot-56 .rail-item+.rail-item,.foot-56 .rail-cur{margin-top:6px}
+.foot{margin:14px -16px -16px;border-top:1px solid;border-radius:0 0 29px 0;padding:8px 20px}
+.foot-56{margin:14px -8px -16px;border-top:1px solid;border-radius:0 0 29px 0;padding:8px}
+.ver{margin-top:10px;text-align:center;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase}
+.rail-head{margin-bottom:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.burger{width:14px;height:12px;display:flex;flex-direction:column;justify-content:space-between}
+.burger i{display:block;height:2px;border-radius:1px}
+.rail-nav{display:flex;flex-direction:column;gap:3px}
+.rail-item{width:40px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.rail-div{width:24px;height:1px;margin:6px auto}
+.tip{position:absolute;top:50%;transform:translateY(-50%);border:1px solid;border-radius:7px;padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:500}
+.scrl{position:absolute;top:8px;bottom:8px;right:8px;width:12px;border:2px solid;border-radius:5px;padding:2px}
+.scrl i{display:block;width:4px;border-radius:1px}
+@media (max-width:1400px){.frames{gap:16px}}
+</style>
+</helmet>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     design/extensions/parchment-sidebar.dc.html — the sidebar's structure, its
+     collapsed rail, and the two tracks on its foot
+
+     Brief: issue #106. Implementing tasks: issues #107, #108, #85.
+     Not this file's: the glyphs themselves are #105, which lands first and hands
+     over the import names drawn below; the palette is #89, implemented by #91;
+     the drawer's behaviour stays Radix's; the dataset's own route is #5.
+
+     ───────────────────────────────────────────────────────────────────────
+     WHAT THIS FILE IS. `parchment-5h.dc.html:176-208` fences six pieces of drawn
+     furniture off as "NOT SHIPPED, AND NOT A REQUIREMENT" and closes: "Adding any
+     of them to the app is a new brief." This is that brief, and it adopts TWO of
+     the six — the icon rail and the footer band. The other four are refused by
+     name and stay refused: the ⌘K field (the app has no search and no command
+     palette), the user footer and avatar (single-user, local, no account), the
+     count badge (no nav item carries a count) and «Податки» (no such route).
+
+     ANATOMY comes from that sheet — `:59-77` the CSS, `:357-394` the dark stage,
+     `:476-513` the light one. RADII, planes and rulings come from the app,
+     because parchment supersedes colour and explicitly nothing else (`:293-301`:
+     "where this file and an older sheet disagree about a size, the older sheet
+     still wins"). So its 232 + 56 becomes the app's 244 + 56, and its flat 8
+     becomes radii derived per surface, in T6.
+
+     THE ARGUMENTS ARE IN THE DOCUMENT, NOT UP HERE. T4 rules the foot and the
+     capital, T5 the two toggles, T6 the radii, T7 the two height budgets and the
+     badge, T8 the readings — each stated once, and every figure in them
+     recomputed from this file's own rendered artboards rather than carried over
+     from the brief.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE TOGGLES COME FROM A REISSUED SESSION FILE, AND THIS IS THE ONLY RECORD OF
+     IT. `parchment-5h.dc.html` is the design session's output as it stood when
+     #91 merged it, and D14 makes it immutable. The session's file was then
+     reissued with a sidebar section it did not have before — a `.sb-toggles` row,
+     a `.segmented` track, a `.rail-foot`, and five `sb-seg-*` names in its token
+     grid — and handed over for this brief. That file is NOT in the repository and
+     will not be: the three original handoff files and the extensions are the only
+     things under `design/`, which `design/extensions/README.md` states outright.
+     So its sidebar half is transcribed here, at this file's own planes, and T5
+     carries the whole of it: the five names, which NONE survives, and the two places
+     its values do not clear a bar this app is held to. Where it and the merged
+     sheet disagree the merged sheet is not overruled — they do not disagree, since
+     `parchment-5h.dc.html` re-values nothing and draws no toggle at all. Where it
+     and *Shape system* disagree about a radius, the derived value wins (T6), the
+     same rule that discarded the flat 8 for the nav pill.
+
+     ───────────────────────────────────────────────────────────────────────
+     THE COMPOSITION IS THE OWNER'S, THROUGH TWO READINGS. The first draw kept the
+     shipped anatomy — a boxed 26 px collapse control floating over the lockup, the
+     Total-capital CARD and the currency toggle in a pinned cluster, the decorative
+     blob in the corner — and it was read back as four objects that stick out
+     rather than sit in. Then the session's own file was reissued with a sidebar
+     it did not have before, and the toggles were taken from it directly. What the
+     panel is now, each part argued where it is drawn:
+     · THE SHELL CONTROL LOSES ITS BOX AND ITS ROW. It was the only absolutely-
+       positioned thing on the panel and it made the lockup reserve 38 px it did
+       not need; it is a bare glyph in the capital band now, with its INK centred
+       in the 20 px strip the nav column reserves and never draws in — 16 shell
+       padding plus the 4 the `Scroller` viewport holds back for a focus ring —
+       so 7 a side. SIZED BY ITS INK AND NOT ITS BOX: a chevron paints 6 of 24
+       units across and 12 down, so a 16 px box gives 4 x 8, a third of what sits
+       beside it. At a 24 px box it is 6 x 12 and the height lands on the burger's
+       12 and on the nav glyphs' median 12; the width cannot follow, because a
+       chevron is 1:2 and a burger 7:6 (T4).
+     · THE CAPITAL LOSES ITS CARD and becomes a 56 px BAND in the head, in the slot
+       the session gives its ⌘K field — bled to the shell's own edges, on
+       `sb-field`, with NO edge of its own, and KEEPING its caption. A draw in
+       between dropped the caption and the band went back to being a stripe with
+       a figure lying on it; what holds a 1.07 fill together is a labelled block
+       (T4).
+     · THE PANEL HAD THREE LEFT EDGES AND NOW HAS ONE GLYPH COLUMN. The mark at
+       16, the capital at 16, the nav at 34, and the footer band's Settings at 30
+       — 30 because it sits outside the `Scroller` and never pays the 4 px its
+       viewport pays for a focus ring. The band's alignment is what turned that
+       up; the drawing puts every glyph on 34 and every label on 60 (T4).
+     · THE TWO TOGGLES TAKE THE REISSUED SESSION FILE'S GEOMETRY AND PLACEMENT —
+       an `sb-seg-bg` track, 22 px segments, both on one row at the head of the
+       footer band, above Settings — WITH NO BORDERS, which is what sends the
+       selected segment back to a solid `accent` chip: the file's own neutral chip
+       identifies its state with a 1.36 / 1.25 fill step and had nothing but its
+       stroke to carry it. THE TRACK CARRIES THE ACTIVE ROUTE'S OWN TINT, which
+       takes its fill step from 1.02 to 1.24 in dark and leaves the reissued file's
+       five names with nothing to name — so this file mints NOTHING. That ground
+       change is the one place a DECISION does move: *Interaction rules* calls the
+       sidebar's track 'recessed' and it is not recessed any more, so its clause
+       and the two shipped comments resting on it are rewritten by whichever of
+       #85 / #107 lands second (T5).
+     · THE COLLAPSED RAIL GETS NO THEME CONTROL, although the reissued file's
+       rail-foot draws one. A lone theme glyph IS the cycling button T5 declines,
+       and in the rail it would be the only theme control on screen; currency
+       survives the same test, two states and the box shows the one you are in. It
+       also takes the rail's clearance from 14 px to 56 (T2, T7).
+     · THE BURGER MOVES INTO THE RAIL, under the mark, where a `ChevronRight` sat
+       in an earlier draw. Both did the same thing at the same times, and the
+       duplicate is settled by moving the trigger rather than by picking one of
+       two: `AppHeader` has none at and above the breakpoint and keeps its own
+       below, where there is no rail. The rail's copy is redrawn at 14 x 12 rather
+       than the shipped 18 x 12, because three solid bars spanning 18 are 108 px²
+       of ink beside eleven 18 px OUTLINE glyphs and read as the heaviest thing
+       there; at 14 they are 84 (T2).
+     · THE DECOR BLOB GOES. `Sidebar.tsx:271-277` draws a 200 px `sb-field` circle
+       clipped to the shell's corner at 70 %; it reads 1.09 / 1.04 against the
+       wall, identifies nothing, and #107 deletes `SidebarDecor` and its two call
+       sites rather than redrawing it.
+     THE PINNED CLUSTER IS GONE WITH THEM, and the panel is the shape the session
+     drew from the start: head, field, nav, foot. That is also what reverses T7's
+     worst figure: the first draw scrolled 25.41 px SOONER than the app it was
+     redrawing, and this one scrolls 73.39 px LATER.
+
+     ───────────────────────────────────────────────────────────────────────
+     WHAT IT SUPERSEDES, and it is geometry and state only — parchment owns every
+     colour in every drawing named here, so nothing in this file re-values
+     anything, and it edits none of them.
+
+     `mobile.dc.html:380-401`, the frame "768 — collapsed: the header appears":
+     collapse is no longer `width 244 → 0` leaving the header alone on the page.
+     Its motion microlabel at `:396` goes with it. What survives verbatim is the
+     sentence its caption ends on — the header "is the sidebar's stand-in, not a
+     second permanent bar" — which T4's ruling leans on rather than replaces.
+     `:353-377`, the frame beside it, loses its plate lockup (already superseded
+     by *Brand*) and the MEANING of the control at `:362`: a boxed chevron that
+     narrows a shell is not the affordance one that removed it was.
+
+     `where-things-live.dc.html:1328-1360`, S5's TOKENS block: all four names it
+     reasons with — `sidebar`, `sidebar-nav`, `sidebar-muted`, `sidebar-inset` —
+     were retired by #92, and `sidebar-plane.test.ts:325-334` fails if any comes
+     back, so its figures (9.55, 5.06, 10.86, 5.59) are readings of colours that
+     no longer exist. ITS FIRST ARGUMENT SURVIVES AND IS RESTATED, not overturned:
+     the group chevron reads stronger than the label beside it because the label
+     is a caption and the chevron is a control — `sb-item` against `sb-label`,
+     5.33 / 3.09 in light and 7.55 / 4.33 in dark, which `Sidebar.tsx:235-249`
+     already ships and this file draws.
+
+     ITS SECOND ARGUMENT IS SUPERSEDED OUTRIGHT, and this is the one substantive
+     overturn in the file. `:1388-1393` and `:1399-1404` draw the two controls on
+     one panel to settle them by contrast — "boxed = the shell, bare = what it
+     labels". THE BOX GOES: the shell control is a bare `ChevronLeft` in the
+     lockup row now (T4). What settles the pair instead is the half that section
+     already calls free — "the axis needs no learning, because the sidebar leaves
+     sideways and a group closes down". One points left and one points down, in
+     the same panel, and a box on top of that is a second cue for a distinction
+     one cue already makes; it cost an absolutely-positioned element and 38 px of
+     reserved row. `:1379-1387` draws the plate lockup and the `Інвест-трекер`
+     line under the wordmark, neither of which the app has had since #92.
+
+     It supersedes no ruling of `field-border.dc.html`, `switch-border.dc.html`,
+     `floating-edges.dc.html` or `dropzone-edge.dc.html`, and no colour anywhere.
+     ═══════════════════════════════════════════════════════════════════════ -->
+
+<div class="wrap">
+
+<div class="eyebrow">Brief #106 &middot; implementing tasks #107, #108, #85</div>
+<h1>The sidebar's structure, its collapsed rail, and the two tracks on its foot</h1>
+<p class="meta">Two states, drawn at 1280 and at the breakpoint, in both themes &middot; mints nothing &middot; supersedes geometry in two sheets and colour in none</p>
+
+<!-- ── T1 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T1 &middot; The panel, expanded &mdash; 1280</h2>
+<p class="note">
+<b>Four bands, which is the shape the session drew from the start:</b> head, field, nav, foot.
+The head is one flex row of three &mdash; mark, wordmark, DEMO chip &mdash; with nothing floating
+over anything. Under it, in the slot the session gives its &#8984;K field, the capital as a
+56&nbsp;px band: a caption over the figure and its delta, and the shell control in the
+margin at its right, bled to the shell’s edges and carrying no edge of its own. Then ten routes in two groups with an <code>sb-divider</code> rule
+between them and sentence-case headers at the session's 11&nbsp;px, a glyph on every item. Then a
+<code>sb-footer-bg</code> band bled to the shell's own edge, holding the two toggles on one row, then
+Settings, then the version. <b>There is no pinned cluster any more</b> &mdash; T4 is why. Settings leaves the scrolling
+band, so the third group header goes with it: one item needs no caption. The active route is
+<code>/overview</code> and <code>/payouts</code> is drawn hovered, which is the only way to see two
+of the four item states at once.
+</p>
+<div class="frames"><div>
+  <div class="fr-l">1280 &times; 900 &mdash; dark, expanded &middot; 244 + 1036</div>
+  <div class="fr" style="width:1280px;height:900px"><aside class="sbw sbw-244" style="background:#0d0d0c;border-right:1px solid #7a7674">
+    <div class="sbcol">
+      <div>
+        <div class="lock">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="wordmark" style="color:#eceae7">quirenote</span>
+        <span class="badge" style="border-color:#d9a55f;background:#342c24;color:#d9a55f">DEMO</span>
+      </div>
+        <div class="capband" style="background:#161515">
+        <span class="cap-t"><span class="cap-l" style="color:#7a7674">&#1047;&#1040;&#1043;&#1040;&#1051;&#1068;&#1053;&#1048;&#1049;&nbsp;&#1050;&#1040;&#1055;&#1030;&#1058;&#1040;&#1051;</span>
+        <span class="cv"><span class="v" style="color:#eceae7">149&nbsp;016&nbsp;&#8372;</span><span class="d" style="color:#86b98f">+3,08&nbsp;%</span></span></span>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 18-6-6 6-6"/></svg>
+      </div>
+      </div>
+      <div class="navwrap" style="position:relative;overflow:hidden;">
+        <div class="vp" style="padding:0 4px"><div class="nav"><div class="grp" style="color:#7a7674">&#1042;&#1074;&#1110;&#1076;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg><span>Щоденні котирування</span></div><div class="item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Транзакції</span></div><div class="div" style="background:#1c1a1c"></div><div class="grp" style="color:#7a7674">&#1040;&#1085;&#1072;&#1083;&#1110;&#1090;&#1080;&#1082;&#1072;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item sm" style="background:rgba(216,180,148,0.12);color:#d8b494;font-weight:700;box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span>Баланси</span></div><div class="item sm" style="background:rgba(236,234,231,0.05);color:#eceae7"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Виплати</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Дохідність</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Атрибути</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg><span>Сезонність</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg><span>Портфель</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div></div></div>
+        
+      </div>
+      <div class="foot" style="background:#131312;border-color:#1c1a1c">
+        <div class="sbtgl"><div class="segd" style="background:rgba(216,180,148,0.12)">
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+            <span class="seg" style="background:#d8b494;color:#1c1a19"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#1c1a19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>
+          </div><div class="segd" style="background:rgba(216,180,148,0.12)">
+            <span class="seg cur" style="background:#d8b494;color:#1c1a19">&#8372;</span>
+            <span class="seg cur" style="color:#a3a19e">$</span>
+          </div></div>
+        <div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>&#1053;&#1072;&#1083;&#1072;&#1096;&#1090;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;</span></div>
+        <div class="ver" style="color:#7a7674">v1.9.0</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#111110">
+      
+      <div class="stub" style="background:#111110;color:#eceae7"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#a3a19e">The content column, stubbed. No header: at and above the breakpoint it exists only while the rail is collapsed.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:1280px">Two groups, one rule between them, the band at the foot. The active route carries the 12&nbsp;% tint and the 2&nbsp;px inset indicator; <code>/payouts</code> is drawn on the 5&nbsp;% hover ground. Nothing scrolls at this height.</p>
+</div><div>
+  <div class="fr-l">1280 &times; 900 &mdash; light, expanded &middot; 244 + 1036</div>
+  <div class="fr" style="width:1280px;height:900px"><aside class="sbw sbw-244" style="background:#e8e1d6;border-right:1px solid #847e77">
+    <div class="sbcol">
+      <div>
+        <div class="lock">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="wordmark" style="color:#1c1a19">quirenote</span>
+        <span class="badge" style="border-color:#8a5a1a;background:#ebe2d5;color:#8a5a1a">DEMO</span>
+      </div>
+        <div class="capband" style="background:#f3eee6">
+        <span class="cap-t"><span class="cap-l" style="color:#847e77">&#1047;&#1040;&#1043;&#1040;&#1051;&#1068;&#1053;&#1048;&#1049;&nbsp;&#1050;&#1040;&#1055;&#1030;&#1058;&#1040;&#1051;</span>
+        <span class="cv"><span class="v" style="color:#1c1a19">149&nbsp;016&nbsp;&#8372;</span><span class="d" style="color:#2f6b3f">+3,08&nbsp;%</span></span></span>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 18-6-6 6-6"/></svg>
+      </div>
+      </div>
+      <div class="navwrap" style="position:relative;overflow:hidden;">
+        <div class="vp" style="padding:0 4px"><div class="nav"><div class="grp" style="color:#847e77">&#1042;&#1074;&#1110;&#1076;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg><span>Щоденні котирування</span></div><div class="item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Транзакції</span></div><div class="div" style="background:#dcd3c5"></div><div class="grp" style="color:#847e77">&#1040;&#1085;&#1072;&#1083;&#1110;&#1090;&#1080;&#1082;&#1072;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item sm" style="background:rgba(138,90,58,0.12);color:#8a5a3a;font-weight:700;box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span>Баланси</span></div><div class="item sm" style="background:rgba(28,26,25,0.05);color:#1c1a19"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Виплати</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Дохідність</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Атрибути</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg><span>Сезонність</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg><span>Портфель</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div></div></div>
+        
+      </div>
+      <div class="foot" style="background:#e1d9cc;border-color:#dcd3c5">
+        <div class="sbtgl"><div class="segd" style="background:rgba(138,90,58,0.12)">
+            <span class="seg" style="background:#8a5a3a;color:#f8f5ef"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#f8f5ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>
+          </div><div class="segd" style="background:rgba(138,90,58,0.12)">
+            <span class="seg cur" style="background:#8a5a3a;color:#f8f5ef">&#8372;</span>
+            <span class="seg cur" style="color:#5e5955">$</span>
+          </div></div>
+        <div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>&#1053;&#1072;&#1083;&#1072;&#1096;&#1090;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;</span></div>
+        <div class="ver" style="color:#847e77">v1.9.0</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#efeae2">
+      
+      <div class="stub" style="background:#efeae2;color:#1c1a19"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#5e5955">The content column, stubbed. No header: at and above the breakpoint it exists only while the rail is collapsed.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:1280px">The same panel in light. The band is a step down from the wall (1.08) and is identified by the rule along its top edge, not by its fill &mdash; T8.</p>
+</div></div>
+</div>
+
+<!-- ── T2 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T2 &middot; The rail, collapsed &mdash; 1280</h2>
+<p class="note">
+The same eleven routes as glyphs. <b>THE BURGER IS IN THE RAIL, under the mark, and the header at and
+above the breakpoint has none.</b> An earlier draw had a <code>ChevronRight</code> here AND the
+header’s trigger three inches away doing the same thing; the duplicate is settled by moving the
+trigger rather than by picking one of two, because a control that expands the rail belongs to the
+rail, and the header at this width exists only to carry the figure (T4). <b>What that means for
+#108:</b> <code>NAV_TRIGGER_ID</code> moves onto the rail’s control while
+<code>desktop &amp;&amp; collapsed</code>, so <code>Layout.tsx:105-110</code> still finds it by id
+and the focus handoff on every flip is unchanged; below the breakpoint the header keeps its burger,
+because there is no rail to put one in. <b>It is drawn at 14&nbsp;&times;&nbsp;12, narrower than the
+18&nbsp;&times;&nbsp;12 <code>AppHeader</code> ships</b>, and the reason is the company it keeps.
+Three solid 2&nbsp;px bars spanning 18 are <b>108&nbsp;px&sup2;</b> of ink; the eleven lucide glyphs
+beside them are 18&nbsp;&times;&nbsp;18 OUTLINES at stroke 2, mostly air. At 18 the burger read as the
+heaviest thing in the rail. Two pixels off each side takes it to <b>84</b> and puts it under them
+instead of over. <b>The header’s own copy stays 18&nbsp;&times;&nbsp;12</b>: it stands alone on
+<code>page</code> with nothing to be compared against, and the two never share a screen &mdash; below
+the breakpoint the header has the only burger and at or above it the rail does. <b>And the drawn box
+is the glyph, not the target:</b> its pressable region is the rail item’s own
+40&nbsp;&times;&nbsp;36, exactly the relationship <code>AppHeader.tsx:7-13</code> already states for
+the 44&nbsp;&times;&nbsp;44 button around the same three bars &mdash; a box that carries no fill and
+no edge, so there is nothing there to redraw. <b>The band holds
+what the reissued session file gives a collapsed rail, MINUS ITS THEME GLYPH</b> &mdash; Settings
+and a currency box at 40&nbsp;&times;&nbsp;32. <b>The theme glyph is refused on T5's own argument,
+which the rail would otherwise break:</b> T5 declines a cycling icon button because one glyph cannot
+show the two states it is not in and <code>system</code> is indistinguishable from whichever theme
+it resolves to &mdash; and a lone theme glyph in the rail IS that button, on a plane where it is the
+only theme control on screen. Currency survives the same test: two states, and the box shows the one
+you are in. What the rail cannot hold is one press away behind Settings, which is the rule T4 already
+uses for the capital and the version. <b>The capital and the version do not
+follow:</b> the header bar carries the figure (T4), and <code>v1.9.0</code> measures <b>41.05</b> at
+9.5&nbsp;px and <code>.12em</code>, a pixel over the 40 a 56&nbsp;px rail has, which is the same
+not-a-fit as the badge in T7.
+<b>The tooltip is drawn portalled</b>, outside the shell's own overflow, because that is where a
+Radix tooltip renders and a tooltip clipped by the wall it labels would be worse than no tooltip.
+</p>
+<div class="frames"><div>
+  <div class="fr-l">1280 &times; 900 &mdash; dark, collapsed &middot; 56 + 1224</div>
+  <div class="fr" style="width:1280px;height:900px"><aside class="sbw sbw-56" style="background:#0d0d0c;border-right:1px solid #7a7674;overflow:visible">
+    <div class="sbcol">
+      <div class="rail-head">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg>
+        <span class="burger"><i style="background:#a3a19e"></i><i style="background:#a3a19e"></i><i style="background:#a3a19e"></i></span>
+      </div>
+      <div class="rail-nav">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div>
+        <div class="rail-div" style="background:#1c1a1c"></div>
+        <div class="rail-item" style="background:rgba(216,180,148,0.12);box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><div class="rail-item" style="background:rgba(236,234,231,0.05);position:relative"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span class="tip" style="left:56px;background:#19181a;border-color:#7a7674;color:#eceae7;box-shadow:none">&#1042;&#1080;&#1087;&#1083;&#1072;&#1090;&#1080;</span></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div>
+      </div>
+      <div class="foot-56" style="background:#131312;border-color:#1c1a1c">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="rail-cur" style="background:rgba(216,180,148,0.12);color:#eceae7">&#8372;</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#111110">
+      <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px;background:#111110;border-bottom:1px solid #2a282c">
+        <span style="min-width:0;padding-left:6px">
+          <span style="display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#a3a19e">&#1047;&#1072;&#1075;&#1072;&#1083;&#1100;&#1085;&#1080;&#1081; &#1082;&#1072;&#1087;&#1110;&#1090;&#1072;&#1083;</span>
+          <span style="display:block;font-size:18px;font-weight:700;line-height:1.15;color:#eceae7">149&nbsp;016&nbsp;&#8372;</span>
+        </span>
+        <span class="badge" style="margin-left:10px;border-color:#d9a55f;background:#342c24;color:#d9a55f">DEMO</span>
+        <span style="margin-left:auto;padding-right:4px;text-align:right;font-size:11px;line-height:1.35">
+          <span style="font-weight:600;color:#86b98f">+3,08&nbsp;%</span><br><span style="color:#a3a19e">3&nbsp;324,03&nbsp;$</span>
+        </span>
+      </header>
+      <div class="stub" style="background:#111110;color:#eceae7"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#a3a19e">188&nbsp;px wider than the frame above it. The header is the sidebar’s stand-in and carries the capital and the dataset caution.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:1280px">Eleven glyphs, the rule between the groups, Settings in the band. The tooltip on <code>/payouts</code> is drawn where Radix renders it &mdash; outside the shell’s own overflow &mdash; on <code>card</code> with a <code>field-border</code> stroke at 3.94 inward.</p>
+</div><div>
+  <div class="fr-l">1280 &times; 900 &mdash; light, collapsed &middot; 56 + 1224</div>
+  <div class="fr" style="width:1280px;height:900px"><aside class="sbw sbw-56" style="background:#e8e1d6;border-right:1px solid #847e77;overflow:visible">
+    <div class="sbcol">
+      <div class="rail-head">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg>
+        <span class="burger"><i style="background:#5e5955"></i><i style="background:#5e5955"></i><i style="background:#5e5955"></i></span>
+      </div>
+      <div class="rail-nav">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div>
+        <div class="rail-div" style="background:#dcd3c5"></div>
+        <div class="rail-item" style="background:rgba(138,90,58,0.12);box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><div class="rail-item" style="background:rgba(28,26,25,0.05);position:relative"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span class="tip" style="left:56px;background:#f8f5ef;border-color:#847e77;color:#1c1a19;box-shadow:0 4px 16px rgba(60,40,20,0.12)">&#1042;&#1080;&#1087;&#1083;&#1072;&#1090;&#1080;</span></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div>
+      </div>
+      <div class="foot-56" style="background:#e1d9cc;border-color:#dcd3c5">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="rail-cur" style="background:rgba(138,90,58,0.12);color:#1c1a19">&#8372;</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#efeae2">
+      <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px;background:#efeae2;border-bottom:1px solid #ddd5c8">
+        <span style="min-width:0;padding-left:6px">
+          <span style="display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#5e5955">&#1047;&#1072;&#1075;&#1072;&#1083;&#1100;&#1085;&#1080;&#1081; &#1082;&#1072;&#1087;&#1110;&#1090;&#1072;&#1083;</span>
+          <span style="display:block;font-size:18px;font-weight:700;line-height:1.15;color:#1c1a19">149&nbsp;016&nbsp;&#8372;</span>
+        </span>
+        <span class="badge" style="margin-left:10px;border-color:#8a5a1a;background:#ebe2d5;color:#8a5a1a">DEMO</span>
+        <span style="margin-left:auto;padding-right:4px;text-align:right;font-size:11px;line-height:1.35">
+          <span style="font-weight:600;color:#2f6b3f">+3,08&nbsp;%</span><br><span style="color:#5e5955">3&nbsp;324,03&nbsp;$</span>
+        </span>
+      </header>
+      <div class="stub" style="background:#efeae2;color:#1c1a19"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#5e5955">188&nbsp;px wider than the frame above it. The header is the sidebar’s stand-in and carries the capital and the dataset caution.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:1280px">Light, where the tooltip also carries <code>--shadow-popover</code>; dark zeroes every shadow but one, so its boundary there is the stroke alone.</p>
+</div></div>
+</div>
+
+<!-- ── T3 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T3 &middot; At the breakpoint &mdash; 768 &times; 640</h2>
+<p class="note">
+768 is <code>md</code> itself, so both frames are the desktop shell and the drawer is not redrawn
+&mdash; it is this panel in a different box (<code>Sidebar.tsx:280-285</code>) and nothing here
+changes it. The height is the short one the shell is already held to. <b>What it shows is which band
+gives:</b> the expanded panel's nav is over its budget and takes the <code>Scroller</code> rail with
+its gutter, while the head, the capital band and the footer band do not move; the collapsed rail fits with
+room and shows no rail at all, which is the whole of T7's second argument. <b>It also shows the
+defect T7 measures:</b> the first pill reads
+&laquo;&#1065;&#1086;&#1076;&#1077;&#1085;&#1085;&#1110;&nbsp;&#1082;&#1086;&#1090;&#1080;&#1088;&#1091;&hellip;&raquo;,
+and it is drawn rather than argued because that is the only honest way to show a label that does not
+fit.
+</p>
+<div class="frames"><div>
+  <div class="fr-l">768 &times; 640 &mdash; dark, expanded &middot; 244 + 524</div>
+  <div class="fr" style="width:768px;height:640px"><aside class="sbw sbw-244" style="background:#0d0d0c;border-right:1px solid #7a7674">
+    <div class="sbcol">
+      <div>
+        <div class="lock">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg><span class="wordmark" style="color:#eceae7">quirenote</span>
+        <span class="badge" style="border-color:#d9a55f;background:#342c24;color:#d9a55f">DEMO</span>
+      </div>
+        <div class="capband" style="background:#161515">
+        <span class="cap-t"><span class="cap-l" style="color:#7a7674">&#1047;&#1040;&#1043;&#1040;&#1051;&#1068;&#1053;&#1048;&#1049;&nbsp;&#1050;&#1040;&#1055;&#1030;&#1058;&#1040;&#1051;</span>
+        <span class="cv"><span class="v" style="color:#eceae7">149&nbsp;016&nbsp;&#8372;</span><span class="d" style="color:#86b98f">+3,08&nbsp;%</span></span></span>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 18-6-6 6-6"/></svg>
+      </div>
+      </div>
+      <div class="navwrap" style="position:relative;overflow:hidden;padding-right:24px">
+        <div class="vp" style="padding:0 4px"><div class="nav"><div class="grp" style="color:#7a7674">&#1042;&#1074;&#1110;&#1076;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg><span>Щоденні котирування</span></div><div class="item" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Транзакції</span></div><div class="div" style="background:#1c1a1c"></div><div class="grp" style="color:#7a7674">&#1040;&#1085;&#1072;&#1083;&#1110;&#1090;&#1080;&#1082;&#1072;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#a3a19e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item sm" style="background:rgba(216,180,148,0.12);color:#d8b494;font-weight:700;box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span>Баланси</span></div><div class="item sm" style="background:rgba(236,234,231,0.05);color:#eceae7"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Виплати</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Дохідність</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Атрибути</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg><span>Сезонність</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg><span>Портфель</span></div><div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div></div></div>
+        <div class="scrl" style="border-color:#3a373c"><i style="background:#6e6a65;height:46%"></i></div>
+      </div>
+      <div class="foot" style="background:#131312;border-color:#1c1a1c">
+        <div class="sbtgl"><div class="segd" style="background:rgba(216,180,148,0.12)">
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+            <span class="seg" style="background:#d8b494;color:#1c1a19"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#1c1a19" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>
+          </div><div class="segd" style="background:rgba(216,180,148,0.12)">
+            <span class="seg cur" style="background:#d8b494;color:#1c1a19">&#8372;</span>
+            <span class="seg cur" style="color:#a3a19e">$</span>
+          </div></div>
+        <div class="item sm" style="color:#a3a19e"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>&#1053;&#1072;&#1083;&#1072;&#1096;&#1090;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;</span></div>
+        <div class="ver" style="color:#7a7674">v1.9.0</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#111110">
+      
+      <div class="stub" style="background:#111110;color:#eceae7"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#a3a19e">md is 768, so this is the desktop shell and not the drawer.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:768px">The nav is over its budget at this height, so the <code>Scroller</code> rail appears and takes its 28&nbsp;px gutter out of the band &mdash; and only out of the band. The lockup, the cluster and the footer band do not move.</p>
+</div><div>
+  <div class="fr-l">768 &times; 640 &mdash; light, expanded &middot; 244 + 524</div>
+  <div class="fr" style="width:768px;height:640px"><aside class="sbw sbw-244" style="background:#e8e1d6;border-right:1px solid #847e77">
+    <div class="sbcol">
+      <div>
+        <div class="lock">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg><span class="wordmark" style="color:#1c1a19">quirenote</span>
+        <span class="badge" style="border-color:#8a5a1a;background:#ebe2d5;color:#8a5a1a">DEMO</span>
+      </div>
+        <div class="capband" style="background:#f3eee6">
+        <span class="cap-t"><span class="cap-l" style="color:#847e77">&#1047;&#1040;&#1043;&#1040;&#1051;&#1068;&#1053;&#1048;&#1049;&nbsp;&#1050;&#1040;&#1055;&#1030;&#1058;&#1040;&#1051;</span>
+        <span class="cv"><span class="v" style="color:#1c1a19">149&nbsp;016&nbsp;&#8372;</span><span class="d" style="color:#2f6b3f">+3,08&nbsp;%</span></span></span>
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 18-6-6 6-6"/></svg>
+      </div>
+      </div>
+      <div class="navwrap" style="position:relative;overflow:hidden;padding-right:24px">
+        <div class="vp" style="padding:0 4px"><div class="nav"><div class="grp" style="color:#847e77">&#1042;&#1074;&#1110;&#1076;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg><span>Щоденні котирування</span></div><div class="item" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg><span>Транзакції</span></div><div class="div" style="background:#dcd3c5"></div><div class="grp" style="color:#847e77">&#1040;&#1085;&#1072;&#1083;&#1110;&#1090;&#1080;&#1082;&#1072;<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#5e5955" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m6 9 6 6 6-6"/></svg></div><div class="item sm" style="background:rgba(138,90,58,0.12);color:#8a5a3a;font-weight:700;box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg><span>Огляд</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg><span>Баланси</span></div><div class="item sm" style="background:rgba(28,26,25,0.05);color:#1c1a19"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span>Виплати</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg><span>Дохідність</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg><span>Атрибути</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg><span>Сезонність</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg><span>Портфель</span></div><div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg><span>Розподіл</span></div></div></div>
+        <div class="scrl" style="border-color:#c6bbab"><i style="background:#b4aa9a;height:46%"></i></div>
+      </div>
+      <div class="foot" style="background:#e1d9cc;border-color:#dcd3c5">
+        <div class="sbtgl"><div class="segd" style="background:rgba(138,90,58,0.12)">
+            <span class="seg" style="background:#8a5a3a;color:#f8f5ef"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#f8f5ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span>
+            <span class="seg"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>
+          </div><div class="segd" style="background:rgba(138,90,58,0.12)">
+            <span class="seg cur" style="background:#8a5a3a;color:#f8f5ef">&#8372;</span>
+            <span class="seg cur" style="color:#5e5955">$</span>
+          </div></div>
+        <div class="item sm" style="color:#5e5955"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg><span>&#1053;&#1072;&#1083;&#1072;&#1096;&#1090;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;</span></div>
+        <div class="ver" style="color:#847e77">v1.9.0</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#efeae2">
+      
+      <div class="stub" style="background:#efeae2;color:#1c1a19"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#5e5955">md is 768, so this is the desktop shell and not the drawer.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:768px">The nav is over its budget at this height, so the <code>Scroller</code> rail appears and takes its 28&nbsp;px gutter out of the band &mdash; and only out of the band. The lockup, the cluster and the footer band do not move.</p>
+</div></div><div class="frames"><div>
+  <div class="fr-l">768 &times; 640 &mdash; dark, collapsed &middot; 56 + 712</div>
+  <div class="fr" style="width:768px;height:640px"><aside class="sbw sbw-56" style="background:#0d0d0c;border-right:1px solid #7a7674;overflow:visible">
+    <div class="sbcol">
+      <div class="rail-head">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#d8b494" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#ece1d2" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/></svg>
+        <span class="burger"><i style="background:#a3a19e"></i><i style="background:#a3a19e"></i><i style="background:#a3a19e"></i></span>
+      </div>
+      <div class="rail-nav">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div>
+        <div class="rail-div" style="background:#1c1a1c"></div>
+        <div class="rail-item" style="background:rgba(216,180,148,0.12);box-shadow:inset 2px 0 0 #d8b494"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#d8b494" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div>
+      </div>
+      <div class="foot-56" style="background:#131312;border-color:#1c1a1c">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a8886" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="rail-cur" style="background:rgba(216,180,148,0.12);color:#eceae7">&#8372;</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#111110">
+      <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px;background:#111110;border-bottom:1px solid #2a282c">
+        <span style="min-width:0;padding-left:6px">
+          <span style="display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#a3a19e">&#1047;&#1072;&#1075;&#1072;&#1083;&#1100;&#1085;&#1080;&#1081; &#1082;&#1072;&#1087;&#1110;&#1090;&#1072;&#1083;</span>
+          <span style="display:block;font-size:18px;font-weight:700;line-height:1.15;color:#eceae7">149&nbsp;016&nbsp;&#8372;</span>
+        </span>
+        <span class="badge" style="margin-left:10px;border-color:#d9a55f;background:#342c24;color:#d9a55f">DEMO</span>
+        <span style="margin-left:auto;padding-right:4px;text-align:right;font-size:11px;line-height:1.35">
+          <span style="font-weight:600;color:#86b98f">+3,08&nbsp;%</span><br><span style="color:#a3a19e">3&nbsp;324,03&nbsp;$</span>
+        </span>
+      </header>
+      <div class="stub" style="background:#111110;color:#eceae7"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#a3a19e">The same short viewport, 188&nbsp;px wider.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:768px">Eleven glyphs and the band fit with room, so <code>Scroller</code> renders no rail and the conditional gutter costs nothing &mdash; which is why a 40&nbsp;px item never meets a 28&nbsp;px reservation. T7 has the figures.</p>
+</div><div>
+  <div class="fr-l">768 &times; 640 &mdash; light, collapsed &middot; 56 + 712</div>
+  <div class="fr" style="width:768px;height:640px"><aside class="sbw sbw-56" style="background:#e8e1d6;border-right:1px solid #847e77;overflow:visible">
+    <div class="sbcol">
+      <div class="rail-head">
+        <svg viewBox="0 0 120 120" style="width:22px;height:22px;flex:none"><path d="M72 56 A16 16 0 0 1 56 72 H36 A16 16 0 0 1 20 56 V36 A16 16 0 0 1 36 20 H56 A16 16 0 0 1 72 36 V70 M72 62 A8 8 0 0 1 80 54 H88 A8 8 0 0 1 96 62 V70" fill="none" stroke="#8a5a3a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/><path d="M72 48 V70" fill="none" stroke="#b07a52" stroke-width="15" stroke-linecap="round"/><path d="M96 70 V88" fill="none" stroke="#5c3a26" stroke-width="15" stroke-linecap="round"/></svg>
+        <span class="burger"><i style="background:#5e5955"></i><i style="background:#5e5955"></i><i style="background:#5e5955"></i></span>
+      </div>
+      <div class="rail-nav">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg></div>
+        <div class="rail-div" style="background:#dcd3c5"></div>
+        <div class="rail-item" style="background:rgba(138,90,58,0.12);box-shadow:inset 2px 0 0 #8a5a3a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8a5a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M17 14h-6"/><path d="M13 18H7"/><path d="M7 14h.01"/><path d="M17 18h.01"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg></div><div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/></svg></div>
+      </div>
+      <div class="foot-56" style="background:#e1d9cc;border-color:#dcd3c5">
+        <div class="rail-item"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#6f6a64" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <div class="rail-cur" style="background:rgba(138,90,58,0.12);color:#1c1a19">&#8372;</div>
+      </div>
+    </div>
+  </aside><div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#efeae2">
+      <header style="height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px;background:#efeae2;border-bottom:1px solid #ddd5c8">
+        <span style="min-width:0;padding-left:6px">
+          <span style="display:block;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#5e5955">&#1047;&#1072;&#1075;&#1072;&#1083;&#1100;&#1085;&#1080;&#1081; &#1082;&#1072;&#1087;&#1110;&#1090;&#1072;&#1083;</span>
+          <span style="display:block;font-size:18px;font-weight:700;line-height:1.15;color:#1c1a19">149&nbsp;016&nbsp;&#8372;</span>
+        </span>
+        <span class="badge" style="margin-left:10px;border-color:#8a5a1a;background:#ebe2d5;color:#8a5a1a">DEMO</span>
+        <span style="margin-left:auto;padding-right:4px;text-align:right;font-size:11px;line-height:1.35">
+          <span style="font-weight:600;color:#2f6b3f">+3,08&nbsp;%</span><br><span style="color:#5e5955">3&nbsp;324,03&nbsp;$</span>
+        </span>
+      </header>
+      <div class="stub" style="background:#efeae2;color:#1c1a19"><h4>&#1054;&#1075;&#1083;&#1103;&#1076;</h4><p style="color:#5e5955">The same short viewport, 188&nbsp;px wider.</p></div>
+    </div></div>
+  <p class="fr-cap" style="width:768px">Eleven glyphs and the band fit with room, so <code>Scroller</code> renders no rail and the conditional gutter costs nothing &mdash; which is why a 40&nbsp;px item never meets a 28&nbsp;px reservation. T7 has the figures.</p>
+</div></div>
+</div>
+
+<!-- ── T4 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T4 &middot; The head: a capital band that carries the shell control, and no cluster</h2>
+<div class="plate"><p class="note">
+<b>The ruling on the capital.</b> Expanded, it is a <b>56&nbsp;px band in the head</b>, directly
+under the lockup, in the slot <code>parchment-5h.dc.html:64</code> gives its &#8984;K field and on
+that slot's own <code>sb-field</code> ground: a <code>sb-label</code> caption over the figure and
+its delta, bled to the shell's own edges. Collapsed, <code>AppHeader</code> carries it &mdash; which
+<code>Layout.tsx:154</code> (<code>showHeader = !desktop || collapsed</code>) already arranges, so
+#108 changes that line not at all, no <code>useCapitalCard</code> caller moves and
+<code>KpiCard tone="dark"</code> stays where it is. <b>The pinned cluster goes with the card</b>, and
+the panel becomes the four bands the session drew: head, field, nav, foot. <b>The rail is
+declined:</b> 56&nbsp;px of shell is 40&nbsp;px of content, <code>149&nbsp;016&nbsp;&#8372;</code> is
+thirteen glyphs, and a segmented track at that width is the "third geometry"
+<em>Two shells, one breakpoint</em> rejects outright &mdash; the session's own rail draws no capital,
+no currency and no version either (<code>parchment-5h.dc.html:376-381</code>). <b>The page is
+declined</b> although the session draws the portfolio value as a content card beside the rail
+(<code>:383-392</code>): it makes the figure route-dependent, gone on <code>/yield</code> and gone on
+<code>/settings</code>, where the wall's promise is that it is always there &mdash; and it lands on a
+composition with no room, since <code>screen-density.dc.html</code> D-1 caps <code>/</code> at
+944 = 560 + 24 + 360 and records that the row "keeps zero slack".
+</p></div>
+<p class="note">
+<b>What the band keeps and what it drops.</b> The card carried a caption, a 21&nbsp;px figure and
+two numbers. <b>THE CAPTION IS KEPT, and an earlier draw of this file dropped it &mdash; wrongly.</b>
+Without it the band was a bare number under a wordmark: unlabelled on screen and unlabelled to a
+screen reader, so #107 would have owed it an <code>aria-label</code> that no drawing can show. The
+caption is the same <code>t.sidebar.totalCapital</code> the card used, at <code>sb-label</code>, and
+it is what makes the band worth its own plane rather than a stripe with a figure lying on it. The
+currency counter is the thing dropped: two lines hold the caption, the figure and one number, and
+the percentage is the reading the header bar puts first as well.
+</p>
+<p class="note">
+<b>It is a band and not a box, and it carries no edge at all.</b> It bleeds through the panel's
+16&nbsp;px padding to the shell's own edges, so it takes no radius either &mdash; a band that meets
+no corner has none to be concentric with, and the footer band's 29 is the one place that arithmetic
+bites. <b>The honest reading is that the fill is the whole of it:</b> <code>sb-field</code> on
+<code>sb-bg</code> is <b>1.12</b> in light and <b>1.07</b> in dark, so in light it reads as a band
+and in dark it barely does &mdash; and there is no fix inside the palette, because the best fill step
+the wall can take from ANY of its planes is <b>1.19</b>, and only in one theme
+(<code>card</code> light, <code>panel</code> dark). The session's own <code>.sb-field</code> carries
+<code>border:1px solid</code>, and that edge is refused on the instruction that this is a strip; a
+<code>field-border</code> stroke (3.09 / 4.33) stays recorded as available rather than taken.
+<b>What makes the band read is not its fill but its caption</b> &mdash; a labelled two-line block
+holds together at 1.07 where a bare figure on a stripe does not, which is the whole reason the
+caption came back.
+</p>
+<div class="plate"><p class="note">
+<b>ONE GLYPH COLUMN, AND FINDING THAT THERE WERE THREE IS WHAT THIS BAND'S ALIGNMENT TURNED UP.</b>
+Measured on the panel as it stood: the mark at <b>16</b>, the capital at <b>16</b>, the group
+headers, nav glyphs and dividers at <b>34</b>, and the Settings glyph in the footer band at
+<b>30</b>. The 34 is not arbitrary &mdash; it is the shell's 16, plus the 4 the <code>Scroller</code>
+viewport pays as its focus-ring allowance (<code>Scroller.tsx:77-84</code>), plus the pill's own 14
+&mdash; and the footer band is 30 for exactly one reason: it is outside the <code>Scroller</code>
+and so never pays that 4. <b>That is a defect, not a choice</b>, and the drawing fixes it by giving
+the footer band 20 of padding where the nav effectively has 16 + 4, which puts every glyph in the
+panel on one line at 34 and every label at 60. The capital band's caption and figure join that
+column. What is left is a grid a reader can see: <b>16</b> the shell's own edge, where the mark
+sits; <b>20</b> the box edges, shared by the nav pills and the two tracks; <b>34</b> content;
+<b>60</b> labels.
+</p></div>
+<div class="plate"><p class="note">
+<b>The shell control loses its box AND its place in the lockup row, and ends up at the capital band's
+right edge.</b> It was the panel's one absolutely-positioned element, it made the row reserve
+38&nbsp;px for a control 26 wide, and a bordered 26&nbsp;px chip beside the DEMO chip read as a
+second badge. It is a bare <code>ChevronLeft</code> pushed to the band's end. The lockup row is what
+it should have been all along, three members and nothing floating: mark, wordmark, badge.
+</p>
+<p class="note">
+<b>ITS SIZE IS SET BY ITS INK, NOT BY ITS BOX, and that is a thing this file had wrong until it was
+measured.</b> A <code>ChevronLeft</code> paints six units of a 24-unit box across and twelve down, so
+in a 16&nbsp;px box its ink is <b>4&nbsp;&times;&nbsp;8</b> &mdash; about a third of what sits beside
+it, while the box size says they match. Measured on the artboards: the rail's burger is
+<b>14&nbsp;&times;&nbsp;12</b>, and the panel's nav glyphs run 12&ndash;13.33 wide by
+10.67&ndash;13.33 tall in a 16&nbsp;px box, median height <b>12</b>. <b>So the chevron is drawn in a
+24&nbsp;px box, where its ink is 6&nbsp;&times;&nbsp;12</b>, and the height lands exactly on both.
+<b>The width cannot follow and should not be made to:</b> a chevron is 1:2 by construction and a
+burger is 7:6, so matching both axes would mean distorting one of them. Height is the axis the eye
+compares when two glyphs stand in one column, and height is what matches.
+</p>
+<p class="note">
+<b>It sits in the one strip the panel reserves and never draws in, and the position is derived
+rather than picked.</b> The nav column's right edge is 20&nbsp;px short of the shell's own: 16 of
+shell padding plus the 4 the <code>Scroller</code> viewport holds back as a focus-ring allowance
+(<code>Scroller.tsx:77-84</code>). Nothing is ever painted in that 20, so what is centred in it is
+the glyph's <b>ink</b> &mdash; <code>(20 &minus; 6) / 2 = <b>7</b></code> a side. Measured as drawn:
+the pill's right edge at 223, the shell's padding edge at 243, the ink at 230&ndash;236, its centre
+at <b>233</b> and the strip's at <b>233</b>. The 24&nbsp;px box runs 221&ndash;245 and overhangs the
+padding edge by two, which the shell clips and which carries no paint: <b>the box is scaffolding and
+the ink is the object</b>, which is the same distinction the burger's 40&nbsp;&times;&nbsp;36
+pressable region draws in T2. <b>The arrow is in the panel's margin, not in one of its columns</b>,
+which is why it collides with nothing and why nothing has to move for it.
+</p>
+<div class="plate"><p class="note">
+<b>WHAT THE BOX USED TO CARRY AND WHAT NOW CARRIES IT.</b> The shipped control is
+<code>size-[26px] rounded-[7px] border border-field-border</code> (<code>Sidebar.tsx:379-386</code>),
+and its border was doing two jobs: identifying the control under 1.4.11, and being the target.
+Unboxed, <b>the glyph is the whole of both</b>. Identification: <code>sb-item</code> on
+<code>sb-field</code> reads <b>5.99 / 7.07</b>, well over the 3&nbsp;:&nbsp;1 a non-text indicator is
+held to and better than the 3.09 / 4.33 the border it replaces read on the wall &mdash; T8 has the
+row. The target is the harder half: <b>the drawn box is 24 &times; 24, which is exactly WCAG
+2.5.8's AA floor with nothing to spare</b>, and two of those pixels are clipped by the shell. The
+shipped comment argues that this control is <code>&ge; md</code> only, "where a pointer is the
+input, so it is one of the few controls <code>TAP_44</code> has no business on" &mdash; that
+argument still stands and is why 24 is allowed, not why it is comfortable. <b>#107 gives the
+pressable box 26 or more</b> and lets the 24&nbsp;px glyph sit inside it, which costs the drawing
+nothing because the box carries no paint.
+</p></div>
+<p class="note">
+<b>Two placements are superseded, and both are worth keeping as the reason this one holds.</b> The
+first draw put it in the LOCKUP ROW, boxed at 26, where it read as a second badge beside the DEMO
+chip and made the row reserve 38&nbsp;px. The second put it at the band's LEADING position on the
+glyph column at 34, arguing proximity to the rail's burger &mdash; which bought 14&nbsp;px of
+nearness to a control 25 below it and cost the band its reading, because a chevron immediately left
+of a caption says "collapse this band". <b>The margin has neither problem:</b> nothing else in the
+panel is a left-pointing glyph, and <em>the sidebar leaves sideways and a group closes down</em>
+does the rest.
+</p>
+<p class="note">
+<b>One honest note, since the file measures both states of that strip:</b> the arrow is outside the
+<code>Scroller</code> and the strip is defined by something inside it, so when the nav band scrolls
+the pill's edge moves in by the gutter and the strip widens 20 &rarr; <b>44</b> &mdash; measured in
+the 768&nbsp;&times;&nbsp;640 frame, where the strip's centre is 221 and the arrow's is still 233.
+<b>The arrow does not re-centre, and that is deliberate:</b> it stays 2 from the edge in both
+states, because a control that moved 12&nbsp;px sideways when a list grew would be worse than one
+that is centred in only one of the two cases.
+</p>
+<p class="note">
+<code>where-things-live.dc.html</code> S5 settled the shell control against the group chevron by BOX
+&mdash; "boxed = the shell, bare = what it labels" &mdash; and that half is superseded; what settles
+it instead is the half the same section already calls free: <em>the sidebar leaves sideways and a
+group closes down</em>. One chevron points left and one points down, on one panel, and a box on top
+of that is a second cue for a distinction one cue already makes. Three bare chevrons on one panel and no box between them, which is what makes
+the axis carry the whole distinction.
+</p></div>
+<p class="note">
+One consequence worth naming before #108 meets it: <b>the DEMO badge goes with the capital.</b> It
+does not fit the rail (T7), and a dataset caution that disappears when a rail narrows is a caution
+nobody can rely on &mdash; so the header, which exists exactly while the rail is collapsed and below
+the breakpoint, does its second job.
+</p>
+<p class="note">
+<b>And the decorative blob goes.</b> <code>Sidebar.tsx:271-277</code> draws a 200&nbsp;px
+<code>sb-field</code> circle at 70&nbsp;% clipped to the shell's 30&nbsp;px corner. Composited it
+reads <b>1.09</b> against the wall in light and <b>1.04</b> in dark &mdash; decoration that
+identifies nothing, which is exactly the class <em>Design pipeline</em> exempts from 1.4.11 and
+exactly the class that has to justify itself on other grounds instead. It has none here: it sits
+under the footer band now, where the band's own fill covers most of it. #107 deletes
+<code>SidebarDecor</code> and its two call sites rather than redrawing it.
+</p>
+</div>
+
+<!-- ── T5 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T5 &middot; The two toggles, taken from the reissued session file</h2>
+<div class="plate"><p class="note">
+<b>The ruling.</b> The currency toggle and #85's theme control are <b>one object at two widths</b>,
+side by side on the footer band's first row, above Settings &mdash; the placement and the geometry of
+the session's own reissued file, which now draws a sidebar it did not draw before. A
+<code>sb-seg-bg</code> track with <b>no edge</b>, <b>22&nbsp;px segments</b> at
+<code>flex:1</code> so each track takes half the row, and the selected segment as a <b>solid
+<code>accent</code> chip</b>. Three segments for the theme
+(<code>Sun</code> / <code>Moon</code> / <code>Monitor</code>, 14&nbsp;px glyphs) and two for the
+currency &mdash; <b>the two symbols and not the reissued file’s <code>UAH</code> /
+<code>USD</code> words</b>, at 13&nbsp;px, the size its own rail box sets them in. <b>The theme control writes the
+stored <code>theme</code> preference</b> &mdash; the same field the Settings Appearance card writes
+&mdash; and that is the one place the two are not alike: a currency is flipped to read one KPI and
+is gone by the next reload (<code>Sidebar.tsx:311-315</code>), while a theme has no glance reading,
+and <code>system</code> is never resolved at write time (<em>Interaction rules</em>, Rejected).
+<b>A cycling icon button is declined:</b> one glyph cannot show the two states it is not in, and
+<code>system</code> would be indistinguishable from whichever theme it resolves to. <b>A
+<code>Select</code> is declined:</b> it would be the only control on the wall that opens something.
+</p></div>
+<p class="note">
+<b>THE BORDERS COME OFF, AND THAT IS WHY THE CHIP IS THE ACCENT AGAIN.</b> The reissued file draws
+its track a 1&nbsp;px edge and its selected segment a raised NEUTRAL chip on
+<code>sb-seg-thumb</code>; both edges were taken off on the owner's reading, and the neutral chip
+cannot survive without one. Measured, it identifies its state with a <b>1.36&nbsp;/&nbsp;1.25</b>
+fill step, where 1.4.11 binds a selected segment at 3&nbsp;:&nbsp;1; a 1&nbsp;px
+<code>field-border</code> stroke would have carried it at 3.69 / 3.25, and with no stroke available
+there is nothing left in the neutral direction &mdash; the palette holds no fill that clears 3 against
+<code>sb-seg-bg</code> without being a hue. <b>So the chip is <code>accent</code>, at 3.93 / 9.44,
+with <code>accent-fg</code> on it at 5.35 / 8.98.</b>
+</p>
+<p class="note">
+<b>HALF of <em>Interaction rules</em>' sidebar clause survives and half of it does not, and an
+earlier draft of this paragraph claimed all of it did.</b> <code>docs/DECISIONS.md:377-381</code>
+writes the exception in so many words &mdash; "whose currency toggle runs the wall's own field rank
+instead: <b>a recessed track</b> and <b>a solid accent thumb</b>" &mdash; and leans on it: "a solid
+fill therefore means a selected segment there and nothing else". <b>The thumb half is restored</b>
+by the borders coming off, above. <b>The track half is falsified</b> by the ground moving from
+<code>sb-field</code> to the active item's tint: the track is not the field rank any more. The
+leaned-on sentence still holds, because a solid accent fill is still the selected segment and
+nothing else. <b>So the clause is rewritten rather than confirmed</b>, and it does not travel alone:
+<code>index.css:737-741</code> exempts "the rail's currency toggle, whose track is
+<code>sb-field</code> rather than a fill" from <code>data-filled-track</code>, and
+<code>Sidebar.tsx:427-457</code> argues the same premise at length and prints the base ring's
+5.05&nbsp;/&nbsp;9.44 on <code>sb-field</code>. All three rest on the same false sentence and all
+three are named in T10 for whichever of #85 / #107 lands second.
+</p>
+<div class="plate"><p class="note">
+<b>One repair survives, and it needs no colour the app does not have.</b>
+<b>The currency track's idle segment is TEXT</b> &mdash; a currency symbol is
+a character and not an indicator, whatever its size &mdash; where <code>sb-seg-text</code> reads
+<b>3.61</b> in light against 1.4.3's 4.5, and the session's grid prints only its dark 5.16. So the
+currency's idle symbol reads <code>sb-item</code> (<b>4.67 / 7.07</b>) while the theme's idle glyphs
+keep <code>sb-seg-text</code>, which as a non-text indicator clears 3&nbsp;:&nbsp;1 at 3.61. That
+split is not an invention: it is the rank every nav row in the panel already uses,
+<code>sb-item</code> for a character and <code>sb-icon</code> for a glyph, applied to a row that
+happens to hold both.
+</p></div>
+<p class="note">
+<b>Five names, and this file mints NONE of them.</b> The reissued grid adds
+<code>sb-seg-bg</code>, <code>sb-seg-border</code>, <code>sb-seg-thumb</code>,
+<code>sb-seg-text</code> and <code>sb-seg-text-active</code>, and <b>every one of their ten values
+is a hex the palette already holds</b> &mdash; it re-values nothing and invents no colour. Two are
+refused because they hold ONE existing token's value in BOTH themes, which
+<code>index.css:157-170</code> rules on outright ("two tokens that must hold the same value to be
+legible are one step drawn twice &hellip; do not re-mint") and #98 acted on for three edge names.
+Three are refused because <b>the thing they named is not drawn</b>: with the borders off there is no
+track edge, with the chip on the accent there is no neutral chip, and with <b>the track carrying the
+active item's own tint</b> there is no separate track ground either.
+</p>
+<table>
+  <tr><th>the reissued name</th><th>light</th><th>dark</th><th>this file</th></tr>
+  <tr><td><code>sb-seg-bg</code></td><td><code>#dcd3c5</code></td><td><code>#161515</code></td><td class="dim">refused &mdash; the track reads <code>sb-item-active-bg</code>, the fill the selected route already carries</td></tr>
+  <tr><td><code>sb-seg-thumb</code></td><td><code>#f8f5ef</code></td><td><code>#2a282c</code></td><td class="dim">refused &mdash; the neutral chip is not drawn; the selected segment is <code>accent</code></td></tr>
+  <tr><td><code>sb-seg-border</code></td><td><code>#d6cdbf</code></td><td><code>#26232a</code></td><td class="dim">refused &mdash; the track has no edge; and it was <code>sb-border</code> exactly in both themes anyway</td></tr>
+  <tr><td><code>sb-seg-text</code></td><td><code>#6f6a64</code></td><td><code>#8a8886</code></td><td class="dim">refused &mdash; <code>sb-icon</code> exactly, in both themes</td></tr>
+  <tr><td><code>sb-seg-text-active</code></td><td><code>#1c1a19</code></td><td><code>#eceae7</code></td><td class="dim">refused &mdash; the selected content is <code>accent-fg</code>, which is the fill's own pair</td></tr>
+</table>
+<p class="note">
+<b>So the palette does not move at all: 64 names per block, no hex invented, and none of the three
+tasks touches <code>src/index.css</code>.</b> That is a better outcome than the two-name and
+one-name drafts this section went through, and it comes from the same direction each time &mdash;
+every simplification the composition took removed a reason to name something.
+</p>
+<div class="plate"><p class="note">
+<b>THE CHIP STILL SLIDES, and the drawing cannot show it.</b> <code>Sidebar.tsx:459-472</code>
+ships the selected segment as an absolutely-positioned <code>accent</code> thumb carrying
+<code>data-owns-motion</code> and a 300&nbsp;ms <code>ease-soft</code> transform, and its own comment
+warns that a tinted track is what "would have flattened [the sliding chip] into the nav's own
+language". <b>It does not, and the reason is that the chip is still the only solid accent fill on
+the plane</b> &mdash; the tint is 12&nbsp;%, the chip is 100. The artboards paint the fill on the
+selected <code>&lt;span&gt;</code> because a static sheet has no way to draw a transform, and that is
+a limitation of the medium rather than a ruling: <b>#85 keeps the thumb</b>, its motion and its
+<code>data-owns-motion</code>, and T10 says so.
+</p>
+<div class="plate"><p class="note">
+<b>THE TRACK CARRIES THE ACTIVE ROUTE'S OWN TINT, and it buys the file's worst fill step back.</b>
+Against the footer band it reads <b>1.15</b> in light and <b>1.24</b> in dark, where
+<code>sb-seg-bg</code> read 1.06 and <b>1.02</b> &mdash; the figure this section had been recording
+as a cost for several drafts. The track is finally a shape rather than a rumour.
+<b>What it costs is that the 12&nbsp;% tint is no longer unique to the current route</b>: three
+objects on the panel now carry it, one route and two tracks. That is survivable for exactly the
+reason <em>Interaction rules</em> gives when it writes the route's state &mdash; "a tint plus a
+2&nbsp;px inset left indicator, never a fill, so a state is never colour alone". The tint was never
+carrying the route on its own; the indicator was, and it is the only one of the three that has one.
+The other clause holds unchanged: a solid <code>accent</code> fill still means a selected segment
+and nothing else.
+</p></div>
+<p class="note">
+<b>The costs, stated rather than discovered.</b> <b>One reading falls under its bar and it is the
+idle currency symbol:</b> <code>sb-item</code> on the tinted track is <b>4.30</b> in light against
+1.4.3's 4.5, where on <code>sb-seg-bg</code> it was 4.67. There is no rank between it and
+<code>sb-item-hover</code>, which reads 10.77 and IS the hover state, so taking it would collapse
+two states into one &mdash; the ladder has a hole in it, the shape
+<code>floating-edges.dc.html</code> T1 names. It is recorded at its value: one character, one theme,
+0.20 under, beside <code>reit</code>'s 2.79 and <code>sb-label</code>'s 3.09. The theme track's idle
+GLYPH is unaffected, since 3.33 clears the 3&nbsp;:&nbsp;1 a non-text indicator is held to, and the
+accent chip goes 3.93 &rarr; <b>3.62</b> light and 9.44 &rarr; 7.75 dark, both still clear.
+<b>And 22 is a
+drawn box, so below the breakpoint the row becomes two rows.</b> 44 &times; 44 is hit area and never
+geometry (<em>Two shells, one breakpoint</em>), so each segment takes <code>TAP_44</code>'s
+transparent overlay &mdash; at 22 drawn with a 1&nbsp;px gap the overlays reach 11 past each edge and
+<b>the collision is VERTICAL, not horizontal, and an earlier draft of this paragraph had the axis
+wrong.</b> Segments abut sideways with a 1&nbsp;px gap, so across it is WIDTH that decides:
+<code>tap-target.ts</code>'s rule is <code>w + gap &ge; 44</code>, and measured as drawn the currency
+segments are <b>46.25</b> (clear, with room) while the theme segments are <b>30.5</b> and overlap a
+neighbour by 12.5. Down, the track is 22 tall and sits <b>8</b> above the Settings pill: 22 + 8 = 30
+against 44, so those two overlays cross by <b>14&nbsp;px</b> &mdash; and that one is the real
+failure <code>tap-target.ts</code> names, an overlay reaching past its own control to hand the tap to
+its neighbour. <b>Stacking the tracks one per row does not fix it</b>, which is what makes it #85's
+problem rather than a note: a row gap of 22 or a taller drawn segment does, and both are choices the
+implementing branch has to make and measure. Nothing here forbids one row below the breakpoint
+&mdash; at 44 drawn, five segments plus the tracks' padding, gaps and a row gap come to 239 against
+the 280&nbsp;px drawer's 248, so one row FITS, and the earlier draft's "one row is not available"
+was the opposite of what its own figures said. This is a requirement on #85 with its figures rather
+than a drawing, because the brief draws 1280 and 768 and
+the drawer's frames are <code>mobile.dc.html</code>'s.
+</p>
+</div>
+
+<!-- ── T6 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T6 &middot; The radii, re-derived</h2>
+<p class="note">
+The session draws one radius, 8, on every box. <em>Shape system</em> does not have one: a standalone control
+takes <code>round(min(w,&nbsp;h) &times; 0.26)</code> off its short side, a box nested against a
+parent's corner takes <code>outer = inner + gap</code>, and a segmented control is both at once.
+Nothing here is a capsule and nothing takes a value it did not earn.
+</p>
+<table>
+  <tr><th>box</th><th>drawn size</th><th>rule</th><th>radius</th></tr>
+  <tr><td>nav pill, Entry</td><td>&mdash; &times; 38</td><td>proportional, short side 38</td><td><code>round(9.88) = 10</code> &middot; shipped</td></tr>
+  <tr><td>nav pill, Analytics</td><td>&mdash; &times; <b>36.92</b> rendered</td><td>proportional, short side 36.92</td><td><code>round(9.60) = 10</code> &mdash; the app ships <b>9</b>, see below</td></tr>
+  <tr><td>rail item</td><td>40 &times; 36 &mdash; a set height</td><td>proportional, short side 36</td><td><code>round(9.36) = 9</code></td></tr>
+  <tr><td>capital band</td><td>243 &times; 56, bled</td><td>meets no corner</td><td><code>0</code> &mdash; a band has none</td></tr>
+  <tr><td>segment, either track</td><td>&mdash; &times; 22</td><td>proportional, short side 22</td><td><code>round(5.72) = 6</code> &middot; the session drew 6</td></tr>
+  <tr><td>track, either</td><td>97.5 &times; 26</td><td>concentric, gap = 2 padding</td><td><code>6 + 2 = 8</code> &middot; and the session drew 8</td></tr>
+  <tr><td>the rail’s currency box</td><td>40 &times; 32</td><td>proportional, short side 32</td><td><code>round(8.32) = 8</code></td></tr>
+  <tr><td>footer band</td><td>bleeds to the shell's edge</td><td>concentric, gap = the 1&nbsp;px border</td><td><code>30 &minus; 1 = 29</code>, bottom-right only</td></tr>
+  <tr><td>tooltip</td><td>&mdash; &times; <b>32.59</b> rendered</td><td>proportional, short side 32.59</td><td><code>round(8.47) = 8</code></td></tr>
+  <tr><td>the shell</td><td>full height</td><td>&mdash;</td><td><code>30</code> &middot; shipped, see below</td></tr>
+  <tr><td class="dim">collapse / expand control</td><td class="dim">a bare glyph</td><td class="dim">&mdash;</td><td class="dim">none &mdash; the 26 &times; 26 box at radius 7 is gone (T4)</td></tr>
+  <tr><td class="dim">capital card, currency track</td><td class="dim">212 &times; &mdash;</td><td class="dim">&mdash;</td><td class="dim">the shipped 13 leaves with the cluster</td></tr>
+  <tr><td class="dim">the decor blob</td><td class="dim">200 &times; 200</td><td class="dim">&mdash;</td><td class="dim">round, and deleted (T4)</td></tr>
+</table>
+<p class="note">
+<b>THE HEIGHTS ARE RENDERED, NOT NOMINAL, AND THAT COSTS THE ANALYTICS PILL ITS DERIVATION.</b>
+<em>Measurement</em> is explicit &mdash; "measure the RENDERED height; <code>text-[11px]</code> sets
+a font size, not a line height" &mdash; and measured, <code>py-2</code> around 13.5&nbsp;px at the
+body's 1.55 line height is <b>36.92</b>, not 36. <code>round(36.92 &times; 0.26) = 10</code>, and the
+app ships <b>9</b> (<code>Sidebar.tsx:410</code>). <b>The 9 is not re-derived here and not
+overturned:</b> it is a shipped radius on a shipped box, this file supersedes no geometry it is not
+redrawing, and a design sheet that moved a live radius by one pixel on an arithmetic technicality
+would be spending a branch badly. What is corrected is the CLAIM &mdash; the row said "shipped" and
+meant "derived", and those are not the same word. The Entry pill survives the same test at 38.92
+&rarr; 10, which is what it ships. The tooltip is this file's own box and takes its rendered 32.59
+&rarr; <b>8</b>.
+</p>
+<p class="note">
+<b>Four of those need their own sentence, and the shell control needs none because it has no box at all.</b> The <b>capital band</b> takes no radius at all: it
+bleeds to the shell's edges and meets no corner on the way, so there is nothing for it to be
+concentric with and no designed short side to be proportional to. The <b>track</b> came out at 9 while it carried a border and
+lands on <b>8</b> without one, which is what the reissued file drew &mdash; the derivation and the
+drawing agree once the border is gone, and that is the only place in the file where they ever
+differed. The <b>footer
+band</b> is the only other concentric box here: it
+bleeds through the panel's 16&nbsp;px padding to the shell's own edge, so it inherits that corner
+rather than choosing one, and its other three corners are square because the wall's left side is.
+The <b>tooltip</b> takes the proportional half although it is a floating surface, because its
+height is designed &mdash; padding plus one line &mdash; where the 16 / 20 / 24 ladder is for
+surfaces whose short side is a layout consequence. And the <b>shell's 30 is an orphan, and it
+stands</b>: <code>Sidebar.tsx:549-551</code> derives it as "outer radius = inner radius + the gap
+between them, so 14 + 16 = 30" off the lockup plate, which #92 deleted when <em>Brand</em> ruled the
+lockup "one row, no plate behind it". <b>This file removes the last candidate that came close.</b>
+With the cluster gone, the nearest surviving box against the panel's padding is the nav pill at 10,
+sitting 16&nbsp;px in, which gives <b>26</b> &mdash; four short, and the capital band takes no radius at all, so
+the footer band's 29 is read off the 30 rather than into it. The number is not moved: a full-height
+panel has no designed short side, so <em>Shape system</em> gives it no proportional value and 30 is
+a chosen shell radius, which is a legitimate thing for it to be. What #107 corrects is the sentence
+&mdash; the 30 is chosen and not derived, and the chain the comment derives it from has had no inner
+term since #92.
+</p>
+</div>
+
+<!-- ── T7 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T7 &middot; Two height budgets, and the badge that does not fit</h2>
+<p class="note">
+<em>Scrolling</em> reserves <code>2m + 12</code> = 28&nbsp;px, of which the <code>Scroller</code> root pays
+<b>24</b> and its viewport 4 a side as the focus-ring allowance
+(<code>Scroller.tsx:77-84</code>, <code>:160-164</code>). Twenty-four is nearly half of a 56&nbsp;px
+rail and far more than a 40&nbsp;px item has to give &mdash; so a collapsed rail that scrolls is a
+collapsed rail that breaks. It does not have to, and the reason is that <b>the root's share is
+conditional</b>: <code>Scroller.tsx:190</code> and <code>:207-209</code> apply it through
+<code>has-[&gt;[data-orientation=vertical]]</code>, so a band whose content fits pays nothing.
+Heights below are measured off this file's own rendered artboards; the last row is measured on the
+running app, which is the only honest way to state what today costs.
+</p>
+<table>
+  <tr><th>state</th><th>band content, px</th><th>fixed chrome + padding, px</th><th>scrolls below, px</th></tr>
+  <tr><td>collapsed rail, the TEN in its scrolling band</td><td>403</td><td>181</td><td class="ok">584</td></tr>
+  <tr><td>expanded panel, ten rows and the band</td><td>474.22</td><td>249.89</td><td class="ok">724.11</td></tr>
+  <tr><td>expanded panel, as it ships today</td><td class="dim">545.75</td><td class="dim">251.75</td><td class="dim">797.5</td></tr>
+</table>
+<p class="note">
+<b>The rail clears the 640 the shell is already held to</b> (<code>mobile.dc.html:404-410</code>)
+by <b>56&nbsp;px</b>. It draws no rail and pays no gutter, and T3's second frame is that result
+rather than that claim. <b>That clearance was 14 until this file took one of its own priced exits,
+and the working is worth keeping because the figure moved three times.</b> With a
+<code>ChevronRight</code> at the head as well as the header's burger it was <b>634</b> &mdash; six
+pixels, which by this file's own words about the DEMO badge is not a fit but an accident. Deleting
+that duplicate took it to <b>610</b>; bringing the burger down from the header put 16 back, and it
+stood at <b>626</b>, fourteen. <b>Then the rail's theme glyph went</b> &mdash; not to buy the
+clearance but because T5's own argument forbids it there (T2) &mdash; and that is the 42 this
+section had priced, so the threshold is <b>584</b>. The remaining exit stays priced: dropping the
+currency box buys another <b>38</b>. <b>The bound is named rather than drawn:</b> a twelfth route, or a window shorter than
+that, brings the rail back and a 40&nbsp;px item meets a 24&nbsp;px reservation. The remedy is that
+the collapsed shell widens by the gutter while its band scrolls; it is recorded here and not drawn,
+because nothing in the app reaches the case.
+</p>
+<p class="note">
+<b>The expanded panel scrolls, and after this brief it scrolls LATER than the one that ships</b>
+&mdash; 724.11 against the running app's 797.5, so <b>73.39&nbsp;px</b> of window that scrolls today
+does not. Both halves fall and they add up exactly: moving Settings out of the nav takes
+<b>71.53</b> off the band that gives, and the chrome takes <b>1.86</b> off itself &mdash; 251.75
+today against 249.89 now. 71.53 + 1.86 = 73.39. <b>The chrome figure is the one worth pausing on,
+because it went DOWN while gaining things</b>: a 56&nbsp;px captioned band and a whole footer band
+arrived, and the 21&nbsp;px card, the pinned cluster and the version's own row left in exchange, and
+the exchange came out 1.86 ahead. <b>It is the one figure in the file that got better by drawing
+less</b>, and
+worth stating against the alternative: the first draw of this sheet kept the card and the cluster
+and measured <b>822.91</b> &mdash; 25.41&nbsp;px WORSE than the app it was redrawing, which is the
+arithmetic T4's revisions reversed.
+</p>
+<div class="plate"><p class="note">
+<b>F-1 &mdash; the widest label does not fit its pill, and #105's glyph is what makes it always
+true. Raised as #117 rather than ruled here, because the fix is copy and copy belongs to a brief.</b>
+The shell gives 211; the <code>Scroller</code> viewport's 4&nbsp;px a side makes the pill
+<b>203</b> and <code>px-3.5</code> makes its content <b>175</b>.
+&laquo;&#1065;&#1086;&#1076;&#1077;&#1085;&#1085;&#1110; &#1082;&#1086;&#1090;&#1080;&#1088;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;&raquo;
+is 19 glyphs of the mono face at 13.5&nbsp;px, whose advance measures <b>0.600&nbsp;em</b> exactly
+&mdash; the figure <code>index.css:46</code> states, checked on the running app &mdash; so it needs
+<b>153.9</b>. <b>Today it already truncates while the nav scrolls:</b> the root's 24 takes the
+content to 151 and the label is 2.9 short, on any window under the last row's figure. <b>With the
+glyph and its 10&nbsp;px gap it truncates at every height:</b> 149 at rest, 4.9 short, and 125 while
+scrolling, 28.9 short. No other label is near &mdash;
+&laquo;&#1058;&#1088;&#1072;&#1085;&#1079;&#1072;&#1082;&#1094;&#1110;&#1111;&raquo; is 89.1 and
+&laquo;&#1053;&#1072;&#1083;&#1072;&#1096;&#1090;&#1091;&#1074;&#1072;&#1085;&#1085;&#1103;&raquo;
+97.2. The four remedies and what each buys are in #117; the one this file can say is that narrowing
+<code>px-3.5</code> to <code>px-2.5</code> buys 8&nbsp;px of the 28.9 and is therefore not an answer
+on its own.
+</p></div>
+<div class="plate"><p class="note">
+<b>The badge does not fit the rail, and that is arithmetic rather than taste.</b>
+<code>DEMO</code> is four glyphs of the mono face at 9&nbsp;px, whose advance is a documented 0.6&nbsp;em
+(<code>index.css:46</code>): 21.6 of glyph, 2.88 of <code>.08em</code> tracking, 12 of
+<code>px-1.5</code> and 2 of border. Rendered rather than only computed, the chip measures
+<b>38.48&nbsp;px into the 40</b> a 56&nbsp;px rail has &mdash; the arithmetic and the probe agree to
+a hundredth. A caution surviving on 1.52&nbsp;px of slack is not a fit, it is an accident. So the
+badge does not
+enter the rail, and T4's ruling sends the dataset caution to <code>AppHeader</code> with the capital;
+the header has room, its own comment (<code>AppHeader.tsx:140-144</code>) measuring ~150&nbsp;px of
+slack at 360 after the trigger and the figure.
+</p></div>
+</div>
+
+<!-- ── T8 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T8 &middot; Readings</h2>
+<p class="note">
+Every pair the drawings above put next to each other, on the plane each is actually drawn on. Tints
+are composited over their own ground before measuring. Three of the failures are the ones <code>src/index.css</code>
+already records at their declaration and are repeated with their reference rather than re-argued;
+two more are the reissued session file’s own values, printed here and REPAIRED in T5 rather than
+accepted, which is why they are dimmed — they are what the drawing would read if the two repairs
+were not made.
+</p>
+<h3>Held to a bar</h3>
+<table>
+  <tr><th>pair</th><th>light</th><th>dark</th><th>bar</th><th></th></tr>
+  <tr><td><code>sb-item</code> on <code>sb-bg</code> &mdash; the idle label</td><td>5.33</td><td>7.55</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-item</code> on <code>sb-footer-bg</code> &mdash; Settings in the band</td><td>4.94</td><td>7.21</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-item-hover</code> on <code>sb-bg</code></td><td>13.35</td><td>16.19</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-icon</code> on <code>sb-bg</code> &mdash; the rail's standalone glyph</td><td>4.12</td><td>5.51</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-icon</code> on <code>sb-footer-bg</code></td><td>3.82</td><td>5.26</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-icon</code> on the 5&nbsp;% hover ground</td><td>3.75</td><td>5.03</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-icon-active</code> on the 12&nbsp;% tint</td><td>3.88</td><td>8.28</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-indicator</code> on <code>sb-bg</code></td><td>4.49</td><td>10.07</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-indicator</code> on the 12&nbsp;% tint</td><td>3.88</td><td>8.28</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>ink</code> on the tinted track &mdash; the rail's currency symbol</td><td>10.77</td><td>12.47</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>field-border</code> on <code>card</code> &mdash; the tooltip, inward</td><td>3.69</td><td>3.94</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>field-border</code> on <code>page</code> &mdash; the wall's own edge, outward</td><td>3.35</td><td>4.20</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>ink</code> on <code>card</code> &mdash; the tooltip's label</td><td>15.93</td><td>14.74</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>ink</code> on <code>sb-field</code> &mdash; the capital band's figure</td><td>15.01</td><td>15.18</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-label</code> on <code>sb-field</code> &mdash; the band's caption</td><td>3.48</td><td>4.05</td><td>4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>sb-label</code> on <code>sb-footer-bg</code> &mdash; the version, in the band now</td><td>2.87</td><td>4.14</td><td>4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>sb-item</code> on <code>sb-field</code> &mdash; the collapse chevron, unboxed</td><td>5.99</td><td>7.07</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>pos</code> on <code>sb-field</code> &mdash; the strip's delta</td><td>5.52</td><td>8.11</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>accent</code> chip on the tinted track &mdash; what identifies the selection</td><td>3.62</td><td>7.75</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>accent-fg</code> on the chip &mdash; the selected symbol and glyph</td><td>5.35</td><td>8.98</td><td>4.5</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-item</code> on the tinted track &mdash; the idle <code>$</code></td><td>4.30</td><td>5.81</td><td>4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>sb-icon</code> on the tinted track &mdash; an unselected theme glyph</td><td>3.33</td><td>4.24</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td class="dim"><code>sb-seg-text</code> on <code>sb-seg-bg</code> &mdash; the reissued file’s idle WORD</td><td class="dim">3.61</td><td class="dim">5.16</td><td class="dim">4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td class="dim">the reissued neutral chip, undrawn &mdash; <code>sb-seg-thumb</code> vs <code>sb-seg-bg</code></td><td class="dim">1.36</td><td class="dim">1.25</td><td class="dim">3</td><td class="no">&#10007;</td></tr>
+  <tr><td class="dim">the reissued track ground, undrawn &mdash; <code>sb-seg-bg</code> vs <code>sb-footer-bg</code></td><td class="dim">1.06</td><td class="dim">1.02</td><td class="dim">&mdash;</td><td class="dim">&mdash;</td></tr>
+  <tr><td><code>warn</code> edge on <code>sb-bg</code> &mdash; the DEMO chip</td><td>4.55</td><td>8.79</td><td>3</td><td class="ok">&#10003;</td></tr>
+  <tr><td><code>sb-label</code> on <code>sb-bg</code> &mdash; the 11&nbsp;px group header</td><td>3.09</td><td>4.33</td><td>4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>sb-item-active</code> on the 12&nbsp;% tint &mdash; on the wall</td><td>3.88</td><td>8.28</td><td>4.5</td><td class="no">&#10007;</td></tr>
+  <tr><td><code>sb-item-active</code> on the 12&nbsp;% tint &mdash; on the band</td><td>3.62</td><td>7.75</td><td>4.5</td><td class="no">&#10007;</td></tr>
+</table>
+<p class="note">
+<b>Six standing failures. Four are <code>index.css</code>'s own records read on new planes; two are
+this file's own and are argued where they are made.</b> <code>sb-label</code>'s 3.09 / 4.33 is the shortfall <code>index.css:355-359</code>
+records; the header moves from 10&nbsp;px uppercase to the session's 11&nbsp;px sentence case and
+<b>eleven pixels is still small text</b>, so 1.4.3 still asks 4.5 and still does not get it. No
+repair is claimed: the owner ruled the value stands (#90) and #92 adopted it knowing this. <b>The
+capital band's caption is that same token one plane up</b> &mdash; <code>sb-label</code> on
+<code>sb-field</code> rather than on the wall, 3.09 &rarr; <b>3.48</b> in light and 4.33 &rarr; 4.05
+in dark &mdash; so the recess buys the light reading 0.39 and costs the dark one 0.28, and neither
+crosses the bar. It is drawn at the same token as every other caption in the panel on purpose: a
+second grey for one caption is the re-mint <code>index.css:157-170</code> forbids.
+<code>sb-item-active</code>'s 3.88 is the shortfall <code>index.css:340-347</code>
+records, bought by 1.4.1 &mdash; the 2&nbsp;px indicator is the half that survives a colour-blind
+reading and it does nothing for 1.4.3. <b>The fourth is this file's own and is the honest half of
+T5's ruling:</b> moving Settings into the band puts the active route's label on a tint over
+<code>sb-footer-bg</code> rather than over the wall, and light goes 3.88 &rarr; <b>3.62</b>. It is
+the same failure one step further down, on exactly one row of eleven, and it is recorded at the
+value rather than repaired &mdash; repairing it means moving <code>sb-item-active</code>, which is a
+palette decision this file has no standing to make. <b>The version badge is the same
+<code>sb-label</code> one plane further down</b> &mdash; <code>sb-footer-bg</code> rather than the
+wall &mdash; and it is the worst text reading in the file at <b>2.87</b> light against 3.09 on the
+wall, which is what moving it into the band costs. It is recorded rather than repaired for the same
+reason the other two <code>sb-label</code> readings are: the value is the owner's ruling from #90,
+and a second grey for one microlabel is the re-mint <code>index.css:157-170</code> forbids. <b>The
+sixth is the idle currency symbol at
+<b>4.30</b> on the tinted track</b>, 0.20 under, where the only rank above it is the hover state
+itself &mdash; T5 has the arithmetic and the reason it is taken rather than repaired.
+</p>
+<h3>Outside the bar, and recorded at their values</h3>
+<p class="note">
+Each of these is a region's decorative edge or a fill step, which <em>Design pipeline</em> puts outside
+1.4.11 &mdash; the bar binds what identifies a component or its state. A rule between two groups
+identifies neither; a band's fill is not what says Settings is a link; a track is identified by its
+thumb. They are printed because the alternative is a reader measuring them and finding no record.
+</p>
+<table>
+  <tr><th>step</th><th>light</th><th>dark</th><th>what carries the identification instead</th></tr>
+  <tr><td><code>sb-divider</code> vs <code>sb-bg</code></td><td>1.14</td><td>1.12</td><td>nothing &mdash; a rule between groups identifies neither</td></tr>
+  <tr><td><code>sb-footer-bg</code> vs <code>sb-bg</code></td><td>1.08</td><td>1.05</td><td>the <code>sb-divider</code> rule along its top edge</td></tr>
+  <tr><td><code>sb-field</code> vs <code>sb-bg</code> &mdash; the capital band</td><td>1.12</td><td>1.07</td><td class="dim">nothing &mdash; the band carries no edge, T4</td></tr>
+  <tr><td>the tinted track vs <code>sb-footer-bg</code> &mdash; both tracks</td><td>1.15</td><td>1.24</td><td>itself, now &mdash; see T5</td></tr>
+    <tr><td><code>card</code> vs <code>sb-bg</code> &mdash; the tooltip's fill step</td><td>1.19</td><td>1.10</td><td>its <code>field-border</code> stroke, 3.69 / 3.94</td></tr>
+  <tr><td class="dim">the decor blob at 70&nbsp;% on the wall</td><td class="dim">1.09</td><td class="dim">1.04</td><td class="dim">nothing, which is why it is deleted &mdash; T4</td></tr>
+</table>
+</div>
+
+<!-- ── T9 ─────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T9 &middot; Icons &mdash; the eleven routes, and the five controls</h2>
+<p class="note">
+The routes are not this file's choice: <code>parchment-5h.dc.html:972-982</code> already hands over
+one <code>lucide-react</code> import per route and #105 lands them. They are repeated here only
+because the drawings above need something to draw, and naming them a second time is cheaper than a
+reader guessing which sheet is the authority. Path data is lucide 1.27.0's own, copied out of
+<code>node_modules/lucide-react/dist/esm/icons/&lt;name&gt;.mjs</code> at lucide's weight &mdash;
+<code>viewBox 0 0 24 24</code>, stroke 2, round caps and joins &mdash; so the drawn glyph and the
+imported component are one object rather than two that look alike.
+</p>
+<table>
+  <tr><th>route</th><th>nav key</th><th>lucide</th><th>route</th><th>nav key</th><th>lucide</th></tr>
+  <tr><td><code>/</code></td><td class="dim">Daily quotes</td><td><code>CalendarDays</code></td><td><code>/attributes</code></td><td class="dim">Attributes</td><td><code>Tags</code></td></tr>
+  <tr><td><code>/transactions</code></td><td class="dim">Transactions</td><td><code>ArrowDownUp</code></td><td><code>/seasonality</code></td><td class="dim">Seasonality</td><td><code>CalendarRange</code></td></tr>
+  <tr><td><code>/overview</code></td><td class="dim">Overview</td><td><code>LayoutGrid</code></td><td><code>/portfolio</code></td><td class="dim">Portfolio</td><td><code>Table</code></td></tr>
+  <tr><td><code>/balances</code></td><td class="dim">Balances</td><td><code>Wallet</code></td><td><code>/allocation</code></td><td class="dim">Allocation</td><td><code>ChartPie</code></td></tr>
+  <tr><td><code>/payouts</code></td><td class="dim">Payouts</td><td><code>CircleDollarSign</code></td><td><code>/settings</code></td><td class="dim">Settings</td><td><code>Settings</code></td></tr>
+  <tr><td><code>/yield</code></td><td class="dim">Yield</td><td><code>ChartLine</code></td><td colspan="3"></td></tr>
+</table>
+<table>
+  <tr><th>control</th><th>lucide</th><th>where</th></tr>
+  <tr><td>collapse the shell</td><td><code>ChevronLeft</code></td><td>shipped, <code>Sidebar.tsx:1</code> &middot; bare, a <b>24&nbsp;px</b> box for a <b>6&nbsp;&times;&nbsp;12</b> ink, that ink centred in the 20&nbsp;px strip the nav column reserves (T4)</td></tr>
+  <tr><td>expand the shell</td><td>&mdash; <span class="dim">three bars, not lucide</span></td><td><b>moved</b> &middot; the burger comes down from the header into the rail's head, redrawn at <b>14 &times; 12</b> (T2)</td></tr>
+  <tr><td>fold a group</td><td><code>ChevronDown</code></td><td>shipped &middot; bare glyph on the header row</td></tr>
+  <tr><td>theme &mdash; light</td><td><code>Sun</code></td><td><b>new</b> &middot; segment 1 of 3, 22 tall &mdash; a segment only; the rail has no theme control (T2)</td></tr>
+  <tr><td>theme &mdash; dark</td><td><code>Moon</code></td><td><b>new</b> &middot; segment 2 of 3</td></tr>
+  <tr><td>theme &mdash; system</td><td><code>Monitor</code></td><td><b>new</b> &middot; segment 3 of 3</td></tr>
+</table>
+<p class="note">
+<b>Three bare chevrons across the two states, and no box between them.</b> Two are the group
+headers; the third is the shell control, which S5 separated from them by BOX and T4 supersedes. What tells them apart is direction &mdash; left and right move the shell, down
+folds what the row labels. <b>The currency track carries no glyph at all:</b> its two segments are
+the <code>&#8372;</code> and <code>$</code> characters in the mono face, as is the rail's currency
+box &mdash; a currency symbol is a character, and drawing it as a path would make it disagree with
+every figure in the app. The reissued file sets those two segments as the words <code>UAH</code> and
+<code>USD</code>; the symbols are the owner's call, and they cost the track nothing, because it is
+<code>flex:1</code> and sized by the row rather than by what it holds.
+</p>
+<p class="note">
+Group headers still take no glyph. The chevron there is a control and not a label, which is what
+<code>parchment-5h.dc.html:985-986</code> says of headers generally and what the drawings keep.
+</p>
+</div>
+
+<!-- ── T10 ────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T10 &middot; What the three tasks must move</h2>
+<p class="note">
+<b>It mints NOTHING, refuses all five names, and invents no colour.</b> The reissued session file
+adds five <code>sb-seg-*</code> names; T5 refuses every one &mdash; two as one step drawn twice, and
+three because the things they named are not drawn once the borders come off, the chip is the accent
+and the track carries the active item’s own tint. So <b>the palette does not move</b>, 64 per block,
+and none of the three tasks touches <code>src/index.css</code>. Separately, the parchment session
+minted sixteen <code>sb-*</code> names and <code>index.css:324-332</code> records <b>seven with no
+consumer</b>: this brief spends four of them and leaves three, which makes that comment wrong the
+moment #107 lands.
+</p>
+<table>
+  <tr><th>idle name</th><th>after this brief</th></tr>
+  <tr><td><code>sb-icon</code> &middot; <code>sb-icon-active</code></td><td class="ok">spent &mdash; #105's glyphs, idle and current</td></tr>
+  <tr><td><code>sb-divider</code></td><td class="ok">spent &mdash; between groups, and along the band's top edge</td></tr>
+  <tr><td><code>sb-footer-bg</code></td><td class="ok">spent &mdash; the band</td></tr>
+    <tr><td><code>sb-badge</code> &middot; <code>sb-badge-bg</code></td><td class="dim">still idle &mdash; their only candidate was the count badge this brief refuses</td></tr>
+  <tr><td><code>sb-border</code></td><td class="dim">still idle &mdash; the tracks lost their edge, so #98's ruling still leaves it with no consumer</td></tr>
+  <tr><td><code>sb-item-active-bg</code></td><td class="ok">gains two consumers &mdash; both segmented tracks read the fill the selected route carries (T5)</td></tr>
+</table>
+<table>
+  <tr><th>task</th><th>what it moves</th></tr>
+  <tr><td><b>#107</b> structure</td><td>the 11&nbsp;px sentence-case header; the <code>sb-divider</code> rule between groups; Settings out of the scrolling band and into a <code>sb-footer-bg</code> band bled to the shell's edge at radius 29, with the version under it; a glyph slot on every item. <b>The head is rebuilt:</b> the lockup row drops the collapse control and its reserved 38&nbsp;px and becomes three members; the <code>CapitalCard</code> becomes a bled 56&nbsp;px <code>sb-field</code> band with no radius and no edge, carrying its caption, its figure and that control as a 24&nbsp;px box whose 6&nbsp;&times;&nbsp;12 ink is centred in the reserved 20&nbsp;px strip, 7 a side (T4); the pinned cluster and its 13&nbsp;px radii go; <code>SidebarDecor</code> is <b>deleted</b> along with its two call sites; and the footer band takes 20 of padding so the whole panel has one glyph column at 34 and one label column at 60. It also rewrites the comments this file falsifies &mdash; <code>index.css:328-332</code>'s seven idle names, now three; <code>Sidebar.tsx:549-551</code>'s "14 + 16 = 30", which has had no inner term since #92 (T6); and, if #85 has not landed first, the two that rest on the toggle track being <code>sb-field</code>: <code>index.css:737-741</code> and <code>Sidebar.tsx:427-457</code> (T5)</td></tr>
+  <tr><td><b>#108</b> collapsed rail</td><td>collapsed becomes a 56&nbsp;px shell, not <code>w-0</code>: mark, the burger under it at 14&nbsp;&times;&nbsp;12, <b>ten</b> 40&nbsp;&times;&nbsp;36 items at radius 9 with an 18&nbsp;px glyph in the scrolling band, <code>sb-divider</code> between the groups, and Settings (the eleventh) plus a currency box in the foot band. <b>No theme control in the rail</b> &mdash; T2 refuses it on T5's own argument about a lone cycling glyph. <b><code>AppHeader</code> loses its trigger at and above the breakpoint and keeps it below</b>, and <code>NAV_TRIGGER_ID</code> moves onto the rail's control so the focus handoff at <code>Layout.tsx:105-110</code> is unchanged. The nav band still goes through <code>Scroller</code> and, at the heights the shell is held to, shows no rail (T7). <code>Layout.tsx:154</code> is untouched; the DEMO badge moves to <code>AppHeader</code> with the capital (T4)</td></tr>
+  <tr><td><b>#85</b> theme control</td><td>three 22&nbsp;px glyph segments at radius 6 on a track at radius 8 &mdash; <b>no edge</b>, ground <code>sb-item-active-bg</code>, selected segment a solid <code>accent</code> chip with <code>accent-fg</code> on it &mdash; on the footer band's first row, beside the currency toggle, which is rebuilt to the same anatomy in the same branch because the two are one object (T5). <b>It mints nothing:</b> every one of the reissued file's five <code>sb-seg-*</code> names is refused. <b>The chip keeps the shipped sliding thumb</b> (<code>Sidebar.tsx:459-472</code>): an absolutely-positioned <code>accent</code> box with <code>data-owns-motion</code> and a 300&nbsp;ms <code>ease-soft</code> transform, drawn here as a filled segment only because a static sheet cannot show it move. It writes the same stored <code>theme</code> field the Appearance card writes; each segment carries the dictionary's word as its accessible name; the tap-target arithmetic below the breakpoint is T5's F-2 and is #85's to resolve; and the collapsed rail gets NO theme control &mdash; T2 refuses it on T5's own grounds. <b>It rewrites <em>Interaction rules</em>' sidebar clause</b>, whose "recessed track" no longer describes this track, and the two shipped comments that rest on the same premise. No <code>data-filled-track</code>: the base ring still serves it, and #85 re-states that on the new ground rather than citing <code>index.css:737-741</code>, which it also falsifies</td></tr>
+</table>
+</div>
+
+<!-- ── T11 ────────────────────────────────────────────────────────────── -->
+<div class="sec">
+<h2>T11 &middot; The literals that belong to no family</h2>
+<p class="note">
+<b>Forty-six distinct colour literals, forty-two of them token-backed and four confessed below.</b>
+The count is computed rather than counted, and the signature is re-runnable: every
+<code>#hex</code> and <code>rgba()</code> inside the <code>&lt;style&gt;</code> block, inside a
+<code>style=""</code> attribute or inside an SVG <code>stroke</code> / <code>fill</code>, matched
+against every <code>--color-*</code> and <code>--shadow-*</code> declaration in
+<code>src/index.css</code> &mdash; a shadow indexed by the colour inside it as well as whole, which
+is what puts <code>rgba(60, 40, 20, 0.12)</code> on <code>--shadow-popover</code>. <b>The zones are
+load-bearing</b>: a signature run over the whole file sweeps in every <code>&amp;#1072;</code>
+Cyrillic entity and every issue reference (<code>#105</code>, <code>#117</code>) as if they were
+colours, which a first run did, reporting forty-one false failures. Colour is only ever in those
+three places, and prose is not a colour.
+</p>
+<p class="note">
+<b>The four that map to nothing</b> are the same four <code>parchment-5h.dc.html:877-895</code>
+confesses, for the same reason &mdash; a sheet needs a ground that is neither theme so that a light
+artboard and a dark one can sit side by side without one of them being the page:
+<code>#101113</code> the page behind both, <code>#26272b</code> the section rules,
+<code>#18191c</code> the plates that hold a ruling, and <code>#c9c7c3</code> the body prose.
+Everything else on this page &mdash; the headings, the dim captions, the dashed microlabels, the
+green ticks &mdash; is a dark-theme token doing chrome duty: <code>ink</code>, <code>muted</code>,
+<code>sb-icon</code>, <code>faint</code>, <code>pos</code>. The drawn sidebars share none of it.
+</p>
+<p class="note">
+<b>One console line, and it is not this file's fault.</b> On a first load over <code>file:</code>
+Chrome logs <em>"Unsafe attempt to load URL &hellip; 'file:' URLs are treated as unique security
+origins"</em> once. <code>parchment-5h.dc.html:151-159</code> attributes that warning to
+same-document fragment references, and <b>this file has none</b> &mdash; no <code>&lt;defs&gt;</code>,
+no <code>&lt;use&gt;</code>, no <code>url(#&hellip;)</code>, verified by grep. Bisected here: it
+needs the stylesheet and the inline glyphs together and appears with neither alone, so a fragment
+reference is sufficient for it and not necessary. Nothing paints wrong &mdash; every artboard was
+measured after it fired &mdash; and it does not appear when the file is served over http.
+</p>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>
