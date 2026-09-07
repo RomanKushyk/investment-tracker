@@ -204,12 +204,10 @@ function NavItem({
 function NavGroup({
   groupKey,
   label,
-  className = '',
   children,
 }: {
   groupKey: string;
   label: string;
-  className?: string;
   children: ReactNode;
 }) {
   const t = useT();
@@ -278,7 +276,7 @@ function NavGroup({
         // rather than overlapping it, which is what tap-target.ts requires of a
         // box-less control. `TAP_44_BOX` itself is wrong here — it squares the
         // box, and this one has a label to hold.
-        className={`group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[10px] tracking-[.12em] text-sb-label uppercase transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11 ${className}`}
+        className="group mx-3.5 mb-1.5 flex h-[18px] cursor-pointer items-center rounded-[9px] text-[11px] font-semibold tracking-[.02em] text-sb-label transition select-none hover:text-sb-item-hover active:scale-[.97] max-md:h-11"
       >
         {label}
         <ChevronDown
@@ -316,20 +314,6 @@ function NavGroup({
 // only, never pos/neg/asset hues. D7: fade + zoom-in on first paint, 200ms.
 
 /**
- * The decorative blob, and the layer that keeps it inside the shell's corner.
- * Shared by both shells rather than duplicated: it belongs to the SURFACE, so it
- * has to sit outside the padded panel and inside the rounded edge — a position
- * only the wrapper can give it.
- */
-function SidebarDecor() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-r-[30px]">
-      <div className="absolute -right-[70px] -bottom-[60px] size-[200px] rounded-full bg-sb-field opacity-70" />
-    </div>
-  );
-}
-
-/**
  * THE SIDEBAR'S ONE COMPOSITION, laid out two ways (owner decision 2, S1). The
  * drawer is not a second navigation with its own geometry — it is this, in a
  * different box. All `variant` decides is the two items that belong to a shell
@@ -337,21 +321,25 @@ function SidebarDecor() {
  * capital card, which below the breakpoint IS the header bar (S2) and would
  * otherwise be two truths about one number.
  *
- * THREE BANDS, AND ONLY THE MIDDLE ONE SCROLLS — the same shape as `Dialog`, and
- * for a measured reason: the sidebar's content is 851 px tall in a 740 px
- * viewport, so the old `mt-auto` cluster sat below the fold on a phone and on
- * any short desktop window. Pinning it puts the currency toggle and the capital
- * figure within reach without scrolling at 740 px of viewport height and at 640,
- * while the nav — the part that can grow — takes the give.
+ * THREE ROWS, AND ONLY THE MIDDLE ONE SCROLLS — the same shape as `Dialog`, and
+ * for a measured reason: the old `mt-auto` cluster sat below the fold on a phone
+ * and on any short desktop window. Pinning the foot keeps the currency track,
+ * Settings and the version within reach without scrolling at 740 px of viewport
+ * height and at 640, while the nav — the part that can grow — takes the give.
+ * Moving Settings out of the nav and rebuilding the head bought enough of it that
+ * the panel begins to scroll LATER than the one it replaces, not sooner.
+ *
+ * FOUR BANDS IN THREE ROWS, which is not a contradiction: the head row carries
+ * the lockup AND the capital strip, so the grid template does not change.
  *
  * A grid and not a flex column, for the reason `Dialog` records in full: a
  * scrolling box needs a parent whose height is DEFINITE, and `flex-1` under a
  * clamped container is not definite enough for `h-full` to resolve against.
  *
- * `relative` on the root is what lifts the whole panel over `SidebarDecor`.
- * The blob is absolutely positioned, so it paints above the background of every
- * in-flow box behind it; one positioned ancestor here settles that for all of
- * them at once, instead of each block that has a fill remembering to opt out.
+ * NOTHING IS POSITIONED AGAINST THE ROOT ANY MORE. `relative` was here so the
+ * decorative blob, `absolute inset-0`, would resolve against the panel rather
+ * than the page; #107 deleted the blob and the class goes with it. The currency
+ * thumb resolves against its own track, which carries its own `relative`.
  */
 function SidebarPanel({
   variant,
@@ -370,28 +358,21 @@ function SidebarPanel({
   const rail = variant === 'rail';
 
   return (
-    <div className="relative grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
-      {/* ── band 1 — the lockup, fixed ─────────────────────────────────── */}
-      {/* ONE ROW, NO PLATE, AND THE BADGE IS IN IT. The lockup used to be a
-          filled 14px card with two ornaments floating over it, and everything
-          that made that necessary is gone: the plate was the inner term of a
-          concentric chain, the wordmark ran two lines because a tagline sat
-          under it, and the badge had to float because at 244 the plate could not
-          hold a fifth element in flow. The sheet draws a flex row — mark,
-          wordmark — so the badge is simply its third child and the arithmetic
-          that placed it goes with the box it was measured against.
-          The collapse control still floats, so the row reserves its corner
-          rather than laying it out: it is positioned against this container and
-          would otherwise sit on top of the badge. 38 is that control's own
-          arithmetic — 6 inset + 26 button + 6 gap — the figure the badge used
-          while it was pinned to the corner too. Measured at 32 first, which put
-          the badge's right edge on the button's left edge exactly. */}
-      <div className="relative mb-[22px]">
-        <div
-          className={`flex items-center gap-2 ${
-            rail && onCollapse !== undefined ? 'pr-[38px]' : ''
-          }`}
-        >
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
+      {/* ── band 1 — the lockup and the capital strip, fixed ────────────── */}
+      {/* ONE ROW, NO PLATE, AND NOTHING FLOATING IN IT. The lockup used to be a
+          filled 14px card with two ornaments over it, and everything that made
+          that necessary is gone: the plate was the inner term of a concentric
+          chain, the wordmark ran two lines because a tagline sat under it, and
+          the badge had to float because at 244 the plate could not hold a fifth
+          element in flow. The sheet draws a flex row — mark, wordmark — so the
+          badge is simply its third child.
+          The collapse control was the last thing floating here, and it made the
+          row reserve 38px for a control 26 wide while a bordered chip sat beside
+          the DEMO chip reading as a second badge. It moves into the strip below,
+          where the drawing puts it, so this row is three members and no more. */}
+      <div>
+        <div className="mb-[14px] flex items-center gap-2">
           {/* No `text-ink`: no part of the mark inherits `currentColor` since
               the three logo tokens replaced the one brand sand. */}
           <Mark className="size-[22px] flex-none" />
@@ -419,25 +400,12 @@ function SidebarPanel({
             </span>
           )}
         </div>
-        {rail && onCollapse !== undefined && (
-          // 26px box, radius 7 — D56 on a control that IS standalone and DOES
-          // have a designed short side: round(26 × 0.26) = 7. It exists only at
-          // and above the breakpoint, where a pointer is the input, so it is one
-          // of the few controls `TAP_44` has no business on.
-          // Inset 6 from the plate's edge rather than flush with it: a 26px
-          // square dropped on a 14px corner puts its own corner ~4px outside the
-          // arc, and a control poking out of the plate it sits on reads as a
-          // mistake. Vertically centred, because the badge already owns the top.
-          <button
-            type="button"
-            id={SIDEBAR_COLLAPSE_ID}
-            onClick={onCollapse}
-            aria-label={t.nav.collapseNav}
-            className="absolute top-1/2 right-[6px] grid size-[26px] -translate-y-1/2 cursor-pointer place-items-center rounded-[7px] border border-field-border text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
-          >
-            <ChevronLeft size={14} strokeWidth={2} aria-hidden />
-          </button>
-        )}
+        {/* THE CAPITAL IS THE RAIL'S ALONE. Below the breakpoint the header bar
+            carries this number (S2), and drawing it in both places would be two
+            truths about one figure — which is also why both read the same
+            `useCapitalCard`. `Layout.tsx:154` already arranges the handoff, so
+            nothing there moves. */}
+        {rail && <CapitalBand onCollapse={onCollapse} />}
       </div>
 
       {/* ── band 2 — the navigation, the only part that scrolls ─────────── */}
@@ -447,6 +415,10 @@ function SidebarPanel({
           no dead strip between them either. */}
       <Scroller>
         <div className="flex flex-col gap-[3px] max-md:gap-2">
+          {/* Two groups since the footer band took Settings. The retired
+              `"settings"` key can still sit in a returning user's
+              `collapsedNavGroups`; it is inert — nothing reads that array but a
+              live group's own `includes` — so do not reuse the name. */}
           <NavGroup groupKey="entry" label={t.nav.groupEntry}>
             <NavLink to="/" className={pillClass('py-[9px]', 'rounded-[10px]')}>
               {({ isActive }) => (
@@ -462,99 +434,132 @@ function SidebarPanel({
             </NavLink>
           </NavGroup>
 
-          <NavGroup groupKey="analytics" label={t.nav.groupAnalytics} className="mt-4">
+          {/* ONE RULE, AND IT REPLACES THE 16px THAT USED TO SEPARATE THE
+              GROUPS. A caption already says a group begins; the rule is what
+              says the one above it ENDED, which a gap cannot. It identifies
+              nothing on its own — 1.14 : 1 light and 1.12 dark against the wall
+              — and *Design pipeline* puts a rule between two regions outside
+              1.4.11 for exactly that reason. Drawn as a border and never as an
+              SVG: `mark.test.ts` collects this file's `d=` and `stroke` and
+              `fill` attributes as whole-file ordered lists, so a second inline
+              SVG here fails the mark's pin rather than this rule's. */}
+          <div className="mx-3.5 my-2 border-t border-sb-divider" />
+
+          <NavGroup groupKey="analytics" label={t.nav.groupAnalytics}>
             {ANALYTICS.map(({ to, key, Icon }) => (
               <NavLink key={to} to={to} className={pillClass('py-2', 'rounded-[9px]')}>
                 {({ isActive }) => <NavItem Icon={Icon} label={t.nav[key]} isActive={isActive} />}
               </NavLink>
             ))}
           </NavGroup>
-
-          {/* Third nav group (P2 S1): exact clone of the existing group-label +
-              pill anatomy — same motion, same active treatment. */}
-          <NavGroup groupKey="settings" label={t.nav.groupSettings} className="mt-4">
-            <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
-              {({ isActive }) => (
-                <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />
-              )}
-            </NavLink>
-          </NavGroup>
         </div>
       </Scroller>
 
-      {/* ── band 3 — the cluster, pinned ────────────────────────────────── */}
-      <div className="pt-2.5">
-        {/* THE EXCEPTION IS SPENT, AND WHAT REPLACED IT IS NOT THE GENERAL RULE
-            EITHER. D114 fills a track with the plane's foreground and slides a
-            background chip; the rail was exempted because `pillClass` painted the
-            active route a light lozenge, so a filled track made the UNSELECTED
-            currency read exactly like a selected route. That premise went with
-            the lozenge — the active route is a tint and an indicator now.
-            What the rail runs instead is its own field rank: a recessed
-            `sb-field` track with a SOLID accent thumb. A solid fill no longer
-            means a route anywhere in this plane, so it can mean the selected
-            segment without collision, and it keeps the sliding chip that a tint
-            would have flattened into the nav's own language.
-
-            The thumb is `accent` and its label `accent-fg` — ONE PAIR, from one
-            family. `sb-item-active` holds the same value in both themes and was
-            the first choice, but it is the nav label's FOREGROUND rank: pairing
-            it with `accent-fg` takes the two halves of a fill from two families,
-            and re-valuing the active label — which ships at 3.88 in light and
-            may not stay there — would silently repaint this thumb. `sb-bg` for
-            the label was the other first choice and reads 4.489 on the fill, a
-            hundredth under 1.4.3 on 12px bold text.
-
-            No `data-filled-track`: that attribute puts the focus ring on `page`
-            for a track painted in the plane's foreground, and this track is a
-            recess. The base ring is the accent and reads on `sb-field` at
-            5.05 / 9.44, which `palette-mirror.test.ts` holds.
-            ON THREE SIDES: `gap-1` is 4px and the ring's band sits 2→4px out,
-            so on the side facing the other segment it ends exactly where the
-            thumb begins — accent on accent, with no `sb-field` between them.
-            That edge never cleared 3 : 1 (2.98 / 1.61 under the `ink` ring) and
-            now reads 1.00; the band is still delimited by 2px of track on its
-            near side. Closing it is geometry, not a value — #114. */}
-        <div className="relative mb-2.5 flex gap-1 rounded-[13px] bg-sb-field p-1.5">
-          {/* sliding thumb (D7): shares the two buttons' geometry (p-1.5 + gap-1)
-              so translateX(100% + gap) lands it exactly under the other segment.
-              The width encodes that geometry as 50% − (padding + half the gap),
-              so it MUST be re-derived whenever the container padding moves:
-              p-1.5 (6px) + gap-1 (4px) → 50% − 8px. */}
+      {/* ── band 3 — the footer band, pinned ───────────────────────────── */}
+      {/* A BAND, NOT A CLUSTER, AND THE DIFFERENCE IS THAT IT HAS AN EDGE. Its
+          fill barely steps off the wall, so the `sb-divider` rule along its top
+          is what identifies it — `sidebar-structure.test.ts` asserts the two
+          together. The fill bleeds to the shell's edges while the CONTENT keeps
+          the shell's own left inset, or on a notched phone the band would read
+          under the cutout.
+          20 OF PADDING, WHICH IS THE POINT OF THE NUMBER: the band is outside the
+          `Scroller` and never pays the 4px its viewport holds back for a focus
+          ring, so 16 would land its glyph a column left of every other one. */}
+      <div className="mt-[14px] -mr-4 mb-[calc(-1*max(16px,env(safe-area-inset-bottom)))] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] rounded-br-[29px] border-t border-sb-divider bg-sb-footer-bg py-2 pr-5 pl-[calc(max(16px,env(safe-area-inset-left))+4px)]">
+        {/* THE TRACK IS NOT A RECESS ANY MORE. It ran a `sb-field` track with a
+            solid accent thumb, and the argument for the recess was that the wall
+            was its ground. On the band it is not: the drawing gives the track
+            the ACTIVE ROUTE'S OWN TINT, which takes its fill step against the
+            band from 1.02 to 1.24 in dark and lets it drop its edge entirely.
+            The thumb stays `accent` with `accent-fg` on it — one pair from one
+            family — and it reads 3.62 light and 7.75 dark on the tinted ground,
+            both clear of the 3 : 1 a non-text indicator is held to.
+            Still no `data-filled-track`: that attribute puts the focus ring on
+            `page` for a track painted in the plane's FOREGROUND, and a 12% tint
+            is not that. The base accent ring serves it on the new ground.
+            THE RING'S REACH SHRANK WITH THE TRACK and #114 still owns it. The
+            ring sits 2→4px out from a segment; the track's padding is 2 and its
+            gap 1, so on the inner side the band lands on the accent thumb and on
+            the outer side past the padding onto the band. It was already 1.00 : 1
+            on the inner side at the old 6 and 4, which is why #114 exists; the
+            new geometry does not repair it and closing it is still geometry
+            rather than a value.
+            ONE TRACK, FULL WIDTH, BY ARITHMETIC RATHER THAN BY DECISION: the
+            drawing puts a theme track beside this one at `flex:1` each. That
+            control is #85's, and because both are `flex-1` its arrival halves
+            this one with nothing here to rewrite.
+            THE IDLE SYMBOL PAYS FOR THE GROUND. On the old `sb-field` recess
+            `sb-item` read 5.99; on the tint it reads 4.30 in light, 0.20 under
+            1.4.3, and the only rank above it is the hover state itself. It is the
+            drawing's own reading and its fourth recorded shortfall — held at its
+            value in `palette-mirror.test.ts` rather than repaired.
+            AT AND ABOVE THE BREAKPOINT THE SEGMENT IS ITS DRAWN 22, which is
+            under 2.5.8's 24 and passes on that criterion's spacing exception
+            rather than on its own size — `TAP_44` is `max-md:` and does not
+            reach here. The drawing draws 22 and hands the tap arithmetic to #85,
+            which is the branch that halves these and adds three more beside
+            them; it is recorded here so that branch does not have to rediscover
+            it. Below the breakpoint the regions tile — see the row's gap. */}
+        {/* 16 BELOW THE BREAKPOINT, NOT 8, AND THE ARITHMETIC IS `TAP_44`'s own.
+            A 22px segment's overlay reaches 11px past its box and the pill's
+            reaches 3.85, so the two need 14.85 of clearance and the drawn 8 (plus
+            the track's 2 of padding) gives 10 — measured, the segment's region
+            crossed 1px into the pill's DRAWN box, which is a tap on Settings
+            flipping the currency. The drawing draws 1280 and 768 and leaves the
+            drawer to `mobile.dc.html`, so widening this below `md` overrules
+            nothing. Above it `TAP_44` does not apply and the drawn 8 stands. */}
+        <div className="relative mb-2 flex gap-px rounded-[8px] bg-sb-item-active-bg p-0.5 max-md:mb-4">
+          {/* The sliding thumb (D7) encodes the track's own geometry: p-0.5
+                (2px) + gap-px (1px) → 50% − 2.5px wide, and one segment plus the
+                gap to travel. Re-derive both if the padding moves. */}
           <div
             aria-hidden
             data-owns-motion
-            className="absolute top-1.5 bottom-1.5 left-1.5 w-[calc(50%-8px)] rounded-[7px] bg-accent transition-transform duration-300 ease-soft"
+            className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
             style={{
-              transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 4px))',
+              transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
             }}
           />
+          {/* The SYMBOL is the label the drawing gives these, at 13px, and the
+                ISO code rides beside it for a screen reader — "₴" alone says
+                nothing about which currency it is. `sr-only` rather than
+                `aria-label` so the accessible name CONTAINS the visible one, which
+                is what 2.5.3 asks and what a speech-input user needs. */}
           <button
             type="button"
             aria-pressed={currency === 'UAH'}
             onClick={() => setCurrency('UAH')}
-            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+            className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
           >
-            ₴ UAH
+            ₴<span className="sr-only"> UAH</span>
           </button>
           <button
             type="button"
             aria-pressed={currency === 'USD'}
             onClick={() => setCurrency('USD')}
-            className={`z-10 flex-1 cursor-pointer rounded-[7px] py-1.5 text-xs font-bold transition active:scale-[.97] ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+            className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
           >
-            $ USD
+            $<span className="sr-only"> USD</span>
           </button>
         </div>
 
-        {/* THE CAPITAL CARD IS THE RAIL'S ALONE. Below the breakpoint the header
-            bar carries this number (S2), and drawing it in both places would be
-            two truths about one figure — which is also why both read the same
-            `useCapitalCard`. */}
-        {rail && <CapitalCard />}
+        {/* SETTINGS IS THE BAND'S, NOT THE NAV'S, and it keeps the nav's own
+            pill recipe so the eleventh route reads like the other ten. Its
+            caption went with it: one item needs no group header, which is most
+            of what makes the panel scroll later than the one it replaces. The active label reads 3.62
+            here rather than 3.88 on the wall — the same recorded shortfall one
+            plane down, on exactly one row of eleven, and `sidebar-plane.test.ts`
+            holds both values. */}
+        <NavLink to="/settings" className={pillClass('py-2', 'rounded-[9px]')}>
+          {({ isActive }) => <NavItem Icon={Settings} label={t.nav.settings} isActive={isActive} />}
+        </NavLink>
 
         {/* (no sidebar Backup pill — relocated to Settings→Data in P2, S7) */}
 
+        {/* The worst text reading in the panel at 2.87 : 1, against 3.09 on the
+            wall, and it is recorded rather than repaired: `sb-label` is the
+            caption rank everywhere in here, and a second grey for one badge is
+            the re-mint the palette forbids. */}
         <div className="mt-2.5 text-center text-[9.5px] tracking-[.12em] text-sb-label uppercase">
           v{__APP_VERSION__}
         </div>
@@ -566,33 +571,83 @@ function SidebarPanel({
 /**
  * ITS OWN COMPONENT so the hook is gated with the markup. `useCapitalCard` runs
  * `headlineKpis` and mounts a `useTweenedNumber` rAF tween; called from the panel
- * itself it did both in the DRAWER variant too, where the card is not rendered —
+ * itself it did both in the DRAWER variant too, where the figure is not rendered —
  * recomputing and animating a number that is not on screen while `AppHeader`
  * tweens the same figure behind the scrim.
+ *
+ * A STRIP, NOT A CARD. It was a `rounded-[13px]` box whose radius matched the
+ * currency toggle beside it so the two read as one cluster; the cluster is gone,
+ * and the drawing bleeds this through the panel's padding to the shell's own
+ * edges instead. A full-bleed bar takes square corners (*Shape system*), so it
+ * takes no radius, and it takes no edge either: the `field-border` stroke is
+ * recorded as available and refused on the instruction that this is a strip. Its
+ * fill step is 1.12 : 1 in light and 1.07 in dark, which identifies nothing —
+ * the strip is a position in the head, not a box to be found.
+ *
+ * The caption drops to `sb-label`, the caption rank every other caption in this
+ * panel uses, and reads 3.48 / 4.05 on the recess. That is under 1.4.3 and it is
+ * recorded rather than repaired: a second grey for one caption is the re-mint the
+ * palette forbids. The currency counter goes — the figure and its delta are what
+ * the strip carries.
  */
-function CapitalCard() {
+function CapitalBand({ onCollapse }: { onCollapse?: () => void }) {
   const t = useT();
   const capital = useCapitalCard();
   return (
-    // Matches the currency toggle above it rather than the concentric 14: the
-    // two sit together as one bottom cluster, and a shared radius reads as a
-    // pair. The cost is that this corner alone is not concentric with the
-    // shell's.
-    <div className="rounded-[13px] bg-sb-field px-4 py-3.5">
-      <div className="text-[10px] tracking-[.12em] text-sb-item uppercase">
-        {t.sidebar.totalCapital}
+    <div className="-mr-4 mb-[14px] ml-[calc(-1*max(16px,env(safe-area-inset-left)))] flex h-14 items-center gap-2.5 bg-sb-field pl-[calc(max(16px,env(safe-area-inset-left))+18px)]">
+      <div className="flex min-w-0 flex-col gap-[3px]">
+        <div className="text-[9.5px] tracking-[.12em] text-sb-label uppercase">
+          {t.sidebar.totalCapital}
+        </div>
+        {/* `ink` and `pos`, where this was a literal white and `pos-on-dark`. Both
+            existed because the card sat on a plane that was dark in EITHER theme
+            and so could not invert with one; the wall follows the theme now, so
+            the figure and its gain read the app's own ranks like every other
+            number in it. */}
+        <div className="flex items-baseline gap-2.5">
+          {/* The card stacked these; the strip puts them on one baseline, so they
+              compete for ~176px and a large enough total would paint through the
+              gap and under the chevron. The figure gives first. */}
+          <div className="min-w-0 truncate font-display text-[18px] font-semibold tracking-[-.01em] text-ink">
+            {capital.value}
+          </div>
+          {/* BY SIGN, because `AppHeader` colours the same figure by sign and the
+              two must not disagree about one number. `useCapitalCard` exposes
+              `net` for exactly this. */}
+          <div
+            className={`flex-none text-[11px] font-semibold ${
+              capital.pct === undefined
+                ? 'text-sb-item'
+                : (capital.net ?? 0) < 0
+                  ? 'text-neg'
+                  : 'text-pos'
+            }`}
+          >
+            {capital.pct ?? '—'}
+          </div>
+        </div>
       </div>
-      {/* `ink` and `pos`, where this was a literal white and `pos-on-dark`. Both
-          existed because the card sat on a plane that was dark in EITHER theme
-          and so could not invert with one; the wall follows the theme now, so
-          the figure and its gain read the app's own ranks like every other
-          number in it. */}
-      <div className="font-display text-[21px] font-semibold text-ink">{capital.value}</div>
-      <div className="text-[11px] font-semibold text-pos">
-        {capital.pct === undefined
-          ? '—'
-          : `${capital.pct}${capital.counter === undefined ? '' : ` · ${capital.counter}`}`}
-      </div>
+      {onCollapse !== undefined && (
+        // UNBOXED, AND THE INK IS THE OBJECT. The chip it replaces carried a
+        // `field-border` stroke doing two jobs — identifying the control and being
+        // the target — and beside the DEMO chip it read as a second badge. Bare,
+        // the glyph is both, and `sidebar-plane.test.ts` holds the reading that
+        // lets it drop the stroke.
+        // 24 of GLYPH in a 26 BOX, because 24 is exactly 2.5.8's AA floor and the
+        // box carries no paint. It ends flush with the shell rather than past it:
+        // the `aside` clips, and a box that needed the clip to look legal would be
+        // 24 again. The arrow sits in the strip the nav column leaves free, which
+        // is a margin rather than one of the panel's columns.
+        <button
+          type="button"
+          id={SIDEBAR_COLLAPSE_ID}
+          onClick={onCollapse}
+          aria-label={t.nav.collapseNav}
+          className="-mr-px ml-auto grid size-[26px] flex-none cursor-pointer place-items-center text-sb-item transition hover:text-sb-item-hover active:scale-[.97]"
+        >
+          <ChevronLeft size={24} strokeWidth={2} aria-hidden />
+        </button>
+      )}
     </div>
   );
 }
@@ -603,10 +658,13 @@ function CapitalCard() {
  * S1's motion table); `inert` is what stops a 0-width box from still holding
  * eleven focusable links a keyboard could walk into.
  *
- * The shell is CONCENTRIC, not proportional: outer radius = inner radius + the
- * gap between them, so 14 + 16 = 30. The proportional rule gave 63 px here and
- * cut across the header plate's own corner — a full-height panel has no designed
- * short side to scale.
+ * The shell's 30 is CHOSEN, not derived, and the sentence that used to derive it
+ * was stale: `outer = inner + gap` needs an inner term, and the 14px lockup plate
+ * that supplied it went with #92. The nearest surviving box gives 26. The 30
+ * stays because the master reference draws it and #107 moves no shell width; the
+ * footer band is what is concentric with it now, at 30 − 1 = 29 on the one corner
+ * it meets. The proportional rule is still the wrong tool here — it gave 63 px,
+ * because a full-height panel has no designed short side to scale.
  */
 export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onCollapse: () => void }) {
   return (
@@ -632,8 +690,7 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
           would wear a frame against the browser chrome. Only the right edge is
           an adjacency — the wall against `page` — and it is the one #98 costed.
           `SidebarDrawer` below draws its own edge the same way. */}
-      <div className="relative h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pl-[max(16px,env(safe-area-inset-left))] text-ink">
-        <SidebarDecor />
+      <div className="h-full w-[244px] rounded-r-[30px] border-r border-field-border bg-sb-bg p-4 pb-[max(16px,env(safe-area-inset-bottom))] pl-[max(16px,env(safe-area-inset-left))] text-ink">
         <SidebarPanel variant="rail" onCollapse={onCollapse} />
       </div>
     </aside>
@@ -672,7 +729,6 @@ export function SidebarDrawer() {
             the wordmark instead, so the name is given to screen readers only
             rather than drawn a second time. */}
         <RadixDialog.Title className="sr-only">{t.nav.navigation}</RadixDialog.Title>
-        <SidebarDecor />
         <SidebarPanel variant="drawer" />
       </RadixDialog.Content>
     </RadixDialog.Portal>

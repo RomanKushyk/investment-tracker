@@ -325,12 +325,13 @@
      than the canvas rather than a dark plane inside a light app. Sixteen names
      because the rail carries states the retired `sidebar-*` five could not
      express — a tint plus an indicator for active, a 5% ground for hover.
-     Five have no consumer in this app and are kept rather than trimmed, each
+     Three have no consumer in this app and are kept rather than trimmed, each
      for a reason the sheet gives: `sb-badge`/`-badge-bg` a count badge it does
-     not draw, `sb-divider` a rule between groups, `sb-footer-bg` a user footer,
-     and `sb-border` furniture on a wall whose boundary is the rank #98 put it
-     on. `sb-icon`/`-icon-active` left that list with #105 — the nav items draw
-     them, one glyph per route. */
+     not draw, and `sb-border` furniture on a wall whose boundary is the rank #98
+     put it on. `sb-icon`/`-icon-active` left that list with #105 — the nav items
+     draw them, one glyph per route — and `sb-divider`/`sb-footer-bg` with #107,
+     which rules the two nav groups apart and puts Settings and the version on a
+     band. */
   --color-sb-bg: #e8e1d6;
   --color-sb-border: #d6cdbf;
   --color-sb-divider: #dcd3c5;
@@ -345,7 +346,11 @@
      own value and the sheet prints the figure; what buys it is 1.4.1, which the
      lozenge failed outright by saying the state in colour alone — the 2px
      indicator is the half that answers that, and it does nothing for 1.4.3.
-     `sidebar-plane.test.ts` records both readings at their values. */
+     `sidebar-plane.test.ts` records both readings at their values — and since
+     #107 a THIRD, because Settings moved onto the footer band and its active
+     label reads 3.62 there rather than 3.88 on the wall. The same shortfall one
+     plane down, on one row of eleven, recorded rather than repaired: repairing
+     it means moving this value, which is a palette decision. */
   --color-sb-item-active: #8a5a3a;
   --color-sb-item-active-bg: rgba(138, 90, 58, 0.12);
   /* The half of the active state that survives a colour-blind reading — 1.4.1
@@ -354,9 +359,15 @@
   --color-sb-icon: #6f6a64;
   --color-sb-icon-active: #8a5a3a;
   /* RECORDED SHORTFALL: 3.09 here and 4.33 in dark, on the nav group headers
-     and the version badge, which are 9.5-10px text. The owner ruled the value
-     stands (#90) and #92 adopted it knowing this; the retired palette read
-     5.07. `sidebar-plane.test.ts` deliberately holds no floor over it —
+     and the version badge. The owner ruled the value stands (#90) and #92
+     adopted it knowing this; the retired palette read 5.07.
+     #107 moved both consumers without repairing either: the headers are 11px
+     sentence case now rather than 10px uppercase, and eleven pixels is still
+     small text, so 1.4.3 still asks 4.5; the version went onto `sb-footer-bg`,
+     where the same token reads 2.87 and is the worst text in the panel. The
+     capital strip's caption is this token on `sb-field` at 3.48. All three are
+     recorded rather than repaired — a second grey for one caption is a re-mint.
+     `sidebar-plane.test.ts` deliberately holds no floor over it —
      `palette-mirror.test.ts` records it at its value instead. */
   --color-sb-label: #847e77;
   --color-sb-badge: #8a5a3a;
@@ -738,8 +749,9 @@
      `page` rather than a fixed value, so it inverts with the theme the way the
      track does. Opt-in by attribute, because only a filled track needs it: a
      control on `panel` or `card` is already served by the base rule, and so is
-     the rail's currency toggle, whose track is `sb-field` rather than a fill —
-     the wall follows the theme now, and the accent reads on it in either. */
+     the rail's currency toggle, whose track since #107 is the active route's own
+     12% tint on the footer band rather than a fill — a tint is not the plane's
+     foreground, so the base accent ring still serves it. */
   /* WHY THE FILLED TRACKS CARRY `border border-ink` ON A `bg-ink` FILL — it
      draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
      the gap D56's concentric rule adds to the segment's radius. Every filled

@@ -268,13 +268,31 @@ describe('the recorded readings still read as recorded', () => {
     ],
     ['warn from accent — a caution and the brand are one colour', 'light', 'warn', 'accent', 1.013],
     [
-      'sb-label on its wall — nav group headers are 9.5-10px text',
+      'sb-label on its wall — the nav group captions, 11px since #107',
       'light',
       'sb-label',
       'sb-bg',
       3.091,
     ],
     ['sb-label on its wall, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
+    // THE SAME TOKEN, TWO PLANES FURTHER DOWN, and #107 put consumers on both.
+    // The capital strip's caption sits on the `sb-field` recess, where the light
+    // reading gains 0.39 and the dark one loses 0.28 and neither crosses 4.5.
+    // The version badge sits on the footer band and is the worst text in the
+    // panel at 2.87 — worse than the 3.09 it read on the wall, which is exactly
+    // what moving it into the band costs. Both are recorded and neither is
+    // repaired: `sb-label` is the caption rank throughout this panel, and a
+    // second grey for one caption is the re-mint the palette forbids.
+    ['sb-label on the capital strip, light', 'light', 'sb-label', 'sb-field', 3.476],
+    ['sb-label on the capital strip, dark', 'dark', 'sb-label', 'sb-field', 4.053],
+    [
+      'sb-label on the footer band — the version, light',
+      'light',
+      'sb-label',
+      'sb-footer-bg',
+      2.867,
+    ],
+    ['sb-label on the footer band — the version, dark', 'dark', 'sb-label', 'sb-footer-bg', 4.139],
     // THE SUCCESSOR OF THE `brand-sand` ROW, and the improvement is most of the
     // way rather than all of it. That sand read 1.487 on the light wall because
     // it was drawn for a plate dark in both themes; the mark takes the three

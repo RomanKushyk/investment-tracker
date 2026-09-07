@@ -87,9 +87,9 @@ per call site: it holds only while every site that ever shows a number remembers
 `round(min(w, h) × 0.26)` off its SHORT side; a box nested against a parent's corner takes
 `outer = inner + gap`, the gap being padding plus any border. A segmented control is both at once —
 segment proportional, track concentric. Surfaces keep the reference's 16 / 20 / 24, and a full-bleed
-bar takes square corners. Only asset avatars, colour dots and the decorative blob stay round; the
-mark is drawn geometry — its loop and pills are strokes, not radii. Measure the RENDERED height —
-`text-[11px]` sets a font size, not a line height.
+bar takes square corners — the sidebar's capital strip and its footer band are both. Only asset
+avatars and colour dots stay round. The mark is drawn geometry — its loop and pills are strokes,
+not radii. Measure the RENDERED height — `text-[11px]` sets a font size, not a line height.
 **Why.** Proportional describes an object, concentric describes containment, and reaching for the
 wrong one gives an answer that looks derived while being arbitrary. A panel's width is a layout
 consequence rather than a designed size, so a radius scaled from it cuts across the corners of what
@@ -375,8 +375,9 @@ target never moves under a hovering pointer. A destructive clear is armed by typ
 name, and offers a backup first. Reminders derive their ids and write nothing, so a dismissal expires
 when its occurrence stops being produced. The theme is ONE list of values redefined per theme,
 stamped as an answer. A segmented control's track takes its plane's FOREGROUND and its chip the
-background — `ink` and `card` everywhere but the sidebar, whose currency toggle runs the wall's own
-field rank instead: a recessed track and a solid accent thumb. The sidebar's ACTIVE ROUTE is a tint
+background — `ink` and `card` everywhere but the sidebar, whose currency track runs the active
+route's own tint on the footer band, with a solid accent thumb and no edge: a track is identified
+by its thumb, and a tint on a band needs no boundary of its own. The sidebar's ACTIVE ROUTE is a tint
 plus a 2px inset left indicator, never a fill, so a state is never colour alone; a solid fill
 therefore means a selected segment there and nothing else. COLOUR IS RATIONED 60 / 30 / 10: the
 canvas and its surfaces are the sixty, text and borders and the chart series the thirty, and the
@@ -399,7 +400,8 @@ groups that need an answer rather than a swap.
 `card` chip reads as raised in one theme and as a recess in the other; a filled track inverts. WCAG
 1.4.1 does not accept a state said in colour alone, and the rail's old light lozenge said it that
 way — so the indicator is the half that survives a colour-blind reading, and it is what frees a
-solid fill to mean something else twenty pixels below a list of routes. A green highlight on a
+solid fill to mean something else on the footer band, which a rule and a plane change separate from
+the list of routes above it. A green highlight on a
 reminder, a fresh quote or a run of selected text says "up" about something that has no direction.
 **Rejected.** A motion library: the theme tokens and the utilities already in the tree carry it. ·
 Resolving `system` at write time: it would decay into whatever the system was when the user looked.

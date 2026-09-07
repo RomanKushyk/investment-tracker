@@ -32,14 +32,18 @@ import { describe, expect, it } from 'vitest';
 // the sheet telling #92 by name to adopt it and not "fix" it in passing.
 // `palette-mirror.test.ts` records it AT its value, which is where a shortfall
 // with a reason belongs; a floor here would be this branch quietly overruling
-// that. Same for `sb-border`, `sb-divider`, `sb-badge`, `sb-badge-bg` and
-// `sb-footer-bg`: declared, and this app has nothing to draw with them.
+// that. Same for `sb-border`, `sb-badge` and `sb-badge-bg`: declared, and this
+// app has nothing to draw with them.
 // `sb-icon` and `sb-icon-active` left that list with #105 — the nav items draw
 // them now — and they still take no floor here, deliberately: a glyph beside
 // its own visible label is decorative, so 1.4.11 does not bind on it. #108 is
 // where it does, a glyph standing alone on the collapsed rail, and that issue
 // carries the 3 : 1 test. `nav-glyphs.test.ts` pins the two names to the two
 // states.
+// `sb-divider` and `sb-footer-bg` left it with #107, and those two DO read
+// here: the band's own arms are the last describe in this file, because the
+// arms above it are all composited over the wall and would otherwise go on
+// describing a ground the eleventh route no longer stands on.
 //
 // SELF-CONTAINED ON PURPOSE, the house idiom — the primitives below are the
 // same ones `floating-edges.test.ts` carries, copied rather than shared.
@@ -249,10 +253,112 @@ describe('the wall carries its own foreground, in whichever theme is on', () => 
   });
 });
 
+// THE ELEVENTH ROUTE IS ON A DIFFERENT GROUND, AND EVERY READING ABOVE IS OF THE
+// OTHER TEN. #107 moved Settings out of the scrolling band and onto a
+// `sb-footer-bg` band, so the wall is no longer what it is drawn on. Nothing
+// above notices: those arms composite over `sb-bg` and would go on reading 3.88
+// for ever while the app painted 3.62. That is the failure mode this file warns
+// about two describes up — a pin that keeps passing about a plane nothing uses.
+describe('the footer band is a second ground, and the eleventh route reads on it', () => {
+  const band = (theme: (typeof THEMES)[number]) => resolve(BLOCKS[theme], 'sb-footer-bg');
+
+  // Same exact-value treatment as the wall's 3.88, and for the same reason: it
+  // is a ruled shortfall, not a floor to drift under. One plane further down
+  // costs light another 0.26 — the honest half of moving Settings into the band,
+  // and repairing it means moving `sb-item-active`, which is a palette decision
+  // this branch has no standing to make.
+  it.each([
+    ['light', 3.62],
+    ['dark', 7.75],
+  ] as const)('%s: the active label on its tint over the band, at its value', (theme, expected) => {
+    const ground = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    expect(ratio(resolve(BLOCKS[theme], 'sb-item-active'), ground)).toBeCloseTo(expected, 2);
+  });
+
+  // The idle Settings label, which is ordinary body text on a new plane and so
+  // has no excuse: 1.4.3 binds it at 4.5 and it clears.
+  it.each(THEMES)('%s: the idle route on the band clears 4.5 : 1', (theme) => {
+    expect(ratio(resolve(BLOCKS[theme], 'sb-item'), band(theme))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Its glyph is non-text, so 1.4.11's 3 : 1 binds. It reads lower on the band
+  // than on the wall and still clears in both themes.
+  it.each(THEMES)('%s: the glyph on the band clears 3 : 1', (theme) => {
+    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), band(theme))).toBeGreaterThanOrEqual(3);
+  });
+
+  // THE BAND IDENTIFIES ITSELF BY ITS RULE, NOT ITS FILL. The step from the wall
+  // is nothing — under 1.1 in both themes — which is exactly why the drawing
+  // puts a `sb-divider` rule along its top edge and why `sidebar-structure.test.ts`
+  // asserts the two together. Recorded here so a later re-valuing that made the
+  // fill do the identifying would have to come and change this sentence.
+  it.each(THEMES)('%s: the band is a step, not a boundary', (theme) => {
+    expect(ratio(band(theme), resolve(BLOCKS[theme], 'sb-bg'))).toBeLessThan(1.1);
+  });
+
+  // The track sits on the band wearing the active route's own tint, which is
+  // what let it drop the edge it had as a `sb-field` recess. Both halves of the
+  // selected chip are non-text-and-text on that ground.
+  // THE PRICE OF THE NEW GROUND, and the fourth shortfall this branch records.
+  // The idle symbol read 5.99 on the `sb-field` recess the track used to be; on
+  // the tint it reads 4.30 in light, 0.20 under 1.4.3 for 13px text. Exact rather
+  // than a floor, like the active label above it: the rank above `sb-item` here
+  // is the hover state itself, so lifting it spends the one step the track has
+  // left, and the drawing takes the reading instead.
+  it.each([
+    ['light', 4.3],
+    ['dark', 5.81],
+  ] as const)('%s: the idle currency symbol on its track, at its value', (theme, expected) => {
+    const track = over(
+      tint(BLOCKS[theme], 'sb-item-active-bg'),
+      resolve(BLOCKS[theme], 'sb-footer-bg'),
+    );
+    expect(ratio(resolve(BLOCKS[theme], 'sb-item'), track)).toBeCloseTo(expected, 2);
+  });
+
+  it.each(THEMES)('%s: the selected chip identifies itself on the tinted track', (theme) => {
+    const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    expect(ratio(resolve(BLOCKS[theme], 'accent'), track)).toBeGreaterThanOrEqual(3);
+    expect(
+      ratio(resolve(BLOCKS[theme], 'accent-fg'), resolve(BLOCKS[theme], 'accent')),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe("the wall's field rank carries the figures drawn on it", () => {
-  // The capital card and the currency track are this app's two `sb-field` boxes —
-  // the sheet's own Mapping says so, having drawn a search field there that this
-  // app does not have.
+  // ONE `sb-field` BOX SINCE #107, and it is the capital strip. The currency
+  // track left the rank for the active route's tint and the decor blob was
+  // deleted, so what this arm reads is the strip's figure and its gain — which
+  // is also the only place the rank is still drawn.
+  // THE UNBOXED COLLAPSE CONTROL, and this reading is what let it drop its
+  // border. It was a 26px chip with a `field-border` stroke doing two jobs —
+  // identifying the control and being the target; bare, the glyph is both, and a
+  // non-text indicator is held to 3 : 1. It reads better here than the border it
+  // replaced did on the wall.
+  // TWO CONSUMERS, ONE READING, AND THE TEXT ONE SETS THE BAR. `sb-item` carries
+  // the bare collapse chevron on this plane — a non-text indicator, held to 3,
+  // which is what let it drop the `field-border` stroke that used to identify it
+  // — and it carries the strip's dash when there is no figure yet, which is text
+  // and asks 4.5. Asserting the higher bar covers both; a separate 3 arm could
+  // never fail on its own. `faint` was the first choice for the dash, to match
+  // what `AppHeader` paints on its own plane, and it reads 1.99 here: `index.css`
+  // calls it decorative and never body text, and this dash is the whole of what
+  // the strip says.
+  it.each(THEMES)('%s: `sb-item` clears 4.5 : 1 on `sb-field`, for both its uses', (theme) => {
+    expect(
+      ratio(resolve(BLOCKS[theme], 'sb-item'), resolve(BLOCKS[theme], 'sb-field')),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // A LOSS IS AS DRAWABLE AS A GAIN, and the strip colours the delta by sign the
+  // way `AppHeader` does. `pos` was held here already; `neg` was not, so a
+  // re-valuing of either could have moved an unread pair.
+  it.each(THEMES)('%s: a negative delta clears 4.5 : 1 on `sb-field`', (theme) => {
+    expect(
+      ratio(resolve(BLOCKS[theme], 'neg'), resolve(BLOCKS[theme], 'sb-field')),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each(THEMES)('%s: the capital figure and its gain clear 4.5 : 1 on `sb-field`', (theme) => {
     const field = resolve(BLOCKS[theme], 'sb-field');
     expect(ratio(resolve(BLOCKS[theme], 'ink'), field), 'the figure').toBeGreaterThanOrEqual(4.5);

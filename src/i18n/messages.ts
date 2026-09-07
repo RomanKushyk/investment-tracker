@@ -45,7 +45,6 @@ export const en = {
   nav: {
     groupEntry: 'Entry',
     groupAnalytics: 'Analytics',
-    groupSettings: 'Settings',
     dailyQuotes: 'Daily quotes',
     transactions: 'Transactions',
     overview: 'Overview',
@@ -1086,7 +1085,6 @@ export const uk: Dict = {
   nav: {
     groupEntry: 'Ввід',
     groupAnalytics: 'Аналітика',
-    groupSettings: 'Налаштування',
     dailyQuotes: 'Щоденні котирування', // ✎
     transactions: 'Транзакції',
     overview: 'Огляд', // ✎

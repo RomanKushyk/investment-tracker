@@ -30,7 +30,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - The app is local: Dexie, two databases (demo, live). `infra/` archives prices; no screen reads it yet. [Persistence today · The price archive]
 - Alarms carry no `AlarmActions` and there is no SNS topic. Deliberate; do not add one. [Alerting]
 - Inzhur dealer quotes and NBU fair values are different bases and are never merged. [The price archive]
-- Nothing is a capsule: standalone radius `round(min(w,h) × 0.26)`, nested `outer = inner + gap`. Only avatars, colour dots and the blob are round; the mark is drawn geometry. [Shape system]
+- Nothing is a capsule: standalone radius `round(min(w,h) × 0.26)`, nested `outer = inner + gap`, and a full-bleed band takes square corners. Only avatars and colour dots are round; the mark is drawn geometry. [Shape system]
 - Nothing scrolls with the platform bar: every constrained box goes through `src/components/ui/Scroller.tsx`. [Scrolling]
 - Two shells, one breakpoint: `md` = 768 px, written in Tailwind and in `src/hooks/useIsDesktop.ts` — keep them equal. 44 × 44 is hit area, never geometry. [Two shells, one breakpoint]
 - The logo ships in three places and is drawn in four, all changing together: `src/app/Sidebar.tsx`, `public/favicon.svg`, `public/apple-touch-icon.png` and the script that writes it (`node scripts/build-touch-icon.mjs`). [Brand]
