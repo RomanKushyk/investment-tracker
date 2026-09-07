@@ -352,3 +352,91 @@ describe('the recorded readings still read as recorded', () => {
     expect(resolve(block, a)).toBe(resolve(block, b));
   });
 });
+
+// THE FOCUS RING, AND THE TOKEN IS HALF OF IT. #95 moved `:focus-visible` off
+// `ink` onto `focus`, an alias of the accent in both blocks — the sheet's own
+// `--qn-focus`, whose value IS the accent per its usage rule 1.
+//
+// A focus indicator is bound by WCAG 1.4.11 at 3 : 1 against what it is drawn
+// on, and the base rule is unqualified, so what it is drawn on is every plane
+// the app has. Five are asserted rather than the three the issue names: the
+// ring also lands on the WALL, where the rail's currency toggle lives, and
+// `Sidebar.tsx` makes a claim in prose about exactly that pair.
+//
+// BOTH HALVES, for the reason `filled-track.test.ts:170-179` gives about its own
+// attribute: a token is inert without the rule that reads it. Nothing else in
+// this repo would notice `--color-focus` being deleted, so the CSS half is what
+// stops the arithmetic below guarding a value no ring resolves.
+describe('the focus ring is the accent, and clears 1.4.11 on every plane', () => {
+  it.each(['light', 'dark'] as const)('`focus` is declared in the %s block', (block) => {
+    // DECLARED, not merely resolvable: `resolve()` falls back to `@theme` for a
+    // name the dark block omits, so without this a light-only mint would pass
+    // every reading below. `floating-edges.test.ts`'s parity test would catch
+    // it too — this says which token and why it matters.
+    expect(BLOCKS[block]).toContain('--color-focus:');
+  });
+
+  it.each(['light', 'dark'] as const)('`focus` is the accent in %s', (block) => {
+    // The alias IS the decision (#95). Separating them is a palette move and
+    // should cost a deleted line here plus a sentence, not pass quietly.
+    expect(resolve(block, 'focus')).toBe(resolve(block, 'accent'));
+  });
+
+  // `page`, `card`, `panel` are the issue's three. `sb-bg` and `sb-field` are
+  // the wall and its field rank: the rail's currency toggle takes no
+  // `data-filled-track` — its track is a recess, not a fill — so its segments
+  // are served by the BASE rule, and the ring at `outline-offset: 2px` lands on
+  // that track's own 6px padding. `Sidebar.tsx` says so in prose; this is the
+  // half that keeps the sentence true after a re-valuing.
+  it.each([
+    ['page', 'light'],
+    ['card', 'light'],
+    ['panel', 'light'],
+    ['sb-bg', 'light'],
+    ['sb-field', 'light'],
+    ['page', 'dark'],
+    ['card', 'dark'],
+    ['panel', 'dark'],
+    ['sb-bg', 'dark'],
+    ['sb-field', 'dark'],
+  ] as [string, keyof typeof BLOCKS][])('reads on `%s` in %s', (plane, block) => {
+    expect(ratio(resolve(block, 'focus'), resolve(block, plane))).toBeGreaterThanOrEqual(3);
+  });
+
+  it('declares the two `chart-` aliases the capital chart resolves through', () => {
+    // ONCE, in `@theme`, following the base tokens by `var()` — which is why
+    // `floating-edges.test.ts`'s one-for-one parity test filters `chart-` out,
+    // and so nothing else asserts these two exist.
+    //
+    // ON THE STRIPPED TEXT, which is the point of asserting it here rather than
+    // in `accent-wiring.test.ts`: this stylesheet argues from its own token
+    // text on nearly every line, so a raw `toContain` is satisfied by a comment
+    // quoting the declaration while the declaration itself is gone.
+    expect(CSS).toContain('--color-chart-accent: var(--color-accent);');
+    expect(CSS).toContain('--color-chart-accent-tint: var(--color-accent-tint);');
+    // And the gain pair they replaced is gone, so the retired names cannot come
+    // back beside the new ones and leave two answers for one line.
+    expect(CSS).not.toContain('--color-chart-pos');
+  });
+
+  it('keeps the rule that reads the token', () => {
+    // NOT the filled-track override, which stays on `page` and is pinned by
+    // `filled-track.test.ts`. This is the base rule, and it must name the token
+    // rather than the accent directly, or the alias is one the app declares and
+    // nothing consumes.
+    expect(ruleBody(CSS, ':focus-visible')).toMatch(/outline:\s*2px solid var\(--color-focus\)/);
+  });
+
+  it('leaves the filled track its own ring, which the accent cannot give it', () => {
+    // The pairing's REASON, computed rather than asserted in prose: a segmented
+    // track is `bg-ink`, and the accent on ink is under 3 : 1 in light and
+    // barely above 1 in dark. So the override is load-bearing after #95, not a
+    // leftover from when the base ring was ink.
+    for (const block of ['light', 'dark'] as const) {
+      expect(ratio(resolve(block, 'focus'), resolve(block, 'ink'))).toBeLessThan(3);
+    }
+    expect(ruleBody(CSS, '[data-filled-track] :focus-visible')).toContain(
+      'outline-color: var(--color-page)',
+    );
+  });
+});

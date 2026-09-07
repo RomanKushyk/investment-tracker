@@ -32,8 +32,13 @@ export const SERIES: Record<ColorKey, { main: string; tint: string; tintText: st
 export const COLOR_KEYS: ColorKey[] = ['reit', 'energy', 'ovdp8976', 'ovdp6475'];
 
 export const CHART = {
-  pos: 'var(--color-chart-pos)',
-  posTint: 'var(--color-chart-pos-tint)',
+  // Gain and loss belong to DELTAS (*Interaction rules*), and total capital
+  // over time has no direction to report, so the capital line reads the accent
+  // instead. The same rule gives the accent the chart CURSOR, which is still
+  // `hairline` below: one object serves four charts, so #112 carries it.
+  // `neg` has no consumer and did not gain one here.
+  accent: 'var(--color-chart-accent)',
+  accentTint: 'var(--color-chart-accent-tint)',
   neg: 'var(--color-chart-neg)',
   hairline: 'var(--color-chart-hairline)',
   faint: 'var(--color-chart-faint)',

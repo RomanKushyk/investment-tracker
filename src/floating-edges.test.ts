@@ -433,10 +433,13 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
     // The names this ruling actually depends on. `field-border` is the whole of
     // it now — the three edge names were here too until T4 retired them, and
     // `RETIRED` above is what watches that side. The parchment families are here
-    // for the opposite reason: NOTHING RENDERS THEM YET, so until #92, #93 and
-    // #95 arrive there is no component to notice their deletion, and the floor
-    // above would not either. One name per family is enough — the set equality
-    // catches a half-deleted family, and a whole one going is what this stops.
+    // for the opposite reason: they were minted ahead of any consumer, so the
+    // floor above would not have noticed a whole family being deleted. The
+    // accent has consumers now — the primary CTA, the focus ring and the
+    // capital chart's line — and the sidebar names hold the wall; what is left
+    // unrendered is the furniture this app does not draw. One name per family is
+    // enough: the set equality catches a half-deleted family, and a whole one
+    // going is what this stops.
     for (const name of [
       'hairline',
       'panel-border',

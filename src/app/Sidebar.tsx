@@ -448,7 +448,14 @@ function SidebarPanel({
 
             No `data-filled-track`: that attribute puts the focus ring on `page`
             for a track painted in the plane's foreground, and this track is a
-            recess. The base `ink` ring reads on it in either theme. */}
+            recess. The base ring is the accent and reads on `sb-field` at
+            5.05 / 9.44, which `palette-mirror.test.ts` holds.
+            ON THREE SIDES: `gap-1` is 4px and the ring's band sits 2→4px out,
+            so on the side facing the other segment it ends exactly where the
+            thumb begins — accent on accent, with no `sb-field` between them.
+            That edge never cleared 3 : 1 (2.98 / 1.61 under the `ink` ring) and
+            now reads 1.00; the band is still delimited by 2px of track on its
+            near side. Closing it is geometry, not a value — #114. */}
         <div className="relative mb-2.5 flex gap-1 rounded-[13px] bg-sb-field p-1.5">
           {/* sliding thumb (D7): shares the two buttons' geometry (p-1.5 + gap-1)
               so translateX(100% + gap) lands it exactly under the other segment.

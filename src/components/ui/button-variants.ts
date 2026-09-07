@@ -21,21 +21,14 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // FILLED EMPHASIS (appearance-language.dc.html FINDING 3): `bg-ink` is
-        // correct in both themes — a dark fill in light, a light fill in dark.
-        // The bug was the paired `text-white`, a literal that cannot invert
-        // with it. `text-page` does, and both themes keep an enormous margin on
-        // `ink` — the swap costs a sliver of luminance in light and nothing that
-        // any reader can see.
-        // Not to be confused with the inverted planes (`KpiCard` dark, the
-        // `Dialog` overlay), which keep white and change their FILL instead.
-        // The hover fill was `sidebar-hover`, a RAIL token — the same borrowing
-        // the outline variant below was already fixed for. In light it happened
-        // to read as "ink, a little lighter"; in dark the rail token is DARK
-        // while `bg-ink` is near-white, so hovering flipped the fill dark under
-        // dark text and the label vanished into it. `ink-hover` is the fill's
-        // own token and moves with it in both themes.
-        primary: 'border-transparent bg-ink text-page hover:bg-ink-hover',
+        // FILLED ACCENT EMPHASIS, rationed to one CTA per screen by the
+        // 60/30/10 in *Interaction rules*. It is still `defaultVariants`, so a
+        // bare `<Button>` spends that one fill without naming it — #115 is
+        // whether the ration should be opt-in. Hover and pressed are steps
+        // along the accent scale, never the fill mixed with white or black.
+        // Its disabled tone is weaker than the `ink` fill's was: #113.
+        primary:
+          'border-transparent bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-pressed',
         // The hover fill was a RAIL token borrowed onto a light surface, from
         // the family #92 retired. Here `text-ink` is right and must invert — so in dark the
         // label and the hover fill went to the same near-white together, and

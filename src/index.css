@@ -106,11 +106,6 @@
 
   --color-page: #efeae2;
   --color-ink: #1c1a19;
-  /* The filled button's hover. It must move WITH `ink` — a filled button that
-     hovers toward a fixed colour inverts in one of the two themes. Light steps
-     one down the scale and dark one up — the same step read from either end,
-     never mixed with white or black. */
-  --color-ink-hover: #38332f;
   --color-card: #f8f5ef;
   /* DERIVED AGAINST `panel`, NOT `card` (D68). Its 258 consumers are 9.5–13 px
      at weight 400, so WCAG 1.4.3 asks 4.5 : 1 and not one reaches the
@@ -252,32 +247,49 @@
   --color-ovdp6475-tint: #e8e4e0;
   --color-ovdp6475-tint-text: #686569;
 
-  /* MINTED BY #91, CONSUMED SINCE (parchment-5h.dc.html). #92 wired the wall and
-     #93 the mark; the accent is still waiting, for #95. Declared in one go so
-     both blocks move together, and a consumer arrives to a name that already
-     answers in either theme.
+  /* THE ACCENT (parchment-5h.dc.html), and its ten per cent is spent on the
+     mark, one main CTA per screen, the active route, the capital chart's line,
+     the focus ring below, and the wall's currency thumb — which is a SELECTED
+     SEGMENT and not a CTA, the distinction *Interaction rules* draws so that a
+     solid fill twenty pixels under a list of routes means one thing and a
+     filled button means another. The chart's CURSOR is the sheet's too and is
+     still `hairline`: the cursor objects are shared by four charts, so #112
+     carries it. `sb-badge` holds this value and paints nothing — the app draws
+     no count badge.
 
-     TWO IDENTITIES ARE ALREADY SPENT, recorded rather than resolved — the sheet
-     draws them and #91 had no standing to redraw a palette:
-     · `accent` IS `energy` in both themes, and `logo-outline` in both as well,
-       so on /allocation in EITHER theme a legend dot, the mark's loop, the
-       active nav item and the primary CTA are one colour once #95 lands. It was
-       dark alone while the mark held `brand-sand`, which matched there only.
+     TWO IDENTITIES ARE SPENT WITH IT, recorded rather than resolved — the sheet
+     draws them and an implementing task has no standing to redraw a palette:
+     · `accent` IS `energy`, and `logo-outline`, in both themes — so on
+       /allocation a legend dot, the mark's loop, the active nav item and the
+       primary CTA are one colour. Whether the asset family should start at
+       `chart-2` instead is #13's question, with its picker.
      · `logo-pill-a` (light) and `logo-pill-b` (dark) ARE `reit`, so a REIT
-       legend dot is the mark's own pill colour.
-     The first is read by #95, and #13's colour picker inherits it. */
+       legend dot is the mark's own pill colour. */
   /* RECORDED SHORTFALL: this reads 4.45 on `panel`, under 1.4.3's 4.5, and the
      sheet's usage rule makes the accent every link and active tab in light. The
      owner ruled the value stands (#90); as a non-text fill it clears
-     everywhere. It also lands 1.013 from `warn`, so once #95 wires it a caution
-     and the brand cannot be told apart by colour alone — a distinguishable
-     caution needs a second cue, which is a brief and not a hex. */
+     everywhere. It also lands 1.013 from `warn`, and that one is no longer
+     latent: the CTA, the ring and the capital line are the accent now, so the
+     rule that a caution says `warn` and never the brand has nothing to hold it
+     in light. The two are not one value — `warn` is #8a5a1a against this
+     #8a5a3a, a blue channel apart — but their LUMINANCE is, so they separate
+     by chroma alone and not by any contrast reading. A caution that must be
+     told apart needs a second cue, which is a brief and not a hex — #111. */
   --color-accent: #8a5a3a;
   --color-accent-hover: #74482c;
   --color-accent-pressed: #5c3a26;
   --color-accent-fg: #f8f5ef;
   /* An ALPHA, not a composited hex: the chip lies over more than one plane. */
   --color-accent-tint: rgba(138, 90, 58, 0.12);
+  /* An ALIAS, and the alias is the decision. 1.4.11 binds a focus indicator at
+     3 : 1, and the accent clears it on every GROUND plane in both themes —
+     page, card, panel and the wall's two — so the ring can be the brand. Two
+     places it does not, both of them a fill rather than a plane: a filled
+     `ink` track, which is why the override below stays, and the wall's own
+     accent thumb on one edge (#114). It is the accent's only consumer bound by
+     1.4.11 rather than 1.4.3, so a brief that moves the ring off the brand
+     moves this line instead of every rule that reads it. */
+  --color-focus: var(--color-accent);
   /* Sand in BOTH themes, at different alphas — the one place light keeps sand
      as a ground rather than a paint. Not `accent-tint`, which is copper here
      and would put a text selection on the wrong side of that rule. */
@@ -365,8 +377,8 @@
   --color-chart-ovdp6475: var(--color-ovdp6475);
   --color-chart-ovdp6475-tint: var(--color-ovdp6475-tint);
   --color-chart-ovdp6475-tint-text: var(--color-ovdp6475-tint-text);
-  --color-chart-pos: var(--color-pos);
-  --color-chart-pos-tint: var(--color-pos-tint);
+  --color-chart-accent: var(--color-accent);
+  --color-chart-accent-tint: var(--color-accent-tint);
   --color-chart-neg: var(--color-neg);
   --color-chart-hairline: var(--color-hairline);
   --color-chart-faint: var(--color-faint);
@@ -409,7 +421,6 @@
   --color-page: #111110;
   --color-card: #19181a;
   --color-ink: #eceae7;
-  --color-ink-hover: #f6efe6;
   --color-muted: #a3a19e;
   --color-faint: #6e6a65; /* decorative only, never body text */
   --color-field-border: #7a7674;
@@ -492,6 +503,7 @@
   --color-accent-pressed: #c49a74;
   --color-accent-fg: #1c1a19;
   --color-accent-tint: rgba(216, 180, 148, 0.14);
+  --color-focus: var(--color-accent);
   --color-selection: rgba(216, 180, 148, 0.28);
   --color-info: #93a4b5;
   --color-info-tint: #2a2c30;
@@ -651,7 +663,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-ink);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
 
@@ -707,10 +719,13 @@
   }
 
   /* A TRACK PAINTED IN ITS PLANE'S FOREGROUND NEEDS THE RING IN THE BACKGROUND.
-     The segmented controls' track is `ink` (2026-09-01) and the base rule two
-     blocks up paints the ring `var(--color-ink)` — so the ring was ink on an
-     ink track, 1.00:1, on EVERY segment of every filled control, active or
-     not. Focus was invisible wherever it landed.
+     The segmented controls' track is `ink`, and the base rule two blocks up
+     used to paint the ring `var(--color-ink)` as well — so the ring was ink on
+     an ink track, 1.00:1, on EVERY segment of every filled control, active or
+     not. Focus was invisible wherever it landed. Moving the base ring to
+     `focus` does not rescue a filled track and this rule is not a leftover from
+     when it was ink: the accent on ink is under 3 : 1 in light and barely over
+     1 in dark, which `palette-mirror.test.ts` computes rather than states.
 
      An earlier draft of this comment blamed `currentColor` and said the idle
      segments were already fine. Both were artefacts of measuring an animated
@@ -723,7 +738,7 @@
      track does. Opt-in by attribute, because only a filled track needs it: a
      control on `panel` or `card` is already served by the base rule, and so is
      the rail's currency toggle, whose track is `sb-field` rather than a fill —
-     the wall follows the theme now, and `ink` reads on it in either. */
+     the wall follows the theme now, and the accent reads on it in either. */
   /* WHY THE FILLED TRACKS CARRY `border border-ink` ON A `bg-ink` FILL — it
      draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
      the gap D56's concentric rule adds to the segment's radius. Every filled

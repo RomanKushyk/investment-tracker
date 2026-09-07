@@ -40,11 +40,12 @@ const TRIGGER_CLASS =
  * app is opened for. Below the breakpoint that is always; at and above it, only
  * while the rail is collapsed — this is not a second permanent bar.
  *
- * A LIGHT SURFACE, deliberately: `page` / `ink` / `muted` / `pos` / `neg` /
- * `hairline`, and never the wall's own `sb-*` family, which would make it read
- * as a detached piece of the drawer. The focus ring on this trigger is the ink
- * one, which since #92 is the app's only one — the sidebar used to override it
- * on its own plane and no longer does.
+ * A LIGHT SURFACE, deliberately — its fills and text are `page` / `ink` /
+ * `muted` / `pos` / `neg` / `hairline`, and never the wall's own `sb-*` family,
+ * which would make it read as a detached piece of the drawer. The focus ring is
+ * outside that list because it belongs to no surface: it is the app's one base
+ * ring, `focus`, and the sidebar used to override it on its own plane and no
+ * longer does. Only a filled track repaints it.
  *
  * SQUARE CORNERS. The proportional rule reads `round(min(w, h) × 0.26)` off two
  * DESIGNED dimensions; this bar's short side is its height and its long side

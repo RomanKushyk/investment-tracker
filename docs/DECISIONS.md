@@ -378,7 +378,18 @@ stamped as an answer. A segmented control's track takes its plane's FOREGROUND a
 background — `ink` and `card` everywhere but the sidebar, whose currency toggle runs the wall's own
 field rank instead: a recessed track and a solid accent thumb. The sidebar's ACTIVE ROUTE is a tint
 plus a 2px inset left indicator, never a fill, so a state is never colour alone; a solid fill
-therefore means a selected segment there and nothing else. `muted` is derived against its worst
+therefore means a selected segment there and nothing else. COLOUR IS RATIONED 60 / 30 / 10: the
+canvas and its surfaces are the sixty, text and borders and the chart series the thirty, and the
+accent is the ten — the mark, ONE main CTA per screen, the active route, the chart's line and
+cursor, and the focus ring. So the ACCENT fill is what a screen gets only once, and a second action
+beside it takes an outline or a ghost; the `neg` fill is a separate emphasis, reserved for a
+dialog's armed action, and a segmented track's `ink` is a plane's foreground rather than an accent.
+The ring reads `focus`, an alias of the accent in both themes, bound by 1.4.11 at 3 : 1 rather than
+1.4.3's 4.5; a filled segmented track keeps its own ring in the plane's background, because the
+accent on that fill does not clear the bar. Done but for the cursor, which one object shares across
+four charts — #112. In light the accent and `warn` are a blue channel apart and identical in
+LUMINANCE, so a caution separates from the brand by chroma alone and by no contrast reading; the
+second cue that would fix it is a brief, not a value — #111. `muted` is derived against its worst
 surface.
 Gain and loss belong to DELTAS: an informational chip reads `info`, a text selection reads
 `selection`, and neither borrows `pos`. Partly done — the reminder strip, the fresh-quote chip, the

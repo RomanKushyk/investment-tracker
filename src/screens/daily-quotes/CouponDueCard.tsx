@@ -249,7 +249,9 @@ export function CouponDueCard({
       )}
 
       <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-        <Button size="header" onClick={handleConfirm} disabled={pending}>
+        {/* Outline, not the fill: `/`'s one accent CTA is "Save snapshot", and
+            this card is a rail prompt that can appear more than once. */}
+        <Button size="header" variant="outline" onClick={handleConfirm} disabled={pending}>
           {t.dailyQuotes.coupon.confirm}
         </Button>
         <Button size="header" variant="ghost" onClick={onSkip} disabled={pending}>

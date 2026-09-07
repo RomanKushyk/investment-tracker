@@ -13,9 +13,11 @@ type Tone = 'wall' | 'tint' | 'default';
 // Its label is `sb-item` rather than `sb-label`, which is the rail's caption
 // rank and ships under 1.4.3 by ruling; a KPI label is 10px and takes the rank
 // that clears it.
-// Contrast the filled-emphasis case (primary Button, Switch, DatePicker
-// selected day), where `bg-ink` is right in both themes and it is the paired
-// `text-white` that has to become `text-page`.
+// Contrast the `ink`-filled controls (Switch checked, DatePicker selected day,
+// the segmented tracks), where `bg-ink` is right in both themes and it is the
+// paired `text-white` that has to become `text-page`. The primary Button left
+// that group for the accent: `ink` there is a plane's foreground, which
+// *Interaction rules* keeps distinct from the one accent fill a screen gets.
 // The border is not decoration: `sb-bg` is 1.08 : 1 against `page` in light and
 // 1.03 in dark, so the fill step alone draws no box at all — where the retired
 // `dark` tone was a near-black slab at 16.24 and needed none. `field-border` is

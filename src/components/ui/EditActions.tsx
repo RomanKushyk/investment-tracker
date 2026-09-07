@@ -23,9 +23,11 @@ import { useT } from '../../i18n/useT';
  * WHAT THE TWO SHARE IS THE PAGE-LEVEL SIGNAL: exactly one filled button while
  * editing, and none at rest. That is the entire "this page is in edit mode"
  * treatment — no wash, no border, no banner (brief § G-5). The extension chose
- * a fill over a tint because a fill survives inversion: it is the darkest
- * object on the page in light and the brightest in dark, where a tint would
- * need re-deriving and would collide with `pos` / `neg` / `warn`.
+ * a fill over a tint because a fill survives inversion, and the fill is the
+ * accent's: one per screen, which is what makes it read as a page state rather
+ * than as one more button. A tint would need re-deriving per theme and would
+ * land among `pos` / `neg` / `warn` — and the accent already shares `warn`'s
+ * luminance in light (#111), which a tint would only make harder to tell.
  *
  * A DISCRIMINATED UNION, not a flag bag (A30 review). With `onSave` merely
  * optional, `<EditActions mode variant="batch" />` typechecked and rendered an
