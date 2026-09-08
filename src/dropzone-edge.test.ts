@@ -28,14 +28,20 @@ import { describe, expect, it } from 'vitest';
 // FIELD guard, and being a non-field is exactly what let this box go unowned
 // through four sheets.
 //
-// ONE TRAP, RECORDED BECAUSE IT IS INVISIBLE FROM EITHER FILE ALONE.
-// `field-border.test.ts` forbids `hover:border-muted` anywhere in a FIELD_FILE,
-// reading the WHOLE source; this file requires it in `ImportRow.tsx`. The two
-// coexist only because `ImportRow.tsx` carries no `rounded-[9px] h-9` line and
-// so is not a FIELD_FILE. Give the import row a standard field — #84's shared
-// recipe would — and the two guards become unsatisfiable together. The fix then
-// is to scope that ban to field LINES rather than whole files, which is issue
-// 100's subject; do not resolve it by weakening either assertion here.
+// THE UNSATISFIABLE HALF OF THIS TRAP IS CLOSED, and the note stays because the
+// pair still has to be read together. `field-border.test.ts` used to forbid
+// `hover:border-muted` anywhere in a FIELD_FILE, reading the WHOLE source, while
+// this file requires it in `ImportRow.tsx` — so the two coexisted only while
+// that file carried no `rounded-[9px] h-9` line, and #84's shared recipe would
+// have made them contradict each other. #100 scoped that ban to the field SITE,
+// and the dropzone is not a field, so no field landing here can trip it.
+// WHAT A FIELD HERE STILL COSTS: this file's WHOLE-FILE assertions. The fill
+// census counts the two fills this box declares and a field carries a third; the
+// `border-dashed` ban would read a dashed field as the drop target going dashed.
+// Both answer a real change rather than contradicting the sibling — but a field
+// landing here means reading them, not only the ban that #100 scoped away. Still
+// do not resolve a collision here by weakening an assertion: the scope belongs
+// to whichever guard owns the subject.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
