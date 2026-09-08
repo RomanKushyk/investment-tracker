@@ -16,6 +16,22 @@ import { SETTINGS_KEY } from '../lib/storage-keys';
 export type Theme = 'light' | 'dark' | 'system';
 
 /**
+ * The order both theme controls walk — the reference's, light before dark
+ * before system. It lives beside the type rather than in either control because
+ * two of them read it now: the Appearance card's radiogroup and the sidebar's
+ * track. Two literals would be two sources of truth for a sequence that must
+ * agree, with nothing holding them together.
+ *
+ * ORDER here, LABELS in the dictionary, the same split the transaction selects
+ * use — so a translation moves no code.
+ */
+export const THEME_ORDER = ['light', 'dark', 'system'] as const satisfies readonly Theme[];
+
+/** The same list as a runtime check, so `migrateSettings` validates against the
+ *  order rather than against a second copy of the three literals. */
+export const isTheme = (v: unknown): v is Theme => (THEME_ORDER as readonly unknown[]).includes(v);
+
+/**
  * Ukrainian is the DEFAULT (Phase 5 owner decision), English stays as the
  * second. Unlike `theme` there is no `system` here: a language is a deliberate
  * choice, and guessing it from the OS would silently re-write every figure on
@@ -190,10 +206,10 @@ export function migrateSettings(persisted: unknown): PersistedSettings {
     // script's: an unrecognised value is 'system', never a guess at what the
     // user meant. The script cannot import this, so the two are duplicated by
     // necessity — index.html carries a pointer back here.
-    theme:
-      p.theme === 'light' || p.theme === 'dark' || p.theme === 'system'
-        ? p.theme
-        : PERSISTED_DEFAULTS.theme,
+    // Read off `THEME_ORDER` rather than repeating its three literals: a fourth
+    // theme would otherwise render in both controls and be rejected on every
+    // rehydrate, which is a thumb snapping back with no error anywhere.
+    theme: isTheme(p.theme) ? p.theme : PERSISTED_DEFAULTS.theme,
     // Only the two literals; anything else is the default. No OS sniffing —
     // see the Language type for why.
     language: p.language === 'uk' || p.language === 'en' ? p.language : PERSISTED_DEFAULTS.language,

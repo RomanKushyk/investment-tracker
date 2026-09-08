@@ -410,11 +410,12 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
   });
 
   // `page`, `card`, `panel` are the issue's three. `sb-bg` and `sb-field` are
-  // the wall and its field rank: the rail's currency toggle takes no
-  // `data-filled-track` — its track is a recess, not a fill — so its segments
-  // are served by the BASE rule, and the ring at `outline-offset: 2px` lands on
-  // that track's own 6px padding. `Sidebar.tsx` says so in prose; this is the
-  // half that keeps the sentence true after a re-valuing.
+  // the wall and its field rank: neither of the footer band's two tracks takes
+  // `data-filled-track` — their ground is the active route's 12% tint and not
+  // the plane's foreground — so their segments are served by the BASE rule, and
+  // the ring at `outline-offset: 2px` lands on the track's own 2px padding.
+  // `Sidebar.tsx` says so in prose; this is the half that keeps the sentence
+  // true after a re-valuing.
   it.each([
     ['page', 'light'],
     ['card', 'light'],

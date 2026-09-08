@@ -592,8 +592,8 @@
    which was already at its final position 250ms after the click, something a
    300ms ease cannot be. Rather than widen the property list (which would force
    every moving thing in the app to 200ms linear during a flip), an element that
-   animates its own position opts out and keeps its motion. Four thumbs carry it.
-   Mark anything that both moves and lives through a theme change. */
+   animates its own position opts out and keeps its motion. Mark anything that
+   both moves and lives through a theme change. */
 [data-theme-transition],
 [data-theme-transition] *:not([data-owns-motion]),
 [data-theme-transition] *:not([data-owns-motion])::before,
@@ -748,10 +748,10 @@
 
      `page` rather than a fixed value, so it inverts with the theme the way the
      track does. Opt-in by attribute, because only a filled track needs it: a
-     control on `panel` or `card` is already served by the base rule, and so is
-     the rail's currency toggle, whose track since #107 is the active route's own
-     12% tint on the footer band rather than a fill — a tint is not the plane's
-     foreground, so the base accent ring still serves it. */
+     control on `panel` or `card` is already served by the base rule, and so are
+     the footer band's two tracks, whose ground is the active route's own 12%
+     tint rather than a fill — a tint is not the plane's foreground, so the base
+     accent ring still serves them. */
   /* WHY THE FILLED TRACKS CARRY `border border-ink` ON A `bg-ink` FILL — it
      draws nothing, and that is the point: it is a 1px GEOMETRIC SPACER, part of
      the gap D56's concentric rule adds to the segment's radius. Every filled

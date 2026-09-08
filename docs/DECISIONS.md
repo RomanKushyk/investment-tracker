@@ -385,12 +385,14 @@ takes a small active scale, and `prefers-reduced-motion: reduce` is a global kil
 target never moves under a hovering pointer. A destructive clear is armed by typing the dataset's
 name, and offers a backup first. Reminders derive their ids and write nothing, so a dismissal expires
 when its occurrence stops being produced. The theme is ONE list of values redefined per theme,
-stamped as an answer. A segmented control's track takes its plane's FOREGROUND and its chip the
-background — `ink` and `card` everywhere but the sidebar, whose currency track runs the active
-route's own tint on the footer band, with a solid accent thumb and no edge: a track is identified
-by its thumb, and a tint on a band needs no boundary of its own. The sidebar's ACTIVE ROUTE is a tint
-plus a 2px inset left indicator, never a fill, so a state is never colour alone; a solid fill
-therefore means a selected segment there and nothing else. COLOUR IS RATIONED 60 / 30 / 10: the
+stamped as an answer, and BOTH controls that write it — the Appearance card's and the sidebar's —
+write that one field, so neither has a value of its own to fall out of step. A segmented control's
+track takes its plane's FOREGROUND and its chip the background — `ink` and `card` everywhere but
+the sidebar, whose two footer-band tracks run the active route's own tint, with a solid accent
+thumb and no edge: a track is identified by its thumb, and a tint on a band needs no boundary of
+its own. The sidebar's ACTIVE ROUTE is a tint plus a 2px inset left indicator, never a fill, so a
+state is never colour alone; a solid fill therefore means a selected segment there and nothing
+else. COLOUR IS RATIONED 60 / 30 / 10: the
 canvas and its surfaces are the sixty, text and borders and the chart series the thirty, and the
 accent is the ten — the mark, ONE main CTA per screen, the active route, the chart's line and
 cursor, and the focus ring. So the ACCENT fill is what a screen gets only once, and a second action

@@ -360,6 +360,19 @@ describe('the footer band is a second ground, and the eleventh route reads on it
       ratio(resolve(BLOCKS[theme], 'accent-fg'), resolve(BLOCKS[theme], 'accent')),
     ).toBeGreaterThanOrEqual(4.5);
   });
+
+  // THE OTHER TRACK ON THE SAME ROW, and the split is the reason it takes a
+  // different token from its neighbour. A currency symbol is a character, so
+  // 1.4.3 asks it 4.5 and it reads 4.30; a theme segment is a GLYPH with no
+  // label of its own, so 1.4.11 asks 3 and `sb-icon` gives 3.33 / 4.24. That is
+  // the rank every nav row already uses — `sb-item` for a character, `sb-icon`
+  // for a glyph — applied to a row that happens to hold both.
+  // A FLOOR here rather than the exact value beside it: this one clears its bar,
+  // and only a re-valuing that pushed it under needs to come and argue with it.
+  it.each(THEMES)('%s: an idle theme glyph clears 3 : 1 on its track', (theme) => {
+    const track = over(tint(BLOCKS[theme], 'sb-item-active-bg'), band(theme));
+    expect(ratio(resolve(BLOCKS[theme], 'sb-icon'), track)).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe("the wall's field rank carries the figures drawn on it", () => {

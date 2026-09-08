@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { mergeSettings, migrateSettings, useSettings, type PersistedSettings } from './settings';
+import {
+  THEME_ORDER,
+  mergeSettings,
+  migrateSettings,
+  useSettings,
+  type PersistedSettings,
+} from './settings';
 
 // The full persisted shape at its defaults — spread into every expectation so a
 // new field (P3 added the two automation switches + dismissedReminders) does not
@@ -310,6 +316,41 @@ describe('automation actions', () => {
 // preference. They were ONE field until 2026-08-18, so these tests exist to
 // keep them apart: the interesting assertions are the ones about what does NOT
 // happen.
+
+// THE THEME IS THE OPPOSITE PAIR, and it had no store test until #85 gave the
+// field a second control. `migrateSettings` above pins what a stored value is
+// allowed to be; this pins what the setter does with a chosen one, which is the
+// rule the automation describe below states — a persisted field lands with its
+// store test.
+describe('theme: one field, and `system` is stored rather than answered', () => {
+  const reset = () => {
+    useSettings.setState({ theme: 'system' });
+  };
+
+  it.each(THEME_ORDER)('setTheme(%s) lands on the one field', (theme) => {
+    reset();
+    useSettings.getState().setTheme(theme);
+    expect(useSettings.getState().theme).toBe(theme);
+  });
+
+  // The one that matters, and the reason `setTheme` is a plain write: resolving
+  // here would rewrite the user's choice to whatever the OS was at the moment
+  // they clicked, and "follow the system" would stop following it. `useTheme`
+  // asks the OS on every apply instead — src/app/theme.test.ts holds that half.
+  it('keeps `system` as `system`, so the OS stays the input', () => {
+    reset();
+    useSettings.getState().setTheme('light');
+    useSettings.getState().setTheme('system');
+    expect(useSettings.getState().theme).toBe('system');
+  });
+
+  it('survives a rehydrate, unlike the currency glance below', () => {
+    reset();
+    useSettings.getState().setTheme('dark');
+    expect(mergeSettings({ theme: 'dark' }, useSettings.getState()).theme).toBe('dark');
+  });
+});
+
 describe('currency: the session value and the persisted default', () => {
   const reset = () => {
     useSettings.setState({ currency: 'UAH', defaultCurrency: 'UAH' });

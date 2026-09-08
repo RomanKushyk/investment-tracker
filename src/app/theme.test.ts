@@ -19,6 +19,46 @@ import { resolveTheme } from './theme';
 const here = dirname(fileURLToPath(import.meta.url));
 const INDEX_HTML = readFileSync(join(here, '..', '..', 'index.html'), 'utf8');
 
+/** TS comments out, LINE BY LINE, and the line boundary is the point: a regex
+ *  literal may hold a quote, and one desync would switch stripping off for the
+ *  rest of the file. Copied from `sidebar-structure.test.ts` SIGNATURE AND ALL,
+ *  which is the house idiom — the guards here each carry their own copy. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 /** The inline boot script's body, taken from the <head> of index.html. */
 function bootScript(): string {
   const scripts = [...INDEX_HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
@@ -186,5 +226,72 @@ describe('the theme survives the persist contract', () => {
     const source = readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8');
     const partialize = /partialize: \(s\) => \(\{([\s\S]*?)\}\)/.exec(source)?.[1] ?? '';
     expect(partialize).toContain('theme: s.theme');
+  });
+});
+
+// TWO CONTROLS, ONE FIELD — #85's third acceptance criterion.
+//
+// The sidebar's track and the Appearance card's radiogroup are drawn on
+// different planes at different sizes, and the whole point of the pair is that
+// they are the same preference seen twice: flip one and the other has already
+// moved. That holds only while both write `setTheme` and neither keeps a copy,
+// and the way it would break is silent — a sidebar control that resolved
+// `system` at write time, or stamped `data-theme` itself, or walked its own
+// order, would look right in a screenshot and be a second source of truth.
+//
+// SOURCE TEXT, because the suite runs `environment: 'node'` with no jsdom and
+// no testing-library, the same reason `sidebar-structure.test.ts` and
+// `price-mode-segment.test.ts` read files. What it can pin is the wiring; that
+// the store then holds the value is `state/settings.test.ts`'s arm.
+describe('the sidebar and the Appearance card write the one stored preference', () => {
+  const read = (...rel: string[]) => readFileSync(join(here, '..', ...rel), 'utf8');
+  const SIDEBAR = read('app', 'Sidebar.tsx');
+  const SETTINGS = read('screens', 'Settings.tsx');
+  const STORE = read('state', 'settings.ts');
+
+  const CONTROLS = [
+    ['the sidebar', SIDEBAR],
+    ['the Appearance card', SETTINGS],
+  ] as const;
+
+  it.each(CONTROLS)('%s reads and writes the store rather than a copy', (_what, source) => {
+    expect(source, 'the control does not write the store').toMatch(/setTheme\(/);
+    expect(source, 'the control does not read the store').toMatch(/useSettings\(/);
+  });
+
+  // The WRITE, not the name: `setTheme:` appears twice in the store, once in
+  // the interface and once in the implementation, and counting both would pass
+  // a second implementation that shadowed the first.
+  it('leaves exactly one writer in the store', () => {
+    expect(
+      (STORE.match(/set\(\{ theme \}\)/g) ?? []).length,
+      'the field has two writers, or its one write was renamed',
+    ).toBe(1);
+  });
+
+  it('walks one order, exported once and imported twice', () => {
+    expect((STORE.match(/export const THEME_ORDER\b/g) ?? []).length).toBe(1);
+    for (const [what, source] of CONTROLS) {
+      expect(source, `${what} declares its own theme order`).not.toMatch(
+        /(const|let) THEME_ORDER\b/,
+      );
+      expect(source, `${what} does not import the store's order`).toMatch(/\bTHEME_ORDER\b/);
+    }
+  });
+
+  // The sidebar is a PREFERENCE writer and nothing else. `useTheme` in this
+  // directory owns `data-theme`, the crossfade and the `theme-color` meta, and
+  // two writers would be one too many — so the control must not resolve, stamp
+  // or listen on its own.
+  it('leaves the resolving and the stamping to this directory', () => {
+    // COMMENTS OUT, because the file argues the split in prose and would
+    // otherwise fail on its own explanation of it. `stripTs` and not a line
+    // filter: `Sidebar.tsx` is mostly `{/* … */}`, whose opener starts with `{`
+    // and whose continuation lines start with plain words, so a filter keeps
+    // the whole block and the first JSX comment to name the attribute breaks
+    // the guard against the very sentence it wants written.
+    expect(stripTs(SIDEBAR), 'the sidebar took over the theme mechanism').not.toMatch(
+      /resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
+    );
   });
 });

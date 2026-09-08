@@ -282,7 +282,18 @@ describe('the rail draws what the sheet draws', () => {
     expect(RAIL, 'the capital followed the rail; the header carries it').not.toMatch(
       /useCapitalCard/,
     );
+    // BOTH HALVES OF THE REFUSAL, and the second arrived with #85: a lone
+    // cycling glyph cannot show the two states it is not in, and `system` is
+    // indistinguishable from whichever theme it resolves to — so the rail gets
+    // no theme control at all. The writer alone is not enough, because a glyph
+    // that only DISPLAYED the current theme would pass it and would be exactly
+    // the button the refusal names.
     expect(RAIL, 'a theme control entered the rail, which T2 refuses').not.toMatch(/setTheme/);
+    for (const glyph of ['Sun', 'Moon', 'Monitor']) {
+      expect(RAIL, `${glyph} entered the rail, where no theme control belongs`).not.toMatch(
+        new RegExp(`\b${glyph}\b`),
+      );
+    }
   });
 
   // The burger is three spans, like `AppHeader`'s, and NOT an inline svg and NOT

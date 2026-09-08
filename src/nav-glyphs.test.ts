@@ -76,12 +76,13 @@ const TABLE = [
   ['/settings', 'Settings'],
 ] as const;
 
-/** The two the file already had before any route took a glyph. They are
- *  CONTROLS — `ChevronDown` folds a group, `ChevronLeft` collapses the shell —
- *  and the sheet keeps group headers glyphless for exactly that reason
+/** The glyphs in this file that name no route. They are CONTROLS —
+ *  `ChevronDown` folds a group, `ChevronLeft` collapses the shell, and
+ *  `Sun` / `Moon` / `Monitor` are the theme track's three segments (#85) — and
+ *  the sheet keeps group headers glyphless for exactly that reason
  *  (`:984-986`: "the app draws a chevron there and that is a control, not a
  *  label"). Listed so the import assertion can tell a control from an icon. */
-const CONTROLS = ['ChevronDown', 'ChevronLeft'];
+const CONTROLS = ['ChevronDown', 'ChevronLeft', 'Monitor', 'Moon', 'Sun'];
 
 /** The one tag all eleven are drawn through, matched TO ITS OWN `/>` rather
  *  than to the first `>`: an arbitrary variant may hold one (`[&>path]:…`), and
@@ -172,7 +173,7 @@ describe('every route wears the glyph the sheet gave it', () => {
     ).toEqual(TABLE.map(([, icon]) => icon).sort());
   });
 
-  it('still imports the two chevrons, which are controls rather than icons', () => {
+  it('still imports the controls, which are not icons on routes', () => {
     const names = imported();
     for (const control of CONTROLS) expect(names, `${control} left the import`).toContain(control);
   });

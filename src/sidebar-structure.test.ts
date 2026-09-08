@@ -116,7 +116,7 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
     expect((SIDEBAR.match(/<svg\b/g) ?? []).length, 'a second inline SVG entered the file').toBe(1);
   });
 
-  // THE TRACK'S REGIONS MUST TILE WITH THE PILL'S BELOW THE BREAKPOINT, and this
+  // THE ROW'S REGIONS MUST TILE WITH THE PILL'S BELOW THE BREAKPOINT, and this
   // is the one line that makes them. A 22px segment's `TAP_44` overlay reaches
   // 11px past its box and the pill's reaches 3.85, so the pair needs 14.85 of
   // clearance; the drawn 8 plus the track's 2 of padding gives 10, and measured
@@ -124,14 +124,114 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
   // and won the tap at `z-10`. A thumb aimed at the top of Settings flipped the
   // currency. 16 below `md` puts the clearance at 18. Above it `TAP_44` does not
   // apply and the drawn 8 stands, which is why the utility is `max-md:`.
-  it('clears the currency track of the Settings pill below the breakpoint', () => {
-    // The tint names two things — the active pill's arm inside `pillClass` and
-    // this track — so the track is identified by its own radius as well.
-    const track = linesWith(/\bbg-sb-item-active-bg\b/).filter((l) => /rounded-\[8px\]/.test(l));
-    expect(track.length, 'the currency track is not one element').toBe(1);
-    expect(track[0], 'the track kept the drawn 8 below the breakpoint, where 8 collides').toMatch(
-      /max-md:mb-4\b/,
+  //
+  // ON THE ROW, NOT ON A TRACK, since #85: the two tracks sit side by side and
+  // the margin belongs to what holds them. Asserted as "no track carries one" as
+  // well, or the pair could drift back to a margin each and read the same.
+  it('clears the two tracks of the Settings pill below the breakpoint', () => {
+    // The tint names three things now — the active pill's arm inside
+    // `pillClass` and both tracks — so a track is identified by its radius too.
+    const tracks = linesWith(/\bbg-sb-item-active-bg\b/).filter((l) => /rounded-\[8px\]/.test(l));
+    expect(tracks.length, 'the footer band is not carrying two tracks').toBe(2);
+    for (const track of tracks) {
+      expect(track, 'a track took the row\u2019s own bottom margin').not.toMatch(/\bmb-\d/);
+    }
+    const row = linesWith(/max-md:mb-4\b/);
+    expect(row.length, 'the clearance is not on one element').toBe(1);
+    expect(row[0], 'the clearance left the row that holds the two tracks').toMatch(
+      /\bflex\b[\s\S]*\bgap-2\b/,
     );
+  });
+});
+
+// #85's control, and the drawing is `parchment-sidebar.dc.html` T5 (`:754-892`)
+// with its work order at `:1203`: three 22px glyph segments at radius 6 on a
+// track at radius 8, no edge, on the active route's own tint, beside the
+// currency track at `flex:1` each — "one object at two widths".
+//
+// MARKUP, NOT COLOUR. `sidebar-plane.test.ts` reads what the two grounds
+// measure; this reads which recipe the row actually paints, and neither catches
+// the other — the tokens can be perfect while the track is still one segment
+// short or the thumb still travels half a track.
+describe('the footer band carries two tracks on one row, and the theme one is a radiogroup', () => {
+  it('draws the theme track as three radios inside a radiogroup', () => {
+    expect(SIDEBAR, 'the theme track is not a radiogroup').toMatch(/role="radiogroup"/);
+    expect(
+      (SIDEBAR.match(/role="radio"/g) ?? []).length,
+      'the theme track is not three segments',
+    ).toBe(1);
+    // One `role="radio"` in the source, three at run time: the segments are
+    // mapped off `THEME_ORDER`, which is the store's own list and the same one
+    // the Appearance card walks. `theme.test.ts` holds that half.
+    expect(SIDEBAR, 'the segments are not mapped off the store\u2019s order').toMatch(
+      /THEME_ORDER\.map\(/,
+    );
+    expect(SIDEBAR, 'a segment does not announce its stored value').toMatch(/aria-checked=/);
+  });
+
+  // The refusal `index.css` argues at its `[data-filled-track]` rule: that
+  // attribute repaints the ring for a track painted in the plane's FOREGROUND,
+  // and a 12% tint is not one. Both tracks are served by the base accent ring.
+  it('gives neither track `data-filled-track`', () => {
+    expect(SIDEBAR, 'a tinted track took the filled track\u2019s ring').not.toMatch(
+      /data-filled-track/,
+    );
+  });
+
+  // T5 hands the tap arithmetic to this issue (its F-2) and the sheet's own
+  // widths are the 244px panel's, where `TAP_44` is inert. Below the breakpoint
+  // the shell is the 280px drawer and the band gives the row 240 — the sheet
+  // reads 248, which is the PANEL's content width before the band cancels its
+  // 16 of padding and pays 20 of its own. There the three theme segments would
+  // be ~36.7 wide and two `TAP_44` overlays that both reach 3.65 past a 1px gap
+  // hand each other taps. 44 drawn is the fix `tap-target.ts` names when a gap
+  // cannot be made: 3 x 44 + 2 + 4 = 138 and 2 x 44 + 1 + 4 = 93, plus the drawn
+  // 8, is 239 against the 239 the band measures there — flex cannot shrink under
+  // its content minimum, so it fits, and exactly.
+  // TIED TO THE RECIPE, NOT COUNTED: the theme track's three segments are one
+  // mapped line, so a count of lines is three where the row draws five. What has
+  // to hold is that nothing wearing the segment's drawn height is missing the
+  // width — the height is the signature of the thing `TAP_44` overlays here.
+  it('gives every segment 44 of width below the breakpoint', () => {
+    const segments = linesWith(/\bh-\[22px\]/);
+    expect(segments.length, 'the 22px segment recipe is gone from the row').toBe(3);
+    for (const segment of segments) {
+      expect(segment, 'a segment keeps an overlay it is too narrow for').toMatch(
+        /max-md:min-w-11\b/,
+      );
+      expect(segment, 'a segment lost the overlay the width is sized for').toMatch(/TAP_44/);
+    }
+  });
+
+  // An EXACT fit is not a fit with room: a left safe-area inset takes the band's
+  // 239 down, which is reachable in landscape below the breakpoint, and a row
+  // that overflowed would be CLIPPED by the drawer's `overflow-hidden`. It wraps
+  // instead — measured at a 250px drawer, two full-width lines and no clipping —
+  // and 22 is what two stacked 22px tracks need between them.
+  it('wraps rather than clipping where the band gives less than 239', () => {
+    const row = linesWith(/max-md:mb-4\b/)[0] ?? '';
+    expect(row, 'the row cannot wrap, so a narrower band clips it').toMatch(/max-md:flex-wrap\b/);
+    expect(row, 'a wrapped row has no clearance between its two lines').toMatch(
+      /max-md:gap-y-\[22px\]/,
+    );
+  });
+
+  // THE THUMB'S GEOMETRY IS THE TRACK'S OWN, re-derived for three rather than
+  // copied from two. A thumb is absolutely positioned, so its percentages
+  // resolve against the track's PADDING box: with p-0.5 (2) and gap-px (1) a
+  // segment is (T - 4 - 2) / 3, i.e. 33.333% - 2px, and one step is that width
+  // plus the gap. The two-segment track's 50% - 2.5px is the same derivation.
+  it('re-derives the sliding thumb for three segments', () => {
+    expect(SIDEBAR, 'the three-segment thumb is not a third of its track').toMatch(
+      /w-\[calc\(\(100%-6px\)\/3\)\]/,
+    );
+    expect(SIDEBAR, 'the three-segment thumb does not travel a segment plus the gap').toMatch(
+      /\$\{index\} \* \(100% \+ 1px\)/,
+    );
+    expect(
+      (SIDEBAR.match(/data-owns-motion/g) ?? []).length,
+      'a thumb that moves through a theme flip lost its opt-out',
+    ).toBe(2);
   });
 });
 

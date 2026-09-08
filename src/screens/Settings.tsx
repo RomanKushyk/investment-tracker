@@ -8,7 +8,7 @@ import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
 import { quoteInputSchema } from '../core/schemas';
-import { useSettings, type Language, type Theme } from '../state/settings';
+import { THEME_ORDER, useSettings, type Language } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
 import { DatasetSwitch } from './settings/DatasetSwitch';
@@ -155,9 +155,7 @@ function CurrencyControl() {
 // padding box, so with p-1 (4) and gap-1 (4) between three columns each is
 // (100% - 16px) / 3. The same derivation gives the two-segment control above
 // its (100% - 12px)/2, i.e. the 50% - 6px it already carries.
-// ORDER here, LABELS in the dictionary — the same split the transaction
-// selects use. Light before Dark before System is the reference's order.
-const THEME_ORDER: Theme[] = ['light', 'dark', 'system'];
+// THE ORDER IS THE STORE'S since #85, because the sidebar's track walks it too.
 
 function ThemeControl() {
   const t = useT();

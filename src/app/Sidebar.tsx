@@ -9,7 +9,10 @@ import {
   CircleDollarSign,
   LayoutGrid,
   type LucideIcon,
+  Monitor,
+  Moon,
   Settings,
+  Sun,
   Table,
   Tags,
   Wallet,
@@ -20,7 +23,7 @@ import { matchPath, NavLink, useLocation } from 'react-router';
 
 import { useT } from '../i18n/useT';
 import { SIDEBAR_COLLAPSE_ID } from './nav-ids';
-import { useDataset, useSettings } from '../state/settings';
+import { THEME_ORDER, useDataset, useSettings, type Theme } from '../state/settings';
 import { useCapitalCard } from '../hooks/useCapitalCard';
 import { Scroller } from '../components/ui/Scroller';
 import { TAP_44 } from '../components/ui/tap-target';
@@ -313,6 +316,18 @@ function NavGroup({
   );
 }
 
+/**
+ * The theme track's three glyphs, keyed by the value each writes. The names are
+ * the drawing's and the record of which glyph belongs to which control is
+ * `nav-glyphs.test.ts`, where these three are CONTROLS rather than route icons —
+ * nothing here names a route.
+ */
+const THEME_GLYPH: Record<Theme, LucideIcon> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+};
+
 // S5: persistent while dataset==='demo' (absent in live) — warn-tint family
 // only, never pos/neg/asset hues. D7: fade + zoom-in on first paint, 200ms.
 
@@ -356,9 +371,14 @@ function SidebarPanel({
   // only — it is deliberately outside `partialize`, so flipping to `$` to read
   // one KPI is gone on the next reload. Settings' own control writes the
   // preference this falls back to.
-  const { currency, setCurrency } = useSettings();
+  // AND A PREFERENCE BESIDE IT, which is the one place the footer band's two
+  // tracks differ: `setTheme` writes the same stored field the Appearance card
+  // writes, so a flip here is still there after a reload. `useTheme` turns it
+  // into `data-theme`; nothing in this file resolves `system` or stamps it.
+  const { currency, setCurrency, theme, setTheme } = useSettings();
   const demo = useDataset() === 'demo';
   const panel = variant === 'panel';
+  const index = THEME_ORDER.indexOf(theme);
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
@@ -492,10 +512,18 @@ function SidebarPanel({
             on the inner side at the old 6 and 4, which is why #114 exists; the
             new geometry does not repair it and closing it is still geometry
             rather than a value.
-            ONE TRACK, FULL WIDTH, BY ARITHMETIC RATHER THAN BY DECISION: the
-            drawing puts a theme track beside this one at `flex:1` each. That
-            control is #85's, and because both are `flex-1` its arrival halves
-            this one with nothing here to rewrite.
+            TWO TRACKS AT `flex-1`, WHICH IS ONE OBJECT AT TWO WIDTHS: the
+            drawing puts them side by side on this row, so each takes half —
+            at and above the breakpoint. Below it the 44 the segments claim is
+            wider than half a row gives three of them, so the halves become the
+            two content minima and the theme track is the larger. Everything
+            else here is true of both. */}
+        {/* THE THUMB'S GEOMETRY IS THE TRACK'S OWN: percentages on an
+            absolutely-positioned box resolve against the padding box, so with
+            `p-0.5` and `gap-px` a segment is `(100% - 6px) / 3` on the theme
+            track and `50% - 2.5px` on the two-segment one, and one step of
+            travel is that width plus the gap. Re-derive both if the padding
+            moves.
             THE IDLE SYMBOL PAYS FOR THE GROUND. On the old `sb-field` recess
             `sb-item` read 5.99; on the tint it reads 4.30 in light, 0.20 under
             1.4.3, and the only rank above it is the hover state itself. It is the
@@ -504,51 +532,102 @@ function SidebarPanel({
             AT AND ABOVE THE BREAKPOINT THE SEGMENT IS ITS DRAWN 22, which is
             under 2.5.8's 24 and passes on that criterion's spacing exception
             rather than on its own size — `TAP_44` is `max-md:` and does not
-            reach here. The drawing draws 22 and hands the tap arithmetic to #85,
-            which is the branch that halves these and adds three more beside
-            them; it is recorded here so that branch does not have to rediscover
-            it. Below the breakpoint the regions tile — see the row's gap. */}
-        {/* 16 BELOW THE BREAKPOINT, NOT 8, AND THE ARITHMETIC IS `TAP_44`'s own.
-            A 22px segment's overlay reaches 11px past its box and the pill's
-            reaches 3.85, so the two need 14.85 of clearance and the drawn 8 (plus
-            the track's 2 of padding) gives 10 — measured, the segment's region
-            crossed 1px into the pill's DRAWN box, which is a tap on Settings
-            flipping the currency. The drawing draws 1280 and 768 and leaves the
-            drawer to `mobile.dc.html`, so widening this below `md` overrules
-            nothing. Above it `TAP_44` does not apply and the drawn 8 stands. */}
-        <div className="relative mb-2 flex gap-px rounded-[8px] bg-sb-item-active-bg p-0.5 max-md:mb-4">
-          {/* The sliding thumb (D7) encodes the track's own geometry: p-0.5
-                (2px) + gap-px (1px) → 50% − 2.5px wide, and one segment plus the
-                gap to travel. Re-derive both if the padding moves. */}
+            reach here. Below it the regions tile instead, on width and on
+            height both — see the row. */}
+        {/* THE ROW, AND EVERY UTILITY ON IT PAST `flex gap-2` IS `TAP_44` ARITHMETIC.
+            16 BELOW THE BREAKPOINT, NOT 8: a 22px segment's overlay reaches 11px
+            past its box and the Settings pill's reaches 3.85, so the two need
+            14.85 of clearance and the drawn 8 (plus the track's 2 of padding)
+            gives 10 — measured, the segment's region crossed 1px into the pill's
+            DRAWN box, which is a tap on Settings flipping the currency.
+            44 OF WIDTH, on the segment rather than here: across, two overlays
+            that both reach need `w + gap >= 44`, and at half a row three theme
+            segments are too narrow for it and hand each other taps. `min-w-11`
+            is the real box `tap-target.ts` names when the gap cannot be made,
+            and it moves no radius — the short side is still the drawn 22, which
+            is what `round(min(w, h) x 0.26)` keys the 6 off.
+            AND THE ROW WRAPS, because the five of them fit the drawer EXACTLY —
+            `sidebar-structure.test.ts` has the arithmetic. A left safe-area
+            inset takes that width down, which is reachable in landscape below
+            the breakpoint and cannot be emulated or drawn, and a row that
+            overflowed would be CLIPPED by the drawer's `overflow-hidden`.
+            Wrapped, each track takes the full width and the row gap is what two
+            stacked tracks need between them. */}
+        <div className="mb-2 flex gap-2 max-md:mb-4 max-md:flex-wrap max-md:gap-y-[22px]">
+          {/* THE THEME TRACK IS A RADIOGROUP and the currency one is not, which
+              is the semantics following the meaning rather than the drawing: three
+              mutually exclusive values are radios, two states of one view are a
+              pressed pair. The glyph is the whole visible label, so the
+              dictionary's word is the accessible name — `sr-only` and not
+              `aria-label`, the same idiom the symbols beside it use.
+              The idle glyph is `sb-icon` AND TAKES NO HOVER: that is the glyph
+              rank, whose record names an idle and an active state and no third,
+              where the currency symbol beside it is a character on `sb-item` and
+              keeps the label rank's hover. One row, both ranks, because the row
+              holds both kinds of thing. */}
           <div
-            aria-hidden
-            data-owns-motion
-            className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
-            style={{
-              transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
-            }}
-          />
-          {/* The SYMBOL is the label the drawing gives these, at 13px, and the
+            role="radiogroup"
+            aria-label={t.settings.theme.ariaLabel}
+            className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5"
+          >
+            {/* The sliding thumb (D7), geometry above. `data-owns-motion` keeps
+                the theme cross-fade from replacing this transition during the
+                very flip that moves it. */}
+            <div
+              aria-hidden
+              data-owns-motion
+              className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc((100%-6px)/3)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
+              style={{ transform: `translateX(calc(${index} * (100% + 1px)))` }}
+            />
+            {THEME_ORDER.map((value) => {
+              const Glyph = THEME_GLYPH[value];
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === value}
+                  onClick={() => setTheme(value)}
+                  className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${theme === value ? 'text-accent-fg' : 'text-sb-icon'}`}
+                >
+                  <Glyph aria-hidden className="size-3.5" />
+                  <span className="sr-only">{t.settings.theme[value]}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative flex flex-1 gap-px rounded-[8px] bg-sb-item-active-bg p-0.5">
+            {/* The sliding thumb (D7), geometry above. */}
+            <div
+              aria-hidden
+              data-owns-motion
+              className="absolute top-0.5 bottom-0.5 left-0.5 w-[calc(50%-2.5px)] rounded-[6px] bg-accent transition-transform duration-300 ease-soft"
+              style={{
+                transform: currency === 'UAH' ? 'translateX(0)' : 'translateX(calc(100% + 1px))',
+              }}
+            />
+            {/* The SYMBOL is the label the drawing gives these, at 13px, and the
                 ISO code rides beside it for a screen reader — "₴" alone says
                 nothing about which currency it is. `sr-only` rather than
                 `aria-label` so the accessible name CONTAINS the visible one, which
                 is what 2.5.3 asks and what a speech-input user needs. */}
-          <button
-            type="button"
-            aria-pressed={currency === 'UAH'}
-            onClick={() => setCurrency('UAH')}
-            className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-          >
-            ₴<span className="sr-only"> UAH</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={currency === 'USD'}
-            onClick={() => setCurrency('USD')}
-            className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
-          >
-            $<span className="sr-only"> USD</span>
-          </button>
+            <button
+              type="button"
+              aria-pressed={currency === 'UAH'}
+              onClick={() => setCurrency('UAH')}
+              className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'UAH' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+            >
+              ₴<span className="sr-only"> UAH</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={currency === 'USD'}
+              onClick={() => setCurrency('USD')}
+              className={`z-10 flex h-[22px] flex-1 cursor-pointer items-center justify-center rounded-[6px] text-[13px] font-semibold transition active:scale-[.97] max-md:min-w-11 ${TAP_44} ${currency === 'USD' ? 'text-accent-fg' : 'text-sb-item hover:text-sb-item-hover'}`}
+            >
+              $<span className="sr-only"> USD</span>
+            </button>
+          </div>
         </div>
 
         {/* SETTINGS IS THE BAND'S, NOT THE NAV'S, and it keeps the nav's own
