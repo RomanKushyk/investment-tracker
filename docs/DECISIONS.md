@@ -94,12 +94,19 @@ groups, so it is absorbed. A mark that ARRIVES BY PASTE is read by the grammar i
 only way to keep refusing a European `1234,567` under English — pasted and typed, that text is
 identical to the state a digit inserted into `123,456` passes through, so nothing but how it got
 there can tell them apart. The caret is put back behind the same DIGIT, never at the same offset.
+A field reads a number only in a spelling it could SHOW, so `1e3`, `1.2E+09`, `0x10`, `0b101`, `0o17`
+and `Infinity` are refused everywhere though `Number()` reads all six — a pasted spreadsheet cell is
+the ordinary way they arrive. And a numeric refusal names WHICH refusal it was — nothing entered, not
+a number under this grammar, or out of range — in three sentences, so a `16,5` pasted under English
+is told it is not a number here instead of that it is not positive, which it is.
 **Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · A field
 that stores what it shows: the stored text then carries a language, and a switch re-reads an English
 `1,234` as 1.234. · Judging a pasted mark the way a typed one is judged: it turns a refusal into a
 silent thousandfold. · The keyboard layout as the signal: no browser reports a numeric convention. ·
 `font-variant-numeric` per call site: it holds only while every site that ever shows a number
-remembers it.
+remembers it. · Bare `Number()` as the reader: it takes spellings no field here writes back, and the
+field and the schema then disagree about the same string. · One sentence for every numeric failure:
+it answers the commonest mistake — a mark from the other grammar — with a fact about the sign.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes

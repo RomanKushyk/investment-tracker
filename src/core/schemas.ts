@@ -76,6 +76,44 @@ export function normalizeNumberInput(input: string, groupsWithComma: boolean): s
   if (groupsWithComma) return GROUPED_INTEGER.test(bare) ? bare.split(',').join('') : bare;
   return bare.indexOf(',') === bare.lastIndexOf(',') ? bare.replace(',', '.') : bare;
 }
+/**
+ * WHICH FAILURE A SCHEMA REFUSED: text with no reading here arrives as NaN and
+ * is `invalid_type`; a number merely out of range is refused by its own bound.
+ * Exported so the component maps what the schema said rather than re-deciding —
+ * `fieldState.error.type` is a bare `string`, one typo from the wrong message.
+ */
+export const UNREADABLE = 'invalid_type';
+
+/**
+ * WHAT A FIELD MAY HOLD AS A NUMBER: digits, one dot, an optional sign. Lives
+ * here because both readers need it — this file's transform and `money.ts`'s
+ * `storedNumber` — and two copies of it is how they came to disagree.
+ */
+export const CANONICAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
+
+/**
+ * THE ONE READER of a field's text: the number it means under this language, or
+ * nothing. Bare `Number()` also reads `1.2E+09`, `0x10` and `0b101`, which no
+ * field here can produce and none should record.
+ */
+export function readNumber(text: string, lang: Lang): number | undefined {
+  return readUnder(text, groupsWithCommaFor(lang));
+}
+
+function readUnder(text: string, groupsWithComma: boolean): number | undefined {
+  const normalized = normalizeNumberInput(text, groupsWithComma);
+  return CANONICAL.test(normalized) ? Number(normalized) : undefined;
+}
+
+/**
+ * Did this refusal mean «not a number here» rather than «out of range»? ONE RULE,
+ * two carriers: react-hook-form flattens an issue into `error.type`, which is
+ * compared to `UNREADABLE` directly; a raw `safeParse` keeps the array and asks
+ * this. Both read the one constant, so the rule has one place to change.
+ */
+export function couldNotRead(issues: readonly { code: string }[]): boolean {
+  return issues.some((issue) => issue.code === UNREADABLE);
+}
 
 /**
  * THE ONE PLACE A LANGUAGE BECOMES A GRAMMAR (D87). Written out three times it
@@ -113,14 +151,21 @@ export function amountInputSchema(lang: Lang) {
  * copied, the shared half was free to drift from the rule it is supposed to be.
  */
 function numberInput(groupsWithComma: boolean) {
-  return z
-    .string()
-    .trim()
-    .min(1)
-    .transform((s) => Number(normalizeNumberInput(s, groupsWithComma)));
+  return (
+    z
+      .string()
+      .trim()
+      .min(1)
+      // NaN IS THE SIGNAL, and `readUnder` is what decides: a spreadsheet cell
+      // pasted into an amount used to record `1.2E+09` as 1.2 billion, because
+      // bare `Number()` read it while the field showing it would not.
+      .transform((s) => readUnder(s, groupsWithComma) ?? NaN)
+  );
 }
 
 function positiveNumberInput(groupsWithComma: boolean) {
+  // `.finite()` is a no-op under zod 4 — `z.number()` already refuses NaN and
+  // ±Infinity — and is left alone here rather than swept out on an unrelated branch.
   return numberInput(groupsWithComma).pipe(z.number().finite().positive());
 }
 

@@ -24,7 +24,7 @@
 // derived from the price. Re-deriving one from the other can differ in the last
 // kopiyka, which is why both are stored rather than one computed on read.
 
-import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
+import { readNumber } from './schemas';
 import type { Lang } from './money';
 
 /**
@@ -53,10 +53,11 @@ export function convertTypedAmount(
   lang: Lang,
 ): number | undefined {
   if (typed.trim() === '') return undefined;
-  const groupsWithComma = groupsWithCommaFor(lang);
-  const amount = Number(normalizeNumberInput(typed, groupsWithComma));
-  const count = Number(normalizeNumberInput(quantity, groupsWithComma));
-  if (!Number.isFinite(amount) || !Number.isFinite(count) || count <= 0) return undefined;
+  // THE SAME READER THE SCHEMA USES. On bare `Number()` this toggle converted
+  // `1e3` to 1000 and wrote back a figure the amount field itself refuses.
+  const amount = readNumber(typed, lang);
+  const count = readNumber(quantity, lang);
+  if (amount === undefined || count === undefined || count <= 0) return undefined;
   const next = to === 'unit' ? amount / count : amount * count;
   return Number.isFinite(next) && next > 0 ? next : undefined;
 }

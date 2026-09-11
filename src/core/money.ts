@@ -2,10 +2,11 @@
 // (v1 lib/format.ts + screens/shared/format.ts, merged in next-phase Phase 1.)
 
 // The one module this file imports from, and it is the PARSER: `input()` below
-// guarantees its output survives a round trip, and a guarantee cannot be made
-// by reasoning about a regexp in another file — only by running it. `schemas.ts`
+// guarantees its output survives a round trip, and the only way to make that
+// guarantee is to run the parser on the result. `CANONICAL` comes from there
+// too, so the field and the schema hold one shape between them. `schemas.ts`
 // imports only a type from here, so at runtime the direction is one-way.
-import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
+import { CANONICAL, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 const SYMBOL = { UAH: '₴', USD: '$' } as const;
 type Currency = keyof typeof SYMBOL;
@@ -116,9 +117,6 @@ function marksOf(lang: Lang): { group: string; decimal: string } {
   const of = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return { group: nbsp(of('group')), decimal: of('decimal') };
 }
-
-/** Digits, an optional single dot, an optional sign — and at least one digit. */
-const CANONICAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
 
 /** No exponent, ever: `String(1e-9)` is `1e-9` and `(1e21).toFixed(2)` is `1e+21`,
  * neither of which a field can show or read back. */

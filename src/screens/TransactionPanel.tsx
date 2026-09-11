@@ -27,6 +27,7 @@ import { COLOR_KEYS } from '../core/colors';
 import { inputValue } from '../core/money';
 import { todayIso } from '../core/dates';
 import {
+  UNREADABLE,
   assetFormSchema,
   transactionSchema,
   type AssetFormInput,
@@ -911,7 +912,9 @@ export function TransactionPanel() {
                           ? t.transaction.productTooSmall
                           : (field.value ?? '').trim() === ''
                             ? t.transaction.quantityMissing
-                            : t.transaction.quantityNotPositive}
+                            : fieldState.error.type === UNREADABLE
+                              ? t.transaction.quantityUnreadable
+                              : t.transaction.quantityNotPositive}
                       </span>
                     )}
                   </>
@@ -1005,7 +1008,11 @@ export function TransactionPanel() {
                           ? t.transaction.productTooSmall
                           : field.value.trim() === ''
                             ? t.transaction.amountMissing
-                            : t.transaction.amountNotPositive}
+                            : // The schema already said which, and reading it is what
+                              // stops «has to be positive» over a «16,5», which is.
+                              fieldState.error.type === UNREADABLE
+                              ? t.transaction.amountUnreadable
+                              : t.transaction.amountNotPositive}
                       </span>
                     )}
                   </>

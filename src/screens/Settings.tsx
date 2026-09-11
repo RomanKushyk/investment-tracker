@@ -264,7 +264,11 @@ function UsdRateField() {
   // used to parse `raw` separately. What the field STORES is canonical, so the
   // live language has no say in whether it is a rate — and reading it under the
   // live one left a box that had gone green while `usdRate` held the old number.
+  // TWO QUESTIONS, ONE RULE EACH: `asRate` owns what counts as a rate, and
+  // `storedNumber` says whether the text was readable at all. Running them
+  // together is what let «Enter a rate above 0.» answer a pasted «16,5».
   const valid = asRate(raw) !== undefined;
+  const unreadable = raw.trim() !== '' && storedNumber(raw) === undefined;
 
   function handleChange(value: string) {
     setRaw(value);
@@ -316,7 +320,7 @@ function UsdRateField() {
               id={USD_RATE_ERROR_ID}
               className="animate-in text-right text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
             >
-              {t.settings.rate.invalid}
+              {unreadable ? t.settings.rate.unreadable : t.settings.rate.invalid}
             </div>
           )}
         </div>

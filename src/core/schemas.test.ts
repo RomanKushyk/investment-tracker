@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { storedNumber } from './money';
+
 import {
   amountInputSchema,
+  couldNotRead,
   assetFormSchema,
   percentInputSchemaFor,
   transactionSchema,
@@ -518,5 +521,69 @@ describe('D129 — the asset is required only on the types that target one', () 
       transactionSchema('uk').parse({ ...base, type: 'buy', assetId: 'new', quantity: '10' })
         .assetId,
     ).toBe('new');
+  });
+});
+
+describe('a value that cannot be READ is a different failure from one that is not positive', () => {
+  // The bug: every non-empty failure was reported as a sign problem, so a pasted
+  // `16,5` under English — positive, and refused only because English has no
+  // lone-comma decimal (D87) — was answered with "has to be a positive number".
+  // The schemas already part the two; nothing had read the difference.
+  const unreadable = (r: { success: boolean; error?: { issues: { code: string }[] } }) =>
+    !r.success && couldNotRead(r.error?.issues ?? []);
+
+  it('says invalid_type for text this language cannot read', () => {
+    for (const text of ['16,5', 'abc', '12abc', '1234,567']) {
+      expect(unreadable(amountInputSchema('en').safeParse(text)), `en: ${text}`).toBe(true);
+    }
+    expect(unreadable(amountInputSchema('uk').safeParse('1,000,000'))).toBe(true);
+  });
+
+  it('refuses what only `Number()` would call a number', () => {
+    // A spreadsheet cell pasted into an amount: `Number('1.2E+09')` is 1.2
+    // billion, and the schema recorded it with no error while the field showing
+    // it refused to canonicalise the same text — two readers of one string.
+    for (const text of ['1.2E+09', '1e3', '0x10', '0b101', '0o17', 'Infinity']) {
+      expect(amountInputSchema('en').safeParse(text).success, text).toBe(false);
+      expect(unreadable(amountInputSchema('en').safeParse(text)), text).toBe(true);
+    }
+    // And the field's own reader agrees, which is the point of one shape.
+    expect(storedNumber('1.2E+09')).toBeUndefined();
+  });
+
+  it('says too_small for a number that is merely not positive', () => {
+    // POSITIVELY, not just "and not invalid_type": a third code would otherwise
+    // leave this green while the UI's last arm quietly became a catch-all again.
+    const codes = (text: string) => {
+      const parsed = amountInputSchema('en').safeParse(text);
+      return parsed.success ? ['ok'] : parsed.error.issues.map((i) => i.code);
+    };
+    for (const text of ['0', '-5', '-0.01']) {
+      expect(codes(text), `en: ${text}`).toEqual(['too_small']);
+    }
+    // And an empty field is `too_small` too — from the string's own `min(1)` —
+    // which is why the component keeps splitting that case on the value itself.
+    expect(codes('')).toEqual(['too_small']);
+  });
+
+  it('carries the same split through the transaction form, per field', () => {
+    const base = {
+      date: '2026-09-11',
+      type: 'buy' as const,
+      assetId: 'reit',
+      source: 'own' as const,
+      quantity: '10',
+      amount: '1000.00',
+    };
+    const codeFor = (row: Record<string, unknown>, field: string) => {
+      const parsed = transactionSchema('en').safeParse(row);
+      return parsed.success
+        ? 'ok'
+        : (parsed.error.issues.find((i) => i.path[0] === field)?.code ?? 'none');
+    };
+    expect(codeFor({ ...base, amount: '16,5' }, 'amount')).toBe('invalid_type');
+    expect(codeFor({ ...base, amount: '0' }, 'amount')).toBe('too_small');
+    expect(codeFor({ ...base, quantity: '16,5' }, 'quantity')).toBe('invalid_type');
+    expect(codeFor({ ...base, quantity: '-5' }, 'quantity')).toBe('too_small');
   });
 });

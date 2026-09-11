@@ -780,6 +780,7 @@ export const en = {
       helper: 'Used for the $ view of headline figures. Tables always stay in ₴.',
       ariaLabel: '₴/$ rate',
       invalid: 'Enter a rate above 0.',
+      unreadable: 'Enter a number.',
     },
     language: {
       title: 'Language',
@@ -869,6 +870,10 @@ export const en = {
     // count is what a total is derived FROM, here it is required outright.
     quantityMissing: 'Enter the number of units.',
     quantityNotPositive: 'Units have to be a positive number.',
+    // THE THIRD FAILURE, and it is not the other two: the text is not a number
+    // under THIS language's grammar (D87), so «positive» is not what is wrong
+    // with a pasted «16,5» — it is positive.
+    quantityUnreadable: 'Enter a number.',
     source: 'Source of funds',
     submit: 'Record transaction',
     // The amount's own errors, under the field. The form-level `invalid` line
@@ -877,6 +882,7 @@ export const en = {
     // value that is zero, negative or not a number at all.
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',
+    amountUnreadable: 'Enter a number.',
     productTooSmall: 'The price times the count rounds to nothing — check both.',
     invalid: 'Check the highlighted fields and try again.',
     recentEmpty: 'No transactions yet.',
@@ -1017,7 +1023,6 @@ export const en = {
       headingNoAmount: (name: string) => `${name} — coupon`,
       scheduled: (date: string) =>
         `Scheduled for ${date}. Confirm to record it — the amount is editable, history is never rewritten.`,
-      amountMissing: 'Enter an amount.',
       reinvest: 'Also record a reinvest of this amount',
       reinvestHint: 'Same date, same asset — the payout then counts as reinvested, not paid out.',
       confirm: 'Record coupon',
@@ -1686,6 +1691,7 @@ export const uk: Dict = {
       helper: 'Використовується для показу підсумків у $. Таблиці завжди лишаються в ₴.',
       ariaLabel: 'Курс ₴/$',
       invalid: 'Введіть курс, більший за 0.',
+      unreadable: 'Вкажіть число.',
     },
     language: {
       title: 'Мова', // ✎
@@ -1762,10 +1768,12 @@ export const uk: Dict = {
     quantityPlaceholder: '6 164',
     quantityMissing: 'Введіть кількість одиниць.',
     quantityNotPositive: 'Кількість має бути додатним числом.',
+    quantityUnreadable: 'Вкажіть число.',
     source: 'Джерело коштів',
     submit: 'Записати транзакцію',
     amountMissing: 'Введіть суму.',
     amountNotPositive: 'Сума має бути додатним числом.',
+    amountUnreadable: 'Вкажіть число.',
     productTooSmall: 'Ціна на кількість дає нуль — перевірте обидва поля.',
     invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
     recentEmpty: 'Транзакцій ще немає.',
@@ -1882,7 +1890,6 @@ export const uk: Dict = {
       headingNoAmount: (name: string) => `${name} — купон`,
       scheduled: (date: string) =>
         `Заплановано на ${date}. Підтвердьте, щоб записати — суму можна змінити, історія не переписується.`,
-      amountMissing: 'Вкажіть суму.',
       reinvest: 'Також записати реінвестицію цієї суми',
       reinvestHint:
         'Та сама дата, той самий актив — виплата тоді рахується реінвестованою, а не виплаченою.',

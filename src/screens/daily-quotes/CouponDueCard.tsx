@@ -16,7 +16,7 @@ import { Card } from '../../components/ui/Card';
 import { NumberField } from '../../components/ui/NumberField';
 import { rollNextCoupon, type DueCoupon } from '../../core/accrual';
 import { inputValue } from '../../core/money';
-import { amountInputSchema } from '../../core/schemas';
+import { amountInputSchema, couldNotRead } from '../../core/schemas';
 import type { Asset, Transaction } from '../../core/types';
 import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
 import { useFormat } from '../../hooks/useFormat';
@@ -90,9 +90,17 @@ export function CouponDueCard({
     };
   }
 
+  // READ FROM THE CURRENT TEXT, not kept from the last press: `amount` changes
+  // with no `onChange` when a linked bond's prefill arrives, so a stored verdict
+  // would sit under a value it never judged.
+  const amountFault = amountInputSchema(language).safeParse(amount);
+  const unitsFault = reinvest ? amountInputSchema(language).safeParse(units) : undefined;
+  const showAmountError = error && !amountFault.success;
+  const showUnitsError = unitsError && unitsFault?.success === false;
+
   function handleConfirm() {
-    const parsed = amountInputSchema(language).safeParse(amount);
-    const parsedUnits = reinvest ? amountInputSchema(language).safeParse(units) : undefined;
+    const parsed = amountFault;
+    const parsedUnits = unitsFault;
     if (!parsed.success) setError(true);
     if (parsedUnits !== undefined && !parsedUnits.success) setUnitsError(true);
     if (!parsed.success || (parsedUnits !== undefined && !parsedUnits.success)) return;
@@ -163,22 +171,28 @@ export function CouponDueCard({
         value={amount}
         onChange={(next) => {
           setEdited(next);
-          if (error) setError(false);
         }}
-        aria-invalid={error}
+        aria-invalid={showAmountError}
         // The message sits outside the label, so it needs the explicit link —
         // otherwise assistive tech announces "invalid" with no reason.
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={showAmountError ? errorId : undefined}
         className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-          error ? 'border-neg' : 'border-field-border hover:border-ink'
+          showAmountError ? 'border-neg' : 'border-field-border hover:border-ink'
         }`}
       />
-      {error && (
+      {showAmountError && (
         <div
           id={errorId}
           className="mt-1 animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
         >
-          {t.dailyQuotes.coupon.amountMissing}
+          {/* Three arms, the same split its Units twin already had — and the
+              sign message is BORROWED from the panel exactly as Units borrows
+              its own, because both cards write the same `Transaction`. */}
+          {couldNotRead(amountFault.error?.issues ?? [])
+            ? t.transaction.amountUnreadable
+            : amount.trim() === ''
+              ? t.transaction.amountMissing
+              : t.transaction.amountNotPositive}
         </div>
       )}
 
@@ -223,16 +237,15 @@ export function CouponDueCard({
             value={units}
             onChange={(next) => {
               setUnits(next);
-              if (unitsError) setUnitsError(false);
             }}
             placeholder={t.transaction.quantityPlaceholder}
-            aria-invalid={unitsError}
-            aria-describedby={unitsError ? unitsErrorId : undefined}
+            aria-invalid={showUnitsError}
+            aria-describedby={showUnitsError ? unitsErrorId : undefined}
             className={`h-9 w-full rounded-[9px] border bg-page px-3 font-body text-[13px] transition ${
-              unitsError ? 'border-neg' : 'border-field-border hover:border-ink'
+              showUnitsError ? 'border-neg' : 'border-field-border hover:border-ink'
             }`}
           />
-          {unitsError && (
+          {showUnitsError && (
             <div
               id={unitsErrorId}
               className="mt-1 animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
@@ -242,7 +255,9 @@ export function CouponDueCard({
                   a field that HAS a number reads as a bug. */}
               {units.trim() === ''
                 ? t.transaction.quantityMissing
-                : t.transaction.quantityNotPositive}
+                : couldNotRead(unitsFault?.error?.issues ?? [])
+                  ? t.transaction.quantityUnreadable
+                  : t.transaction.quantityNotPositive}
             </div>
           )}
         </div>
