@@ -13,7 +13,9 @@ import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { NumberField } from '../../components/ui/NumberField';
 import { rollNextCoupon, type DueCoupon } from '../../core/accrual';
+import { inputValue } from '../../core/money';
 import { amountInputSchema } from '../../core/schemas';
 import type { Asset, Transaction } from '../../core/types';
 import { useRecordTransaction, useUpdateAsset } from '../../hooks/queries';
@@ -54,7 +56,7 @@ export function CouponDueCard({
   // never remounts) still lands in an untouched field, while a typed value is
   // never overwritten by it (G5).
   const [edited, setEdited] = useState<string | undefined>(undefined);
-  const amount = edited ?? (prefill === undefined ? '' : f.num(prefill));
+  const amount = edited ?? (prefill === undefined ? '' : inputValue(prefill, 2));
   const [reinvest, setReinvest] = useState(false);
   // THE REINVEST'S OWN COUNT. This card writes a `reinvest`, which MOVES A
   // POSITION, and D124/D125 require such a row to state its units at every door
@@ -155,15 +157,14 @@ export function CouponDueCard({
       <label className="mb-1 block text-[11px] text-muted" htmlFor={`coupon-amount-${asset.id}`}>
         {t.transaction.amount}
       </label>
-      <input
+      <NumberField
         id={`coupon-amount-${asset.id}`}
         name={`coupon-amount-${asset.id}`}
         value={amount}
-        onChange={(e) => {
-          setEdited(e.target.value);
+        onChange={(next) => {
+          setEdited(next);
           if (error) setError(false);
         }}
-        inputMode="decimal"
         aria-invalid={error}
         // The message sits outside the label, so it needs the explicit link —
         // otherwise assistive tech announces "invalid" with no reason.
@@ -216,15 +217,14 @@ export function CouponDueCard({
           <label className="mb-1 block text-[11px] text-muted" htmlFor={`coupon-units-${asset.id}`}>
             {t.transaction.quantity}
           </label>
-          <input
+          <NumberField
             id={`coupon-units-${asset.id}`}
             name={`coupon-units-${asset.id}`}
             value={units}
-            onChange={(e) => {
-              setUnits(e.target.value);
+            onChange={(next) => {
+              setUnits(next);
               if (unitsError) setUnitsError(false);
             }}
-            inputMode="decimal"
             placeholder={t.transaction.quantityPlaceholder}
             aria-invalid={unitsError}
             aria-describedby={unitsError ? unitsErrorId : undefined}

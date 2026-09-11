@@ -45,7 +45,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const RAW = readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8');
 
 /** The file with `//` and block comments removed, so prose cannot pass or fail a test. */
-const CODE = RAW.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+const strip = (text: string) =>
+  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+const CODE = strip(RAW);
 
 /** The amount field's own JSX: from its `name="amount"` to the end of that Controller. */
 function amountField(): string {
@@ -71,6 +73,34 @@ describe('the transaction form survives its own reset', () => {
     // is what the mutation test used to prove the first version of this file
     // was vacuous.
     expect(field).not.toMatch(/defaultValue=/);
+  });
+
+  it('reaches the DOM node through the shared field, which is now two hops', () => {
+    // The defect this file exists for was react-hook-form holding a ref that was
+    // not the live input. `NumberField` sits between them now, so the chain has
+    // a second link: the panel hands it `field.ref`, and it has to pass that on
+    // to the element it renders as well as keeping its own. Drop either half and
+    // `_f.ref` is a component that was never mounted — the same silent failure,
+    // one file further away.
+    const field = amountField();
+    expect(field).toMatch(/<NumberField/);
+    expect(field).toMatch(/ref=\{field\.ref\}/);
+
+    // Comment-stripped like every other read here (rule 2 at the head of this
+    // file): `// ref(el)` in a comment is not a ref.
+    const shared = strip(
+      readFileSync(join(here, '..', 'components', 'ui', 'NumberField.tsx'), 'utf8'),
+    );
+    expect(shared, 'NumberField declares no ref prop').toMatch(/ref\?: Ref<HTMLInputElement>/);
+    expect(shared, 'NumberField never passes the ref on').toMatch(/ref\(el\)/);
+    // The half the first cut of this test missed: it also has to KEEP one, or
+    // every caret restore becomes a silent no-op on a null element.
+    expect(shared, 'NumberField keeps no handle of its own').toMatch(/input\.current = el/);
+    // And the half BOTH earlier cuts missed: none of it matters unless the
+    // callback is actually attached to the element that gets rendered.
+    expect(shared, 'NumberField never attaches its ref callback').toMatch(
+      /<input[\s\S]*ref=\{hold\}/,
+    );
   });
 
   it('marks the field when it is invalid, so the summary has something to point at', () => {

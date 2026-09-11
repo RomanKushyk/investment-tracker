@@ -87,7 +87,7 @@ export function yesterdayQuote(
 // THE COMPARISON IS ROUNDED TO KOPIYKAS, because `===` on floats made "Copy
 // yesterday" — which changes nothing by definition — report a change: a stored
 // quote with more than two decimals can never equal the two-decimal string
-// `f.num` writes back into the draft.
+// `inputValue(y, 2)` writes back into the draft.
 export function pendingChange(
   assets: Asset[],
   drafts: Record<string, string | undefined>,

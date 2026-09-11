@@ -27,6 +27,7 @@ import {
   type FetchButtonState,
   type ProvenanceChip,
 } from './fetch-quotes';
+import { inputValue } from '../../core/money';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
@@ -113,7 +114,7 @@ export function useQuoteFetch(
         noCount,
       } = reconcileFetched(linked, draft.quotes, draft.origins, language);
       for (const fill of fills) {
-        draft.fillQuote(fill.assetId, f.num(fill.value), { source, at: feed.fetchedAt });
+        draft.fillQuote(fill.assetId, inputValue(fill.value, 2), { source, at: feed.fetchedAt });
       }
       // Wholesale replace: every resolve re-decides all rows, which is also
       // what un-hides an offer the user dismissed after the previous fetch.
@@ -204,7 +205,7 @@ export function useQuoteFetch(
         });
       }
     },
-    [assets, f, unitsHeld, incompleteLedgers, language, t],
+    [assets, unitsHeld, incompleteLedgers, language, t],
   );
 
   const fetchQuotes = useCallback(() => {
@@ -275,13 +276,13 @@ export function useQuoteFetch(
     (assetId: string) => {
       const offer = offers[assetId];
       if (offer === undefined) return;
-      useDraft.getState().fillQuote(assetId, f.num(offer.value), {
+      useDraft.getState().fillQuote(assetId, inputValue(offer.value, 2), {
         source: offer.stale ? 'cache' : 'fetch',
         at: offer.at,
       });
       dismissOffer(assetId);
     },
-    [dismissOffer, offers, f],
+    [dismissOffer, offers],
   );
 
   return {

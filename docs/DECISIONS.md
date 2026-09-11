@@ -78,9 +78,19 @@ label moved when the face did, and the browser is where that is checked. Manrope
 proportional and it ships `tnum`, so the one rule on `body` is what buys the aligned KPI column —
 and `src/ui-face.test.ts` fails if the face and the rule are ever separated, because either alone
 is wrong.
-**Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · The
-keyboard layout as the signal: no browser reports a numeric convention. · `font-variant-numeric`
-per call site: it holds only while every site that ever shows a number remembers it.
+A field that holds a groupable number GROUPS IT LIVE and **stores a language-free spelling** — it
+shows `1 234,5` or `1,234.5` and holds `1234.5` either way, so the value cannot change meaning when
+the language does. A mark the typist PRESSES is read as this language's own: under English the comma
+groups, so it is absorbed. A mark that ARRIVES BY PASTE is read by the grammar instead, which is the
+only way to keep refusing a European `1234,567` under English — pasted and typed, that text is
+identical to the state a digit inserted into `123,456` passes through, so nothing but how it got
+there can tell them apart. The caret is put back behind the same DIGIT, never at the same offset.
+**Rejected.** One locale-blind parser: what a field SHOWS must be what its parser READS. · A field
+that stores what it shows: the stored text then carries a language, and a switch re-reads an English
+`1,234` as 1.234. · Judging a pasted mark the way a typed one is judged: it turns a refusal into a
+silent thousandfold. · The keyboard layout as the signal: no browser reports a numeric convention. ·
+`font-variant-numeric` per call site: it holds only while every site that ever shows a number
+remembers it.
 
 ## Shape system
 **Decision.** Nothing in the app is a capsule. A standalone control takes

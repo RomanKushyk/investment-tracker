@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { makeFormat, signed, toUsd } from './money';
-import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
+import { groupedForInput, inputValue, makeFormat, signed, toUsd, valueFromInput } from './money';
+import { amountInputSchema, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 // The legacy exports these covered are gone: each language now owns one
 // coherent set, so "prose vs table" is not a distinction the code can make.
@@ -236,5 +236,193 @@ describe('input — the editable form, and the round trip it guarantees', () => 
     // it is written — and still reads back as itself.
     expect(makeFormat('uk').input(6.164)).toBe('6,164');
     expect(makeFormat('en').input(6.164)).toBe('6.164');
+  });
+});
+
+describe('what a numeric field stores, and what it shows', () => {
+  const NBSP = ' ';
+  // Both take the value the field HELD, because the edit is what gets judged.
+  const typed = (raw: string, lang: 'uk' | 'en', stored = '') =>
+    valueFromInput(raw, stored, lang, false);
+  const pasted = (raw: string, lang: 'uk' | 'en', stored = '') =>
+    valueFromInput(raw, stored, lang, true);
+  /** One key pressed at `at` in what the field is showing. */
+  const key = (stored: string, ch: string, lang: 'uk' | 'en', at?: number) => {
+    const shown = groupedForInput(stored, lang);
+    const pos = at ?? shown.length;
+    return valueFromInput(shown.slice(0, pos) + ch + shown.slice(pos), stored, lang, false);
+  };
+  /** A paste onto the end of a field already holding `stored`. */
+  const pasteInto = (stored: string, text: string, lang: 'uk' | 'en') =>
+    valueFromInput(groupedForInput(stored, lang) + text, stored, lang, true);
+
+  it('stores ONE language-free spelling, whichever language typed it', () => {
+    // The defect that forced this shape: stored as it was shown, an English
+    // `1,234` reads as 1.234 the moment the language changes. Both languages now
+    // store the same text, so the value cannot change meaning underneath it.
+    expect(typed('1,234', 'en')).toBe('1234');
+    expect(typed(`1${NBSP}234`, 'uk')).toBe('1234');
+    expect(typed('1 234,56', 'uk')).toBe('1234.56');
+    expect(typed('1,234.56', 'en')).toBe('1234.56');
+    for (const lang of ['uk', 'en'] as const) {
+      expect(Number(normalizeNumberInput('1234', groupsWithCommaFor(lang))), lang).toBe(1234);
+      expect(Number(normalizeNumberInput('1234.56', groupsWithCommaFor(lang))), lang).toBe(1234.56);
+    }
+  });
+
+  it("shows it grouped in the language's own mark, fraction untouched", () => {
+    expect(groupedForInput('1234567', 'uk')).toBe(`1${NBSP}234${NBSP}567`);
+    expect(groupedForInput('1234567', 'en')).toBe('1,234,567');
+    expect(groupedForInput('1234567.89', 'uk')).toBe(`1${NBSP}234${NBSP}567,89`);
+    expect(groupedForInput('1234567.89', 'en')).toBe('1,234,567.89');
+    expect(groupedForInput('123', 'uk')).toBe('123');
+    // A fraction is never grouped — this app has no `1 234,567 89`.
+    expect(groupedForInput('1234.123456', 'uk')).toBe(`1${NBSP}234,123456`);
+  });
+
+  it('keeps a decimal mark the typist has only just pressed', () => {
+    expect(groupedForInput(typed('1234,', 'uk'), 'uk')).toBe(`1${NBSP}234,`);
+    expect(groupedForInput(typed('1234.', 'en'), 'en')).toBe('1,234.');
+    expect(typed('1234,', 'uk')).toBe('1234.');
+  });
+
+  it('reads back its own display, keystroke by keystroke', () => {
+    // What the browser walks: whatever is on screen is what the next keystroke
+    // lands in, so every state a typist passes through has to survive the trip.
+    for (const [lang, mark, want] of [
+      ['uk', ',', `1${NBSP}234${NBSP}567,89`],
+      ['en', '.', '1,234,567.89'],
+    ] as const) {
+      let stored = '';
+      for (const ch of `1234567${mark}89`) {
+        stored = typed(groupedForInput(stored, lang) + ch, lang);
+      }
+      expect(groupedForInput(stored, lang), lang).toBe(want);
+    }
+  });
+
+  it('settles a pasted both-marks value on the value it means, in both languages', () => {
+    for (const lang of ['uk', 'en'] as const) {
+      for (const text of ['1,234.56', '1.234,56']) {
+        expect(pasted(text, lang), `${lang}: ${text}`).toBe('1234.56');
+      }
+    }
+  });
+
+  it('REFUSES a pasted European decimal under English, as it always did', () => {
+    // `1234,567` is 1234.567 to half of Europe and a grouped 1234567 to the
+    // other half, and English has no lone-comma reading (D87) — so it stays
+    // unreadable rather than being stored a thousandfold too large. It cannot be
+    // told from `1239,456`, the state a digit typed into `123,456` passes
+    // through, which is why a PASTE is judged by the grammar and a KEYSTROKE is
+    // not.
+    expect(pasted('1234,567', 'en')).toBe('1234,567');
+    expect(amountInputSchema('en').safeParse(pasted('1234,567', 'en')).success).toBe(false);
+    expect(key('123456', '9', 'en', 3)).toBe('1239456');
+    // Pasted into Ukrainian the same text is a lone comma, so it reads.
+    expect(pasted('1234,567', 'uk')).toBe('1234.567');
+  });
+
+  it('pastes digits INTO a field that is already grouped', () => {
+    // The whole box used to be handed to the grammar on a paste, so the field's
+    // own comma came back at it: `1,234` + `567` read as `1,234567`, which
+    // English refuses, and the row went red on the user's own figure.
+    expect(pasteInto('1234', '567', 'en')).toBe('1234567');
+    expect(pasteInto('1234', '567', 'uk')).toBe('1234567');
+    expect(pasteInto('1234567', '.5', 'en')).toBe('1234567.5');
+  });
+
+  it('goes on refusing a pasted European decimal after the next keystroke', () => {
+    // A refusal one keystroke deep is no refusal: a Backspace used to take the
+    // comma as this field's grouping and store 123456 for a value that had just
+    // been rejected. While the stored value is not a number, the marks in the
+    // box are the typist's and stay theirs.
+    const refused = pasted('1234,567', 'en');
+    expect(refused).toBe('1234,567');
+    expect(typed('1234,56', 'en', refused)).toBe('1234,56');
+    expect(typed('1234,5678', 'en', refused)).toBe('1234,5678');
+    expect(amountInputSchema('en').safeParse(typed('1234,56', 'en', refused)).success).toBe(false);
+    // Taking the comma out is the way back, and it reads at once.
+    expect(typed('1234567', 'en', refused)).toBe('1234567');
+  });
+
+  it('leaves a leading zero ungrouped — it is a value mid-typing, not a figure', () => {
+    expect(groupedForInput('0007', 'uk')).toBe('0007');
+    expect(groupedForInput('00071', 'en')).toBe('00071');
+    expect(groupedForInput('007', 'uk')).toBe('007');
+    expect(groupedForInput('0.5', 'uk')).toBe('0,5');
+  });
+
+  it('never writes a stored value in exponent form', () => {
+    // `String(1e-9)` is `1e-9`, which is not canonical — the field would drop
+    // its grouping and show the exponent. The Σ/1 toggle reaches it with a big
+    // enough count.
+    expect(inputValue(1e-9)).toBe('0.000000001');
+    expect(groupedForInput(inputValue(1e-9), 'uk')).toBe('0,000000001');
+    expect(inputValue(1e21)).toBe('1000000000000000000000');
+  });
+
+  it('reads a whole number that ARRIVED, however it got there', () => {
+    // Autofill and an IME commit are not keystrokes and do not come in under
+    // `insertFromPaste` either, so judging them as typed de-grouped `1.234,56`
+    // into 1.23456 — a silent 1000x, and a legal number nothing refuses. Length
+    // settles it regardless of what the caller believed: one character is the
+    // only thing a key can be.
+    expect(valueFromInput('1.234,56', '', 'en', false)).toBe('1234.56');
+    expect(valueFromInput('1234,56', '', 'en', false)).toBe('1234,56');
+    expect(valueFromInput('1.234,56', '', 'uk', false)).toBe('1234.56');
+    // A single keyed character is still read as this field's own mark.
+    expect(key('16', ',', 'en')).toBe('16');
+  });
+
+  it('takes a typed comma in English as the grouping it is, not a decimal', () => {
+    // English groups with the comma and the field inserts its own, so one the
+    // typist adds is redundant — and it disappears as they type, which is the
+    // field saying so. Pasted, the same text is refused instead.
+    expect(key('16', ',', 'en')).toBe('16');
+    expect(key(key('16', ',', 'en'), '5', 'en')).toBe('165');
+    expect(pasted('16,5', 'en')).toBe('16,5');
+    expect(key('16', ',', 'uk')).toBe('16.');
+    expect(key('16.', '5', 'uk')).toBe('16.5');
+  });
+
+  it('stores text it cannot read exactly as typed, and shows it unchanged', () => {
+    for (const text of ['', '-', 'abc', '12abc']) {
+      expect(typed(text, 'uk'), text).toBe(text);
+      expect(groupedForInput(text, 'uk'), text).toBe(text);
+    }
+  });
+
+  it('refuses to dress up something only `Number` calls a number', () => {
+    // `Number('0x1000')` is 4096, so a guard on finiteness alone let the field
+    // render `0x1 000` — digits it was never given.
+    expect(typed('0x1000', 'uk')).toBe('0x1000');
+    expect(groupedForInput('0x1000', 'uk')).toBe('0x1000');
+    expect(typed('1e5', 'en')).toBe('1e5');
+  });
+
+  it('keeps leading zeros rather than renumbering what is being typed', () => {
+    expect(typed('007', 'uk')).toBe('007');
+    expect(groupedForInput('007', 'uk')).toBe('007');
+    expect(typed('0,5', 'uk')).toBe('0.5');
+  });
+
+  it('cleans a currency token off a pasted figure it can read', () => {
+    expect(pasted('4 214,24 грн. ', 'uk')).toBe('4214.24');
+    expect(pasted('₴68,629.36', 'en')).toBe('68629.36');
+  });
+
+  it('round-trips what `inputValue` writes into the same fields', () => {
+    // The prefill writers store through `inputValue`; the field shows that and
+    // stores it back unchanged if nobody edits it.
+    for (const lang of ['uk', 'en'] as const) {
+      for (const v of [0.1, 17.5, 1234.567, 6.164, 1500, 68702.1]) {
+        const stored = inputValue(v);
+        expect(typed(groupedForInput(stored, lang), lang), `${lang}: ${v}`).toBe(stored);
+      }
+      expect(groupedForInput(inputValue(68702.1, 2), lang)).toBe(
+        lang === 'uk' ? `68${NBSP}702,10` : '68,702.10',
+      );
+    }
   });
 });

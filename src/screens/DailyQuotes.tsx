@@ -33,6 +33,7 @@ import { useQuoteFetch } from './daily-quotes/useQuoteFetch';
 import { QuoteRow } from './daily-quotes/QuoteRow';
 import { PendingChange } from './daily-quotes/PendingChange';
 import { YieldTeaser } from './daily-quotes/YieldTeaser';
+import { inputValue } from '../core/money';
 import { useFormat } from '../hooks/useFormat';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 import { useT } from '../i18n/useT';
@@ -144,9 +145,9 @@ export function DailyQuotes() {
   useEffect(() => {
     if (!todaySnapshot) return;
     for (const assetId of Object.keys(todaySnapshot.quotes)) {
-      if (!(assetId in quotes)) setQuote(assetId, f.num(todaySnapshot.quotes[assetId]));
+      if (!(assetId in quotes)) setQuote(assetId, inputValue(todaySnapshot.quotes[assetId], 2));
     }
-  }, [todaySnapshot, quotes, setQuote, f]);
+  }, [todaySnapshot, quotes, setQuote]);
 
   const collected = collectQuotes(quotes, assets, language);
   const filledCount = Object.keys(collected.quotes).length;
@@ -175,7 +176,7 @@ export function DailyQuotes() {
   function handleCopyYesterday() {
     for (const a of assets) {
       const y = yesterdayQuote(snapshots, a.id, selectedDate);
-      if (y !== undefined) setQuote(a.id, f.num(y));
+      if (y !== undefined) setQuote(a.id, inputValue(y, 2));
     }
   }
 
@@ -375,7 +376,7 @@ export function DailyQuotes() {
                   onAcceptSuggestion={() => {
                     const value = suggestionFor(a.id);
                     if (value === undefined) return;
-                    fillQuote(a.id, f.num(value), {
+                    fillQuote(a.id, inputValue(value, 2), {
                       source: 'accrual',
                       at: new Date().toISOString(),
                     });

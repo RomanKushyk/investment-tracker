@@ -22,7 +22,9 @@ import {
 } from '../hooks/queries';
 import { rollbackNextCoupon } from '../core/accrual';
 import { assetFromForm } from '../core/asset-builder';
+import { NumberField } from '../components/ui/NumberField';
 import { COLOR_KEYS } from '../core/colors';
+import { inputValue } from '../core/money';
 import { todayIso } from '../core/dates';
 import {
   assetFormSchema,
@@ -409,18 +411,18 @@ export function TransactionPanel() {
   // `convertTypedAmount`'s. This is the form wiring: read the two strings, hand
   // back what they become, and empty the field when they become nothing.
   //
-  // `f.input` FORMATS THE RESULT, and the round trip holds because it and this
-  // form take their grammar from the same `language` — see its doc in `money.ts`.
+  // The result is STORED, not shown — `NumberField` groups it for whichever
+  // language is on screen, so this writes no mark of its own.
   const convertAmount = useCallback(
     (to: 'total' | 'unit') => {
       const typed = form.getValues('amount');
       if (typed.trim() === '') return;
       const next = convertTypedAmount(typed, form.getValues('quantity') ?? '', to, language);
-      form.setValue('amount', next === undefined ? '' : f.input(next), {
+      form.setValue('amount', next === undefined ? '' : inputValue(next), {
         shouldValidate: form.formState.isSubmitted,
       });
     },
-    [form, language, f],
+    [form, language],
   );
 
   useEffect(() => {
@@ -879,11 +881,10 @@ export function TransactionPanel() {
                 name="quantity"
                 render={({ field, fieldState }) => (
                   <>
-                    <input
+                    <NumberField
                       id={QUANTITY_ID}
                       className={inputClass(fieldState.invalid)}
                       placeholder={t.transaction.quantityPlaceholder}
-                      inputMode="decimal"
                       aria-invalid={fieldState.invalid || undefined}
                       aria-describedby={fieldState.invalid ? QUANTITY_ERROR_ID : undefined}
                       name={field.name}
@@ -983,11 +984,10 @@ export function TransactionPanel() {
                 name="amount"
                 render={({ field, fieldState }) => (
                   <>
-                    <input
+                    <NumberField
                       id={AMOUNT_ID}
                       className={inputClass(fieldState.invalid)}
                       placeholder={t.transaction.amountPlaceholder}
-                      inputMode="decimal"
                       aria-invalid={fieldState.invalid || undefined}
                       aria-describedby={fieldState.invalid ? AMOUNT_ERROR_ID : undefined}
                       name={field.name}

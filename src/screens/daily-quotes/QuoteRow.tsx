@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 
 import { AssetAvatar } from '../../components/ui/AssetAvatar';
+import { NumberField } from '../../components/ui/NumberField';
 import { TAP_44, TAP_44_BOX } from '../../components/ui/tap-target';
 import { Card } from '../../components/ui/Card';
 import { kyivDateIso, kyivTimeHm } from '../../core/dates';
@@ -273,7 +274,7 @@ export function QuoteRow({
             its empty value (never a placeholder — a placeholder would vanish on
             focus and could never be told apart from yesterday's hint). */}
         <div className="relative flex max-w-[160px] min-w-[90px] flex-1 items-center max-md:max-w-none">
-          <input
+          <NumberField
             id={`quote-${asset.id}`}
             name={`quote-${asset.id}`}
             title={ghost !== undefined ? t.dailyQuotes.provenance.ghost : undefined}
@@ -298,8 +299,7 @@ export function QuoteRow({
             placeholder={
               ghost === undefined && yesterday !== undefined ? f.num(yesterday) : undefined
             }
-            onChange={(e) => onChange(e.target.value)}
-            inputMode="decimal"
+            onChange={onChange}
             aria-label={`${asset.name} quote`}
             aria-invalid={unreadable || undefined}
             aria-describedby={unreadable ? errorId : ghost !== undefined ? ghostId : undefined}
