@@ -3,11 +3,12 @@ import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { NumberField } from '../components/ui/NumberField';
 import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
-import { amountInputSchema } from '../core/schemas';
+import { inputValue, storedNumber } from '../core/money';
 import { THEME_ORDER, useSettings, type Language } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
@@ -16,7 +17,6 @@ import { ImportRow } from './settings/ImportRow';
 import { NbuRateFetch } from './settings/NbuRateFetch';
 import { parseLeadDays } from './settings/settings';
 import { useBackupDownload } from '../hooks/useBackupDownload';
-import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
@@ -237,31 +237,41 @@ function LanguageControl() {
   );
 }
 
-// S8 — editable ₴/$ rate. Validated by `amountInputSchema` under the user's own
-// language (D87), the same door the coupon card and the quote drafts use; an
-// invalid or ≤0 value never reaches the store — the last valid rate stays.
+// S8 — editable ₴/$ rate. Held the way every numeric field holds one — stored
+// language-free, shown by `NumberField` in the language on screen — so its
+// validity is language-free too; an invalid or ≤0 value never reaches the store,
+// and the last valid rate stays in effect.
 // Empty input only errors on blur (arming is progressive).
 const USD_RATE_ERROR_ID = 'usd-rate-error';
 
+/** The rate this text holds, or nothing — a rate is a finite number above zero. */
+function asRate(text: string): number | undefined {
+  const held = storedNumber(text);
+  return held !== undefined && held > 0 ? held : undefined;
+}
+
 function UsdRateField() {
   const t = useT();
-  const { usdRate, setUsdRate, language } = useSettings();
-  const f = useFormat();
-  // A36's third site, and the one its own commit wrongly called done: this
-  // field sat one component away from an NBU line rendering «44,6988» through
-  // the formatter while showing "44.83" with a dot. `NbuRateFetch`'s comment
-  // says a dot form "makes the same number look like a different one".
-  // `f.input` and not `f.num`: a fetched rate carries four decimals and `num`
-  // would round it to two before the user ever saw it.
-  const [raw, setRaw] = useState(() => f.input(usdRate));
+  const { usdRate, setUsdRate } = useSettings();
+  // STORED LANGUAGE-FREE, shown by `NumberField` in whichever language is on
+  // (D87). Held as its own string because a half-typed or refused value is not
+  // a rate and must not reach the store — but it carries no writing of its own,
+  // so a language switch is a re-render and the box never holds text the new
+  // grammar cannot read.
+  const [raw, setRaw] = useState(() => inputValue(usdRate));
   const [error, setError] = useState(false);
+  // ONE READING AND ONE RULE, language-free, shared by the three places that
+  // used to parse `raw` separately. What the field STORES is canonical, so the
+  // live language has no say in whether it is a rate — and reading it under the
+  // live one left a box that had gone green while `usdRate` held the old number.
+  const valid = asRate(raw) !== undefined;
 
   function handleChange(value: string) {
     setRaw(value);
-    const parsed = amountInputSchema(language).safeParse(value);
-    if (parsed.success) {
+    const next = asRate(value);
+    if (next !== undefined) {
       setError(false);
-      setUsdRate(parsed.data);
+      setUsdRate(next);
     } else {
       setError(value.trim() !== '');
     }
@@ -270,7 +280,7 @@ function UsdRateField() {
   // A5: the fetched rate is applied HERE rather than by the fetch control, so
   // the stored number and the draft string this input shows can never disagree.
   function applyFetched(rate: number) {
-    setRaw(f.input(rate));
+    setRaw(inputValue(rate));
     setError(false);
     setUsdRate(rate);
   }
@@ -290,13 +300,12 @@ function UsdRateField() {
             it for the same reason LeadDaysField links its own; `aria-invalid`
             alone announces "invalid" with no reason. */}
         <div className="flex flex-col items-end gap-1">
-          <input
+          <NumberField
             id="usd-rate"
             name="usdRate"
             value={raw}
-            onChange={(e) => handleChange(e.target.value)}
-            onBlur={() => setError(!amountInputSchema(language).safeParse(raw).success)}
-            inputMode="decimal"
+            onChange={handleChange}
+            onBlur={() => setError(!valid)}
             aria-label={t.settings.rate.ariaLabel}
             aria-invalid={error}
             aria-describedby={error ? USD_RATE_ERROR_ID : undefined}
@@ -325,11 +334,10 @@ const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
 function LeadDaysField() {
   const t = useT();
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
-  const f = useFormat();
-  // Renders identically today — lead days are small integers, so `f.input` and
-  // `String` agree — and it is changed anyway so the rule has no exceptions to
-  // remember. An exception is what A36 was.
-  const [raw, setRaw] = useState(() => f.input(reminderLeadDays));
+  // `inputValue` like every other field, though lead days are whole numbers so
+  // no language could render them differently. The rule has no exceptions to
+  // remember that way; an exception is what A36 was.
+  const [raw, setRaw] = useState(() => inputValue(reminderLeadDays));
   const [error, setError] = useState(false);
 
   function handleChange(value: string) {

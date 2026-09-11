@@ -124,6 +124,22 @@ const CANONICAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
  * neither of which a field can show or read back. */
 const PLAIN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20, useGrouping: false });
 
+/**
+ * The number a field is HOLDING, or `undefined` when it is holding text it could
+ * not read. Language-free on purpose: what a field stores is canonical, so its
+ * validity cannot depend on which language is on screen — validating it under
+ * the live one makes the argument inert on every readable value and wrong on the
+ * rest, which is how a box and its store come to disagree.
+ */
+export function storedNumber(value: string): number | undefined {
+  if (!CANONICAL.test(value)) return undefined;
+  const held = Number(value);
+  // FINITE, which the schema this replaced enforced and a digit run long enough
+  // to overflow does not: `Infinity` is positive, so it would pass a caller's
+  // own range check, and `persist` writes it out as `null`.
+  return Number.isFinite(held) ? held : undefined;
+}
+
 /** A number as a field stores it — the form `valueFromInput` would produce. */
 export function inputValue(n: number, fractionDigits?: number): string {
   // A field shows nothing rather than the word NaN, which it could not read back.

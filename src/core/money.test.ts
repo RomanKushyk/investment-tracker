@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { groupedForInput, inputValue, makeFormat, signed, toUsd, valueFromInput } from './money';
+import {
+  groupedForInput,
+  inputValue,
+  makeFormat,
+  signed,
+  storedNumber,
+  toUsd,
+  valueFromInput,
+} from './money';
 import { amountInputSchema, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 // The legacy exports these covered are gone: each language now owns one
@@ -423,6 +431,53 @@ describe('what a numeric field stores, and what it shows', () => {
       expect(groupedForInput(inputValue(68702.1, 2), lang)).toBe(
         lang === 'uk' ? `68${NBSP}702,10` : '68,702.10',
       );
+    }
+  });
+});
+describe('what a held value does when the language moves under it', () => {
+  const typed = (raw: string, lang: 'uk' | 'en', stored = '') =>
+    valueFromInput(raw, stored, lang, false);
+
+  // The round trip and the two writings are already pinned by the block above —
+  // what is only true of a SWITCH is that nothing migrates, so the two states a
+  // migration would have had to handle are the ones worth their own cases.
+
+  it('carries a HALF-TYPED decimal across the switch, readable in both', () => {
+    // Parked as text, `6,` is Ukrainian writing that English refuses, and the
+    // next keystroke would be refused with it. Held as `6.` it is shown as each
+    // language writes it and stays typable — which is why nothing re-prints.
+    const held = typed('6,', 'uk', '6');
+    expect(held).toBe('6.');
+    expect(groupedForInput(held, 'uk')).toBe('6,');
+    expect(groupedForInput(held, 'en')).toBe('6.');
+    expect(typed('6,5', 'uk', held)).toBe('6.5');
+    expect(typed('6.5', 'en', held)).toBe('6.5');
+  });
+
+  it('is a plain re-draw: what is held survives being re-read in either language', () => {
+    for (const v of [17.5, 6.164, 1234.567, 44.6988]) {
+      const held = inputValue(v);
+      for (const lang of ['uk', 'en'] as const) {
+        expect(typed(groupedForInput(held, lang), lang, held), `${v} in ${lang}`).toBe(held);
+      }
+    }
+  });
+
+  it('tells a stored number from text a field could not read', () => {
+    // What the rate box's validity rests on, and the reason it needs no
+    // language: the stored form is canonical or it is not a number at all.
+    expect(storedNumber('44.83')).toBe(44.83);
+    expect(storedNumber('0.5')).toBe(0.5);
+    expect(storedNumber('6.')).toBe(6);
+    // Signed forms READ — a caller's own range check is what refuses them, and
+    // pinning that here is what stops a later edit moving the line silently.
+    expect(storedNumber('+44.83')).toBe(44.83);
+    expect(storedNumber('-1')).toBe(-1);
+    // Overflow does not: `Infinity` is positive, so it would pass that same
+    // range check and `persist` would write it out as `null`.
+    expect(storedNumber('9'.repeat(400))).toBeUndefined();
+    for (const text of ['16,5', '1234,567', '', '-', 'abc', '0x1000', '1e5']) {
+      expect(storedNumber(text), text).toBeUndefined();
     }
   });
 });

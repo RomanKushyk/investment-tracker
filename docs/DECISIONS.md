@@ -78,9 +78,18 @@ label moved when the face did, and the browser is where that is checked. Manrope
 proportional and it ships `tnum`, so the one rule on `body` is what buys the aligned KPI column —
 and `src/ui-face.test.ts` fails if the face and the rule are ever separated, because either alone
 is wrong.
-A field that holds a groupable number GROUPS IT LIVE and **stores a language-free spelling** — it
-shows `1 234,5` or `1,234.5` and holds `1234.5` either way, so the value cannot change meaning when
-the language does. A mark the typist PRESSES is read as this language's own: under English the comma
+A field that holds an unsaved number **stores a language-free spelling** and DERIVES what it shows —
+it holds `1234.5` and shows `1 234,5` or `1,234.5`, so a language switch re-draws the value instead
+of re-reading it. Four fields are NOT on that shape yet — the asset form's three percent inputs and
+`/allocation`'s target row — and they are safe only because the one control that changes the language
+lives on `/settings`, which every one of them has unmounted before reaching. `language-holders.test.ts`
+holds THAT — the single writer — because a comment cannot; the four fields themselves are a list a
+reader still has to keep true. That is what makes
+the switch a plain re-render: nothing migrates, so a half-typed `6,` is `6.` all along and still
+takes the next digit in either language. A field holding a GROUPABLE number groups it live on top of
+that, and there is no opt-out: a value under a thousand simply never reaches a grouping mark, which
+is why a percentage and the ₴/$ rate look ungrouped without being treated differently.
+A mark the typist PRESSES is read as this language's own: under English the comma
 groups, so it is absorbed. A mark that ARRIVES BY PASTE is read by the grammar instead, which is the
 only way to keep refusing a European `1234,567` under English — pasted and typed, that text is
 identical to the state a digit inserted into `123,456` passes through, so nothing but how it got
