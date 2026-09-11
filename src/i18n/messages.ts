@@ -278,9 +278,9 @@ export const en = {
       summary: 'Check the highlighted fields and try again.',
     },
     // A placeholder MODELS the input convention, so it follows the language
-    // like any other figure (Contract 0). Both conventions parse either way
-    // (core/schemas normalizes them) — what changes here is which one the
-    // field OFFERS.
+    // like any other figure (Contract 0) — and since D87 it also models what the
+    // field will ACCEPT: the Ukrainian `16,5` is unreadable here, so swapping
+    // these for the Ukrainian forms would make the field refuse its own example.
     placeholder: {
       name: 'OVDP UA4000241234',
       expectedPct: '16.5',
@@ -873,7 +873,7 @@ export const en = {
     submit: 'Record transaction',
     // The amount's own errors, under the field. The form-level `invalid` line
     // reports THAT something is wrong; these say what, and there are two
-    // because `quoteInputSchema` refuses four things — a blank field, and a
+    // because the amount schema refuses four things — a blank field, and a
     // value that is zero, negative or not a number at all.
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',

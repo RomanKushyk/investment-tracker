@@ -160,7 +160,7 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
     };
     const match = fetched(reitLinkedWith(FIRST_PURCHASE_UNITS), [firstPurchase, sold]);
     // AND IT OFFERS NOTHING, rather than offering zero. A ₴0.00 fill was written
-    // into the draft and then rejected by `quoteInputSchema` for being
+    // into the draft and then rejected by the amount schema for being
     // non-positive — so the row displayed a fetched number, the progress pill
     // did not count it, and Save silently omitted the asset, with no error
     // anywhere. Silence is the honest output for a position that is gone.

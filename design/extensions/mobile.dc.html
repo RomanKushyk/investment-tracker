@@ -706,9 +706,10 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
     action bar appears    slide-in-from-bottom-2 220 ms   reduced: instant
 
   B5 STATED IN THE DRAWING: inputMode="decimal" stays, and the separator the
-  keyboard offers follows the DEVICE locale — it cannot be forced. The field
-  accepts both `,` and `.`; core/schemas.normalizeNumberInput already reads
-  either, and reads a comma-grouped integer as grouping.
+  keyboard offers follows the DEVICE locale — it cannot be forced. What the
+  field READS follows the LANGUAGE, not the keyboard (D87): a lone comma is the
+  decimal in Ukrainian and grouping — or unreadable — in English, and
+  core/schemas.normalizeNumberInput is told which grammar by its caller.
 ═══════════════════════════════════════════════════════════════════════════ -->
 <div style="max-width:1200px;margin:0 auto;padding:0 20px 40px">
 
@@ -1116,7 +1117,7 @@ h1,h2,h3,h4{font-family:"IBM Plex Sans",sans-serif !important;font-weight:600;co
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B2</td><td style="padding:7px 8px">All five fields under 16 px → iOS zooms and does not restore</td><td style="padding:7px 8px">G-4 / S4 — 16 px type inside an unchanged 44 px box</td></tr>
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B3</td><td style="padding:7px 8px">Chart values reachable only by hovering</td><td style="padding:7px 8px">S6 — tap to pin, drawn resting and pinned</td></tr>
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B4</td><td style="padding:7px 8px">The keyboard covers the input and <em>Save snapshot</em> together</td><td style="padding:7px 8px">S4 — sticky action bar, drawn with the keyboard up</td></tr>
-    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B5</td><td style="padding:7px 8px">Decimal separator follows the device locale</td><td style="padding:7px 8px">S4 annotation — the field accepts both, and the parser already does</td></tr>
+    <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B5</td><td style="padding:7px 8px">Decimal separator follows the device locale</td><td style="padding:7px 8px">S4 annotation — the keyboard follows the device, the PARSER follows the language</td></tr>
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B6</td><td style="padding:7px 8px">Seven-column grid anchored to a right-aligned field</td><td style="padding:7px 8px">S5 / D-c — stops anchoring; centred sheet, 44.6 px cells</td></tr>
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">B7</td><td style="padding:7px 8px">Edge-swipe Back competes with a left-edge drawer</td><td style="padding:7px 8px">S1 — no swipe-to-open is specified; the trigger is the only opener</td></tr>
     <tr style="border-top:1px solid #e8e7e4"><td style="padding:7px 8px;font-weight:700">C1</td><td style="padding:7px 8px"><code>h-screen</code> buries the currency toggle under the iOS toolbar</td><td style="padding:7px 8px">G-3 / S1 — <code>100dvh</code>, and the cluster is pinned, not <code>mt-auto</code></td></tr>

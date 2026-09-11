@@ -316,7 +316,7 @@ export const useSettings = create<SettingsState>()(
       setCurrency: (currency) => set({ currency }),
       setDefaultCurrency: (defaultCurrency) => set({ defaultCurrency, currency: defaultCurrency }),
       // Callers validate BEFORE calling (S8: invalid input never writes) —
-      // the Settings screen parses via core/schemas.quoteInputSchema.
+      // the Settings screen parses via core/schemas.amountInputSchema.
       setUsdRate: (usdRate) => set({ usdRate }),
       // No reload and no DOM write here: useTheme() owns the attribute, so the
       // store stays a plain preference and there is exactly one writer.

@@ -7,7 +7,8 @@
 // that rule is decided, per row, once.
 import { kyivDateIso, msUntilNextKyivHour } from '../../core/dates';
 import type { InzhurMatch } from '../../core/inzhur/parse';
-import { quoteInputSchema } from '../../core/schemas';
+import type { Lang } from '../../core/money';
+import { amountInputSchema } from '../../core/schemas';
 import type { Asset, QuoteOrigin } from '../../core/types';
 
 /**
@@ -55,9 +56,9 @@ function kopecks(n: number): number {
 }
 
 /** Does this raw draft text already mean exactly `value`? (S3 equality guard.) */
-export function sameQuote(raw: string | undefined, value: number): boolean {
+export function sameQuote(raw: string | undefined, value: number, lang: Lang): boolean {
   if (raw === undefined) return false;
-  const parsed = quoteInputSchema.safeParse(raw);
+  const parsed = amountInputSchema(lang).safeParse(raw);
   return parsed.success && kopecks(parsed.data) === kopecks(value);
 }
 
@@ -71,8 +72,8 @@ export function isTyped(row: DraftRow): boolean {
  * the user's own — so accepting it, clearing the draft or switching the date
  * all retire the offer without any extra bookkeeping.
  */
-export function offerVisible(row: DraftRow, value: number): boolean {
-  return isTyped(row) && !sameQuote(row.raw, value);
+export function offerVisible(row: DraftRow, value: number, lang: Lang): boolean {
+  return isTyped(row) && !sameQuote(row.raw, value, lang);
 }
 
 /** S2: the chip of a linked row's current draft (undefined = no chip at all). */
@@ -96,6 +97,7 @@ export function reconcileFetched(
   matches: InzhurMatch[],
   quotes: Record<string, string>,
   origins: Record<string, QuoteOrigin>,
+  lang: Lang,
 ): FetchApplication {
   const fills: FetchApplication['fills'] = [];
   const offers: FetchApplication['offers'] = [];
@@ -122,7 +124,7 @@ export function reconcileFetched(
     const assetId = match.asset.id;
     const row: DraftRow = { raw: quotes[assetId], origin: origins[assetId] };
     if (!isTyped(row)) fills.push({ assetId, value });
-    else if (!sameQuote(row.raw, value)) offers.push({ assetId, value });
+    else if (!sameQuote(row.raw, value, lang)) offers.push({ assetId, value });
   }
 
   return { fills, offers, negative, noCount };

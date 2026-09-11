@@ -1,11 +1,11 @@
 // Number/date formatting per README §8. Pure, unit-tested.
 // (v1 lib/format.ts + screens/shared/format.ts, merged in next-phase Phase 1.)
 
-// The one import this file has, and it points at the PARSER: `input()` below
+// The one module this file imports from, and it is the PARSER: `input()` below
 // guarantees its output survives a round trip, and a guarantee cannot be made
 // by reasoning about a regexp in another file — only by running it. `schemas.ts`
-// imports nothing from here, so the direction is one-way.
-import { normalizeNumberInput } from './schemas';
+// imports only a type from here, so at runtime the direction is one-way.
+import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 const SYMBOL = { UAH: '₴', USD: '$' } as const;
 type Currency = keyof typeof SYMBOL;
@@ -99,14 +99,6 @@ const NUM: Record<
 // whitespace is normalised to NBSP rather than trusted.
 const nbsp = (s: string) => s.replace(/\s/g, NBSP);
 
-/**
- * WHICH PARSER `input()` VERIFIES AGAINST, stated rather than inherited: the
- * grouping convention, which is what every one of its own callers still parses
- * with. `normalizeNumberInput` takes no default any more, precisely so this is
- * a choice a reader can see and a caller cannot get wrong by omission.
- */
-const GROUPING = true;
-
 export interface Format {
   /** 68 702,10 / 68,702.10 — the number alone, two decimals. */
   num(n: number): string;
@@ -119,28 +111,12 @@ export interface Format {
    * decimal mark, nothing forced, nothing rounded, and **guaranteed to parse
    * back to the same number** through `normalizeNumberInput`.
    *
-   * THAT GUARANTEE IS THE WHOLE REASON THIS EXISTS, and it is not free. Under
-   * the GROUPING convention `1,234` resolves as a thousand. The premise that
-   * made the ambiguity safe was "money carries two decimals, units and
-   * percentages at most one" — and A36 broke it the moment a percent field
-   * started showing what was STORED instead of a rounded form. Measured:
-   * uk 6,164 -> 6164, 0,125 -> 125, 99,999 -> 99999. A silent 1000x on a yield,
-   * on an untouched Save.
-   *
-   * WHICH PARSER THIS CHECKS AGAINST, because there are now two.
-   * `normalizeNumberInput` takes a `groupsWithComma` flag (D87's grammar,
-   * landed by #31 for the three fields that reach it: the transaction panel's
-   * quantity and amount, and the asset form's linked unit count). This method
-   * verifies against the DEFAULT — grouping on — which is what every one of its
-   * own callers still parses with. Wiring it into a field that parses the
-   * Ukrainian way voids the round trip silently, so give it the convention
-   * first. The `A46` row moves the rest.
-   *
-   * So this VERIFIES rather than reasons: it formats, parses its own output
-   * back, and only returns a string that survives the trip. The disambiguation
-   * is one trailing zero — `6,1640` no longer looks like a grouped integer and
-   * still reads as 6,164 — and the dot form is the last resort, a Contract 0
-   * violation accepted only where the alternative is a wrong number.
+   * VERIFIED UNDER THIS FORMATTER'S OWN LANGUAGE, and that is the whole of what
+   * makes it safe — checked against the other grammar, a Ukrainian «6,164» reads
+   * as 6164 and the guarantee certifies a 1000x. So give the field that parses
+   * it the same `language` this was bound to; no signature can enforce that.
+   * The dot form is the last resort, a Contract 0 violation accepted only where
+   * the alternative is a wrong number.
    */
   input(n: number): string;
   /** 68 629,36 ₴ / ₴68,629.36 — symbol placed by language. */
@@ -195,10 +171,9 @@ export function makeFormat(lang: Lang): Format {
     units: (n) => nbsp(f.free.format(n)),
     input: (n) => {
       const shown = nbsp(f.free.format(n));
-      if (Number(normalizeNumberInput(shown, GROUPING)) === n) return shown;
-      const padded = `${shown}0`;
-      if (Number(normalizeNumberInput(padded, GROUPING)) === n) return padded;
-      return String(n);
+      return Number(normalizeNumberInput(shown, groupsWithCommaFor(lang))) === n
+        ? shown
+        : String(n);
     },
     money: (n, currency = 'UAH') => withSymbol(num(n), currency),
     moneyWhole: (n, currency = 'UAH') => withSymbol(nbsp(f.whole.format(n)), currency),

@@ -409,20 +409,13 @@ export function TransactionPanel() {
   // `convertTypedAmount`'s. This is the form wiring: read the two strings, hand
   // back what they become, and empty the field when they become nothing.
   //
-  // `f.input` FORMATS THE RESULT, and it is safe on both grammars even though
-  // it verifies against the grouping parser (see `money.ts`): its output is the
-  // more conservative of the two readings, so the Ukrainian rule this form
-  // parses with accepts everything it emits.
+  // `f.input` FORMATS THE RESULT, and the round trip holds because it and this
+  // form take their grammar from the same `language` — see its doc in `money.ts`.
   const convertAmount = useCallback(
     (to: 'total' | 'unit') => {
       const typed = form.getValues('amount');
       if (typed.trim() === '') return;
-      const next = convertTypedAmount(
-        typed,
-        form.getValues('quantity') ?? '',
-        to,
-        language !== 'uk',
-      );
+      const next = convertTypedAmount(typed, form.getValues('quantity') ?? '', to, language);
       form.setValue('amount', next === undefined ? '' : f.input(next), {
         shouldValidate: form.formState.isSubmitted,
       });
@@ -932,7 +925,7 @@ export function TransactionPanel() {
                 explaining itself. `htmlFor` + `aria-describedby` is the link
                 that carries it as a description — the idiom `CouponDueCard` and
                 Settings already use, and the one `navigation-map.md` pins.
-                ONE MESSAGE PER FAILURE: `quoteInputSchema` refuses blank, zero,
+                ONE MESSAGE PER FAILURE: the amount schema refuses blank, zero,
                 negative and non-numeric, and a single "Введіть суму." told
                 someone who typed `0` to enter the amount they had just typed.
                 The value itself says which of the two it is — no zod internals,

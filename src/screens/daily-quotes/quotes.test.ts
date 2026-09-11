@@ -68,13 +68,13 @@ describe('pendingChange — what the rail names', () => {
   const on = '2026-07-27';
 
   it('is silent until a draft differs from its baseline', () => {
-    expect(pendingChange(assets, {}, snapshots, on)).toEqual({ sum: 0, changed: 0 });
+    expect(pendingChange(assets, {}, snapshots, on, 'uk')).toEqual({ sum: 0, changed: 0 });
   });
 
   it('counts a row that is FILLED but unchanged as no change at all', () => {
     // 68 629,36 is exactly what 25.07 holds for REIT — the row is filled, the
     // portfolio moves by nothing, and `filled(n, m)` would still say 1.
-    expect(pendingChange(assets, { reit: '68629.36' }, snapshots, on)).toEqual({
+    expect(pendingChange(assets, { reit: '68629.36' }, snapshots, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
     });
@@ -86,6 +86,7 @@ describe('pendingChange — what the rail names', () => {
       { reit: '68702.10', energy: '60086.09', ovdp8976: '15900' },
       snapshots,
       on,
+      'uk',
     );
     // REIT +72,74 · Energy unchanged · …8976 +53,70
     expect(got.changed).toBe(2);
@@ -93,14 +94,17 @@ describe('pendingChange — what the rail names', () => {
   });
 
   it('subtracts a NEGATIVE move too — it is a change, not a total', () => {
-    const got = pendingChange(assets, { reit: '68000' }, snapshots, on);
+    const got = pendingChange(assets, { reit: '68000' }, snapshots, on, 'uk');
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(-629.36, 2);
   });
 
   it('ignores a draft the schema refuses', () => {
     for (const bad of ['', 'abc', '-5', '0']) {
-      expect(pendingChange(assets, { reit: bad }, snapshots, on)).toEqual({ sum: 0, changed: 0 });
+      expect(pendingChange(assets, { reit: bad }, snapshots, on, 'uk')).toEqual({
+        sum: 0,
+        changed: 0,
+      });
     }
   });
 
@@ -110,7 +114,7 @@ describe('pendingChange — what the rail names', () => {
   // 28.07 row that exists in the store.
   it('reads the baseline strictly BEFORE the picked date, never the latest', () => {
     const later: Snapshot = { date: '2026-07-28', cash: 0, quotes: { reit: 70000 } };
-    const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26');
+    const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26', 'uk');
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(70.64, 2); // 68 700 − 68 629,36, not 68 700 − 70 000
   });
@@ -119,7 +123,7 @@ describe('pendingChange — what the rail names', () => {
     // Its row shows no «учора», so there is nothing to be less than — and a
     // first quote is not a change of anything.
     const fresh: Snapshot = { date: '2026-07-25', cash: 0, quotes: { reit: 68629.36 } };
-    const got = pendingChange(assets, { energy: '60000' }, [fresh], on);
+    const got = pendingChange(assets, { energy: '60000' }, [fresh], on, 'uk');
     expect(got).toEqual({ sum: 0, changed: 0 });
   });
 });
@@ -128,32 +132,44 @@ describe('collectQuotes — what Save reads, and what it refuses', () => {
   const assets = SEED_ASSETS;
 
   it('reads every non-empty draft and reports none unreadable', () => {
-    const out = collectQuotes({ reit: '68 702,10', energy: '60086.09' }, assets);
+    const out = collectQuotes({ reit: '68 702,10', energy: '60086.09' }, assets, 'uk');
     expect(out).toEqual({ quotes: { reit: 68702.1, energy: 60086.09 }, unreadable: [] });
   });
 
   it('skips an empty or untouched draft — it is not an error', () => {
-    expect(collectQuotes({ reit: '', energy: '   ' }, assets)).toEqual({
+    expect(collectQuotes({ reit: '', energy: '   ' }, assets, 'uk')).toEqual({
       quotes: {},
       unreadable: [],
     });
-    expect(collectQuotes({}, assets)).toEqual({ quotes: {}, unreadable: [] });
+    expect(collectQuotes({}, assets, 'uk')).toEqual({ quotes: {}, unreadable: [] });
   });
 
   it('names the asset it cannot read and still reads the rest', () => {
-    const out = collectQuotes({ reit: '12abc', energy: '60086.09' }, assets);
+    const out = collectQuotes({ reit: '12abc', energy: '60086.09' }, assets, 'uk');
     expect(out.unreadable).toEqual(['reit']);
     expect(out.quotes).toEqual({ energy: 60086.09 });
   });
 
   // Issue #1's bytes, read through the screen's own path rather than the schema alone.
   it("reads the reported paste through the screen's own path", () => {
-    expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets).quotes.energy).toBe(4214.24);
+    expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets, 'uk').quotes.energy).toBe(4214.24);
   });
 
   it('treats zero and a negative as unreadable, like the schema', () => {
-    expect(collectQuotes({ reit: '0', energy: '-5' }, assets).unreadable).toEqual([
+    expect(collectQuotes({ reit: '0', energy: '-5' }, assets, 'uk').unreadable).toEqual([
       'reit',
+      'energy',
+    ]);
+  });
+
+  it('reads the draft under the user language, not one hard-wired grammar', () => {
+    // The saved day stores whichever reading the screen was showing: «6,164» is
+    // ₴6.164 to a Ukrainian typist and ₴6 164 to an English one, and a quote is
+    // what every valuation on every other screen is derived from.
+    expect(collectQuotes({ reit: '6,164' }, assets, 'uk').quotes.reit).toBeCloseTo(6.164, 6);
+    expect(collectQuotes({ reit: '6,164' }, assets, 'en').quotes.reit).toBe(6164);
+    // And the Ukrainian paste #1 reported is not English writing at all.
+    expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets, 'en').unreadable).toEqual([
       'energy',
     ]);
   });

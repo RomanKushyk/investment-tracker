@@ -82,29 +82,29 @@ describe('convertTypedAmount — the toggle moves the number, not just the label
   it('turns a total into the price of one unit, and back', () => {
     // The measured defect: «55 694,50» typed as a total, flipped to per-unit,
     // submitted ₴278 472 500 because only the label had changed.
-    expect(convertTypedAmount('55 694,50', '5 000', 'unit', false)).toBeCloseTo(11.1389, 6);
-    expect(convertTypedAmount('11,1389', '5 000', 'total', false)).toBeCloseTo(55_694.5, 2);
+    expect(convertTypedAmount('55 694,50', '5 000', 'unit', 'uk')).toBeCloseTo(11.1389, 6);
+    expect(convertTypedAmount('11,1389', '5 000', 'total', 'uk')).toBeCloseTo(55_694.5, 2);
   });
 
   it('reads the two strings under the language the form parses with', () => {
     // `43,478` is 43.478 units to a Ukrainian typist and 43 478 under the
     // grouping rule (D87), and the amount divides by whichever it is.
-    expect(convertTypedAmount('100', '43,478', 'unit', false)).toBeCloseTo(2.3000138, 6);
-    expect(convertTypedAmount('100', '43,478', 'unit', true)).toBeCloseTo(0.0023, 6);
+    expect(convertTypedAmount('100', '43,478', 'unit', 'uk')).toBeCloseTo(2.3000138, 6);
+    expect(convertTypedAmount('100', '43,478', 'unit', 'en')).toBeCloseTo(0.0023, 6);
   });
 
   it('has nothing to convert to without a usable count', () => {
     // The caller empties the field on `undefined`. Reinterpreting what is in it
     // is the defect; an empty field asks for the value the new label describes.
     for (const count of ['', '0', '-5', 'abc']) {
-      expect(convertTypedAmount('55 694,50', count, 'unit', false)).toBeUndefined();
+      expect(convertTypedAmount('55 694,50', count, 'unit', 'uk')).toBeUndefined();
     }
   });
 
   it('refuses to convert what it cannot read, and what rounds to nothing', () => {
-    expect(convertTypedAmount('', '5 000', 'unit', false)).toBeUndefined();
-    expect(convertTypedAmount('abc', '5 000', 'unit', false)).toBeUndefined();
+    expect(convertTypedAmount('', '5 000', 'unit', 'uk')).toBeUndefined();
+    expect(convertTypedAmount('abc', '5 000', 'unit', 'uk')).toBeUndefined();
     // A product at or below zero is not an amount this app records.
-    expect(convertTypedAmount('0', '5 000', 'total', false)).toBeUndefined();
+    expect(convertTypedAmount('0', '5 000', 'total', 'uk')).toBeUndefined();
   });
 });

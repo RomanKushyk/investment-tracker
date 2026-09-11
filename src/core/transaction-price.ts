@@ -24,7 +24,8 @@
 // derived from the price. Re-deriving one from the other can differ in the last
 // kopiyka, which is why both are stored rather than one computed on read.
 
-import { normalizeNumberInput } from './schemas';
+import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
+import type { Lang } from './money';
 
 /**
  * WHAT THE TYPED AMOUNT BECOMES WHEN THE Σ/1 TOGGLE MOVES.
@@ -41,14 +42,18 @@ import { normalizeNumberInput } from './schemas';
  *
  * Takes the strings the form holds, not numbers, because the grammar is part of
  * the question — `43,478` is two different counts in the two languages (D87).
+ * And it takes the LANGUAGE, not the grammar: a boolean here is one inverted
+ * expression away from a silent thousandfold, and `groupsWithCommaFor` is meant
+ * to be the only place that rule is written.
  */
 export function convertTypedAmount(
   typed: string,
   quantity: string,
   to: 'total' | 'unit',
-  groupsWithComma: boolean,
+  lang: Lang,
 ): number | undefined {
   if (typed.trim() === '') return undefined;
+  const groupsWithComma = groupsWithCommaFor(lang);
   const amount = Number(normalizeNumberInput(typed, groupsWithComma));
   const count = Number(normalizeNumberInput(quantity, groupsWithComma));
   if (!Number.isFinite(amount) || !Number.isFinite(count) || count <= 0) return undefined;

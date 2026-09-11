@@ -613,7 +613,7 @@ export function matchAssets(
     const held = fromLedger ?? link.units;
     // A NON-POSITIVE COUNT IS NOT A VALUATION. A sold-out position sums to 0 and
     // a mistyped `sell` can sum negative; either used to reach `positionValue`
-    // and be written into the draft as "0,00", which `quoteInputSchema` then
+    // and be written into the draft as "0,00", which the amount schema then
     // rejected for being non-positive — so the row SHOWED a fetched number, the
     // progress pill did not count it, and Save quietly omitted the asset. No
     // error anywhere. It joins the no-count case instead: nothing is offered.

@@ -4,78 +4,108 @@ import {
   amountInputSchema,
   assetFormSchema,
   percentInputSchemaFor,
-  quoteInputSchema,
   transactionSchema,
 } from './schemas';
 
-describe('quoteInputSchema (README §8: inputs accept table format)', () => {
-  it('parses comma decimals with NBSP or space thousands', () => {
-    expect(quoteInputSchema.parse('68 702,10')).toBeCloseTo(68702.1, 2);
-    expect(quoteInputSchema.parse('68 702,10')).toBeCloseTo(68702.1, 2);
-    expect(quoteInputSchema.parse('4374,12')).toBeCloseTo(4374.12, 2);
+describe('the number grammar follows the language (README §8)', () => {
+  const uk = amountInputSchema('uk');
+  const en = amountInputSchema('en');
+
+  it('reads a lone comma as the decimal in Ukrainian and refuses it in English', () => {
+    // English is given the dot alone: a comma that does not group threes leaves
+    // the value UNREADABLE rather than guessed at, because a guess here is a
+    // thousandfold and the result is a legal number nothing downstream refuses.
+    expect(uk.parse('16,5')).toBeCloseTo(16.5, 2);
+    expect(en.safeParse('16,5').success).toBe(false);
+    expect(uk.parse('68 702,10')).toBeCloseTo(68702.1, 2);
+    expect(en.safeParse('68 702,10').success).toBe(false);
+    expect(uk.parse('4374,12')).toBeCloseTo(4374.12, 2);
+    expect(uk.parse('6,16')).toBeCloseTo(6.16, 2);
+    expect(uk.parse('1234,56')).toBeCloseTo(1234.56, 2);
   });
 
-  it('parses plain dot decimals too', () => {
-    expect(quoteInputSchema.parse('4374.12')).toBeCloseTo(4374.12, 2);
+  it('parses plain dot decimals in both languages', () => {
+    expect(uk.parse('4374.12')).toBeCloseTo(4374.12, 2);
+    expect(en.parse('4374.12')).toBeCloseTo(4374.12, 2);
   });
 
   it('parses the English convention the English placeholder shows', () => {
     // The field offers `10,000.00` in English. Reading its comma as a decimal
     // point produced `10.000.00` → NaN, so the form rejected its own example.
-    expect(quoteInputSchema.parse('10,000.00')).toBeCloseTo(10000, 2);
-    expect(quoteInputSchema.parse('1,240.00')).toBeCloseTo(1240, 2);
-    expect(quoteInputSchema.parse('1,000,000.50')).toBeCloseTo(1000000.5, 2);
+    expect(en.parse('10,000.00')).toBeCloseTo(10000, 2);
+    expect(en.parse('1,240.00')).toBeCloseTo(1240, 2);
+    expect(en.parse('1,000,000.50')).toBeCloseTo(1000000.5, 2);
   });
 
-  it('reads a comma-grouped INTEGER as grouping, not as a fraction', () => {
-    // The regression this exists for: the English form prefills Units with
-    // f.units(6164) = "6,164". Reading that comma as a decimal point stored
-    // 6.164 units for an asset the user had only opened and saved.
-    expect(quoteInputSchema.parse('6,164')).toBe(6164);
-    expect(quoteInputSchema.parse('10,000')).toBe(10000);
-    expect(quoteInputSchema.parse('1,000,000')).toBe(1000000);
-    // Not every comma groups three digits — these stay decimals.
-    expect(quoteInputSchema.parse('16,5')).toBeCloseTo(16.5, 2);
-    expect(quoteInputSchema.parse('1240,00')).toBeCloseTo(1240, 2);
-    expect(quoteInputSchema.parse('6,16')).toBeCloseTo(6.16, 2);
+  it('reads a comma-grouped INTEGER as grouping in English, as a fraction in Ukrainian', () => {
+    // The English regression this exists for: the form prefills a count with
+    // `f.units(6164)` = "6,164", so reading that comma as a decimal point stored
+    // 6.164 for an asset the user had only opened and saved.
+    expect(en.parse('6,164')).toBe(6164);
+    expect(en.parse('1,000,000')).toBe(1000000);
+    // And the same text from a Ukrainian typist is the fraction they wrote.
+    expect(uk.parse('6,164')).toBeCloseTo(6.164, 6);
+    expect(uk.parse('0,125')).toBeCloseTo(0.125, 6);
   });
 
-  it('reads the LAST mark as the decimal, whichever it is', () => {
-    // Not a locale switch: the rule is positional, so a grouped-dot entry a
-    // pasted value might carry still lands on the right number instead of NaN.
-    expect(quoteInputSchema.parse('1.234,56')).toBeCloseTo(1234.56, 2);
-    expect(quoteInputSchema.parse('1,234.56')).toBeCloseTo(1234.56, 2);
-    // One mark stays a decimal point — the Ukrainian field depends on it.
-    expect(quoteInputSchema.parse('1234,56')).toBeCloseTo(1234.56, 2);
+  it('refuses a SECOND comma under Ukrainian rather than dropping one silently', () => {
+    // There is no lone comma left to be the decimal, and «1,000,000» is English
+    // writing — so it is unreadable here, not read as one of the three numbers a
+    // first-match replace could produce.
+    expect(uk.safeParse('1,000,000').success).toBe(false);
+    expect(uk.safeParse('1,234,567.89').success).toBe(true); // both marks — rule 1 still settles it
+    expect(en.parse('1,000,000')).toBe(1000000);
   });
 
-  it('rejects empty, zero, negative and garbage input', () => {
-    expect(quoteInputSchema.safeParse('').success).toBe(false);
-    expect(quoteInputSchema.safeParse('0').success).toBe(false);
-    expect(quoteInputSchema.safeParse('-5').success).toBe(false);
-    expect(quoteInputSchema.safeParse('abc').success).toBe(false);
+  it('pins the Ukrainian cost of that rule: «10,000» is ten', () => {
+    // Accepted, not overlooked. A lone comma is ALWAYS the decimal in
+    // Ukrainian, and the alternative — deciding by digit count — is the 1000x
+    // the language rule exists to remove.
+    expect(uk.parse('10,000')).toBe(10);
+    expect(en.parse('10,000')).toBe(10000);
+  });
+
+  it('reads the LAST mark as the decimal in both, whichever it is', () => {
+    // Positional, not a locale switch, so a pasted value lands on the right
+    // number in either language instead of on NaN.
+    for (const schema of [uk, en]) {
+      expect(schema.parse('1.234,56')).toBeCloseTo(1234.56, 2);
+      expect(schema.parse('1,234.56')).toBeCloseTo(1234.56, 2);
+    }
+  });
+
+  it('rejects empty, zero, negative and garbage input in both', () => {
+    for (const schema of [uk, en]) {
+      expect(schema.safeParse('').success).toBe(false);
+      expect(schema.safeParse('0').success).toBe(false);
+      expect(schema.safeParse('-5').success).toBe(false);
+      expect(schema.safeParse('abc').success).toBe(false);
+    }
   });
 
   // Issue #1's bytes: `4`, U+00A0, `214,24`, a space, `грн.`, a space. The
   // letters were the rejection, not the NBSP — `\s` already strips that.
   it('drops a currency token beside the number — the shape a bank page pastes', () => {
-    expect(quoteInputSchema.parse('4 214,24 грн. ')).toBe(4214.24);
-    expect(quoteInputSchema.parse('1 234,56 грн')).toBe(1234.56);
-    expect(quoteInputSchema.parse('1234.56 UAH')).toBe(1234.56);
-    expect(quoteInputSchema.parse('₴68,629.36')).toBe(68629.36);
-    expect(quoteInputSchema.parse('4214,24 ГРН')).toBe(4214.24);
+    expect(uk.parse('4 214,24 грн. ')).toBe(4214.24);
+    expect(uk.parse('1 234,56 грн')).toBe(1234.56);
+    expect(uk.parse('1234.56 UAH')).toBe(1234.56);
+    expect(uk.parse('4214,24 ГРН')).toBe(4214.24);
+    // Both marks present, so this one reads the same either way (rule 1).
+    expect(en.parse('₴68,629.36')).toBe(68629.36);
+    expect(uk.parse('₴68,629.36')).toBe(68629.36);
   });
 
   it('still refuses letters that are not a currency token, and a token with no number', () => {
-    expect(quoteInputSchema.safeParse('12abc').success).toBe(false);
-    expect(quoteInputSchema.safeParse('12 грн abc').success).toBe(false);
-    expect(quoteInputSchema.safeParse('грн').success).toBe(false);
-    expect(quoteInputSchema.safeParse('₴').success).toBe(false);
+    for (const schema of [uk, en]) {
+      expect(schema.safeParse('12abc').success).toBe(false);
+      expect(schema.safeParse('12 грн abc').success).toBe(false);
+      expect(schema.safeParse('грн').success).toBe(false);
+      expect(schema.safeParse('₴').success).toBe(false);
+    }
     // A token alone must stay NaN, not become `''` → 0: a field whose floor is 0
     // (a target share) would otherwise accept `$` as a value.
     expect(percentInputSchemaFor('uk').safeParse('$').success).toBe(false);
     expect(percentInputSchemaFor('en').safeParse('грн.').success).toBe(false);
-    expect(amountInputSchema('uk').safeParse('₴').success).toBe(false);
   });
 });
 
@@ -84,7 +114,7 @@ describe('transactionSchema', () => {
     date: '2026-07-27',
     type: 'buy',
     assetId: 'reit',
-    amount: '1 000,00',
+    amount: '1,000.00',
     // REQUIRED on a position-moving row since D124 — a `buy` without one no
     // longer parses, which is what the four rules below are about.
     quantity: '10',
@@ -142,7 +172,7 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
   });
 
   it('parses a bond with the full fixed-coupon group (table-format amounts)', () => {
-    const parsed = assetFormSchema('create', 'en').parse({
+    const parsed = assetFormSchema('create', 'uk').parse({
       ...base,
       name: 'OVDP UA4000241234',
       code: 'GB',
@@ -160,17 +190,12 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
   });
 
   it('reads a Ukrainian comma as a DECIMAL point, in every percent field', () => {
-    // THE BUG THIS PINS IS OLDER THAN THE BRANCH: `dev` binds `expectedPct` to
-    // `quoteInputSchema` = `positiveNumberInput(true)`, so it stores 16400 too.
-    // Dropping the schema's `lang` argument did not cause it — the argument fed
-    // `inzhur.units` and never these fields — but the claim used to justify the
-    // drop was measured wrong: that every percent field would refuse an
-    // out-of-range result. Two of the three do, because they are
-    // bounded at 100. `expectedPct` is `positiveNumberInput` with NO max, so
-    // «16,400» — 16.4 % as a Ukrainian writes it — stored 16400 and drove
-    // `dailyAccrual`'s fallback, `couponProjection`'s estimate and `/yield`'s
-    // «проти очікуваної» with it. A lone comma read the wrong way is a
-    // thousandfold, not an error (D87).
+    // WHY EVERY PERCENT FIELD AND NOT JUST THE BOUNDED ONES: `targetPct` and
+    // `couponRatePct` are capped at 100, so a misread «10,500» is refused.
+    // `expectedPct` is `positiveNumberInput` with NO max, so «16,400» — 16.4 %
+    // as a Ukrainian writes it — stores 16400 and drives `dailyAccrual`'s
+    // fallback, `couponProjection`'s estimate and `/yield`'s «проти очікуваної»
+    // with it. A lone comma read the wrong way is a thousandfold, not an error.
     const uk = { ...base, expectedPct: '16,400', targetPct: '10,500' };
     const parsedUk = assetFormSchema('create', 'uk').parse(uk);
     expect(parsedUk.expectedPct).toBeCloseTo(16.4, 4);
@@ -205,13 +230,13 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
     const bond = { ...base, yieldType: 'fixed_coupon', payoutSchedule: 'semiannual' };
     for (const bad of ['0', '0,00', '-5', '-0,01', '100,01', '250']) {
       expect(
-        assetFormSchema('create', 'en').safeParse({ ...bond, couponRatePct: bad }).success,
+        assetFormSchema('create', 'uk').safeParse({ ...bond, couponRatePct: bad }).success,
       ).toBe(false);
     }
     // The bounds themselves are inclusive at the top and exclusive at the bottom.
     for (const ok of ['0,01', '18,50', '100']) {
       expect(
-        assetFormSchema('create', 'en').safeParse({ ...bond, couponRatePct: ok }).success,
+        assetFormSchema('create', 'uk').safeParse({ ...bond, couponRatePct: ok }).success,
       ).toBe(true);
     }
   });
@@ -301,7 +326,7 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
     date: '2026-08-12',
     type: 'reinvest' as const,
     assetId: 'reit',
-    amount: '484,36',
+    amount: '484.36',
     // A `reinvest` moves a position, so D124 requires this — every case below
     // overrides it with the shape under test.
     quantity: '1',
@@ -352,18 +377,33 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
 
   it('leaves the unambiguous shapes alone in both languages', () => {
     for (const lang of ['uk', 'en'] as const) {
-      expect(transactionSchema(lang).parse({ ...base, amount: '1 240,00' }).amount).toBeCloseTo(
+      // A dot decimal and a both-marks paste read the same either way — a LONE
+      // comma is the only shape whose meaning the language has to settle.
+      expect(transactionSchema(lang).parse({ ...base, amount: '1240.00' }).amount).toBeCloseTo(
         1240,
         2,
       );
-      expect(transactionSchema(lang).parse({ ...base, quantity: '43,4785' }).quantity).toBeCloseTo(
+      expect(transactionSchema(lang).parse({ ...base, amount: '1.240,00' }).amount).toBeCloseTo(
+        1240,
+        2,
+      );
+      expect(transactionSchema(lang).parse({ ...base, quantity: '43.4785' }).quantity).toBeCloseTo(
         43.4785,
         6,
       );
     }
+    // Each language's own writing of the same two figures, under that language.
     expect(transactionSchema('en').parse({ ...base, amount: '10,000.00' }).amount).toBeCloseTo(
       10000,
       2,
+    );
+    expect(transactionSchema('uk').parse({ ...base, amount: '1 240,00' }).amount).toBeCloseTo(
+      1240,
+      2,
+    );
+    expect(transactionSchema('uk').parse({ ...base, quantity: '43,4785' }).quantity).toBeCloseTo(
+      43.4785,
+      6,
     );
   });
 });

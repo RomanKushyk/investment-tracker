@@ -120,7 +120,8 @@ export function DailyQuotes() {
   const fetch = useQuoteFetch(assets, ledger.units, ledger.incomplete);
   // S4/S5 automation switches (S8) — pure local derivations, so they run in
   // demo as well as live (G4/D16).
-  const { autoQuoteSuggest, couponSuggest, dismissedReminders, dismissReminder } = useSettings();
+  const { autoQuoteSuggest, couponSuggest, dismissedReminders, dismissReminder, language } =
+    useSettings();
   // Ghosts dismissed this session, stamped with the date they were dismissed on
   // (a dismissal is a "not today" — nothing is persisted, and another date's
   // draft suggests again; keying the state by date beats resetting it from an
@@ -147,7 +148,7 @@ export function DailyQuotes() {
     }
   }, [todaySnapshot, quotes, setQuote, f]);
 
-  const collected = collectQuotes(quotes, assets);
+  const collected = collectQuotes(quotes, assets, language);
   const filledCount = Object.keys(collected.quotes).length;
 
   function handleSave() {

@@ -1,10 +1,14 @@
 // zod schemas for the forms (README §3, NEXT-PHASE-PLAN P2). Inputs arrive as
-// strings from react-hook-form; money accepts the table format (NBSP/space
-// thousands, comma or dot decimals) and parses to a positive number.
+// strings from react-hook-form and are read under ONE LANGUAGE'S GRAMMAR (D87,
+// the three rules below) — whitespace groups in both languages, and the comma is
+// the one mark they disagree about.
 // Structured returns (D8): schemas emit no English — the component layer maps
 // issue paths to the pinned per-field messages.
 import { z } from 'zod';
 
+// TYPE-ONLY, and it has to stay that way: `money.ts` imports values from here,
+// so a value import would close the cycle and this module's prebuilt records
+// would be read mid-initialization.
 import type { Lang } from './money';
 import { movesPosition, targetsAsset } from './types';
 
@@ -15,47 +19,31 @@ import { movesPosition, targetsAsset } from './types';
  * as a decimal point rejected the very text the English placeholder showed
  * (`10,000.00` → `10.000.00` → NaN).
  *
- * Two rules, neither of which needs to know the language:
+ * Three rules, and only the last has to know the language (D87):
  *
  * 1. When BOTH marks appear, the last one is the decimal and the other is
- *    grouping. `1,234.56` and `1.234,56` both read as 1234.56.
- * 2. When only commas appear AND every one of them groups three digits, they
- *    are grouping. This is the case that matters: `f.units(6164)` prefills the
- *    English Units field with `6,164`, so reading that comma as a decimal point
- *    turned 6164 units into 6.164 the moment the user pressed Save — a silent
- *    1000× loss on an asset that had been opened, not edited.
+ *    grouping. `1,234.56` and `1.234,56` both read as 1234.56 in either
+ *    language, which is what makes a pasted value safe wherever it came from.
+ * 2. Under the English grammar, commas that ALL group three digits are
+ *    grouping. `f.units(6164)` prefills an English field with `6,164`, so
+ *    reading that comma as a decimal point turned 6164 units into 6.164 the
+ *    moment the user pressed Save — a silent 1000× loss on an asset that had
+ *    been opened, not edited.
+ * 3. A LONE comma is the decimal under Ukrainian (`16,5`, `1 240,00`) and
+ *    nothing at all under English, where the dot is the decimal mark and a
+ *    comma that groups nothing is text nobody wrote. It is left UNREADABLE
+ *    rather than guessed at: the guess is a thousandfold and its result is a
+ *    legal positive number, so no screen downstream could refuse it.
  *
- * Anything else keeps a lone comma as the decimal point, which is what the
- * Ukrainian input needs (`16,5`, `1 240,00`). The two rules can only disagree on
- * a Ukrainian value with exactly three decimals and no other mark — `1,234`
- * meaning 1.234 — which no field here produces: money carries two decimals,
- * units and percentages at most one.
+ * Rule 3's cost, accepted rather than overlooked: Ukrainian `10,000` is ten. A
+ * SECOND comma is refused outright there — `1,000,000` is not Ukrainian writing
+ * and there is no lone comma left to be the decimal.
  */
 const GROUPED_INTEGER = /^[+-]?\d{1,3}(,\d{3})+$/;
 
 /**
- * `groupsWithComma` — whether a LONE comma may be read as a thousands mark.
- *
- * Rule 2 above is the only ambiguous one, and it is ambiguous in exactly one
- * shape: three decimals, a comma, and no dot. Measured — `0,125` → 125,
- * `43,478` → 43478, `11,138` → 11138. In English those are groupings; in
- * Ukrainian, where a lone comma is ALWAYS the decimal mark, every one of them is
- * a 1000× error, and the value that results is a legal positive number so
- * nothing downstream refuses it.
- *
- * The comment above justified the rule with "no field here produces that shape:
- * money carries two decimals, units and percentages at most one". #31 makes that
- * false — a reinvestment buys a fractional count, and the amount field now holds
- * a per-unit price with up to four decimals. So the caller says which convention
- * its user is typing in, and the two fields #31 adds say `false` under Ukrainian.
- *
- * Defaulted to `true` so every pre-existing caller keeps its behaviour exactly:
- * this branch closes the risk it introduces, and does not silently re-decide the
- * fields it did not touch.
- */
-/**
  * A currency token at either edge of the text — what a bank page or the app's
- * own prose pastes beside a number. Dropped BEFORE whitespace and before the two
+ * own prose pastes beside a number. Dropped BEFORE whitespace and before the
  * mark rules: `грн.` carries a dot that would otherwise be read as a decimal
  * mark (issue #1). A closed list on purpose — any other letter still makes the
  * value unreadable, so `12abc` is refused rather than read as 12. The `g` flag
@@ -64,6 +52,12 @@ const GROUPED_INTEGER = /^[+-]?\d{1,3}(,\d{3})+$/;
  */
 const CURRENCY_EDGE = /^\s*(?:₴|\$|грн\.?|uah|usd)\s*|\s*(?:₴|\$|грн\.?|uah|usd)\s*$/giu;
 
+/**
+ * `groupsWithComma` picks the grammar, and it only ever settles one shape: three
+ * digits after a lone comma. `0,125` is an eighth to a Ukrainian typist and 125
+ * to an English one, and both are legal numbers — so the caller says whose text
+ * this is rather than the parser guessing. Get it from `groupsWithCommaFor`.
+ */
 export function normalizeNumberInput(input: string, groupsWithComma: boolean): string {
   const stripped = input.replace(CURRENCY_EDGE, '');
   // A strip that leaves nothing was a currency alone, not a number beside one.
@@ -76,8 +70,11 @@ export function normalizeNumberInput(input: string, groupsWithComma: boolean): s
     const [decimal, grouping] = comma > dot ? [',', '.'] : ['.', ','];
     return bare.split(grouping).join('').replace(decimal, '.');
   }
-  if (groupsWithComma && GROUPED_INTEGER.test(bare)) return bare.split(',').join('');
-  return bare.replace(',', '.');
+  // Either way an unreadable value keeps its comma, which is what makes
+  // `Number()` say NaN: English needs the comma to group, Ukrainian needs there
+  // to be exactly one for it to be the decimal.
+  if (groupsWithComma) return GROUPED_INTEGER.test(bare) ? bare.split(',').join('') : bare;
+  return bare.indexOf(',') === bare.lastIndexOf(',') ? bare.replace(',', '.') : bare;
 }
 
 /**
@@ -85,21 +82,29 @@ export function normalizeNumberInput(input: string, groupsWithComma: boolean): s
  * was three chances to write it once inverted, and the failure is silent — a
  * lone comma read the wrong way is a thousandfold, not an error.
  */
-function groupsWithCommaFor(lang: Lang): boolean {
+export function groupsWithCommaFor(lang: Lang): boolean {
   return lang !== 'uk';
 }
 
+/** One prebuilt schema per language — the rule is still read from the one place. */
+function byLang<T>(build: (groupsWithComma: boolean) => T): Record<Lang, T> {
+  return { uk: build(groupsWithCommaFor('uk')), en: build(groupsWithCommaFor('en')) };
+}
+
 /**
- * `quoteInputSchema`, told which convention the typist is using.
+ * A positive number under one language's grammar.
  *
- * EXPORTED FOR THE FIELDS THAT LIVE OUTSIDE A FORM SCHEMA. `CouponDueCard`
- * validates its own amount and writes a `Transaction` with it, so it has to
- * read «1,240» the same way the transaction panel does — left on the grouping
- * default, the two fields recorded the identical text 1000x apart into one
- * ledger.
+ * EXPORTED FOR THE FIELDS THAT LIVE OUTSIDE A FORM SCHEMA: `CouponDueCard`
+ * validates its own amount and writes a `Transaction` with it, the quote drafts
+ * are read by the screen rather than by a resolver, and Settings' ₴/$ rate is a
+ * `useState` string. On a hard-wired grammar the coupon card and the transaction
+ * panel recorded the identical «1,240» 1000x apart into one ledger.
+ *
+ * Prebuilt per language: these callers sit on the keystroke path — a quote row
+ * per asset, the ₴/$ rate — where the const this replaced cost nothing.
  */
 export function amountInputSchema(lang: Lang) {
-  return positiveNumberInput(groupsWithCommaFor(lang));
+  return AMOUNT_INPUT[lang];
 }
 
 /**
@@ -118,13 +123,6 @@ function numberInput(groupsWithComma: boolean) {
 function positiveNumberInput(groupsWithComma: boolean) {
   return numberInput(groupsWithComma).pipe(z.number().finite().positive());
 }
-
-/**
- * The grouping convention, for every field whose typist is not known — and it
- * is DERIVED from the factory rather than a second copy of the same chain, so
- * the two can never disagree about what a positive number is.
- */
-export const quoteInputSchema = positiveNumberInput(true);
 
 // Same normalization, but 0 is a valid target share (README targets 40/40/17/3
 // admit any 0–100 split). Shared by the AssetForm Target field and the
@@ -149,8 +147,15 @@ function percentInputSchemaWith(groupsWithComma: boolean) {
   return numberInput(groupsWithComma).pipe(z.number().finite().min(0).max(100));
 }
 
+// BELOW BOTH FACTORIES, not above them: these run at module load, so placing
+// them earlier would work only by function hoisting and would break the moment
+// either factory became a `const` arrow — at import, for every screen.
+const AMOUNT_INPUT = byLang(positiveNumberInput);
+const PERCENT_INPUT = byLang(percentInputSchemaWith);
+
+/** Prebuilt per language — `/allocation` calls this per row per render. */
 export function percentInputSchemaFor(lang: Lang) {
-  return percentInputSchemaWith(groupsWithCommaFor(lang));
+  return PERCENT_INPUT[lang];
 }
 
 const isoDateInput = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -194,31 +199,12 @@ function optionalPercentFor(groupsWithComma: boolean) {
 // ledger now (D112), and the form no longer asks. What the link still holds is
 // where to look the instrument up.
 //
-// AND THE UNITS FIELD TOOK NOTHING ELSE WITH IT. `dev` made this schema a factory
-// over `groupsWithComma` for one reason: `units` is a count a Ukrainian typist
-// writes with three decimals, so `43,478` had to mean 43.478 here and not 43478.
-//
-// THE LANGUAGE STAYED ANYWAY, and it now reaches the PERCENT fields — which it
-// never did before, on this branch or on `dev`. The removal was justified by a
-// claim that no field left in the form could store a wrong number under the
-// grouping rule; measured properly that is false for exactly one field.
-// `targetPct` and `couponRatePct` are bounded at 100, so a misread `10,500` is
-// REFUSED; `expectedPct` was `quoteInputSchema` — `positiveNumberInput(true)`,
-// English grouping hard-wired, no `max` — so `16,400` from a Ukrainian typist
-// stored 16400 and reached `dailyAccrual`'s fallback, `couponProjection`'s
-// estimate and `/yield`.
-//
-// THAT BUG IS OLDER THAN THIS BRANCH. `dev` binds `expectedPct` to the same
-// `quoteInputSchema`, so it stores 16400 too; `dev`'s `lang` argument fed
-// `inzhur.units` alone. B dropped the parameter as inert, which was true of the
-// field it was wired to and false of the form. So this is a FIX to a standing
-// defect, not the repair of a regression — and the difference matters, because
-// the other reading makes a revert to `dev` look safe.
-//
-// The first measurement missed it because the probe omitted three required keys
-// and read the resulting `invalid_type` as a rejection of the VALUE — D115's
-// rule, in a schema instead of a browser: a reading that disagrees with the
-// arithmetic of its own rules is the instrument until proven otherwise.
+// WHY THE SCHEMA STILL TAKES A GRAMMAR now that `units` is gone: it reaches the
+// PERCENT fields. `targetPct` and `couponRatePct` are bounded at 100, so a
+// misread «10,500» is merely REFUSED; `expectedPct` is `positiveNumberInput`
+// with no `max`, so a Ukrainian «16,400» read under the English rule stores
+// 16400 and drives `dailyAccrual`'s fallback, `couponProjection`'s estimate and
+// `/yield` with it. The unbounded field is the one nothing downstream can catch.
 
 const inzhurGroupSchema = z.object({
   kind: z.enum(['fund', 'bond']),
@@ -279,10 +265,10 @@ export type AssetFormValues = z.output<ReturnType<typeof assetFormSchema>>;
  * A FACTORY over the language, like `assetFormSchema` is over the mode — and for
  * the same kind of reason: the shape is fixed, one rule inside it is not.
  *
- * ONLY the two fields #31 adds take the language. `amount` in per-unit mode and
- * `quantity` are the values a Ukrainian typist writes with three decimals and a
- * comma, which is the one shape `normalizeNumberInput` cannot disambiguate on
- * its own. Everything else keeps `quoteInputSchema` verbatim.
+ * The numeric fields all take it. `amount` in per-unit mode and `quantity` are
+ * the values a Ukrainian typist writes with three decimals and a comma, which
+ * is the one shape `normalizeNumberInput` cannot disambiguate on its own — and
+ * a row this form writes goes straight into the ledger.
  */
 function transactionObjectFor(lang: Lang) {
   const groupsWithComma = groupsWithCommaFor(lang);

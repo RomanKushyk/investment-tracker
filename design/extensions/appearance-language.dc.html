@@ -586,8 +586,9 @@ h1,h2,h3,h4{font-family:"Space Grotesk","Manrope",sans-serif !important;font-wei
        CONTRACT 0 IS VISIBLE IN EVERY CARD: the stored rate reads `44,83` in
        Ukrainian and `44.83` in English, the fetched rate `44,866` / `44.866`,
        and the NBU date `12.08.2026` / `12 Aug 2026`. The VALUE never moves —
-       44.83 is 44.83 in both. The input parser already accepts comma or dot
-       (core/schemas.quoteInputSchema), so no new parsing contract is needed.
+       44.83 is 44.83 in both. The field PARSES UNDER THE CHOSEN LANGUAGE
+       (core/schemas.amountInputSchema, D87): a lone comma is the decimal in
+       Ukrainian, and in English it groups threes or the value is unreadable.
 
        D7 — row-level motion is unchanged from P2/A5: input border-color
        150ms; the NBU result line fade+slide-from-top-1 200ms; the headline

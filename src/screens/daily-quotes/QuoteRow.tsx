@@ -7,10 +7,11 @@ import { kyivDateIso, kyivTimeHm } from '../../core/dates';
 import { yieldSinceStart } from '../../core/derive';
 import type { QuoteVerdict } from '../../core/inzhur/dcf';
 import type { Asset } from '../../core/types';
-import { quoteInputSchema } from '../../core/schemas';
+import { amountInputSchema } from '../../core/schemas';
 import type { ProvenanceChip } from './fetch-quotes';
 import type { QuoteOffer } from './useQuoteFetch';
 import { useFormat } from '../../hooks/useFormat';
+import { useSettings } from '../../state/settings';
 import { useT } from '../../i18n/useT';
 
 // S2 — provenance of the row's CURRENT draft value: `auto` (a fetch filled
@@ -224,7 +225,8 @@ export function QuoteRow({
 }) {
   const f = useFormat();
   const t = useT();
-  const parsed = raw !== undefined ? quoteInputSchema.safeParse(raw) : undefined;
+  const language = useSettings((s) => s.language);
+  const parsed = raw !== undefined ? amountInputSchema(language).safeParse(raw) : undefined;
   const filled = parsed?.success === true;
   const delta =
     filled && yesterday !== undefined ? yieldSinceStart(parsed.data, yesterday) : undefined;

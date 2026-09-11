@@ -3,6 +3,7 @@ import type { Asset, Snapshot } from '../../core/types';
 import { pendingChange } from './quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
+import { useSettings } from '../../state/settings';
 
 /**
  * THE RAIL'S FIRST BLOCK (sheet D-4) — what this snapshot would change.
@@ -33,7 +34,8 @@ export function PendingChange({
 }) {
   const f = useFormat();
   const t = useT();
-  const { sum, changed } = pendingChange(assets, drafts, snapshots, selectedDate);
+  const language = useSettings((s) => s.language);
+  const { sum, changed } = pendingChange(assets, drafts, snapshots, selectedDate, language);
   // Rounded to kopiykas for the same reason the comparison is: a sum of
   // −0.000000001 is a zero the display would sign.
   const net = Math.round(sum * 100);

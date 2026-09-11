@@ -29,6 +29,7 @@ import {
 } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
+import { useSettings } from '../../state/settings';
 
 /** The success flash reverts to the idle label after this long (S1). */
 const FLASH_MS = 2500;
@@ -86,6 +87,7 @@ export function useQuoteFetch(
 ): QuoteFetch {
   const t = useT();
   const f = useFormat();
+  const language = useSettings((s) => s.language);
   const { data, lastGood, isFetching, disabled, fetchAssets } = useInzhurAssets();
   const quotes = useDraft((s) => s.quotes);
   const origins = useDraft((s) => s.origins);
@@ -109,7 +111,7 @@ export function useQuoteFetch(
         offers: pending,
         negative,
         noCount,
-      } = reconcileFetched(linked, draft.quotes, draft.origins);
+      } = reconcileFetched(linked, draft.quotes, draft.origins, language);
       for (const fill of fills) {
         draft.fillQuote(fill.assetId, f.num(fill.value), { source, at: feed.fetchedAt });
       }
@@ -202,7 +204,7 @@ export function useQuoteFetch(
         });
       }
     },
-    [assets, f, unitsHeld, incompleteLedgers, t],
+    [assets, f, unitsHeld, incompleteLedgers, language, t],
   );
 
   const fetchQuotes = useCallback(() => {
@@ -256,9 +258,9 @@ export function useQuoteFetch(
       const offer = offers[asset.id];
       if (offer === undefined) return undefined;
       const row = { raw: quotes[asset.id], origin: origins[asset.id] };
-      return offerVisible(row, offer.value) ? offer : undefined;
+      return offerVisible(row, offer.value, language) ? offer : undefined;
     },
-    [offers, origins, quotes],
+    [language, offers, origins, quotes],
   );
 
   const dismissOffer = useCallback((assetId: string) => {

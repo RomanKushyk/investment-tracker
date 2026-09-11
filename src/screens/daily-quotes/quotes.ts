@@ -1,6 +1,7 @@
 // Pure helpers for the Daily quotes screen (not in src/lib — that layer stays
 // untouched per Task 3 scope). Covered by quotes.test.ts.
-import { quoteInputSchema } from '../../core/schemas';
+import { amountInputSchema } from '../../core/schemas';
+import type { Lang } from '../../core/money';
 
 /** Money, as whole kopiykas — the unit the app displays and the one to compare in. */
 function kopiykas(n: number): number {
@@ -22,13 +23,15 @@ export interface CollectedQuotes {
 export function collectQuotes(
   drafts: Record<string, string | undefined>,
   assets: Asset[],
+  lang: Lang,
 ): CollectedQuotes {
   const quotes: Record<string, number> = {};
   const unreadable: string[] = [];
+  const schema = amountInputSchema(lang);
   for (const a of assets) {
     const raw = drafts[a.id];
     if (raw === undefined || raw.trim() === '') continue;
-    const parsed = quoteInputSchema.safeParse(raw);
+    const parsed = schema.safeParse(raw);
     if (parsed.success) quotes[a.id] = parsed.data;
     else unreadable.push(a.id);
   }
@@ -90,12 +93,13 @@ export function pendingChange(
   drafts: Record<string, string | undefined>,
   snapshots: Snapshot[],
   selectedDate: string,
+  lang: Lang,
 ): { sum: number; changed: number } {
   let sum = 0;
   let changed = 0;
   // The screen's own reading, not a second parse of the same string: only what
   // `collectQuotes` accepts counts, and an unreadable row counts as nothing here.
-  const { quotes } = collectQuotes(drafts, assets);
+  const { quotes } = collectQuotes(drafts, assets, lang);
   for (const a of assets) {
     const value = quotes[a.id];
     if (value === undefined) continue;

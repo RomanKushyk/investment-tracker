@@ -26,7 +26,7 @@ describe('parseTargetPct', () => {
 
   it('accepts the table grammar: integers, comma or dot decimals, padding', () => {
     expect(parseTargetPct('40', 'en')).toBe(40);
-    expect(parseTargetPct('17,5', 'en')).toBe(17.5);
+    expect(parseTargetPct('17,5', 'uk')).toBe(17.5);
     expect(parseTargetPct('17.5', 'en')).toBe(17.5);
     expect(parseTargetPct(' 40 ', 'en')).toBe(40);
   });
@@ -62,7 +62,7 @@ describe('targetRowStates', () => {
   });
 
   it('a valid draft equal to the stored value is not a change', () => {
-    const rows = targetRowStates(ASSETS, { reit: '40,0' }, 'en');
+    const rows = targetRowStates(ASSETS, { reit: '40,0' }, 'uk');
     expect(rows[0]).toEqual({ id: 'reit', value: 40, effective: 40, changed: false });
   });
 
@@ -108,7 +108,7 @@ describe('changedTargets (per-asset save patches)', () => {
         ovdp8976: 'abc', // invalid — never saved
         ovdp6475: '7', // changed
       },
-      'en',
+      'uk',
     );
     expect(changedTargets(rows)).toEqual([
       { id: 'energy', targetPct: 35.5 },
@@ -130,17 +130,21 @@ describe('A36 — what the editor SHOWS round-trips through what it PARSES', () 
   for (const lang of ['uk', 'en'] as const) {
     it(`accepts back exactly what it displays in ${lang}`, () => {
       const f = makeFormat(lang);
-      // 1,234 is the class the first list skipped: in Ukrainian the parser
-      // reads it as a grouped thousand, so `units` round-tripped to 1234 and
-      // the row rejected text the app itself had printed. `input` verifies.
+      // 1,234 is the class the first list skipped: each language writes it its
+      // own way, and the editor has to read back exactly what it printed —
+      // otherwise the row rejects text the app itself put there. `input` verifies.
       for (const v of [0, 3, 17, 17.5, 7.25, 40, 100, 1.234, 6.164]) {
         expect(parseTargetPct(f.input(v), lang), `${v} rendered "${f.input(v)}"`).toBe(v);
       }
     });
   }
 
-  it("still accepts the other language's separator, so a paste is not punished", () => {
+  it("refuses the other language's separator rather than guessing at it", () => {
+    // A lone comma is the decimal in Ukrainian and grouping in English, so
+    // «17,5» under English is a number nobody wrote — unreadable, not 17.5.
     expect(parseTargetPct('17.5', 'en')).toBe(17.5);
-    expect(parseTargetPct('17,5', 'en')).toBe(17.5);
+    expect(parseTargetPct('17,5', 'en')).toBeNull();
+    expect(parseTargetPct('17,5', 'uk')).toBe(17.5);
+    expect(parseTargetPct('17.5', 'uk')).toBe(17.5);
   });
 });

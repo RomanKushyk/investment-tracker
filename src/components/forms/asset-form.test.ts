@@ -84,7 +84,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
   // the parser read the comma as a decimal point, and saving an untouched
   // linked asset stored 6.164 units — its value collapsing by three orders of
   // magnitude. D117 removed the Units field, so that trip no longer happens
-  // here; the comma rule itself is `quoteInputSchema`'s and is tested in
+  // here; the comma rule itself is `amountInputSchema`'s and is tested in
   // `core/schemas.test.ts`, which is where the transaction form's own units
   // field now depends on it.
   //
@@ -109,7 +109,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
     it(`carries the link without its legacy units in ${lang}`, () => {
       const defaults = assetFormDefaults(makeFormat(lang), linked as never);
       expect(defaults.inzhur).toEqual({ kind: 'fund', ref: 'inzhur-reit' });
-      const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
+      const parsed = assetFormSchema('edit', lang).safeParse(defaults);
       expect(parsed.success, JSON.stringify(defaults.inzhur)).toBe(true);
       expect(parsed.success && parsed.data.inzhur).toEqual({
         kind: 'fund',
@@ -129,7 +129,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
       const defaults = assetFormDefaults(fmt, asset as never);
       expect(defaults.targetPct).toBe(lang === 'uk' ? '17,5' : '17.5');
       expect(defaults.expectedPct).toBe(lang === 'uk' ? '16,4' : '16.4');
-      const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
+      const parsed = assetFormSchema('edit', lang).safeParse(defaults);
       expect(parsed.success, JSON.stringify(defaults)).toBe(true);
       expect(parsed.success && parsed.data.targetPct).toBe(17.5);
       expect(parsed.success && parsed.data.expectedPct).toBe(16.4);
@@ -146,14 +146,14 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
   }
 
   it('survives a three-decimal percent, which is where `units` lost a factor of 1000', () => {
-    // uk `f.units(6.164)` is "6,164", which `normalizeNumberInput` reads as a
-    // grouped 6164 — an untouched Save would have stored a 1000x yield.
+    // uk writes 6.164 as «6,164», the same text English writes 6164 as — so the
+    // prefill only survives an untouched Save because its own language reads it.
     const defaults = assetFormDefaults(makeFormat('uk'), {
       ...linked,
       expectedPct: 6.164,
     } as never);
-    expect(defaults.expectedPct).toBe('6,1640');
-    const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
+    expect(defaults.expectedPct).toBe('6,164');
+    const parsed = assetFormSchema('edit', 'uk').safeParse(defaults);
     expect(parsed.success && parsed.data.expectedPct).toBe(6.164);
   });
 
@@ -162,7 +162,7 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
     // 7,3 and an untouched Save would silently rewrite it.
     const defaults = assetFormDefaults(makeFormat('uk'), { ...linked, targetPct: 7.25 } as never);
     expect(defaults.targetPct).toBe('7,25');
-    const parsed = assetFormSchema('edit', 'en').safeParse(defaults);
+    const parsed = assetFormSchema('edit', 'uk').safeParse(defaults);
     expect(parsed.success && parsed.data.targetPct).toBe(7.25);
   });
 });

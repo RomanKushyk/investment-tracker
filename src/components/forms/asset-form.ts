@@ -85,16 +85,10 @@ export function deriveCode(name: string): string {
 // here. The two fields that once used `num` / `units` are gone: Coupon amount to
 // D119's rate and Units to D117's ledger derivation.
 //
-// `input`'s OWN CONTRACT HAS A CAVEAT NOW. `money.ts` verifies it against
-// `GROUPING = true` and warns that wiring it into a field parsed the Ukrainian
-// way voids the round trip silently. The three percent fields ARE parsed that
-// way since `assetFormSchema(mode, lang)` came back, and the round trip survives
-// only because uk's `free.format` groups with NBSP, which `normalizeNumberInput`
-// strips before its comma rule can run. Nothing pins that coincidence: a change
-// to the grouping character, to the padding heuristic or to `f.free`'s options
-// reintroduces a silent 1000x on a yield, on an untouched Save. The durable fix
-// is a language-aware `input`; recorded here because the field it would protect
-// is the one that already carried that bug once.
+// THE CALLER OWES ONE LANGUAGE TO BOTH SIDES: `input` verifies its round trip
+// under the formatter's own grammar, so a prefill only survives an untouched
+// Save if `assetFormSchema(mode, lang)` reads it back under that same lang. No
+// signature enforces it, and the percent fields are where it costs a 1000x.
 // Percent fields joined them in A36 through `f.input`; they were plain
 // dot-decimal strings until then, which is what the edit fragment's `16.4`
 // pinned and why the Ukrainian UI showed a dot in two fields.

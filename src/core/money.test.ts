@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { makeFormat, signed, toUsd } from './money';
-import { normalizeNumberInput } from './schemas';
+import { groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 // The legacy exports these covered are gone: each language now owns one
 // coherent set, so "prose vs table" is not a distinction the code can make.
@@ -188,6 +188,11 @@ describe('input — the editable form, and the round trip it guarantees', () => 
     1.234, 6.164, 0.125, 99.999,
     // and the neighbours that must keep working
     1234.567, 1500, 12.3456,
+    // BELOW WHAT `f.free` CAN PRINT (20 fraction digits), so the formatted form
+    // rounds to "0" and the round trip fails — this is the one value in the list
+    // that leaves through `input`'s `String(n)` last resort, and the assertion
+    // below is what keeps that branch honest rather than merely unreachable.
+    1e-25,
   ];
 
   for (const lang of ['uk', 'en'] as const) {
@@ -195,12 +200,14 @@ describe('input — the editable form, and the round trip it guarantees', () => 
       const f = makeFormat(lang);
       for (const v of VALUES) {
         const shown = f.input(v);
-        // THE GROUPING CONVENTION, which is the one `input()` itself checks
-        // against (`GROUPING` in money.ts) and the one every caller of `input()`
-        // still parses with. Stated here rather than inherited from a default,
-        // so the day a caller moves to the Ukrainian rule this stops agreeing
-        // with it by accident.
-        expect(Number(normalizeNumberInput(shown, true)), `${v} rendered "${shown}"`).toBe(v);
+        // UNDER ITS OWN LANGUAGE, which is the whole guarantee: `input` prints
+        // in one grammar, so the parser it is checked against has to be that
+        // grammar's. Checked against the other one, a Ukrainian «6,164» reads
+        // as 6164 and the round trip certifies a 1000x.
+        expect(
+          Number(normalizeNumberInput(shown, groupsWithCommaFor(lang))),
+          `${v} rendered "${shown}"`,
+        ).toBe(v);
       }
     });
   }
@@ -215,10 +222,19 @@ describe('input — the editable form, and the round trip it guarantees', () => 
     expect(makeFormat('uk').input(7.25)).toBe('7,25');
   });
 
-  it('disambiguates the three-decimal collision with one trailing zero', () => {
-    // Not a rendering fault: `6,164` would parse as 6164 — a 1000x error on an
-    // untouched Save — and `6,1640` no longer matches the grouped-integer rule.
-    expect(makeFormat('uk').input(6.164)).toBe('6,1640');
+  it('falls back to the dot form only when the language cannot print the value', () => {
+    // The `String(n)` last resort, asserted directly: the round-trip check above
+    // would still pass if `f.free` ever started printing 1e-25, leaving the
+    // branch unreachable with the suite green.
+    expect(makeFormat('uk').input(1e-25)).toBe('1e-25');
+    expect(makeFormat('en').input(1e-25)).toBe('1e-25');
+  });
+
+  it('prints a three-decimal fraction plainly, with nothing added to disambiguate it', () => {
+    // «6,1640» was a pad against a parser that read the Ukrainian text under the
+    // English rule. The rule follows the language now, so the value is shown as
+    // it is written — and still reads back as itself.
+    expect(makeFormat('uk').input(6.164)).toBe('6,164');
     expect(makeFormat('en').input(6.164)).toBe('6.164');
   });
 });

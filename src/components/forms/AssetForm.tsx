@@ -712,20 +712,12 @@ export function AssetForm({
   // the whole zod tree and a resolver closure on every render of a form that
   // re-renders on each field change.
   //
-  // THE LANGUAGE ARGUMENT REACHES THE PERCENT FIELDS, which is new — and the
-  // bug it closes is OLDER THAN THIS BRANCH. Measured: `dev` binds
-  // `expectedPct: quoteInputSchema`, and `quoteInputSchema` is
-  // `positiveNumberInput(true)` — the English grouping rule, hard-wired, with no
-  // `max` to catch the result. So a Ukrainian typist writing 16,4 % stored
-  // 16400 % on `dev` too, into the field that drives `dailyAccrual`'s fallback,
-  // `couponProjection`'s estimate and `/yield`'s «проти очікуваної».
+  // THE LANGUAGE REACHES THE PERCENT FIELDS because `expectedPct` has no `max`:
+  // a Ukrainian «16,400» read under the English rule stores 16400 %, and only the
+  // fields bounded at 100 would refuse it.
   //
-  // `dev` DID pass a `lang` here, which is what made this easy to misread: it
-  // fed `inzhur.units` and nothing else. B then dropped the parameter as inert,
-  // which was true of the field it was actually wired to and false of the form.
-  // An earlier version of this comment called the removal "this branch's worst
-  // bug" and named `dev` as reading 16.4 — both wrong, and wrong in the
-  // direction that would make a revert to `dev` look safe.
+  // It must match the one `assetFormDefaults` prints in (`money.ts`), and the two
+  // part when the language changes under an open dialog — #123 reformats them.
   const schema = useMemo(() => assetFormSchema(mode, language), [mode, language]);
   const form = useForm<AssetFormInput, unknown, AssetFormValues>({
     resolver: zodResolver(schema),

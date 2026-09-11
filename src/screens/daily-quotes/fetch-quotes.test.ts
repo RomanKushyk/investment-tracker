@@ -48,19 +48,27 @@ const CACHE: QuoteOrigin = { source: 'cache', at: '2026-07-25T10:05:00.000Z' };
 
 describe('sameQuote — the S3 equality guard', () => {
   it('accepts the table format the fetch itself writes', () => {
-    expect(sameQuote('68 660,18', 68660.18)).toBe(true);
-    expect(sameQuote('68660.18', 68660.18)).toBe(true);
+    expect(sameQuote('68 660,18', 68660.18, 'uk')).toBe(true);
+    expect(sameQuote('68660.18', 68660.18, 'uk')).toBe(true);
   });
 
   it('rejects a different number, an unparseable draft and an absent one', () => {
-    expect(sameQuote('68 660,19', 68660.18)).toBe(false);
-    expect(sameQuote('15 90', 15907.45)).toBe(false);
-    expect(sameQuote('', 1)).toBe(false);
-    expect(sameQuote(undefined, 1)).toBe(false);
+    expect(sameQuote('68 660,19', 68660.18, 'uk')).toBe(false);
+    expect(sameQuote('15 90', 15907.45, 'uk')).toBe(false);
+    expect(sameQuote('', 1, 'uk')).toBe(false);
+    expect(sameQuote(undefined, 1, 'uk')).toBe(false);
   });
 
   it('compares at kopeck precision (float noise never creates an offer)', () => {
-    expect(sameQuote('60 082,96', 9 * 6675.8848)).toBe(true);
+    expect(sameQuote('60 082,96', 9 * 6675.8848, 'uk')).toBe(true);
+  });
+
+  it('reads the draft under the user language before comparing', () => {
+    // Read under the wrong grammar the guard answers about a different number,
+    // and S3 either hides an offer that should stand or raises one over nothing.
+    expect(sameQuote('1,240', 1.24, 'uk')).toBe(true);
+    expect(sameQuote('1,240', 1240, 'uk')).toBe(false);
+    expect(sameQuote('1,240', 1240, 'en')).toBe(true);
   });
 });
 
@@ -73,11 +81,11 @@ describe('isTyped / offerVisible', () => {
   });
 
   it('shows an offer only over a differing typed value', () => {
-    expect(offerVisible({ raw: '60 100,00', origin: undefined }, 60082.96)).toBe(true);
-    expect(offerVisible({ raw: '60 082,96', origin: undefined }, 60082.96)).toBe(false);
-    expect(offerVisible({ raw: '', origin: undefined }, 60082.96)).toBe(false);
+    expect(offerVisible({ raw: '60 100,00', origin: undefined }, 60082.96, 'uk')).toBe(true);
+    expect(offerVisible({ raw: '60 082,96', origin: undefined }, 60082.96, 'uk')).toBe(false);
+    expect(offerVisible({ raw: '', origin: undefined }, 60082.96, 'uk')).toBe(false);
     // A machine-filled row is refilled, never offered.
-    expect(offerVisible({ raw: '60 000,00', origin: FETCH }, 60082.96)).toBe(false);
+    expect(offerVisible({ raw: '60 000,00', origin: FETCH }, 60082.96, 'uk')).toBe(false);
   });
 });
 
@@ -108,7 +116,7 @@ describe('provenanceChip (S2)', () => {
 
 describe('reconcileFetched — the G5 decision', () => {
   it('fills every empty linked row with units × sellUAH', () => {
-    expect(reconcileFetched(matches, {}, {})).toEqual({
+    expect(reconcileFetched(matches, {}, {}, 'uk')).toEqual({
       fills: [
         { assetId: 'reit', value: 68660.18 },
         { assetId: 'energy', value: 60082.96 },
@@ -121,7 +129,7 @@ describe('reconcileFetched — the G5 decision', () => {
   });
 
   it('offers instead of overwriting a value the user typed', () => {
-    const { fills, offers } = reconcileFetched(matches, { energy: '60 100,00' }, {});
+    const { fills, offers } = reconcileFetched(matches, { energy: '60 100,00' }, {}, 'uk');
     expect(fills.map((f) => f.assetId)).toEqual(['reit', 'ovdp8976']);
     expect(offers).toEqual([{ assetId: 'energy', value: 60082.96 }]);
   });
@@ -131,13 +139,14 @@ describe('reconcileFetched — the G5 decision', () => {
       matches,
       { reit: '68 000,00', energy: '60 000,00' },
       { reit: FETCH, energy: CACHE },
+      'uk',
     );
     expect(fills.map((f) => f.assetId)).toEqual(['reit', 'energy', 'ovdp8976']);
     expect(offers).toEqual([]);
   });
 
   it('neither fills nor offers when the typed value already equals the fetched one', () => {
-    const { fills, offers } = reconcileFetched(matches, { ovdp8976: '15 865,05' }, {});
+    const { fills, offers } = reconcileFetched(matches, { ovdp8976: '15 865,05' }, {}, 'uk');
     expect(fills.map((f) => f.assetId)).toEqual(['reit', 'energy']);
     expect(offers).toEqual([]);
   });
@@ -150,7 +159,7 @@ describe('reconcileFetched — the G5 decision', () => {
     // this one empty forever with nothing said anywhere.
     const fresh = asset('fresh', { kind: 'fund', ref: 'inzhur-reit' });
     const { linked } = matchAssets([fresh], feed, {});
-    const out = reconcileFetched(linked, {}, {});
+    const out = reconcileFetched(linked, {}, {}, 'uk');
     expect(out.fills).toEqual([]);
     expect(out.offers).toEqual([]);
     expect(out.noCount).toEqual(['fresh']);
@@ -162,7 +171,7 @@ describe('reconcileFetched — the G5 decision', () => {
   it('ignores assets the feed does not carry (matchAssets never lists them)', () => {
     const gone = asset('gone', { kind: 'bond', ref: 'UA9999999999', units: 1 });
     const { linked } = matchAssets([gone, manual], feed, {});
-    expect(reconcileFetched(linked, {}, {})).toEqual({
+    expect(reconcileFetched(linked, {}, {}, 'uk')).toEqual({
       fills: [],
       offers: [],
       negative: [],

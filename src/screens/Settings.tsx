@@ -7,7 +7,7 @@ import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
-import { quoteInputSchema } from '../core/schemas';
+import { amountInputSchema } from '../core/schemas';
 import { THEME_ORDER, useSettings, type Language } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';
@@ -237,15 +237,15 @@ function LanguageControl() {
   );
 }
 
-// S8 — editable ₴/$ rate. Validation = core/schemas.quoteInputSchema (the
-// app-wide "positive number, comma or dot decimals" input rule); an invalid
-// or ≤0 value never reaches the store — the last valid rate stays in effect.
+// S8 — editable ₴/$ rate. Validated by `amountInputSchema` under the user's own
+// language (D87), the same door the coupon card and the quote drafts use; an
+// invalid or ≤0 value never reaches the store — the last valid rate stays.
 // Empty input only errors on blur (arming is progressive).
 const USD_RATE_ERROR_ID = 'usd-rate-error';
 
 function UsdRateField() {
   const t = useT();
-  const { usdRate, setUsdRate } = useSettings();
+  const { usdRate, setUsdRate, language } = useSettings();
   const f = useFormat();
   // A36's third site, and the one its own commit wrongly called done: this
   // field sat one component away from an NBU line rendering «44,6988» through
@@ -258,7 +258,7 @@ function UsdRateField() {
 
   function handleChange(value: string) {
     setRaw(value);
-    const parsed = quoteInputSchema.safeParse(value);
+    const parsed = amountInputSchema(language).safeParse(value);
     if (parsed.success) {
       setError(false);
       setUsdRate(parsed.data);
@@ -295,7 +295,7 @@ function UsdRateField() {
             name="usdRate"
             value={raw}
             onChange={(e) => handleChange(e.target.value)}
-            onBlur={() => setError(!quoteInputSchema.safeParse(raw).success)}
+            onBlur={() => setError(!amountInputSchema(language).safeParse(raw).success)}
             inputMode="decimal"
             aria-label={t.settings.rate.ariaLabel}
             aria-invalid={error}
