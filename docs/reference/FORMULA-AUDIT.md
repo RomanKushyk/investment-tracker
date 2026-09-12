@@ -24,7 +24,7 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 | **Challenge** | "Free Cash was entered manually or calculated residually → leaks. The transactions ledger must be the only mutator; cash must be derived state" (doc §1.1 formula). |
 | **App formula** | `freeCashFromLedger(txs)` + `ledgerCashDrift(storedCash, txs)` — `src/core/derive.ts`. New TxTypes `withdrawal` + `redemption` added to `core/types.ts`, `core/schemas.ts`, `core/backup/json.ts` (domain-wide; the TransactionPanel select exposes them in P2). |
 | **Validation** | `freeCashFromLedger(SEED_TRANSACTIONS)` = **7,75** = deposits 143 176,37 − own-funded buys 143 168,62 — exactly the stored cash of every seeded snapshot; `ledgerCashDrift(latestCash, seed)` = 0. The doc-verbatim formula (+ payouts 5 040,94 − reinvests 1 387,38) would give **3 661,31 ✗**. |
-| **Verdict** | **Resolved with deviation** (pinned): `FreeCash = deposits − withdrawals − buys + sells + redemptions`. Payout/reinvest/tax rows are **excluded** because payouts are external unless reinvested (the user's real Inzhur config routes dividends to a bank account, and paying taxes happens there too), and a reinvest is funded by its paired same-date payout — net zero broker-cash effect. `Snapshot.cash` stays the *observed* balance; the ledger result is a **reconciliation check** (drift warning surfaces in P2 — that half is deferred-to-P2-UI). Revisit triggers: (1) a payout `destination` field lands → broker-credited payouts join the sum; (2) a buy funded from accrual sources appears in real data → the buy term gains a source filter. |
+| **Verdict** | **Resolved with deviation** (pinned): `FreeCash = deposits − withdrawals − buys + sells + redemptions`. Payout/reinvest/tax rows are **excluded** because payouts are external unless reinvested (the user's real Inzhur config routes dividends to a bank account, and paying taxes happens there too), and a reinvest is funded by its paired same-date payout — net zero broker-cash effect. `Snapshot.cash` and the drift check against it are **retired at the migration** — free cash is the ledger's signed sum and nothing stores an observed balance (`docs/DECISIONS.md`, *Metric families and windows*). The exclusion rule above is the half that stands. Revisit triggers: (1) a payout `destination` field lands → broker-credited payouts join the sum; (2) a buy funded from accrual sources appears in real data → the buy term gains a source filter. |
 
 ### §2 Capital Gain vs Total Return + the Tax Illusion
 
@@ -130,7 +130,7 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 | Result | `netResult` = value − invested (＋3.08 % seed) | `totalNetProfit` = value + payoutsNet + sold − investedOwn − reinvested |
 | Relative | `yieldSinceStart`, `annualizedPct` | `totalReturnPct` (÷ investedOwn), `cashYieldPct`, `xirr` |
 | Global | headline `netResult` KPI | `globalRoi` (÷ `netDeposits`, ＋4.08 % seed) |
-| Cash | `Snapshot.cash` (observed) | `freeCashFromLedger` + `ledgerCashDrift` (reconciliation check) |
+| Cash | retired with the observed balance | `freeCashFromLedger` — the ledger's signed sum, nothing stored |
 
 Both families are permanent; P2 labels them distinctly and never conflates them.
 No D5-pinned figure changed in this audit (additive-metrics rule, verified: the

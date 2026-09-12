@@ -47,7 +47,7 @@ Measured 2026-09-03, and it is what decides the endpoint count.
 
 | Surface | Shape | Derived vs the raw rows |
 |---|---|---|
-| KPIs — `TotalReturnKpi`, `netResult`, XIRR, `RebalancePlan`, `ledgerDriftChip` | a handful of numbers | **collapses** |
+| KPIs — `TotalReturnKpi`, `netResult`, XIRR, `RebalancePlan` | a handful of numbers | **collapses** |
 | `AllocationRow`, `YieldTableRow`, `attributes`, `portfolio`, `seasonality` | one row per asset, or per day/month | ~20–31 rows |
 | `YieldSeriesPoint` | `{ date, [assetId]: number }` — **one value per asset per date** | **same width as a snapshot** |
 | `BalanceRow` | `{ date, cells[], cash, total }` — **one cell per asset per date** | **same width as a snapshot** |

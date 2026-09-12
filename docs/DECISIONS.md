@@ -58,7 +58,12 @@ the first thing a reader of a table uses — and the grey mark is what makes it 
 coupon amount goes stale on the next purchase; a rate does not.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
 already the per-asset answer. · Re-deriving a schedule the walkers already answer: two readings of
-one schedule is the failure, not the arithmetic in either.
+one schedule is the failure, not the arithmetic in either. · A stored observed cash balance beside
+the derived one, with a chip reporting the drift between them: a second source of truth for the one
+figure the rule above hands the ledger, and no screen ever let anyone enter the observation — every
+snapshot carried the previous one's figure forward, the demo's from the seed and an unseeded
+account's from zero, so a real ledger would have read as a permanent drift its own size. Re-adding
+an observed balance stays additive: a table, and somewhere to type into it.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second; formatting and the number
