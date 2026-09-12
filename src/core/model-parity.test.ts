@@ -10,7 +10,7 @@ import { asset } from '../../infra/schema/user';
 import { COLOR_KEYS } from './colors';
 import type { Asset, TxType } from './types';
 
-const SQL = readFileSync('infra/migrations/drafts/003_user_schema.sql', 'utf8');
+const SQL = readFileSync('infra/migrations/003_user_schema.sql', 'utf8');
 
 /** The quoted values inside a named `CHECK (... IN (...))` in the generated SQL. */
 function checkValues(constraint: string): string[] {

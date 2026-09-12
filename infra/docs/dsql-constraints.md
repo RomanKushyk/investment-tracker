@@ -121,11 +121,17 @@ child table. `pg_get_constraintdef` reads it back unchanged.
 
 ## `003_user_schema.sql` against the live cluster
 
-All seven statements, verbatim except the two index lines, ran clean:
-5 tables with one primary key each, 4 composite (`app_user` keys on
-`user_id` alone), named `CONSTRAINT`s throughout, 3 `UNIQUE`s, 23 `CHECK`s,
-one `DEFAULT 0`, and the types `uuid`, `text`, `numeric` (unqualified),
-`smallint`, `bigint`, `date`, `timestamptz`.
+Every statement ran clean, verbatim except the index lines. What that
+establishes is the SHAPE the file uses, each element of which DSQL accepted:
+composite primary keys, named `CONSTRAINT`s throughout, `UNIQUE` and `CHECK`
+inline in `CREATE TABLE`, a column `DEFAULT`, and the types `uuid`, `text`,
+`numeric` (unqualified), `smallint`, `bigint`, `date`, `timestamptz`.
+
+Deliberately no constraint counts here. They were carried for a while, went
+stale within a commit of being written, and said nothing the shape does not —
+the file's current contents are `infra/migrations/003_user_schema.sql` and the
+statement count is pinned in `infra/src/migrate.test.ts`, which is where a
+figure belongs.
 
 The constraints are enforced, not merely accepted:
 
@@ -136,3 +142,51 @@ The constraints are enforced, not merely accepted:
 | `status = 'pending'` with `decided_at` set | `23514` — `app_user_decided_ck` |
 | a second row with an existing `email` | `23505` — `app_user_email_uq` |
 | a row omitting `data_version` | `DEFAULT 0` landed |
+
+## The migration runner against the live cluster
+
+First contact for `infra/src/migrate.ts`, which is what promotion was still
+first contact FOR — the DDL's own had already happened above. Two throwaway
+schemas, each dropped `CASCADE` when the run ended, on the same eu-north-1
+cluster. (The runner does that cleanup outside any `finally`, so a drop that
+fails cannot replace the statement failure a rehearsal was run to find.)
+
+Today's `003_user_schema.sql` and `005_demo_user.sql` applied clean through the
+runner, rewrite rules and all, with both `CREATE INDEX ASYNC` jobs waited on via
+`CALL sys.wait_for_job` and both indexes present in `pg_indexes` afterwards. A
+second pass over the same schema applied nothing and skipped everything — the
+property #47 depends on, since it appends `ALTER TABLE … ADD CONSTRAINT`
+statements to a file already applied.
+
+**`INSERT … ON CONFLICT (col) DO NOTHING` is supported**, and a conflicting
+insert reports `rowCount: 0` rather than raising. A violation of a DIFFERENT
+unique constraint still raises `23505`, and the error carries `constraint` with
+the offending name — which is what lets `005` be re-runnable without the runner
+having to absorb a code that could have come from anywhere.
+
+`pg_index.indisvalid` is readable and true for a built index. It is **not**
+enough on its own: it is false for a build that FAILED and false for one still
+RUNNING, and those want opposite advice — one wants `DROP INDEX`, the other
+wants waiting.
+
+**`sys.jobs` separates them, and can be found without the job id**, which is
+what a crashed run takes with it. Columns: `job_id, status, details, job_type,
+class_id, object_id, object_name, start_time, update_time`. A `CREATE INDEX
+ASYNC` writes `job_type = 'INDEX_BUILD'` with `object_name` set to
+`schema.index` — so the job is reachable by name — and `status` moves
+`submitted` → `completed`. `CALL sys.wait_for_job(job_id)` on a job found that
+way resumes exactly what the killed invocation was waiting for.
+
+**The SQLSTATEs for a statement whose object is already there**, which is what
+the runner's crash-window absorption turns on and which local Postgres could
+not be trusted to answer (`RESTRICT` already differs by engine, above):
+
+| Re-sent | DSQL |
+|---|---|
+| `CREATE TABLE` on an existing table | `42P07` |
+| `CREATE INDEX ASYNC` on an existing index | `42P07` — a *relation*, not `42710` |
+| `INSERT` re-inserting a primary key | `23505` |
+
+The index case is the one worth knowing: an already-built index reports as a
+duplicate RELATION, so a runner that only absorbed `42710` there would fail on
+exactly the retry it exists to serve.

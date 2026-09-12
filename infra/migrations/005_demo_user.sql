@@ -1,0 +1,62 @@
+-- 005 — the demo's own identity (W7)
+--
+-- APPLIED BY `infra/src/migrate.ts`, unlike 001, 002 and 004, which are
+-- reference copies of DDL `ensureSchema` holds inline. Those three are the
+-- ARCHIVE's; this one and 003 are USER data, and the runner is what applies
+-- them. The runner names both files explicitly rather than globbing, so adding
+-- a file here does not enlist it.
+--
+-- DML, AND THE ONLY DML IN THIS FOLDER. DSQL forbids DDL and DML in one
+-- transaction, so this cannot join 003 — it is a separate file for the same
+-- reason every statement in 003 is its own transaction. It depends on 003
+-- having applied, which the runner's ordering is what guarantees.
+--
+-- WHY THERE IS A ROW HERE AT ALL. The seeded demo is a row set under an
+-- `app_user` of its own, never under the super-admin, who is the owner's own
+-- account (`docs/DECISIONS.md`, **Auth model**). Rows held there would put a
+-- real portfolio behind a public route, and a flag telling the two apart would
+-- have to be remembered in every predicate on every table, where one forgotten
+-- `WHERE` is the same failure.
+--
+-- `role = 'demo'`, WHICH IS WHAT MAKES THE RULING STRUCTURAL. The identity must
+-- never gain a provider account, because approving one calls `AdminCreateUser`:
+-- it would create the identity, spend a monthly active user against the free
+-- tier and mail an address whose bounce cannot be cleared. As `user`/`active`
+-- this row would sit in the super-admin's users table indistinguishable from a
+-- real applicant, beside exactly that endpoint. The role is what excludes it.
+--
+-- NO DECISION PAIR, and that is why `app_user_decided_ck` carries an exemption
+-- for this role. `pending` was the only decision-free spelling and it means
+-- UNAPPROVED; the alternative was a fabricated `decided_at` and a `decided_by`
+-- naming a super-admin who never ruled on anything.
+--
+-- THE ADDRESS IS THE OWNER'S, not an invention. `app_user_email_uq` exists to
+-- stop a second row for an address Cognito already considers taken; this row
+-- inverts that, because the database now holds one Cognito has never seen and
+-- would refuse a real applicant before Cognito had anything to say. Under the
+-- owner's own verified domain the inversion has no victim.
+--
+-- The id and the address are pinned in `infra/src/demo-user.ts` and asserted
+-- against this file, so the seed (#50) and the public read (#137) name one
+-- literal rather than three.
+--
+-- ONE STATEMENT, AND A SECOND WOULD NEED DRIZZLE'S BREAKPOINT MARKER BEFORE IT
+-- (spelled out in `infra/src/migrate.ts`, deliberately not quoted here). The
+-- runner splits on that marker, so two statements written here without one are
+-- glued together and sent as a single query — which DSQL refuses, since it runs
+-- one statement per transaction.
+--
+-- `ON CONFLICT` RATHER THAN AN ABSORBED ERROR CODE. The runner's crash window
+-- lets a statement it left open answer "already exists" with success, but a
+-- `23505` does not say WHICH constraint it came from, and `app_user_email_uq`
+-- can raise one for a row that is not this one — which would mark this file
+-- applied with no demo row in the table, for the seed and the public read to
+-- meet as an empty portfolio. Doing nothing on the primary key makes the re-run
+-- silent and leaves `23505` meaning what it should: a real collision.
+-- (`ON CONFLICT … DO NOTHING` is supported on DSQL — measured, and recorded in
+-- `infra/docs/dsql-constraints.md`.)
+
+INSERT INTO app_user (user_id, email, status, role, applied_at)
+     VALUES ('00000000-0000-4000-8000-00000000de70', 'demo@quirenote.com',
+             'active', 'demo', now())
+ON CONFLICT (user_id) DO NOTHING;

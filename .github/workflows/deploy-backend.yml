@@ -136,14 +136,28 @@ jobs:
       # parser the handler deliberately imports rather than duplicates — is not
       # present when they run. Running esbuild against the real checkout is the
       # only way to keep one parser and one source of truth.
-      - name: Bundle the handler
+      # TWO ENTRY POINTS, ONE dist/. `sam deploy` packages the CodeUri directory
+      # as-is and both functions point at it, so the migration handler costs one
+      # more esbuild invocation and no second artifact. Same flags for the same
+      # reasons — cjs because `pg` is CommonJS, `pg-native` external because it
+      # is optional and not installed.
+      - name: Bundle the handlers
         working-directory: infra
         run: |
-          npx --yes esbuild@0.28.2 src/capture.ts \
-            --bundle --platform=node --target=node22 --format=cjs \
-            --outfile=dist/capture.js --sourcemap \
-            --external:pg-native
-          ls -la dist/
+          for entry in capture migrate; do
+            npx --yes esbuild@0.28.2 "src/$entry.ts" \
+              --bundle --platform=node --target=node22 --format=cjs \
+              --outfile="dist/$entry.js" --sourcemap \
+              --external:pg-native
+          done
+          # The SQL is DATA the migration handler reads at runtime, not code
+          # esbuild can inline, so it rides in the zip beside the bundle and
+          # `LAMBDA_TASK_ROOT` is what finds it. Every `.sql`, not the two the
+          # runner names: this file has watched two hand-kept lists leak, and
+          # the runner already names its own files in code.
+          mkdir -p dist/migrations
+          cp migrations/*.sql dist/migrations/
+          ls -la dist/ dist/migrations/
 
       # Catches what typecheck cannot: that the bundle actually LOADS. The first
       # deploy shipped an ESM bundle and died at runtime on `Dynamic require of
@@ -155,8 +169,28 @@ jobs:
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
-          cp infra/dist/capture.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js /tmp/bundle-check/
+          cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
+          # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
+          # `import.meta.url` — which would have been the obvious way to find it
+          # — is EMPTY in a cjs bundle. So the dry run is asserted here, in the
+          # bundled shape, rather than only in vitest where the module is ESM
+          # and the path resolves for a different reason.
+          LAMBDA_TASK_ROOT=/tmp/bundle-check node -e "
+            const g = require('./migrate.js');
+            if (typeof g.handler !== 'function') throw new Error('handler missing from migrate bundle');
+            // A stub client whose ledger read comes back empty, so every
+            // statement reads as pending — which is what an unmigrated cluster
+            // says, and the assertion is that the SQL was FOUND.
+            g.migrate({ query: async () => ({ rows: [] }) }, { mode: 'dry-run' }).then((r) => {
+              const pending = r.files.reduce((n, f) => n + f.pending, 0);
+              if (r.files.length !== 2 || pending < 8) {
+                throw new Error('migrate bundle cannot read its SQL: ' + JSON.stringify(r));
+              }
+              console.log('migrate bundle loads and finds its migrations');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
           node -e "
             const m = require('./capture.js');
             if (typeof m.handler !== 'function') throw new Error('handler missing from bundle');

@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig } from 'drizzle-kit';
 
-// `out` is a FRESH OS temp directory, never `infra/migrations/drafts` — on
-// purpose. `drizzle-kit generate` writes a stateful `meta/_journal.json` into
+// `out` is a FRESH OS temp directory, never anywhere under `infra/migrations`
+// — on purpose. `drizzle-kit generate` writes a stateful `meta/_journal.json` into
 // `out` and reads it back to decide whether the next run emits a full schema
-// (`0000_…`) or an incremental diff (`0001_…`). Pointing `out` at the drafts
+// (`0000_…`) or an incremental diff (`0001_…`). Pointing `out` at a committed
 // folder would commit that journal, ride every `infra/**` deploy trigger, and
 // make a second regeneration silently emit a diff instead of the full
 // snapshot W7 needs to apply once. `mkdtempSync` also means every invocation
@@ -18,7 +18,7 @@ import { defineConfig } from 'drizzle-kit';
 // without parsing `generate`'s stdout.
 //
 // Generation procedure: run `drizzle-kit generate` against this config, then
-// copy ONLY the emitted `.sql` file to `infra/migrations/drafts/003_user_schema.sql`.
+// copy ONLY the emitted `.sql` file to `infra/migrations/003_user_schema.sql`.
 // No `meta/` directory is ever committed.
 export default defineConfig({
   dialect: 'postgresql',

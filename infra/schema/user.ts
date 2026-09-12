@@ -1,4 +1,4 @@
-// The Drizzle source for `infra/migrations/drafts/003_user_schema.sql`.
+// The Drizzle source for `infra/migrations/003_user_schema.sql`.
 //
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
@@ -166,7 +166,10 @@ import {
   bigint,
 } from 'drizzle-orm/pg-core';
 
-// One row per approved user. Also the OCC anchor (see `dataVersion` below)
+// One row per APPLICATION — pending, active or rejected — plus one row that is
+// no application at all: the demo's own identity, `role = 'demo'`, which is
+// never approved and never becomes a user. Also the OCC anchor (see
+// `dataVersion` below)
 // and the authorization record: the API Lambda checks `status` and `role`
 // here on every request, never `cognito:groups`.
 export const appUser = pgTable(
@@ -195,16 +198,37 @@ export const appUser = pgTable(
   },
   (t) => [
     check('app_user_status_ck', sql`${t.status} IN ('pending', 'active', 'rejected')`),
-    check('app_user_role_ck', sql`${t.role} IN ('user', 'super_admin')`),
+    // THREE ROLES, and the third is what makes a ruling structural instead of a
+    // convention. The seeded demo is a row set under an identity that must
+    // NEVER gain a provider account (`docs/DECISIONS.md`, **Auth model**),
+    // because approving one calls `AdminCreateUser`, spends a monthly active
+    // user and mails a fabricated address whose bounce cannot be cleared. As
+    // `user`/`active` the row is indistinguishable from a real applicant in the
+    // super-admin's users table; as `demo` it is excluded by its own column.
+    check('app_user_role_ck', sql`${t.role} IN ('user', 'super_admin', 'demo')`),
     // A decision is recorded or it is not: `pending` has no decision, and
     // anything else has both halves of one.
+    //
+    // The demo is exempt because it never had a decision to record — `pending`
+    // was the only decision-free spelling and it means UNAPPROVED, so without
+    // this the row would have to carry a fabricated approval pair naming a
+    // super-admin who never ruled on it. The exemption only WIDENS: a demo row
+    // that did carry a pair stays legal, and a CHECK refusing one nothing
+    // writes would be a second rule earning nothing.
     check(
       'app_user_decided_ck',
-      sql`(${t.status} = 'pending') = (${t.decidedAt} IS NULL AND ${t.decidedBy} IS NULL)`,
+      sql`${t.role} = 'demo' OR (${t.status} = 'pending') = (${t.decidedAt} IS NULL AND ${t.decidedBy} IS NULL)`,
     ),
     // Byte-exact: Cognito's own duplicate refusal (D36) is what actually
     // holds the "one address, one account" line; this stops a second DB row
     // for an address Cognito already considers taken.
+    //
+    // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
+    // rather than invented: the database now holds an address Cognito has never
+    // seen, so for that one row this constraint refuses an applicant BEFORE
+    // Cognito would have had anything to say. `demo@quirenote.com` is under the
+    // owner's own verified domain (`infra/docs/console-setup.md`), so no real
+    // applicant can arrive holding it and the inversion has no victim.
     unique('app_user_email_uq').on(t.email),
     primaryKey({ columns: [t.userId] }),
   ],

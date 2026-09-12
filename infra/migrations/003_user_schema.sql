@@ -20,8 +20,8 @@ CREATE TABLE "app_user" (
 	CONSTRAINT "app_user_user_id_pk" PRIMARY KEY("user_id"),
 	CONSTRAINT "app_user_email_uq" UNIQUE("email"),
 	CONSTRAINT "app_user_status_ck" CHECK ("app_user"."status" IN ('pending', 'active', 'rejected')),
-	CONSTRAINT "app_user_role_ck" CHECK ("app_user"."role" IN ('user', 'super_admin')),
-	CONSTRAINT "app_user_decided_ck" CHECK (("app_user"."status" = 'pending') = ("app_user"."decided_at" IS NULL AND "app_user"."decided_by" IS NULL))
+	CONSTRAINT "app_user_role_ck" CHECK ("app_user"."role" IN ('user', 'super_admin', 'demo')),
+	CONSTRAINT "app_user_decided_ck" CHECK ("app_user"."role" = 'demo' OR ("app_user"."status" = 'pending') = ("app_user"."decided_at" IS NULL AND "app_user"."decided_by" IS NULL))
 );
 --> statement-breakpoint
 CREATE TABLE "asset" (

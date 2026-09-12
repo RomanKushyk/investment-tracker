@@ -1,0 +1,121 @@
+name: Apply migrations
+
+# MANUAL ONLY, and that is the whole design of this file.
+#
+# `deploy-backend.yml` ships the migration handler with every push to `dev`; it
+# does NOT run it, and must not. DSQL runs one DDL statement per transaction
+# with no cross-statement rollback, so applying a schema is a deliberate act
+# with a half-applied state as its failure mode — the ledger in
+# `infra/src/migrate.ts` makes that state recoverable, not automatic. A deploy
+# that also migrated would run DDL on a stack update nobody was watching, and
+# the concurrency comment in the deploy workflow already records what a
+# silently-skipped-or-run step costs to reason about.
+#
+# `rehearse` FIRST, ON A NEW CLUSTER. It applies everything inside a throwaway
+# schema dropped `CASCADE` when the run ends — the shape every probe in
+# `infra/docs/dsql-constraints.md` used — so the statements, the two index jobs
+# and the ledger are all exercised without `public` being touched.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What to do
+        required: true
+        default: rehearse
+        type: choice
+        options:
+          - rehearse # throwaway schema, dropped CASCADE at the end
+          - dry-run # read the files, contact no object
+          - apply # public, for real
+
+concurrency:
+  group: migrate
+  cancel-in-progress: false # never interrupt DDL in flight
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    steps:
+      # NO CHECKOUT, and the absence is the honest part. The SQL this applies is
+      # the copy baked into the DEPLOYED bundle, not the ref chosen in the
+      # dispatch UI — so checking out a ref would suggest a choice that does not
+      # exist. Dispatching `apply` after merging a migration but BEFORE
+      # `deploy-backend.yml` finishes applies the previous set and reports
+      # nothing pending; the file list in `out.json` is what says which.
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Read from the stack rather than constructed: SAM appends a generated
+      # suffix to the logical id, so a name built by hand is wrong the first
+      # time the stack is replaced.
+      - name: Resolve the function
+        id: fn
+        run: |
+          name=$(aws cloudformation describe-stacks \
+            --stack-name quirenote-backend \
+            --query "Stacks[0].Outputs[?OutputKey=='MigrateFunctionName'].OutputValue" \
+            --output text)
+          if [ -z "$name" ] || [ "$name" = "None" ]; then
+            echo "MigrateFunctionName is not an output of quirenote-backend — deploy first" >&2
+            exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Invoke
+        run: |
+          # The handler takes the mode verbatim and REFUSES anything it does not
+          # recognise — there is no default, because the default would have been
+          # the destructive one.
+          # `--cli-binary-format raw-in-base64-out` or v2 reads the payload as
+          # base64 and the handler sees nothing it can parse. `--output json`
+          # rather than the account default: the FunctionError check below reads
+          # a key name, and `AWS_DEFAULT_OUTPUT=text` would hide it.
+          # `--cli-read-timeout 0` — NO CLIENT TIMEOUT, and this is the one
+          # setting here that could start a second migration on its own. The
+          # function's ceiling is 900s and the CLI's clock starts first, so a run
+          # that used its full budget would trip the client first;
+          # `ReadTimeoutError` is in botocore's transient set and the CLI retries
+          # up to three times by default, so the timeout would RE-INVOKE the
+          # function into a migration already in flight. `AWS_MAX_ATTEMPTS=1`
+          # says the same thing a second way.
+          AWS_MAX_ATTEMPTS=1 aws lambda invoke \
+            --function-name "${{ steps.fn.outputs.name }}" \
+            --cli-binary-format raw-in-base64-out \
+            --payload '{"mode":"${{ inputs.mode }}"}' \
+            --cli-read-timeout 0 \
+            --output json \
+            out.json > invoke.json
+          cat invoke.json
+          echo '--- report ---'
+          cat out.json
+          # Fails the step if the response is not JSON at all — `jq -e` below
+          # exits 2 on a parse error, which inside an `if` reads as "no
+          # FunctionError" and would pass.
+          jq empty invoke.json
+          # An unhandled error is a 200 with FunctionError set, so `invoke`'s own
+          # exit code is not the answer. `jq -e` on the key rather than grep on
+          # the text, which would also match the word inside a report body.
+          if jq -e 'has("FunctionError")' invoke.json > /dev/null; then
+            echo 'the migration handler raised' >&2
+            exit 1
+          fi
+
+      # The report is the only evidence a migration run leaves, and a log
+      # expires. `if: always()` so a failed run keeps its half of one.
+      - name: Keep the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrate-${{ inputs.mode }}-${{ github.run_id }}
+          path: |
+            out.json
+            invoke.json
+          if-no-files-found: warn

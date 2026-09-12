@@ -48,7 +48,29 @@ Inline permission policy:
       "Action": ["s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:GetBucketLocation"],
       "Resource": ["arn:aws:s3:::quirenote-sam-artifacts-<account-id>",
                    "arn:aws:s3:::quirenote-sam-artifacts-<account-id>/*"]
+    },
+    {
+      "Sid": "RunMigrations",
+      "Effect": "Allow",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:eu-north-1:<account-id>:function:quirenote-backend-MigrateFunction-*"
     }
   ]
 }
 ```
+
+`RunMigrations` is the one statement this role holds that is not about deploying.
+[`.github/workflows/migrate.yml`](../../.github/workflows/migrate.yml) assumes this
+role to invoke the migration handler by hand, and the resource is that function
+ALONE — deliberately not the `quirenote-backend-*` wildcard `role-cfn-exec` uses
+for its own actions, which would also let a dispatch fire the capture function
+and write a day's prices under whatever `as_of` the clock gave it.
+
+`cloudformation:DescribeStacks` is already in `DriveTheStack`, which is what lets
+the workflow read `MigrateFunctionName` out of the stack instead of constructing
+a name SAM generates a suffix for.
+
+**Added by hand, in the console, like everything else on this page** — a role is
+not in `template.yaml`. Until it is added, a dispatch fails at the invoke step
+with `AccessDeniedException`, which is the correct failure: nothing is
+half-applied, because nothing ran.

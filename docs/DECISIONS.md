@@ -285,7 +285,10 @@ archive is public and global, a user's own data is private and per-user, and the
 belongs to one owner — the seeded original is a single row set under an
 `app_user` of its own — an identity that must never gain a provider account, since approving one
 would create it — and the super-admin's ownership is the right to EDIT that row set rather than the
-scope it is stored under. Until the play copy
+scope it is stored under. That identity carries a ROLE OF ITS OWN, `demo`, and no decision: it is
+not an application, so it is excluded from the approval surface by its own column rather than by a
+convention, and `app_user_decided_ck` exempts it instead of taking a fabricated approval pair.
+Until the play copy
 exists an unauthenticated caller reads it and writes nothing.
 Three surfaces stand outside the authorizer and check no application row: the archive's reads, the
 demo's, and the sign-up application, which exists to create the very row the others are checked
@@ -307,6 +310,11 @@ is all a first visitor finds, at exactly the release that stops telling crawlers
 **Rejected.** SMS codes: two AWS review queues instead of one, a price orders above email for the
 numbers that matter, and a code anyone can trigger spends the account's money from outside it. ·
 Open registration by default: threat protection is a paid tier, so a public door has only quotas. ·
+The demo written as an ordinary approved user: it is insertable, but only with an approval pair
+naming a super-admin who never ruled on it, and it then sits in the users table indistinguishable
+from a real applicant beside the endpoint whose approval calls `AdminCreateUser` — which would
+create the identity, spend a monthly active user and mail an address whose bounce cannot be
+cleared. A role is what makes "never gains a provider account" true rather than remembered. ·
 A demo a visitor may write to, this early: the copy that makes play safe has to answer where it
 lives, what it is scoped to, whether it survives a sign-out and how a reset back to the original is
 offered, and those are open on purpose. ·
@@ -316,19 +324,36 @@ than chosen before it.
 ## User schema and deletes
 **Decision.** DSQL refuses `USING btree`, refuses a `CREATE INDEX` that is not `ASYNC`, and has DDL
 that is create-time-only — `NOT NULL`, a column's type, `UNIQUE` as a constraint, the primary key —
-while a later constraint is `NOT VALID` for life; the constraints file carries the matrix. Foreign
+while a later constraint is `NOT VALID` for life; the constraints file carries the matrix. The
+generated DDL is APPLIED BY A RUNNER, not by the schema file and not by a deploy: it rewrites each
+statement on the way out — `ASYNC` in, `USING btree` out, `NOT VALID` onto every `ADD CONSTRAINT` —
+and records each one in a ledger keyed by its content hash, so the same file may be re-run after it
+grows statements and only the new ones execute. The ledger row is written BEFORE its statement,
+because DSQL admits no transaction spanning both; a re-run may therefore absorb an already-exists
+refusal for the one statement whose row it left open, and for no other. Foreign
 keys are declared `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
 cascade: children before the parent, in batches, each batch its own transaction, every predicate
 scoped by `user_id`. No transaction references another, so deleting one removes one row and nothing
 else, and a provider account has no delete at all — it is one row per provider, and an empty one
 costs nothing.
-**Why.** The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
+**Why.** Generated DDL carries no `IF NOT EXISTS` — drizzle-kit emits none — and DSQL has no
+cross-statement rollback, so a file that fails partway through cannot be retried: the retry dies on
+the first statement, which already exists. Tracking statements rather than files is what makes the
+retry a no-op, and hashing rather than counting is what lets a file gain statements later. The
+mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
 batching is the only shape that works — a cascading key would not remove it, since cascaded rows
 count against the same ceiling. Parent last makes a failure resumable, and the key exists for the
 second writer, whose orphans are invisible to reads that run parent to child. Free cash sums across
 accounts and the breakdown is a group, so a provider row with nothing in it adds nothing to either.
 **Rejected.** Tombstones: nothing here has asked for undo or retention, and a `deleted_at` puts a
-filter in every read that the first forgotten one turns into deleted data rendered as live. · A
+filter in every read that the first forgotten one turns into deleted data rendered as live. ·
+Skipping any statement whose object already exists, in place of the ledger: it passes the retry and
+also applies over a schema this system never created, which is the one failure a migration must not
+have. · Running the migration from the deploy: DDL would then run unattended on a stack update, and
+a DLQ retry would race the run it was retrying. · A migration mode on the capture function: not
+for the privilege, which it already holds — both connect as the same database admin — but because
+the schedule and the DLQ would then be able to start a migration, and a migration must only ever be
+started by hand. · A
 self-referential key tying a tax row to the payout it settles: it describes a graph — chains, settled
 rows that name no asset, a settler filed against another asset, and a cycle an update can build —
 where the app wanted one sentence, and no derivation, screen or export ever asked which payout a tax

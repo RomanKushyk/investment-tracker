@@ -1,8 +1,9 @@
-// W7's user-schema draft, executed.
-// `infra/migrations/drafts/003_user_schema.sql`
+// W7's user schema, executed.
+// `infra/migrations/003_user_schema.sql`
 // is a pinned contract with IMMUTABLE primary keys (D30), so a mistake in it is
-// a DROP/CREATE of live user data rather than a migration — and until W7 there
-// is no other consumer to notice one.
+// a DROP/CREATE of live user data rather than a migration. It is no longer a
+// draft — `infra/src/migrate.ts` applies it — which makes this suite the last
+// place a mistake is cheap rather than the only place anything notices one.
 //
 // PGlite is Postgres compiled to WASM, so the parser, the planner and every
 // CHECK below are Postgres's own. No server, no daemon, no container. That is
@@ -13,37 +14,30 @@
 // Postgres is the SUBSET, and this file is why BOTH halves of the index line
 // stay Postgres-shaped in the generated SQL: `CREATE INDEX ASYNC` is DSQL-only
 // and would fail here, and `USING btree` is what drizzle-kit emits and what
-// this suite needs — DSQL rejects it outright (D99). So promotion rewrites
-// every index line TWICE, inserting `ASYNC` and stripping `USING btree`
-// (`infra/migrations/drafts/README.md`); doing only the first still gives a
-// statement the cluster refuses. A DSQL-only rejection stays invisible to this
-// test by construction, so the suite is not a substitute for first contact —
-// which for the DDL has now happened (`infra/docs/dsql-constraints.md`),
-// and for the migration RUNNER has not.
+// this suite needs — DSQL rejects it outright (D99). So the runner rewrites
+// every index line TWICE on the way out, inserting `ASYNC` and stripping
+// `USING btree` (`rewriteForDsql` in `infra/src/migrate.ts`); doing only the
+// first still gives a statement the cluster refuses. A DSQL-only rejection
+// stays invisible to this test by construction, so the suite is not a
+// substitute for first contact — `infra/docs/dsql-constraints.md` records it,
+// for the DDL and now for the runner.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-// Promotion moves the file up one directory (the draft's PROMOTION PATH); this
-// path moves with it, in the same commit.
-const SCHEMA = new URL('../migrations/drafts/003_user_schema.sql', import.meta.url);
+import { DEMO_USER_EMAIL } from './demo-user';
+// THE RUNNER'S OWN SPLITTER, so this suite certifies the statements that are
+// actually sent rather than a set of its own. There used to be a second one
+// here, splitting on `;`, whose comment claimed that stripping comments first
+// kept a breakpoint marker out of the next statement's text. Measured on the
+// real file, it did not: that splitter's seventh statement BEGAN with
+// `--> statement-breakpoint`, and it only worked because Postgres reads `--` as
+// a line comment.
+import { statementsOf as statements } from './migrate';
 
-/**
- * Statements, comment lines stripped FIRST.
- *
- * The generated SQL carries `--> statement-breakpoint` lines between
- * statements; stripping them before splitting on `;` keeps a breakpoint
- * marker from landing inside the next statement's text.
- */
-function statements(sql: string): string[] {
-  return sql
-    .split('\n')
-    .filter((line) => !line.trim().startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
+// Promoted out of `drafts/` in the commit that gave it a handler entitled to
+// run it. `migrate.ts` reads the same file from the same place.
+const SCHEMA = new URL('../migrations/003_user_schema.sql', import.meta.url);
 
 const uuid = (c: string) =>
   `'${c.repeat(8)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(12)}'`;
@@ -106,7 +100,9 @@ beforeAll(async () => {
   const stmts = statements(readFileSync(SCHEMA, 'utf8'));
   for (const stmt of stmts) {
     // A failure here names the statement rather than the file.
-    await db.exec(stmt + ';').catch((e: Error) => {
+    // No `+ ';'`: splitting on the marker leaves each statement's own
+    // terminator where it was, unlike the `;` splitter this replaced.
+    await db.exec(stmt).catch((e: Error) => {
       throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
     });
   }
@@ -177,7 +173,7 @@ describe('app_user', () => {
     await refuses(other(nextId(), 'a@x.com', 'approved'));
   });
 
-  it('refuses a role outside user | super_admin', async () => {
+  it('refuses a role outside user | super_admin | demo', async () => {
     await refuses(other(nextId(), 'b@x.com', 'pending', 'admin'));
   });
 
@@ -187,6 +183,22 @@ describe('app_user', () => {
 
   it('refuses an `active` row with no decision recorded', async () => {
     await refuses(other(nextId(), 'c@x.com', 'active'));
+  });
+
+  // THE DEMO'S EXEMPTION, and it is what makes the ruling structural. The
+  // seeded original is a row set under an identity that must never gain a
+  // provider account (`docs/DECISIONS.md`, **Auth model**) — and the only
+  // decision-free spelling `app_user_decided_ck` had was `pending`, which means
+  // unapproved. Without the exemption the row would have to carry a fabricated
+  // approval pair and would sit in the super-admin's users table as an ordinary
+  // approved user, beside an approve endpoint that calls `AdminCreateUser` and
+  // would create the very identity the ruling forbids.
+  //
+  // The exemption is an `OR`, so it only WIDENS: a demo row carrying a decision
+  // pair stays legal. Nothing writes one, and a CHECK that also refused it would
+  // be a second rule earning nothing.
+  it('ACCEPTS an `active` demo row with no decision recorded', async () => {
+    await accepts(other(nextId(), DEMO_USER_EMAIL, 'active', 'demo'));
   });
 
   it('refuses a `pending` row that already carries a decision', async () => {

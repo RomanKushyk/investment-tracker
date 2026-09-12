@@ -34,7 +34,7 @@ it('regenerating the schema reproduces the committed SQL', () => {
   // pins `*.sql` to `eol=lf`, but development is Windows and CI is Linux, so
   // strip \r on both sides here too — belt and braces, not redundancy.
   const fresh = readFileSync(join(out, generated), 'utf8').replace(/\r\n/g, '\n');
-  const committed = readFileSync('infra/migrations/drafts/003_user_schema.sql', 'utf8').replace(
+  const committed = readFileSync('infra/migrations/003_user_schema.sql', 'utf8').replace(
     /\r\n/g,
     '\n',
   );

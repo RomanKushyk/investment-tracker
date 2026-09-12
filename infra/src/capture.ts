@@ -13,10 +13,10 @@ import {
   ListNotificationConfigurationsCommand,
   NotificationsClient,
 } from '@aws-sdk/client-notifications';
-import { DsqlSigner } from '@aws-sdk/dsql-signer';
-import { Client } from 'pg';
+import type { Client } from 'pg';
 
 import { addDays, kyivDateIso } from '../../src/core/dates';
+import { connect } from './dsql';
 // Re-exported so the deploy's bundle smoke test can reach them (D71).
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
@@ -251,28 +251,6 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
     if (attempt < MAX_ATTEMPTS) await sleep(attempt === 1 ? 30_000 : 60_000);
   }
   return last;
-}
-
-async function connect(): Promise<Client> {
-  const hostname = process.env.DSQL_ENDPOINT!;
-  const region = process.env.AWS_REGION_NAME ?? process.env.AWS_REGION!;
-
-  // IAM auth: the token is the password and is short-lived, so it is minted per
-  // invocation and never stored. This is also why the browser can never talk to
-  // DSQL directly — it cannot hold AWS credentials — and why every read and
-  // write goes through Lambda by construction.
-  const token = await new DsqlSigner({ hostname, region }).getDbConnectAdminAuthToken();
-
-  const client = new Client({
-    host: hostname,
-    port: 5432,
-    database: 'postgres', // DSQL provides exactly one database per cluster
-    user: 'admin',
-    password: token,
-    ssl: { rejectUnauthorized: true },
-  });
-  await client.connect();
-  return client;
 }
 
 /**

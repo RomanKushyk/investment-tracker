@@ -11,13 +11,15 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 
 | Path | What |
 |---|---|
-| `template.yaml` | SAM stack: DSQL cluster, capture Lambda, schedule, DLQ, alarms |
-| `src/capture.ts` | The handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
+| `template.yaml` | SAM stack: DSQL cluster, capture Lambda, migration Lambda, schedule, DLQ, alarms |
+| `src/capture.ts` | The capture handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
+| `src/migrate.ts` | The migration handler, and the only thing that applies a file from `migrations/`. Manual: `workflow_dispatch` on [`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml). One required mode — `rehearse` (throwaway schema, dropped `CASCADE`), `dry-run` or `apply`; an unrecognised one is refused rather than defaulted |
+| `src/dsql.ts` | `connect()` — the IAM auth token and the one `ssl` policy, shared by both handlers |
 | `src/xlsx.ts` | A minimal ZIP + SpreadsheetML reader, no package: numbers, shared strings and cached formula text; every other cell type is refused |
 | `src/fund-history.ts` | The provider's fund price files to `nav` rows: columns by caption, the one text-formatted price read only as a string |
-| `schema/user.ts` | Drizzle source for `migrations/drafts/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
-| `migrations/` | **Reference DDL — nothing reads it.** The applied archive DDL is inline in `ensureSchema`; these files are the pinned contracts, cited from comments in `capture.ts`. `001` price_capture · `002` price_observation · `004` bond_terms — `003` is reserved for W7's user-schema draft |
-| `migrations/drafts/` | **W7's user schema (`003_user_schema.sql`), applied by nothing.** Generated from [`schema/user.ts`](schema/user.ts); DSQL facts and the promotion rule are [`migrations/drafts/README.md`](migrations/drafts/README.md). Executed by `src/user-schema.test.ts` against real Postgres in WASM |
+| `schema/user.ts` | Drizzle source for `migrations/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
+| `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) and `005` (the demo's identity) — are applied by `src/migrate.ts`, which names them rather than globbing |
+| `migrations/drafts/` | Schema written before anything may apply it — DSQL primary keys are immutable, so a key is decided on paper, reviewed, then promoted. Empty today: `003` was promoted out of it. [`migrations/drafts/README.md`](migrations/drafts/README.md) is the practice |
 | `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
 ## Local rules
