@@ -1499,15 +1499,32 @@ async function diagnose(client: Client) {
   // A4's reconciliation. Per ref: how many observations exist, over what span,
   // and how many DISTINCT dates they cover — the last one is what catches a
   // duplicate-per-date bug that a plain count would hide.
+  //
+  // THE SPAN AND THE DATES START AT THE SOURCE'S FIRST CAPTURE DAY. The
+  // fund-history import writes rows from before that day with no capture
+  // behind them, so a span that reached back to them was measured against
+  // capture days that do not exist, read negative forever and hid a real
+  // missing day. Bounded here rather than by which parser wrote a row: an
+  // imported row on a captured day is coverage, and a re-parse under any
+  // version changes nothing. `n` still counts every row; `before_capture`
+  // and `earliest_as_of` say what the archive holds ahead of the bound.
   const observations = await client.query(
-    `SELECT instrument_ref, basis, source,
+    `WITH captured AS (
+       SELECT source, min(as_of) AS since
+         FROM price_capture
+        WHERE ok = true
+        GROUP BY source)
+     SELECT o.instrument_ref, o.basis, o.source,
             count(*)::text AS n,
-            count(DISTINCT as_of)::text AS dates,
-            to_char(min(as_of), 'YYYY-MM-DD') AS first_as_of,
-            to_char(max(as_of), 'YYYY-MM-DD') AS last_as_of
-       FROM price_observation
-      GROUP BY instrument_ref, basis, source
-      ORDER BY instrument_ref, basis, source`,
+            sum(CASE WHEN c.since IS NULL OR o.as_of < c.since THEN 1 ELSE 0 END)::text AS before_capture,
+            to_char(min(o.as_of), 'YYYY-MM-DD') AS earliest_as_of,
+            count(DISTINCT CASE WHEN o.as_of >= c.since THEN o.as_of END)::text AS dates,
+            to_char(min(CASE WHEN o.as_of >= c.since THEN o.as_of END), 'YYYY-MM-DD') AS first_as_of,
+            to_char(max(CASE WHEN o.as_of >= c.since THEN o.as_of END), 'YYYY-MM-DD') AS last_as_of
+       FROM price_observation o
+       LEFT JOIN captured c ON c.source = o.source
+      GROUP BY o.instrument_ref, o.basis, o.source
+      ORDER BY o.instrument_ref, o.basis, o.source`,
   );
 
   // The denominator, computed per ref over ITS OWN span. One shared span would
@@ -1521,6 +1538,8 @@ async function diagnose(client: Client) {
   // reported a two-day gap every week that does not exist.
   const reconciled = [];
   for (const o of observations.rows) {
+    // A group the observer has never written has NULL bounds; BETWEEN NULL
+    // AND NULL matches nothing, so it reads zero against zero, which is true.
     const { rows } = await client.query<{ days: string }>(
       `SELECT count(DISTINCT as_of)::text AS days
          FROM price_capture
@@ -1531,13 +1550,13 @@ async function diagnose(client: Client) {
       ...o,
       publishedDays: rows[0].days,
       // Still capture-days minus observation-days, and still assumes ONE
-      // observation row per published day per ref — which write-every-day makes
-      // true for both sources. It is not true across BASES: a bond-day yields a
+      // observation row per published day per ref — which write-every-day
+      // makes true for both sources from their first capture day, where the
+      // span above begins. It is not true across BASES: a bond-day yields a
       // `sell` and a `buy` row, so this reconciles per (ref, basis, source),
-      // which is what the GROUP BY above already produces. And it is not true
-      // for the two fund `nav` groups once `importFundHistory` has run: their
-      // imported rows have no capture behind them, so both read negative and a
-      // missing daily row cannot surface — issue #129 holds the fix.
+      // which is what the GROUP BY above already produces. And it is not
+      // true of `nav` on a day the provider publishes it as zero, which
+      // stores no row: that day reads as a gap of one, and is one.
       gaps: Number(rows[0].days) - Number(o.dates),
     });
   }
