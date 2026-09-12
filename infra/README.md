@@ -14,6 +14,7 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 | `template.yaml` | SAM stack: DSQL cluster, capture Lambda, migration Lambda, schedule, DLQ, alarms |
 | `src/capture.ts` | The capture handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
 | `src/migrate.ts` | The migration handler, and the only thing that applies a file from `migrations/`. Manual: `workflow_dispatch` on [`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml). One required mode — `rehearse` (throwaway schema, dropped `CASCADE`), `dry-run` or `apply`; an unrecognised one is refused rather than defaulted |
+| `src/asset-delete.ts` | Deleting an asset: children before the parent, batched, each batch its own transaction, every predicate scoped by `user_id` — what the `ON DELETE RESTRICT` keys deliberately refuse to do |
 | `src/dsql.ts` | `connect()` — the IAM auth token and the one `ssl` policy, shared by both handlers |
 | `src/xlsx.ts` | A minimal ZIP + SpreadsheetML reader, no package: numbers, shared strings and cached formula text; every other cell type is refused |
 | `src/fund-history.ts` | The provider's fund price files to `nav` rows: columns by caption, the one text-formatted price read only as a string |

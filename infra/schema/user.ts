@@ -3,14 +3,13 @@
 // This file is the schema; the SQL is generated from it and must never be
 // hand-edited (see `infra/drizzle.config.ts` for the generate procedure).
 // Keep this file's constraint names identical to the generated SQL's so the
-// two stay comparable statement for statement. **O33 RULED 2026-09-03 (D137,
-// amending D101, and D138 for the action): this schema IS RULED to take foreign
-// keys with `ON DELETE RESTRICT`, and it DECLARES NONE YET.** There is no
-// foreign key below, so the generated SQL carries no `ADD CONSTRAINT` — that is
-// W7's work, not a broken generator.
-// The instruction here used to be the opposite and is retracted, not softened —
-// "declares no FOREIGN KEY … do not add one here to 'fix' a dangling reference"
-// was D101's ruling and D101 is amended.
+// two stay comparable statement for statement. **FIVE FOREIGN KEYS ARE
+// DECLARED BELOW, `ON DELETE RESTRICT`** (D137 for the shape, D138 for the
+// action), and drizzle emits each as a post-hoc `ALTER TABLE … ADD CONSTRAINT`
+// at the end of the generated SQL rather than inside a `CREATE TABLE`. That is
+// load-bearing twice over: it is what the `NOT VALID` rewrite rule acts on, and
+// it is why adding them left the five `CREATE TABLE` statements byte-identical,
+// so the migration ledger recognised the applied seven and ran only the keys.
 //
 // **`ON DELETE RESTRICT`, never `CASCADE`** (D137 for the shape, **D138 for the
 // action** — D137 said `NO ACTION` and was superseded). **`CASCADE` is out**
@@ -81,51 +80,36 @@
 // matches on the cluster and misses locally.
 //
 // **`NO ACTION` is out because this repository has never probed it, in any
-// shape.** `RESTRICT`, the action chosen over it, is probed — but only INLINE,
-// inside a `CREATE TABLE`, and **not** in the post-hoc
-// `ALTER TABLE … ADD CONSTRAINT … NOT VALID` form drizzle emits and this phase
-// ships. (`CASCADE`, which is rejected on other grounds, IS the one measured in
-// that shipping form.) So the chosen action still owes a DSQL round in the
-// shape it will actually take — D138 says so, and it is obligation 5 in W7's
-// body.
-// `infra/docs/dsql-constraints.md`'s foreign-key section records them and is
-// the provenance. **It records that `RESTRICT` was verified inline in `CREATE
-// TABLE`, not yet in the `ALTER TABLE` form drizzle emits**, which is the
-// measurement this ruling turns on and which D138 and
-// `https://github.com/RomanKushyk/investment-tracker/issues/48`
-// both cite. The rest of that section draws on the page's own rounds 6-7
-// without splitting them further, so cite the page for anything beyond
-// `RESTRICT`.
+// shape.** `RESTRICT` now IS probed in the shape this ships — sent as
+// `ALTER TABLE … ADD CONSTRAINT … ON DELETE restrict … NOT VALID`, accepted,
+// reading back `ON DELETE RESTRICT NOT VALID` with `convalidated = false`, and
+// refusing both an orphan insert and a delete of the referenced parent with
+// `23503`. `NOT VALID` exempts the rows already there, never the behaviour.
+// `infra/docs/dsql-constraints.md` is the provenance for that and for the
+// fourth rewrite rule the same round found: drizzle hard-codes
+// `REFERENCES "public"."…"`, a qualified name ignores `search_path`, and
+// promotion strips it so the file can be applied into any schema.
 //
-// **Deletion is a BATCHED application cascade** — the asset's transactions,
-// then `user_price`, and the asset LAST so a failure midway is resumable.
-// **IT USED TO HAVE A STEP ZERO and no longer does**: a batched `UPDATE` that
-// nulled every settlement link pointing INTO this asset, which existed only to
-// make the self-referential `settles_payout_id` key safe. That key is not
-// declared — a withholding is a field on the payout it was taken from
-// (`docs/superpowers/specs/2026-09-12-tax-on-the-payout-design.md`) — so there
-// is nothing left to null, and the sequence is three steps rather than four.
-// With it went the resume hazard that step owned: no row inserted between two
-// batches can re-create a reference, because no transaction references another
-// at all. Resume still means resume the SEQUENCE (D138), for the ordinary
-// reason that a partly-deleted asset's children may already be gone.
-// (This comment previously ordered the two children the other way
-// round. **Nothing turns on it** — neither child references the other, so any
-// order satisfies the keys.) **The exact SQL is D138's and is deliberately NOT copied here** —
-// it has three properties a paraphrase loses: every predicate is USER-SCOPED
-// (`id` is unique only within a user, which is what the composite primary key
-// below says), each step batches through a key-set sub-select because Postgres
-// accepts no `LIMIT` on `UPDATE`/`DELETE`, and **each batch is its own
-// TRANSACTION**, since DSQL's 3 000-row ceiling is per transaction and a loop
-// inside one would not clear it.
+// **Deletion is a BATCHED application cascade** — the asset's transactions and
+// its `user_price` rows, in either order since neither references the other,
+// and the asset LAST so a failure midway is resumable. It is implemented in
+// `infra/src/asset-delete.ts`; three properties travel with it and a paraphrase
+// loses all three: every predicate is USER-SCOPED (`id` is unique only within a
+// user, which is what the composite primary key below says), each step batches
+// through a key-set sub-select because Postgres accepts no `LIMIT` on a
+// `DELETE`, and **each batch is its own TRANSACTION**, since DSQL's 3 000-row
+// ceiling is per transaction and a loop inside one would not clear it.
 //
 // **Adding one is not free.** Drizzle emits a foreign key — the column-level
 // `references()` and the table-level `foreignKey()` builder alike — as a bare
 // `ALTER TABLE … ADD CONSTRAINT`, which DSQL refuses unless promotion appends
 // `NOT VALID` — the third rewrite rule, which D137 makes live rather than
-// conditional. At W7 that `ALTER` runs on newly created EMPTY tables and W7
-// seeds fresh data (D128), so the key skips no rows: D101's clean-audit
-// precondition is met by there being nothing to audit. DSQL environment facts (the two-step index promotion,
+// conditional. The keys are applied in a LATER run than the tables, against a
+// `public` that already exists, so "newly created" is no longer the reason they
+// skip no rows — the four referencing tables being EMPTY is, and W7 seeds fresh
+// data rather than migrating any (D128). The distinction matters because the
+// exemption is permanent: `VALIDATE CONSTRAINT` is refused, so a key added over
+// rows that DO violate it stays unvalidated for life. DSQL environment facts (the two-step index promotion,
 // what ALTER TABLE can and cannot do, replay behaviour) live in
 // `infra/migrations/drafts/README.md`; W7's data-migration notes live in
 // issue #46. The PGlite suite this file's
@@ -154,6 +138,7 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   date,
+  foreignKey,
   index,
   numeric,
   pgTable,
@@ -194,7 +179,13 @@ export const appUser = pgTable(
     dataVersion: bigint('data_version', { mode: 'number' }).notNull().default(0),
     appliedAt: timestamp('applied_at', { withTimezone: true }).notNull(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
-    decidedBy: uuid('decided_by'), // the super-admin who ruled
+    // The super-admin who ruled. NO FOREIGN KEY, and that is a choice rather
+    // than an omission — `schema-generated.test.ts` now pins the declared set at
+    // exactly five, so this would fail it. A self-referential key works on DSQL,
+    // but it would make a super-admin's own row undeletable by every row they
+    // ever decided, and the column is an audit note rather than a live
+    // reference: nothing joins it.
+    decidedBy: uuid('decided_by'),
   },
   (t) => [
     check('app_user_status_ck', sql`${t.status} IN ('pending', 'active', 'rejected')`),
@@ -249,6 +240,11 @@ export const account = pgTable(
     // "One row per provider per user" as a constraint, not a convention.
     unique('account_user_provider_uq').on(t.userId, t.provider),
     primaryKey({ columns: [t.userId, t.id] }), // contract 3
+    foreignKey({
+      name: 'account_user_fk',
+      columns: [t.userId],
+      foreignColumns: [appUser.userId],
+    }).onDelete('restrict'),
   ],
 );
 
@@ -330,6 +326,15 @@ export const asset = pgTable(
     // "everything for this user"; this serves it SORTED. On DSQL, promotion
     // adds ASYNC and strips `USING btree` — both, or the statement fails (D99).
     index('asset_user_created').on(t.userId, t.createdAt),
+    // THE ONE THAT IS EASY TO MISS. `transaction` reaches `app_user` through
+    // `account` and `user_price` through `asset`, but `asset`'s own `user_id`
+    // anchors to nothing — without this an asset row for a nonexistent user
+    // stays possible.
+    foreignKey({
+      name: 'asset_user_fk',
+      columns: [t.userId],
+      foreignColumns: [appUser.userId],
+    }).onDelete('restrict'),
   ],
 );
 
@@ -513,6 +518,23 @@ export const transaction = pgTable(
     // The ledger in date order for one user. On DSQL, promotion adds ASYNC and
     // strips `USING btree` — both, or the statement fails (D99).
     index('transaction_user_date').on(t.userId, t.date),
+    // COMPOSITE, because contract 3 leads every per-user key with `user_id`:
+    // a single-column reference to `asset("id")` has no unique constraint to
+    // point at and the cluster rejects it `42830`.
+    //
+    // `asset_id` is NULLABLE and that is deliberate — under MATCH SIMPLE a
+    // composite key with a NULL member is not checked at all, which is exactly
+    // right here: `deposit` and `withdrawal` must name no asset.
+    foreignKey({
+      name: 'transaction_asset_fk',
+      columns: [t.userId, t.assetId],
+      foreignColumns: [asset.userId, asset.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'transaction_account_fk',
+      columns: [t.userId, t.accountId],
+      foreignColumns: [account.userId, account.id],
+    }).onDelete('restrict'),
   ],
 );
 
@@ -533,6 +555,11 @@ export const userPrice = pgTable(
   },
   (t) => [
     check('user_price_price_ck', sql`${t.price} > 0`),
+    foreignKey({
+      name: 'user_price_asset_fk',
+      columns: [t.userId, t.assetId],
+      foreignColumns: [asset.userId, asset.id],
+    }).onDelete('restrict'),
     // Contract 3, and the natural key needs no surrogate: the read is "this
     // asset over time" for one user, so user -> asset -> date IS the access
     // path.

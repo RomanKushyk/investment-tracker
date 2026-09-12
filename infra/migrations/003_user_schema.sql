@@ -96,5 +96,10 @@ CREATE TABLE "user_price" (
 	CONSTRAINT "user_price_price_ck" CHECK ("user_price"."price" > 0)
 );
 --> statement-breakpoint
+ALTER TABLE "account" ADD CONSTRAINT "account_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."app_user"("user_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "asset" ADD CONSTRAINT "asset_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."app_user"("user_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "transaction" ADD CONSTRAINT "transaction_asset_fk" FOREIGN KEY ("user_id","asset_id") REFERENCES "public"."asset"("user_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "transaction" ADD CONSTRAINT "transaction_account_fk" FOREIGN KEY ("user_id","account_id") REFERENCES "public"."account"("user_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_price" ADD CONSTRAINT "user_price_asset_fk" FOREIGN KEY ("user_id","asset_id") REFERENCES "public"."asset"("user_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "asset_user_created" ON "asset" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "transaction_user_date" ON "transaction" USING btree ("user_id","date");

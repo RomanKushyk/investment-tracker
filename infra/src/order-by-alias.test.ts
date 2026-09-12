@@ -177,8 +177,15 @@ describe('no output alias shadows a sorted column (D91)', () => {
     // EXACT, not a floor. A floor cannot catch the scanner going blind, because
     // the count then goes DOWN. Update this number in the commit that adds or
     // removes a query, deliberately.
-    expect(queries.length).toBe(10);
-    expect(new Set(queries.map((q) => q.file))).toEqual(new Set(['capture.ts']));
+    //
+    // 10 -> 12, and a SECOND FILE, when `asset-delete.ts` arrived with the
+    // batched cascade: its two key-set sub-selects are the first SQL in this
+    // folder outside `capture.ts`. Both are `DELETE … WHERE (…) IN (SELECT …)`
+    // with no `ORDER BY` and no output alias, so they pass the guard below
+    // trivially — but they are in its scan, which is the point of naming the
+    // set rather than counting alone.
+    expect(queries.length).toBe(12);
+    expect(new Set(queries.map((q) => q.file))).toEqual(new Set(['capture.ts', 'asset-delete.ts']));
   });
 
   it.each(queries.map((q, i) => [i, q.file, q.sql] as const))(

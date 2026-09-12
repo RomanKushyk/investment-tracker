@@ -44,8 +44,10 @@ describe('the file list', () => {
 describe('statementsOf', () => {
   const stmts = statementsOf(read(USER_SCHEMA));
 
-  it('splits the generated schema into its seven statements', () => {
-    expect(stmts).toHaveLength(7);
+  it('splits the generated schema into its twelve statements', () => {
+    // Five CREATE TABLE, five ALTER TABLE … ADD CONSTRAINT for the foreign
+    // keys, two CREATE INDEX.
+    expect(stmts).toHaveLength(12);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -98,7 +100,7 @@ describe('statementsOf', () => {
 });
 
 describe('rewriteForDsql', () => {
-  // The three promotion rules, `infra/docs/dsql-constraints.md`. Each was
+  // The four promotion rules, `infra/docs/dsql-constraints.md`. Each was
   // measured against the live cluster, and doing any one of them alone still
   // leaves a statement the cluster refuses.
   it('inserts ASYNC and strips USING btree from an index line', () => {
@@ -109,9 +111,33 @@ describe('rewriteForDsql', () => {
     ).toBe('CREATE INDEX ASYNC "asset_user_created" ON "asset" ("user_id","created_at");');
   });
 
+  // MEASURED, and it is what settles the question #47 carried as obligation 8:
+  // "whether the schema qualification is harmless is UNKNOWN". It is not. A
+  // qualified name ignores `search_path`, so a rehearsal into a throwaway schema
+  // built its keys against the REAL `public` tables — which fails loudly where
+  // `public` is empty and would succeed SILENTLY where it is not, leaving a
+  // constraint pointing at production rows and then dropping the referencing
+  // side out from under it.
+  it('strips the schema qualifier drizzle hard-codes onto a key target', () => {
+    expect(
+      rewriteForDsql(
+        'ALTER TABLE "account" ADD CONSTRAINT "account_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."app_user"("user_id") ON DELETE restrict ON UPDATE no action;',
+      ),
+    ).toBe(
+      'ALTER TABLE "account" ADD CONSTRAINT "account_user_fk" FOREIGN KEY ("user_id") REFERENCES "app_user"("user_id") ON DELETE restrict ON UPDATE no action NOT VALID;',
+    );
+  });
+
+  it('leaves no schema qualifier anywhere in the generated file', () => {
+    for (const s of statementsOf(read(USER_SCHEMA)).map(rewriteForDsql)) {
+      expect(s).not.toContain('"public".');
+    }
+  });
+
   it('appends NOT VALID to an ADD CONSTRAINT', () => {
-    // Nothing emits one until the five foreign keys land (#47); the rule ships
-    // now because promotion is what will apply them.
+    // The five keys are real now, so the assertion two cases down runs this
+    // rule over the generated statements. This one stays because it names the
+    // rule in a single line.
     expect(
       rewriteForDsql(
         'ALTER TABLE "asset" ADD CONSTRAINT "asset_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."app_user"("user_id") ON DELETE restrict;',
@@ -158,14 +184,14 @@ describe('applyFile', () => {
   it('applies every statement once and skips them all on a re-run', async () => {
     expect(await applyFile(db, USER_SCHEMA, stmts)).toEqual({
       file: USER_SCHEMA,
-      applied: 7,
+      applied: 12,
       skipped: 0,
       pending: 0,
     });
     expect(await applyFile(db, USER_SCHEMA, stmts)).toEqual({
       file: USER_SCHEMA,
       applied: 0,
-      skipped: 7,
+      skipped: 12,
       pending: 0,
     });
   });
@@ -184,7 +210,7 @@ describe('applyFile', () => {
     expect(await applyFile(db, USER_SCHEMA, stmts, rewriteForDsql)).toEqual({
       file: USER_SCHEMA,
       applied: 0,
-      skipped: 7,
+      skipped: 12,
       pending: 0,
     });
   });
@@ -213,7 +239,7 @@ describe('applyFile', () => {
     expect(await applyFile(db, USER_SCHEMA, stmts)).toEqual({
       file: USER_SCHEMA,
       applied: 1,
-      skipped: 6,
+      skipped: 11,
       pending: 0,
     });
   });
@@ -231,7 +257,7 @@ describe('applyFile', () => {
     expect(await applyFile(db, USER_SCHEMA, stmts)).toEqual({
       file: USER_SCHEMA,
       applied: 1,
-      skipped: 6,
+      skipped: 11,
       pending: 0,
     });
   });
@@ -388,7 +414,7 @@ describe('migrate', () => {
   //
   // `pending`, NOT `skipped`. An earlier version reported every statement as
   // skipped whatever the cluster held, so an operator dry-running an EMPTY one
-  // read `{applied: 0, skipped: 7}` as "nothing to do" — the exact opposite of
+  // read `{applied: 0, skipped: 12}` as "nothing to do" — the exact opposite of
   // the truth, and the CI smoke step had pinned that reading.
   it('reports what is still to run, against a cluster with no ledger at all', async () => {
     const db = new PGlite();
@@ -396,7 +422,7 @@ describe('migrate', () => {
       mode: 'dry-run',
       schema: 'public',
       files: [
-        { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 7 },
+        { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 12 },
         { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1 },
       ],
     });
@@ -411,7 +437,7 @@ describe('migrate', () => {
       mode: 'dry-run',
       schema: 'public',
       files: [
-        { file: USER_SCHEMA, applied: 0, skipped: 7, pending: 0 },
+        { file: USER_SCHEMA, applied: 0, skipped: 12, pending: 0 },
         { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0 },
       ],
     });

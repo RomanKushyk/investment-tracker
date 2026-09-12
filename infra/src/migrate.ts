@@ -13,11 +13,13 @@
 // so a file that fails partway through cannot simply be re-run: the retry dies
 // on the first statement, which already exists. Hence the ledger.
 //
-// THE THREE PROMOTION REWRITE RULES, measured against the cluster and recorded
+// THE FOUR PROMOTION REWRITE RULES, measured against the cluster and recorded
 // in `infra/docs/dsql-constraints.md`: insert `ASYNC` into every `CREATE INDEX`
 // (`0A000 unsupported mode`), strip `USING btree` (`0A000 USING not supported
 // for CREATE INDEX`), and append `NOT VALID` to every `ALTER TABLE … ADD
-// CONSTRAINT` (`0A000 unsupported ALTER TABLE ADD CONSTRAINT statement`).
+// CONSTRAINT` (`0A000 unsupported ALTER TABLE ADD CONSTRAINT statement`), and
+// strip the schema drizzle hard-codes onto a key's target, which is about WHERE
+// the statement lands rather than whether the cluster accepts it.
 // Neither of the first two may live in the committed file: `ASYNC` is a syntax
 // error on stock Postgres, and `USING btree` is what `user-schema.test.ts`
 // applies to PGlite. So the rewrite happens here, on the way out.
@@ -109,7 +111,7 @@ export function statementsOf(sql: string): string[] {
 }
 
 /**
- * The three rewrite rules.
+ * The four rewrite rules.
  *
  * Idempotent by construction — a runner that rewrote an already-rewritten
  * statement would emit `CREATE INDEX ASYNC ASYNC` or a second `NOT VALID`, and
@@ -128,12 +130,22 @@ export function rewriteForDsql(statement: string): string {
     out = out.replace(/^(CREATE\s+(?:UNIQUE\s+)?INDEX)(?!\s+ASYNC\b)/i, '$1 ASYNC');
     out = out.replace(/\s+USING\s+btree\s*/i, ' ');
   }
-  if (
-    /^ALTER\s+TABLE\b/i.test(out) &&
-    /\bADD\s+CONSTRAINT\b/i.test(out) &&
-    !/\bNOT\s+VALID\b/i.test(out)
-  ) {
-    out = out.replace(/;?\s*$/, ' NOT VALID;');
+  if (/^ALTER\s+TABLE\b/i.test(out) && /\bADD\s+CONSTRAINT\b/i.test(out)) {
+    // THE FOURTH RULE, and it is about WHERE the statement lands rather than
+    // whether DSQL accepts it. Drizzle hard-codes the schema on a foreign key's
+    // target — `REFERENCES "public"."app_user"(…)` — and a qualified name
+    // ignores `search_path`. Applied to `public` that is merely redundant;
+    // applied inside the runner's own rehearsal schema it reaches back out and
+    // builds the constraint against the REAL `public` table, then drops the
+    // referencing side from under it. The rehearsal would stop being a
+    // rehearsal, silently, on any cluster where `public` is populated — and
+    // loudly on one where it is not, which is how this was found.
+    //
+    // Stripping the qualifier is right rather than merely convenient: every
+    // table this schema declares lives in one schema, whichever one that is, so
+    // resolving through `search_path` is what the statement means.
+    out = out.replace(/\bREFERENCES\s+"public"\."/gi, 'REFERENCES "');
+    if (!/\bNOT\s+VALID\b/i.test(out)) out = out.replace(/;?\s*$/, ' NOT VALID;');
   }
   return out;
 }
@@ -569,11 +581,14 @@ export async function migrate(client: SqlClient, event: MigrateEvent = {}): Prom
   // `infra/docs/dsql-constraints.md` used. The ledger lands inside it too and
   // dies with it, so a rehearsal cannot teach the real run anything.
   //
-  // ISOLATION IS BY `search_path`, WHICH IS NOT TOTAL. A qualified name still
-  // reaches the schema it names, and #47's foreign keys are emitted
-  // `REFERENCES "public"."app_user"(…)` — so from the commit that declares them
-  // a rehearsal touches `public` and this comment is the thing that has to
-  // change with it.
+  // ISOLATION IS BY `search_path`, WHICH IS NOT TOTAL ON ITS OWN — a qualified
+  // name reaches the schema it names whatever the path says. The foreign keys
+  // are emitted `REFERENCES "public"."app_user"(…)` and DID reach out of a
+  // rehearsal because of it; `rewriteForDsql` strips the qualifier for exactly
+  // that reason, which is what makes this mode isolated in practice. Anything
+  // ADDED to a migration that names a schema explicitly escapes again, and no
+  // test would catch it on a cluster where `public` is populated — the failure
+  // is silent success.
   const schema = `migrate_rehearsal_${Date.now()}`;
   await client.query(`CREATE SCHEMA ${schema}`);
   let thrown: unknown;

@@ -109,13 +109,34 @@ child table. `pg_get_constraintdef` reads it back unchanged.
   NULL**, under `MATCH SIMPLE` (the default).
 - **Self-referential keys work**, enforced both ways.
 - **`ON DELETE CASCADE` deletes**, including on a key added late as
-  `NOT VALID`; **`ON DELETE RESTRICT` refuses** — measured INLINE, inside a
-  `CREATE TABLE`, not yet in the post-hoc `ALTER TABLE … ADD CONSTRAINT` form
-  drizzle emits.
+  `NOT VALID`; **`ON DELETE RESTRICT` refuses** — and now measured in the shape
+  this schema actually ships, not only inline inside a `CREATE TABLE`. Sent as
+  `ALTER TABLE child ADD CONSTRAINT … FOREIGN KEY (user_id, parent_id)
+  REFERENCES parent (user_id, id) ON DELETE restrict ON UPDATE no action NOT
+  VALID`, it is accepted, reads back `ON DELETE RESTRICT NOT VALID` with
+  `convalidated = false`, and **enforces both directions anyway**: an orphan
+  insert is `23503` and deleting the referenced parent is `23503`. `NOT VALID`
+  buys exemption for rows already there, never for the constraint's behaviour.
+  That closes the gap D138's tiebreaker rested on.
+- **A NULL member is unchecked**, MATCH SIMPLE — which is what makes
+  `transaction.asset_id` nullable and the `deposit`/`withdrawal` pair legal
+  under `transaction_asset_fk`.
 - **Drizzle emits a foreign key as a post-hoc `ALTER TABLE … ADD CONSTRAINT`,
   never inside `CREATE TABLE`.** Promotion must append `NOT VALID` to every
   one of these, or DSQL refuses it — a third rewrite rule, alongside `ASYNC`
   and stripping `USING btree` above.
+- **AND IT HARD-CODES THE TARGET'S SCHEMA — `REFERENCES "public"."app_user"(…)`
+  — which is a FOURTH rewrite rule, not a cosmetic one.** A qualified name
+  ignores `search_path`. Sent from inside a throwaway schema the cluster answers
+  `42P01 relation "public.parent" does not exist`; on a cluster where `public`
+  IS populated the same statement succeeds and silently builds the constraint
+  against the real table, which a rehearsal then drops the referencing side out
+  from under. Promotion strips the qualifier, so the key resolves through
+  `search_path` and the file can be applied into any schema.
+- **The key-set batching form is accepted**:
+  `DELETE FROM child WHERE (user_id, id) IN (SELECT user_id, id FROM child
+  WHERE user_id = $1 LIMIT $2)` deletes exactly the limit. That is the shape the
+  application cascade needs, since Postgres accepts no `LIMIT` on a `DELETE`.
 - This schema's keys are declared `ON DELETE RESTRICT`, never cascading —
   see `docs/DECISIONS.md`, **User schema and deletes**.
 

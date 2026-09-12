@@ -326,8 +326,10 @@ than chosen before it.
 that is create-time-only — `NOT NULL`, a column's type, `UNIQUE` as a constraint, the primary key —
 while a later constraint is `NOT VALID` for life; the constraints file carries the matrix. The
 generated DDL is APPLIED BY A RUNNER, not by the schema file and not by a deploy: it rewrites each
-statement on the way out — `ASYNC` in, `USING btree` out, `NOT VALID` onto every `ADD CONSTRAINT` —
-and records each one in a ledger keyed by its content hash, so the same file may be re-run after it
+statement on the way out — `ASYNC` in, `USING btree` out, `NOT VALID` onto every `ADD CONSTRAINT`,
+and the hard-coded schema off a foreign key's target, since a qualified name ignores `search_path`
+and would let a rehearsal reach the real tables — and records each one in a ledger keyed by its
+content hash, so the same file may be re-run after it
 grows statements and only the new ones execute. The ledger row is written BEFORE its statement,
 because DSQL admits no transaction spanning both; a re-run may therefore absorb an already-exists
 refusal for the one statement whose row it left open, and for no other. Foreign
