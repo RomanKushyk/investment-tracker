@@ -51,11 +51,15 @@ and a row whose holding falls well short of that span renders muted; per-asset X
 money-weighted column, and its annualization mark tests the WINDOW's length, not the asset's. A
 window's opening position is valued the day BEFORE it opens. Units are `Σ quantity deltas` over the
 ledger, never a stored total; free cash is the ledger's signed sum; a coupon derives from its RATE.
-ACT/365, and a zero denominator is «—».
+A withholding is a FIELD on the payout it was taken from, not a row of its own and never a rate
+applied to one — one figure, because that is what the provider reports. ACT/365, and a zero
+denominator is «—».
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. One shared span keeps rows comparable —
 the first thing a reader of a table uses — and the grey mark is what makes it honest. A stored
-coupon amount goes stale on the next purchase; a rate does not.
+coupon amount goes stale on the next purchase; a rate does not. Tax runs the other way: rates
+change, so a computed withholding eventually lies where a recorded one cannot — and on the payout
+rather than beside it, the asset and the category are exact instead of inferred.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
 already the per-asset answer. · Re-deriving a schedule the walkers already answer: two readings of
 one schedule is the failure, not the arithmetic in either. · A stored observed cash balance beside
@@ -279,16 +283,22 @@ Open registration by default: threat protection is a paid tier, so a public door
 that is create-time-only — `NOT NULL`, a column's type, `UNIQUE` as a constraint, the primary key —
 while a later constraint is `NOT VALID` for life; the constraints file carries the matrix. Foreign
 keys are declared `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
-cascade whose FIRST step NULLs every settlement link pointing into it — an `UPDATE`, never a delete
-— then children before the parent, in batches, each batch its own transaction, every predicate
-scoped by `user_id`. Deleting a transaction or an account stays open; an issue holds the question.
+cascade: children before the parent, in batches, each batch its own transaction, every predicate
+scoped by `user_id`. No transaction references another, so deleting one removes one row and nothing
+else, and a provider account has no delete at all — it is one row per provider, and an empty one
+costs nothing.
 **Why.** The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
 batching is the only shape that works — a cascading key would not remove it, since cascaded rows
 count against the same ceiling. Parent last makes a failure resumable, and the key exists for the
-second writer, whose orphans are invisible to reads that run parent to child.
+second writer, whose orphans are invisible to reads that run parent to child. Free cash sums across
+accounts and the breakdown is a group, so a provider row with nothing in it adds nothing to either.
 **Rejected.** Tombstones: nothing here has asked for undo or retention, and a `deleted_at` puts a
-filter in every read that the first forgotten one turns into deleted data rendered as live. ·
-Deleting settling rows instead of nulling their links: it strands chains and takes another asset's row.
+filter in every read that the first forgotten one turns into deleted data rendered as live. · A
+self-referential key tying a tax row to the payout it settles: it describes a graph — chains, settled
+rows that name no asset, a settler filed against another asset, and a cycle an update can build —
+where the app wanted one sentence, and no derivation, screen or export ever asked which payout a tax
+belonged to. Three rulings on its delete each answered the shape the round before had found; the
+withholding is a field on the payout instead.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only
@@ -464,7 +474,7 @@ it asks — the provider kind follows the yield type, units come from the ledger
 control is gone — and a deposit is a portfolio-level row that names no asset. A transaction names no
 source of funds: the field came across from the spreadsheet this tracker replaced, no derivation
 reads it, and in every row that exists the type and the asset already carry it — while the two
-values that carried more named holdings, which no CHECK may do. The ОВДП code takes
+values that carried more named holdings, which no CHECK may do. Nothing replaces it. The ОВДП code takes
 four letters or digits, derived from the ref or the name as a suggestion that stops the instant the
 user types; naming a bond from the provider list fills its maturity, next coupon, cadence and rate.
 **Why.** Those four are facts about the instrument, not the user's data, so overwriting them is

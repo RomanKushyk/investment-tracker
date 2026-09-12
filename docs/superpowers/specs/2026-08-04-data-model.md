@@ -11,9 +11,10 @@ investigation (storage layout, URL/API contract, retention horizon).
 **Store what was observed. Derive everything else.**
 
 The app never computes a figure it could have recorded. In particular it **never calculates
-tax** — tax is a real transaction that Inzhur performs, so it is recorded, not inferred. Rates
+tax** — a withholding is something Inzhur really performed, so it is recorded, not inferred. Rates
 change, ОВДП coupons are exempt while ІСІ dividends are taxed at 14% (9% ПДФО + 5% військовий
-збір), and any attempt to compute that would eventually be wrong. A recorded fact cannot be.
+збір), and any attempt to compute that would eventually be wrong. A recorded fact cannot be. What
+it is recorded ON is the payout it was taken from, not a row of its own.
 
 Two things are stored: **transactions** (the user's side) and the **price archive** (the
 provider's side). Nothing else — there is no stored daily snapshot.
@@ -32,12 +33,13 @@ confirms with one press:
 
 `Snapshot` as a stored entity · stored `cash` (the Metric families and windows observed-balance compromise, and the
 "unpaired payouts are external" rule with it) · `destination` on payouts · `gross`/`net`
-attributes · `deleteAsset` · demo/live dataset split · JSON import · CSV.
+attributes · demo/live dataset split · JSON import · CSV · `TxSource`, which nothing
+replaces · the `tax` transaction type, replaced by a field on the payout that generated it.
 
 ## Consequence for the seed
 
 `src/lib/seed.ts` will not reconcile under this model — its 18 transactions carry no withdrawal
-rows and no separate tax rows, so the account sum will not produce ₴7,75. It survives as a **test
+rows, so the account sum will not produce ₴7,75. It survives as a **test
 fixture only** (demo mode is removed), and must be updated alongside the schema. Roughly 150 test
 blocks depend on `buildSeedSnapshots()`.
 
@@ -61,20 +63,22 @@ type, not a stored field.
 | `withdrawal` | **−** | — |
 | `buy` | **−** | **+** |
 | `sell` | **+** | **−** |
-| `dividend_payout` | **+** (gross) | — |
-| `interest_payout` | **+** (gross) | — |
-| `tax` | **−** | — |
+| `dividend_payout` | **+** (gross, less any withholding) | — |
+| `interest_payout` | **+** (gross, less any withholding) | — |
 | `reinvest` | **−** | **+** (chosen asset) |
 | `redemption` | **+** | **−** |
 
-Inzhur always credits the account first and performs any onward routing (bank transfer,
-reinvest, tax) as a **separate operation**. Every movement is therefore observable and recorded.
-There is no `destination` field — the route is expressed by the following transaction.
+Inzhur always credits the account first and performs any onward routing — a bank transfer or a
+reinvest — as a **separate operation**, so every movement stays observable and recorded. There is
+no `destination` field: the route is expressed by the following transaction. A withholding is the
+one thing that does NOT get its own row; it travels on the payout it was taken from, so the
+payout's signed amount is what reached the account.
 
 ### Derivations
 
 ```
 free_cash(D)  = Σ signed amount over account rows up to D
+                -- a payout's signed amount is `amount - coalesce(tax_withheld, 0)`
 units(a, D)   = Σ quantity deltas for asset a up to D
 value(a, D)   = units(a, D) × price(a, D)      -- price from the archive
 ```
@@ -89,26 +93,29 @@ No exclusion rules, no pairing heuristics, no computed tax. The sum reconciles b
 | `user_id` | scope; no `portfolio` table (independent accounts) |
 | `account_id` | provider account — see below |
 | `date` | Kyiv calendar date |
-| `type` | one of the nine above |
+| `type` | one of the eight above |
 | `amount` | always positive; the sign comes from `type` |
 | `asset_id` | nullable — `deposit` / `withdrawal` carry none |
 | `quantity` | **nullable, required on position-moving rows.** Unrecoverable if not captured on the day; FIFO lots stay derivable from it forever |
 | `unit_price` | nullable; keep fees in separate rows rather than baking them in |
-| `settles_payout_id` | **nullable, `tax` rows only** — the payout this tax belongs to |
+| `tax_withheld` | **nullable, payout rows only** — what the provider withheld from this payout, below its amount |
 | `created_at` | |
 
-**`asset_id` on `tax` rows is required** when the tax relates to a payout. Without it,
-`payoutsNet` per asset is uncomputable and the total-return family stays broken — this is the
-gap `docs/reference/FORMULA-AUDIT.md` ruling 6 left open.
+**`asset_id` on a tax row is no longer a rule, because there is no tax row.** It was required so
+that `payoutsNet` per asset stayed computable. What ruling 6 of `docs/reference/FORMULA-AUDIT.md`
+left open was narrower — the dividends-versus-coupons split, which a row naming only an asset could
+not give. The withholding now sits on the payout, so both the asset and the category come with it.
 
-**`settles_payout_id`** makes double counting structurally impossible and turns "does every
-payout have its tax?" into a join rather than a date-fuzzy guess. It cannot be backfilled later,
-which is why it goes in now. Validation: a tax may not exceed the payout it settles.
+**`settles_payout_id` comes out of the draft.** It was to make double counting structurally impossible and
+turn "does every payout have its tax?" into a join rather than a date-fuzzy guess. A field on the
+payout answers that by construction — there is no second row to join — and the validation it
+carried survives on the one row: a withholding may not reach the payout it was taken from. See
+[`2026-09-12-tax-on-the-payout-design.md`](2026-09-12-tax-on-the-payout-design.md).
 
-~~Aurora DSQL has **no foreign keys**~~ — it does, measured 2026-08-27, per the User schema and deletes decision — composite and
-enforced. What still holds is the shipping design: both references are application-enforced on
-write plus a nightly integrity audit, and nothing is ever deleted, so there are no cascades.
-Adopting real ones was `docs/DECISIONS.md` **O34**, **closed 2026-08-28 — per the User schema and deletes decision, W7 ships none**, and the adoption question now sits in **O33**.
+Aurora DSQL has foreign keys — composite and enforced. The user schema's header prescribes six, all
+`ON DELETE RESTRICT`, and declares none yet; dropping the self-referential one leaves five for W7 to
+write. Rows ARE deleted: an asset goes by an application cascade, children
+before the parent, in batches. See `docs/DECISIONS.md`, **User schema and deletes**.
 
 ### `account`
 
