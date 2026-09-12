@@ -11,7 +11,8 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 
 | Path | What |
 |---|---|
-| `template.yaml` | SAM stack: DSQL cluster, capture Lambda, migration Lambda, schedule, DLQ, alarms |
+| `template.yaml` | The ARCHIVE stack, `quirenote-backend`: DSQL cluster, capture Lambda, schedule, DLQ, alarms. One of it, for every environment, deployed from `dev` alone |
+| `template-user.yaml` | The USER stack: one DSQL cluster and the migration Lambda that fills it. Deployed twice, as `quirenote-backend-user-dev` and `quirenote-backend-user-prod`; the `Environment` parameter has no default, and the backup tag is derived from it |
 | `src/capture.ts` | The capture handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
 | `src/migrate.ts` | The migration handler, and the only thing that applies a file from `migrations/`. Manual: `workflow_dispatch` on [`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml). One required mode — `rehearse` (throwaway schema, dropped `CASCADE`), `dry-run` or `apply`; an unrecognised one is refused rather than defaulted |
 | `src/asset-delete.ts` | Deleting an asset: children before the parent, batched, each batch its own transaction, every predicate scoped by `user_id` — what the `ON DELETE RESTRICT` keys deliberately refuse to do |
@@ -19,7 +20,7 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 | `src/xlsx.ts` | A minimal ZIP + SpreadsheetML reader, no package: numbers, shared strings and cached formula text; every other cell type is refused |
 | `src/fund-history.ts` | The provider's fund price files to `nav` rows: columns by caption, the one text-formatted price read only as a string |
 | `schema/user.ts` | Drizzle source for `migrations/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
-| `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) and `005` (the demo's identity) — are applied by `src/migrate.ts`, which names them rather than globbing |
+| `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) and `005` (the demo's identity) — are applied by `src/migrate.ts`, which names them rather than globbing, and they live on the USER clusters only — never on the archive, which holds no user table. A user cluster is created EMPTY: the schema arrives when `migrate.yml` is dispatched against it, not when the stack deploys |
 | `migrations/drafts/` | Schema written before anything may apply it — DSQL primary keys are immutable, so a key is decided on paper, reviewed, then promoted. Empty today: `003` was promoted out of it. [`migrations/drafts/README.md`](migrations/drafts/README.md) is the practice |
 | `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
@@ -47,7 +48,14 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
   protects is destroyed by the accident it exists for; see
   `scripts/bootstrap-backups.sh`.
 - **The backup selection matches on the `app=quirenote` TAG, never an ARN.**
-  DSQL cluster IDs are generated, so a recreated cluster gets a new ARN.
+  DSQL cluster IDs are generated, so a recreated cluster gets a new ARN. The tag
+  is therefore the enrolment decision, and the vault it enrols into is LOCKED
+  with a 35-day floor — a recovery point that lands there cannot be removed
+  early. The archive carries the tag and so does prod's user cluster; dev's
+  carries `app=quirenote-dev` and stays out, because it is `003` plus `005` and
+  a dispatch. Note what this does NOT break: `BackupAgeAlarm` filters recovery
+  points by the archive's own cluster ARN, so a second tagged cluster cannot
+  make the archive look fresh — and equally, nothing watches prod's, which is #139.
 - **Never let an output alias shadow the column you `ORDER BY`.** A bare name
   in `ORDER BY` resolves to the aliased output column first, so the sort
   cannot inherit index order and the planner falls back to a full scan.
@@ -78,4 +86,4 @@ unable to touch hosting config.
 | [`docs/dsql-constraints.md`](docs/dsql-constraints.md) | Every DDL statement DSQL accepts or refuses, and the `ALTER TABLE` create-time-only matrix |
 | [`docs/console-setup.md`](docs/console-setup.md) | One-time console setup, SES, the artifacts bucket |
 | [`docs/role-deploy.md`](docs/role-deploy.md) | Role 1 — `quirenote-backend-deploy` |
-| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, and the two traps that cost eight CI cycles |
+| [`docs/role-cfn-exec.md`](docs/role-cfn-exec.md) | Role 2 — `quirenote-backend-cfn-exec`, and the three traps — the third is why the user stacks are named as they are |

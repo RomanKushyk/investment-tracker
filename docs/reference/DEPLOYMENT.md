@@ -49,9 +49,26 @@ must be **Full (strict)** — `flexible` would loop, since CloudFront answers pl
 is a pipeline, not a gate:** lint/format/test/build all run before the job assumes any AWS credential; `prod` accepts only `main`;
 the role touches nothing but two Amplify branches; the ruleset blocks force-push/delete on `main`. Egress cost is watched by a $5
 monthly AWS Budget (alerts at $1 and $3 actual, $5 forecast) plus a daily Cost Anomaly Detection subscription, both with a live
-email subscriber — notification only, never an automated shutdown. **The split is the frontend's only:** there is one AWS backend
-stack, and `deploy-backend.yml` triggers on `dev` alone, so the backend a production visitor reaches is whatever `dev` last
-deployed.
+email subscriber — notification only, never an automated shutdown.
+
+**The backend is split too, and asymmetrically** — the environment split stops at user data
+(`docs/DECISIONS.md`, **Cloud target**), so the archive has one deploying branch and user data has two:
+
+| Stack | Holds | Deployed from |
+|---|---|---|
+| `quirenote-backend` | the archive cluster (tagged `app=quirenote`), the capture Lambda, the schedule, the DLQ, the alarms | `dev` only |
+| `quirenote-backend-user-dev` | a DSQL cluster of user data, and the migration runner for it. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
+| `quirenote-backend-user-prod` | the same, tagged `app=quirenote` | `main` |
+
+`deploy-backend.yml` fires on both branches and picks its environment from the ref exactly as the frontend does; the archive step
+is skipped off `main`. **The consequence worth knowing before it is needed: a `workflow_dispatch` on `main` cannot repair the
+archive.** The repair path is a dispatch on `dev`. `migrate.yml` takes a `target`, and a `prod` migration is refused from any
+branch but `main` by the `prod` environment's own branch policy — before any credential exists.
+
+**A new user cluster is EMPTY, and the deploy does not fill it.** Creating the stack creates the database and the runner; the
+schema arrives only when someone dispatches `migrate.yml` against it — `rehearse`, then `dry-run`, then `apply`. Until that
+happens the stack is green and the database has no tables, which is the one state where everything looks deployed and nothing
+works.
 
 ## 1. One-time AWS console setup
 
@@ -178,22 +195,29 @@ rename one** — a renamed secret is broken until the workflow catches up.
 ## 2. GitHub repository configuration
 
 Settings → Environments → **`dev`** and **`prod`** — `deploy-frontend.yml` picks the environment from the branch (`github.ref_name
-== 'main' && 'prod' || 'dev'`). **Both environments carry the same three entries**, each scoped to itself; what differs is the
-branch policy (`dev` → `dev`, `prod` → `main`) and the Amplify branch written to:
+== 'main' && 'prod' || 'dev'`), and `deploy-backend.yml` picks it the same way. Each entry is scoped to its own environment —
+**they are not shared**, so an entry present in `dev` and absent in `prod` fails only on the `main` push, with an empty value
+rather than an error that names it. What else differs is the branch policy (`dev` → `dev`, `prod` → `main`) and the Amplify
+branch written to:
 
-| Kind | Name | Value |
-|------|------|-------|
-| Variable | `AMPLIFY_APP_ID` | `d17m4jf400my6` |
-| Variable | `AWS_REGION` | `eu-north-1` |
-| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` |
+| Kind | Name | Value | In |
+|------|------|-------|----|
+| Variable | `AMPLIFY_APP_ID` | `d17m4jf400my6` | both |
+| Variable | `AWS_REGION` | `eu-north-1` | both |
+| Secret | `AWS_ACCOUNT_ID` | the account number | both |
+| Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` | both |
+| Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy` | both — `prod` needs it since the backend split |
 
 **Deployment branch policy — required, not cosmetic.** Settings → Environments → `<env>` → **Deployment branches and tags** →
 *Selected branches and tags* → add the one branch that environment deploys. Since the IAM trust `sub` keys on the environment
 rather than the branch (§1.5), this is the only thing preventing a job on another branch from assuming the deploy role — set it at
 creation time for every environment added later.
 
-The `gh` CLI works only under the right account: check with `gh auth status`, switch with `gh auth switch --user RomanKushyk`,
-confirm with `gh api repos/RomanKushyk/investment-tracker --jq .permissions` before any write.
+The `gh` CLI works only under the right account, and the way to get there is the CONFIG DIR, never a switch: every `gh` call
+here runs with `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"`. **`gh auth switch` is forbidden** (`docs/DECISIONS.md`, **Git
+model**) — two accounts share one keyring, so switching signs the other repository's session out from under it. Check with
+`gh auth status`, confirm with `gh api repos/RomanKushyk/investment-tracker --jq .permissions` before any write. Writes do work
+from here: `gh secret set AWS_BACKEND_ROLE_ARN --env prod --body <arn>` is how that secret was set.
 
 ## 3. Deploying
 

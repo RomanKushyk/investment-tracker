@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Quirenote user data — one Aurora DSQL cluster per environment, and the migration
+  runner that fills it. Deployed twice, as quirenote-backend-user-dev and
+  quirenote-backend-user-prod. The ARCHIVE is deliberately not here: it is provider
+  data shared by every environment and lives, once, in the quirenote-backend stack.
+  See docs/DECISIONS.md, **Cloud target**.
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, prod]
+    # NO DEFAULT, deliberately, and it is the same argument the runner's own `mode`
+    # makes. A deploy that forgets `--parameter-overrides` then fails naming the
+    # parameter, instead of resolving quietly to whichever value was written here —
+    # which, for the half of the pair that is production, is not a failure anyone
+    # would go looking for.
+
+Conditions:
+  # DERIVED, never passed. An environment and a tag that disagree is the one mistake
+  # this stack could make silently, so it is made unrepresentable rather than
+  # documented.
+  IsProd: !Equals [!Ref Environment, prod]
+
+Resources:
+  # --------------------------------------------------------------------------
+  # Database
+  # --------------------------------------------------------------------------
+  # No VPC here either, for the reason `template.yaml` gives at length: DSQL is a
+  # public IAM-authenticated endpoint, and a NAT Gateway would cost multiples of
+  # everything else in both stacks combined.
+  UserCluster:
+    Type: AWS::DSQL::Cluster
+    # Retain, like the archive's, and for a different reason: the archive is the only
+    # copy of a history nobody republishes, while this is somebody's portfolio. Both
+    # come to the same rule — a `sam delete` must not be able to destroy it.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      DeletionProtectionEnabled: true
+      Tags:
+        - Key: app
+          # THE TAG IS THE BACKUP DECISION. The AWS Backup selection matches on
+          # `app=quirenote` and nothing else, and `quirenote-backups` is a LOCKED
+          # vault with a 35-day retention floor — a recovery point that lands in it
+          # cannot be removed early. Production user data is the one thing in this
+          # system that cannot be re-derived from anything, so it carries the tag.
+          # Dev's cluster is `003` plus `005` and a dispatch, so it does not.
+          Value: !If [IsProd, quirenote, quirenote-dev]
+
+  # --------------------------------------------------------------------------
+  # Migration function
+  # --------------------------------------------------------------------------
+  # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE — which is now not even in the
+  # same stack. What separates them is blast radius: a mode would give the function
+  # that runs unattended six times a day, on a schedule, with a DLQ that retries it,
+  # the standing right to CREATE and ALTER the user tables. This one is invoked by
+  # hand and by nothing else.
+  #
+  # ONE CLUSTER PER RUNNER, for the same reason. A single runner holding
+  # `dsql:DbConnectAdmin` on both clusters would put production one mistyped payload
+  # field away; two stacks means the target is whichever function was invoked. Note
+  # where that stops: the deploy role can invoke BOTH runners, so what keeps a dev
+  # dispatch off production is `migrate.yml`'s environment gate, not IAM —
+  # `infra/docs/role-deploy.md` states that as an accepted risk rather than a claim.
+  #
+  # `CodeUri: dist/` as in the archive stack: `sam deploy` packages the directory
+  # as-is and both bundles live in it, so this costs no second artifact.
+  MigrateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: migrate.handler
+      # Spelled out rather than inherited from a `Globals` block. One function does
+      # not need one, and a second copy of the runtime version is a second place for
+      # it to drift from the archive stack's.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # 900, the Lambda maximum. `CREATE INDEX ASYNC` returns a job and the runner
+      # waits on it, so the ceiling is an index BUILD rather than a statement — and a
+      # wait killed at the ceiling leaves a ledger row open over an index whose job
+      # may have failed. The runner handles that (it re-checks `indisvalid` before
+      # adopting one), but the cheapest half of the answer is not to be killed.
+      Timeout: 900
+      # NO SCHEDULE AND NO DLQ, both deliberate. DSQL runs one DDL statement per
+      # transaction with no cross-statement rollback, so an automatic retry of a
+      # half-applied file is precisely the thing the ledger exists to make
+      # unnecessary — and a retry that races the run it is retrying would open a
+      # second crash window the first one cannot be told from.
+      #
+      # CONCURRENCY IS NOT BOUNDED HERE, and that is an accepted cost rather than an
+      # oversight. `ReservedConcurrentExecutions: 1` is the usual answer and is
+      # unavailable: reserving any of this account's small quota drops the unreserved
+      # pool below the required minimum of 10 and the deploy fails outright — the
+      # capture function in `template.yaml` carries the same note. What bounds this
+      # one is that nothing invokes it automatically and `migrate.yml` runs under
+      # `concurrency: migrate-<target>`; a second, simultaneous hand-typed invoke is
+      # the gap, and the ledger's open row is what keeps even that recoverable.
+      Environment:
+        Variables:
+          # `Endpoint`, not `VpcEndpointServiceName` — the latter exists to reach the
+          # cluster from inside a VPC, which is precisely what this stack avoids.
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            # This cluster and nothing else — not the archive, and not the other
+            # environment's.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+
+  # Declared explicitly rather than letting Lambda auto-create it: the implicit log
+  # group defaults to "Never expire".
+  MigrateLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${MigrateFunction}
+      RetentionInDays: 30
+
+Outputs:
+  ClusterIdentifier:
+    Value: !GetAtt UserCluster.Identifier
+  ClusterArn:
+    Value: !GetAtt UserCluster.ResourceArn
+  # `.github/workflows/migrate.yml` reads this rather than constructing the name —
+  # SAM appends a generated suffix, so a constructed one is wrong the first time the
+  # stack is replaced.
+  MigrateFunctionName:
+    Value: !Ref MigrateFunction

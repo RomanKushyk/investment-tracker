@@ -261,16 +261,29 @@ second channel later: speculative, and SNS was never on the path that worked.
 **Decision.** The backend is Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the
 migration the DERIVATION MOVES TO THE SERVER: the API Lambda imports the same `src/core/` modules the
 app uses — an import, never a port — and `/view` serves derived state with no parameters, while raw
-rows stay on the export/import path. The environment split stops at USER data: one archive, one
-capture, for every environment. Cross-browser beats offline, so there is no service worker and no PWA
-shell. Any statement over the archive is bounded by a SQL date window, and completeness names both
+rows stay on the export/import path. The environment split stops at USER data, and it is THREE
+STACKS: the archive and its capture in `quirenote-backend`, deployed from `dev` alone because one
+archive and one capture serve every environment; and one DSQL cluster of user data per environment in
+`quirenote-backend-user-<env>`, deployed from the branch that owns it. The migration runner follows
+the schema it applies rather than the stack it started in, so each user cluster has a runner that can
+reach no other cluster at all. A cluster joins the locked backup vault by its `app` tag: the archive
+and prod's user cluster carry it, dev's does not. Cross-browser beats offline, so there is no
+service worker and no PWA shell. Any statement over the archive is bounded by a SQL date window, and completeness names both
 bounds, the row limit first. The free tier on monthly actives is watched via the pool's user count.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing answers it. The archive is public reference data — a second copy
 would be a second history to keep honest, and worthless anyway, since its value IS its accumulation.
+User data is the opposite on both counts: it is nobody else's, and a dev session writing over a real
+portfolio is the failure one shared cluster makes available every day.
 **Rejected.** A service worker: the most browser-divergent layer in the plan, bought for an offline
 the plan had already given up. · A SQL `LIMIT` in place of the window: the plan sorts above the
-scan, and a sort consumes its whole input before it yields a row.
+scan, and a sort consumes its whole input before it yields a row. · One user cluster with a schema
+per environment: `search_path` is not isolation, which the runner already knows — it strips the
+qualified schema off a foreign key's target precisely so a rehearsal cannot reach the real tables,
+and that is the same hole one environment away. · One runner holding both endpoints and choosing by
+payload: production would then be a mistyped field away, where two stacks make the target the
+consequence of which function was invoked. · Renaming the archive's stack to match the pair: a rename
+is a new stack, and a new stack is a second archive cluster.
 
 ## Auth model
 **Decision.** Cognito Essentials with managed login, behind an HTTP API JWT authorizer with no
@@ -287,7 +300,10 @@ belongs to one owner — the seeded original is a single row set under an
 would create it — and the super-admin's ownership is the right to EDIT that row set rather than the
 scope it is stored under. That identity carries a ROLE OF ITS OWN, `demo`, and no decision: it is
 not an application, so it is excluded from the approval surface by its own column rather than by a
-convention, and `app_user_decided_ck` exempts it instead of taking a fabricated approval pair.
+convention, and `app_user_decided_ck` exempts it instead of taking a fabricated approval pair. That
+row exists once per user cluster and carries the same id in both, so `app_user_email_uq` holds
+within an environment and across none of them — whether one pool or two serve the two clusters is the
+pool's question to answer, not the schema's.
 Until the play copy
 exists an unauthenticated caller reads it and writes nothing.
 Three surfaces stand outside the authorizer and check no application row: the archive's reads, the
@@ -421,7 +437,9 @@ The `pnpm` field in `package.json`: no longer read, and it fails as a warning th
 ## Deployment
 **Decision.** Amplify Hosting as a manual-deploy app, fed by a GitHub Actions workflow that builds,
 deploys and polls the job to completion; one workflow serves both branches and takes its environment
-from the ref. Authentication is GitHub OIDC with no long-lived keys, and the deploy role
+from the ref. THE BACKEND FOLLOWS THE SAME RULE AND BREAKS IT ONCE: its workflow also fires on both
+branches and reads the environment from the ref, but the archive stack has a single deploying branch,
+so a dispatch on `main` cannot repair it. Authentication is GitHub OIDC with no long-lived keys, and the deploy role
 deliberately lacks the permission to change the app — the SPA 200 rewrite and the cache headers stay
 console-managed, and CI cannot touch hosting configuration. Cloudflare sits in front: the apex,
 `www` and `dev` are proxied; the certificate-validation CNAME and the mail records never are.

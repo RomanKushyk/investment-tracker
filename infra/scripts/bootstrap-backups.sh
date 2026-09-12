@@ -103,8 +103,14 @@ echo "plan:   ${PLAN_ID}"
 # By TAG, not by ARN. DSQL cluster IDs are generated rather than named, so a
 # recreated cluster gets a new ARN — and an ARN-pinned selection would then back
 # up nothing, silently, which is the exact failure mode the alerting work of
-# 2026-08-11 was about. The tag is set by template.yaml, so a replacement
-# cluster is covered the moment it exists.
+# 2026-08-11 was about. The tag is set by the templates, so a replacement cluster is
+# covered the moment it exists.
+#
+# WHICH CLUSTERS CARRY IT IS NOW A DECISION, not a consequence of existing. The
+# archive does, and so does PROD's user cluster; dev's carries `app=quirenote-dev`
+# and stays out, because this vault is locked with a 35-day floor and dev's database
+# is a migration dispatch away from being rebuilt. `template-user.yaml` derives the
+# value from its `Environment` parameter so the two cannot disagree.
 HAVE="$(aws backup list-backup-selections --backup-plan-id "$PLAN_ID" --region "$REGION" \
   --query "BackupSelectionsList[?SelectionName=='quirenote-dsql-by-tag'] | length(@)" \
   --output text)"

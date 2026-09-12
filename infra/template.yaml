@@ -140,66 +140,12 @@ Resources:
     Properties:
       MessageRetentionPeriod: 1209600 # 14 days
 
-  # --------------------------------------------------------------------------
-  # Migration function
-  # --------------------------------------------------------------------------
-  # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE. Both would work and both
-  # would reuse `connect()`; what separates them is blast radius, the same split
-  # `deploy-backend.yml` already made against `deploy-frontend.yml`. A mode
-  # would give the function that runs unattended six times a day, on a schedule,
-  # with a DLQ that retries it, the standing right to CREATE and ALTER the user
-  # tables. This one is invoked by hand and by nothing else.
-  #
-  # Same `CodeUri` as the capture function: `sam deploy` packages `dist/` as-is
-  # and both bundles live in it, so a second function costs one esbuild line
-  # rather than a second artifact.
-  MigrateFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: dist/
-      Handler: migrate.handler
-      # 900, the Lambda maximum, against Globals' 600. `CREATE INDEX ASYNC`
-      # returns a job and the runner waits on it, so the ceiling is an index
-      # BUILD rather than a statement — and a wait killed at the ceiling leaves
-      # a ledger row open over an index whose job may have failed. The runner
-      # handles that (it re-checks `indisvalid` before adopting one), but the
-      # cheapest half of the answer is not to be killed.
-      Timeout: 900
-      # NO SCHEDULE AND NO DLQ, both deliberate. DSQL runs one DDL statement per
-      # transaction with no cross-statement rollback, so an automatic retry of a
-      # half-applied file is precisely the thing the ledger exists to make
-      # unnecessary — and a retry that races the run it is retrying would open a
-      # second crash window the first one cannot be told from.
-      #
-      # CONCURRENCY IS NOT BOUNDED HERE, and that is an accepted cost rather than
-      # an oversight. `ReservedConcurrentExecutions: 1` is the usual answer and
-      # is unavailable: reserving any of this account's small quota drops the
-      # unreserved pool below the required minimum of 10 and the deploy fails
-      # outright — see `CaptureFunction`, which carries the same note. What
-      # bounds this one is that nothing invokes it automatically and
-      # `migrate.yml` runs under `concurrency: migrate`; a second, simultaneous
-      # hand-typed invoke is the gap, and the ledger's open row is what keeps
-      # even that recoverable.
-      Environment:
-        Variables:
-          DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
-          AWS_REGION_NAME: !Ref AWS::Region
-          NODE_OPTIONS: --enable-source-maps
-      Policies:
-        - Statement:
-            # The cluster and nothing else. It needs no backup, notification or
-            # scheduler permission, and giving it the capture function's policy
-            # wholesale is how the separation above would be undone in one line.
-            - Sid: ConnectToDsqlAsAdmin
-              Effect: Allow
-              Action: dsql:DbConnectAdmin
-              Resource: !GetAtt PriceCluster.ResourceArn
-
-  MigrateLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${MigrateFunction}
-      RetentionInDays: 30
+  # THE MIGRATION RUNNER IS NOT HERE. It and its log group live in
+  # `template-user.yaml`, because what it applies is the USER schema — one cluster
+  # per environment — while everything in this file is the ARCHIVE, which is one
+  # cluster for every environment (docs/DECISIONS.md, **Cloud target**). Left here it
+  # would hold `dsql:DbConnectAdmin` on the archive, which no migration of ours may
+  # touch.
 
   # --------------------------------------------------------------------------
   # Schedule
@@ -585,8 +531,3 @@ Outputs:
     Value: !GetAtt PriceCluster.ResourceArn
   FunctionName:
     Value: !Ref CaptureFunction
-  # `.github/workflows/migrate.yml` reads this rather than constructing the name
-  # — SAM appends a generated suffix, so a constructed one is wrong the first
-  # time the stack is replaced.
-  MigrateFunctionName:
-    Value: !Ref MigrateFunction

@@ -6,7 +6,11 @@ name: Deploy backend
 # never hold up a UI fix. They also change on completely different cadences.
 on:
   push:
-    branches: [dev]
+    # BOTH BRANCHES, AND THEY DEPLOY DIFFERENT THINGS. `dev` deploys the archive stack
+    # and the dev user stack; `main` deploys the prod user stack and nothing else. The
+    # archive is one cluster for every environment (docs/DECISIONS.md, **Cloud
+    # target**), so it has exactly one deploying branch.
+    branches: [dev, main]
     paths:
       - 'infra/**'
       # NO EXCLUSION FOR THE DRAFT DDL, and that is the second answer to the
@@ -53,7 +57,10 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-backend
+  # PER BRANCH, so a release does not queue behind a dev push — the two touch disjoint
+  # stacks. That is true only while `main` deploys no archive: the day it does, two
+  # concurrent `sam deploy` reach one stack and the second dies on UPDATE_IN_PROGRESS.
+  group: deploy-backend-${{ github.ref_name }}
   cancel-in-progress: false # never interrupt a CloudFormation update in flight
 
 permissions:
@@ -64,7 +71,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
-      name: dev
+      # The ref-to-environment mapping `deploy-frontend.yml` already uses. The
+      # environment is what carries AWS_BACKEND_ROLE_ARN, and its deployment branch
+      # policy is the only thing stopping a job on another branch from assuming it.
+      #
+      # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG. A
+      # `workflow_dispatch` offers this repository's release tags, and picking `vX.Y.Z`
+      # would ask to deploy the DEV stacks from production's tree while the operator
+      # believed the opposite. What refuses it is the `dev` environment's branch policy,
+      # which lists the branch `dev` and no tag — the out-of-band control
+      # `docs/reference/DEPLOYMENT.md` calls required rather than cosmetic. Dispatch
+      # from a branch, never a tag.
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -242,7 +260,37 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       # No `sam build` step — `sam deploy` packages CodeUri (dist/) as-is.
-      - name: Deploy
+      #
+      # USER STACK FIRST, ARCHIVE SECOND, and two steps rather than two commands in one
+      # block. The archive deploy is what DELETES the old migration function, so running
+      # it first opens a window in which `migrate.yml` resolves no function at all — and
+      # a user stack that then failed to create would leave you inside it. Two steps also
+      # means a failure names itself; under `bash -e` a shared block would simply skip
+      # what followed.
+      - name: Deploy the user stack
+        working-directory: infra
+        run: |
+          sam deploy \
+            --template-file template-user.yaml \
+            --stack-name "quirenote-backend-user-${ENVIRONMENT}" \
+            --parameter-overrides "Environment=${ENVIRONMENT}" \
+            --region "$AWS_REGION" \
+            --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
+            --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+
+      # ONE ARCHIVE, ONE CAPTURE, FOR EVERY ENVIRONMENT — so it has one deploying
+      # branch, and this step is skipped on `main`. The consequence worth knowing before
+      # it is needed: a `workflow_dispatch` on `main` cannot repair the archive. The
+      # repair path is a dispatch on `dev`.
+      - name: Deploy the archive stack
+        if: github.ref_name != 'main'
         working-directory: infra
         run: |
           sam deploy \

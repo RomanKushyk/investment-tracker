@@ -2,9 +2,11 @@ name: Apply migrations
 
 # MANUAL ONLY, and that is the whole design of this file.
 #
-# `deploy-backend.yml` ships the migration handler with every push to `dev`; it
-# does NOT run it, and must not. DSQL runs one DDL statement per transaction
-# with no cross-statement rollback, so applying a schema is a deliberate act
+# `deploy-backend.yml` ships the migration handler — from `dev` to the dev user
+# stack and from `main` to the prod one, so which cluster's handler a push updates
+# is the branch's to decide. It does NOT run it, and must not. DSQL runs one DDL
+# statement per transaction with no cross-statement rollback, so applying a schema
+# is a deliberate act
 # with a half-applied state as its failure mode — the ledger in
 # `infra/src/migrate.ts` makes that state recoverable, not automatic. A deploy
 # that also migrated would run DDL on a stack update nobody was watching, and
@@ -15,6 +17,15 @@ name: Apply migrations
 # schema dropped `CASCADE` when the run ends — the shape every probe in
 # `infra/docs/dsql-constraints.md` used — so the statements, the two index jobs
 # and the ledger are all exercised without `public` being touched.
+#
+# TWO TARGETS NOW, AND THE REF STILL DOES NOT CHOOSE THE SQL. User data is one
+# cluster per environment, so `target` names which cluster's runner is invoked —
+# but the statements applied are still the copy baked into the deployed bundle,
+# which is why there is still no checkout. What the ref DOES decide is whether the
+# dispatch is allowed at all: `target: prod` resolves the `prod` environment, whose
+# deployment branch policy admits `main` alone, so a prod migration dispatched from
+# `dev` is refused before any credential exists. That refusal is the guard, not a
+# nuisance.
 on:
   workflow_dispatch:
     inputs:
@@ -27,9 +38,25 @@ on:
           - rehearse # throwaway schema, dropped CASCADE at the end
           - dry-run # read the files, contact no object
           - apply # public, for real
+      target:
+        description: Which environment's user database
+        required: true
+        # NO DEFAULT, but be clear about what that does and does not buy. A `choice`
+        # with no `default` does NOT open empty — GitHub preselects the FIRST option —
+        # so what protects an operator who dispatches without touching the dropdown is
+        # the ORDER below, `dev` before `prod`, and nothing else. Reordering these two
+        # is a behaviour change, which is why a test pins the order rather than the
+        # absence. `mode` can afford a real default because `rehearse` is harmless;
+        # neither of these two is, so there is none to give.
+        type: choice
+        options:
+          - dev
+          - prod
 
 concurrency:
-  group: migrate
+  # PER TARGET: two runs at one database must serialize, and a dev migration must
+  # not hold up a prod one.
+  group: migrate-${{ inputs.target }}
   cancel-in-progress: false # never interrupt DDL in flight
 
 permissions:
@@ -40,7 +67,10 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     environment:
-      name: dev
+      # Chosen by the dispatch, and load-bearing twice over: it carries
+      # AWS_BACKEND_ROLE_ARN, and its deployment branch policy is what refuses a prod
+      # migration dispatched from any branch but `main`.
+      name: ${{ inputs.target }}
     steps:
       # NO CHECKOUT, and the absence is the honest part. The SQL this applies is
       # the copy baked into the DEPLOYED bundle, not the ref chosen in the
@@ -59,12 +89,26 @@ jobs:
       - name: Resolve the function
         id: fn
         run: |
+          stack="quirenote-backend-user-${{ inputs.target }}"
+          # `|| true` so the guard below is what speaks. The step runs under `bash -e`,
+          # and a plain assignment takes the exit status of its command substitution, so
+          # a stack that does not exist aborts HERE and prints a raw ValidationError
+          # instead. That used to be an impossible state; since the split it is the
+          # expected one on a target's first run, which is exactly when the sentence
+          # below is worth having.
+          #
+          # STDERR IS NOT REDIRECTED, deliberately. Command substitution captures stdout
+          # alone, so the guard works either way — but "the stack does not exist" is only
+          # ONE of the reasons this call fails. An AccessDenied on a stack ARN nobody has
+          # added to the deploy role, an expired session, a wrong region: swallowing
+          # stderr turns all of them into "deploy first", and sends the operator to
+          # redeploy a stack that is already there.
           name=$(aws cloudformation describe-stacks \
-            --stack-name quirenote-backend \
+            --stack-name "$stack" \
             --query "Stacks[0].Outputs[?OutputKey=='MigrateFunctionName'].OutputValue" \
-            --output text)
+            --output text || true)
           if [ -z "$name" ] || [ "$name" = "None" ]; then
-            echo "MigrateFunctionName is not an output of quirenote-backend — deploy first" >&2
+            echo "MigrateFunctionName is not an output of $stack — deploy first" >&2
             exit 1
           fi
           echo "name=$name" >> "$GITHUB_OUTPUT"
@@ -114,7 +158,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: migrate-${{ inputs.mode }}-${{ github.run_id }}
+          name: migrate-${{ inputs.target }}-${{ inputs.mode }}-${{ github.run_id }}
           path: |
             out.json
             invoke.json

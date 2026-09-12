@@ -1,4 +1,4 @@
-# infra — Role 2, `quirenote-backend-cfn-exec`, and the two traps
+# infra — Role 2, `quirenote-backend-cfn-exec`, and the three traps
 
 Trust policy — CloudFormation only:
 
@@ -119,9 +119,11 @@ Inline permission policy:
 }
 ```
 
-### The two traps, restated because they cost eight CI cycles last time
+### The three traps, restated because the first two cost eight CI cycles last time
 
 **`ApplyTheSamTransform` is not optional and is not obvious.** `AWS::Serverless-2016-10-31` is a macro CloudFormation expands **as the execution role**, not as the principal that ran `sam deploy` — granting `CreateChangeSet` on the transform to the deploy role alone is not enough, which is why the ARN appears in both policies. **`RolesTheStackOwns` must match the stack's prefix or nothing deploys** — SAM names the function's execution role after the stack, so a stale prefix here fails the stack on role creation, and the error message names the role, not the policy. Two grants this policy still deliberately withholds: `iam:*` outside the prefix, and anything EC2 or VPC.
+
+**The user stacks are named `quirenote-backend-user-dev` and `quirenote-backend-user-prod` SO THIS ROLE NEEDS NO EDIT AT ALL** — they already match every `quirenote-backend-*` prefix above, and `dsql:*` was already `cluster/*`. Rename either one out of that prefix and three statements break at once — `Function`, `RolesTheStackOwns` and `Logs`, which is every prefix-scoped statement a user stack touches — on `iam:CreateRole` first — but only if `role-deploy.md`'s list was updated and this one was not. Both stale, and the DEPLOY role refuses at `CreateChangeSet` before this role is ever assumed: no stack, no rollback, nothing left behind. It is the HALF-DONE rename that hurts, and it hurts like this: the stack rolls back, its `UserCluster` carries `DeletionPolicy: Retain`, so a deletion-protected orphan is left behind, and clearing the `ROLLBACK_COMPLETE` stack and retrying creates a SECOND cluster unless the orphan is un-protected and deleted first. `bootstrap-account.sh` takes the stack name as its first argument for exactly that cleanup.
 
 **Expect the first deploy to fail once or twice on `AccessDeniedException`.** Read the resource ARN out of the error — AWS always states exactly what it wanted — and add that ARN, rather than broadening to `*`.
 
@@ -133,4 +135,4 @@ bash infra/scripts/bootstrap-account.sh
 
 It derives the account ID from `sts get-caller-identity`, creates `quirenote-sam-artifacts-<account-id>` in `eu-north-1`, blocks public access, and adds a 30-day expiry rule. Idempotent, so it is safe to re-run.
 
-**GitHub:** add `AWS_BACKEND_ROLE_ARN` to the `dev` environment's secrets. Use the web UI — the local `gh` CLI is authenticated as a different account and returns 403 on writes to this repo.
+**GitHub:** add `AWS_BACKEND_ROLE_ARN` to the `dev` **and `prod`** environments' secrets — the same role ARN in both; the trust policy keys on `:environment:*`, so it needs no change, but environment secrets are not shared and the `main` push fails on an empty `role-to-assume` without it. `gh secret set AWS_BACKEND_ROLE_ARN --env prod --body <arn>` works, provided `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"` is set — which every `gh` call in this repository already requires. The 403 this line used to warn about was the DEFAULT config dir answering as the other account, not a permission this token lacks.

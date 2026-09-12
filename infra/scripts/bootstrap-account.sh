@@ -4,8 +4,13 @@
 # One-time bootstrap. Run it in AWS CloudShell, which already has credentials —
 # there are deliberately none on the development machine (see infra/README.md).
 #
-# Usage:  bash infra/scripts/create-artifact-bucket.sh
-#         REGION=eu-west-1 bash infra/scripts/create-artifact-bucket.sh
+# Usage:  bash infra/scripts/bootstrap-account.sh [stack-name]
+#         REGION=eu-west-1 bash infra/scripts/bootstrap-account.sh
+#
+# The optional argument names the stack whose ROLLBACK_COMPLETE state to clear, and
+# defaults to the archive's. There are three stacks now, and the one most likely to
+# land in that state is a user stack on its first create — so pass its name, or the
+# script tidies the wrong one and reports success.
 #
 # Idempotent: re-running against an existing bucket re-applies the settings and
 # exits cleanly, so it is safe to run again if a later step failed.
@@ -92,16 +97,41 @@ fi
 # with a confusing "cannot be updated" rather than the original error. It must
 # be deleted first. Only ever deletes in this one state, and the DSQL cluster
 # carries DeletionPolicy: Retain, so no data can be lost here.
-STACK=quirenote-backend
+#
+# NAMED BY THE CALLER, because there are three stacks now — the archive and one user
+# stack per environment — and the one that lands in ROLLBACK_COMPLETE is most likely
+# a user stack on its first create. A retained cluster left behind by that rollback
+# is deletion-protected, so clearing the stack and retrying makes a SECOND cluster
+# unless the orphan is dealt with first.
+STACK="${1:-quirenote-backend}"
 STATE="$(aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \
   --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NONE)"
 echo
 echo "stack ${STACK}: ${STATE}"
 if [[ "$STATE" == "ROLLBACK_COMPLETE" ]]; then
+  # RESOLVED BEFORE THE DELETE, and that ordering is the whole point. The cluster is
+  # Retain, so it outlives the stack — but a deleted stack is queryable by stack ID
+  # alone, and `dsql list-clusters` returns generated identifiers with neither a name
+  # nor a tag. Ask afterwards and there is no way left to tell this stack's cluster
+  # from the archive's, which is the one holding every price ever captured.
+  ORPHAN="$(aws cloudformation describe-stack-resources --stack-name "$STACK" --region "$REGION" \
+    --query "StackResources[?ResourceType=='AWS::DSQL::Cluster'].PhysicalResourceId | [0]" \
+    --output text 2>/dev/null || echo None)"
   aws cloudformation delete-stack --stack-name "$STACK" --region "$REGION"
   echo "-> deleting; waiting"
   aws cloudformation wait stack-delete-complete --stack-name "$STACK" --region "$REGION"
-  echo "-> deleted, ready for a clean deploy"
+  echo "-> deleted"
+  if [[ -n "$ORPHAN" && "$ORPHAN" != "None" ]]; then
+    # The stack is gone and its cluster is not. Redeploying now builds a second one
+    # beside it rather than adopting it.
+    echo "-> its DSQL cluster $ORPHAN was RETAINED and is deletion-protected."
+    echo "   Clear it before redeploying, or the retry creates a second cluster:"
+    echo "     aws dsql update-cluster --identifier $ORPHAN --no-deletion-protection-enabled --region $REGION"
+    echo "     aws dsql delete-cluster --identifier $ORPHAN --region $REGION"
+  else
+    echo "-> no cluster was retained: the rollback did not get as far as creating one."
+    echo "   Ready for a clean deploy."
+  fi
 fi
 
 echo
