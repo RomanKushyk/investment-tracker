@@ -39,8 +39,11 @@ replaces · the `tax` transaction type, replaced by a field on the payout that g
 ## Consequence for the seed
 
 `src/lib/seed.ts` will not reconcile under this model — its 18 transactions carry no withdrawal
-rows, so the account sum will not produce ₴7,75. It survives as a **test
-fixture only** (demo mode is removed), and must be updated alongside the schema. Roughly 150 test
+rows, so the account sum will not produce ₴7,75. The local demo mode goes with the dataset
+split, but the seed does not become test-only: the rows it writes are the demo original, stored under
+an `app_user` of its own and edited only by the super-admin — the reference every screenshot and
+pinned figure is measured against — so it must be
+updated alongside the schema. Roughly 150 test
 blocks depend on `buildSeedSnapshots()`.
 
 ## Open

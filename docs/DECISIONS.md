@@ -271,12 +271,38 @@ one invitation. Identity lives in the provider; status and role live in the appl
 the API checks on every request. Three sign-in methods — password, social, passkey — one account per
 email, by the pool's username attribute plus a pre-sign-up trigger that links a federated identity
 only when the provider asserts the address verified. Onboarding is passkey-first; mail via SES.
+Reads answer to THREE policies, never mixed in one response and never sharing a route: the price
+archive is public and global, a user's own data is private and per-user, and the demo is public but
+belongs to one owner — the seeded original is a single row set under an
+`app_user` of its own — an identity that must never gain a provider account, since approving one
+would create it — and the super-admin's ownership is the right to EDIT that row set rather than the
+scope it is stored under. Until the play copy
+exists an unauthenticated caller reads it and writes nothing.
+Three surfaces stand outside the authorizer and check no application row: the archive's reads, the
+demo's, and the sign-up application, which exists to create the very row the others are checked
+against. Everything else is behind it.
 **Why.** Nothing decided at token-issue time can revoke anything — the refresh token lasts years —
 so authorization belongs to the API. An application costs a row where a sign-up costs a monthly
-active user; and the built-in mail path suppresses bounced addresses with no way to clear them.
+active user; and the built-in mail path suppresses bounced addresses with no way to clear them. The
+demo lives under its own identity because the super-admin is the owner's own account: rows held
+there would put a real portfolio behind a public route, and a flag distinguishing them would have to
+be remembered in every predicate on every table, where one forgotten `WHERE` is the same failure. It
+is the cheapest read there is — one portfolio, the same bytes for every visitor — so it caches
+where a private read never may, which is exactly why the two may not share a URL: one edge would
+hold both. Three things move a demo response and only one of them is a write: the day's
+capture, the day's rate — which the API fetches and caches on its own clock, not the capture's — and
+the super-admin editing the original. A counter that moves on writes alone cannot be the whole of
+what validates it, and that is as true of a user's own read, which carries the same rate and the
+same archive prices. And without a demo an application-gated door
+is all a first visitor finds, at exactly the release that stops telling crawlers to stay away.
 **Rejected.** SMS codes: two AWS review queues instead of one, a price orders above email for the
 numbers that matter, and a code anyone can trigger spends the account's money from outside it. ·
-Open registration by default: threat protection is a paid tier, so a public door has only quotas.
+Open registration by default: threat protection is a paid tier, so a public door has only quotas. ·
+A demo a visitor may write to, this early: the copy that makes play safe has to answer where it
+lives, what it is scoped to, whether it survives a sign-out and how a reset back to the original is
+offered, and those are open on purpose. ·
+No demo at all until they are answered: the absence would be discovered after the cutover rather
+than chosen before it.
 
 ## User schema and deletes
 **Decision.** DSQL refuses `USING btree`, refuses a `CREATE INDEX` that is not `ASYNC`, and has DDL

@@ -68,8 +68,10 @@ this session's own earlier claim that the response uniformly shrinks.
 | `POST /mutations` | **unchanged** — A53 §1's op vocabulary does not move | `If-Match` |
 
 `/dashboard`, `/allocation` and `/payouts` are combined into `/view`, as the
-owner asked. **The three reads are ETag'd on `app_user.data_version`**, which A53 already
-pins as one column on one row; `POST /mutations` is the write and **sends
+owner asked. **The three reads are ETag'd on `app_user.data_version` AND on what moves
+without a write** — the day's capture and the day's rate both change a response
+while that counter stands still, so it cannot be the validator alone. A53 pins it
+as one column on one row; `POST /mutations` is the write and **sends
 `If-Match`** rather than carrying an ETag — A53's own asymmetry, kept.
 
 ## §2 — Why no query parameters on `/view`, and what it buys
@@ -101,7 +103,10 @@ pre-network rather than a preference.
 |---|---|---|
 | `theme` | **yes, and it is the only one** | `index.html:27` reads it in a `<script>` that runs **before the module bundle**, so the first paint is already correct. A round-trip here is a white flash on every load |
 
-**`dataset` MOVES, and this spec's first draft was wrong to keep it.** The draft
+**`dataset` moved to the server here, and now has nothing left to select** — the
+split is retired and the demo is a public route a signed-out visitor reaches with no
+settings row at all. The reasoning that moved it, kept because it is the reasoning
+that retired it: The draft
 argued it cannot: `src/lib/db.ts:64` resolves it synchronously at module init,
 before React exists, because it **binds a Dexie database**. That reasoning holds
 only while there are two local databases to bind — and
@@ -243,9 +248,10 @@ The demo's `/view` is the cheapest read in the system — one portfolio, the sam
 bytes for every visitor — and it must be served by a route that cannot be
 confused with the private one.
 
-**Three things this spec does NOT settle, because W8 already reserved them**:
+**Four things this spec does NOT settle, because W8 already reserved them**:
 the play copy's scope (device or session), how a reset back to the original is
-offered, and whether the copy lives in the same store as `live` or beside it.
+offered, whether the copy survives a sign-out on the same device, and whether it
+lives in the same store as `live` or beside it.
 W8 says in terms that *what matters is the guarantee, not the storage* — two
 visitors see the same starting portfolio, neither can move the other's, neither
 can move the original.
@@ -272,5 +278,5 @@ can move the original.
   W7's implementation task owes, not one this spec makes.
 - **W8's admin surface.** §5 cites W8's demo-ownership ruling because the read
   surface has to serve it; W8's own admin READS — the per-request aggregates —
-  are untouched here, and so are the three implementation questions W8
+  are untouched here, and so are the four implementation questions W8
   reserved about the play copy.
