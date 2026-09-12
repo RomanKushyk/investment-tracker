@@ -53,6 +53,17 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # THE SUITE BELOW REACHES infra/src, SO ITS DEPENDENCIES ARE THIS JOB'S TOO.
+      # Three test files import the migration runner, which imports `connect()`, which
+      # imports `@aws-sdk/dsql-signer` and `pg` — declared in infra/package.json and
+      # installed by npm, never by the root pnpm tree (deploy-backend.yml carries the
+      # same step and the reason pnpm is the wrong tool for it). Without this the suite
+      # fails three files on ERR_MODULE_NOT_FOUND and the SPA never builds, which is how
+      # v1.11.0 shipped its backend and not its frontend.
+      - name: Install backend deps
+        working-directory: infra
+        run: npm ci
+
       # Quality gate — everything below runs before any AWS credential exists,
       # so a failing check can never deploy.
       - run: pnpm lint
