@@ -126,7 +126,9 @@ Per-user. Joins the global price archive by provider ref (fund slug or bond ISIN
 **No CHECK constraint may enumerate a value naming a specific holding.** `TxSource`'s
 `reinvest_reit` / `reinvest_6475` are removed — the reinvest target is user-selectable per
 payout, so it is an asset reference, not an enum member. `colorKey` likewise becomes a palette
-slot rather than a seed-asset name.
+slot rather than a seed-asset name. **`TxSource` goes entirely, not only those two** — the
+remaining pair is read by nothing and answered by the row's type in every row that exists, so the
+record carries no source of funds at all; see `docs/DECISIONS.md`, *Forms and layout*.
 
 ## Data model — the price archive
 

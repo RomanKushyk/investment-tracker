@@ -461,7 +461,10 @@ inside a parchment wall, against the 60/30/10 the palette is built on.
 a grid track the track is the bound, so a card carries no width cap; the form's cap survives only in
 the stacked column, where a full-row form reads as a settings page. The asset form derives more than
 it asks — the provider kind follows the yield type, units come from the ledger, the reinvest-policy
-control is gone — and a deposit is a portfolio-level row that names no asset. The ОВДП code takes
+control is gone — and a deposit is a portfolio-level row that names no asset. A transaction names no
+source of funds: the field came across from the spreadsheet this tracker replaced, no derivation
+reads it, and in every row that exists the type and the asset already carry it — while the two
+values that carried more named holdings, which no CHECK may do. The ОВДП code takes
 four letters or digits, derived from the ref or the name as a suggestion that stops the instant the
 user types; naming a bond from the provider list fills its maturity, next coupon, cadence and rate.
 **Why.** Those four are facts about the instrument, not the user's data, so overwriting them is
@@ -469,7 +472,11 @@ right where overwriting a typed code is not. A screen that is locally optimal an
 is the worse outcome, and a field that is not read where it is filled cannot be fixed by making it
 easier to fill.
 **Rejected.** Six characters in the code: it fits only by widening the circle into a pill. · A
-control with no answer of its own: it can only agree with what it sits beside, or contradict it.
+control with no answer of its own: it can only agree with what it sits beside, or contradict it. ·
+Narrowing the source of funds to own-versus-accrued rather than dropping it: neither value names a
+holding, so a CHECK would be legal, but nothing reads it, the type answers it in every row that
+exists, and a purchase funded from accrued income is honestly a reinvest row — which the own-capital
+denominator already excludes. Re-adding it is a nullable column and a field.
 
 ## Where the old numbers went
 
