@@ -16,13 +16,14 @@ import {
 import { DsqlSigner } from '@aws-sdk/dsql-signer';
 import { Client } from 'pg';
 
-import { kyivDateIso } from '../../src/core/dates';
+import { addDays, kyivDateIso } from '../../src/core/dates';
 // Re-exported so the deploy's bundle smoke test can reach them (D71).
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
 import { bondTermsRow } from './bond-terms';
 import { inzhurObservationRows } from './observation-rows';
+import { observeProgress, observeWindowEnd } from './observe-window';
 import { tallyQuotes, type QuoteTally } from './quotes';
 import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
 
@@ -546,12 +547,6 @@ function isWeekend(iso: string): boolean {
   return day === 0 || day === 6;
 }
 
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
 /** Earliest NBU fair-value file that exists. Verified: 2016-01-04 → 200,
  *  2015-01-05 → 404. */
 export const NBU_ARCHIVE_START = '2016-01-04';
@@ -701,7 +696,10 @@ export interface ObserveRequest {
    */
   refs?: string[];
   /** Dates per invocation. The caller loops on `nextFrom` rather than fighting
-   *  the Lambda timeout, exactly as the capture backfill does. */
+   *  the Lambda timeout, exactly as the capture backfill does. The window is
+   *  the other bound: one invocation reads at most `OBSERVE_CAP_DAYS` past
+   *  `from`, and `nextFrom` continues from whichever bound bit
+   *  (`observeProgress`). */
   limit?: number;
   /** Which source to derive. Omitted means `nbu_fv`, which is what
    *  `{observe:{}}` has meant since A4 — see the handler. */
@@ -735,43 +733,26 @@ const TRACKED_ABSENT_LIKE = 'tracked ref absent:%';
  * It does not bound what is READ. There is no SQL `LIMIT` here —
  * `ObserveRequest.limit` is applied in JS after every row is already fetched —
  * and `DISTINCT ON` has to consider every candidate row in the window anyway.
- * So the 64.979 DPU a manual `{observe:{}}` costs comes from the OPEN RANGE
- * (`from` defaults to `NBU_ARCHIVE_START`) with `payload_gzip` projected, not
- * from the alias, and it is UNCHANGED. D91 said so: "Only the window stands
- * between it and the same scan." Its 64.989 → 9.508 win was measured on the
- * streak query, which ends in `LIMIT 60` — there, naming the column let the
- * planner stop early. There is no early stop to unlock here.
+ * Qualifying moved the sort node and not the cost: the mixed-direction order
+ * (`as_of` ASC, `requested_at` DESC) plans as an `Incremental Sort` presorted
+ * on `as_of` where the aliased form planned a full `Sort` on the text
+ * expression, and the two forms metered the same because both read the same
+ * rows. So qualifying was a defect removed, not a cost removed — worth doing
+ * because the class bit hard once (D91), not because it pays. The measurements
+ * are in git history; the decision is `docs/DECISIONS.md` [Cloud target].
  *
- * MEASURED 2026-08-26 over four rounds — **D97**, the decision is in
- * `docs/DECISIONS.md` [Cloud target]; the working is in git history. The
- * order is mixed-direction (`as_of` ASC, `requested_at` DESC) against ASC/ASC
- * indexes, so whether the index could be used at all was the open question. It
- * can: this now plans as `Incremental Sort` with
- * `Presorted Key: price_capture.as_of`, where the aliased form planned a full
- * `Sort` on the text expression.
+ * WHAT REMOVES THE COST IS THE WINDOW. The observers bind `$3` through
+ * `observeWindowEnd`, never further than `OBSERVE_CAP_DAYS` past `$2`, so a
+ * whole-archive run is a loop of windows rather than one open range with
+ * `payload_gzip` projected. The width keeps the statement on
+ * `price_capture_as_of`; wider, the plan falls to `Full Scan (btree-table)`,
+ * and `observe-window.test.ts` pins the cap under that ceiling. A SQL `LIMIT`
+ * was never the remedy: the open-range plan put a `Sort` above the scan, and a
+ * `Sort` consumes its whole input before yielding a row. Bounding the range per
+ * invocation is what changed how `complete`/`nextFrom` are derived —
+ * `observeProgress` names both bounds, the row limit first.
  *
- * THE PLAN MOVED AND THE COST DID NOT. Warmed and alternated over four runs,
- * the two forms are indistinguishable — median total 0.25594 aliased against
- * 0.25599 qualified, the qualified one marginally SLOWER, with per-run ranges
- * that overlap completely. Read is 99.3% of the total and identical to five
- * digits in every run, because both scan the same 15 rows. An earlier round
- * reported a 9.1× compute win; that was first-parse warmup on whichever form ran
- * first.
- *
- * AND THE SAME HOLDS AT EVERY WIDTH TESTED. Planned at nine ranges: both forms
- * take `Index Scan using price_capture_as_of` out to 1500 days, and both fall to
- * `Full Scan (btree-table)` from 2000 days. The alias never changed the access
- * path — only the sort node — so there is no window width at which this starts
- * paying.
- *
- * So this is a defect removed, not a cost removed — worth doing because the
- * class bit hard once (D91), not because it pays. The open range is untouched
- * and its remedy is NOT a SQL `LIMIT`: the recorded plan puts a `Sort` above a
- * `Full Scan`, and a `Sort` consumes its whole input before yielding a row.
- * Bounding the date range per invocation could, but it breaks how
- * `complete`/`nextFrom` are derived below — `PLAN-OPEN.md` O32, unanswered.
- *
- * $1 source · $2 from · $3 to · $4 an error pattern to read past, or NULL.
+ * $1 source · $2 from · $3 window end · $4 an error pattern to read past, or NULL.
  *
  * NOT `ok = true` ALONE, AND THE REASON IS W10. `ok` is
  * `outcome.ok && error === null`, and a missing TRACKED ref sets `error` — so
@@ -817,6 +798,9 @@ async function observeNbu(client: Client, req: ObserveRequest) {
   const to = req.to ?? nbuAsOf(new Date());
   const refs = req.refs ?? TRACKED_ISINS;
   const limit = req.limit ?? 400;
+  // Two bounds, both real: the window bounds what the statement READS, the
+  // limit what the loop consumes. `observeProgress` names both.
+  const windowEnd = observeWindowEnd(from, to);
   const wanted = new Set(refs);
 
   // The NEWEST successful capture per date. `price_capture` is append-only and
@@ -827,7 +811,7 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     requested_at: Date;
     payload_gzip: Buffer;
     parser_version: string;
-  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.nbuFairValue, from, to, null]);
+  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.nbuFairValue, from, windowEnd, null]);
 
   let dates = 0;
   let seen = 0;
@@ -895,11 +879,21 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     }
   }
 
-  const remaining = captures.length > dates;
+  const { complete, nextFrom } = observeProgress({
+    to,
+    windowEnd,
+    fetched: captures.length,
+    dates,
+    cursor,
+  });
   return {
     mode: 'observe' as const,
     from,
     to,
+    /** The bound the statement read to: `to`, or `OBSERVE_CAP_DAYS` past
+     *  `from`. A `nextFrom` far past few `dates` is this bound moving, not a
+     *  sparse archive. */
+    windowEnd,
     refs,
     dates,
     /** Rows the payloads offered for these refs. */
@@ -907,8 +901,8 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     /** Rows actually INSERTED. `seen` with `written: 0` is a clean no-op. */
     written,
     mismatched,
-    complete: !remaining,
-    nextFrom: remaining ? addDays(cursor, 1) : null,
+    complete,
+    nextFrom,
   };
 }
 
@@ -955,6 +949,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
   const from = req.from ?? INZHUR_ARCHIVE_START;
   const to = req.to ?? inzhurAsOf(new Date());
   const limit = req.limit ?? 400;
+  const windowEnd = observeWindowEnd(from, to);
   // `undefined` means every instrument the payload served — see 3 above. An
   // explicit list still narrows, so a repair run can target one ref.
   // Lowercased on both sides, because every other ref comparison in this file
@@ -970,7 +965,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     requested_at: Date;
     payload_gzip: Buffer;
     parser_version: string;
-  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.inzhur, from, to, TRACKED_ABSENT_LIKE]);
+  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.inzhur, from, windowEnd, TRACKED_ABSENT_LIKE]);
 
   let dates = 0;
   let seen = 0;
@@ -1115,12 +1110,20 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     );
   }
 
-  const remaining = captures.length > dates;
+  const { complete, nextFrom } = observeProgress({
+    to,
+    windowEnd,
+    fetched: captures.length,
+    dates,
+    cursor,
+  });
   return {
     mode: 'observe' as const,
     source: SOURCE.inzhur,
     from,
     to,
+    /** As `observeNbu` reports it: the bound the statement read to. */
+    windowEnd,
     dates,
     /** Rows the payloads offered — BASIS ROWS here, where `observeNbu` counts
      *  matched refs. An Inzhur `seen` is therefore ~2x its instrument count and
@@ -1141,8 +1144,8 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
      *  date is picked up and `DO NOTHING` then keeps the OLD schedule while an
      *  attempt counter reports a write. */
     termsWritten,
-    complete: !remaining,
-    nextFrom: remaining ? addDays(cursor, 1) : null,
+    complete,
+    nextFrom,
   };
 }
 
@@ -1363,33 +1366,27 @@ async function diagnose(client: Client) {
   );
   plans.observeNbu = observeWindow.rows.map((r) => r['QUERY PLAN']);
 
-  // The expensive branch — `{observe:{}}` defaults `from` to NBU_ARCHIVE_START
-  // and this query carries no SQL bound, so it is the whole archive with
-  // `payload_gzip` projected. D91 measured 64.979 DPU there — ONE COLD SAMPLE,
-  // from the session whose sibling figure D97 could not reproduce, and not
-  // re-measured here because re-measuring it is what it costs.
+  // The expensive branch — the first window of `{observe:{}}`, from
+  // NBU_ARCHIVE_START and bounded to OBSERVE_CAP_DAYS like every other. What
+  // this plan must keep saying is that the scan is bounded: the open range it
+  // once planned fell to `Full Scan (btree-table)` with `payload_gzip`
+  // projected, and the window is the whole of the remedy.
   //
-  // NO ANALYZE, deliberately. Planning it is the point; paying 64.979 DPU every
-  // time somebody asks for a diagnosis is not, and an audit that costs what the
-  // defect costs will not be run.
-  //
-  // BOTH VERIFIED against the cluster 2026-08-26: DSQL accepts
-  // `EXPLAIN (VERBOSE)` without ANALYZE, and prints NO `Statement DPU Estimate`
-  // in that form — only ANALYZE does. So this plan says whether the scan is
-  // bounded and never what it costs, which is the trade that keeps a diagnosis
-  // from costing what the defect costs. What it showed: `Full Scan
-  // (btree-table)` with `payload_gzip` projected, identical in the aliased and
-  // qualified forms, so A50 left this branch exactly where it was.
+  // NO ANALYZE, deliberately. Planning it is the point; executing it, payloads
+  // included, costs what a full window costs, and a diagnosis must not. DSQL
+  // accepts `EXPLAIN (VERBOSE)` without ANALYZE and prints no `Statement DPU
+  // Estimate` in that form, so this plan says whether the scan is bounded and
+  // never what it costs.
   //
   // Trying unproven EXPLAIN syntax here was safe for a reason worth keeping in
   // the file: `diagnose` is reached ONLY by an explicit `{diagnose:true}` event,
   // never by the schedule, so a statement this mode cannot run breaks a
   // diagnostic and not the archive.
-  const observeOpen = await client.query<{ 'QUERY PLAN': string }>(
+  const observeFirstWindow = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
-    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, today, null],
+    [SOURCE.nbuFairValue, NBU_ARCHIVE_START, observeWindowEnd(NBU_ARCHIVE_START, today), null],
   );
-  plans.observeNbuOpenRange = observeOpen.rows.map((r) => r['QUERY PLAN']);
+  plans.observeNbuFirstWindow = observeFirstWindow.rows.map((r) => r['QUERY PLAN']);
 
   // A4's reconciliation. Per ref: how many observations exist, over what span,
   // and how many DISTINCT dates they cover — the last one is what catches a

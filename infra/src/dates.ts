@@ -6,7 +6,7 @@
 // only the root workspace, could not resolve `@aws-sdk/client-backup`. It passed
 // locally because `infra/node_modules` exists there. The module boundary is the
 // fix, and it is the one that should have been drawn first.
-import { kyivDateIso } from '../../src/core/dates';
+import { addDays, kyivDateIso } from '../../src/core/dates';
 
 /**
  * TWO DATES, NOT ONE, and they were one function until 2026-08-18 (D71).
@@ -48,11 +48,5 @@ export function inzhurAsOf(now: Date): string {
  * silently yields D-2.
  */
 export function nbuAsOf(now: Date): string {
-  const kyiv = kyivDateIso(now); // yyyy-MM-dd, Kyiv wall clock
-  // Pinning the Kyiv date to UTC midnight makes the subtraction plain integer
-  // day arithmetic — no local-time DST shift can move it, and month/year
-  // rollover is handled by the Date implementation rather than by hand.
-  const prev = new Date(`${kyiv}T00:00:00Z`);
-  prev.setUTCDate(prev.getUTCDate() - 1);
-  return prev.toISOString().slice(0, 10);
+  return addDays(kyivDateIso(now), -1);
 }

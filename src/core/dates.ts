@@ -41,11 +41,16 @@ export function latestSnapshotDate(snapshots: Snapshot[]): string | undefined {
  * UTC throughout, like `addMonths`, so it never crosses a DST boundary.
  */
 export function dayBefore(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d - 1));
-  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(date.getUTCDate()).padStart(2, '0');
-  return `${date.getUTCFullYear()}-${mm}-${dd}`;
+  return addDays(iso, -1);
+}
+
+/** `iso` shifted by `n` days. Pinned to UTC midnight so the shift is plain
+ *  integer day arithmetic: no local DST switch can move it, and month and year
+ *  rollover belong to the Date implementation rather than to this file. */
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 // Same day-of-month N months later (Next payouts' estimated dividend date),
