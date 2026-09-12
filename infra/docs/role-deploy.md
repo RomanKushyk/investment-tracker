@@ -70,7 +70,13 @@ and write a day's prices under whatever `as_of` the clock gave it.
 the workflow read `MigrateFunctionName` out of the stack instead of constructing
 a name SAM generates a suffix for.
 
-**Added by hand, in the console, like everything else on this page** — a role is
-not in `template.yaml`. Until it is added, a dispatch fails at the invoke step
-with `AccessDeniedException`, which is the correct failure: nothing is
-half-applied, because nothing ran.
+**Added by hand, like everything else on this page** — a role is not in
+`template.yaml`, so nothing in this repository puts it there and nothing here
+will notice if it goes. `RunMigrations` went on by CLI rather than in the
+console, which is the one deviation on this page and worth knowing when the next
+statement is added: `put-role-policy` REPLACES the whole inline document, so it
+is written from a `get-role-policy` readback with the new statement appended,
+never typed fresh.
+
+Without it a dispatch fails at the invoke step with `AccessDeniedException`,
+which is the correct failure: nothing is half-applied, because nothing ran.
