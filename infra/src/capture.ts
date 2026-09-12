@@ -22,8 +22,15 @@ export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
 import { bondTermsRow } from './bond-terms';
-import { inzhurObservationRows } from './observation-rows';
+import {
+  FUND_HISTORY_PAGES,
+  FUND_HISTORY_PARSER_VERSION,
+  fundHistoryRows,
+  priceFileLink,
+} from './fund-history';
+import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
 import { observeProgress, observeWindowEnd } from './observe-window';
+import { readXlsx } from './xlsx';
 import { tallyQuotes, type QuoteTally } from './quotes';
 import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
 
@@ -538,6 +545,25 @@ async function captureOne(
   };
 }
 
+/**
+ * One request for a binary body. No retry: the only caller is a manual mode
+ * an operator re-runs, and the file behind a hashed name does not change.
+ */
+async function fetchBytes(url: string): Promise<Uint8Array> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': USER_AGENT },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+    return new Uint8Array(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Business day in the Gregorian sense only — Ukrainian public holidays are not
  *  encoded here deliberately. NBU simply publishes no file on them, which the
  *  404 path already records correctly, and a hardcoded holiday calendar would
@@ -906,6 +932,34 @@ async function observeNbu(client: Client, req: ObserveRequest) {
   };
 }
 
+/**
+ * Widen an Inzhur instrument's listing bounds. Same monotonic widening as
+ * NBU's, so a backfill in any order converges. `kind` comes from the caller:
+ * Inzhur serves both classes, where the NBU site can hard-code 'bond' because
+ * a fair-value file cannot contain a fund. `currency` is UAH by construction
+ * and `cp_type` is an NBU concept with no counterpart. A caller that has no
+ * claim on `last_seen_on` passes null: `greatest` ignores it, and a fresh row
+ * then says "unknown" rather than naming a day the caller never saw.
+ */
+async function upsertInstrument(
+  client: Client,
+  ref: string,
+  i: { kind: string; maturity: string | null; first: string; last: string | null },
+): Promise<void> {
+  await client.query(
+    `INSERT INTO instrument
+       (ref, kind, currency, cp_type, maturity, listed_from, last_seen_on)
+     VALUES ($1, $2, 'UAH', NULL, $3, $4, $5)
+     ON CONFLICT (ref) DO UPDATE SET
+       kind         = EXCLUDED.kind,
+       currency     = coalesce(EXCLUDED.currency, instrument.currency),
+       maturity     = coalesce(EXCLUDED.maturity, instrument.maturity),
+       listed_from  = least(instrument.listed_from, EXCLUDED.listed_from),
+       last_seen_on = greatest(instrument.last_seen_on, EXCLUDED.last_seen_on)`,
+    [ref, i.kind, i.maturity, i.first, i.last],
+  );
+}
+
 /** The first Inzhur capture. D72: the dealer quote for every instrument
  *  "exists nowhere else and begins 2026-08-11" — the stack move forced the
  *  restart, so 08-10's rows are not in this cluster. */
@@ -1090,25 +1144,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     }
   }
 
-  // Same monotonic widening as NBU's, so a backfill in any order converges.
-  // `kind` comes from the feed here: Inzhur serves both classes, and the NBU
-  // site can hard-code 'bond' because a fair-value file cannot contain a fund.
-  // `currency` is UAH by construction — every price in this feed is `...UAH` —
-  // and `cp_type` is an NBU concept with no counterpart.
-  for (const [ref, i] of instrumentSeen) {
-    await client.query(
-      `INSERT INTO instrument
-         (ref, kind, currency, cp_type, maturity, listed_from, last_seen_on)
-       VALUES ($1, $2, 'UAH', NULL, $3, $4, $5)
-       ON CONFLICT (ref) DO UPDATE SET
-         kind         = EXCLUDED.kind,
-         currency     = coalesce(EXCLUDED.currency, instrument.currency),
-         maturity     = coalesce(EXCLUDED.maturity, instrument.maturity),
-         listed_from  = least(instrument.listed_from, EXCLUDED.listed_from),
-         last_seen_on = greatest(instrument.last_seen_on, EXCLUDED.last_seen_on)`,
-      [ref, i.kind, i.maturity, i.first, i.last],
-    );
-  }
+  for (const [ref, i] of instrumentSeen) await upsertInstrument(client, ref, i);
 
   const { complete, nextFrom } = observeProgress({
     to,
@@ -1146,6 +1182,78 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     termsWritten,
     complete,
     nextFrom,
+  };
+}
+
+interface ImportFundHistoryRequest {
+  /** Which funds; defaults to every fund with a known offer page. */
+  refs?: string[];
+}
+
+/**
+ * Import the provider's published fund price history as `nav` observations.
+ *
+ * Manual, and network-bound where `observe` is not. Each fund's offer page is
+ * read for the CURRENT link to its price file — [External sources]: the name
+ * carries a content hash, so no file URL is ever polled — the file is parsed
+ * by `fundHistoryRows`, and every dated line becomes one row under the natural
+ * key the daily observer writes, `ON CONFLICT DO NOTHING`. A re-run writes
+ * nothing; a newer cut writes only its new dates. The file itself is not
+ * archived: `price_capture` holds the feed, and here the rows are the premise.
+ * The FX and USD-equivalent columns are dropped, because the provider's rate
+ * is stored nowhere [The price archive].
+ *
+ * A fund that fails throws the whole invocation. Rows already written stay and
+ * re-running is the repair; a partial import reported as a success is the one
+ * outcome to avoid.
+ */
+async function importFundHistory(client: Client, req: ImportFundHistoryRequest) {
+  const refs = req.refs ?? Object.keys(FUND_HISTORY_PAGES);
+  if (refs.length === 0) throw new Error('importFundHistory: no refs to import');
+  const observedAt = new Date().toISOString();
+  const funds = [];
+  for (const ref of refs) {
+    const page = FUND_HISTORY_PAGES[ref];
+    if (page === undefined) throw new Error(`unknown fund ref: ${ref}`);
+    const html = await fetchFeed(page);
+    if (!html.ok || html.body === undefined) throw new Error(`${html.error} for ${page}`);
+    // Resolved against the page, so a link written relative to it still fetches.
+    const file = new URL(priceFileLink(html.body), page).href;
+    const rows = fundHistoryRows(ref, readXlsx(await fetchBytes(file)));
+    if (rows.length === 0) throw new Error(`fund-history: ${file} holds no rows`);
+
+    let written = 0;
+    for (const row of rows) {
+      const ins = await client.query(
+        `INSERT INTO price_observation
+           (as_of, instrument_ref, basis, source, price, observed_at, parser_version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (as_of, instrument_ref, basis, source) DO NOTHING`,
+        [
+          row.asOf,
+          ref,
+          BASIS_NAV,
+          SOURCE.inzhur,
+          row.price,
+          observedAt,
+          FUND_HISTORY_PARSER_VERSION,
+        ],
+      );
+      written += ins.rowCount ?? 0;
+    }
+    const from = rows[0].asOf;
+    const to = rows[rows.length - 1].asOf;
+    // The file widens `listed_from` only. Its last date is where publishing
+    // stopped, not where the fund was last seen; `last_seen_on` belongs to
+    // the daily observer.
+    await upsertInstrument(client, ref, { kind: 'fund', maturity: null, first: from, last: null });
+    funds.push({ ref, file, rows: rows.length, written, from, to });
+  }
+  return {
+    mode: 'importFundHistory' as const,
+    observedAt,
+    parserVersion: FUND_HISTORY_PARSER_VERSION,
+    funds,
   };
 }
 
@@ -1426,7 +1534,10 @@ async function diagnose(client: Client) {
       // observation row per published day per ref — which write-every-day makes
       // true for both sources. It is not true across BASES: a bond-day yields a
       // `sell` and a `buy` row, so this reconciles per (ref, basis, source),
-      // which is what the GROUP BY above already produces.
+      // which is what the GROUP BY above already produces. And it is not true
+      // for the two fund `nav` groups once `importFundHistory` has run: their
+      // imported rows have no capture behind them, so both read negative and a
+      // missing daily row cannot surface — issue #129 holds the fix.
       gaps: Number(rows[0].days) - Number(o.dates),
     });
   }
@@ -1473,6 +1584,9 @@ export interface HandlerEvent {
   diagnose?: boolean;
   /** Derive observations from payloads already stored. Network-free. */
   observe?: ObserveRequest;
+  /** Manual: read each fund's offer page, fetch its current price file and
+   *  insert its rows as `nav` observations. Network-bound. */
+  importFundHistory?: ImportFundHistoryRequest;
 }
 
 export async function handler(event: HandlerEvent = {}) {
@@ -1481,6 +1595,10 @@ export async function handler(event: HandlerEvent = {}) {
     await ensureSchema(client);
 
     if (event.diagnose === true) return await diagnose(client);
+
+    if (event.importFundHistory !== undefined) {
+      return await importFundHistory(client, event.importFundHistory);
+    }
 
     if (event.observe !== undefined) {
       // NBU STAYS THE DEFAULT, deliberately. `{observe:{}}` has meant "derive

@@ -20,7 +20,8 @@ export interface ObservationRow {
  */
 const BASIS_SELL = 'sell';
 const BASIS_BUY = 'buy';
-const BASIS_NAV = 'nav';
+/** Exported for the fund-history import, which writes this basis and no other. */
+export const BASIS_NAV = 'nav';
 
 /**
  * Turn one parsed feed entry into the rows the archive stores for it.

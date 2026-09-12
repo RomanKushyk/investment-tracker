@@ -92,7 +92,9 @@ separate origin with **no `robots.txt` at all** (`404 NoSuchKey`); `/documents` 
 used. The filename carries a **content hash**, so polling these URLs signals nothing forever —
 re-read the offer page for the current link. `Last-Modified` confirms the cut (`Mon, 06 Jul
 2026 14:08:47 GMT` for the REIT file); naming is not uniform, so do not parse the date out of
-it — the dividend file is `…_dividendi_28_07_…`, no year.
+it — the dividend file is `…_dividendi_28_07_…`, no year. The importer (`importFundHistory` in
+`infra/src/capture.ts`) takes the single `czina` link on each offer page and never the
+`dividendi` one; two price links, or none, stop it.
 
 `https://www.inzhur.reit/robots.txt` allows `/` and disallows `/dashboard/`, `/signin/`,
 `/signup/`, `/documents`, `/terms`, `/privacy-policy`, `/fund_merger_report`,

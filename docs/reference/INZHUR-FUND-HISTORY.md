@@ -1,11 +1,14 @@
 # Inzhur fund price history — what the files are and what they are not
 
-Measured 2026-08-18, from the two Excel files the provider publishes and the
-owner's own tracker. **Written now so that W15 does not have to re-derive it**:
-the analysis was the expensive half and the files may not stay identical.
+Measured from the two Excel files the provider publishes and the owner's own
+tracker: what the files hold, and the arithmetic that says which basis it is.
 
 The files themselves live in `C:\Users\roman\.quirenote\` and are **never
 committed** — `*.xlsx` is gitignored as real financial data.
+`infra/src/fund-history.local.test.ts` reads them from there when they are
+present and skips everywhere else. The archive gets their rows through the
+Lambda's `importFundHistory` mode, which re-reads each offer page for the
+current link (see [`INZHUR-PUBLIC-SURFACE.md`](INZHUR-PUBLIC-SURFACE.md)).
 
 ## What exists
 
@@ -81,7 +84,9 @@ The **last row of Energy's 2025 sheet** stores its value as TEXT — `6 234,8244
 with a non-breaking space for thousands and a comma decimal — and leaves the USD
 rate empty. Every other row in both files is numeric. A parser that assumes
 numbers will either drop that row silently or throw on it, and it is the row
-that joins 2025 to 2026.
+that joins 2025 to 2026. `infra/src/fund-history.ts` reads exactly that spelling,
+and only when the cell is a string; any other text is refused by address rather
+than cast.
 
 ## What this does NOT give
 

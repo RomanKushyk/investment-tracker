@@ -195,18 +195,21 @@ needs one thread or one ink.
 
 ## The price archive
 **Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet. It buys,
-narrowly, the provider's DEALER QUOTE for every instrument — which exists nowhere else — plus fund
-prices after its last published file until its client API ships. NBU fair value is a different
-basis, already archived from each bond's issuance, and the two are NEVER merged. The observation key
-is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a DROP/CREATE of a live
-archive. `as_of` is per source, the observer writes every day, `nav` is archived and shown nowhere
-with `nav: 0` stored as NULL, and the provider's FX rate is stored nowhere at all.
+narrowly, the provider's DEALER QUOTE for every instrument — which exists nowhere else — and the
+funds' NAV series: the provider's published history, imported as rows from the price file linked on
+each offer page, and the daily quote after it until its client API ships. NBU fair value is a
+different basis, already archived from each bond's issuance, and the two are NEVER merged. The
+observation key is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a
+DROP/CREATE of a live archive. `as_of` is per source, the observer writes every day, `nav` is
+archived and shown nowhere with `nav: 0` stored as NULL, an imported file is not archived but its
+rows are under their own `parser_version`, and the provider's FX rate is stored nowhere at all.
 **Why.** Writing every day keeps a zero delta distinguishable from an unknown one — a row missing on
 a quiet day is byte-identical to a capture that never ran. Premises are kept forever and conclusions
 never: an unparseable payload is stored anyway, and a rate recoverable by division is not a column.
 **Rejected.** Alarming on a price that did not move: maintenance, a weekend and a holiday all trip
 it, and a muted alarm is worse than none — so every capture check is structural, and none reads a
 price. · Converting the archived `nav` to the basis the app values in: it looks observed, and is not.
+· Archiving the price file beside its rows: the rows are the premise, the packaging is not.
 
 ## External sources
 **Decision.** The list is closed: the provider's public asset feed, its price files, and the National
