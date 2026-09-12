@@ -65,21 +65,25 @@ CREATE TABLE "transaction" (
 	"asset_id" uuid,
 	"quantity" numeric,
 	"unit_price" numeric,
-	"settles_payout_id" uuid,
+	"tax_withheld" numeric,
+	"note" text,
 	"created_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "transaction_user_id_id_pk" PRIMARY KEY("user_id","id"),
-	CONSTRAINT "transaction_settles_uq" UNIQUE("user_id","settles_payout_id"),
 	CONSTRAINT "transaction_type_ck" CHECK ("transaction"."type" IN ('deposit', 'withdrawal', 'buy', 'sell', 'dividend_payout',
-        'interest_payout', 'tax', 'reinvest', 'redemption')),
+        'interest_payout', 'reinvest', 'redemption')),
 	CONSTRAINT "transaction_amount_ck" CHECK ("transaction"."amount" > 0),
 	CONSTRAINT "transaction_quantity_sign_ck" CHECK ("transaction"."quantity" IS NULL OR "transaction"."quantity" > 0),
 	CONSTRAINT "transaction_unit_price_ck" CHECK ("transaction"."unit_price" IS NULL OR "transaction"."unit_price" > 0),
 	CONSTRAINT "transaction_quantity_absent_ck" CHECK ("transaction"."type" IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."quantity" IS NULL),
 	CONSTRAINT "transaction_quantity_required_ck" CHECK ("transaction"."type" NOT IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."quantity" IS NOT NULL),
 	CONSTRAINT "transaction_unit_price_absent_ck" CHECK ("transaction"."type" IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."unit_price" IS NULL),
+	CONSTRAINT "transaction_tax_absent_ck" CHECK ("transaction"."type" IN ('dividend_payout', 'interest_payout') OR "transaction"."tax_withheld" IS NULL),
+	CONSTRAINT "transaction_tax_sign_ck" CHECK ("transaction"."tax_withheld" IS NULL OR "transaction"."tax_withheld" > 0),
+	CONSTRAINT "transaction_tax_bound_ck" CHECK ("transaction"."tax_withheld" IS NULL OR "transaction"."tax_withheld" < "transaction"."amount"),
+	CONSTRAINT "transaction_note_ck" CHECK ("transaction"."note" IS NULL OR ("transaction"."note" !~ '^[[:space:]]*$' AND length("transaction"."note") <= 100)),
 	CONSTRAINT "transaction_asset_absent_ck" CHECK ("transaction"."type" NOT IN ('deposit', 'withdrawal') OR "transaction"."asset_id" IS NULL),
-	CONSTRAINT "transaction_asset_present_ck" CHECK ("transaction"."type" NOT IN ('buy', 'sell', 'reinvest', 'redemption') OR "transaction"."asset_id" IS NOT NULL),
-	CONSTRAINT "transaction_settles_ck" CHECK ("transaction"."settles_payout_id" IS NULL OR "transaction"."type" = 'tax')
+	CONSTRAINT "transaction_asset_present_ck" CHECK ("transaction"."type" NOT IN ('buy', 'sell', 'reinvest', 'redemption', 'dividend_payout',
+        'interest_payout') OR "transaction"."asset_id" IS NOT NULL)
 );
 --> statement-breakpoint
 CREATE TABLE "user_price" (

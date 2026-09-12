@@ -1,5 +1,6 @@
 // The backup envelope (NEXT-PHASE-PLAN P1 / DECISIONS D12, now at
-// `BACKUP_FORMAT_VERSION` 5 — D113, D122, D125, D127, D129) — pure build + parse for the JSON safety
+// `BACKUP_FORMAT_VERSION` 6 — D113, D122, D125, D127, D129, and the withholding's
+// own bump, whose reasoning is on the constant itself) — pure build + parse for the JSON safety
 // backup. The envelope is the app-owned stable
 // contract (dexie-export-import rejected, see D12); P4's import feature
 // EXTENDS this module rather than forking it — `core/backup/import.ts` reuses
@@ -9,6 +10,7 @@
 import { z } from 'zod';
 
 import {
+  isPayout,
   movesPosition,
   targetsAsset,
   type Asset,
@@ -67,7 +69,20 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * The portfolio-level converse does NOT enter into it: that one is normalized
  * rather than refused, so every v4 file stays readable through it.
  */
-export const BACKUP_FORMAT_VERSION = 5;
+/**
+ * 6 IS THE THIRD SUCH BUMP, and it is BOTH kinds at once. A v5 build's
+ * `strictObject` refuses `taxWithheld` and `note` on `unrecognized_keys`, so
+ * every file this build writes is unreadable there — the ordinary new-field
+ * reason. And this build refuses a `{ type: 'tax' }` row that v5 accepts, so
+ * the reader narrowed too.
+ *
+ * The second half is what makes the number load-bearing rather than polite.
+ * Without it a v5 file carrying tax rows would pass the version gate and then
+ * fail row by row, reporting "transactions.tx-0042: invalid" nine times for one
+ * fact — that this app no longer has that type. The sentence a version mismatch
+ * prints says it once.
+ */
+export const BACKUP_FORMAT_VERSION = 6;
 
 export type Dataset = 'demo' | 'live';
 
@@ -150,7 +165,6 @@ const transactionRowSchema = z.strictObject({
     'interest_payout',
     'reinvest',
     'redemption',
-    'tax',
   ]),
   assetId: z.string(), // '' = portfolio-level rows (deposit/withdrawal)
   // Positive magnitude — the sign is carried by the TxType (every ledger
@@ -170,6 +184,38 @@ const transactionRowSchema = z.strictObject({
   // had to be made to say what it is.
   quantity: z.number().positive().optional(),
   unitPrice: z.number().positive().optional(),
+  // W7's `transaction_tax_sign_ck` is `> 0`, and `.positive()` is it. The other
+  // two rules need the row's type and its amount, so they are in the refinement
+  // below rather than here.
+  taxWithheld: z.number().positive().optional(),
+  // `transaction_note_ck` — 1..100, NULL the only spelling of none. THE EMPTY
+  // STRING IS REFUSED RATHER THAN NORMALIZED, which is the opposite of what the
+  // form does with the same value and deliberately so: the form is where a
+  // blank field becomes an absent one, so a `''` arriving here came from a
+  // hand-edited file, and repairing it silently would be this door validating
+  // one thing and storing another.
+  // ONE REFINEMENT FOR THE WHOLE RULE, and the reason is arithmetic rather than
+  // taste: any two of `.min(1)`, `.max(100)` and a trim check can fail TOGETHER
+  // and report one row twice. `.min(1)` beside the trim did it for an empty
+  // note; `.max(100)` beside it does it for a hundred and one spaces. One
+  // predicate cannot.
+  //
+  // It carries a MESSAGE, unlike the row-level refinements below, and may: the
+  // rule against English here is about `detail` reaching a localised report,
+  // and `note-length` renders from `import-labels.ts` without reading it. What
+  // the message serves is `parseBackup`'s own English contract, which prints it
+  // — and which said "Invalid input" while this had none.
+  //
+  // A note of spaces is refused rather than trimmed away, because the ledger
+  // draws a second line for any note that is not ABSENT, so such a row would
+  // render a blank one for nobody. The form turns whitespace into absence; by
+  // this door a blank note is a hand-edited file.
+  note: z
+    .string()
+    .refine((v) => v.trim().length > 0 && [...v].length <= 100, {
+      message: 'a note needs 1 to 100 characters of text',
+    })
+    .optional(),
 });
 
 /**
@@ -183,6 +229,7 @@ const transactionRowSchema = z.strictObject({
  * at ₴0.00. One predicate, applied at every door.
  */
 const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, ctx) => {
+  checkWithholding(rows, ctx);
   rows.forEach((row, i) => {
     if (movesPosition(row.type)) {
       // BOTH WAYS SINCE D125. A row that moves a position must carry its count,
@@ -215,6 +262,49 @@ const transactionRowsSchema = z.array(transactionRowSchema).superRefine((rows, c
     }
   });
 });
+
+/**
+ * THE WITHHOLDING'S OTHER TWO CHECKS, at the door that guards the store.
+ *
+ * They are a separate refinement rather than more arms inside the one above
+ * because that one is `return`-shaped around the quantity rule — a
+ * position-moving row leaves it early — and a withholding is only ever legal on
+ * the rows that rule returns past. Folding them together would make the
+ * withholding's rules reachable only by accident of control flow.
+ *
+ * A MESSAGE IS ALLOWED HERE, and the rule it looks like it breaks is narrower
+ * than it reads. What `src/core/README.md` forbids is English reaching a
+ * LOCALISED report — which happens through `detail`, and only for the `invalid`
+ * code that has no label of its own. These two map to codes `import-labels.ts`
+ * renders, so their `detail` is never read. What the message serves is
+ * `parseBackup`'s own English contract, which `useBackupDownload` puts in front
+ * of the user when the export guard refuses a file: without one it says
+ * "Invalid input" and names no rule.
+ */
+function checkWithholding(rows: z.infer<typeof transactionRowSchema>[], ctx: z.RefinementCtx) {
+  rows.forEach((row, i) => {
+    if (row.taxWithheld === undefined) return;
+    if (!isPayout(row.type)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [i, 'taxWithheld'],
+        params: { rule: 'type' },
+        message: 'only a dividend accrual or an interest payout carries a withholding',
+      });
+      return;
+    }
+    // STRICTLY below — `transaction_tax_bound_ck`. A withholding that is the
+    // whole payout leaves nothing received.
+    if (row.taxWithheld >= row.amount) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [i, 'taxWithheld'],
+        params: { rule: 'bound' },
+        message: 'a withholding must be smaller than the payout it was taken from',
+      });
+    }
+  });
+}
 
 const settingsSchema = z.strictObject({
   currency: z.enum(['UAH', 'USD']),
@@ -390,8 +480,20 @@ export type IssueCode =
   | 'units-on-non-position-row'
   /** No `quantity` on a row that DOES move a position (D125) — the converse. */
   | 'units-missing-on-position-row'
-  /** No `assetId` on a row that MOVES a position (D129) — W7's `transaction_asset_present_ck`. */
-  | 'asset-missing-on-position-row'
+  /**
+   * No `assetId` on a row that BELONGS to one — W7's
+   * `transaction_asset_present_ck`, widened from four types to six. Renamed
+   * from `asset-missing-on-position-row` with that widening: a code naming
+   * four types while firing on six is exactly what this vocabulary exists to
+   * prevent.
+   */
+  | 'asset-missing-on-asset-row'
+  /** `taxWithheld` on one of the six types that carry none. */
+  | 'withholding-on-non-payout-row'
+  /** `taxWithheld` that is not strictly below its own row's `amount`. */
+  | 'withholding-above-amount'
+  /** `note` empty, whitespace-only, or over 100 characters. */
+  | 'note-length'
   | 'invalid';
 
 export interface RowIssue {
@@ -437,19 +539,24 @@ export function integrityIssues(env: BackupEnvelope): RowIssue[] {
     // refuses at the form and `transaction_asset_present_ck` rejects at
     // migration, rendering meanwhile as «Купівля · Портфель».
     //
-    // `movesPosition`, NOT `targetsAsset`, and the difference is the whole
-    // reason this door is not the form's. The FORM asks for an asset on a
-    // `tax`, a `dividend_accrual` and an `interest_payout` too; the STORE does
-    // not, and `transaction_asset_present_ck` names only the four moving types.
-    // A backup that refuses what the store can legitimately hold cannot be
-    // written — the export re-reads its own output — so the day anything puts
-    // `{ type: 'tax', assetId: '' }` into Dexie, a stricter rule here would
-    // lock the database out of exporting, importing and backing up before a
-    // wipe. That is D126's deadlock, and it is not worth re-creating to make
-    // two doors look symmetrical.
+    // `targetsAsset` NOW, and it used to be `movesPosition`. The looseness was
+    // deliberate and its reason is spent. The FORM asked for an asset on a
+    // `tax` and both payout types while `transaction_asset_present_ck` required
+    // one on none of the three — and a backup that refuses what the store can
+    // legitimately hold cannot be written at all, since the export re-reads its
+    // own output, so the day anything put `{ type: 'tax', assetId: '' }` into
+    // Dexie a stricter rule here would have locked the database out of
+    // exporting before a wipe. That was D126's deadlock.
+    //
+    // All three legs of it are gone: the type is retired, the CHECK widens to
+    // six so the store and the form finally agree, and no fixture produces an
+    // asset-less payout. What would be left if this door stayed loose is worse
+    // than asymmetry — a withholding is attributed by the row's OWN asset, so an
+    // imported payout naming none would carry one past attribution and then fail
+    // the CHECK at migration.
     if (tx.assetId === '') {
-      if (movesPosition(tx.type)) {
-        issues.push({ table: 'transactions', at: tx.id, code: 'asset-missing-on-position-row' });
+      if (targetsAsset(tx.type)) {
+        issues.push({ table: 'transactions', at: tx.id, code: 'asset-missing-on-asset-row' });
       }
     } else if (!assetIds.has(tx.assetId)) {
       issues.push({
@@ -498,8 +605,10 @@ function renderIssue(i: RowIssue): string {
       return `${at}: unknown assetId '${i.value ?? ''}'`;
     case 'unknown-quote-asset':
       return `${at}: quote for unknown asset '${i.value ?? ''}'`;
-    case 'asset-missing-on-position-row':
-      return `${at}: a buy, sell, reinvest or redemption must name an asset`;
+    case 'asset-missing-on-asset-row':
+      // The honest inversion. Naming the six types that must carry one reads
+      // worse than naming the two that must not.
+      return `${at}: only a deposit or a withdrawal may omit an asset`;
     case 'duplicate-key':
       return `${at}: duplicate ${i.field ?? 'key'} '${i.value ?? ''}' (${i.field ?? 'key'} is the primary key)`;
     default:

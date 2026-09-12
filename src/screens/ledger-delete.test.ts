@@ -82,15 +82,44 @@ describe('deleting a ledger row', () => {
     expect(onError).not.toMatch(/setConfirmingId/);
   });
 
-  it('draws a separator between rows, and none above the first', () => {
+  it('draws a separator between RECORDS, and none above the first', () => {
     // `divide-y` was the obvious spelling and produced no rule in this build —
     // measured, the colour applied and the width stayed 0 — so the row carries
     // its own hairline, which is also what `/payouts`' table does.
-    const row = CODE.match(/className="group flex[^"]*"/);
-    expect(row).not.toBeNull();
-    expect(row![0]).toContain('border-t border-hairline');
-    expect(row![0]).toContain('first:border-t-0');
+    //
+    // THE ANCHOR MOVED WITH THE NOTE, deliberately, and the old one would not
+    // have noticed: it matched `className="group flex…"`, which still matches
+    // the inner line textually — so a rule drawn between a record's own two
+    // halves would have passed. The boundary belongs to the wrapper, and the
+    // wrapper is the element that is NOT a flex row.
+    const record = CODE.match(/className="group animate-in[^"]*"/);
+    expect(record).not.toBeNull();
+    expect(record![0]).toContain('border-t border-hairline');
+    expect(record![0]).toContain('first:border-t-0');
+    expect(record![0]).not.toContain('flex');
+    // And the line inside it carries neither, or the note would sit under a rule.
+    const line = CODE.match(/className="flex items-center justify-between[^"]*"/);
+    expect(line).not.toBeNull();
+    expect(line![0]).not.toContain('border-t');
     expect(CODE).not.toContain('divide-y');
+  });
+
+  it('shows a note under the line, and NOTHING when there is none', () => {
+    // The absent case is the normal one — eighteen of eighteen seeded rows —
+    // so it must draw no empty line, no dash and no placeholder. An `undefined`
+    // check rather than a truthiness one: `''` never reaches the store, and a
+    // truthy test would hide a note somebody typed as a single space if one
+    // ever did.
+    expect(CODE).toMatch(/\{!asking && tx\.note !== undefined && \(/);
+    expect(CODE).not.toMatch(/tx\.note \?\?/);
+    expect(CODE).not.toMatch(/tx\.note \|\|/);
+    // It wraps rather than truncating, and runs the full width — no reserved
+    // column for the ✕, which sits on the line above.
+    const note = CODE.match(/className="mt-0\.5 text-\[11px\][^"]*"/);
+    expect(note).not.toBeNull();
+    expect(note![0]).toContain('overflow-wrap:anywhere');
+    expect(note![0]).not.toContain('truncate');
+    expect(note![0]).not.toContain('pr-');
   });
 
   it('reveals the glyph on hover and leaves it visible on touch', () => {
@@ -106,6 +135,6 @@ describe('deleting a ledger row', () => {
     ]) {
       expect(glyph, `the glyph lost \`${part}\``).toContain(part);
     }
-    expect(CODE).toMatch(/className="group flex/); // the hover group it belongs to
+    expect(CODE).toMatch(/className="group animate-in/); // the hover group it belongs to
   });
 });

@@ -1,6 +1,14 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
 // Reference-reconciliation rules are pinned in docs/DECISIONS.md D5.
-import { movesPosition, unitDelta, type Asset, type Snapshot, type Transaction } from './types';
+import {
+  isPayout,
+  movesPosition,
+  PAYOUT_TYPES,
+  unitDelta,
+  type Asset,
+  type Snapshot,
+  type Transaction,
+} from './types';
 import type { PeriodWindow } from './period';
 import { xirr, type CashFlow } from './xirr';
 
@@ -534,22 +542,45 @@ export function investedOwnByAsset(txs: Transaction[]): Record<string, number> {
 
 /** Doc §2.1 PayoutsGross per asset — Σ interest_payout + dividend_accrual. */
 export function payoutsGrossByAsset(txs: Transaction[]): Record<string, number> {
-  return sumByAsset(txs, ['interest_payout', 'dividend_accrual']);
+  return sumByAsset(txs, PAYOUT_TYPES);
 }
 
 /** Doc §2.1 PayoutsGross, portfolio total. */
 export function payoutsGross(txs: Transaction[]): number {
-  return sumWhere(txs, ['interest_payout', 'dividend_accrual']);
+  return sumWhere(txs, PAYOUT_TYPES);
 }
 
-/** Doc §2.1 TaxesPaid per asset — Σ 'tax' rows. */
+/**
+ * Doc §2.1 TaxesPaid per asset — Σ the withholding FIELD on each payout.
+ *
+ * It reads the payout's own asset because there is nowhere else to read one
+ * from, which is the improvement: a `tax` row carried an assetId and not which
+ * payout it taxed, so it could be filed against a different asset than the row
+ * it settled and this map netted the wrong position.
+ *
+ * `isPayout` GATES IT, AND THE DDL IS NOT A SUBSTITUTE. A first draft leaned on
+ * `transaction_tax_absent_ck` and `transaction_asset_present_ck` to argue no
+ * withholding could reach this function on a row that carries no asset — but a
+ * CHECK is not reachable from `core/`, which is the whole reason
+ * `POSITION_MOVING` is mirrored here rather than cited. Ungated, a
+ * `{ type: 'deposit', assetId: '', taxWithheld: 10 }` row — hand-edited into a
+ * backup, or written by a door that forgets — counts in the portfolio total and
+ * files itself under the EMPTY key, where no per-asset consumer reads it. That
+ * is the exact failure the widened CHECK exists to prevent, arriving through the
+ * one place the CHECK cannot see.
+ */
 export function taxesPaidByAsset(txs: Transaction[]): Record<string, number> {
-  return sumByAsset(txs, ['tax']);
+  const out: Record<string, number> = {};
+  for (const t of txs) {
+    if (!isPayout(t.type) || t.taxWithheld === undefined) continue;
+    out[t.assetId] = (out[t.assetId] ?? 0) + t.taxWithheld;
+  }
+  return out;
 }
 
-/** Doc §2.1 TaxesPaid, portfolio total. */
+/** Doc §2.1 TaxesPaid, portfolio total. Gated as above, and for the same reason. */
 export function taxesPaid(txs: Transaction[]): number {
-  return sumWhere(txs, ['tax']);
+  return txs.reduce((sum, t) => sum + (isPayout(t.type) ? (t.taxWithheld ?? 0) : 0), 0);
 }
 
 /** Doc §2.1 PayoutsNet per asset = PayoutsGross − TaxesPaid. */
@@ -657,7 +688,7 @@ export function cashYieldPct(
  * THE BOUNDARY IS EXTERNAL CAPITAL, and that is the whole design. `deposit`
  * and `withdrawal` are the only rows that cross the portfolio's edge —
  * `netDeposits` below already draws the line there, citing doc §5.1. Buys,
- * sells, reinvests, payouts and taxes move money WITHIN the boundary: between
+ * sells, reinvests and payouts move money WITHIN the boundary: between
  * the cash pot and the assets, or between assets. Whatever they did is already
  * in `terminalValue`, so feeding them in as flows would count them twice.
  *
@@ -726,12 +757,18 @@ export function globalRoi(totalCapitalAmount: number, netDepositsAmount: number)
 }
 
 /**
- * Net-of-tax variant of incomeReceived (doc §2's Tax Illusion: ignoring
- * taxes inflates gross ROI). dividends/coupons stay gross per category —
- * a 'tax' row carries only an assetId, not which payout it taxed, so
- * category-level attribution would be guesswork — and `total` is net:
- * dividends + coupons − taxes. The gross incomeReceived stays untouched
- * (it backs the D5-pinned ₴5,040.94 KPI).
+ * Net-of-tax variant of incomeReceived (doc §2's Tax Illusion: ignoring taxes
+ * inflates gross ROI). EVERY FIGURE HERE IS NET, category included.
+ *
+ * That is a correction rather than a migration. This used to report dividends
+ * and coupons GROSS with only `total` net, because a 'tax' row carried an
+ * assetId and not which payout it taxed — so splitting it between the two
+ * categories would have been guesswork. The withholding now sits ON the payout,
+ * which knows its own category, so the split is exact and the guesswork is gone
+ * along with the sentence that described it.
+ *
+ * The gross `incomeReceived` beside this is untouched: it backs the D5-pinned
+ * ₴5,040.94 KPI and answers a different question.
  */
 export function incomeReceivedNet(txs: Transaction[]): {
   dividends: number;
@@ -739,9 +776,17 @@ export function incomeReceivedNet(txs: Transaction[]): {
   taxes: number;
   total: number;
 } {
-  const { dividends, coupons } = incomeReceived(txs);
-  const taxes = taxesPaid(txs);
-  return { dividends, coupons, taxes, total: dividends + coupons - taxes };
+  let dividends = 0;
+  let coupons = 0;
+  let taxes = 0;
+  for (const t of txs) {
+    if (!isPayout(t.type)) continue;
+    const net = t.amount - (t.taxWithheld ?? 0);
+    if (t.type === 'dividend_accrual') dividends += net;
+    else coupons += net;
+    taxes += t.taxWithheld ?? 0;
+  }
+  return { dividends, coupons, taxes, total: dividends + coupons };
 }
 
 /**
@@ -751,7 +796,7 @@ export function incomeReceivedNet(txs: Transaction[]): {
  *   deposits − withdrawals − buys + sells + redemptions
  *
  * The doc's §1.1 also adds payouts and subtracts taxes/reinvestments. This
- * app EXCLUDES payout/reinvest/tax rows because:
+ * app EXCLUDES payout and reinvest rows because:
  * - payouts are EXTERNAL unless reinvested — the user's real Inzhur config
  *   sends dividends to a bank account, so a payout row does not credit
  *   broker cash (the seed validates only under this rule: deposits
@@ -761,6 +806,12 @@ export function incomeReceivedNet(txs: Transaction[]): {
  *   nets to zero broker-cash effect either way;
  * - a future `destination` field on payout rows will bring broker-credited
  *   payouts into this sum (revisit trigger #1);
+ * - THE WITHHOLDING NEEDS NO CLAUSE HERE WHILE THE EXCLUSION STANDS, and will
+ *   need exactly one when it goes: a payout's signed amount becomes
+ *   `amount − coalesce(taxWithheld, 0)`, two columns of one row rather than an
+ *   exclusion returning by another door. `docs/reference/FORMULA-AUDIT.md` §1
+ *   dates that to the migration, and `src/lib/seed.test.ts` pins the figure it
+ *   would move — 7,75, which becomes 3 661,31 the moment payouts join the sum;
  * - every 'buy' is own-funded today; if a buy funded by accrual sources
  *   ever exists in the data, the buy term needs a source filter (revisit
  *   trigger #2).
@@ -778,7 +829,7 @@ export function freeCashFromLedger(txs: Transaction[]): number {
       case 'redemption':
         return s + t.amount;
       default:
-        return s; // payout/reinvest/tax rows are external to broker cash
+        return s; // payout/reinvest rows are external to broker cash
     }
   }, 0);
 }

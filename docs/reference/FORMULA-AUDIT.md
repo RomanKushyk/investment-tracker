@@ -24,7 +24,7 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 | **Challenge** | "Free Cash was entered manually or calculated residually → leaks. The transactions ledger must be the only mutator; cash must be derived state" (doc §1.1 formula). |
 | **App formula** | `freeCashFromLedger(txs)` + `ledgerCashDrift(storedCash, txs)` — `src/core/derive.ts`. New TxTypes `withdrawal` + `redemption` added to `core/types.ts`, `core/schemas.ts`, `core/backup/json.ts` (domain-wide; the TransactionPanel select exposes them in P2). |
 | **Validation** | `freeCashFromLedger(SEED_TRANSACTIONS)` = **7,75** = deposits 143 176,37 − own-funded buys 143 168,62 — exactly the stored cash of every seeded snapshot; `ledgerCashDrift(latestCash, seed)` = 0. The doc-verbatim formula (+ payouts 5 040,94 − reinvests 1 387,38) would give **3 661,31 ✗**. |
-| **Verdict** | **Resolved with deviation** (pinned): `FreeCash = deposits − withdrawals − buys + sells + redemptions`. Payout/reinvest/tax rows are **excluded today** because payouts are external unless reinvested (the user's real Inzhur config routes dividends to a bank account, and paying taxes happens there too), and a reinvest is funded by its paired same-date payout — net zero broker-cash effect. **All three exclusions retire at the migration**, where the cash does pass through the broker account and the signed sum reconciles without them: a payout's signed amount becomes `amount − coalesce(tax_withheld, 0)`, the withholding being a field on it and no `tax` row surviving. `Snapshot.cash` and the drift check against it retire with them — free cash is the ledger's signed sum and nothing stores an observed balance (`docs/DECISIONS.md`, *Metric families and windows*). Revisit triggers, both spent at the migration: (1) a payout `destination` field would have let broker-credited payouts join the sum — the exclusions retire unconditionally and `destination` is off the model; (2) a buy funded from accrual sources appears in real data → it is recorded as a `reinvest` row, which the buy term already omits; the source of funds itself is **retired at the migration**, so there will be nothing to filter on (`docs/DECISIONS.md`, *Forms and layout*). |
+| **Verdict** | **Resolved with deviation** (pinned): `FreeCash = deposits − withdrawals − buys + sells + redemptions`. Payout/reinvest rows are **excluded today** because payouts are external unless reinvested (the user's real Inzhur config routes dividends to a bank account), and a reinvest is funded by its paired same-date payout — net zero broker-cash effect. **Both exclusions retire at the migration**, where the cash does pass through the broker account and the signed sum reconciles without them: a payout's signed amount becomes `amount − coalesce(tax_withheld, 0)`, the withholding being a field on it and no `tax` row surviving. `Snapshot.cash` and the drift check against it retire with them — free cash is the ledger's signed sum and nothing stores an observed balance (`docs/DECISIONS.md`, *Metric families and windows*). Revisit triggers, both spent at the migration: (1) a payout `destination` field would have let broker-credited payouts join the sum — the exclusions retire unconditionally and `destination` is off the model; (2) a buy funded from accrual sources appears in real data → it is recorded as a `reinvest` row, which the buy term already omits; the source of funds itself is **retired at the migration**, so there will be nothing to filter on (`docs/DECISIONS.md`, *Forms and layout*). |
 
 ### §2 Capital Gain vs Total Return + the Tax Illusion
 
@@ -33,7 +33,7 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 | **Challenge** | Payout-dropping instruments (OVDP, REIT) show an "illusion of loss" when profit = value − invested; ignoring tax rows inflates gross ROI. Decompose into Capital Gain vs Total Return, strictly net of taxes (doc §2.1). |
 | **App formula** | `investedOwnByAsset`, `payoutsGross[ByAsset]`, `taxesPaid[ByAsset]`, `payoutsNet[ByAsset]`, `soldAmount[ByAsset]`, `capitalGain`, `capitalGainPct`, `totalNetProfit`, `totalReturnPct` (denominator `investedOwn` — external capital only, same rationale as §5), `cashYieldPct`, `incomeReceivedNet` — all `src/core/derive.ts`. |
 | **Validation** | The user's real …6475 position: investedOwn 4 496,40, value 4 379,52, coupons 355,40, taxes 0 → `capitalGain` **−116,88** (−2.6 %) but `totalNetProfit` **+238,52**, `totalReturnPct` **+5.30 %**, `cashYieldPct` +7.9 %. Tax netting: payout 467,46 − tax 65,44 → `payoutsNet` **402,02**. |
-| **Verdict** | **Resolved** (core); UI exposure **deferred-to-P2-UI** (`feat/metrics-exposure`: KPI relabel, Yield/Portfolio columns). The v1 metrics (`netResult`, `yieldSinceStart`, `investedByAsset`) stay untouched — they ARE the CapitalGain family and back every D5-pinned figure; P2 relabels them so the families are never conflated. `incomeReceivedNet` keeps `dividends`/`coupons` gross and nets only `total` while a `tax` row carries an assetId and not which payout it taxed. At the migration the withholding becomes a field on the payout, so the category split is exact — ruling 6 below. |
+| **Verdict** | **Resolved** (core); UI exposure **deferred-to-P2-UI** (`feat/metrics-exposure`: KPI relabel, Yield/Portfolio columns). The v1 metrics (`netResult`, `yieldSinceStart`, `investedByAsset`) stay untouched — they ARE the CapitalGain family and back every D5-pinned figure; P2 relabels them so the families are never conflated. `incomeReceivedNet` NETS EVERY FIGURE, category included — it kept `dividends`/`coupons` gross while a `tax` row carried an assetId and not which payout it taxed, and the withholding now sits on a row that knows both. Ruling 6 below. |
 
 ### §3 Rebalancing — the moving-target problem
 
@@ -105,14 +105,22 @@ implemented with documented deviations (§1, §6.2), everything else is verbatim
 5. **Percentages are fractions in core** (0.053 = +5.3 %), matching
    `yieldSinceStart`; display multiplies. (`sharePct` is the pre-existing v1
    exception — it returns 0–100 and stays pinned.)
-6. **Tax attribution:** a `tax` row nets against its asset's payouts
-   (`payoutsNetByAsset`) and the income **total** (`incomeReceivedNet`), and the
-   dividends-vs-coupons category split is not derivable from that row shape — not
-   guessed. **At the migration** the withholding becomes a FIELD on the payout and
-   the `tax` type retires, so the split becomes exact and this ruling's limitation
-   lapses with it. Coupon suggestions never drafted a tax row in any case (G5: OVDP
-   coupons are PIT-exempt in UA). See `docs/DECISIONS.md`, *Metric families and
-   windows*.
+6. **Tax attribution — settled, and in THREE separate moments, which is worth
+   keeping apart because the ruling used to date all of them to "the migration".**
+   A `tax` row used to net against its asset's payouts (`payoutsNetByAsset`) and
+   the income **total** (`incomeReceivedNet`), and the dividends-vs-coupons split
+   was not derivable from that row shape — not guessed. **(a) In the APP, now:**
+   the withholding is a FIELD on the payout (`Transaction.taxWithheld`), the type
+   is retired, and the category split is EXACT — `incomeReceivedNet` returns
+   dividends and coupons net rather than gross with a net total beneath them, so
+   this ruling's limitation has lapsed. **(b) In the STORE:** `transaction.tax_withheld`
+   with its three CHECKs, and `transaction_asset_present_ck` widened to six types so
+   a withholding is always attributable; the draft carries both, the migration
+   applies them. **(c) At the CUTOVER:** free cash's two exclusions retire (§1),
+   and only then does a payout's signed amount become `amount − coalesce(tax_withheld, 0)`.
+   Coupon suggestions never drafted a tax row in any case (G5: OVDP coupons are
+   PIT-exempt in UA) and still draft no withholding. See `docs/DECISIONS.md`,
+   *Metric families and windows*.
 7. **Naming map (app ↔ doc):** `dividend_accrual` ↔ Dividend Payout ·
    `interest_payout` ↔ Interest Payout · `reinvest` ↔ Reinvestment ·
    `withdrawal` ↔ Withdrawal · `redemption` ↔ Bond Redemption · `buy`/`sell` ↔

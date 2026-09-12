@@ -20,8 +20,11 @@ function checkValues(constraint: string): string[] {
 }
 
 // Every TxType must name its spec counterpart. `Record<TxType, …>` is the point:
-// adding a tenth type to core/types.ts fails the BUILD here, before this test
-// can quietly compare two sets that both forgot it.
+// adding a ninth type to core/types.ts fails the BUILD here, before this test
+// can quietly compare two sets that both forgot it. REMOVING one fails here too
+// and that is what coupled the retirement of `tax` to the DDL: this file reads
+// the generated SQL, so the app's union and `transaction_type_ck` cannot move
+// apart by one commit.
 const SPEC_NAME = {
   buy: 'buy',
   sell: 'sell',
@@ -31,7 +34,6 @@ const SPEC_NAME = {
   interest_payout: 'interest_payout',
   reinvest: 'reinvest',
   redemption: 'redemption',
-  tax: 'tax',
 } satisfies Record<TxType, string>;
 
 // The keys of T that are NOT optional — TS includes `undefined` in `T[K]` for

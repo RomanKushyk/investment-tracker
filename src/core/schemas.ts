@@ -10,7 +10,7 @@ import { z } from 'zod';
 // so a value import would close the cycle and this module's prebuilt records
 // would be read mid-initialization.
 import type { Lang } from './money';
-import { movesPosition, targetsAsset } from './types';
+import { isPayout, movesPosition, targetsAsset } from './types';
 
 /**
  * One number, two conventions. A comma is the DECIMAL mark in Ukrainian
@@ -331,7 +331,6 @@ function transactionObjectFor(lang: Lang) {
       'interest_payout',
       'reinvest',
       'redemption',
-      'tax',
     ]),
     // 'new' = quick-create; the panel validates its separate AssetForm instance
     // (assetFormSchema above) before recording and swaps in the built asset id.
@@ -342,8 +341,8 @@ function transactionObjectFor(lang: Lang) {
     amount: positiveNumberInput(groupsWithComma),
     source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
     // ISSUE #31 — units at the point of entry. Optional, and it has to stay
-    // optional: a payout or a tax row moves no position, and a `buy` recorded
-    // before this field existed has no count that could be recovered.
+    // optional: a payout moves no position, and a `buy` recorded before this
+    // field existed has no count that could be recovered.
     //
     // ABSENT and '' both mean "no units". The panel always sends a string, but a
     // schema that could not parse a transaction without these two fields would
@@ -361,6 +360,40 @@ function transactionObjectFor(lang: Lang) {
     // refinement below can see it — in `unit` mode a quantity is not optional,
     // because without one there is no total to record.
     priceMode: z.enum(['total', 'unit']).default('total'),
+    // THE WITHHOLDING TAKES `quantity`'s IDIOM EXACTLY, down to treating an
+    // absent field and a blank one as one state. `positiveNumberInput` already
+    // gives the `> 0` half of W7's trio and the `UNREADABLE` code with it; the
+    // other two rules need the type and the amount, so they are in the
+    // refinement below.
+    taxWithheld: z
+      .string()
+      .optional()
+      .transform((s) => (s === undefined || s.trim() === '' ? undefined : s.trim()))
+      .pipe(positiveNumberInput(groupsWithComma).optional()),
+    // THE FIRST STRING-LENGTH FIELD IN THIS FILE, and `.max(100)` is written
+    // inline rather than minted as a helper: one caller, one bound, and a
+    // helper for it would be a name holding a number.
+    //
+    // The trim is what makes "blank means absent" true — `transaction_note_ck`
+    // spells none as NULL and nothing else, so a note of spaces must not reach
+    // the store as `''`. The backup envelope REFUSES an empty string instead of
+    // normalizing one, because by that door a blank note is a hand-edited file
+    // rather than a field somebody left alone.
+    // `[...s].length` RATHER THAN `.max(100)`, because the two count different
+    // things: `String.length` counts UTF-16 units and `transaction_note_ck`
+    // counts characters, so a hundred emoji measure 200 here and 100 there. The
+    // spread iterates code points, which is what the store counts — so the word
+    // "characters" is true of all three doors rather than of two.
+    note: z
+      .string()
+      .optional()
+      .transform((s) => (s === undefined || s.trim() === '' ? undefined : s.trim()))
+      .pipe(
+        z
+          .string()
+          .refine((v) => [...v].length <= 100)
+          .optional(),
+      ),
   });
 }
 
@@ -398,6 +431,27 @@ export function transactionSchema(lang: Lang) {
       }
       if (v.quantity !== undefined && !movesPosition(v.type)) {
         ctx.addIssue({ code: 'custom', path: ['quantity'] });
+      }
+      // THE WITHHOLDING REFUSES RATHER THAN NORMALIZING, which is `quantity`'s
+      // precedent above and NOT `assetId`'s below. The difference is stated
+      // there: an asset is normalized because its control is a Radix `Select`,
+      // which cannot be held empty — a value written into one in the same commit
+      // that mounts it is echoed away again. A number input can be held empty,
+      // and `TransactionPanel` clears this field on a type change exactly as it
+      // already clears the units, so the refusal never fires at a control nobody
+      // can see.
+      if (v.taxWithheld !== undefined && !isPayout(v.type)) {
+        ctx.addIssue({ code: 'custom', path: ['taxWithheld'], params: { rule: 'type' } });
+      }
+      // STRICTLY below, mirroring `transaction_tax_bound_ck`: a withholding that
+      // is the whole payout leaves nothing received.
+      //
+      // `amount` IS THE TOTAL HERE whatever the price mode says, and that is a
+      // fact rather than an assumption: `isPayout` implies `!movesPosition`, and
+      // the panel forces `total` on a type that moves no position — the same
+      // effect that clears the units.
+      if (v.taxWithheld !== undefined && v.taxWithheld >= v.amount) {
+        ctx.addIssue({ code: 'custom', path: ['taxWithheld'], params: { rule: 'bound' } });
       }
 
       // THE ASSET, ONLY WHERE THERE IS ONE (D129). This field used to carry a

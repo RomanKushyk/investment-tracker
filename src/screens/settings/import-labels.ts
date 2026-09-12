@@ -71,8 +71,14 @@ function issueReason(issue: RowIssue, t: Dict): string {
       return m.unitsOnNonPositionRow;
     case 'units-missing-on-position-row':
       return m.unitsMissingOnPositionRow;
-    case 'asset-missing-on-position-row':
-      return m.assetMissingOnPositionRow;
+    case 'asset-missing-on-asset-row':
+      return m.assetMissingOnAssetRow;
+    case 'withholding-on-non-payout-row':
+      return m.withholdingOnNonPayoutRow;
+    case 'withholding-above-amount':
+      return m.withholdingAboveAmount;
+    case 'note-length':
+      return m.noteLength;
     // Last resort: state the validator's own words rather than swallow a
     // reason the user needs in order to fix the file.
     case 'invalid':

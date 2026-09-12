@@ -20,26 +20,25 @@
 // removed the batching it appears to replace.
 //
 // **USE `foreignKey({ name, columns, foreignColumns }).onDelete('restrict')`
-// FOR ALL SIX — including the two single-column ones.** A draft of this comment
+// FOR ALL FIVE — including the two single-column ones.** A draft of this comment
 // prescribed the column-level `references(ref, { onDelete: 'restrict' })` for
 // those two; it works, but it **cannot carry a NAME** (only `foreignKey()`'s
 // config has a `name` slot), so drizzle derives one —
 // `account_user_id_app_user_user_id_fk`. This file's own header requires
 // constraint names identical to the generated SQL's, and
 // `infra/docs/dsql-constraints.md` already records the intended shape as
-// `account_user_fk`. **One form for all six keeps the names ours and the rule
+// `account_user_fk`. **One form for all five keeps the names ours and the rule
 // unbroken.** Three API facts, all checked against the installed drizzle:
 //
 //   1. Column-level `references(ref, actions?)` is SINGLE-COLUMN, so it could
-//      not express four of these six anyway. They are composite because
+//      not express three of these five anyway. They are composite because
 //      contract 3 leads each per-user PK with `user_id`:
 //        - `transaction.(user_id, asset_id)          -> asset.(user_id, id)`
-//        - `transaction.(user_id, settles_payout_id) -> transaction.(user_id, id)`
 //        - `transaction.(user_id, account_id)        -> account.(user_id, id)`
 //        - `user_price.(user_id, asset_id)           -> asset.(user_id, id)`
 //      Writing `references(() => asset.id, ...)` emits a single-column reference
 //      to `asset("id")`, which has no unique constraint, and the cluster rejects
-//      it `42830`. **TWO of the six are single-column** — `app_user`'s PK is
+//      it `42830`. **TWO of the five are single-column** — `app_user`'s PK is
 //      `(user_id)` alone — and they take the same table-level builder, for the
 //      naming reason above:
 //        - `account.user_id -> app_user.user_id`
@@ -63,10 +62,10 @@
 // wrong action in the source.
 //
 // **THE GUARD IS A TEXT ASSERTION OVER THE GENERATED SQL** — assert each of the
-// six keys carries `ON DELETE restrict`. Cheap, deterministic, and it catches
+// five keys carries `ON DELETE restrict`. Cheap, deterministic, and it catches
 // exactly the omission above.
 //
-// **DO NOT REACH FOR A BEHAVIOURAL TEST ON THE PAYOUT/`tax` PAIR.** Three drafts
+// **DO NOT REACH FOR A BEHAVIOURAL TEST ON THE ASSET/TRANSACTION PAIR.** Three drafts
 // of this comment went wrong here in three directions — the last claimed
 // `RESTRICT` and `no action` are distinguishable by one
 // `DELETE FROM transaction WHERE asset_id = $1`. **Measured in PGlite: that
@@ -98,31 +97,27 @@
 // without splitting them further, so cite the page for anything beyond
 // `RESTRICT`.
 //
-// **Deletion is a BATCHED application cascade, and step 1 is what makes the
-// self-referential `settles_payout_id` key safe** — first
-// NULL every settlement link pointing INTO this asset, then the asset's
-// transactions, then `user_price`, and the asset LAST so a failure midway is
-// resumable — **and RESUME MEANS RESUME THE SEQUENCE, NOT THE STEP** (D138): a
-// `tax` inserted between step 1's last batch and step 2 re-creates a live
-// reference, so a retry restarting at the failed step spins on `23503` forever.
+// **Deletion is a BATCHED application cascade** — the asset's transactions,
+// then `user_price`, and the asset LAST so a failure midway is resumable.
+// **IT USED TO HAVE A STEP ZERO and no longer does**: a batched `UPDATE` that
+// nulled every settlement link pointing INTO this asset, which existed only to
+// make the self-referential `settles_payout_id` key safe. That key is not
+// declared — a withholding is a field on the payout it was taken from
+// (`docs/superpowers/specs/2026-09-12-tax-on-the-payout-design.md`) — so there
+// is nothing left to null, and the sequence is three steps rather than four.
+// With it went the resume hazard that step owned: no row inserted between two
+// batches can re-create a reference, because no transaction references another
+// at all. Resume still means resume the SEQUENCE (D138), for the ordinary
+// reason that a partly-deleted asset's children may already be gone.
 // (This comment previously ordered the two children the other way
 // round. **Nothing turns on it** — neither child references the other, so any
-// order satisfies the keys — and the sequence now matches D138's SQL rather
-// than diverging from it silently.) **The exact SQL is D138's and is deliberately NOT copied here** —
+// order satisfies the keys.) **The exact SQL is D138's and is deliberately NOT copied here** —
 // it has three properties a paraphrase loses: every predicate is USER-SCOPED
-// (`id` is unique only within a user, exactly as `transaction_settles_uq` below
-// argues), each step batches through a key-set sub-select because Postgres
+// (`id` is unique only within a user, which is what the composite primary key
+// below says), each step batches through a key-set sub-select because Postgres
 // accepts no `LIMIT` on `UPDATE`/`DELETE`, and **each batch is its own
 // TRANSACTION**, since DSQL's 3 000-row ceiling is per transaction and a loop
 // inside one would not clear it.
-//
-// **It NULLS the link rather than deleting the settling row, and both halves of
-// that matter** (D138 has the working): an `UPDATE` removes references without
-// removing rows, so a batched step cannot strand a chain — a `tax` settling a
-// `tax` is schema-legal, since `transaction_settles_ck` constrains only the
-// SETTLING row's type — and a `tax` filed against ANOTHER asset that settles
-// this one's payout keeps its amount, losing only the link. Deleting it instead
-// would be issue #34's shape: a row destroyed for carrying a reference.
 //
 // **Adding one is not free.** Drizzle emits a foreign key — the column-level
 // `references()` and the table-level `foreignKey()` builder alike — as a bare
@@ -332,18 +327,35 @@ export const transaction = pgTable(
     // Required on position-moving rows, enforced below.
     quantity: numeric(),
     unitPrice: numeric('unit_price'),
-    // `tax` rows only, enforced below, and UNIQUE — which is what actually
-    // makes double counting structurally impossible.
-    settlesPayoutId: uuid('settles_payout_id'),
+    // What the provider withheld from THIS payout. Payout rows only and
+    // strictly below the amount, both enforced below. ONE figure rather than
+    // two: a taxed distribution here carries income tax and the military levy,
+    // but the provider reports a single withheld number, so recording the two
+    // apart would mean deriving them from the rates — and a computed figure
+    // eventually lies where a recorded one cannot. A second column stays
+    // additive if a screen ever needs the components.
+    taxWithheld: numeric('tax_withheld'),
+    // The row's own line of context, 1..100 characters. The cap is a DESIGN
+    // constraint before it is a database one — the ledger row renders it, and
+    // `design/extensions/withholding-and-note.dc.html` T5 holds the
+    // measurements that pick the number. Counted in characters and not lines
+    // because a line count is not a thing SQL checks.
+    note: text(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (t) => [
-    // The SPEC's nine names. The app's `dividend_accrual` is rejected on
+    // The SPEC's eight names. The app's `dividend_accrual` is rejected on
     // purpose until the migration maps it to `dividend_payout`.
+    //
+    // `tax` LEFT on the redesign: a withholding is a field on the payout it was
+    // taken from, never a row of its own. The self-referential key that was to
+    // tie the two together described a graph — chains, settlers naming no
+    // asset, cross-asset settlement, a cycle an `UPDATE` can build — where the
+    // application only ever wanted one sentence.
     check(
       'transaction_type_ck',
       sql`${t.type} IN ('deposit', 'withdrawal', 'buy', 'sell', 'dividend_payout',
-        'interest_payout', 'tax', 'reinvest', 'redemption')`,
+        'interest_payout', 'reinvest', 'redemption')`,
     ),
     check('transaction_amount_ck', sql`${t.amount} > 0`),
     // A negative quantity would flip a position movement independently of
@@ -391,10 +403,65 @@ export const transaction = pgTable(
       'transaction_unit_price_absent_ck',
       sql`${t.type} IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.unitPrice} IS NULL`,
     ),
-    // TWO ONE-WAY RULES, not a biconditional: `(type IN ('deposit',
-    // 'withdrawal')) = (asset_id IS NULL)` would force an asset onto every
-    // `tax` row, when the spec requires one only when the tax relates to a
-    // payout.
+    // THE WITHHOLDING'S TRIO, shaped after the `quantity` one above. NULL is the
+    // only spelling of "none", exactly as it is there — a withholding of zero
+    // and no withholding are one state, and the bond half of this portfolio is
+    // always in it.
+    check(
+      'transaction_tax_absent_ck',
+      sql`${t.type} IN ('dividend_payout', 'interest_payout') OR ${t.taxWithheld} IS NULL`,
+    ),
+    check('transaction_tax_sign_ck', sql`${t.taxWithheld} IS NULL OR ${t.taxWithheld} > 0`),
+    // STRICTLY below: a withholding that is the whole payout leaves nothing
+    // received. It catches a decimal slipped the wrong way UP — 654,40 on a
+    // payout of 467,46 — and deliberately not one slipped DOWN, which stays a
+    // plausible figure no constraint can tell from a real one.
+    check(
+      'transaction_tax_bound_ck',
+      sql`${t.taxWithheld} IS NULL OR ${t.taxWithheld} < ${t.amount}`,
+    ),
+    // 1..100, and NULL for none. The empty string is refused rather than
+    // normalized here because this is the store: the FORM is where a blank
+    // field becomes an absent one, and a row reaching this far with `''` came
+    // from somewhere that skipped it.
+    // NOT ENTIRELY WHITESPACE, which subsumes "not empty" — the zero-length
+    // string matches `^[[:space:]]*$` too, so one predicate covers both ends.
+    // This is the one place the three doors did not agree: the form turns a note
+    // of spaces into absence and the backup envelope refuses one, while a bare
+    // `length > 0` accepted it, and such a note renders as an EMPTY second line
+    // on the ledger, drawn for nobody.
+    //
+    // `btrim` WAS THE FIRST SPELLING AND IS WRONG: its default character set is
+    // the SPACE alone, so a note of a single tab passed it — measured in PGlite.
+    // The POSIX class is what matches the `String.trim()` the other two doors
+    // use. The upper bound stays on the RAW length, which is what keeps the app
+    // unable to write a row this refuses.
+    //
+    // It diverges from the clause issue #46 quotes, deliberately: that text
+    // predates the question, and «NULL is the only spelling of none» is the
+    // intent it was written to serve.
+    check(
+      'transaction_note_ck',
+      sql`${t.note} IS NULL OR (${t.note} !~ '^[[:space:]]*$' AND length(${t.note}) <= 100)`,
+    ),
+    // TWO ONE-WAY RULES THAT NOW MEET IN THE MIDDLE, and the second half is
+    // what keeps a withholding attributable. They used to leave a gap on
+    // purpose: a biconditional would have forced an asset onto every `tax`
+    // row, and the spec wanted one only where the tax related to a payout. With
+    // that type retired there are eight types, two must name NO asset and six
+    // must name one, and across the eight the two rules ARE the biconditional —
+    // no type is left to judgement for the first time.
+    //
+    // THE WIDENING IS NOT COSMETIC. Taxes are attributed by the row's OWN asset
+    // (`sumByAsset` keys on it), so a payout naming none would put its
+    // withholding under the empty key: no per-asset consumer reads it while the
+    // portfolio totals still count it, and the maps and the totals disagree —
+    // worse than a gap, because nothing looks missing. Requiring the asset
+    // closes that at the source and spares the withholding a guard of its own.
+    //
+    // The store has been looser than the form here for no recorded reason — the
+    // form has always asked for an asset on a payout — so this is the two
+    // agreeing rather than a new rule.
     //
     // `transaction_asset_absent_ck` USED TO BE THE SECOND REASON, and it was
     // the app that was wrong: `schemas.ts` filled `assetId` for all nine types,
@@ -415,13 +482,9 @@ export const transaction = pgTable(
     ),
     check(
       'transaction_asset_present_ck',
-      sql`${t.type} NOT IN ('buy', 'sell', 'reinvest', 'redemption') OR ${t.assetId} IS NOT NULL`,
+      sql`${t.type} NOT IN ('buy', 'sell', 'reinvest', 'redemption', 'dividend_payout',
+        'interest_payout') OR ${t.assetId} IS NOT NULL`,
     ),
-    check('transaction_settles_ck', sql`${t.settlesPayoutId} IS NULL OR ${t.type} = 'tax'`),
-    // USER-SCOPED. An unqualified UNIQUE(settles_payout_id) would constrain
-    // half a key and, on DSQL, contend as one global index on every tax
-    // insert.
-    unique('transaction_settles_uq').on(t.userId, t.settlesPayoutId),
     primaryKey({ columns: [t.userId, t.id] }), // contract 3
     // The ledger in date order for one user. On DSQL, promotion adds ASYNC and
     // strips `USING btree` — both, or the statement fails (D99).

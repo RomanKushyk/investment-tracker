@@ -100,7 +100,7 @@ export interface PriceParts {
  * The two got the same refusal, and it named the wrong field.
  *
  * `unitPrice` is `undefined` whenever there is no quantity to divide by — a
- * payout, a tax, a deposit, or a purchase whose units the user did not record.
+ * payout, a deposit, or a purchase whose units the user did not record.
  * It is never invented from a total alone.
  */
 export function priceParts(input: PriceInput): PriceParts | undefined {

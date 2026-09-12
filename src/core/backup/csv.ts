@@ -73,6 +73,11 @@ export const TRANSACTION_CSV_COLUMNS = [
   // before these existed and every row that moves no position.
   'quantity',
   'unitPrice',
+  // APPENDED AGAIN, for the reason stated above and unchanged by anything
+  // since. Empty on every row that carries neither, which is every row but a
+  // taxed payout and every row nobody annotated.
+  'taxWithheld',
+  'note',
 ] as const;
 
 /** Wide snapshots: these two, then one column per asset. */
@@ -159,6 +164,22 @@ export function serializeTransactionsCsv(transactions: Transaction[]): string {
       // through to `String`) while padding a whole-hryvnia price to `1000.00`,
       // matching the `amount` column beside it.
       t.unitPrice === undefined ? '' : money(t.unitPrice),
+      // `money` on the WITHHOLDING: it is ₴ taken out of the ₴ two columns to
+      // its left, and a column of money that padded differently from `amount`
+      // would not subtract cleanly in the spreadsheet this file exists for.
+      t.taxWithheld === undefined ? '' : money(t.taxWithheld),
+      // The note is the only free TEXT this file writes. `csvField` above
+      // quotes and doubles as RFC 4180 requires, so a note carrying a comma, a
+      // quote or a newline needs nothing of its own here.
+      //
+      // A NOTE BEGINNING `=` OR `@` IS PASSED THROUGH AS TYPED, and that is
+      // accepted rather than overlooked. Quoting does not stop a spreadsheet
+      // evaluating it, the usual defence is a leading apostrophe that corrupts
+      // the value for every other reader, and `name` and `code` on the asset
+      // rows have carried the same exposure since this file existed. The file
+      // is the user's own data going to the user's own spreadsheet; it is not a
+      // channel anyone else writes into.
+      t.note ?? '',
     ]),
   ]);
 }

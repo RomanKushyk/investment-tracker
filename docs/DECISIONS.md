@@ -18,11 +18,20 @@ English returned from `core/`: the language is a parameter, never a default.
 **Decision.** Dexie on IndexedDB behind `repository.ts`, which is the only writer; two databases —
 demo, seeded, and live, never auto-seeded — bound once at boot from persisted settings. The Dexie
 version bumps for stores and indexes only, and every persisted setting joins `partialize` in the
-commit that adds it. The JSON backup envelope is `formatVersion 5`, refusing a newer, an older and
+commit that adds it. The JSON backup envelope is `formatVersion 6`, refusing a newer, an older and
 an unreadable version with three distinct sentences; import validates fully, shows a diff, then
 replaces in one transaction — a key the file omits is REMOVED — after a safety backup that cannot be
 cancelled. Export re-reads its own output and refuses a file it could not read back. CSV is
-export-only.
+export-only, and what it writes is data rather than formulas — a cell beginning `=` or `@` is passed
+through as typed, the exposure every free-text column in it already carries.
+A LIVE STORE HOLDING A RETIRED ROW SHAPE IS ERASED, NOT MIGRATED, and the consequence is stated
+rather than discovered: a `tax` row predating that type's retirement fails the envelope, so export,
+import and the safety backup all refuse together and the version gate cannot reduce it to one
+sentence, since the file this build writes is already the current version. On screen such a row renders with an EMPTY type name — the ledger looks its type
+up in a dictionary the key has left — while every derivation ignores it correctly. The exit is
+Settings → Danger zone, whose erase does not go through the envelope. Re-entering by hand is the
+ruling that made the retirement affordable; a Dexie upgrade that dropped the rows would be a
+migration this model does not do.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is the case the dialog must state before the press. The version tracks what a build ACCEPTS —
 not how long ago it shipped — so two live builds can never share a number and disagree about fields.
@@ -503,12 +512,29 @@ reads it, and in every row that exists the type and the asset already carry it �
 values that carried more named holdings, which no CHECK may do. Nothing replaces it. The ОВДП code takes
 four letters or digits, derived from the ref or the name as a suggestion that stops the instant the
 user types; naming a bond from the provider list fills its maturity, next coupon, cadence and rate.
-**Why.** Those four are facts about the instrument, not the user's data, so overwriting them is
+A payout also asks what was WITHHELD from it, in the two-column slot the units take on the other side
+of the amount — one layout rule with a second occupant, so «Джерело коштів» drops to its own row
+exactly as units already make it drop. The amount changes column with the type there as it already
+does between a buy and a deposit; what the placement settles is which field it is paired with. Every type asks for a NOTE, up to
+**100 characters**, absent rather than empty and refused by a sentence rather than capped by the
+control; the ledger row draws it as a second line, and a row with no note draws nothing at all.
+**Why.** The note's cap is a DRAWN number rather than a stored one: at 360 the ledger row is 280 px
+and its label already truncates, so a note cannot join that line, and on a second line a hundred
+characters is three lines and 48 px — taking a bordered record from 61 to 111, near double, where a
+fourth line would read as a paragraph hanging under it. It is counted in characters and not lines because
+`transaction_note_ck` has to enforce the same bound and SQL cannot check a line count; the number and
+the layout are one decision, since reserving the ✕ column on that line costs a fourth line and moves
+the cap. Those four are facts about the instrument, not the user's data, so overwriting them is
 right where overwriting a typed code is not. A screen that is locally optimal and globally foreign
 is the worse outcome, and a field that is not read where it is filled cannot be fixed by making it
 easier to fill.
 **Rejected.** Six characters in the code: it fits only by widening the circle into a pill. · A
-control with no answer of its own: it can only agree with what it sits beside, or contradict it. ·
+control with no answer of its own: it can only agree with what it sits beside, or contradict it. · A
+`textarea` for the note: a hundred characters is a line, not a paragraph, and a control at any height
+but 36 is invisible to the structural walk that holds every field edge — the guard would silently
+stop covering the newest field on the screen. · A character counter beside it, or a `maxLength` that
+stops the typing: both are furniture for a bound the field can simply refuse at, and a cap the
+control enforces in silence teaches nothing about why it is 100. ·
 Narrowing the source of funds to own-versus-accrued rather than dropping it: neither value names a
 holding, so a CHECK would be legal, but nothing reads it, the type answers it in every row that
 exists, and a purchase funded from accrued income is honestly a reinvest row — which the own-capital

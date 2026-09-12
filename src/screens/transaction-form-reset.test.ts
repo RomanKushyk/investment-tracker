@@ -281,3 +281,126 @@ describe('the transaction form survives its own reset', () => {
     expect(CODE).toMatch(/form\.formState\.isSubmitting/);
   });
 });
+
+describe('the two controls #136 adds obey the panel\u2019s own rules', () => {
+  /**
+   * ONE Controller's JSX — opened at the `<Controller` that owns the name and
+   * closed at the self-closing tag sitting at that SAME INDENT. Nothing else
+   * marks its end: `</div>` finds the Reveal's, `/>` alone finds the
+   * `NumberField`'s, and the next `name=` finds whatever comes next in the file.
+   *
+   * Both of the obvious boundaries were tried and both were wrong, in opposite
+   * directions. `</div>` is safe for the amount only because its cell IS a div;
+   * the withholding renders a FRAGMENT inside a `Reveal`, so its first `</div>`
+   * is the Reveal's, 67 lines and a whole Source Controller later — every
+   * assertion then held against two fields at once. Closing at the next `name=`
+   * fixed that one and broke the note, which is the LAST name in the file: its
+   * window ran to the end, swallowing the submit, the summary and the entire
+   * ledger card. The indent is the only thing that describes the actual node.
+   */
+  function field(name: string): string {
+    const at = CODE.indexOf(`name="${name}"`);
+    expect(at, `the ${name} Controller is gone`).toBeGreaterThan(-1);
+    const open = CODE.lastIndexOf('<Controller', at);
+    expect(open, `${name} is not inside a Controller`).toBeGreaterThan(-1);
+    const indent = CODE.slice(CODE.lastIndexOf('\n', open) + 1, open);
+    const close = CODE.indexOf(`\n${indent}/>`, at);
+    expect(close, `the ${name} Controller is not closed at its own indent`).toBeGreaterThan(at);
+    const window = CODE.slice(open, close);
+    // Not a tautology the way a count over a slice ENDING at the next name was:
+    // this window's end is structural, so a second field inside it is a real
+    // possibility and a real failure.
+    expect(window.match(/name="/g)?.length ?? 0, `${name}: the window is not one field`).toBe(1);
+    return window;
+  }
+
+  it('renders both from form state, never as uncontrolled inputs', () => {
+    // `register()` is the exact call that made the reset unable to reach the
+    // DOM for «Сума». Both new fields clear on a successful record, so both
+    // depend on the same thing.
+    expect(CODE).not.toMatch(/register\(\s*['"]taxWithheld['"]/);
+    expect(CODE).not.toMatch(/register\(\s*['"]note['"]/);
+    for (const name of ['taxWithheld', 'note']) {
+      const f = field(name);
+      expect(f, `${name}: not bound to form state`).toMatch(/value=\{field\.value \?\? ''\}/);
+      expect(f, `${name}: does not write back`).toMatch(/onChange=\{field\.onChange\}/);
+      expect(f, `${name}: lost its ref`).toMatch(/ref=\{field\.ref\}/);
+      expect(f, `${name}: carries a defaultValue`).not.toMatch(/defaultValue/);
+    }
+  });
+
+  it('links each error to its input rather than folding it into the name', () => {
+    // A message inside a <label> becomes part of the input's accessible NAME.
+    // Both use `htmlFor` + `aria-describedby`, the anatomy the amount uses.
+    for (const [name, errorId] of [
+      ['taxWithheld', 'WITHHOLDING_ERROR_ID'],
+      ['note', 'NOTE_ERROR_ID'],
+    ] as const) {
+      const f = field(name);
+      expect(f, `${name}: no aria-invalid`).toMatch(/aria-invalid=\{fieldState\.invalid/);
+      expect(f, `${name}: error not linked`).toContain(errorId);
+      expect(f, `${name}: lost the invalid border`).toMatch(
+        /className=\{inputClass\(fieldState\.invalid\)\}/,
+      );
+    }
+  });
+
+  it('reveals the withholding on the payout pair and clears it when it leaves', () => {
+    // The schema REFUSES a withholding on a type that takes none rather than
+    // normalizing it away, so without the clear the refusal would point at a
+    // control no longer on screen — the defect the units' own effect exists to
+    // prevent.
+    expect(CODE).toMatch(/const takesWithholding = isPayout\(txType\)/);
+    // Whitespace-tolerant: prettier wraps the tag once the class list grows, and
+    // a pin that breaks on a reformat teaches the next reader to loosen it.
+    expect(CODE).toMatch(/<Reveal\s+show=\{takesWithholding\}/);
+    // The cell carries `min-w-0` for the reason `inputClass` states: a grid
+    // item's `min-width` is `auto`, so a cell holding an input sizes its column
+    // to the input's intrinsic min-content instead of to the cell.
+    expect(CODE).toMatch(/show=\{takesWithholding\}[\s\S]{0,120}min-w-0/);
+    expect(CODE).toMatch(/if \(takesWithholding\) return;/);
+    expect(CODE).toMatch(/form\.setValue\('taxWithheld', ''\)/);
+    expect(CODE).toMatch(/form\.clearErrors\('taxWithheld'\)/);
+  });
+
+  it('never hides the note, and never caps it in the DOM', () => {
+    // It is asked on all eight types, so it has no revealed state. And a
+    // `maxLength` would make the refusal unreachable — the cap's reason is
+    // visual, so the sentence is what carries it.
+    //
+    // Through `field()` like everything else here: this read its own `</div>`
+    // window, which is the exact boundary the helper's docblock spends a
+    // paragraph refusing. The assertion is negative, so the wide window was
+    // conservative rather than vacuous — and a footgun a file warns about
+    // should not be loaded in that file.
+    expect(field('note')).not.toContain('maxLength');
+    // WHICH OPENER IS NEAREST, not how far away one is. A 200-character window
+    // was the first spelling and could not fail: the gap between the note's
+    // Controller and the last `<Reveal` measures 2 928. Ask the question
+    // structurally instead — wrap the note and the Reveal becomes the nearer
+    // opening tag, which this trips on.
+    const at = CODE.indexOf('name="note"');
+    expect(CODE.lastIndexOf('<div', at), 'the note is inside a Reveal').toBeGreaterThan(
+      CODE.lastIndexOf('<Reveal', at),
+    );
+  });
+
+  it('stores both ABSENT rather than empty, and clears both on a record', () => {
+    // Dexie stores `undefined` as a present key and `json.ts` round-trips the
+    // object, so an absent field must be ABSENT — spread, never assigned.
+    expect(CODE).toMatch(
+      /\.\.\.\(values\.taxWithheld === undefined \? \{\} : \{ taxWithheld: values\.taxWithheld \}\)/,
+    );
+    expect(CODE).toMatch(/\.\.\.\(values\.note === undefined \? \{\} : \{ note: values\.note \}\)/);
+    // Both are per-row facts and neither survives a record, unlike type/source.
+    expect(CODE).toMatch(/taxWithheld: '',\s*note: '',\s*priceMode: values\.priceMode/);
+  });
+
+  it('hands Source the second column back only when nothing else has it', () => {
+    // The rule is "whoever takes the second column pushes Source down", and
+    // units are no longer the only one who can.
+    expect(CODE).toMatch(
+      /group-has-\[#tx-quantity\]:col-span-2 group-has-\[#tx-withholding\]:col-span-2/,
+    );
+  });
+});

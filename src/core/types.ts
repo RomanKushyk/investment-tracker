@@ -14,8 +14,7 @@ export type TxType =
   | 'dividend_accrual'
   | 'interest_payout'
   | 'reinvest'
-  | 'redemption'
-  | 'tax';
+  | 'redemption';
 export type TxSource = 'own' | 'accrual' | 'reinvest_reit' | 'reinvest_6475';
 export type ColorKey = 'reit' | 'energy' | 'ovdp8976' | 'ovdp6475';
 
@@ -92,6 +91,26 @@ export function movesPosition(type: TxType): boolean {
 }
 
 /**
+ * The only types that may carry `taxWithheld` — W7's `transaction_tax_absent_ck`
+ * (`infra/schema/user.ts`), mirrored here the way `POSITION_MOVING` mirrors the
+ * quantity rule beside it. The schema spells the second `dividend_payout`; the
+ * migration maps the name and the MEMBERSHIP is the same two.
+ *
+ * EXPORTED, unlike `PORTFOLIO_LEVEL` below, and the difference is not taste.
+ * That one is not exported because `targetsAsset` is written as a NEGATION, so
+ * a second name for it would hand a caller a way to ask the question inverted.
+ * This is positive membership, and `derive.ts` needs the LIST rather than the
+ * question — `sumByAsset` and `sumWhere` take a type array — so the tuple is the
+ * same fact spelled once rather than twice.
+ */
+export const PAYOUT_TYPES = ['dividend_accrual', 'interest_payout'] as const;
+
+/** Is this row a distribution, and so admit a withholding? */
+export function isPayout(type: TxType): boolean {
+  return (PAYOUT_TYPES as readonly TxType[]).includes(type);
+}
+
+/**
  * The rows that cross the PORTFOLIO's edge rather than an asset's, and so name
  * no asset at all. `Transaction.assetId` below has documented `''` for them
  * since P1, `lib/seed.ts` writes exactly that, `backup/json.ts` skips its
@@ -108,24 +127,26 @@ export function movesPosition(type: TxType): boolean {
 const PORTFOLIO_LEVEL = ['deposit', 'withdrawal'] as const;
 
 /**
- * Does this row belong to an asset, and so require one on the form? D129.
+ * Does this row belong to an asset? D129.
  *
- * IT IS THE FORM'S QUESTION, not a mirror of the DDL — the difference matters
- * in one direction only. `transaction_asset_absent_ck` (`infra/schema/user.ts`)
- * forbids an asset on exactly the two types below, so the schemas agree there.
- * But `transaction_asset_present_ck` REQUIRES one only on the four
- * position-moving types, and deliberately permits a `tax`, a `dividend_accrual`
- * or an `interest_payout` with none — a tax levied on the account rather than
- * on one payout, say. This form has always asked for an asset on those three
- * (the field carried a bare `.min(1)` for all nine types before D129), and D129
- * did not loosen it; that is a narrower rule than the store's, which is a
- * choice the form is allowed to make and which the store will still accept.
+ * IT IS NOW THE STORE'S RULE AS WELL AS THE FORM'S, and it did not used to be.
+ * `transaction_asset_absent_ck` (`infra/schema/user.ts`) forbids an asset on
+ * exactly the two types below, and `transaction_asset_present_ck` REQUIRES one
+ * on all six others — so across the eight types the two CHECKs are this
+ * predicate and its negation, with nothing left to judgement.
  *
- * SO DO NOT REACH FOR IT AT A DOOR THAT GUARDS THE STORE. `backup/json.ts`
- * requires an asset with `movesPosition`, mirroring the CHECK, and uses this
- * predicate only for the converse — the half where the two agree. A backup
- * that refused what the store can hold could not be written at all, since the
- * export re-reads its own output; that is D126's deadlock.
+ * THE GAP THAT USED TO BE HERE was the `tax` row: the CHECK required an asset
+ * on the four position-moving types only, deliberately permitting a tax levied
+ * on the account rather than on one payout. The form was always narrower — it
+ * asked for an asset on a payout — and that mismatch is what made this
+ * predicate unusable at a door that guards the store. With the type retired and
+ * the CHECK widened, the two agree, and `backup/json.ts` reaches for THIS
+ * predicate rather than `movesPosition`.
+ *
+ * The widening is what keeps a withholding attributable: taxes are summed by
+ * the row's own asset, so a payout naming none would file one under the empty
+ * key — counted in the portfolio total, read by no per-asset consumer, and
+ * missing from neither in a way anything could notice.
  */
 export function targetsAsset(type: TxType): boolean {
   return !(PORTFOLIO_LEVEL as readonly TxType[]).includes(type);
@@ -168,6 +189,35 @@ export interface Transaction {
    * W7 stores all three and enforces no arithmetic between them.
    */
   unitPrice?: number;
+  /**
+   * ₴ the provider withheld from THIS payout. Payout types only (`isPayout`)
+   * and strictly below `amount` — W7's three `transaction_tax_*` CHECKs, which
+   * the form and the backup envelope both mirror.
+   *
+   * ONE FIGURE AND NOT TWO. A taxed distribution here carries income tax and
+   * the military levy, but the provider reports a single withheld number, so
+   * recording the two apart would mean deriving them from the rates — the one
+   * thing this model refuses, because rates change and a computed figure
+   * eventually lies where a recorded one cannot.
+   *
+   * ABSENT IS THE ONLY SPELLING OF NONE, exactly as it is for `quantity`: a
+   * withholding of zero and no withholding are one state, and the bond half of
+   * this portfolio is always in it.
+   */
+  taxWithheld?: number;
+  /**
+   * The row's own line of context, 1–100 characters, on any type.
+   *
+   * THE CAP IS A DRAWN CONSTRAINT before it is a stored one — the ledger row
+   * renders it, and the measurements that pick the number are in
+   * `design/extensions/withholding-and-note.dc.html` T5. It is counted in
+   * CHARACTERS rather than lines because `transaction_note_ck` has to enforce
+   * the same bound and SQL cannot check a line count.
+   *
+   * Absent, never `''` — the form normalizes a blank field away and the backup
+   * envelope refuses an empty string rather than repairing it.
+   */
+  note?: string;
 }
 
 // Where a quote DRAFT value came from (P3 S2 provenance chips). Lives with the

@@ -52,12 +52,19 @@ export interface YieldTableRow {
   xirr: number | null | undefined; // fraction, money-weighted annualized
 }
 
-// Per-asset dated flows for xirr (S9b): buys/reinvests out (−), payouts and
-// sells/redemptions in (+), tax rows out (−, netting payouts to net-of-tax at
-// their own dates), plus the carried-forward latest quote as the terminal
-// value on the latest snapshot date. deposit/withdrawal rows are portfolio
-// cash moves, never asset flows — skipped even when they carry an assetId
-// (the transaction form always attaches the selected asset).
+// Per-asset dated flows for xirr (S9b): buys/reinvests out (−), sells and
+// redemptions in (+), a payout in at `amount − taxWithheld`, plus the
+// carried-forward latest quote as the terminal value on the latest snapshot
+// date. deposit/withdrawal rows are portfolio cash moves, never asset flows —
+// skipped even when they carry an assetId (the transaction form always
+// attaches the selected asset).
+//
+// THE NETTING IS WHAT MAKES THE SERIES NET-OF-TAX, and it used to be a `tax`
+// row pushed as its own negative flow. Dropping that case without netting the
+// payout would turn every per-asset XIRR from net to gross — no type error, no
+// failing test, no visible break — so the two halves land together and
+// `yield.test.ts` pins a payout carrying a withholding against the same payout
+// without one.
 // `openValue` is the position the window INHERITED — money already committed
 // before the first flow inside it, so it enters as an outflow on the opening
 // date exactly as a purchase would. It is 0 for the full history (nothing was
@@ -78,13 +85,17 @@ function assetCashFlows(
     switch (t.type) {
       case 'buy':
       case 'reinvest':
-      case 'tax':
         flows.push({ date: t.date, amount: -t.amount });
+        break;
+      case 'dividend_accrual':
+      case 'interest_payout':
+        // Net at the payout's OWN date, which is where the retired `tax` row
+        // used to put it. `taxWithheld < amount` is a CHECK, so this never
+        // flips sign.
+        flows.push({ date: t.date, amount: t.amount - (t.taxWithheld ?? 0) });
         break;
       case 'sell':
       case 'redemption':
-      case 'dividend_accrual':
-      case 'interest_payout':
         flows.push({ date: t.date, amount: t.amount });
         break;
       default:

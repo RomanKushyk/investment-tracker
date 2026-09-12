@@ -189,14 +189,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 6 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 6)));
+  it('rejects formatVersion 7 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 7)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(6);
+    expect(result.rejection.version).toBe(7);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 6 — this app reads formatVersion 5 only.',
+      'Unsupported formatVersion 7 — this app reads formatVersion 6 only.',
     );
   });
 
@@ -215,7 +215,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 6;
+        env.formatVersion = 7;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -318,31 +318,37 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'rows') return;
     expect(result.rejection.issues).toEqual([
-      { table: 'transactions', at: 'tx-0008', code: 'asset-missing-on-position-row' },
+      { table: 'transactions', at: 'tx-0008', code: 'asset-missing-on-asset-row' },
     ]);
   });
 
-  it('ACCEPTS an empty id wherever the STORE does, which is wider than the form', () => {
-    // `movesPosition`, not `targetsAsset`. The seed's three deposits carry `''`,
-    // so the type question is unavoidable — but the line is drawn at W7's
-    // `transaction_asset_present_ck`, which names only the four moving types.
-    // The form asks for an asset on a `tax` and both payout types as well; a
-    // backup that refused what the store can hold could not be written at all,
-    // because the export re-reads its own output. That is D126's deadlock.
-    for (const type of ['deposit', 'withdrawal', 'tax', 'dividend_accrual', 'interest_payout']) {
-      const result = validateImport(
-        mutated((env) =>
-          (env.transactions as Record<string, unknown>[]).push({
-            id: `tx-${type}`,
-            date: '2026-07-01',
-            type,
-            assetId: '',
-            amount: 100,
-            source: 'own',
-          }),
-        ),
+  // THE RULE MOVED, AND ITS OLD RATIONALE IS SPENT. This door used to gate on
+  // `movesPosition` — four types — so an imported payout with no asset reached
+  // the store. The reason was D126's deadlock: the form asked for an asset on a
+  // `tax` and both payout types while the CHECK required one on neither, and an
+  // envelope stricter than the store could not be written at all, because the
+  // export re-reads its own output. All three legs of that are gone. The `tax`
+  // type is retired, `transaction_asset_present_ck` widens to six so the store
+  // and the form finally agree, and the withholding is attributed by the row's
+  // OWN asset — so a payout naming none would carry one past attribution and
+  // then fail the CHECK at migration. The envelope gates on `targetsAsset`.
+  it('accepts an empty id on the two PORTFOLIO-level types, and only those', () => {
+    const asRow = (type: string) =>
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: `tx-${type}`,
+          date: '2026-07-01',
+          type,
+          assetId: '',
+          amount: 100,
+          source: 'own',
+        }),
       );
-      expect(result.ok, type).toBe(true);
+    for (const type of ['deposit', 'withdrawal']) {
+      expect(validateImport(asRow(type)).ok, type).toBe(true);
+    }
+    for (const type of ['dividend_accrual', 'interest_payout']) {
+      expect(validateImport(asRow(type)).ok, type).toBe(false);
     }
   });
 
@@ -376,15 +382,15 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
 
   it('LEAVES the asset alone on every other type, the moving ones included', () => {
     // The other side of the predicate, and the one an inverted `!` would break
-    // silently: blanking a `tax` or a payout produces an orphaned portfolio row
-    // that no rule refuses, because `asset-missing-on-position-row` only names
-    // the four moving types.
+    // silently. It used to be the half that could go wrong quietly: blanking a
+    // payout produced an orphaned portfolio row that no rule refused, because
+    // the gate named only the four moving types. It is now caught at the door
+    // above — which is why the two halves are one predicate.
     for (const type of [
       'buy',
       'sell',
       'reinvest',
       'redemption',
-      'tax',
       'dividend_accrual',
       'interest_payout',
     ]) {
@@ -768,6 +774,62 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 5');
+    expect(result.rejection.detail).toContain('formatVersion 6');
+  });
+});
+
+describe('every way a note can be wrong reports ONE localised code', () => {
+  // THE DOOR THAT OWNS THE WORDS. `parseBackup` renders English for its own
+  // string contract; THIS path emits codes that `import-labels.ts` turns into
+  // the reader's language, so a code falling through to `invalid` prints the
+  // VALIDATOR's own English verbatim into a Ukrainian report — the one thing
+  // `json.ts`'s rule about this layer forbids.
+  //
+  // Both halves of this were wrong when first written: `.min(1)` beside the
+  // whitespace refinement reported an empty note TWICE for one fact, and the
+  // refinement emits `custom`, which the mapping — written for `too_big` and
+  // `too_small` — did not name.
+  const withNote = (note: string) =>
+    validateImport(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'tx-note',
+          date: '2026-07-01',
+          type: 'interest_payout',
+          assetId: 'reit',
+          amount: 100,
+          source: 'own',
+          note,
+        }),
+      ),
+    );
+
+  for (const [label, note] of [
+    ['empty', ''],
+    ['one space', ' '],
+    ['whitespace only', '   '],
+    ['one over the cap', 'я'.repeat(101)],
+    // LONG AND BLANK AT ONCE — the shape that still doubled after the first
+    // repair, because `.max(100)` and the trim check both fired on it. One
+    // predicate cannot report one row twice.
+    ['a hundred and one spaces', ' '.repeat(101)],
+  ] as const) {
+    it(`${label} → exactly one \`note-length\``, () => {
+      const result = withNote(note);
+      expect(result.ok, label).toBe(false);
+      if (result.ok || result.rejection.kind !== 'rows') return;
+      expect(result.rejection.issues, label).toHaveLength(1);
+      expect(result.rejection.issues[0], label).toMatchObject({
+        table: 'transactions',
+        at: 'tx-note',
+        field: 'note',
+        code: 'note-length',
+      });
+    });
+  }
+
+  it('accepts a note that is exactly the cap, and one of a single character', () => {
+    expect(withNote('я'.repeat(100)).ok).toBe(true);
+    expect(withNote('я').ok).toBe(true);
   });
 });

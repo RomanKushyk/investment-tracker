@@ -132,7 +132,11 @@ export const en = {
       expectedPositiveAmount: 'expected a positive number',
       unitsOnNonPositionRow: 'only a buy, sell, reinvest or redemption carries units',
       unitsMissingOnPositionRow: 'a buy, sell, reinvest or redemption must state its units',
-      assetMissingOnPositionRow: 'a buy, sell, reinvest or redemption must name an asset',
+      assetMissingOnAssetRow: 'only a deposit or a withdrawal may omit an asset',
+      withholdingOnNonPayoutRow:
+        'only a dividend accrual or an interest payout carries a withholding',
+      withholdingAboveAmount: 'a withholding must be smaller than the payout it was taken from',
+      noteLength: 'a note needs 1 to 100 characters of text',
       invalid: 'invalid value',
     },
     problemCount: (total: number, shown: number) => {
@@ -883,6 +887,18 @@ export const en = {
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',
     amountUnreadable: 'Enter a number.',
+    // The withholding has no MISSING arm: it is optional, and the bond half of
+    // this portfolio never carries one. `withholdingUnreadable` is deliberately
+    // byte-identical to the two sentences above and below it — one failure, one
+    // wording, which `unreadable-message.test.ts` holds.
+    withholding: 'Tax withheld, ₴',
+    withholdingPlaceholder: '65.44',
+    withholdingNotPositive: 'The withholding has to be a positive number.',
+    withholdingUnreadable: 'Enter a number.',
+    withholdingAboveAmount: 'The withholding has to be smaller than the amount.',
+    note: 'Note',
+    notePlaceholder: 'What this row was',
+    noteTooLong: 'A note is at most 100 characters of text.',
     productTooSmall: 'The price times the count rounds to nothing — check both.',
     invalid: 'Check the highlighted fields and try again.',
     recentEmpty: 'No transactions yet.',
@@ -897,7 +913,6 @@ export const en = {
       interest_payout: 'Interest payout',
       reinvest: 'Reinvest',
       redemption: 'Redemption',
-      tax: 'Tax',
     },
     recentCoupon: 'Coupon',
     // A row with no asset — a deposit or a withdrawal belongs to the whole book.
@@ -1179,7 +1194,26 @@ export const uk: Dict = {
       expectedPositiveAmount: 'очікується додатне число',
       unitsOnNonPositionRow: 'одиниці має лише купівля, продаж, реінвест або погашення',
       unitsMissingOnPositionRow: 'купівля, продаж, реінвест і погашення мають вказувати одиниці',
-      assetMissingOnPositionRow: 'купівля, продаж, реінвест і погашення мають вказувати актив',
+      // SUBJECT FIRST HERE, unlike its siblings. They disambiguate by NUMBER —
+      // plural «одиниці» against singular «має» forces the trailing noun to be
+      // the subject — and this pair is singular on both sides, so Ukrainian's
+      // default order would read «актив» as the subject and inverts the meaning.
+      assetMissingOnAssetRow: 'лише внесок або виведення може не вказувати актив',
+      // SUBJECT FIRST — and the first attempt swapped the NOUN and left the
+      // order, which changed nothing: «податок» is masculine INANIMATE, so its
+      // nominative and accusative are identical exactly as the neuter
+      // «утримання» it replaced. The object-first shape still parsed as "the
+      // withheld tax has a dividend accrual" all the way to «виплата», the one
+      // feminine nominative that forces the reader back. Number cannot
+      // disambiguate here the way it does for «одиниці», so order must.
+      //
+      // «утриманий податок» rather than «утримання» stands on its own account:
+      // it was a THIRD word for the sum the form's label calls «утримано
+      // податку» and its refusals call «утриманий податок».
+      withholdingOnNonPayoutRow:
+        'лише нарахування дивідендів або виплата відсотків має утриманий податок',
+      withholdingAboveAmount: 'утриманий податок має бути меншим за виплату, з якої його стягнули',
+      noteLength: 'нотатка — від 1 до 100 символів тексту',
       invalid: 'некоректне значення',
     },
     problemCount: (total: number, shown: number) => {
@@ -1774,6 +1808,17 @@ export const uk: Dict = {
     amountMissing: 'Введіть суму.',
     amountNotPositive: 'Сума має бути додатним числом.',
     amountUnreadable: 'Вкажіть число.',
+    // ONE NOUN PHRASE FOR ONE FIELD: the label reads «Утримано податку», so the
+    // refusals read «Утриманий податок…» rather than inventing a third word for
+    // the same sum.
+    withholding: 'Утримано податку, ₴',
+    withholdingPlaceholder: '65,44',
+    withholdingNotPositive: 'Утриманий податок має бути додатним числом.',
+    withholdingUnreadable: 'Вкажіть число.',
+    withholdingAboveAmount: 'Утриманий податок має бути меншим за суму.',
+    note: 'Нотатка',
+    notePlaceholder: 'Про що цей запис',
+    noteTooLong: 'Нотатка — не більше 100 символів тексту.',
     productTooSmall: 'Ціна на кількість дає нуль — перевірте обидва поля.',
     invalid: 'Перевірте підсвічені поля та спробуйте ще раз.',
     recentEmpty: 'Транзакцій ще немає.',
@@ -1786,7 +1831,6 @@ export const uk: Dict = {
       interest_payout: 'Виплата відсотків',
       reinvest: 'Реінвестиція',
       redemption: 'Погашення',
-      tax: 'Податок',
     },
     recentCoupon: 'Купон',
     portfolioRow: 'Портфель',

@@ -212,7 +212,18 @@ describe('column orders (pinned contract)', () => {
     expect(rows[0]).toEqual([...TRANSACTION_CSV_COLUMNS]);
     // A deposit moves no position, so both #31 columns are EMPTY — never 0,
     // which would read as "zero units bought" rather than "not applicable".
-    expect(rows[1]).toEqual(['tx-0001', '2026-02-03', 'deposit', '', '143176.37', 'own', '', '']);
+    expect(rows[1]).toEqual([
+      'tx-0001',
+      '2026-02-03',
+      'deposit',
+      '',
+      '143176.37',
+      'own',
+      '',
+      '',
+      '',
+      '',
+    ]);
   });
 
   it('carries units and the per-unit price, unrounded (#31)', () => {
@@ -239,6 +250,8 @@ describe('column orders (pinned contract)', () => {
       'reinvest_reit',
       '43.4785',
       '11.1389',
+      '',
+      '',
     ]);
   });
 
@@ -265,5 +278,68 @@ describe('empty cell = pending, never 0', () => {
     );
     expect(lines(csv)[1]).toBe('2026-07-27,7.75,68702.10,'); // pending → empty
     expect(lines(csv)[2]).toBe('2026-07-28,7.75,68702.10,0.00'); // zero → 0.00
+  });
+});
+
+describe('the withholding and the note ride the export, APPENDED', () => {
+  it('names both columns last, after the two #31 ones', () => {
+    // A column order is what a spreadsheet someone already built formulas
+    // against depends on, and there is no CSV importer to keep in step — so
+    // these are appended and never inserted, exactly as `quantity` was.
+    expect([...TRANSACTION_CSV_COLUMNS]).toEqual([
+      'id',
+      'date',
+      'type',
+      'assetId',
+      'amount',
+      'source',
+      'quantity',
+      'unitPrice',
+      'taxWithheld',
+      'note',
+    ]);
+  });
+
+  it('writes the withholding as MONEY and leaves both empty where absent', () => {
+    const rows: Transaction[] = [
+      {
+        id: 'tx-0100',
+        date: '2026-09-12',
+        type: 'interest_payout',
+        assetId: 'ovdp8976',
+        amount: 467.46,
+        source: 'own',
+        taxWithheld: 65.44,
+        note: 'Звірено з випискою',
+      },
+      {
+        id: 'tx-0101',
+        date: '2026-09-12',
+        type: 'interest_payout',
+        assetId: 'ovdp8976',
+        amount: 100,
+        source: 'own',
+      },
+    ];
+    const [, taxed, plainRow] = readCsv(serializeTransactionsCsv(rows));
+    expect(taxed.slice(-2)).toEqual(['65.44', 'Звірено з випискою']);
+    // Empty, never 0 and never the word "none" — the same rule the two #31
+    // columns take, for the same reason: a zero here would read as a
+    // withholding of nothing rather than as no withholding.
+    expect(plainRow.slice(-2)).toEqual(['', '']);
+  });
+
+  it('quotes a note carrying a comma or a quote, per RFC 4180', () => {
+    const tx: Transaction = {
+      id: 'tx-0102',
+      date: '2026-09-12',
+      type: 'dividend_accrual',
+      assetId: 'reit',
+      amount: 100,
+      source: 'own',
+      note: 'Звірено, з "випискою"',
+    };
+    const [, row] = readCsv(serializeTransactionsCsv([tx]));
+    expect(row[row.length - 1]).toBe('Звірено, з "випискою"');
   });
 });

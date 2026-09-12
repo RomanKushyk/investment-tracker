@@ -33,6 +33,7 @@ import {
   soldAmount,
   soldAmountByAsset,
   taxesPaid,
+  taxesPaidByAsset,
   topUpAmount,
   totalCapital,
   totalNetProfit,
@@ -41,7 +42,14 @@ import {
   trimAmount,
   yieldSinceStart,
 } from './derive';
-import { movesPosition, POSITION_MOVING, targetsAsset, unitDelta } from './types';
+import {
+  isPayout,
+  movesPosition,
+  PAYOUT_TYPES,
+  POSITION_MOVING,
+  targetsAsset,
+  unitDelta,
+} from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
 const complete2507: Snapshot = {
@@ -207,8 +215,8 @@ describe('§2.1 metric family: capital gain vs total return', () => {
     expect(cashYieldPct(355.4, 4496.4, 0)! * 100).toBeCloseTo(7.9, 1);
   });
 
-  it('payoutsNet subtracts tax rows: 467,46 payout − 65,44 tax = 402,02', () => {
-    const rows = [tx('p', 'dividend_accrual', 467.46), tx('t', 'tax', 65.44)];
+  it('payoutsNet subtracts the withholding: 467,46 − 65,44 = 402,02', () => {
+    const rows = [{ ...tx('p', 'dividend_accrual', 467.46), taxWithheld: 65.44 }];
     expect(payoutsGross(rows)).toBeCloseTo(467.46, 2);
     expect(taxesPaid(rows)).toBeCloseTo(65.44, 2);
     expect(payoutsNet(rows)).toBeCloseTo(402.02, 2);
@@ -226,25 +234,29 @@ describe('§2.1 metric family: capital gain vs total return', () => {
     expect(soldAmountByAsset(rows)).toEqual({ a1: 500, a2: 1000 });
   });
 
-  it('a tax row without any payout still nets negative per asset', () => {
-    const rows = [tx('t', 'tax', 10, 'a9')];
-    expect(payoutsGrossByAsset(rows)).toEqual({});
-    expect(payoutsNetByAsset(rows)).toEqual({ a9: -10 });
+  it('a withholding with no payout under it is unrepresentable', () => {
+    // A `tax` row could stand alone and drive an asset's net payouts NEGATIVE
+    // — `{ a9: -10 }` with no gross above it. A field cannot exist without the
+    // row it sits on, so the shape stops existing rather than being handled.
+    const rows = [{ ...tx('p', 'interest_payout', 10, 'a9'), taxWithheld: 4 }];
+    expect(payoutsGrossByAsset(rows)).toEqual({ a9: 10 });
+    expect(payoutsNetByAsset(rows)).toEqual({ a9: 6 });
   });
 
-  it('incomeReceivedNet subtracts tax rows from the total; gross stays gross', () => {
+  it('incomeReceivedNet nets EVERY figure; the gross variant beside it does not', () => {
+    // It used to report the two categories gross with only `total` net, because
+    // a `tax` row knew its asset and not its category. Both are net now.
     const rows = [
-      tx('d', 'dividend_accrual', 467.46),
+      { ...tx('d', 'dividend_accrual', 467.46), taxWithheld: 65.44 },
       tx('c', 'interest_payout', 100),
-      tx('t', 'tax', 65.44),
     ];
     expect(incomeReceivedNet(rows)).toEqual({
-      dividends: 467.46,
+      dividends: 402.02,
       coupons: 100,
       taxes: 65.44,
-      total: 467.46 + 100 - 65.44,
+      total: 502.02,
     });
-    expect(incomeReceived(rows).total).toBeCloseTo(567.46, 2); // untouched by taxes
+    expect(incomeReceived(rows).total).toBeCloseTo(567.46, 2); // untouched
   });
 
   it('zero-denominator guards return null, never NaN/Infinity', () => {
@@ -280,9 +292,13 @@ describe('§1 free cash from ledger (pinned v1 formulation)', () => {
     expect(freeCashFromLedger(withPair)).toBe(freeCashFromLedger(base));
   });
 
-  it('tax rows are excluded (paid from the external payout, not broker cash)', () => {
+  it('a withholding rides its payout, and the payout is excluded', () => {
+    // While the payout exclusion stands, nothing about the withholding reaches
+    // this sum — there is no separate row to skip any more. The clause it will
+    // need lives in `freeCashFromLedger`'s own comment, dated to the migration.
     const base = [tx('d', 'deposit', 100, '')];
-    expect(freeCashFromLedger([...base, tx('t', 'tax', 12)])).toBe(100);
+    const taxed = { ...tx('p', 'interest_payout', 50, ''), taxWithheld: 12 };
+    expect(freeCashFromLedger([...base, taxed])).toBe(100);
   });
 
   it('empty ledger → 0, and ledgerCashDrift = stored − derived', () => {
@@ -417,8 +433,8 @@ describe('portfolioXirr', () => {
   });
 
   it('measures EXTERNAL capital only — internal flows never move it', () => {
-    // The assertion that pins the definition. Buys, sells, reinvests, payouts
-    // and taxes move money inside the portfolio's boundary; only deposits and
+    // The assertion that pins the definition. Buys, sells, reinvests and
+    // payouts move money inside the portfolio's boundary; only deposits and
     // withdrawals cross it. Whatever the assets did is already in the terminal
     // value, so counting those rows again would double-count them.
     const external = [tx('2026-01-01', 'deposit', 100)];
@@ -428,7 +444,6 @@ describe('portfolioXirr', () => {
       tx('2026-03-01', 'sell', 20, 'a'),
       tx('2026-04-01', 'interest_payout', 5, 'a'),
       tx('2026-05-01', 'reinvest', 5, 'a'),
-      tx('2026-06-01', 'tax', 1, 'a'),
       tx('2026-07-01', 'dividend_accrual', 3, 'a'),
       tx('2026-08-01', 'redemption', 10, 'a'),
     ];
@@ -632,7 +647,7 @@ describe('movesPosition / unitDelta — the sign rule units depend on', () => {
   it('names exactly the four types W7 lets carry a quantity', () => {
     expect([...POSITION_MOVING]).toEqual(['buy', 'sell', 'reinvest', 'redemption']);
     for (const type of POSITION_MOVING) expect(movesPosition(type), type).toBe(true);
-    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout', 'tax'])
+    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout'])
       expect(movesPosition(type as Transaction['type']), type).toBe(false);
   });
 
@@ -650,7 +665,6 @@ describe('movesPosition / unitDelta — the sign rule units depend on', () => {
       interest_payout: true,
       reinvest: true,
       redemption: true,
-      tax: true,
     };
     for (const [type, wanted] of Object.entries(expected))
       expect(targetsAsset(type as Transaction['type']), type).toBe(wanted);
@@ -668,6 +682,130 @@ describe('movesPosition / unitDelta — the sign rule units depend on', () => {
 
   it('is zero without a quantity, and zero on a row that moves nothing', () => {
     expect(unitDelta(tx({ type: 'buy' }))).toBe(0);
-    expect(unitDelta(tx({ type: 'tax', quantity: 10 }))).toBe(0);
+    expect(unitDelta(tx({ type: 'interest_payout', quantity: 10 }))).toBe(0);
+  });
+});
+
+describe('the withholding is a field on the payout it was taken from', () => {
+  // The audit's own fixture, re-shaped: 467,46 gross and 65,44 withheld used to
+  // be two rows and are now two columns of one. The FIGURES do not move — that
+  // is the point of re-using them — only where they are read from.
+  const payout = (
+    id: string,
+    type: 'dividend_accrual' | 'interest_payout',
+    amount: number,
+    taxWithheld?: number,
+    assetId = 'a1',
+  ): Transaction => ({
+    id,
+    date: '2026-03-01',
+    type,
+    assetId,
+    amount,
+    source: 'own',
+    ...(taxWithheld === undefined ? {} : { taxWithheld }),
+  });
+
+  it('taxesPaid sums the FIELD, and attributes it to the payout’s own asset', () => {
+    const rows = [payout('p', 'dividend_accrual', 467.46, 65.44)];
+    expect(taxesPaid(rows)).toBeCloseTo(65.44, 2);
+    expect(taxesPaidByAsset(rows).a1).toBeCloseTo(65.44, 2);
+    expect(payoutsGross(rows)).toBeCloseTo(467.46, 2);
+    expect(payoutsNet(rows)).toBeCloseTo(402.02, 2);
+    expect(payoutsNetByAsset(rows).a1).toBeCloseTo(402.02, 2);
+  });
+
+  it('a payout carrying none contributes nothing and keys no asset', () => {
+    const rows = [payout('p', 'interest_payout', 100)];
+    expect(taxesPaid(rows)).toBe(0);
+    expect(taxesPaidByAsset(rows)).toEqual({});
+    expect(payoutsNetByAsset(rows).a1).toBeCloseTo(100, 2);
+  });
+
+  it('cross-asset attribution stops existing rather than being handled', () => {
+    // A `tax` row could name a DIFFERENT asset than the payout it settled, and
+    // `payoutsNetByAsset` then netted the wrong position. A field cannot.
+    const rows = [
+      payout('p1', 'dividend_accrual', 467.46, 65.44, 'reit'),
+      payout('p2', 'interest_payout', 100, 18, 'ovdp8976'),
+    ];
+    expect(taxesPaidByAsset(rows)).toEqual({ reit: 65.44, ovdp8976: 18 });
+    expect(payoutsNetByAsset(rows).reit).toBeCloseTo(402.02, 2);
+    expect(payoutsNetByAsset(rows).ovdp8976).toBeCloseTo(82, 2);
+  });
+
+  it('incomeReceivedNet splits the withholding by CATEGORY, exactly', () => {
+    // The old comment called this guesswork, and it was: a `tax` row carried an
+    // asset and not which payout it taxed, so dividends and coupons could only
+    // be reported gross with one net total beneath them. The field knows.
+    const rows = [
+      payout('d', 'dividend_accrual', 467.46, 65.44),
+      payout('c', 'interest_payout', 100, 18),
+    ];
+    expect(incomeReceivedNet(rows)).toEqual({
+      dividends: 402.02,
+      coupons: 82,
+      taxes: 83.44,
+      total: 484.02,
+    });
+    // The GROSS figure is untouched — it backs the pinned KPI.
+    expect(incomeReceived(rows).total).toBeCloseTo(567.46, 2);
+  });
+
+  it('isPayout names exactly the two types that may carry one — EXHAUSTIVELY', () => {
+    // A Record, not a list, for the reason `targetsAsset`'s own pin gives: a
+    // ninth type would default into "carries no withholding" in silence.
+    const expected: Record<Transaction['type'], boolean> = {
+      buy: false,
+      sell: false,
+      deposit: false,
+      withdrawal: false,
+      dividend_accrual: true,
+      interest_payout: true,
+      reinvest: false,
+      redemption: false,
+    };
+    expect([...PAYOUT_TYPES]).toEqual(['dividend_accrual', 'interest_payout']);
+    for (const [type, wanted] of Object.entries(expected))
+      expect(isPayout(type as Transaction['type']), type).toBe(wanted);
+  });
+});
+
+describe('the withholding totals do not trust a CHECK core cannot reach', () => {
+  // A DDL CHECK is not reachable from `core/`, which is why `POSITION_MOVING` is
+  // mirrored here rather than cited. An ungated sum would let a row the store
+  // forbids — hand-edited into a backup, or written by a door that forgets —
+  // count in the portfolio total while filing itself under the EMPTY key, read
+  // by no per-asset consumer. That is the failure the widened CHECK exists to
+  // prevent, arriving through the one place the CHECK cannot see.
+  const rogue: Transaction = {
+    id: 'r',
+    date: '2026-03-01',
+    type: 'deposit',
+    assetId: '',
+    amount: 1000,
+    source: 'own',
+    taxWithheld: 10,
+  };
+
+  it('ignores a withholding on a row that is not a payout', () => {
+    expect(taxesPaid([rogue])).toBe(0);
+    expect(taxesPaidByAsset([rogue])).toEqual({});
+    expect(payoutsNetByAsset([rogue])).toEqual({});
+    // The THIRD gate, on the same fixture: three functions read this field and
+    // they have to agree about which rows carry it, or the portfolio total and
+    // the per-category split drift apart on a row neither should have counted.
+    expect(incomeReceivedNet([rogue])).toEqual({
+      dividends: 0,
+      coupons: 0,
+      taxes: 0,
+      total: 0,
+    });
+  });
+
+  it('still counts the ones that ARE payouts, beside it', () => {
+    const real = { ...tx('p', 'interest_payout', 100, 'a1'), taxWithheld: 18 };
+    expect(taxesPaid([rogue, real])).toBeCloseTo(18, 2);
+    expect(taxesPaidByAsset([rogue, real])).toEqual({ a1: 18 });
   });
 });

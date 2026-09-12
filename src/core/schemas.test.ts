@@ -430,7 +430,7 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
 
   it('refuses a quantity on a row that moves no position', () => {
     // W7's `transaction_quantity_absent_ck`, enforced at the form door too.
-    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout', 'tax']) {
+    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout']) {
       const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '10' });
       expect(bad.success, type).toBe(false);
     }
@@ -511,7 +511,7 @@ describe('D129 — the asset is required only on the types that target one', () 
       if (bad.success) continue;
       expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('assetId');
     }
-    for (const type of ['dividend_accrual', 'interest_payout', 'tax'] as const) {
+    for (const type of ['dividend_accrual', 'interest_payout'] as const) {
       expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(false);
     }
   });
@@ -585,5 +585,139 @@ describe('a value that cannot be READ is a different failure from one that is no
     expect(codeFor({ ...base, amount: '0' }, 'amount')).toBe('too_small');
     expect(codeFor({ ...base, quantity: '16,5' }, 'quantity')).toBe('invalid_type');
     expect(codeFor({ ...base, quantity: '-5' }, 'quantity')).toBe('too_small');
+  });
+});
+
+describe('the withholding and the note at the form door', () => {
+  const base = {
+    date: '2026-03-01',
+    type: 'interest_payout' as const,
+    assetId: 'a1',
+    amount: '100',
+    source: 'own' as const,
+  };
+
+  it('accepts a withholding below the amount on either payout type', () => {
+    for (const type of ['dividend_accrual', 'interest_payout'] as const) {
+      const ok = transactionSchema('uk').safeParse({ ...base, type, taxWithheld: '65,44' });
+      expect(ok.success, type).toBe(true);
+      if (!ok.success) continue;
+      expect(ok.data.taxWithheld, type).toBeCloseTo(65.44, 2);
+    }
+  });
+
+  it('refuses one that reaches its own amount, and one above it', () => {
+    // `transaction_tax_bound_ck` is `tax_withheld < amount`, STRICTLY — a
+    // withholding that is the whole payout leaves nothing received.
+    for (const value of ['100', '120,00']) {
+      const bad = transactionSchema('uk').safeParse({ ...base, taxWithheld: value });
+      expect(bad.success, value).toBe(false);
+      if (bad.success) continue;
+      expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('taxWithheld');
+    }
+  });
+
+  it('refuses one on any of the six types that take none', () => {
+    // `transaction_tax_absent_ck`. It REFUSES rather than normalizing, which is
+    // `quantity`'s precedent and not `assetId`'s: the panel clears the value on
+    // a type change, so the refusal never fires at a control nobody can see.
+    for (const type of ['buy', 'sell', 'deposit', 'withdrawal', 'reinvest', 'redemption']) {
+      const bad = transactionSchema('uk').safeParse({
+        ...base,
+        type,
+        assetId: type === 'deposit' || type === 'withdrawal' ? '' : 'a1',
+        quantity: type === 'deposit' || type === 'withdrawal' ? '' : '10',
+        taxWithheld: '5',
+      });
+      expect(bad.success, type).toBe(false);
+      if (bad.success) continue;
+      expect(
+        bad.error.issues.map((i) => i.path.join('.')),
+        type,
+      ).toContain('taxWithheld');
+    }
+  });
+
+  it('reads zero and a negative as the sign failure, not as absence', () => {
+    for (const value of ['0', '-5']) {
+      expect(transactionSchema('uk').safeParse({ ...base, taxWithheld: value }).success).toBe(
+        false,
+      );
+    }
+  });
+
+  it('treats an absent, empty and whitespace-only withholding as the same state', () => {
+    for (const taxWithheld of [undefined, '', '   ']) {
+      const ok = transactionSchema('uk').safeParse({ ...base, taxWithheld });
+      expect(ok.success, String(taxWithheld)).toBe(true);
+      if (!ok.success) continue;
+      expect(ok.data.taxWithheld, String(taxWithheld)).toBeUndefined();
+    }
+  });
+
+  it('takes a note on every one of the eight types', () => {
+    for (const type of [
+      'buy',
+      'sell',
+      'deposit',
+      'withdrawal',
+      'dividend_accrual',
+      'interest_payout',
+      'reinvest',
+      'redemption',
+    ]) {
+      const portfolioLevel = type === 'deposit' || type === 'withdrawal';
+      const moving = ['buy', 'sell', 'reinvest', 'redemption'].includes(type);
+      const ok = transactionSchema('uk').safeParse({
+        ...base,
+        type,
+        assetId: portfolioLevel ? '' : 'a1',
+        quantity: moving ? '10' : '',
+        note: 'Звірено з випискою',
+      });
+      expect(ok.success, type).toBe(true);
+      if (!ok.success) continue;
+      expect(ok.data.note, type).toBe('Звірено з випискою');
+    }
+  });
+
+  it('accepts a note AT the cap and refuses one a single character over', () => {
+    const at =
+      'Звірено з випискою банку за вересень: виплату затримали на три дні та зарахували разом із наступною.';
+    const over =
+      'Звірено із випискою банку за вересень: виплату затримали на три дні та зарахували разом із наступною.';
+    expect(at).toHaveLength(100);
+    expect(over).toHaveLength(101);
+    expect(transactionSchema('uk').parse({ ...base, note: at }).note).toBe(at);
+    const bad = transactionSchema('uk').safeParse({ ...base, note: over });
+    expect(bad.success).toBe(false);
+    if (bad.success) return;
+    expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('note');
+  });
+
+  it('counts the cap in CHARACTERS, the way the store counts it', () => {
+    // `String.length` counts UTF-16 units, so a hundred astral characters
+    // measure 200 there and 100 to `transaction_note_ck`. Counting code points
+    // makes the word "characters" true of every door rather than of two — and
+    // keeps the form from refusing a note the store would have taken.
+    const astral = '😀'.repeat(100);
+    expect(astral.length).toBe(200);
+    expect([...astral]).toHaveLength(100);
+    expect(transactionSchema('uk').safeParse({ ...base, note: astral }).success).toBe(true);
+    expect(transactionSchema('uk').safeParse({ ...base, note: '😀'.repeat(101) }).success).toBe(
+      false,
+    );
+  });
+
+  it('stores an empty note as ABSENT, never as an empty string', () => {
+    // `transaction_note_ck` spells "none" as NULL and nothing else, so a blank
+    // field must not reach the store as ''. Trimmed, too: a note of spaces is
+    // a note nobody typed.
+    for (const note of [undefined, '', '   ']) {
+      const parsed = transactionSchema('uk').parse({ ...base, note });
+      expect(parsed.note, String(note)).toBeUndefined();
+      expect('note' in parsed && parsed.note === '', String(note)).toBe(false);
+    }
+    expect(transactionSchema('uk').parse({ ...base, note: '  Звірено  ' }).note).toBe('Звірено');
   });
 });

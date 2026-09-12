@@ -94,7 +94,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(5);
+    expect(env.formatVersion).toBe(6);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -246,13 +246,36 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 6 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 6)));
+  it('rejects formatVersion 7 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 7)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 6/);
-    expect(result.issues[0]).toMatch(/formatVersion 5/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 7/);
+    expect(result.issues[0]).toMatch(/formatVersion 6/);
+  });
+
+  it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
+    // This is what the bump buys. A v5 file may carry `{ type: 'tax' }` rows,
+    // and without the version moving they would each fail the type enum — one
+    // fact reported once per row, naming the row rather than the reason.
+    const result = parseBackup(
+      mutated((env) => {
+        env.formatVersion = 5;
+        (env.transactions as Record<string, unknown>[]).push({
+          id: 'tax1',
+          date: '2026-07-01',
+          type: 'tax',
+          assetId: 'reit',
+          amount: 100,
+          source: 'own',
+        });
+      }),
+    );
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 5/);
   });
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
@@ -291,6 +314,11 @@ describe('parseBackup rejections', () => {
     // to offer a file that comes back rejected. This test is what makes that
     // guard necessary rather than defensive — delete the guard and this
     // asymmetry is what ships.
+    //
+    // The hole widened with the type retirement and the guard did not have to
+    // move: a live store holding `{ type: 'tax' }` rows exports a file this
+    // build refuses too. That store is ruled EXPENDABLE rather than migrated,
+    // which is what keeps the widening from being D126's deadlock again.
     const legacy: Transaction = {
       id: 'legacy-buy',
       date: '2026-02-03',
@@ -308,7 +336,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(5);
+    expect(env.formatVersion).toBe(6);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -386,6 +414,22 @@ describe('parseBackup rejections', () => {
     const result = parseBackup(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
+          id: 'payout1',
+          date: '2026-07-01',
+          type: 'interest_payout',
+          assetId: 'reit',
+          amount: 100,
+          source: 'own',
+        }),
+      ),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses the retired `tax` type by NAME, at the enum', () => {
+    const result = parseBackup(
+      mutated((env) =>
+        (env.transactions as Record<string, unknown>[]).push({
           id: 'tax1',
           date: '2026-07-01',
           type: 'tax',
@@ -395,7 +439,7 @@ describe('parseBackup rejections', () => {
         }),
       ),
     );
-    expect(result.ok).toBe(true);
+    expect(result.ok).toBe(false);
   });
 
   it('rejects a transaction pointing at an unknown asset', () => {
@@ -555,5 +599,172 @@ describe('the import boundary enforces W7’s quantity CHECKs (#31)', () => {
 describe('the envelope marker (D42)', () => {
   it('writes quirenote-backup on export', () => {
     expect(envelope().format).toBe('quirenote-backup');
+  });
+});
+
+describe('the withholding and the note at the envelope door', () => {
+  const AT_CAP =
+    'Звірено з випискою банку за вересень: виплату затримали на три дні та зарахували разом із наступною.';
+  const OVER_CAP =
+    'Звірено із випискою банку за вересень: виплату затримали на три дні та зарахували разом із наступною.';
+
+  const withRow = (row: Record<string, unknown>) =>
+    mutated((env) => (env.transactions as Record<string, unknown>[]).push(row));
+
+  const payout = (extra: Record<string, unknown> = {}) => ({
+    id: 'p-new',
+    date: '2026-07-01',
+    type: 'interest_payout',
+    assetId: 'reit',
+    amount: 100,
+    source: 'own',
+    ...extra,
+  });
+
+  it('round-trips a payout carrying a withholding and a note', () => {
+    const result = parseBackup(withRow(payout({ taxWithheld: 18, note: AT_CAP })));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const row = result.data.transactions.find((t) => t.id === 'p-new')!;
+    expect(row.taxWithheld).toBe(18);
+    expect(row.note).toBe(AT_CAP);
+  });
+
+  it('refuses a withholding that is not BELOW the amount — and says which rule', () => {
+    // `expect(ok).toBe(false)` alone would pass today for the wrong reason: a
+    // strictObject answers an unrecognised key. Assert the sentence.
+    for (const taxWithheld of [100, 120]) {
+      const result = parseBackup(withRow(payout({ taxWithheld })));
+      expect(result.ok, String(taxWithheld)).toBe(false);
+      if (result.ok) continue;
+      expect(result.issues.join(' '), String(taxWithheld)).toMatch(
+        /transactions\.\d+\.taxWithheld/,
+      );
+    }
+  });
+
+  it('refuses a withholding on any of the six types that take none', () => {
+    for (const type of ['buy', 'sell', 'deposit', 'withdrawal', 'reinvest', 'redemption']) {
+      const moving = ['buy', 'sell', 'reinvest', 'redemption'].includes(type);
+      const result = parseBackup(
+        withRow(
+          payout({
+            type,
+            assetId: type === 'deposit' || type === 'withdrawal' ? '' : 'reit',
+            taxWithheld: 5,
+            ...(moving ? { quantity: 10 } : {}),
+          }),
+        ),
+      );
+      expect(result.ok, type).toBe(false);
+      if (result.ok) continue;
+      expect(result.issues.join(' '), type).toMatch(/transactions\.\d+\.taxWithheld/);
+    }
+  });
+
+  it('refuses a withholding of zero or below — NULL is the only spelling of none', () => {
+    for (const taxWithheld of [0, -5]) {
+      expect(parseBackup(withRow(payout({ taxWithheld }))).ok, String(taxWithheld)).toBe(false);
+    }
+  });
+
+  it('accepts a note AT the cap and refuses one a single character over', () => {
+    expect(AT_CAP).toHaveLength(100);
+    expect(OVER_CAP).toHaveLength(101);
+    expect(parseBackup(withRow(payout({ note: AT_CAP }))).ok).toBe(true);
+    const result = parseBackup(withRow(payout({ note: OVER_CAP })));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.join(' ')).toMatch(/transactions\.\d+\.note/);
+  });
+
+  it('refuses an EMPTY note rather than normalizing it away', () => {
+    // The form is where "blank means absent" lives. By the time a row reaches
+    // this door, `''` is a file someone hand-edited into a state the store's
+    // `transaction_note_ck` would refuse — so the envelope refuses it too
+    // rather than quietly repairing a file it is meant to validate.
+    const result = parseBackup(withRow(payout({ note: '' })));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues.join(' ')).toMatch(/transactions\.\d+\.note/);
+  });
+
+  it('a payout with neither field is unchanged — both are absent, not empty', () => {
+    const result = parseBackup(withRow(payout()));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const row = result.data.transactions.find((t) => t.id === 'p-new')!;
+    expect('taxWithheld' in row).toBe(false);
+    expect('note' in row).toBe(false);
+  });
+});
+
+describe('the sentences `parseBackup` prints are a contract', () => {
+  // `useBackupDownload` puts `issues[0]` in front of the user when the export
+  // guard refuses a file, so these are user-visible English in a Ukrainian app —
+  // a pre-existing wart for every code, and one this branch must not WIDEN by
+  // adding rules that say only "Invalid input". Nothing pinned them, so deleting
+  // a message left every test green and the sentence gone.
+  const rowIssue = (row: Record<string, unknown>) => {
+    const result = parseBackup(
+      mutated((env) => (env.transactions as Record<string, unknown>[]).push(row)),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return '';
+    return result.issues.join(' ');
+  };
+
+  const payout = (extra: Record<string, unknown>) => ({
+    id: 'p-msg',
+    date: '2026-07-01',
+    type: 'interest_payout',
+    assetId: 'reit',
+    amount: 100,
+    source: 'own',
+    ...extra,
+  });
+
+  it('names the rule for a withholding on a type that carries none', () => {
+    expect(rowIssue(payout({ type: 'deposit', assetId: '', taxWithheld: 5 }))).toMatch(
+      /only a dividend accrual or an interest payout carries a withholding/,
+    );
+  });
+
+  it('names the rule for a withholding that is not below its amount', () => {
+    expect(rowIssue(payout({ taxWithheld: 120 }))).toMatch(
+      /a withholding must be smaller than the payout it was taken from/,
+    );
+  });
+
+  it('names the rule for every way a note is wrong', () => {
+    for (const note of ['', '   ', 'я'.repeat(101)]) {
+      expect(rowIssue(payout({ note })), JSON.stringify(note)).toMatch(
+        /a note needs 1 to 100 characters of text/,
+      );
+    }
+  });
+});
+
+describe('a note of whitespace is a note nobody typed', () => {
+  it('refuses one, rather than storing a row that renders an empty line', () => {
+    // `.min(1)` accepts a single space and so does `transaction_note_ck`'s
+    // `length > 0`. The ledger draws a second line for any note that is not
+    // absent, so such a row would render a blank one — for nobody.
+    for (const note of [' ', '   ', '\t']) {
+      const result = parseBackup(
+        mutated((env) =>
+          (env.transactions as Record<string, unknown>[]).push({
+            id: `ws-${note.length}`,
+            date: '2026-07-01',
+            type: 'interest_payout',
+            assetId: 'reit',
+            amount: 100,
+            source: 'own',
+            note,
+          }),
+        ),
+      );
+      expect(result.ok, JSON.stringify(note)).toBe(false);
+    }
   });
 });

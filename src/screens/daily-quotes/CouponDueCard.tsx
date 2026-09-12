@@ -4,7 +4,9 @@
 //
 // G5 lives in this file's write path: the card records nothing until the user
 // presses "Record coupon", the amount stays editable (seed precedent: paid
-// 1 183,50 against a scheduled 1 240,00), no `tax` row is ever drafted (D13),
+// 1 183,50 against a scheduled 1 240,00), NO WITHHOLDING IS EVER DRAFTED — the
+// card writes the payout and leaves `taxWithheld` absent, because OVDP coupons
+// are PIT-exempt in UA and a suggested figure is not an observed one (D13) —
 // and `nextCoupon` rolls EXACTLY ONCE — the write runs in the click handler
 // (never in an effect, so StrictMode's double-invoke cannot duplicate it) behind
 // a ref latch that also absorbs a double click.

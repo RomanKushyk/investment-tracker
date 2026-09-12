@@ -23,7 +23,7 @@ const read = (...parts: string[]) =>
 // is a different list from the one `docs/DECISIONS.md` keeps, which is about
 // storing a language-free value, and the two happening to be nearly the same
 // fields is a coincidence worth not relying on.
-describe('an unreadable value says so, in the five fields this issue covers', () => {
+describe('an unreadable value says so, in the six fields this issue covers', () => {
   it('carries the message in both dictionaries', () => {
     for (const dict of [en, uk]) {
       expect(dict.transaction.amountUnreadable.length).toBeGreaterThan(0);
@@ -40,8 +40,23 @@ describe('an unreadable value says so, in the five fields this issue covers', ()
       const said = dict.dailyQuotes.unreadable;
       expect(dict.transaction.amountUnreadable).toBe(said);
       expect(dict.transaction.quantityUnreadable).toBe(said);
+      expect(dict.transaction.withholdingUnreadable).toBe(said);
       expect(dict.settings.rate.unreadable).toBe(said);
     }
+  });
+
+  it('reads the withholding\u2019s failures — three arms, and no MISSING one', () => {
+    const code = read('TransactionPanel.tsx');
+    const start = code.indexOf('id={WITHHOLDING_ERROR_ID}');
+    expect(start, 'the withholding span is gone').toBeGreaterThan(-1);
+    const span = code.slice(start, code.indexOf('</span>', start));
+    expect(span, 'no unreadable arm').toContain('withholdingUnreadable');
+    expect(span, 'lost the sign arm').toContain('withholdingNotPositive');
+    expect(span, 'lost the bound arm').toContain('withholdingAboveAmount');
+    // A withholding is optional — the bond half of this portfolio never carries
+    // one — so a "missing" sentence would be a refusal of the normal state.
+    expect(span, 'invented a missing arm').not.toContain('withholdingMissing');
+    expect(span, 'hand-wrote the zod code').toContain('UNREADABLE');
   });
 
   it('reads the failure in the transaction panel, per field', () => {

@@ -86,11 +86,20 @@ const insertAsset = (id: string, cols = '', vals = '') =>
    VALUES (${USER}, ${id}, 'REIT', 'RE', 0, 'dividends', 10, 25, 'monthly',
            '2026-02-03', now()${vals});`;
 
-/** Trailing four: asset_id, quantity, unit_price, settles_payout_id. */
-const insertTx = (id: string, type: string, tail = 'NULL, NULL, NULL, NULL', amount = '100') =>
+/** Trailing four: asset_id, quantity, unit_price, tax_withheld. `note` is its
+ *  own parameter because it is the only one that arrives already quoted. */
+const insertTx = (
+  id: string,
+  type: string,
+  tail = 'NULL, NULL, NULL, NULL',
+  amount = '100',
+  note = 'NULL',
+) =>
   `INSERT INTO transaction (user_id, id, account_id, date, type, amount,
-                            asset_id, quantity, unit_price, settles_payout_id, created_at)
-   VALUES (${USER}, ${id}, ${ACCOUNT}, '2026-08-26', '${type}', ${amount}, ${tail}, now());`;
+                            asset_id, quantity, unit_price, tax_withheld, note,
+                            created_at)
+   VALUES (${USER}, ${id}, ${ACCOUNT}, '2026-08-26', '${type}', ${amount}, ${tail},
+           ${note}, now());`;
 
 beforeAll(async () => {
   db = new PGlite();
@@ -104,7 +113,7 @@ beforeAll(async () => {
   applied = stmts.length;
 
   // The baseline every constraint below is measured against: one approved user,
-  // one provider account, one asset, one payout for a tax row to settle.
+  // one provider account, one asset, one payout.
   await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
                                        decided_at, decided_by)
                    VALUES (${USER}, 'owner@quirenote.com', 'active', 'super_admin',
@@ -274,12 +283,6 @@ describe('transaction', () => {
     await accepts(insertTx(nextId(), 'buy', `${ASSET}, 12.5, 8.0, NULL`));
   });
 
-  it('ACCEPTS a tax row with no asset — required only when it settles a payout', async () => {
-    // The first draft's biconditional forced an asset onto every tax row, which
-    // the spec does not.
-    await accepts(insertTx(nextId(), 'tax', 'NULL, NULL, NULL, NULL'));
-  });
-
   it('refuses a deposit that invents a quantity', async () => {
     await refuses(insertTx(nextId(), 'deposit', 'NULL, 1, NULL, NULL'));
   });
@@ -290,7 +293,7 @@ describe('transaction', () => {
     // both at all three of its doors; a schema governing only the count would
     // let a migration land a row the app refuses to write.
     await refuses(insertTx(nextId(), 'dividend_payout', `${ASSET}, NULL, 11.14, NULL`));
-    await refuses(insertTx(nextId(), 'tax', 'NULL, NULL, 11.14, NULL'));
+    await refuses(insertTx(nextId(), 'withdrawal', 'NULL, NULL, 11.14, NULL'));
   });
 
   it('still ACCEPTS a unit_price on a row that does move a position', async () => {
@@ -325,38 +328,97 @@ describe('transaction', () => {
   });
 
   it("refuses the app's `dividend_accrual` until the migration maps it", async () => {
-    // The CHECK spells the SPEC's nine names. Silent acceptance would split the
+    // The CHECK spells the SPEC's eight names. Silent acceptance would split the
     // vocabulary in two, which is the thing a key-adjacent contract cannot undo.
     await refuses(insertTx(nextId(), 'dividend_accrual', `${ASSET}, NULL, NULL, NULL`));
   });
 
-  it('accepts a tax row settling a payout', async () => {
-    await accepts(insertTx(nextId(), 'tax', `${ASSET}, NULL, NULL, ${PAYOUT}`));
+  // THE ACCEPTING TWIN COMES FIRST, EVERY TIME, and that is a rule rather than
+  // a habit here: `refuses()` asserts that a statement throws, and an INSERT
+  // naming a column the table does not have throws too. A `refuses` written
+  // before its column exists is GREEN FOR THE WRONG REASON and stays green
+  // through a change that never landed.
+  it('accepts a withholding on either payout type', async () => {
+    await accepts(insertTx(nextId(), 'dividend_payout', `${ASSET}, NULL, NULL, 65.44`));
+    await accepts(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 18`));
   });
 
-  it('refuses a SECOND tax on the same payout — the double count', async () => {
-    // A plain index let both through; the UNIQUE is what makes the draft's
-    // "structurally impossible" claim true.
-    await refuses(insertTx(nextId(), 'tax', `${ASSET}, NULL, NULL, ${PAYOUT}`));
+  it('refuses a withholding on any of the six types that take none', async () => {
+    for (const type of ['buy', 'sell', 'reinvest', 'redemption']) {
+      await refuses(insertTx(nextId(), type, `${ASSET}, 5, NULL, 10`));
+    }
+    for (const type of ['deposit', 'withdrawal']) {
+      await refuses(insertTx(nextId(), type, 'NULL, NULL, NULL, 10'));
+    }
   });
 
-  it('lets ANOTHER user settle a payout carrying the same id', async () => {
-    // The UNIQUE is `(user_id, settles_payout_id)`. Unscoped, one tenant's tax
-    // row would refuse another's — and on DSQL it would be a single global
-    // index every tax insert contends on.
-    const other = nextId();
-    await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at)
-                     VALUES (${other}, 'second@x.com', 'pending', 'user', now());`);
-    await accepts(`INSERT INTO transaction (user_id, id, account_id, date, type,
-                                            amount, asset_id, quantity, unit_price,
-                                            settles_payout_id, created_at)
-                     VALUES (${other}, ${nextId()}, ${ACCOUNT}, '2026-08-26', 'tax',
-                             10, NULL, NULL, NULL, ${PAYOUT}, now());`);
+  it('refuses a withholding that is not STRICTLY below its own amount', async () => {
+    // The bound catches a decimal slipped the wrong way UP — 654,40 on a payout
+    // of 467,46 — and deliberately not one slipped DOWN, which stays a
+    // plausible figure no constraint can tell from a real one. Equal is refused
+    // too: a withholding that is the whole payout leaves nothing received.
+    await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 100`));
+    await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 654.40`, '467.46'));
+    await accepts(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 65.44`, '467.46'));
   });
 
-  it('refuses a non-tax row settling a payout', async () => {
-    await refuses(insertTx(nextId(), 'sell', `${ASSET}, 1, NULL, ${PAYOUT}`));
+  it('refuses a withholding of zero — NULL is the only spelling of none', async () => {
+    await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 0`));
+    await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, -1`));
+    await accepts(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, NULL`));
   });
+
+  it('accepts a note on any type, at one character and at a hundred', async () => {
+    const hundred = `'${'я'.repeat(100)}'`;
+    await accepts(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `'x'`));
+    await accepts(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', hundred));
+  });
+
+  it('refuses a note over the cap and an EMPTY one', async () => {
+    // `length()` counts CHARACTERS in Postgres and not bytes, which is what lets
+    // the cap be stated in the unit the drawing measures in: a Cyrillic note is
+    // two bytes a character, and the bound must not move with the language.
+    const overCap = `'${'я'.repeat(101)}'`;
+    await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', overCap));
+    await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `''`));
+  });
+
+  it('refuses a note of WHITESPACE, in every spelling of it', async () => {
+    // The one place the three doors did not agree: the form turns a note of
+    // spaces into absence and the envelope refuses one, while a bare
+    // `length > 0` accepted it — and such a note renders as an empty second
+    // line on the ledger, drawn for nobody.
+    for (const blank of [`'   '`, `'\t'`, `'\n'`]) {
+      await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', blank));
+    }
+    // Padding AROUND text is still a note — only the emptiness is refused.
+    await accepts(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `'  ok  '`));
+  });
+
+  it('counts the CAP in characters, so a Cyrillic note is not half a note', async () => {
+    // `length()` counts characters and not bytes, which is what lets the cap be
+    // stated in the unit the drawing measures in — two bytes a character here.
+    await accepts(
+      insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `'${'я'.repeat(100)}'`),
+    );
+  });
+
+  it('requires an asset on a PAYOUT too, which is what keeps a withholding attributable', async () => {
+    // The widening: four position-moving types become six. A payout naming no
+    // asset would put its withholding under the empty key — no per-asset
+    // consumer reads it while the portfolio totals still count it, so the maps
+    // and the totals disagree, which is worse than a gap because nothing looks
+    // missing.
+    for (const type of ['dividend_payout', 'interest_payout']) {
+      await refuses(insertTx(nextId(), type, 'NULL, NULL, NULL, NULL'));
+      await accepts(insertTx(nextId(), type, `${ASSET}, NULL, NULL, NULL`));
+    }
+    // The partition is complete for the first time: the other two must name
+    // none, and no type is left to judgement.
+    await accepts(insertTx(nextId(), 'withdrawal', 'NULL, NULL, NULL, NULL'));
+    await refuses(insertTx(nextId(), 'withdrawal', `${ASSET}, NULL, NULL, NULL`));
+  });
+
   it('requires a count on a position-moving row, and only there (D125)', async () => {
     // THE CONVERSE of `transaction_quantity_absent_ck`, REVERSING the rule this
     // file pinned until now ("ACCEPTS a buy with no quantity — the legacy rows

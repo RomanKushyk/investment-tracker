@@ -244,6 +244,23 @@ function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
       ? 'units-missing-on-position-row'
       : 'units-on-non-position-row';
   }
+  // The withholding's two type-and-amount rules, told apart by the `rule` param
+  // `transactionRowsSchema` stamps on them. Gated on `custom` so a hand-edited
+  // value that is not a number at all falls through to `invalid` with the
+  // validator's own words, rather than being reported as a rule it never
+  // reached.
+  if (issue.code === 'custom' && field === 'taxWithheld') {
+    return issue.params?.rule === 'bound'
+      ? 'withholding-above-amount'
+      : 'withholding-on-non-payout-row';
+  }
+  // ONE code because the note has ONE rule — a single refinement covering both
+  // ends, so there is one issue to name whatever went wrong. Left to fall
+  // through it would reach `invalid`, which prints the VALIDATOR's own English
+  // verbatim into a report the rest of which is in the reader's language.
+  if (field === 'note' && issue.code === 'custom') {
+    return 'note-length';
+  }
   return 'invalid';
 }
 

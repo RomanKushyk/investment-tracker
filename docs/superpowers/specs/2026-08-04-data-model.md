@@ -102,6 +102,7 @@ No exclusion rules, no pairing heuristics, no computed tax. The sum reconciles b
 | `quantity` | **nullable, required on position-moving rows.** Unrecoverable if not captured on the day; FIFO lots stay derivable from it forever |
 | `unit_price` | nullable; keep fees in separate rows rather than baking them in |
 | `tax_withheld` | **nullable, payout rows only** — what the provider withheld from this payout, below its amount |
+| `note` | **nullable, any type** — the row's own line of context, 1–100 characters, NULL the only spelling of none. The cap is a DRAWN constraint: the ledger row renders it, and at 360 px a hundred characters is three lines under a 60 px row (`design/extensions/withholding-and-note.dc.html`) |
 | `created_at` | |
 
 **`asset_id` on a tax row is no longer a rule, because there is no tax row.** It was required so

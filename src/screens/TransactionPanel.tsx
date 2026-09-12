@@ -37,6 +37,7 @@ import {
 } from '../core/schemas';
 import { convertTypedAmount, priceParts } from '../core/transaction-price';
 import {
+  isPayout,
   movesPosition,
   targetsAsset,
   type Asset,
@@ -62,7 +63,6 @@ const TYPE_ORDER: TxType[] = [
   'interest_payout',
   'reinvest',
   'redemption',
-  'tax',
 ];
 
 // The Recent transactions rows use "Coupon" for interest_payout — matches
@@ -96,6 +96,10 @@ const AMOUNT_ID = 'tx-amount';
 const AMOUNT_ERROR_ID = 'tx-amount-error';
 const QUANTITY_ID = 'tx-quantity';
 const QUANTITY_ERROR_ID = 'tx-quantity-error';
+const WITHHOLDING_ID = 'tx-withholding';
+const WITHHOLDING_ERROR_ID = 'tx-withholding-error';
+const NOTE_ID = 'tx-note';
+const NOTE_ERROR_ID = 'tx-note-error';
 
 /**
  * ISSUE #31 — what the amount field holds: the whole transaction, or one unit.
@@ -330,6 +334,8 @@ export function TransactionPanel() {
       amount: '',
       source: 'own',
       quantity: '',
+      taxWithheld: '',
+      note: '',
       // Total is the default because it is what the field has always meant and
       // what every provider statement quotes; per-unit is the deliberate switch.
       priceMode: 'total',
@@ -357,6 +363,10 @@ export function TransactionPanel() {
   const txType = useWatch({ control: form.control, name: 'type' });
   const priceMode = useWatch({ control: form.control, name: 'priceMode' });
   const takesUnits = movesPosition(txType);
+  // A withholding belongs only to a distribution, which is W7's
+  // `transaction_tax_absent_ck` shown as UI rather than only enforced — the
+  // same relationship the units above have to the quantity CHECK.
+  const takesWithholding = isPayout(txType);
   // D129 — a deposit and a withdrawal cross the PORTFOLIO's edge, not an
   // asset's, so the picker has nothing to ask them.
   const needsAsset = targetsAsset(txType);
@@ -440,6 +450,18 @@ export function TransactionPanel() {
     form.clearErrors('amount');
   }, [takesUnits, form, convertAmount]);
 
+  // THE WITHHOLDING LEAVES WITH ITS ERROR, exactly as the units above do, and
+  // for the reason stated there: the schema REFUSES a withholding on a type
+  // that takes none rather than normalizing it away, so without this the
+  // refusal would point at a control that is no longer on screen. Clearing the
+  // value is what makes the refusal unreachable in the UI while leaving it true
+  // at the other two doors.
+  useEffect(() => {
+    if (takesWithholding) return;
+    form.setValue('taxWithheld', '');
+    form.clearErrors('taxWithheld');
+  }, [takesWithholding, form]);
+
   // `handleSubmit` AWAITS the zod resolver, and on the quick-create branch it
   // awaits a second nested one, so two presses can both land inside that window
   // — each minting its own `crypto.randomUUID()`, and on quick-create building
@@ -485,6 +507,12 @@ export function TransactionPanel() {
       // and `json.ts` round-trips the object, so an absent field must be ABSENT.
       ...(values.quantity === undefined ? {} : { quantity: values.quantity }),
       ...(unitPrice === undefined ? {} : { unitPrice }),
+      // Both spread for the same reason, and the note needs it MOST: the schema
+      // turns a blank field into `undefined`, and assigning that would store a
+      // present key holding nothing — `transaction_note_ck` spells none as NULL
+      // and the backup envelope refuses `''`.
+      ...(values.taxWithheld === undefined ? {} : { taxWithheld: values.taxWithheld }),
+      ...(values.note === undefined ? {} : { note: values.note }),
     };
     recordTransaction.mutate(
       { tx, newAsset },
@@ -522,6 +550,12 @@ export function TransactionPanel() {
             // on the next one. The MODE survives, like type/asset/source: it is
             // how this user reads their statements, not a fact about one row.
             quantity: '',
+            // BOTH CLEAR WITH THE AMOUNT, and neither survives the way the type
+            // and the source do. A withholding is per-payout and a note is per
+            // row — carrying either over would attach the last row's facts to
+            // the next one, which is the shape #31 was.
+            taxWithheld: '',
+            note: '',
             priceMode: values.priceMode,
           });
           // THE ERRORS, NOT THE VALUES. A full `assetForm.reset` here wiped a
@@ -1020,13 +1054,103 @@ export function TransactionPanel() {
               />
             </div>
 
+            {/* THE WITHHOLDING TAKES THE SLOT «Одиниці» TAKES, on the other
+                side of the amount — one layout rule with a second occupant. The
+                mirror image (withholding in the units slot) is refused on the
+                rule rather than on taste: it would make the first column mean
+                units on four types and a deduction on two.
+                IT DOES NOT HOLD THE AMOUNT STILL, and a draft of this comment
+                said it did: measured, the amount sits in column two on a buy and
+                column one on a payout, which is what it already does between a
+                buy and a deposit — cells place in document order and the row's
+                first occupant decides. What the placement settles is which field
+                the amount is PAIRED with.
+                `design/extensions/withholding-and-note.dc.html` T2. */}
+            {/* A KNOWN TRANSIENT, ACCEPTED, AND TWO CURES MEASURED AND
+                REJECTED — written down because the next reader will reach for
+                the same `:has` gate the Source span beside it uses.
+
+                Switching Buy → a payout flips `takesWithholding` at once while
+                `Reveal` keeps the units mounted for their 300 ms exit, so four
+                `row-span-3` cells briefly share a two-column grid and this one
+                auto-places into the implicit rows below the amount before
+                snapping up. `group-has-[#tx-quantity]:hidden` looks like the
+                answer and is worse: `Reveal` unmounts in `onAnimationEnd`, and
+                `display:none` means the exit animation never runs, so the field
+                stays mounted forever and then REAPPEARS at full size on the next
+                type that has no units — a whole field fading out on a Deposit,
+                with the row 73 px too tall while it does. Taking it out of flow
+                instead (`absolute` + `invisible`) unmounts correctly but leaves
+                the exiting copy visible and absolutely positioned over the row
+                it just left.
+
+                So the transient stays. It is the same shape the panel already
+                has: on Buy → Deposit the Source cell jumps from a full-width row
+                to a half cell, and the amount changes column, both for the same
+                reason and both shipped. Sequencing the two Reveals is the real
+                fix and belongs to `Reveal`, not to a caller. */}
+            <Reveal
+              show={takesWithholding}
+              className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1"
+            >
+              <label
+                className="min-w-0 self-center truncate text-[11px] text-muted"
+                htmlFor={WITHHOLDING_ID}
+              >
+                {t.transaction.withholding}
+              </label>
+              <Controller
+                control={form.control}
+                name="taxWithheld"
+                render={({ field, fieldState }) => (
+                  <>
+                    <NumberField
+                      id={WITHHOLDING_ID}
+                      className={inputClass(fieldState.invalid)}
+                      placeholder={t.transaction.withholdingPlaceholder}
+                      aria-invalid={fieldState.invalid || undefined}
+                      aria-describedby={fieldState.invalid ? WITHHOLDING_ERROR_ID : undefined}
+                      name={field.name}
+                      ref={field.ref}
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                    {fieldState.error && (
+                      <span
+                        id={WITHHOLDING_ERROR_ID}
+                        className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+                      >
+                        {/* THERE IS NO "MISSING" ARM — a withholding is
+                            optional, and the bond half of this portfolio never
+                            has one. `custom` is the BOUND rule and only the
+                            bound rule: the schema's other custom refusal is a
+                            withholding on a type that takes none, and the
+                            effect above clears the field before that type can
+                            be on screen. */}
+                        {fieldState.error.type === 'custom'
+                          ? t.transaction.withholdingAboveAmount
+                          : fieldState.error.type === UNREADABLE
+                            ? t.transaction.withholdingUnreadable
+                            : t.transaction.withholdingNotPositive}
+                      </span>
+                    )}
+                  </>
+                )}
+              />
+            </Reveal>
+
             {/* Spanning lands this in the grid's IMPLICIT rows 4–6, whose
                 leading gap is the same `gap-2.5` the form puts between its own
                 rows — so the full-width shape needs no spacing of its own.
                 And it never shares a line with a «Сума» carrying the Σ/1
                 track, because the track is gated on the same condition the
-                span is. */}
-            <label className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2">
+                span is.
+
+                IT ASKS THE DOM ABOUT BOTH OCCUPANTS NOW. The rule is "whoever
+                takes the second column pushes Source down", and units are no
+                longer the only one who can. */}
+            <label className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2 group-has-[#tx-withholding]:col-span-2">
               {t.transaction.source}
               <Controller
                 control={form.control}
@@ -1043,6 +1167,60 @@ export function TransactionPanel() {
                 )}
               />
             </label>
+          </div>
+
+          {/* THE NOTE IS ASKED ON ALL EIGHT TYPES, so it is never revealed and
+              never leaves — it has no hidden state to clear. Full width and
+              last, because it is the only free text on the panel and the only
+              field nobody has to fill.
+
+              NO `maxLength`. A hard stop at 100 would make the refusal
+              unreachable, and the drawing shows it: a cap the field silently
+              enforces teaches nothing about why it is 100, where a sentence
+              does. It is also the only bound in this form whose reason is
+              visual rather than arithmetic. */}
+          {/* ONE BLOCK, not a label and a field that happen to sit next to
+              each other: the cell owns the 4 px between its own three parts and
+              the form owns the 10 between its rows. A first draft made these
+              two siblings of the FORM and pulled the field back up with a
+              negative margin, which is a cell paying for a gap it never asked
+              for — and it would have drifted the moment the form's own gap
+              moved. The label is outside the `Controller` and linked by
+              `htmlFor`, like «Сума» above and for the same reason: a message
+              inside a `<label>` joins the input's accessible NAME. */}
+          <div className="flex min-w-0 flex-col gap-1">
+            <label className="text-[11px] text-muted" htmlFor={NOTE_ID}>
+              {t.transaction.note}
+            </label>
+            <Controller
+              control={form.control}
+              name="note"
+              render={({ field, fieldState }) => (
+                <>
+                  <input
+                    id={NOTE_ID}
+                    type="text"
+                    className={inputClass(fieldState.invalid)}
+                    placeholder={t.transaction.notePlaceholder}
+                    aria-invalid={fieldState.invalid || undefined}
+                    aria-describedby={fieldState.invalid ? NOTE_ERROR_ID : undefined}
+                    name={field.name}
+                    ref={field.ref}
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                  {fieldState.error && (
+                    <span
+                      id={NOTE_ERROR_ID}
+                      className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
+                    >
+                      {t.transaction.noteTooLong}
+                    </span>
+                  )}
+                </>
+              )}
+            />
           </div>
 
           <Button
@@ -1125,27 +1303,33 @@ export function TransactionPanel() {
               const asset = targetsAsset(tx.type) ? assetById.get(tx.assetId) : undefined;
               const asking = confirmingId === tx.id;
               return (
+                // THE ROW IS TWO LINES NOW, and the boundary moved out with
+                // it: the hairline, the padding and the `first:` exception
+                // belong to the WHOLE record, not to its first line, or a
+                // noted row would draw its rule between its own two halves.
+                // `group` and the entrance animation move for the same reason.
                 <div
                   key={tx.id}
-                  className="group flex animate-in items-center justify-between gap-2.5 border-t border-hairline py-2 duration-300 fade-in slide-in-from-top-1 first:border-t-0 max-md:gap-2"
+                  className="group animate-in border-t border-hairline py-2 duration-300 fade-in slide-in-from-top-1 first:border-t-0"
                 >
-                  {asking ? (
-                    <>
-                      {/* THE ROW ITSELF ASKS. The app has no modal for a single
+                  <div className="flex items-center justify-between gap-2.5 max-md:gap-2">
+                    {asking ? (
+                      <>
+                        {/* THE ROW ITSELF ASKS. The app has no modal for a single
                           line and should not grow one: a quote row's suggestion
                           and the coupon card both ask in place, and this is the
                           same act — a question where the answer will land. */}
-                      {/* IT NAMES THE RECORD, and `role="alert"` announces it.
+                        {/* IT NAMES THE RECORD, and `role="alert"` announces it.
                           The question REPLACES the row, so the label, amount and
                           date it stood on are gone at the moment of confirming
                           something unrecoverable — two coupons of one amount, or
                           two rows for one asset days apart, were indistinguishable
                           there. A reader who never sees the swap was told nothing
                           at all. */}
-                      <span role="alert" className="min-w-0 flex-1 truncate text-neg">
-                        {t.transaction.delete.ask(f.money(tx.amount), f.dateShort(tx.date))}
-                      </span>
-                      {/* `TAP_44`, NOT `TAP_44_BOX`: both of these draw a box and
+                        <span role="alert" className="min-w-0 flex-1 truncate text-neg">
+                          {t.transaction.delete.ask(f.money(tx.amount), f.dateShort(tx.date))}
+                        </span>
+                        {/* `TAP_44`, NOT `TAP_44_BOX`: both of these draw a box and
                           hold a label, and the BOX squares a control to 44 × 44
                           below `md`, where «Видалити» has no wrap opportunity and
                           spills straight out of its own border. `tap-target.ts`
@@ -1154,67 +1338,86 @@ export function TransactionPanel() {
                           `autoFocus` keeps the keyboard on the question it just
                           asked — the ✕ unmounts in the same commit and React moves
                           focus nowhere, which means <body>. */}
-                      <button
-                        type="button"
-                        autoFocus
-                        onClick={() => removeTransaction(tx)}
-                        disabled={deleteTransaction.isPending}
-                        className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition hover:bg-neg-tint active:scale-[.97]`}
-                      >
-                        {t.transaction.delete.confirm}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmingId(undefined)}
-                        className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition hover:text-ink active:scale-[.97]`}
-                      >
-                        {t.transaction.delete.cancel}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="min-w-0 flex-1 truncate">
-                        {tx.type === 'interest_payout'
-                          ? t.transaction.recentCoupon
-                          : t.transaction.types[tx.type]}{' '}
-                        · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
-                      </span>
-                      {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE (owner's
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => removeTransaction(tx)}
+                          disabled={deleteTransaction.isPending}
+                          className={`${TAP_44} cursor-pointer rounded-[6px] border border-neg px-2 py-[3px] font-semibold text-neg transition hover:bg-neg-tint active:scale-[.97]`}
+                        >
+                          {t.transaction.delete.confirm}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingId(undefined)}
+                          className={`${TAP_44} cursor-pointer rounded-[6px] px-2 py-[3px] text-muted transition hover:text-ink active:scale-[.97]`}
+                        >
+                          {t.transaction.delete.cancel}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="min-w-0 flex-1 truncate">
+                          {tx.type === 'interest_payout'
+                            ? t.transaction.recentCoupon
+                            : t.transaction.types[tx.type]}{' '}
+                          · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
+                        </span>
+                        {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE (owner's
                           ruling, 2026-09-01). The fetch reports which assets it
                           had to value from a stale stored total; this is where
                           that report is acted on, so the row has to show whether
                           it carries its units.
                           `movesPosition` GATES IT, because absence has to mean
-                          something: on a deposit or a tax there is no count to
-                          miss, and a blank there would read the same as the gap
+                          something: on a deposit or a payout there is no count
+                          to miss, and a blank there would read the same as the gap
                           the owner is hunting. On a row that CAN hold one, the
                           dash is the answer — that row is why the ledger stopped
                           answering for the asset. */}
-                      {movesPosition(tx.type) && (
-                        <span
-                          className="whitespace-nowrap text-muted"
-                          title={t.transaction.quantity}
-                        >
-                          {tx.quantity === undefined ? '—' : f.units(tx.quantity)}
-                        </span>
-                      )}
-                      <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
-                      <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
-                      {/* HOVER REVEALS IT ON A POINTER, AND TOUCH ALWAYS SEES IT.
+                        {movesPosition(tx.type) && (
+                          <span
+                            className="whitespace-nowrap text-muted"
+                            title={t.transaction.quantity}
+                          >
+                            {tx.quantity === undefined ? '—' : f.units(tx.quantity)}
+                          </span>
+                        )}
+                        <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
+                        <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
+                        {/* HOVER REVEALS IT ON A POINTER, AND TOUCH ALWAYS SEES IT.
                           Eighteen always-on glyphs are noise on a desktop; a
                           hover-only control does not exist on a phone, where
                           there is no hover to have. `focus-visible` keeps it
                           reachable by keyboard, which hover alone never is. */}
-                      <button
-                        type="button"
-                        aria-label={t.transaction.delete.aria}
-                        data-delete-row={tx.id}
-                        onClick={() => setConfirmingId(tx.id)}
-                        className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
-                      >
-                        <X size={12} strokeWidth={2.75} />
-                      </button>
-                    </>
+                        <button
+                          type="button"
+                          aria-label={t.transaction.delete.aria}
+                          data-delete-row={tx.id}
+                          onClick={() => setConfirmingId(tx.id)}
+                          className={`${TAP_44_BOX} flex-none cursor-pointer p-1 text-faint opacity-0 transition group-hover:opacity-100 hover:text-neg focus-visible:opacity-100 active:scale-[.97] max-md:opacity-100`}
+                        >
+                          <X size={12} strokeWidth={2.75} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {/* THE NOTE, AND NOTHING WHERE THERE IS NONE — no empty line,
+                      no dash, no placeholder. Eighteen of eighteen seeded rows
+                      are in that state, so it is the normal one and drawing a
+                      gap for it would cost every row to annotate a few.
+
+                      IT RUNS THE ROW'S FULL WIDTH and does not reserve the ✕
+                      column: the ✕ is a child of the line above and centred on
+                      it, so nothing sits over this one. Reserving it costs a
+                      fourth line at the narrow shell, which would move the cap —
+                      the width and the 100 are one decision, and the figures are
+                      in `design/extensions/withholding-and-note.dc.html` T5. It
+                      wraps rather than truncating, because a note the row hides
+                      is a note nobody can read back. */}
+                  {!asking && tx.note !== undefined && (
+                    <div className="mt-0.5 text-[11px] leading-4 [overflow-wrap:anywhere] text-muted">
+                      {tx.note}
+                    </div>
                   )}
                 </div>
               );

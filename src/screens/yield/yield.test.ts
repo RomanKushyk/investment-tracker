@@ -164,18 +164,43 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
     expect(row.xirr).toBeCloseTo(0.08, 9);
   });
 
-  it('a tax row is a negative flow: xirr drops below the no-tax rate (net-of-tax wiring)', () => {
-    const tax: Transaction = {
-      id: 't1',
+  // THE SILENT ONE. `assetCashFlows` used to push a `tax` row as its own
+  // negative flow, and that is what netted the series to net-of-tax at each
+  // date. Deleting that case without netting the PAYOUT by `taxWithheld` turns
+  // every per-asset XIRR from net to gross with no type error, no failing test
+  // and nothing visible on screen — so the pin is a payout carrying a
+  // withholding against the SAME payout without one.
+  it('a payout nets by its withholding: xirr drops below the same payout untaxed', () => {
+    const payout = (taxWithheld?: number): Transaction => ({
+      id: 'p1',
       date: '2026-07-01',
-      type: 'tax',
+      type: 'interest_payout',
       assetId: 'a1',
-      amount: 30,
+      amount: 100,
       source: 'own',
+      ...(taxWithheld === undefined ? {} : { taxWithheld }),
+    });
+    const gross = yieldTableRows([asset], oneYearLater, [buy, payout()])[0].xirr!;
+    const net = yieldTableRows([asset], oneYearLater, [buy, payout(30)])[0].xirr!;
+    expect(net).toBeLessThan(gross);
+  });
+
+  it('a withholding equal to the whole payout leaves the flow at zero, not negative', () => {
+    // The store forbids it (`tax_withheld < amount`), so this pins the ARITHMETIC
+    // rather than a reachable state: the payout's own flow is `amount − withheld`
+    // and never flips sign, which a naive `push(-withheld)` beside `push(amount)`
+    // would also give — but only because the two happen to land on one date.
+    const full: Transaction = {
+      id: 'p1',
+      date: '2026-07-01',
+      type: 'interest_payout',
+      assetId: 'a1',
+      amount: 100,
+      source: 'own',
+      taxWithheld: 100,
     };
-    const noTax = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
-    const withTax = yieldTableRows([asset], oneYearLater, [buy, tax])[0].xirr!;
-    expect(withTax).toBeLessThan(noTax);
+    const none = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
+    expect(yieldTableRows([asset], oneYearLater, [buy, full])[0].xirr!).toBeCloseTo(none, 9);
   });
 
   it('deposit/withdrawal rows carrying the assetId are NOT asset flows (portfolio-level cash)', () => {

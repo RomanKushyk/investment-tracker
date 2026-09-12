@@ -27,7 +27,7 @@ describe('priceParts', () => {
   });
 
   it('leaves the price absent when there is no quantity to divide by', () => {
-    // A payout, a tax, a deposit — or a purchase whose units were not recorded,
+    // A payout, a deposit — or a purchase whose units were not recorded,
     // which is every row entered before #31. A price is never invented from a
     // total alone.
     expect(priceParts({ amount: 700.36, priceMode: 'total' })).toEqual({ amount: 700.36 });
