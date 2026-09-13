@@ -307,6 +307,28 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
       expect([name, userStack.run?.includes(`"${name}=`)]).toEqual([name, true]);
     }
   });
+
+  // AND EVERY PARAMETER THAT DOES HAVE A DEFAULT IS PASSED ONLY WHEN IT HAS A VALUE.
+  // `sam deploy` refuses an empty one — `GoogleClientId=` is "not a valid format" and the
+  // command dies before making a single AWS call — so a template `Default: ''` does NOT
+  // make an unset secret a supported state on its own. Measured on the first real deploy,
+  // which failed there; nothing but the argument list can fix it, because the parser that
+  // refuses is the CLI's rather than CloudFormation's.
+  it('guards an optional parameter instead of passing it empty', () => {
+    const [userStack] = deploys;
+    const optional = Object.entries(user.Parameters ?? {})
+      .filter(([, p]) => 'Default' in p)
+      .map(([name]) => name);
+    expect(optional.length).toBeGreaterThan(0);
+    for (const name of optional) {
+      if (!userStack.run?.includes(`"${name}=`)) continue;
+      // Named in the deploy, so the step has to decide whether to pass it rather than
+      // always doing so. The shell variable it reads is the assertion — `GoogleClientId`
+      // is carried by `GOOGLE_CLIENT_ID`, the spelling the `env:` block below uses.
+      const variable = name.replace(/(?!^)([A-Z])/g, '_$1').toUpperCase();
+      expect([name, userStack.run.includes(`-n "$${variable}"`)]).toEqual([name, true]);
+    }
+  });
 });
 
 describe('migrate.yml names the stack its target chose', () => {

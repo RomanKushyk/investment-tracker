@@ -310,14 +310,27 @@ jobs:
       - name: Deploy the user stack
         working-directory: infra
         run: |
+          # THE GOOGLE PAIR IS PASSED ONLY WHEN IT IS SET, because `sam deploy` REFUSES an
+          # empty value: `GoogleClientId=` is "not a valid format" and the command dies
+          # before it makes a single AWS call. Measured on the first real deploy, where the
+          # template's own `Default: ''` had made an unset secret look supported. It is the
+          # CLI's parser, not CloudFormation's — which is why nothing but the argument list
+          # can fix it, and why the failure left no stack behind.
+          #
+          # Omitting a parameter is not the same as clearing it: on a CREATE it falls back
+          # to the template's empty `Default` and `HasGoogle` stays false, which is the
+          # state this is for; on an UPDATE it keeps the previous value. So unsetting the
+          # secrets in GitHub does not remove a provider that already exists — deleting it
+          # is a deliberate act, which is the safer direction for a resource whose users
+          # have accounts hanging off it.
+          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}")
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            overrides+=("GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
+          fi
           sam deploy \
             --template-file template-user.yaml \
             --stack-name "quirenote-backend-user-${ENVIRONMENT}" \
-            --parameter-overrides \
-              "Environment=${ENVIRONMENT}" \
-              "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" \
-              "GoogleClientId=${GOOGLE_CLIENT_ID}" \
-              "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}" \
+            --parameter-overrides "${overrides[@]}" \
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
             --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
