@@ -230,18 +230,29 @@ all. So every create and every update of this API goes through PUT. Without it t
 transform over `template-user.yaml` and reading the generated `Body`, rather than by watching a
 deploy fail.
 
-**Added by hand from a readback, so RECONCILE THIS STATEMENT BEFORE THE FIRST DEPLOY.** The grant
-went on the role before the branch that needed it, written from a `get-role-policy` readback with
-the change applied to what came back — the practice [`role-deploy.md`](role-deploy.md) states,
-because `put-role-policy` REPLACES the whole inline document. The three actions above were then
-reasoned out from the transform's own output and from what a certificate-carrying domain name
-checks, AFTER that grant was written, so the live policy is likely to be missing them. One
-`aws iam get-role-policy` against `quirenote-backend-cfn-execPolicy` settles what is actually
-there, and the fix is the same readback. A statement live in the account and absent from this
-page is the worse of the two failures — an incomplete page fails a deploy loudly, while a wrong
-one is what the next reader plans against. `acm:DescribeCertificate` on the two certificate ARNs
-is the likeliest fourth if the domain name still fails after these: this role holds no `acm:*` at
-all, and sources disagree about whether API Gateway checks it as the caller or looks it up itself.
+**Added by hand from a readback, and the live role IS missing `apigateway:PUT` — the deploy that
+introduced this API failed on it.** The grant went on the role before the branch that needed it,
+written from a `get-role-policy` readback with the change applied to what came back — the practice
+[`role-deploy.md`](role-deploy.md) states, because `put-role-policy` REPLACES the whole inline
+document. `PUT` and the two certificate actions were reasoned out afterwards, so they are on this
+page and not yet on the role. Reconcile with the same readback:
+
+```bash
+aws iam get-role-policy --role-name quirenote-backend-cfn-exec \
+  --policy-name quirenote-backend-cfn-execPolicy
+```
+
+**The ARN it fails on first is a TAGS one, not `/apis`**, which is worth knowing before adding the
+verb to the wrong resource:
+`arn:aws:apigateway:eu-north-1::/tags/arn%3Aaws%3Aapigateway%3Aeu-north-1%3A%3A%2Fdomainnames%2Fapi.dev.quirenote.com`.
+SAM tags every resource it generates and API Gateway's tagging call is a `PUT`, so the domain name
+trips it before the API is ever imported. `/tags/*` is already in the Resource list above; it was
+only ever the ACTION that was missing. A failed UPDATE rolls the stack back cleanly, so the cost of
+finding this out was a red CI run rather than an orphan.
+
+`acm:DescribeCertificate` on the two certificate ARNs is the likeliest next one if the domain name
+still fails after all three: this role holds no `acm:*` at all, and sources disagree about whether
+API Gateway checks it as the caller or looks the certificate up itself.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 
