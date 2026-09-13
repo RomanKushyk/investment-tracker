@@ -293,8 +293,18 @@ within an environment precisely so the two need not agree. Managed login runs on
 from the first deploy, `auth.quirenote.com` and `auth.dev.quirenote.com`, and the passkey relying
 party is pinned to it. Registration is an APPLICATION, not an open door: sign-up writes a row and
 creates no identity, a super-admin approves, and approval is what creates the account and sends the
-one invitation. Identity lives in the provider; status and role live in the application row, which
-the API checks on every request. Three sign-in methods — password, social, passkey — one account per
+one invitation. So the application row is written BEFORE the identity that owns it, and `user_id`
+holds the Cognito `sub` — which does not exist yet. The endpoint writes a PLACEHOLDER and approval
+replaces the row with the real `sub`: a pending row owns nothing, so no foreign key is disturbed
+and the applied schema is left exactly as it is on both clusters. Identity lives in the provider;
+status and role live in the application row, which the API checks on every request. The
+application endpoint's own defences are three, all free and all structural: ROUTE-LEVEL THROTTLING
+beneath the stage's, because an unauthenticated route left on the stage default drains the
+account's token bucket and takes every other route down with it; a unique index on the address, so
+one mailbox submitted a thousand times is one row; and NO MAIL ON SUBMISSION, because mailing on
+submission would let anyone type a stranger's address and have this domain deliver to it. Only the
+throttle touches a flood of DISTINCT addresses — the index cannot, and the `+tag` spellings of one
+real mailbox are distinct to it. Three sign-in methods — password, social, passkey — one account per
 email, by the pool's username attribute **and its case setting, both fixed at creation** (see
 [`reference/COGNITO-POOL-PARAMS.md`](reference/COGNITO-POOL-PARAMS.md)), by a database that refuses an
 address which is not already lower-cased, and by a pre-sign-up trigger that links a federated identity

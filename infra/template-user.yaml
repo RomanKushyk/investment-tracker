@@ -38,6 +38,20 @@ Parameters:
     # its ARN carries the account id, which this public repository does not hold.
     # Supplied by `deploy-backend.yml` from the environment's secrets.
 
+  ApiCertificateArn:
+    Type: String
+    MinLength: 1
+    AllowedPattern: ^arn:aws:acm:eu-north-1:\d{12}:certificate/.+$
+    ConstraintDescription: must be an ACM certificate ARN in eu-north-1
+    # THE REGION IS THE OPPOSITE OF THE ONE ABOVE, and copying that pattern is how the
+    # mistake gets made. An HTTP API custom domain is REGIONAL — there is no other kind
+    # for an HTTP API — and AWS requires a Region-specific certificate in the same Region
+    # as the API. So the only valid value here is one `AuthCertificateArn` would reject,
+    # and the reverse: the pool's is fronted by CloudFront, which is global and reads
+    # us-east-1 only. One certificate covers api.quirenote.com and api.dev.quirenote.com
+    # and serves both stacks, exactly as the auth one does.
+    # Same no-default, same constraint, for the reasons written out above.
+
   GoogleClientId:
     Type: String
     Default: ''
@@ -440,6 +454,149 @@ Resources:
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
+  # --------------------------------------------------------------------------
+  # The public API
+  # --------------------------------------------------------------------------
+  # THE FIRST HTTP API IN THIS REPOSITORY, and it carries one route. The authenticated
+  # routes and the JWT authorizer arrive with the approval endpoint and inherit this API
+  # rather than creating a second one.
+  #
+  # `POST /v1/applications` STANDS OUTSIDE THE AUTHORIZER ON PURPOSE. It exists to create
+  # the very `app_user` row every other route is checked against, so there is nothing to
+  # check it with — `docs/DECISIONS.md`, **Auth model**, names it as one of exactly three
+  # such surfaces.
+  #
+  # NO `Globals:` BLOCK, here as everywhere in this file: properties are spelled out so
+  # there is one place per value rather than two that can drift.
+  PublicApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # THE DEFINITION IS IMPORTED, NOT ASSEMBLED FIELD BY FIELD: SAM builds an OpenAPI
+      # body from the properties below and CloudFormation sends it through ImportApi, which
+      # by default keeps going when it does not understand something and merely records a
+      # warning. That is how the CORS block below could have shipped as the wrong shape
+      # with every stack green. Rolling back on a warning is what makes such a thing loud.
+      FailOnWarnings: true
+      # NO `StageName`, so the stage is `$default` and the path is the same on both
+      # hostnames. A named stage prefixes the generated endpoint and not the custom
+      # domain, which would make the verification URL and the real one differ by a
+      # segment — and that difference is only ever discovered by whoever is holding it.
+      #
+      # THE DEFAULT `execute-api` HOSTNAME STAYS ON. The Cloudflare records below cannot
+      # exist until this stack has deployed once and published the target, so the
+      # generated hostname is the only way to reach the route before DNS. Disabling it
+      # also requires an explicit OpenAPI `DefinitionBody`, which is a second description
+      # of routes this template already declares.
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 25
+        ThrottlingBurstLimit: 50
+      # THE ROUTE'S OWN CEILING, UNDER THE STAGE'S, AND THIS IS WHAT WAF IS USUALLY BOUGHT
+      # FOR. It is the only defence this endpoint has against a flood of DISTINCT addresses:
+      # `app_user_email_uq` collapses one mailbox submitted a thousand times into one row
+      # and can do nothing about a thousand different ones. What the throttle protects is
+      # not the table but the account-level token bucket — an unauthenticated route left on
+      # the stage default drains it and takes every other route down with it, including the
+      # ones a signed-in owner needs to reach their own portfolio.
+      #
+      # QUOTED, because the key is `<METHOD> <path>` and YAML 1.1 reads a bare ON/OFF/NO/YES
+      # as a boolean. A key that arrived as `true` would configure nothing and fail nowhere.
+      RouteSettings:
+        'POST /v1/applications':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+      # BOTH HOSTS PER ENVIRONMENT, because both serve the app: the custom domain and the
+      # Amplify one the branch deploys to (`docs/reference/DEPLOYMENT.md`). A list naming
+      # only the first leaves the Amplify URL failing at the preflight — and that URL is
+      # what a deploy is checked on.
+      #
+      # THE `!If` IS ON THE WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS
+      # SILENT. SAM builds the OpenAPI extension itself, and when it finds an intrinsic at
+      # `AllowOrigins` it takes a branch that keeps ONLY that value and DROPS the methods,
+      # the headers and the max-age — emitting an `x-amazon-apigateway-cors` that resolves
+      # to a bare list where an object belongs. Measured by running the transform. Given
+      # the intrinsic one level up it instead renames the keys inside both arms, which is
+      # what that branch is written for. The cost is the three shared lines twice, and
+      # `public-api.test.ts` holds both arms to them.
+      CorsConfiguration: !If
+        - IsProd
+        - AllowOrigins:
+            [
+              https://quirenote.com,
+              https://www.quirenote.com,
+              https://main.d17m4jf400my6.amplifyapp.com,
+            ]
+          AllowMethods: [POST, OPTIONS]
+          AllowHeaders: [content-type]
+          MaxAge: 600
+        - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
+          AllowMethods: [POST, OPTIONS]
+          AllowHeaders: [content-type]
+          MaxAge: 600
+      Domain:
+        DomainName: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
+        CertificateArn: !Ref ApiCertificateArn
+        # REGIONAL is the only value an HTTP API takes, and it is what puts the
+        # certificate in this Region rather than us-east-1. Written out rather than
+        # defaulted, because it is the reason the parameter above differs from the pool's.
+        EndpointConfiguration: REGIONAL
+        SecurityPolicy: TLS_1_2
+        # NO `Route53:` BLOCK. SAM creates a record set when one is present, in a hosted
+        # zone this account does not have — DNS is Cloudflare's. The record is added by
+        # hand from the ApiDomainRegionalTarget output below, DNS-only; see
+        # docs/reference/DEPLOYMENT.md for why it cannot be proxied.
+
+  ApplicationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: applications.handler
+      # Spelled out rather than inherited, as the two above are and for the same reason.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # TIMEOUT × RATE IS A CONCURRENCY BUDGET, and on this account that is the binding
+      # constraint rather than API Gateway's. The runner's comment above records why:
+      # reserving even one execution drops the unreserved pool below the required minimum
+      # of 10, so the account's pool is about that size and EVERY function in both stacks
+      # shares it. At the route's allowed 2 rps a 15-second timeout would want ~30
+      # concurrent executions and starve the capture job, the sign-up trigger and the
+      # runner; 5 keeps the ask at ~10. The work is one INSERT — what spends the time is
+      # the cold start and the IAM auth token, and `pre-signup` does its own round trip
+      # inside 5. The real instrument is `ReservedConcurrentExecutions`, which needs a
+      # quota increase before it can be used at all.
+      Timeout: 5
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+      Policies:
+        - Statement:
+            # THE SAME ADMIN GRANT THE RUNNER HOLDS, and it is the widest thing about this
+            # endpoint. DSQL authenticates as a database role and the only one this
+            # cluster has is `admin`; a narrower one would have to be created by a
+            # migration, which is a schema decision rather than this route's. What bounds
+            # the reach meanwhile is the handler: one statement, fixed text, one bound
+            # parameter.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+      Events:
+        Submit:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /v1/applications
+
+  ApplicationsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ApplicationsFunction}
+      RetentionInDays: 30
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier
@@ -462,3 +619,21 @@ Outputs:
   # resolves nowhere — the same shape of half-done state as an empty user cluster.
   UserPoolDomainCloudFrontAlias:
     Value: !GetAtt UserPoolDomain.CloudFrontDistribution
+  ApiDomain:
+    Value: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
+  # THE SAME ONE NOBODY CAN CONSTRUCT, one service along. API Gateway builds a regional
+  # endpoint for the custom domain and names it itself; the Cloudflare record points at
+  # this exact name, DNS-only, and until it exists the stack is green and the hostname
+  # resolves nowhere.
+  #
+  # READ THROUGH SAM'S REFERENCEABLE PROPERTY RATHER THAN THE GENERATED LOGICAL ID. The
+  # transform creates the AWS::ApiGatewayV2::DomainName under a hashed id and AWS
+  # documents that the hash may change, so `PublicApi.DomainName` is the only stable way
+  # to reach it.
+  ApiDomainRegionalTarget:
+    Value: !GetAtt PublicApi.DomainName.RegionalDomainName
+  # The hostname that works BEFORE the record above exists, which is what the endpoint is
+  # verified against on a first deploy. Constructed, unlike the two above, because every
+  # part of it but the API id is fixed and the id is the `!Ref`.
+  ApiEndpoint:
+    Value: !Sub https://${PublicApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}

@@ -110,15 +110,22 @@ describe('the user stack holds user data and nothing else', () => {
   // An ALLOW-list, not a deny-list of the archive's types. A deny-list is a hole
   // where the next archive resource goes.
   //
-  // It grew from three types to ten when the pool arrived, and the widening is the
-  // point rather than a concession: identity splits per environment exactly as user
-  // data does (`docs/DECISIONS.md`, **Auth model**), so the pool belongs beside the
-  // cluster it matches and the list has to say so out loud. What the list still
-  // refuses is the archive's half — a schedule, a DLQ, a metric filter, an alarm.
+  // It grew from three types to ten when the pool arrived and to eleven when the API
+  // did, and the widening is the point rather than a concession: identity splits per
+  // environment exactly as user data does (`docs/DECISIONS.md`, **Auth model**), so the
+  // pool belongs beside the cluster it matches and the list has to say so out loud. The
+  // API is here on the same argument — it is the door to those rows and to no others.
+  // What the list still refuses is the archive's half — a schedule, a DLQ, a metric
+  // filter, an alarm.
+  //
+  // ONE ENTRY FOR THE API, not four, because `Domain:` is SAM's sugar: the transform
+  // generates the `AWS::ApiGatewayV2::DomainName`, `::ApiMapping` and `::Stage` beside
+  // it, and this test reads the template's source rather than its transform output.
   it('uses only the resource types user data and its identity need', () => {
     const allowed = new Set([
       CLUSTER,
       'AWS::Serverless::Function',
+      'AWS::Serverless::HttpApi',
       'AWS::Logs::LogGroup',
       'AWS::Cognito::UserPool',
       'AWS::Cognito::UserPoolClient',
@@ -131,10 +138,14 @@ describe('the user stack holds user data and nothing else', () => {
     for (const [id, r] of resources(user)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
 
-  // TWO FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
-  // asserted while there was one; a count passes just as well against the wrong pair.
-  it('holds the runner and the sign-up trigger, and nothing else', () => {
-    expect(handlers(user).sort()).toEqual(['migrate.handler', 'pre-signup.handler']);
+  // THREE FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
+  // asserted while there was one; a count passes just as well against the wrong set.
+  it('holds the runner, the sign-up trigger and the applications endpoint, and nothing else', () => {
+    expect(handlers(user).sort()).toEqual([
+      'applications.handler',
+      'migrate.handler',
+      'pre-signup.handler',
+    ]);
   });
 
   it('its runner is pointed at the USER cluster', () => {
@@ -275,6 +286,26 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(entries.length).toBeGreaterThan(0);
     for (const entry of entries)
       expect([entry, bundle?.run?.includes(entry)]).toEqual([entry, true]);
+  });
+
+  // AND EVERY BUNDLE IS SMOKE-TESTED, which the guard above looks like it covers and does
+  // not. The bundle step's list is a shell loop the test reads; the smoke step's was a
+  // HAND-KEPT `cp` line, so a fourth handler was bundled, deployed and never loaded once —
+  // green, because the only derived assertion in this file stops at esbuild. A bundle that
+  // is never `require`d is exactly the failure the step exists to catch: esbuild resolving
+  // an import it cannot, or `infra/`'s `"type": "module"` meeting a cjs `require`.
+  //
+  // BOTH HALVES ARE ASSERTED. The copy alone would pass against a step that carries the
+  // file into the directory and never opens it, which is the state a hand-kept list drifts
+  // into first.
+  it('smoke-tests every bundle it copies, and copies every one it bundles', () => {
+    const smoke = steps.find((s) => s.run?.includes('bundle-check'));
+    const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));
+    expect(smoke).toBeDefined();
+    for (const entry of entries) {
+      expect([entry, smoke?.run?.includes(`dist/${entry}.js`)]).toEqual([entry, true]);
+      expect([entry, smoke?.run?.includes(`require('./${entry}.js')`)]).toEqual([entry, true]);
+    }
   });
 
   // ONE RESOLUTION, USED TWICE. The job's environment decides which credentials the job

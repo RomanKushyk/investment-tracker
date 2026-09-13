@@ -53,6 +53,22 @@ Inline permission policy:
       "Resource": "arn:aws:cognito-idp:eu-north-1:<account-id>:userpool/*"
     },
     {
+      "Sid": "HttpApi",
+      "Effect": "Allow",
+      "Action": ["apigateway:GET", "apigateway:POST", "apigateway:PATCH",
+                 "apigateway:PUT", "apigateway:DELETE",
+                 "apigateway:AddCertificateToDomain",
+                 "apigateway:RemoveCertificateFromDomain"],
+      "Resource": ["arn:aws:apigateway:eu-north-1::/apis",
+                   "arn:aws:apigateway:eu-north-1::/apis/*",
+                   "arn:aws:apigateway:eu-north-1::/domainnames",
+                   "arn:aws:apigateway:eu-north-1::/domainnames/api.quirenote.com",
+                   "arn:aws:apigateway:eu-north-1::/domainnames/api.quirenote.com/*",
+                   "arn:aws:apigateway:eu-north-1::/domainnames/api.dev.quirenote.com",
+                   "arn:aws:apigateway:eu-north-1::/domainnames/api.dev.quirenote.com/*",
+                   "arn:aws:apigateway:eu-north-1::/tags/*"]
+    },
+    {
       "Sid": "Function",
       "Effect": "Allow",
       "Action": ["lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction",
@@ -183,6 +199,49 @@ own `PreSignUpPolicy`. It is unavoidable only on the first deploy, when neither 
 afterwards both ARNs are known and can be enumerated here, which is what the paragraph above
 prescribes for every other resource. Left as a wildcard for now, knowingly, and narrowing it is
 the follow-up rather than a thing this file pretends is already done.
+
+**`HttpApi` splits the difference the paragraph above could not, and half of it is narrowed.**
+`/apis/*` cannot be: an HTTP API is addressed by a generated id rather than by the name the stack
+gives it, so there is nothing stable to enumerate — the same compromise `Identity` makes with
+`userpool/*`, for the same reason and with the same reach across both environments. The DOMAIN
+NAMES are different in kind: `api.quirenote.com` and `api.dev.quirenote.com` are chosen rather
+than generated, so both are written out and this role holds nothing on any other hostname. That
+is the whole of what the split buys, and it is worth having: a domain name is the part an
+attacker would want.
+
+**Two of the seven actions are not HTTP verbs at all, and nothing about the template hints at
+them.** `AddCertificateToDomain` and `RemoveCertificateFromDomain` are permission-only actions —
+they name no API operation, so reading the CloudFormation resource list never produces them.
+API Gateway checks `AddCertificateToDomain` on `/domainnames` when a domain name is created
+carrying a `CertificateArn`, which is exactly what `PublicApi`'s `Domain` block asks for, and the
+`Remove` twin on the delete path. Without them the FIRST deploy fails on
+`apigateway:AddCertificateToDomain`, the stack rolls back, and `UserCluster`'s `Retain` leaves
+behind the deletion-protected orphan the rename trap above describes.
+
+**`apigateway:PUT` IS NOT OPTIONAL HERE EITHER, and the reason is not obvious enough to leave
+implicit.**
+It reads as the REST import verb, which is why it was left out at first. But `PUT /v2/apis` is
+`ImportApi` and `PUT /v2/apis/{apiId}` is `ReimportApi`, both of which take an OpenAPI `body` —
+and `AWS::Serverless::HttpApi` ALWAYS produces one: SAM assembles the routes and the CORS block
+into a definition body, which is the only reason `CorsConfiguration` works on this resource at
+all. So every create and every update of this API goes through PUT. Without it the deploy fails
+`apigateway:PUT on arn:aws:apigateway:eu-north-1::/apis`, and the second failure — on
+`/apis/<id>` — waits for the first update that changes a route. Established by running the SAM
+transform over `template-user.yaml` and reading the generated `Body`, rather than by watching a
+deploy fail.
+
+**Added by hand from a readback, so RECONCILE THIS STATEMENT BEFORE THE FIRST DEPLOY.** The grant
+went on the role before the branch that needed it, written from a `get-role-policy` readback with
+the change applied to what came back — the practice [`role-deploy.md`](role-deploy.md) states,
+because `put-role-policy` REPLACES the whole inline document. The three actions above were then
+reasoned out from the transform's own output and from what a certificate-carrying domain name
+checks, AFTER that grant was written, so the live policy is likely to be missing them. One
+`aws iam get-role-policy` against `quirenote-backend-cfn-execPolicy` settles what is actually
+there, and the fix is the same readback. A statement live in the account and absent from this
+page is the worse of the two failures — an incomplete page fails a deploy loudly, while a wrong
+one is what the next reader plans against. `acm:DescribeCertificate` on the two certificate ARNs
+is the likeliest fourth if the domain name still fails after these: this role holds no `acm:*` at
+all, and sources disagree about whether API Gateway checks it as the caller or looks it up itself.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 

@@ -24,6 +24,8 @@ Deployment). Region: **`eu-north-1`** (Stockholm). App name: `kubushka` in the c
 | CNAME | `www` | `d2jaridkoub072.cloudfront.net` |
 | CNAME | `auth` | the PROD stack's `UserPoolDomainCloudFrontAlias` output |
 | CNAME | `auth.dev` | the DEV stack's — read from the stack, never constructed |
+| CNAME | `api` | the PROD stack's `ApiDomainRegionalTarget` output |
+| CNAME | `api.dev` | the DEV stack's — read from the stack, never constructed |
 
 DNS is Cloudflare's, not Route 53's — Amplify issues its own free ACM certificate for third-party DNS. **Every HTTP record is
 PROXIED; everything else is DNS-only:**
@@ -31,8 +33,9 @@ PROXIED; everything else is DNS-only:**
 | Record | Mode | Why |
 |---|---|---|
 | `@`, `www`, `dev` | **proxied** | caches immutable assets, absorbs floods, hides the origin — all three share one CloudFront distribution, so a grey record would publish it for all |
-| `_f2385149…` (ACM validation) | dns-only | a proxied CNAME answers with Cloudflare's own address, so ACM never sees what it asked for |
+| `_f2385149…` and every other ACM validation name | dns-only | a proxied CNAME answers with Cloudflare's own address, so ACM never sees what it asked for. There is one pair per certificate, and the API's certificate added its own |
 | `auth`, `auth.dev` | **dns-only** | Cognito's managed-login distribution is matched by host and served under a certificate naming it; proxied, Cloudflare answers as itself and the distribution never sees the name it was built for. Same failure as the row above, one layer later |
+| `api`, `api.dev` | **dns-only** | an API Gateway custom domain has both of those properties too — matched by host, served under a certificate naming it — so it takes the same treatment for the same reason. The headline rule above says the opposite, which is why this row carries its reason rather than leaving it to be rediscovered |
 | DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP |
 
 `public/robots.txt` carries `User-agent: * / Disallow: /` — production is closed to crawlers until sign-up ships. **Never pair
@@ -81,6 +84,17 @@ than clicked into existence in the branding editor. Its certificate is in
 **us-east-1** whatever region the pool is in — the distribution is global — and it covers both
 `auth.quirenote.com` and `auth.dev.quirenote.com`, so one certificate serves both stacks and its
 ARN is the `AUTH_CERTIFICATE_ARN` secret on both environments.
+
+**A new API resolves nowhere either, and for the same reason one step along.** The stack creates
+the HTTP API and its custom domain; the `api` record is Cloudflare's and manual, and until it
+exists the hostname resolves nowhere while the stack reads green. The regional endpoint's name is
+generated, so take it from the stack's `ApiDomainRegionalTarget` output rather than constructing
+it. What differs from the pool is the certificate's Region: an HTTP API custom domain is
+**REGIONAL**, and ACM requires the certificate in the API's own Region — **eu-north-1**, not
+us-east-1. It covers `api.quirenote.com` and `api.dev.quirenote.com`, so one certificate serves
+both stacks and its ARN is the `API_CERTIFICATE_ARN` secret on both environments. Meanwhile the
+API's generated `execute-api` hostname is left enabled and is what the route is verified against
+before the record exists; the stack publishes it as `ApiEndpoint`.
 
 **A new user cluster is EMPTY, and the deploy does not fill it.** Creating the stack creates the database and the runner; the
 schema arrives only when someone dispatches `migrate.yml` against it — `rehearse`, then `dry-run`, then `apply`. Until that

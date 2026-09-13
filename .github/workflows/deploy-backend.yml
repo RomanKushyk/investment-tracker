@@ -154,15 +154,20 @@ jobs:
       # parser the handler deliberately imports rather than duplicates — is not
       # present when they run. Running esbuild against the real checkout is the
       # only way to keep one parser and one source of truth.
-      # TWO ENTRY POINTS, ONE dist/. `sam deploy` packages the CodeUri directory
-      # as-is and both functions point at it, so the migration handler costs one
+      # ONE dist/, ONE ENTRY POINT PER HANDLER. `sam deploy` packages the CodeUri
+      # directory as-is and every function points at it, so each handler costs one
       # more esbuild invocation and no second artifact. Same flags for the same
       # reasons — cjs because `pg` is CommonJS, `pg-native` external because it
       # is optional and not installed.
+      #
+      # THE LIST IS HELD TO THE TEMPLATES, not counted here: `stack-split.test.ts`
+      # derives it from every `Handler:` the two templates declare, so a handler
+      # added to one and forgotten here fails the suite rather than the first
+      # invocation of a function whose file was never built.
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup; do
+          for entry in capture migrate pre-signup applications; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -187,7 +192,11 @@ jobs:
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js /tmp/bundle-check/
+          # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept and the
+          # guard beside it was not: `stack-split.test.ts` derived its check from the
+          # esbuild step alone, so a handler could be bundled, deployed and never loaded
+          # once while the test that looked like it covered this passed.
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
@@ -269,6 +278,38 @@ jobs:
                 console.log('pre-signup bundle loads and links only a verified address');
               }).catch((e) => { console.error(e); process.exit(1); });
           "
+          # The applications endpoint, and the reason it is exercised rather than merely
+          # loaded is the same as the trigger's, one step further out: this route is
+          # UNAUTHENTICATED, so a bundle that fails to load fails it for a stranger with
+          # no account to complain from. The two cases are the two halves of the contract
+          # — a valid address is accepted, and an address the cluster would refuse is
+          # turned away before the cluster is asked anything.
+          node -e "
+            const a = require('./applications.js');
+            if (typeof a.handler !== 'function') throw new Error('handler missing from applications bundle');
+            const asked = [];
+            const client = { query: async (text, values) => { asked.push({ text, values }); return { rows: [] }; } };
+            const submit = (email) => ({ body: JSON.stringify({ email }), isBase64Encoded: false });
+            Promise.all([
+              a.applications(client, submit('New@Quirenote.com')),
+              // Escaped rather than typed: the character is the point — a capital I with
+              // a dot, which JavaScript folds to two codepoints and Postgres does not —
+              // and a non-ASCII byte inside a shell string inside YAML has too many
+              // places to be re-encoded on the way to node.
+              a.applications(client, submit(String.fromCharCode(304) + 'REN@quirenote.com')),
+            ]).then(([ok, bad]) => {
+              if (ok.statusCode !== 202) throw new Error('valid address not accepted: ' + ok.statusCode);
+              if (bad.statusCode !== 400) throw new Error('bad address not refused: ' + bad.statusCode);
+              // One statement for two submissions, and the address already folded: the
+              // refusal never reached the cluster, and the acceptance was bound rather
+              // than interpolated.
+              if (asked.length !== 1) throw new Error('cluster asked ' + asked.length + ' times, wanted 1');
+              if (asked[0].values[0] !== 'new@quirenote.com') {
+                throw new Error('address not folded: ' + asked[0].values[0]);
+              }
+              console.log('applications bundle loads, accepts one address and refuses the other');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
 
       # NO DEPLOY GATE HERE, AND THAT IS A DECISION RATHER THAN AN OMISSION.
       # `paths` now includes `.github/**` and the root manifests so the gates run on
@@ -323,7 +364,13 @@ jobs:
           # secrets in GitHub does not remove a provider that already exists — deleting it
           # is a deliberate act, which is the safer direction for a resource whose users
           # have accounts hanging off it.
-          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}")
+          # THE TWO CERTIFICATES ARE BOTH UNCONDITIONAL, because neither parameter has a
+          # default: there is no value that would be right, so an unset secret has to fail
+          # rather than resolve. It fails in the same place the Google pair would — this
+          # CLI's own parser, on `ApiCertificateArn=`, before a single AWS call — and the
+          # template's pattern is the second net, for a value that is set but wrong. They
+          # are different ARNs in different Regions and neither is a fallback for the other.
+          overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}")
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             overrides+=("GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
           fi
@@ -341,14 +388,20 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
-          # The certificate is us-east-1's and its ARN carries the account id; the two
-          # Google values are the OAuth client's. None of the three may be written into
-          # this repository, so all three arrive from the environment's secrets.
+          # TWO CERTIFICATES, IN TWO REGIONS, AND NEITHER SUBSTITUTES FOR THE OTHER. The
+          # pool's is us-east-1's, because a Cognito custom domain is fronted by
+          # CloudFront; the API's is eu-north-1's, because an HTTP API custom domain is
+          # regional and ACM requires the certificate in the API's own Region. Each covers
+          # both of its hostnames, so one of each serves both environments. Their ARNs
+          # carry the account id and the two Google values are the OAuth client's — none
+          # of the four may be written into this repository, so all four arrive from the
+          # environment's secrets.
           #
           # GOOGLE UNSET IS A SUPPORTED STATE, not a broken one: an empty id leaves the
           # template's `HasGoogle` false, the provider uncreated and the pool on password
           # and passkey. That is what lets the pool ship before the OAuth client exists.
           AUTH_CERTIFICATE_ARN: ${{ secrets.AUTH_CERTIFICATE_ARN }}
+          API_CERTIFICATE_ARN: ${{ secrets.API_CERTIFICATE_ARN }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
