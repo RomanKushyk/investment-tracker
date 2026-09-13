@@ -229,13 +229,27 @@ to `role/quirenote-backend-*` and a service-linked role lives under `role/aws-se
 it needs a statement of its own, scoped to the one role and conditioned on the one service. It is
 needed ONCE per account: every later deploy finds the role already there.
 
-**TAGGING IS CHECKED TWO WAYS, AND THE SECOND ONE IS A DIFFERENT ACTION ON A DIFFERENT ARN.**
+**TAGGING IS CHECKED TWO WAYS, AND THE SECOND WAY ASKS FOR AN ACTION AWS DOES NOT DOCUMENT.**
 Creating the domain name was refused as `apigateway:PUT` on
-`…::/tags/<url-encoded resource arn>`; creating the STAGE was refused as `apigateway:TagResource`
-on the resource's own path, `…::/apis/<api-id>/stages`. Same cause — SAM tags everything it
-generates — and neither grant covers the other, so both are here and `UntagResource` comes with
-its twin for the update and delete paths. The resource list already reached both ARNs; each time
-it was only the action that was missing.
+`…::/tags/<url-encoded resource arn>` — an ordinary verb on the tags ARN, already reachable here.
+Creating the STAGE was refused as **`apigateway:TagResource`** on the resource's own path,
+`…::/apis/<api-id>/stages`, and that name appears NOWHERE in the Service Authorization Reference
+for API Gateway: the documented non-verb actions are `AddCertificateToDomain`,
+`RemoveCertificateFromDomain`, `SetWebACL` and `UpdateRestApiPolicy`. The service is reporting an
+SDK operation name where an IAM action name belongs, so the IAM console's visual editor will not
+offer it and cannot be used to add it — write the JSON, through `put-role-policy`.
+
+**The tag cannot be declined instead.** `samtranslator`'s HTTP API generator sets
+`tags["httpapi:createdBy"] = "SAM"` unconditionally and hands the result to both the stage and the
+domain name; no template property suppresses it. The choices are this grant, or hand-declaring
+`AWS::ApiGatewayV2::Api`, `::Stage`, `::Integration`, `::Route`, `::DomainName` and `::ApiMapping`
+instead of `AWS::Serverless::HttpApi` — which buys control over the tags at the cost of six
+resources and four more entries in `stack-split.test.ts`'s allow-list.
+
+If IAM refuses the action outright, the bounded fallback is `apigateway:*` on THIS statement's
+existing resource list — which is already enumerated down to two hostnames — rather than anything
+that widens the resources. Broadening the verb over a narrow resource set is the lesser of the two
+directions.
 
 **Four of the nine `apigateway` actions are not HTTP verbs at all, and nothing about the template
 hints at them.** `AddCertificateToDomain` and `RemoveCertificateFromDomain` are permission-only actions —
@@ -281,11 +295,12 @@ finding this out was a red CI run rather than an orphan.
 **FOUR DEPLOYS, FOUR GRANTS, AND EVERY GUESS ABOUT THE NEXT ONE WAS WRONG** — which is why this
 paragraph records what the errors said rather than what seemed likely. In order: `apigateway:PUT`
 on a tags ARN; `iam:CreateServiceLinkedRole`, where `acm:DescribeCertificate` had been predicted
-and was not needed (this role still holds no `acm:*`); then `apigateway:TagResource` on a stage.
-Each failure named its own ARN, the readback added exactly that, and nothing was broadened to
-`*`. **Expect that to continue** rather than treating the list above as finished: an API Gateway
-custom domain is assembled from five resources and the permission model is not derivable from the
-template — the deploy is the only thing that knows.
+and was not needed (this role still holds no `acm:*`); then `apigateway:TagResource` on a stage,
+which is not a documented IAM action at all. Each failure named its own ARN, the readback added
+exactly that, and nothing was broadened to `*`. **Expect that to continue** rather than treating
+the list above as finished: an API Gateway custom domain is assembled from six resources, the
+permission model is not derivable from the template, and — as the stage showed — not wholly
+derivable from AWS's own action list either. The deploy is the only thing that knows.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 
