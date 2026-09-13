@@ -58,7 +58,8 @@ Inline permission policy:
       "Action": ["apigateway:GET", "apigateway:POST", "apigateway:PATCH",
                  "apigateway:PUT", "apigateway:DELETE",
                  "apigateway:AddCertificateToDomain",
-                 "apigateway:RemoveCertificateFromDomain"],
+                 "apigateway:RemoveCertificateFromDomain",
+                 "apigateway:TagResource", "apigateway:UntagResource"],
       "Resource": ["arn:aws:apigateway:eu-north-1::/apis",
                    "arn:aws:apigateway:eu-north-1::/apis/*",
                    "arn:aws:apigateway:eu-north-1::/domainnames",
@@ -228,7 +229,15 @@ to `role/quirenote-backend-*` and a service-linked role lives under `role/aws-se
 it needs a statement of its own, scoped to the one role and conditioned on the one service. It is
 needed ONCE per account: every later deploy finds the role already there.
 
-**Two of the seven `apigateway` actions are not HTTP verbs at all, and nothing about the template
+**TAGGING IS CHECKED TWO WAYS, AND THE SECOND ONE IS A DIFFERENT ACTION ON A DIFFERENT ARN.**
+Creating the domain name was refused as `apigateway:PUT` on
+`…::/tags/<url-encoded resource arn>`; creating the STAGE was refused as `apigateway:TagResource`
+on the resource's own path, `…::/apis/<api-id>/stages`. Same cause — SAM tags everything it
+generates — and neither grant covers the other, so both are here and `UntagResource` comes with
+its twin for the update and delete paths. The resource list already reached both ARNs; each time
+it was only the action that was missing.
+
+**Four of the nine `apigateway` actions are not HTTP verbs at all, and nothing about the template
 hints at them.** `AddCertificateToDomain` and `RemoveCertificateFromDomain` are permission-only actions —
 they name no API operation, so reading the CloudFormation resource list never produces them.
 API Gateway checks `AddCertificateToDomain` on `/domainnames` when a domain name is created
@@ -269,11 +278,14 @@ trips it before the API is ever imported. `/tags/*` is already in the Resource l
 only ever the ACTION that was missing. A failed UPDATE rolls the stack back cleanly, so the cost of
 finding this out was a red CI run rather than an orphan.
 
-**Two deploys, two more grants, and the guess in between was wrong** — which is why this paragraph
-records what the errors actually said rather than what seemed likely. `apigateway:PUT` was the
-first; `acm:DescribeCertificate` was the prediction for the second and it was not that, it was the
-service-linked role. This role still holds no `acm:*`, and it has not been needed. Each failure
-named its own ARN, the readback added exactly that, and nothing was broadened to `*`.
+**FOUR DEPLOYS, FOUR GRANTS, AND EVERY GUESS ABOUT THE NEXT ONE WAS WRONG** — which is why this
+paragraph records what the errors said rather than what seemed likely. In order: `apigateway:PUT`
+on a tags ARN; `iam:CreateServiceLinkedRole`, where `acm:DescribeCertificate` had been predicted
+and was not needed (this role still holds no `acm:*`); then `apigateway:TagResource` on a stage.
+Each failure named its own ARN, the readback added exactly that, and nothing was broadened to
+`*`. **Expect that to continue** rather than treating the list above as finished: an API Gateway
+custom domain is assembled from five resources and the permission model is not derivable from the
+template — the deploy is the only thing that knows.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 
