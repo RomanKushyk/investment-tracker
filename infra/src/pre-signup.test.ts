@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { type IdentityClient, type PreSignUpEvent, preSignUp } from './pre-signup';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type IdentityClient, type PreSignUpEvent, REFUSAL, preSignUp } from './pre-signup';
 
 // The trigger that keeps "one account per email" true across a provider boundary. The pool's
 // own refusal (`docs/reference/COGNITO-POOL-PARAMS.md`) covers two LOCAL sign-ups on one
@@ -41,6 +41,17 @@ const spy = (users: { Username?: string; UserStatus?: string }[] = []) => {
 };
 
 const native = [{ Username: LOCAL_SUB, UserStatus: 'CONFIRMED' }];
+
+// CLOSED IS SET RATHER THAN ASSUMED, for every test in this file. The refusals below read
+// `process.env`, so a shell that happened to export `OPEN_REGISTRATION=true` would turn them
+// red for a reason naming nothing. `stubEnv` also RESTORES what the process arrived with,
+// which `delete` does not.
+beforeEach(() => {
+  vi.stubEnv('OPEN_REGISTRATION', '');
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe('the pre-sign-up trigger links a federated identity to the account that already owns the data', () => {
   it('links when the provider asserts the address verified', async () => {
@@ -94,9 +105,13 @@ describe('the pre-sign-up trigger links a federated identity to the account that
   // on that address answers with it too. Linking a federated identity to a federated identity
   // is not what this trigger is for, and picking one as the destination would make the local
   // account — the one holding the rows — the thing that disappears.
+  //
+  // A list holding ONLY such a profile is therefore an address with no local account, which
+  // is now a refusal rather than a passthrough — but the assertion that matters here is
+  // unchanged and is the second one: whatever the answer, nothing was linked to it.
   it('ignores an already-federated profile when choosing the destination', async () => {
     const { idp, linked } = spy([{ Username: 'Google_other', UserStatus: 'EXTERNAL_PROVIDER' }]);
-    await preSignUp(event(), idp);
+    await expect(preSignUp(event(), idp)).rejects.toThrow(REFUSAL);
     expect(linked).toEqual([]);
   });
 
@@ -138,11 +153,14 @@ describe('the pre-sign-up trigger links a federated identity to the account that
   // rather than returning nothing — so `Googlex` yields the prefix `Google` and MATCHES.
   // What refuses it is the separator check running first, which is the kind of correctness
   // that stops being true the moment two clauses are reordered.
+  //
+  // The lookup HAS run by the time the username is read — the approval test comes first now —
+  // so what this asserts is that nothing was linked, not that nothing was asked.
   it('does not read a provider out of a username that has no prefix', async () => {
     for (const userName of ['Googlex', 'Google', '_Google']) {
-      const { idp, linked, listed } = spy(native);
+      const { idp, linked } = spy(native);
       await preSignUp(event({ userName }), idp);
-      expect([userName, linked, listed]).toEqual([userName, [], []]);
+      expect([userName, linked]).toEqual([userName, []]);
     }
   });
 
@@ -166,10 +184,13 @@ describe('the pre-sign-up trigger links a federated identity to the account that
     await preSignUp(shouty, idp3);
     expect((listed3[0] as { Filter: string }).Filter).toBe('email = "owner@quirenote.com"');
 
+    // AN ADDRESS THE FILTER CANNOT EXPRESS IS AN ADDRESS WHOSE APPROVAL CANNOT BE ESTABLISHED,
+    // so it is refused rather than waved past — and still never sent, which is the assertion
+    // that keeps `InvalidParameterException` out of the sign-up.
     const { idp: idp2, listed: listed2, linked } = spy(native);
     const quoted = event();
     quoted.request.userAttributes.email = 'a"b@quirenote.com';
-    await preSignUp(quoted, idp2);
+    await expect(preSignUp(quoted, idp2)).rejects.toThrow(REFUSAL);
     expect([listed2, linked]).toEqual([[], []]);
   });
 
@@ -192,27 +213,67 @@ describe('the pre-sign-up trigger links a federated identity to the account that
   // deliberately allowed out, one malformed username would fail the sign-up where every other
   // unrecognised shape passes through.
   it('passes through a username with a prefix but no subject', async () => {
+    const { idp, linked } = spy(native);
+    const malformed = event({ userName: 'Google_' });
+    // Passed through, not refused: the address is approved — `native` holds its local account —
+    // and only the LINK is impossible. Refusing here would lock an approved person out.
+    await expect(preSignUp(malformed, idp)).resolves.toBe(malformed);
+    expect(linked).toEqual([]);
+  });
+
+  // NO LOCAL ACCOUNT MEANS NEVER APPROVED, and that is the whole test. `AdminCreateUser` on
+  // approval is the only thing that ever creates one, so the lookup that already ran answers
+  // the question the approval gate would ask — with no database call and no second source of
+  // truth. Refused rather than passed through: a passthrough leaves a standalone federated
+  // profile, which reads nothing but is an identity and a monthly active user.
+  it('refuses a federated sign-in for an address with no local account', async () => {
+    const { idp, linked } = spy([]);
+    await expect(preSignUp(event(), idp)).rejects.toThrow(REFUSAL);
+    expect(linked).toEqual([]);
+  });
+
+  // A local sign-up is the other route to `SignUp`, and it is refused for the same reason. It
+  // must reach neither call — there is nothing to look up and nothing to link.
+  it('refuses a local sign-up, listing and linking nothing', async () => {
     const { idp, linked, listed } = spy(native);
-    await preSignUp(event({ userName: 'Google_' }), idp);
+    await expect(
+      preSignUp(event({ triggerSource: 'PreSignUp_SignUp', userName: LOCAL_SUB }), idp),
+    ).rejects.toThrow(REFUSAL);
     expect([linked, listed]).toEqual([[], []]);
   });
 
-  // No local account for the address. Linking has nothing to attach to; refusing the sign-up
-  // is #43's job, not this one's, so the event passes through unchanged.
-  it('does nothing when the address has no local account', async () => {
+  // SEVEN EXITS, NOT ONE. The refusal used to guard only the no-local-account branch, and
+  // every check ahead of it returned the event — so an address whose claim was unverified, or
+  // whose username was malformed, still got a standalone federated profile and a monthly
+  // active user. These are the two that an outside party can actually reach: a provider that
+  // stops asserting `email_verified`, or an `AttributeMapping` that drops `email` entirely.
+  it('refuses an unverified claim for an address with no local account', async () => {
     const { idp, linked } = spy([]);
-    const passed = await preSignUp(event(), idp);
+    const unverified = event();
+    unverified.request.userAttributes.email_verified = 'false';
+    await expect(preSignUp(unverified, idp)).rejects.toThrow(REFUSAL);
     expect(linked).toEqual([]);
-    expect(passed).toEqual(event());
   });
 
-  // The same function serves every pre-sign-up source once #43 adds its half, and a local
-  // sign-up must never be linked to anything.
-  it('does not link on a sign-up that is not federated', async () => {
-    const { idp, linked, listed } = spy(native);
-    await preSignUp(event({ triggerSource: 'PreSignUp_SignUp', userName: LOCAL_SUB }), idp);
-    expect(linked).toEqual([]);
+  it('refuses an event carrying no address at all, without asking the pool', async () => {
+    const { idp, listed } = spy(native);
+    const anonymous = event();
+    delete anonymous.request.userAttributes.email;
+    await expect(preSignUp(anonymous, idp)).rejects.toThrow(REFUSAL);
+    // There is nothing to look up, so approval cannot be established and the pool is not asked.
     expect(listed).toEqual([]);
+  });
+
+  // THE ONE SOURCE THAT MUST NEVER BE REFUSED, and AWS is explicit that it reaches here:
+  // the trigger fires "on user creation with AdminCreateUser". That call IS approval — the
+  // only thing that creates a local account — so a refusal covering it would close the door
+  // on the people who were let in, and the failure would land in the approve endpoint rather
+  // than in this file.
+  it('never refuses the approval path, even with registration closed', async () => {
+    const { idp, linked, listed } = spy([]);
+    const admin = event({ triggerSource: 'PreSignUp_AdminCreateUser', userName: LOCAL_SUB });
+    await expect(preSignUp(admin, idp)).resolves.toBe(admin);
+    expect([linked, listed]).toEqual([[], []]);
   });
 
   it('returns the event so Cognito can continue the sign-up', async () => {
@@ -220,4 +281,44 @@ describe('the pre-sign-up trigger links a federated identity to the account that
     const original = event();
     await expect(preSignUp(original, idp)).resolves.toBe(original);
   });
+});
+
+describe('open registration turns both refusals off', () => {
+  // ONE PARAMETER DRIVES THIS AND THE POOL'S `AllowAdminCreateUserOnly` TOGETHER, so the two
+  // cannot disagree — a half-open door, where the trigger admits a sign-up the pool still
+  // refuses, has no symptom to notice. The template holds that end; here it is only read.
+  it('lets a local sign-up through while it is on', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    const { idp, linked, listed } = spy(native);
+    const open = event({ triggerSource: 'PreSignUp_SignUp', userName: LOCAL_SUB });
+    await expect(preSignUp(open, idp)).resolves.toBe(open);
+    // Still neither call: opening registration decides WHO may in, never what gets linked.
+    expect([linked, listed]).toEqual([[], []]);
+  });
+
+  it('lets a federated sign-in with no local account through while it is on', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    const { idp, linked } = spy([]);
+    const passed = await preSignUp(event(), idp);
+    expect(passed).toEqual(event());
+    expect(linked).toEqual([]);
+  });
+
+  // READ AS THE EXACT STRING, so the absent variable and every value but one mean closed. An
+  // environment variable arrives as text and `Boolean('false')` is `true` — the trap that
+  // would open registration on every environment that set it to anything at all.
+  for (const value of ['false', 'TRUE', '1', 'yes', '']) {
+    it(`stays closed when the variable says ${JSON.stringify(value)}`, async () => {
+      vi.stubEnv('OPEN_REGISTRATION', value);
+      const { idp } = spy(native);
+      await expect(
+        preSignUp(event({ triggerSource: 'PreSignUp_SignUp', userName: LOCAL_SUB }), idp),
+      ).rejects.toThrow(REFUSAL);
+    });
+  }
+
+  // "The refusal needs no database" is asserted on the TEMPLATE rather than here — the grant
+  // is what makes it true, and `cognito-pool.test.ts` holds `PreSignUpFunction` to having no
+  // `Policies:` block and no cluster endpoint. A source scan for import spellings passes for
+  // every spelling it did not think of.
 });

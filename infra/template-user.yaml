@@ -52,6 +52,34 @@ Parameters:
     # and serves both stacks, exactly as the auth one does.
     # Same no-default, same constraint, for the reasons written out above.
 
+  OpenRegistration:
+    Type: String
+    AllowedValues: [closed, open]
+    Default: closed
+    # A PARAMETER RATHER THAN A SETTINGS ROW, and the difference is a door that can be half
+    # open with no symptom. Opening registration needs two things true at once: the pool has
+    # to accept `SignUp` at all (`AllowAdminCreateUserOnly` below) and the trigger has to stop
+    # refusing addresses with no application. `AllowAdminCreateUserOnly` is an
+    # `UpdateUserPool` parameter — a deploy, not a row — so a row driving only the trigger
+    # would wave people through a door the pool still holds shut, and nothing would report it.
+    # One parameter drives both, so they cannot disagree.
+    #
+    # AND IT KEEPS A STRANGER-REACHABLE LAMBDA OUT OF THE PORTFOLIO DATABASE. Read from a row,
+    # the trigger would need a cluster connection on a path anyone can reach; read from its
+    # environment, `PreSignUpFunction` keeps the narrowest grant in the stack, which is no
+    # `Policies:` block at all.
+    #
+    # CLOSED IS THE DEFAULT because it is the only safe one, and the value is a warning as much
+    # as a switch. Open means anyone who signs up gets a pool identity immediately — a monthly
+    # active user each — with no threat protection behind it, since Plus has no free tier and
+    # WAF is on the standing "no" list.
+    #
+    # AND CLOSING IT AGAIN DOES NOT UNDO IT. Every account created during the window keeps its
+    # local Cognito profile, so the trigger's "no local account means never approved" test
+    # stops distinguishing them afterwards. What still holds the line is the `status`/`role`
+    # check the API makes on every request; this parameter governs who gets an IDENTITY, never
+    # who gets access.
+
   GoogleClientId:
     Type: String
     Default: ''
@@ -70,6 +98,12 @@ Conditions:
   # this stack could make silently, so it is made unrepresentable rather than
   # documented.
   IsProd: !Equals [!Ref Environment, prod]
+
+  # ONE CONDITION READ IN TWO PLACES, which is what makes "the two cannot disagree" true rather
+  # than remembered. Both consumers are below: the pool's `AllowAdminCreateUserOnly` and the
+  # trigger's `OPEN_REGISTRATION`. Note the arms point OPPOSITE ways — admin-create-only is TRUE
+  # when registration is closed — so a copied `!If` reads plausibly and inverts one of them.
+  IsRegistrationOpen: !Equals [!Ref OpenRegistration, open]
 
   # BOTH HALVES. Keyed on the id alone, the likelier order in which two secrets get
   # added to a GitHub environment would create the provider with an empty
@@ -267,9 +301,12 @@ Resources:
       WebAuthnRelyingPartyID: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
       AdminCreateUserConfig:
         # Registration is an application, not an open door: sign-up writes a row and
-        # creates no identity, and approval is what calls `AdminCreateUser`. #43 builds
-        # that endpoint and the toggle that would open this.
-        AllowAdminCreateUserOnly: true
+        # creates no identity, and approval is what calls `AdminCreateUser`.
+        #
+        # HALF OF THE SWITCH, and the inverted half. `OpenRegistration` above drives this and
+        # the trigger's own refusal from one condition; here TRUE means closed, because the
+        # property is named for what it permits rather than for what it opens.
+        AllowAdminCreateUserOnly: !If [IsRegistrationOpen, false, true]
       LambdaConfig:
         PreSignUp: !GetAtt PreSignUpFunction.Arn
       # NO `app` TAG, and its absence is the decision rather than an omission. That tag
@@ -405,9 +442,19 @@ Resources:
       Environment:
         Variables:
           NODE_OPTIONS: --enable-source-maps
+          # THE OTHER HALF OF THE SWITCH, from the same condition as the pool's
+          # `AllowAdminCreateUserOnly`. Quoted, and read by the handler as the exact string
+          # `true`: an environment variable arrives as text and `Boolean('false')` is true,
+          # which would open registration on any environment that set this to anything.
+          #
+          # THE FIRST ENVIRONMENT VARIABLE THIS FUNCTION READS, against the note below the
+          # handler that the pool id comes off the event so there is no second place for it to
+          # be wrong. The difference is that this one cannot come off the event: nothing in a
+          # sign-up says whether the door is open.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
       # NO POLICIES BLOCK. The grant is PreSignUpPolicy below, for the cycle reason
       # given there — a policy written here would have to name the pool, and the pool
-      # names this function.
+      # names this function. The refusal needs no database, which is what keeps that true.
 
   PreSignUpLogGroup:
     Type: AWS::Logs::LogGroup

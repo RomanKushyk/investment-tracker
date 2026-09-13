@@ -321,6 +321,13 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     // is still asserted, separately, so "spans several lines" cannot become "is not passed".
     expect(userStack.run).toContain('--parameter-overrides');
     expect(userStack.run).toContain('"Environment=${ENVIRONMENT}"');
+    // AND `OpenRegistration` IS NAMED HERE RATHER THAN LEFT TO THE OPTIONAL GUARD BELOW,
+    // which skips any parameter the step does not mention. Deleting its whole `if` block
+    // would pass that guard by vanishing from it — and because `sam deploy` sends
+    // `UsePreviousValue` for a parameter it is not given, the stack would then freeze on
+    // whatever was last deployed. For a registration switch that is the one direction that
+    // must not be silent.
+    expect(userStack.run).toContain('"OpenRegistration=');
   });
 
   // EVERY PARAMETER THE TEMPLATE REQUIRES IS ONE THE WORKFLOW PASSES, derived from the

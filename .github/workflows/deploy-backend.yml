@@ -268,14 +268,32 @@ jobs:
               listUsers: async () => ({ Users: [{ Username: 'u', UserStatus: 'CONFIRMED' }] }),
               adminLinkProviderForUser: async () => { linked++; return {}; },
             };
-            Promise.all([p.preSignUp(event('true'), idp), p.preSignUp(event('false'), idp)])
-              .then(() => {
-                // One link across the two: the verified event links, the unverified one
+            // AND THE REFUSAL, in the bundled shape: an address with no local account must
+            // reject rather than resolve. A stranger reaches this path, and a refusal that
+            // only works as ESM is a refusal that does not work.
+            const empty = { listUsers: async () => ({ Users: [] }), adminLinkProviderForUser: async () => ({}) };
+            // AND THE SOURCE THAT MUST NEVER BE REFUSED, which is the mirror of the case above:
+            // AWS fires this trigger on AdminCreateUser too, and that call IS approval.
+            const approving = { triggerSource: 'PreSignUp_AdminCreateUser', userPoolId: 'eu-north-1_EXAMPLE', userName: 'u', request: { userAttributes: { email: 'a@b.com' } }, response: {} };
+            Promise.all([
+              p.preSignUp(event('true'), idp),
+              p.preSignUp(event('false'), idp),
+              p.preSignUp(event('true'), empty).then(() => 'resolved', () => 'refused'),
+              p.preSignUp(approving, empty).then(() => 'admitted', () => 'refused'),
+            ])
+              .then(([, , unapproved, approval]) => {
+                if (approval !== 'admitted') {
+                  throw new Error('pre-signup bundle refused the approval path');
+                }
+                // One link across the first two: the verified event links, the unverified one
                 // must not. A bundle that linked both, or neither, is the failure.
                 if (linked !== 1) {
                   throw new Error('pre-signup bundle links on the wrong condition: ' + linked);
                 }
-                console.log('pre-signup bundle loads and links only a verified address');
+                if (unapproved !== 'refused') {
+                  throw new Error('pre-signup bundle admitted an address with no application');
+                }
+                console.log('pre-signup bundle loads, links only a verified address and refuses an unapproved one');
               }).catch((e) => { console.error(e); process.exit(1); });
           "
           # The applications endpoint, and the reason it is exercised rather than merely
@@ -374,6 +392,22 @@ jobs:
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             overrides+=("GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
           fi
+          # ALWAYS PASSED, AND THE `else` IS THE WHOLE POINT — omitting a parameter does NOT
+          # reset it. `sam deploy` sends `UsePreviousValue` for every parameter absent from
+          # this list once the stack exists, which is the behaviour the Google comment above
+          # relies on and the exact opposite of what a registration switch needs: clear the
+          # variable to close registration again and the stack would keep `open`, with the pool
+          # and the trigger both still admitting strangers and nothing reporting it. Unset has
+          # to MEAN closed, so unset passes `closed`.
+          #
+          # Still written as a guard rather than `${OPEN_REGISTRATION:-closed}` because
+          # `sam deploy` refuses an empty value outright, and `stack-split.test.ts` holds every
+          # defaulted parameter to testing its variable before passing it.
+          if [ -n "$OPEN_REGISTRATION" ]; then
+            overrides+=("OpenRegistration=${OPEN_REGISTRATION}")
+          else
+            overrides+=("OpenRegistration=closed")
+          fi
           sam deploy \
             --template-file template-user.yaml \
             --stack-name "quirenote-backend-user-${ENVIRONMENT}" \
@@ -402,6 +436,10 @@ jobs:
           # and passkey. That is what lets the pool ship before the OAuth client exists.
           AUTH_CERTIFICATE_ARN: ${{ secrets.AUTH_CERTIFICATE_ARN }}
           API_CERTIFICATE_ARN: ${{ secrets.API_CERTIFICATE_ARN }}
+          # A VARIABLE, NOT A SECRET — `open` or `closed`, and which one an environment runs is
+          # not something hiding helps with. Unset is turned into an explicit `closed` above
+          # rather than omitted, so clearing this variable actually closes registration.
+          OPEN_REGISTRATION: ${{ vars.OPEN_REGISTRATION }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 

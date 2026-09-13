@@ -59,44 +59,144 @@ export type IdentityClient = {
 // sign-in falls past the lookup below and makes a second account instead of linking.
 export const PROVIDERS = ['Google'];
 
+// WHAT A REFUSED PERSON READS, and it says the same thing on every path on purpose: whether an
+// address has an application is not something an unauthenticated stranger may learn by trying.
+// AWS renders a thrown error's message to the person signing up.
+//
+// EXPORTED so the tests assert the message rather than merely that something threw — a bare
+// `rejects.toThrow()` is satisfied by a `TypeError` from a future dereference, which would read
+// as a refusal while being a crash.
+export const REFUSAL =
+  'Registration is by application. Apply at quirenote.com and sign in once approved.';
+
+// THE EXACT STRING, so an absent variable and every other value mean closed. An environment
+// variable arrives as text and `Boolean('false')` is `true`, which would open registration on
+// any environment that set this to anything at all. Read per call rather than at module load so
+// the value cannot be captured by a container that started before it changed.
+const registrationIsOpen = () => process.env.OPEN_REGISTRATION === 'true';
+
 export async function preSignUp(
   event: PreSignUpEvent,
   idp: IdentityClient,
 ): Promise<PreSignUpEvent> {
-  if (event.triggerSource !== 'PreSignUp_ExternalProvider') return event;
+  // APPROVAL ITSELF REACHES HERE, and it must never be refused. AWS invokes this trigger "on
+  // user creation with AdminCreateUser" as well as on sign-up and first federated sign-in —
+  // and `AdminCreateUser` IS the approval call, the only thing that ever creates a local
+  // account. A refusal that covered this source would close the door on exactly the people who
+  // were let through it, and it would fail inside the approve endpoint rather than here.
+  if (event.triggerSource === 'PreSignUp_AdminCreateUser') return event;
+
+  // EVERY OTHER NON-FEDERATED SOURCE IS REFUSED WHILE REGISTRATION IS CLOSED, which is
+  // `PreSignUp_SignUp` today and whatever AWS adds tomorrow. Written as a default-DENY rather
+  // than as an equality on the one known value, because the alternative is a catch-all
+  // `return event` sitting after two checks in a file that already argues at length that
+  // safety must not depend on the order clauses happen to be in. Nothing is looked up: a
+  // local sign-up has no provider identity to link, and the pool holds this path shut on its
+  // own while `AllowAdminCreateUserOnly` is true — this is the half that answers if the two
+  // ever drift.
+  if (event.triggerSource !== 'PreSignUp_ExternalProvider') {
+    if (!registrationIsOpen()) throw new Error(REFUSAL);
+    return event;
+  }
 
   const { email, email_verified: verified } = event.request.userAttributes;
+
+  // THE APPROVAL TEST RUNS FIRST, AHEAD OF EVERY LINKING QUESTION, and the order is the whole
+  // of what closes the door. Written the other way round — the shape this file had while
+  // refusing was somebody else's job — each check below returned the event, and Cognito went
+  // on to mint a standalone federated profile: an identity and a monthly active user, for an
+  // address with no application. Only one of seven exits refused. Now the two questions are
+  // separated and asked in the order they matter: MAY this address have an identity at all,
+  // and only then, SHOULD this identity be linked to the local one.
+  //
+  // Nothing about the linking decisions below changed, and none of them may move above this
+  // line: they are the reason a verified claim is required and an unrecognised provider is
+  // passed over, and answering them first is what left the hole.
+
+  if (!email) {
+    // SAID SEPARATELY from the unverified case, because the likeliest cause is a dropped
+    // `email` mapping on the provider, and one shared message would send whoever reads it
+    // looking at the wrong thing. There is no address to look up, so approval cannot be
+    // established at all.
+    console.warn(`pre-signup: no address on the event (${event.userName})`);
+    if (!registrationIsOpen()) throw new Error(REFUSAL);
+    return event;
+  }
+
+  // The filter is Cognito's own grammar and the address is provider-supplied. The grammar
+  // has no `or`, so this cannot broaden the match; what a quote WOULD do is malform the
+  // filter, and a thrown `InvalidParameterException` fails the sign-up outright. Unaskable is
+  // treated as unapproved rather than waved through.
+  if (/["\\]/.test(email)) {
+    console.warn(`pre-signup: address is not expressible as a filter (${event.userName})`);
+    if (!registrationIsOpen()) throw new Error(REFUSAL);
+    return event;
+  }
+
+  // 60, THE MAXIMUM, AND IT WIDENS THE WINDOW RATHER THAN CLOSING IT — it does not even
+  // promise 60 rows. `ListUsers` specifies no order, is eventually consistent, may return
+  // fewer than `Limit` without having reached the end, and hands back a `PaginationToken`
+  // this does not read. What fills that window is the passthroughs: each one leaves another
+  // unlinked `EXTERNAL_PROVIDER` row on the address, and past the boundary the local account
+  // reads as absent, which makes yet another.
+  //
+  // The refusal below removes the UNAPPROVED half of that loop, which is the half that had no
+  // ceiling — anyone could drive it. What remains is an APPROVED address whose link keeps
+  // being declined, which is bounded by the four passthroughs further down and unreachable
+  // today, since Google always asserts the claim they turn on.
+  //
+  // LOWER-CASED ON THE WAY IN, WHICH MAKES AN UNANSWERED QUESTION MOOT. `ListUsers` marks
+  // some attributes case-sensitive and says nothing about `email`, and the pool does not
+  // normalise: `CaseSensitive: false` is a MATCHING rule for sign-in, so an address is stored
+  // in the case it was typed and read back that way. If the filter is exact, a mixed-case
+  // claim from the provider reads as "no local account" and mints the duplicate this file
+  // exists to prevent. The stored side is already lower-case — approval creates the account
+  // from the address the database insists on (`app_user_email_lower_ck`) — so lower-casing
+  // the incoming half makes the two agree without needing to know which rule applies.
+  const { Users = [] } = await idp.listUsers({
+    UserPoolId: event.userPoolId,
+    Filter: `email = "${email.toLowerCase()}"`,
+    Limit: 60,
+  });
+
+  // A linked profile answers this filter too, carrying `EXTERNAL_PROVIDER`. Linking one of
+  // those would make the local account — the one holding the rows — the side that disappears.
+  const local = Users.find((u) => u.UserStatus !== 'EXTERNAL_PROVIDER' && u.Username);
+  if (!local?.Username) {
+    // NO LOCAL ACCOUNT MEANS NEVER APPROVED — WHILE REGISTRATION IS CLOSED, which is the only
+    // state this branch runs in. Then `AdminCreateUser` on approval is the only thing that
+    // creates a local account, so the lookup that just ran is the whole test: no database, no
+    // second record of who was invited. (An open-registration window creates local accounts
+    // too, and they stay afterwards — so this is a coarse "has an account" filter, and the
+    // real gate is the `status`/`role` check on every request.) Refused rather than passed
+    // through: a passthrough leaves a standalone federated profile which reads nothing, but is
+    // an identity and a monthly active user.
+    //
+    // `ListUsers` IS EVENTUALLY CONSISTENT, so someone approved seconds ago can read this
+    // refusal once; retrying is the remedy, and a loud refusal beats the silent duplicate this
+    // branch used to make.
+    if (!registrationIsOpen()) throw new Error(REFUSAL);
+    console.warn(`pre-signup: not linking, address has no local account (${event.userName})`);
+    return event;
+  }
+
+  // FROM HERE THE ADDRESS IS APPROVED AND EVERY REMAINING QUESTION IS ABOUT THE LINK ALONE.
+  // These are #42's and are unchanged; each one still PASSES THROUGH, because the cost of
+  // getting them wrong points the other way — refusing would lock an approved person out of
+  // an account they own, where not linking leaves them a second profile and their access.
+  //
+  // LOGGED, BECAUSE NOT LINKING IS HOW A SECOND ACCOUNT GETS MADE. Each line names the
+  // username — the provider and its subject, not an address — so a duplicate can be traced
+  // back to the decision that made it.
+  //
   // EXPLICITLY, and against the string it actually arrives as — Cognito passes every user
   // attribute as text. AWS's own guidance is to link only with providers and attributes you
   // trust, and an unverified address is the whole attack: claim someone's mailbox at a
   // provider that never checked and the link hands over their portfolio. Google does assert
   // the claim; this reads it anyway, because the day a second provider is added is the day
   // the assumption becomes a takeover.
-  //
-  // LOGGED, BECAUSE NOT LINKING IS HOW A SECOND ACCOUNT GETS MADE. Every passthrough below
-  // leaves a standalone federated profile behind, and without a line here the only evidence
-  // is a duplicate somebody notices much later. Each line names the username — the provider
-  // and its subject, not an address — so a duplicate can be traced to the refusal that made
-  // it.
-  if (!email) {
-    // SAID SEPARATELY from the unverified case, because the likeliest cause is a dropped
-    // `email` mapping on the provider, and one shared message would send whoever reads it
-    // looking at the wrong thing.
-    console.warn(`pre-signup: not linking, no address on the event (${event.userName})`);
-    return event;
-  }
   if (verified !== 'true') {
     console.warn(`pre-signup: not linking, address not asserted verified (${event.userName})`);
-    return event;
-  }
-
-  // The filter is Cognito's own grammar and the address is provider-supplied. The grammar
-  // has no `or`, so this cannot broaden the match; what a quote WOULD do is malform the
-  // filter, and a thrown `InvalidParameterException` fails the sign-up outright.
-  if (/["\\]/.test(email)) {
-    console.warn(
-      `pre-signup: not linking, address is not expressible as a filter (${event.userName})`,
-    );
     return event;
   }
 
@@ -128,39 +228,6 @@ export async function preSignUp(
   const providerSubject = event.userName.slice(separator + 1);
   if (!providerSubject) {
     console.warn(`pre-signup: not linking, username carries no subject (${event.userName})`);
-    return event;
-  }
-
-  // 60, THE MAXIMUM, AND IT WIDENS THE WINDOW RATHER THAN CLOSING IT — it does not even
-  // promise 60 rows. `ListUsers` specifies no order, is eventually consistent, may return
-  // fewer than `Limit` without having reached the end, and hands back a `PaginationToken`
-  // this does not read. What fills that window is the passthroughs above: each refusal
-  // leaves another unlinked
-  // `EXTERNAL_PROVIDER` row on the address, and past the boundary the local account reads as
-  // absent, which makes yet another one. Bounding it properly means refusing an address with
-  // no approved application before any of this — #43 — rather than paging here.
-  //
-  // LOWER-CASED ON THE WAY IN, WHICH MAKES AN UNANSWERED QUESTION MOOT. `ListUsers` marks
-  // some attributes case-sensitive and says nothing about `email`, and the pool does not
-  // normalise: `CaseSensitive: false` is a MATCHING rule for sign-in, so an address is stored
-  // in the case it was typed and read back that way. If the filter is exact, a mixed-case
-  // claim from the provider reads as "no local account" and mints the duplicate this file
-  // exists to prevent. The stored side is already lower-case — approval creates the account
-  // from the address the database insists on (`app_user_email_lower_ck`) — so lower-casing
-  // the incoming half makes the two agree without needing to know which rule applies.
-  const { Users = [] } = await idp.listUsers({
-    UserPoolId: event.userPoolId,
-    Filter: `email = "${email.toLowerCase()}"`,
-    Limit: 60,
-  });
-
-  // A linked profile answers this filter too, carrying `EXTERNAL_PROVIDER`. Linking one of
-  // those would make the local account — the one holding the rows — the side that disappears.
-  const local = Users.find((u) => u.UserStatus !== 'EXTERNAL_PROVIDER' && u.Username);
-  if (!local?.Username) {
-    // Refusing the sign-up outright is #43's job — it is the approval gate that knows
-    // whether this address was ever invited. Here it is only noted.
-    console.warn(`pre-signup: not linking, address has no local account (${event.userName})`);
     return event;
   }
 

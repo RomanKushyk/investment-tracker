@@ -315,8 +315,22 @@ sign-up row is written before any identity exists. Onboarding is passkey-first; 
 AWS creates users from a federated sign-in whether or not self-registration is on, so from the
 day Google is configured any Google account mints a pool identity. It reads nothing — every
 request is authorized against `status` and `role` on the application row, and there is none —
-but it is an identity and a monthly active user. The pre-sign-up refusal that turns it away is
-the applications endpoint's, not the pool's.
+but it is an identity and a monthly active user. What turns it away is the PRE-SIGN-UP REFUSAL:
+while registration is closed, no local account means never approved — approval's
+`AdminCreateUser` is then the only thing that creates one — so the lookup the trigger already
+runs to link an identity is the whole test, with no database and no second record of who was
+invited. The one source it never refuses is `AdminCreateUser` itself, which is approval; a
+refusal covering that would close the door on the people who were let through it. The test is
+deliberately COARSE: an open-registration window leaves local accounts behind that outlive it,
+so what the trigger governs is who gets an IDENTITY, and the `status`/`role` check on every
+request is what governs access.
+**Registration opens by DEPLOY, not by a row.** Opening it needs two things true at once — the
+pool accepting `SignUp` and the trigger admitting an address with no application — and
+`AllowAdminCreateUserOnly` is an `UpdateUserPool` parameter, so a settings row could only ever
+drive the second. The two would then disagree with no symptom: the trigger waving people through
+a door the pool still holds shut. One CloudFormation parameter drives both, defaulting to closed,
+and reading it from the trigger's environment rather than from a table is also what keeps a
+Lambda on a path a stranger reaches out of the portfolio database.
 Reads answer to THREE policies, never mixed in one response and never sharing a route: the price
 archive is public and global, a user's own data is private and per-user, and the demo is public but
 belongs to one owner — the seeded original is a single row set under an

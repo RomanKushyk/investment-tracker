@@ -99,20 +99,77 @@ describe('the pool is created with the parameters it can never be given later', 
   });
 
   // Registration is an application, not an open door (`docs/DECISIONS.md`, **Auth model**):
-  // approval calls `AdminCreateUser`. Changeable, and the open-registration toggle #43
-  // builds is what would change it.
+  // approval calls `AdminCreateUser`. Changeable, and the open-registration parameter below
+  // is what changes it.
   //
   // NAMED FOR WHAT IT ACTUALLY CLOSES, which is `SignUp` and nothing else. AWS: with
   // self-registration off, users are still created "by sign-in with federated providers" —
   // so the moment Google is configured, any Google account mints a pool identity with no
   // `app_user` row behind it. It reads nothing (the API checks `status` and `role` on every
-  // request) but it is an identity and a monthly active user. Closing that path is #43's
-  // pre-sign-up refusal; calling this test "closes self-service sign-up" would assert
-  // something the pool does not do.
+  // request) but it is an identity and a monthly active user. Closing that path is the
+  // pre-sign-up refusal in `pre-signup.ts`; calling this test "closes self-service sign-up"
+  // would assert something the pool does not do.
   it('closes the SignUp API, which is not the same as closing the door', () => {
-    expect(props('UserPool').AdminCreateUserConfig).toMatchObject({
-      AllowAdminCreateUserOnly: true,
-    });
+    const config = props('UserPool').AdminCreateUserConfig as {
+      AllowAdminCreateUserOnly: unknown[];
+    };
+    // The CLOSED arm, which is what the parameter's own default selects. The full shape and
+    // the inversion are the next describe's; this one is about the pool's standing state.
+    expect(config.AllowAdminCreateUserOnly[2]).toBe(true);
+  });
+});
+
+describe('one parameter opens registration, in both places at once', () => {
+  // THE HALF-OPEN DOOR IS THE FAILURE THIS SHAPE PREVENTS. Opening registration needs two
+  // things true together: the pool must accept `SignUp` at all, and the trigger must stop
+  // refusing addresses with no application. Driven separately — a settings row for one and a
+  // deploy for the other — they can disagree, and the disagreement has NO symptom: the trigger
+  // waves people through a door the pool still holds shut. So both read the same condition,
+  // and the condition reads one parameter.
+  it('drives the pool and the trigger from the same condition', () => {
+    const pool = props('UserPool').AdminCreateUserConfig as { AllowAdminCreateUserOnly: string[] };
+    const trigger = (
+      props('PreSignUpFunction').Environment as { Variables: Record<string, string[]> }
+    ).Variables;
+    expect(pool.AllowAdminCreateUserOnly[0]).toBe('IsRegistrationOpen');
+    expect(trigger.OPEN_REGISTRATION[0]).toBe('IsRegistrationOpen');
+    expect(user.Conditions?.IsRegistrationOpen).toEqual(['OpenRegistration', 'open']);
+  });
+
+  // THE REFUSAL COSTS NO DATABASE, and the grant is what makes that true rather than the
+  // handler's current imports. A trigger on a path a stranger reaches must not hold a
+  // connection to the portfolio cluster, which is why this function is the one Lambda in the
+  // stack with no `Policies:` block — its only grant is `PreSignUpPolicy`, two Cognito calls
+  // on the pool. Asserted here because a source scan passes for every import spelling it did
+  // not think of.
+  it('gives the trigger no database of any kind', () => {
+    expect(props('PreSignUpFunction')).not.toHaveProperty('Policies');
+    const vars = (props('PreSignUpFunction').Environment as { Variables: Record<string, unknown> })
+      .Variables;
+    expect(vars).not.toHaveProperty('DSQL_ENDPOINT');
+    expect(JSON.stringify(vars)).not.toContain('Cluster');
+  });
+
+  // CLOSED IS THE DEFAULT, asserted as the default rather than as whatever an environment
+  // happens to pass — an environment that passes nothing is the case that matters, and it is
+  // the one a test reading a passed value would never see.
+  it('defaults to closed', () => {
+    const p = user.Parameters?.OpenRegistration as { Default?: string; AllowedValues?: string[] };
+    expect(p?.Default).toBe('closed');
+    expect(p?.AllowedValues).toEqual(['closed', 'open']);
+  });
+
+  // AND THE TWO ARMS POINT THE OPPOSITE WAYS ROUND, which is the one thing a shared condition
+  // does not guarantee. `AllowAdminCreateUserOnly` is TRUE when registration is closed and the
+  // trigger's variable is 'true' when it is OPEN, so a copied `!If` would read plausibly and
+  // invert one of them.
+  it('points each arm the way its own property reads', () => {
+    const pool = props('UserPool').AdminCreateUserConfig as { AllowAdminCreateUserOnly: unknown[] };
+    const trigger = (
+      props('PreSignUpFunction').Environment as { Variables: Record<string, string[]> }
+    ).Variables;
+    expect(pool.AllowAdminCreateUserOnly).toEqual(['IsRegistrationOpen', false, true]);
+    expect(trigger.OPEN_REGISTRATION).toEqual(['IsRegistrationOpen', 'true', 'false']);
   });
 });
 
