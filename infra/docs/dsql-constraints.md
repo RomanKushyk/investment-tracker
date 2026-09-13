@@ -1,9 +1,22 @@
 # infra — DSQL DDL constraints
 
-Every fact below was sent to the live `eu-north-1` cluster, inside a throwaway
-schema dropped `CASCADE` in a `finally` — never inferred from AWS's own
-documentation, which the "reason is not the one the grammar suggested" note
-below exists to explain.
+Every fact below was sent to a live cluster in `eu-north-1`, most of them by
+hand into a throwaway schema dropped `CASCADE` in a `finally` — never inferred
+from AWS's own documentation, which the "reason is not the one the grammar
+suggested" note below exists to explain.
+
+**Where that is not true, the line says so in its own words.** A claim measured
+on PGlite, on stock Postgres, or read from AWS is worth recording when code
+depends on it — but it is not an answer from a cluster and must never be left
+looking like one. No census of those lines is kept here: a count goes stale the
+commit after it is written, which is the same reason there are no constraint
+counts further down.
+
+**"The cluster" is no longer one thing, and the throwaway schema is no longer
+the only vehicle.** User data is one cluster per environment, so a fact taken
+from `dev` does not automatically hold for `prod`; where it matters, the line
+names which. And the `006` facts below were taken on `public` itself — a
+constraint applied by the runner is not a probe that cleans up after itself.
 
 ## Indexes
 
@@ -80,15 +93,25 @@ deferrability changes and identity-column changes have no answer here.
 ## What `NOT VALID` actually buys
 
 A constraint added this way **enforces every new row and does not scan the
-ones already there**. What the probe below covers is INSERT; it says nothing
-about a later UPDATE of a row that predates the constraint, which on stock
-Postgres IS re-checked, column touched or not. Unprobed here — and
-`migrations/006_email_lower.sql` depends on the answer — a child row violating a future key was inserted
+ones already there** — a child row violating a future key was inserted
 first, the key was added `NOT VALID` and accepted, and a new violating insert
 was then refused `23503` while a satisfying one went through. **It can never
 be promoted to validated**: `VALIDATE CONSTRAINT` is refused, and
-`pg_constraint.convalidated` stays `false` for the life of the constraint. A
-late foreign key still carries its referential action — one added
+`pg_constraint.convalidated` stays `false` for the life of the constraint,
+read back as `false` on `app_user_email_lower_ck` right after `006` applied, on
+both clusters. That reading is one instant; the refusal is what leaves nothing
+that could flip it.
+
+**Both probes above cover INSERT, and a row already there is not the same as a
+row left alone.** Nothing above says what happens on a later UPDATE of a row
+that predates the constraint. On stock Postgres it is re-checked, whichever
+column is written, which would make such a row unupdatable rather than
+tolerated — measured on PGlite, never sent to a cluster.
+`migrations/006_email_lower.sql` records the same gap and is written so the
+answer cannot change it: the only row it meets is `005`'s, already lower-cased
+— which is reasoning from what writes this table, not a cluster reading.
+
+A late foreign key still carries its referential action — one added
 `ON DELETE CASCADE … NOT VALID` deletes its children when the parent goes.
 `ALTER COLUMN … SET DEFAULT` behaves the same way without needing the
 clause: it applies to rows inserted after it and leaves existing rows alone.
@@ -177,14 +200,39 @@ The constraints are enforced, not merely accepted:
 ## The migration runner against the live cluster
 
 First contact for `infra/src/migrate.ts`, which is what promotion was still
-first contact FOR — the DDL's own had already happened above. Two throwaway
-schemas, each dropped `CASCADE` when the run ended, on the same eu-north-1
-cluster. (The runner does that cleanup outside any `finally`, so a drop that
-fails cannot replace the statement failure a rehearsal was run to find.)
+first contact FOR — the DDL's own had already happened above. Throwaway
+schemas on a user cluster, dropped `CASCADE` when the run ends —
+when the drop goes through, which is not every time; see below. (The runner
+does that cleanup outside any `finally`, so a drop that fails cannot replace
+the statement failure a rehearsal was run to find.)
 
-`006_email_lower.sql` has NOT been through the runner against this cluster: it
-will be the first `ALTER TABLE … ADD CONSTRAINT` the `NOT VALID` rewrite ever
-sends, and until it is dispatched nothing here says the cluster takes it.
+**`006_email_lower.sql` is the first `ADD CONSTRAINT … CHECK` the `NOT VALID`
+rewrite has sent, and both clusters took it.** Not the first `ADD CONSTRAINT` —
+`003`'s foreign keys went the same way. Dry-run and applied to
+`public` on dev and then on prod; `pg_constraint` then held
+`app_user_email_lower_ck` with `convalidated` `false`, and an insert of an
+address with a capital in it was refused `23514` naming that constraint while
+the lower-cased form went through. Both probe rows were deleted afterwards.
+So the third rewrite rule — the `NOT VALID` append — is exercised end to end
+against a CHECK, not only in the suite. The fourth is untouched here: `006` has
+no `REFERENCES`, so the qualifier strip is a no-op on it.
+
+**A rehearsal can apply every statement and still come back red, in the
+teardown.** That is what dev's did before its apply — every statement applied,
+then the cleanup raised; prod's completed. The dev run left its
+`migrate_rehearsal_…` schema behind: every statement applied inside it, then
+`DROP SCHEMA … CASCADE` answered
+`change conflicts with another transaction (OC000)`, SQLSTATE **`40001`** —
+the serialization class rather than a refusal, which the hand drop then
+confirmed by succeeding on the first attempt. A plausible source of the
+conflict is that `003` ends with two `CREATE INDEX ASYNC` jobs and a waited-for
+job is not the same as a settled catalog; that was not isolated, and prod did
+not reproduce it. **The runner makes one attempt at that drop and does not
+retry it.** The run itself FAILS and prints the driver's message, but the
+Lambda error payload carries `errorType`, `errorMessage` and `trace` and no
+more — so neither the SQLSTATE nor the name of the schema left behind reaches
+the run page. Both are in CloudWatch, in the line the runner logs before it
+rethrows. Issue #142 is the fix; the fact belongs here either way.
 
 `003_user_schema.sql` and `005_demo_user.sql` applied clean through the
 runner, rewrite rules and all, with both `CREATE INDEX ASYNC` jobs waited on via
