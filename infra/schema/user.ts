@@ -212,7 +212,9 @@ export const appUser = pgTable(
     ),
     // Byte-exact: Cognito's own duplicate refusal (D36) is what actually
     // holds the "one address, one account" line; this stops a second DB row
-    // for an address Cognito already considers taken.
+    // for an address Cognito already considers taken. That refusal is exact-
+    // match only — case is a create-time pool setting, not a normalisation
+    // (`docs/reference/COGNITO-POOL-PARAMS.md`).
     //
     // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
     // rather than invented: the database now holds an address Cognito has never

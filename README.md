@@ -34,7 +34,7 @@ An empty IndexedDB seeds the demo dataset on first load. `/settings → Data` re
 - `CLAUDE.md` — working rules, workflow, Definition of Done.
 - `docs/DECISIONS.md` — why things are the way they are; current state only.
 - `navigation-map.md` — every route's expected values on the demo seed.
-- `docs/reference/` — deployment, versioning, Dependabot, provider and market-data facts, the formula audit.
+- `docs/reference/` — deployment, versioning, Dependabot, provider and market-data facts, the formula audit, the Cognito pool's immutable parameters.
 - Work is tracked in GitHub Issues and the `Quirenote` project; milestones are releases (`vX.Y.Z`).
 
 ## Deploy

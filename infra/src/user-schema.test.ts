@@ -209,9 +209,10 @@ describe('app_user', () => {
   });
 
   it('ACCEPTS the same mailbox in another case — the unique index is byte-exact', async () => {
-    // Pinned as a fact, not as an approval. The draft's comment says so: Cognito
-    // normalizes the address and is what holds this line; if the API ever
-    // accepts an address Cognito has not seen, it must lower-case on write.
+    // Pinned as a fact, not as an approval. Cognito refuses an exact duplicate
+    // but not a case variation, and matching case-insensitively is a create-time
+    // choice that still stores the case typed — so the API must lower-case on
+    // write (`docs/reference/COGNITO-POOL-PARAMS.md`).
     await accepts(other(nextId(), 'OWNER@quirenote.com'));
   });
 });
