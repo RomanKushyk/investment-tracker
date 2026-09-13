@@ -170,8 +170,8 @@ jobs:
           done
           # The SQL is DATA the migration handler reads at runtime, not code
           # esbuild can inline, so it rides in the zip beside the bundle and
-          # `LAMBDA_TASK_ROOT` is what finds it. Every `.sql`, not the two the
-          # runner names: this file has watched two hand-kept lists leak, and
+          # `LAMBDA_TASK_ROOT` is what finds it. Every `.sql`, not only the ones
+          # the runner names: this file has watched two hand-kept lists leak, and
           # the runner already names its own files in code.
           mkdir -p dist/migrations
           cp migrations/*.sql dist/migrations/
@@ -203,7 +203,17 @@ jobs:
             // says, and the assertion is that the SQL was FOUND.
             g.migrate({ query: async () => ({ rows: [] }) }, { mode: 'dry-run' }).then((r) => {
               const pending = r.files.reduce((n, f) => n + f.pending, 0);
-              if (r.files.length !== 2 || pending < 8) {
+              // PER FILE, because the totals cannot see a single empty one.
+              // migrate() reports one entry per MIGRATIONS entry, so those two
+              // lengths agree by construction and only the per-file check
+              // catches a migration that shipped without its statements. The
+              // floor is a floor, not a count: it can only drift when
+              // statements are REMOVED, and a count derived here would compare
+              // the bundle against itself. A hand-kept figure is invisible to
+              // all five gates and fails only in CI, on the run that would
+              // have shipped the migration it miscounts.
+              const empty = r.files.filter((f) => f.pending === 0).map((f) => f.file);
+              if (empty.length || r.files.length !== g.MIGRATIONS.length || pending < 8) {
                 throw new Error('migrate bundle cannot read its SQL: ' + JSON.stringify(r));
               }
               console.log('migrate bundle loads and finds its migrations');

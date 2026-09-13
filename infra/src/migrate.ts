@@ -56,8 +56,17 @@ import { connect } from './dsql';
  * tables, which is the ambiguity the numbering rule exists to remove.
  *
  * `005` is DML and depends on `003` having applied. Order is the guarantee.
+ *
+ * `006` constrains a table `003` creates, so it cannot precede it. Its position
+ * relative to `005` is NOT load-bearing: the seeded address is already
+ * lower-cased, so it is accepted whether the constraint checks it as a new row
+ * or skips it as an old one. Numbering is the whole of why it sits last.
  */
-export const MIGRATIONS = ['003_user_schema.sql', '005_demo_user.sql'] as const;
+export const MIGRATIONS = [
+  '003_user_schema.sql',
+  '005_demo_user.sql',
+  '006_email_lower.sql',
+] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */
 export interface SqlClient {

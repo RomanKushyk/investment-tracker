@@ -1,0 +1,50 @@
+-- 006 — one spelling per mailbox (W7)
+--
+-- APPLIED BY `infra/src/migrate.ts`, which names its files rather than globbing
+-- them, so this one is enlisted by `MIGRATIONS` and by nothing else.
+--
+-- WHY A LATER FILE AND NOT A COLUMN OF 003. `app_user_email_uq` and the three
+-- CHECKs beside it are inline in `CREATE TABLE "app_user"`, which is applied on
+-- both clusters. The ledger keys by content hash, so widening that statement
+-- would re-send a statement the cluster already has and the run would stop
+-- having applied nothing. Appending is the supported shape; `schema/user.ts`
+-- cannot express it, because drizzle emits `check()` inline.
+--
+-- WHY THE DATABASE REFUSES RATHER THAN FOLDS. DSQL has no triggers — AWS's own
+-- guidance is application-level logic instead — so the choice is between
+-- refusing a non-canonical address and letting one through.
+--
+-- Cognito cannot be the answer, and not because anything routes around it: the
+-- pool does not canonicalise AT ALL. Its duplicate refusal is EXACT-MATCH ONLY,
+-- and `CaseSensitive: false` is a MATCHING rule that still stores the case the
+-- user typed (`docs/reference/COGNITO-POOL-PARAMS.md`). So no path through the
+-- pool yields a canonical address — and the two writes that matter most here,
+-- the sign-up application row and 005's seed, never reach the pool at all,
+-- since sign-up creates a row and no identity (`docs/DECISIONS.md`, **Auth
+-- model**).
+--
+-- With every stored address canonical, `app_user_email_uq` — byte-exact — IS
+-- case-insensitive uniqueness, which is why no second index is added here.
+--
+-- ONE STATEMENT, so no `--> statement-breakpoint` — the same shape as 005. A
+-- second statement added here without one would be glued into the first and
+-- sent as a single query, which DSQL refuses.
+--
+-- `NOT VALID` IS APPENDED BY THE RUNNER (`rewriteForDsql`), not written here:
+-- DSQL refuses `ADD CONSTRAINT` without it, and writing it twice is what the
+-- rule's idempotence exists to prevent.
+--
+-- WHAT `NOT VALID` DOES AND DOES NOT EXEMPT. It skips the initial scan, so a
+-- row already present is not refused when the constraint lands. It is NOT a
+-- permanent exemption: on stock Postgres the CHECK also runs on every UPDATE of
+-- such a row, whichever column is written, which would leave it unupdatable
+-- rather than tolerated. Measured on PGlite, NOT put to the cluster — DSQL is
+-- the subset and `../docs/dsql-constraints.md` is where a cluster answer would
+-- go. It matters little either way: the only row here is 005's
+-- `demo@quirenote.com`, already lower-case, which is reasoning from the fact
+-- that nothing else in this repository writes `app_user` rather than a reading
+-- taken from the cluster. DSQL does refuse `VALIDATE CONSTRAINT`, so nothing
+-- can go looking for a violator later.
+--
+-- Every address arrives from Cognito, so the alphabet in play is ASCII.
+ALTER TABLE app_user ADD CONSTRAINT app_user_email_lower_ck CHECK (email = lower(email));

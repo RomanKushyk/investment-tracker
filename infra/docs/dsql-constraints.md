@@ -79,8 +79,11 @@ deferrability changes and identity-column changes have no answer here.
 
 ## What `NOT VALID` actually buys
 
-A constraint added this way **enforces every new row and never checks the
-ones already there** — a child row violating a future key was inserted
+A constraint added this way **enforces every new row and does not scan the
+ones already there**. What the probe below covers is INSERT; it says nothing
+about a later UPDATE of a row that predates the constraint, which on stock
+Postgres IS re-checked, column touched or not. Unprobed here — and
+`migrations/006_email_lower.sql` depends on the answer — a child row violating a future key was inserted
 first, the key was added `NOT VALID` and accepted, and a new violating insert
 was then refused `23503` while a satisfying one went through. **It can never
 be promoted to validated**: `VALIDATE CONSTRAINT` is refused, and
@@ -179,7 +182,11 @@ schemas, each dropped `CASCADE` when the run ended, on the same eu-north-1
 cluster. (The runner does that cleanup outside any `finally`, so a drop that
 fails cannot replace the statement failure a rehearsal was run to find.)
 
-Today's `003_user_schema.sql` and `005_demo_user.sql` applied clean through the
+`006_email_lower.sql` has NOT been through the runner against this cluster: it
+will be the first `ALTER TABLE … ADD CONSTRAINT` the `NOT VALID` rewrite ever
+sends, and until it is dispatched nothing here says the cluster takes it.
+
+`003_user_schema.sql` and `005_demo_user.sql` applied clean through the
 runner, rewrite rules and all, with both `CREATE INDEX ASYNC` jobs waited on via
 `CALL sys.wait_for_job` and both indexes present in `pg_indexes` afterwards. A
 second pass over the same schema applied nothing and skipped everything — the

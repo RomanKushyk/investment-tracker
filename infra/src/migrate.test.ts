@@ -30,14 +30,15 @@ const read = (file: string) =>
 
 const USER_SCHEMA = '003_user_schema.sql';
 const DEMO_ROW = '005_demo_user.sql';
+const CASE_RULE = '006_email_lower.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately. `001`, `002` and `004` are the ARCHIVE's, applied
   // by `ensureSchema` in capture.ts, and a tool globbing `migrations/**/*.sql`
   // by filename would run the user schema before them — the ambiguity the
   // numbering rule exists to remove.
-  it('names the user schema and the demo row, in that order, and nothing else', () => {
-    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW]);
+  it('names the user schema, the demo row and the case rule, in that order, and nothing else', () => {
+    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE]);
   });
 });
 
@@ -48,6 +49,12 @@ describe('statementsOf', () => {
     // Five CREATE TABLE, five ALTER TABLE … ADD CONSTRAINT for the foreign
     // keys, two CREATE INDEX.
     expect(stmts).toHaveLength(12);
+  });
+
+  it('splits the case rule into its one statement', () => {
+    // Hand-written and one statement, so it carries no breakpoint marker —
+    // the same shape as `005`.
+    expect(statementsOf(read(CASE_RULE))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -103,6 +110,14 @@ describe('rewriteForDsql', () => {
   // The four promotion rules, `infra/docs/dsql-constraints.md`. Each was
   // measured against the live cluster, and doing any one of them alone still
   // leaves a statement the cluster refuses.
+  it('appends NOT VALID to the case rule, which is why the file does not', () => {
+    // DSQL refuses `ADD CONSTRAINT` without it. The file writing it too would
+    // produce a second one, which is what the rule's idempotence prevents.
+    const [stmt] = statementsOf(read(CASE_RULE));
+    expect(stmt).not.toContain('NOT VALID');
+    expect(rewriteForDsql(stmt)).toContain('NOT VALID');
+  });
+
   it('inserts ASYNC and strips USING btree from an index line', () => {
     expect(
       rewriteForDsql(
@@ -164,8 +179,12 @@ describe('rewriteForDsql', () => {
   // `CREATE INDEX ASYNC ASYNC` or a second `NOT VALID`, and both are syntax
   // errors the cluster reports as the caller's fault.
   it('is idempotent', () => {
-    for (const s of statementsOf(read(USER_SCHEMA))) {
-      expect(rewriteForDsql(rewriteForDsql(s))).toBe(rewriteForDsql(s));
+    // Both files: `003` carries the index lines and the foreign keys, `006` the
+    // bare `ADD CONSTRAINT` that the `NOT VALID` rule is the only one to touch.
+    for (const file of [USER_SCHEMA, CASE_RULE]) {
+      for (const s of statementsOf(read(file))) {
+        expect(rewriteForDsql(rewriteForDsql(s))).toBe(rewriteForDsql(s));
+      }
     }
   });
 });
@@ -424,6 +443,7 @@ describe('migrate', () => {
       files: [
         { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 12 },
         { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1 },
+        { file: CASE_RULE, applied: 0, skipped: 0, pending: 1 },
       ],
     });
   });
@@ -433,12 +453,14 @@ describe('migrate', () => {
     await ensureLedger(db);
     await applyFile(db, USER_SCHEMA, statementsOf(read(USER_SCHEMA)));
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
+    await applyFile(db, CASE_RULE, statementsOf(read(CASE_RULE)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
       files: [
         { file: USER_SCHEMA, applied: 0, skipped: 12, pending: 0 },
         { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0 },
+        { file: CASE_RULE, applied: 0, skipped: 1, pending: 0 },
       ],
     });
   });
@@ -491,5 +513,15 @@ describe('the demo user', () => {
   // comment in `infra/schema/user.ts`.
   it('holds an address the owner controls', () => {
     expect(DEMO_USER_EMAIL.endsWith('@quirenote.com')).toBe(true);
+  });
+
+  // `006` refuses anything else. `NOT VALID` spares a row already present the
+  // initial scan, but on stock Postgres not a later write — the CHECK runs on
+  // every UPDATE of it, whatever column is touched — so a capital here would
+  // make the demo row unupdatable rather than harmlessly exempt. That half is
+  // measured on PGlite and unprobed on DSQL; what is certain either way is that
+  // DSQL refuses `VALIDATE CONSTRAINT`, so nothing goes looking later.
+  it('is already the canonical spelling `006` requires', () => {
+    expect(DEMO_USER_EMAIL).toBe(DEMO_USER_EMAIL.toLowerCase());
   });
 });

@@ -46,7 +46,7 @@ Resources:
           # vault with a 35-day retention floor — a recovery point that lands in it
           # cannot be removed early. Production user data is the one thing in this
           # system that cannot be re-derived from anything, so it carries the tag.
-          # Dev's cluster is `003` plus `005` and a dispatch, so it does not.
+          # Dev's cluster is the `migrations/` files and a dispatch, so it does not.
           Value: !If [IsProd, quirenote, quirenote-dev]
 
   # --------------------------------------------------------------------------

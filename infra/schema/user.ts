@@ -216,6 +216,17 @@ export const appUser = pgTable(
     // match only — case is a create-time pool setting, not a normalisation
     // (`docs/reference/COGNITO-POOL-PARAMS.md`).
     //
+    // Byte-exact IS case-insensitive here, but only because `006` refuses an
+    // address that is not already lower-cased. THAT RULE IS NOT IN THIS FILE,
+    // and the reason is not that drizzle cannot express it — it is that drizzle
+    // emits `check()` INLINE, so declaring it here would widen a `CREATE TABLE`
+    // already applied on both clusters, where the ledger keys by content hash.
+    //
+    // The cost is a drift nothing detects: `app_user` declares three CHECKs
+    // here and has four on the cluster, and `schema-generated.test.ts` only
+    // diffs this file against `003`. Every later constraint on an applied table
+    // lands the same way, so read the migrations, not only this file.
+    //
     // THE DEMO ROW INVERTS THAT, and it is the reason its address is chosen
     // rather than invented: the database now holds an address Cognito has never
     // seen, so for that one row this constraint refuses an applicant BEFORE

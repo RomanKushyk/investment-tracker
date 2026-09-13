@@ -20,7 +20,7 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 | `src/xlsx.ts` | A minimal ZIP + SpreadsheetML reader, no package: numbers, shared strings and cached formula text; every other cell type is refused |
 | `src/fund-history.ts` | The provider's fund price files to `nav` rows: columns by caption, the one text-formatted price read only as a string |
 | `schema/user.ts` | Drizzle source for `migrations/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
-| `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) and `005` (the demo's identity) — are applied by `src/migrate.ts`, which names them rather than globbing, and they live on the USER clusters only — never on the archive, which holds no user table. A user cluster is created EMPTY: the schema arrives when `migrate.yml` is dispatched against it, not when the stack deploys |
+| `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) · `005` (the demo's identity) · `006` (one spelling per mailbox) — are applied by `src/migrate.ts`, which names them rather than globbing, and they live on the USER clusters only — never on the archive, which holds no user table. A user cluster is created EMPTY: the schema arrives when `migrate.yml` is dispatched against it, not when the stack deploys |
 | `migrations/drafts/` | Schema written before anything may apply it — DSQL primary keys are immutable, so a key is decided on paper, reviewed, then promoted. Empty today: `003` was promoted out of it. [`migrations/drafts/README.md`](migrations/drafts/README.md) is the practice |
 | `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
@@ -52,8 +52,8 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
   is therefore the enrolment decision, and the vault it enrols into is LOCKED
   with a 35-day floor — a recovery point that lands there cannot be removed
   early. The archive carries the tag and so does prod's user cluster; dev's
-  carries `app=quirenote-dev` and stays out, because it is `003` plus `005` and
-  a dispatch. Note what this does NOT break: `BackupAgeAlarm` filters recovery
+  carries `app=quirenote-dev` and stays out, because it is the `migrations/`
+  files and a dispatch. Note what this does NOT break: `BackupAgeAlarm` filters recovery
   points by the archive's own cluster ARN, so a second tagged cluster cannot
   make the archive look fresh — and equally, nothing watches prod's, which is #139.
 - **Never let an output alias shadow the column you `ORDER BY`.** A bare name

@@ -64,6 +64,8 @@ The refusal held in both states, so there is no window in which a duplicate slip
 
 Note what that flag does and does not do. Case insensitivity is a **matching** rule — Cognito "treats any variation in case as the same user" — not a rewriting one; the address is still stored in the case the user typed it. Anything reading an address back still sees the original case, which is why a writer that must produce one canonical spelling has to lower-case it itself.
 
+The database no longer takes that on trust: `app_user_email_lower_ck` (`infra/migrations/006_email_lower.sql`) refuses an address that is not already lower-cased, so a writer either canonicalises or fails. The division is deliberate — the provider keeps the case the user typed, the database keeps the one spelling everything else joins on.
+
 ## The client, and the token validity that is not a pool setting
 
 Access, ID and refresh validity live on the **app client**, not the pool, and are changeable at any time.

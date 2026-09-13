@@ -1,6 +1,7 @@
-// W7's user schema, executed.
-// `infra/migrations/003_user_schema.sql`
-// is a pinned contract with IMMUTABLE primary keys (D30), so a mistake in it is
+// W7's user schema, executed — every DDL migration the runner names, which is
+// `infra/migrations/003_user_schema.sql` and the files that have constrained it
+// since. `003` is a pinned contract with IMMUTABLE primary keys (D30), so a
+// mistake in it is
 // a DROP/CREATE of live user data rather than a migration. It is no longer a
 // draft — `infra/src/migrate.ts` applies it — which makes this suite the last
 // place a mistake is cheap rather than the only place anything notices one.
@@ -33,11 +34,23 @@ import { DEMO_USER_EMAIL } from './demo-user';
 // real file, it did not: that splitter's seventh statement BEGAN with
 // `--> statement-breakpoint`, and it only worked because Postgres reads `--` as
 // a line comment.
-import { statementsOf as statements } from './migrate';
+import { MIGRATIONS, statementsOf as statements } from './migrate';
 
 // Promoted out of `drafts/` in the commit that gave it a handler entitled to
-// run it. `migrate.ts` reads the same file from the same place.
-const SCHEMA = new URL('../migrations/003_user_schema.sql', import.meta.url);
+// run it. `migrate.ts` reads the same files from the same place.
+//
+// The case rule is a LATER file rather than a column of `003`, because
+// `CREATE TABLE "app_user"` is applied on both clusters and the ledger keys by
+// content hash — editing it would re-send a statement the cluster already has.
+//
+// `005` is excluded because it is DML: this suite builds its own baseline and a
+// seeded row would sit underneath every count below. `DDL` is derived from
+// `MIGRATIONS`, so a new schema file cannot be forgotten here; what stays by
+// hand is the one name being excluded, and a second DML file would be applied
+// rather than skipped — loudly, against the counts below, never green.
+const DML = '005_demo_user.sql';
+const DDL = MIGRATIONS.filter((f) => f !== DML);
+const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const uuid = (c: string) =>
   `'${c.repeat(8)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(12)}'`;
@@ -97,7 +110,7 @@ const insertTx = (
 
 beforeAll(async () => {
   db = new PGlite();
-  const stmts = statements(readFileSync(SCHEMA, 'utf8'));
+  const stmts = DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')));
   for (const stmt of stmts) {
     // A failure here names the statement rather than the file.
     // No `+ ';'`: splitting on the marker leaves each statement's own
@@ -208,12 +221,26 @@ describe('app_user', () => {
                              now(), ${USER});`);
   });
 
-  it('ACCEPTS the same mailbox in another case — the unique index is byte-exact', async () => {
-    // Pinned as a fact, not as an approval. Cognito refuses an exact duplicate
-    // but not a case variation, and matching case-insensitively is a create-time
-    // choice that still stores the case typed — so the API must lower-case on
-    // write (`docs/reference/COGNITO-POOL-PARAMS.md`).
-    await accepts(other(nextId(), 'OWNER@quirenote.com'));
+  // THE ACCEPTING TWIN COMES FIRST, by the rule stated further down this file.
+  // The two halves name ONE mailbox and differ only in case, which is what
+  // makes the refusal below attributable: `app_user_email_uq` is byte-exact, so
+  // `NEW@` does not collide with `new@` and cannot answer `23505` — the only
+  // thing left to refuse it is the case rule.
+  it('accepts a mailbox in its canonical spelling', async () => {
+    await accepts(other(nextId(), 'new@quirenote.com'));
+  });
+
+  // The only test here that names its constraint, because its argument is that
+  // the refusal is the CHECK and not `app_user_email_uq`, and `refuses()`
+  // cannot tell a `23514` from a `23505`.
+  it('refuses that same mailbox spelled with capitals', async () => {
+    // Cognito does not close this: its duplicate refusal is exact-match only,
+    // and a pool matching case-insensitively still stores the case typed
+    // (`docs/reference/COGNITO-POOL-PARAMS.md`). One canonical spelling is the
+    // database's rule now, which is what makes the byte-exact index enough.
+    await expect(db.exec(other(nextId(), 'NEW@quirenote.com'))).rejects.toThrow(
+      /app_user_email_lower_ck/,
+    );
   });
 });
 

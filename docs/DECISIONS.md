@@ -292,9 +292,11 @@ creates no identity, a super-admin approves, and approval is what creates the ac
 one invitation. Identity lives in the provider; status and role live in the application row, which
 the API checks on every request. Three sign-in methods — password, social, passkey — one account per
 email, by the pool's username attribute **and its case setting, both fixed at creation** (see
-[`reference/COGNITO-POOL-PARAMS.md`](reference/COGNITO-POOL-PARAMS.md)), plus a pre-sign-up trigger
-that links a federated identity only when the provider asserts the address verified. Onboarding is
-passkey-first; mail via SES.
+[`reference/COGNITO-POOL-PARAMS.md`](reference/COGNITO-POOL-PARAMS.md)), by a database that refuses an
+address which is not already lower-cased, and by a pre-sign-up trigger that links a federated identity
+only when the provider asserts the address verified. The database holds a share because the pool
+canonicalises nothing: matching case-insensitively still stores the case the user typed, and the
+sign-up row is written before any identity exists. Onboarding is passkey-first; mail via SES.
 Reads answer to THREE policies, never mixed in one response and never sharing a route: the price
 archive is public and global, a user's own data is private and per-user, and the demo is public but
 belongs to one owner — the seeded original is a single row set under an

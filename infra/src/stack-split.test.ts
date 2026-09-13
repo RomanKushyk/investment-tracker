@@ -136,7 +136,7 @@ describe('the user stack holds user data and nothing else', () => {
   // OUT OF A LOCKED VAULT. The AWS Backup selection matches `app=quirenote` and nothing
   // else, and `quirenote-backups` is Locked with a 35-day retention floor — so the tag
   // is not "gets backed up", it is "produces recovery points nobody can delete for 35
-  // days". Prod's cluster is worth that; dev's, which is `003` plus `005` and a
+  // days". Prod's cluster is worth that; dev's, which is the `migrations/` files and a
   // dispatch, is not. Asserted on the parsed intrinsic: `!If [IsProd, a, b]` reaches
   // here as the three-element array, and `!Equals [!Ref Environment, prod]` as two.
   it('tags prod into the backup selection and dev out of it', () => {
