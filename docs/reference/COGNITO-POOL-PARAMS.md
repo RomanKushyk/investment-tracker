@@ -131,17 +131,43 @@ one is.
 record pointing at that distribution — DNS-only, never proxied — and the fact that until it
 exists the stack is green and managed login resolves nowhere.
 
+## What the real pool answered that this one could not
+
+Measured on the deployed dev pool, which has the `UsernameConfiguration` this one omitted.
+
+**`AdminCreateUser` refuses a duplicate, and refuses the case variant too.** The same address
+twice gives `UsernameExistsException`; the same mailbox in capitals gives
+`UsernameExistsException` as well, where the rehearsal's pool accepted it and ended with two
+accounts. That is the one behaviour `CaseSensitive: false` is set at creation to produce, and
+it is now observed rather than inferred. It matters that the call is this one: production closes
+self-service sign-up, so `SignUp` is no longer what creates an identity.
+
+**Suppressing the message suppresses the password with it.** `AdminCreateUser` with
+`MessageAction: SUPPRESS` and no `TemporaryPassword` fails outright —
+`InvalidParameterException: User is required to have a password`. Cognito generates a temporary
+password only when it has a message to put it in, so any caller that suppresses the invitation
+has to supply one.
+
+**`DescribeUserPool` does not report the WebAuthn settings, even when they are set.**
+`WebAuthnRelyingPartyID` and `WebAuthnUserVerification` both read back `null` there. They live
+behind `GetUserPoolMfaConfig`, as `WebAuthnConfiguration.RelyingPartyId` and
+`.UserVerification`. Reading the wrong API makes a set value look absent — the same shape of
+mistake as `UsernameConfiguration` reading back absent when omitted, and worth knowing before
+anyone "fixes" a relying party that was never missing.
+
+**A pool that allows passkeys does not offer them to a user who has none.** `InitiateAuth` with
+`AuthFlow: USER_AUTH` against a password-only user answers `SELECT_CHALLENGE` with
+`AvailableChallenges: ["PASSWORD_SRP", "PASSWORD"]` — no `WEB_AUTHN`, despite the pool carrying
+it in `AllowedFirstAuthFactors`. The list is per USER, not per pool: a passkey becomes available
+once one is registered, and registration takes an access token, so it follows a first sign-in
+rather than preceding it. Passkey-first onboarding is therefore an ordering of steps after an
+invitation, not a pool setting.
+
 ## What this does not answer
 
 **Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.
 
-**What a duplicate does to `AdminCreateUser`** is answered on the real pool rather than here —
-the rehearsal could only probe `SignUp`, and production closes self-service sign-up, so `SignUp`
-is not the call that creates an identity any more. The result is in the issue that built the
-pool (#42).
-
-**Whether federation links rather than duplicates.** The trigger is written and unit-tested
-(`infra/src/pre-signup.test.ts`), and the pool carries the `email_verified` attribute mapping it
-depends on — but a link has not been exercised against Google itself, because the OAuth client
-is created outside this account. Until it is, the pool is password and passkey: the template's
-`HasGoogle` condition leaves the provider uncreated rather than half-built.
+**Whether federation links rather than duplicates.** The trigger is deployed and wired, and its
+condition and direction are unit-tested (`infra/src/pre-signup.test.ts`) — but a link has not
+been exercised against Google itself. It cannot be until a local account exists for an address
+to link *to*, and creating one is the approval endpoint's job.
