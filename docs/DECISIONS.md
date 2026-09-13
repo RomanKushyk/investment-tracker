@@ -287,7 +287,11 @@ is a new stack, and a new stack is a second archive cluster.
 
 ## Auth model
 **Decision.** Cognito Essentials with managed login, behind an HTTP API JWT authorizer with no
-Lambda in the path. Registration is an APPLICATION, not an open door: sign-up writes a row and
+Lambda in the path. ONE POOL PER ENVIRONMENT, beside the cluster whose rows its `sub` values key —
+a shared pool would make a dev sign-in mint a production identity, and `app_user_email_uq` holds
+within an environment precisely so the two need not agree. Managed login runs on a CUSTOM domain
+from the first deploy, `auth.quirenote.com` and `auth.dev.quirenote.com`, and the passkey relying
+party is pinned to it. Registration is an APPLICATION, not an open door: sign-up writes a row and
 creates no identity, a super-admin approves, and approval is what creates the account and sends the
 one invitation. Identity lives in the provider; status and role live in the application row, which
 the API checks on every request. Three sign-in methods — password, social, passkey — one account per
@@ -297,6 +301,12 @@ address which is not already lower-cased, and by a pre-sign-up trigger that link
 only when the provider asserts the address verified. The database holds a share because the pool
 canonicalises nothing: matching case-insensitively still stores the case the user typed, and the
 sign-up row is written before any identity exists. Onboarding is passkey-first; mail via SES.
+**Closing `SignUp` is not the same as closing the door, and the pool alone does not close it:**
+AWS creates users from a federated sign-in whether or not self-registration is on, so from the
+day Google is configured any Google account mints a pool identity. It reads nothing — every
+request is authorized against `status` and `role` on the application row, and there is none —
+but it is an identity and a monthly active user. The pre-sign-up refusal that turns it away is
+the applications endpoint's, not the pool's.
 Reads answer to THREE policies, never mixed in one response and never sharing a route: the price
 archive is public and global, a user's own data is private and per-user, and the demo is public but
 belongs to one owner — the seeded original is a single row set under an
@@ -306,8 +316,8 @@ scope it is stored under. That identity carries a ROLE OF ITS OWN, `demo`, and n
 not an application, so it is excluded from the approval surface by its own column rather than by a
 convention, and `app_user_decided_ck` exempts it instead of taking a fabricated approval pair. That
 row exists once per user cluster and carries the same id in both, so `app_user_email_uq` holds
-within an environment and across none of them — whether one pool or two serve the two clusters is the
-pool's question to answer, not the schema's.
+within an environment and across none of them — which the pool has now answered its own way, one per
+environment, so the two never have to agree.
 Until the play copy
 exists an unauthenticated caller reads it and writes nothing.
 Three surfaces stand outside the authorizer and check no application row: the archive's reads, the
@@ -339,7 +349,15 @@ A demo a visitor may write to, this early: the copy that makes play safe has to 
 lives, what it is scoped to, whether it survives a sign-out and how a reset back to the original is
 offered, and those are open on purpose. ·
 No demo at all until they are answered: the absence would be discovered after the cutover rather
-than chosen before it.
+than chosen before it. ·
+A Cognito prefix domain for managed login, even as a first step: it is not a step, it is a different
+road. The passkey relying party is what a browser matches a credential against, and
+`<prefix>.auth.<region>.amazoncognito.com` is not a registrable suffix of a `quirenote.com` origin
+— so moving to the custom domain later does not migrate those passkeys, it strips them, and AWS
+says as much. The certificate in us-east-1 and one DNS record are the whole of what the cheaper
+option saves. ·
+One pool serving both clusters: it would spend a production monthly active user on every dev
+sign-in and put dev identities in the table a real portfolio is keyed by.
 
 ## User schema and deletes
 **Decision.** DSQL refuses `USING btree`, refuses a `CREATE INDEX` that is not `ASYNC`, and has DDL

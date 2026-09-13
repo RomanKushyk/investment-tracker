@@ -22,6 +22,8 @@ Deployment). Region: **`eu-north-1`** (Stockholm). App name: `kubushka` in the c
 | CNAME | `_f2385149c1ffac22fed755635002cfd6` | `_0dee0158e98c51da584fa5373ae2938c.jkddzztszm.acm-validations.aws` |
 | CNAME | `@` (apex) | `d2jaridkoub072.cloudfront.net` |
 | CNAME | `www` | `d2jaridkoub072.cloudfront.net` |
+| CNAME | `auth` | the PROD stack's `UserPoolDomainCloudFrontAlias` output |
+| CNAME | `auth.dev` | the DEV stack's — read from the stack, never constructed |
 
 DNS is Cloudflare's, not Route 53's — Amplify issues its own free ACM certificate for third-party DNS. **Every HTTP record is
 PROXIED; everything else is DNS-only:**
@@ -30,6 +32,7 @@ PROXIED; everything else is DNS-only:**
 |---|---|---|
 | `@`, `www`, `dev` | **proxied** | caches immutable assets, absorbs floods, hides the origin — all three share one CloudFront distribution, so a grey record would publish it for all |
 | `_f2385149…` (ACM validation) | dns-only | a proxied CNAME answers with Cloudflare's own address, so ACM never sees what it asked for |
+| `auth`, `auth.dev` | **dns-only** | Cognito's managed-login distribution is matched by host and served under a certificate naming it; proxied, Cloudflare answers as itself and the distribution never sees the name it was built for. Same failure as the row above, one layer later |
 | DKIM / MX / SPF / DMARC | dns-only | mail is not HTTP |
 
 `public/robots.txt` carries `User-agent: * / Disallow: /` — production is closed to crawlers until sign-up ships. **Never pair
@@ -57,13 +60,27 @@ email subscriber — notification only, never an automated shutdown.
 | Stack | Holds | Deployed from |
 |---|---|---|
 | `quirenote-backend` | the archive cluster (tagged `app=quirenote`), the capture Lambda, the schedule, the DLQ, the alarms | `dev` only |
-| `quirenote-backend-user-dev` | a DSQL cluster of user data, and the migration runner for it. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
-| `quirenote-backend-user-prod` | the same, tagged `app=quirenote` | `main` |
+| `quirenote-backend-user-dev` | a DSQL cluster of user data, the migration runner for it, and the Cognito pool at `auth.dev.quirenote.com`. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
+| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` | `main` |
 
 `deploy-backend.yml` fires on both branches and picks its environment from the ref exactly as the frontend does; the archive step
 is skipped off `main`. **The consequence worth knowing before it is needed: a `workflow_dispatch` on `main` cannot repair the
 archive.** The repair path is a dispatch on `dev`. `migrate.yml` takes a `target`, and a `prod` migration is refused from any
 branch but `main` by the `prod` environment's own branch policy — before any credential exists.
+
+**A new POOL resolves nowhere, and the deploy cannot finish it.** Creating the stack creates the
+pool and asks Cognito for a CloudFront distribution; the `auth` record above is Cloudflare's and
+manual, and until it exists managed login is a hostname that does not resolve while every stack
+reads green. The distribution's name is generated, so take it from the stack's
+`UserPoolDomainCloudFrontAlias` output rather than constructing it. The stack also declares a
+**managed login branding style** for the app client, and that is not decoration: an app client
+with no style assigned serves nonfunctional managed login pages, because branding version 2 does
+not fall back to the classic UI. It is the same half-done shape as the missing record — green
+stack, endpoint nobody can sign in through — which is why the style is in the template rather
+than clicked into existence in the branding editor. Its certificate is in
+**us-east-1** whatever region the pool is in — the distribution is global — and it covers both
+`auth.quirenote.com` and `auth.dev.quirenote.com`, so one certificate serves both stacks and its
+ARN is the `AUTH_CERTIFICATE_ARN` secret on both environments.
 
 **A new user cluster is EMPTY, and the deploy does not fill it.** Creating the stack creates the database and the runner; the
 schema arrives only when someone dispatches `migrate.yml` against it — `rehearse`, then `dry-run`, then `apply`. Until that

@@ -93,8 +93,55 @@ This client is not a template for the real one: its `--explicit-auth-flows` carr
 
 That last row limits what was rehearsed: the refusal proved here is `SignUp`'s. In production the call that creates the identity is `AdminCreateUser`, and its behaviour on a duplicate address was not exercised.
 
+## The pool this produced
+
+Built as `infra/template-user.yaml`, one per environment, and held to the table above by
+`infra/src/cognito-pool.test.ts` — so the three create-time-only parameters are now asserted
+rather than remembered. What the template adds beyond the rehearsal's four corrections:
+
+| Property | Value | Why it is here rather than later |
+|---|---|---|
+| `Policies.SignInPolicy.AllowedFirstAuthFactors` | `["PASSWORD", "WEB_AUTHN"]` | the note this file left for whoever built the real pool. Changeable, but a pool that cannot offer the factor onboarding is built around is not worth deploying |
+| client `ExplicitAuthFlows` | includes `ALLOW_USER_AUTH` | the other half of the same thing — the flow a passkey is selected through |
+| `WebAuthnRelyingPartyID` | the custom domain | see below; this one is not practically reversible |
+| `WebAuthnUserVerification` | `required` | a passkey with user verification already satisfies MFA, which is why `MfaConfiguration` stays `OFF` |
+| `LambdaConfig.PreSignUp` | the linking trigger | `infra/src/pre-signup.ts` |
+
+**The relying party ID is the second irreversible decision, and it is not a pool parameter.**
+A passkey is registered against one RP ID and no browser will offer it to another. AWS states
+that creating a custom domain later "will cause passkey integration for your prefix domain to
+stop working due to a mismatch in RP ID" — and a prefix domain cannot be kept as the RP ID once
+managed login moves, because `<prefix>.auth.<region>.amazoncognito.com` is not a registrable
+suffix of a `quirenote.com` origin. So the prefix domain is not a cheap first step toward a
+custom one; it is a different road, and every passkey registered on it is lost at the turn.
+The pool therefore ships with the custom domain from its first deploy: `auth.quirenote.com`
+and `auth.dev.quirenote.com`, ACM certificate in **us-east-1** whatever region the pool is in,
+because the domain is fronted by a CloudFront distribution Cognito builds and owns.
+
+**And the RP ID is the auth host rather than the apex, which forecloses one thing.** AWS
+requires the RP ID to be the custom domain's FQDN when a pool has a custom domain and
+authenticates through managed login. A ceremony run from the SPA's own origin would instead
+need `quirenote.com` — a registrable suffix of both hosts — and the two cannot both be true.
+So sign-in goes through managed login, and a native `StartWebAuthnRegistration` from the app is
+closed off. Whoever builds the client (#48) inherits that as a constraint, not a preference:
+reopening it strands every passkey already registered, so it has to be settled before the first
+one is.
+
+**Two things the template cannot finish**, both in `reference/DEPLOYMENT.md`: the Cloudflare
+record pointing at that distribution — DNS-only, never proxied — and the fact that until it
+exists the stack is green and managed login resolves nowhere.
+
 ## What this does not answer
 
-**Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have.
+**Whether a trigger-rejected sign-up costs a monthly active user** — tracked as #61. It could not be answered on this pool in any case: reaching the trigger path needs a pre-sign-up Lambda and its `LambdaConfig`, which this pool did not have. The real pool has both, so #61 is now answerable where it was not.
 
-**Anything about managed login, the hosted domain, or federation.** No domain and no identity provider were configured, so the account-linking trigger is untested.
+**What a duplicate does to `AdminCreateUser`** is answered on the real pool rather than here —
+the rehearsal could only probe `SignUp`, and production closes self-service sign-up, so `SignUp`
+is not the call that creates an identity any more. The result is in the issue that built the
+pool (#42).
+
+**Whether federation links rather than duplicates.** The trigger is written and unit-tested
+(`infra/src/pre-signup.test.ts`), and the pool carries the `email_verified` attribute mapping it
+depends on — but a link has not been exercised against Google itself, because the OAuth client
+is created outside this account. Until it is, the pool is password and passkey: the template's
+`HasGoogle` condition leaves the provider uncreated rather than half-built.

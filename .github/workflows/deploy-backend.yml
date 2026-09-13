@@ -162,7 +162,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate; do
+          for entry in capture migrate pre-signup; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -187,7 +187,7 @@ jobs:
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
-          cp infra/dist/capture.js infra/dist/migrate.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
@@ -239,6 +239,36 @@ jobs:
             }
             console.log('bundle loads, handler present, both as_of rules correct');
           "
+          # The trigger's bundle, asserted the same way and for one reason more: this
+          # handler runs on a path a stranger reaches, and a bundle that fails to load
+          # fails the SIGN-UP rather than logging somewhere. The link condition is
+          # exercised in the bundled shape too, because `preSignUp` is the export the
+          # Lambda actually calls and vitest only ever sees the ESM module.
+          node -e "
+            const p = require('./pre-signup.js');
+            if (typeof p.handler !== 'function') throw new Error('handler missing from pre-signup bundle');
+            const event = (verified) => ({
+              triggerSource: 'PreSignUp_ExternalProvider',
+              userPoolId: 'eu-north-1_EXAMPLE',
+              userName: 'Google_1',
+              request: { userAttributes: { email: 'a@b.com', email_verified: verified } },
+              response: {},
+            });
+            let linked = 0;
+            const idp = {
+              listUsers: async () => ({ Users: [{ Username: 'u', UserStatus: 'CONFIRMED' }] }),
+              adminLinkProviderForUser: async () => { linked++; return {}; },
+            };
+            Promise.all([p.preSignUp(event('true'), idp), p.preSignUp(event('false'), idp)])
+              .then(() => {
+                // One link across the two: the verified event links, the unverified one
+                // must not. A bundle that linked both, or neither, is the failure.
+                if (linked !== 1) {
+                  throw new Error('pre-signup bundle links on the wrong condition: ' + linked);
+                }
+                console.log('pre-signup bundle loads and links only a verified address');
+              }).catch((e) => { console.error(e); process.exit(1); });
+          "
 
       # NO DEPLOY GATE HERE, AND THAT IS A DECISION RATHER THAN AN OMISSION.
       # `paths` now includes `.github/**` and the root manifests so the gates run on
@@ -283,7 +313,11 @@ jobs:
           sam deploy \
             --template-file template-user.yaml \
             --stack-name "quirenote-backend-user-${ENVIRONMENT}" \
-            --parameter-overrides "Environment=${ENVIRONMENT}" \
+            --parameter-overrides \
+              "Environment=${ENVIRONMENT}" \
+              "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" \
+              "GoogleClientId=${GOOGLE_CLIENT_ID}" \
+              "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}" \
             --region "$AWS_REGION" \
             --s3-bucket "quirenote-sam-artifacts-${AWS_ACCOUNT_ID}" \
             --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/quirenote-backend-cfn-exec" \
@@ -294,6 +328,16 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          # The certificate is us-east-1's and its ARN carries the account id; the two
+          # Google values are the OAuth client's. None of the three may be written into
+          # this repository, so all three arrive from the environment's secrets.
+          #
+          # GOOGLE UNSET IS A SUPPORTED STATE, not a broken one: an empty id leaves the
+          # template's `HasGoogle` false, the provider uncreated and the pool on password
+          # and passkey. That is what lets the pool ship before the OAuth client exists.
+          AUTH_CERTIFICATE_ARN: ${{ secrets.AUTH_CERTIFICATE_ARN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       # ONE ARCHIVE, ONE CAPTURE, FOR EVERY ENVIRONMENT — so it has one deploying
       # branch, and this step is skipped on `main`. The consequence worth knowing before

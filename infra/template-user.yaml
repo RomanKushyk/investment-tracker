@@ -1,11 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Quirenote user data — one Aurora DSQL cluster per environment, and the migration
-  runner that fills it. Deployed twice, as quirenote-backend-user-dev and
-  quirenote-backend-user-prod. The ARCHIVE is deliberately not here: it is provider
-  data shared by every environment and lives, once, in the quirenote-backend stack.
-  See docs/DECISIONS.md, **Cloud target**.
+  Quirenote user data — one Aurora DSQL cluster per environment, the migration runner
+  that fills it, and the Cognito pool whose users own its rows. Deployed twice, as
+  quirenote-backend-user-dev and quirenote-backend-user-prod. The ARCHIVE is
+  deliberately not here: it is provider data shared by every environment and lives,
+  once, in the quirenote-backend stack. See docs/DECISIONS.md, **Cloud target** and
+  **Auth model**.
 
 Parameters:
   Environment:
@@ -17,11 +18,52 @@ Parameters:
     # which, for the half of the pair that is production, is not a failure anyone
     # would go looking for.
 
+  AuthCertificateArn:
+    Type: String
+    MinLength: 1
+    AllowedPattern: ^arn:aws:acm:us-east-1:\d{12}:certificate/.+$
+    ConstraintDescription: must be an ACM certificate ARN in us-east-1
+    # CONSTRAINED, AND THE CONSTRAINT IS THE CHEAP HALF OF A MESSY FAILURE. The workflow
+    # passes this unconditionally, so an unset secret arrives as the empty string — which
+    # an unconstrained String accepts. The pool would then be created and the DOMAIN would
+    # fail, and because the pool is Retain + DeletionProtection ACTIVE the rollback KEEPS
+    # it. The retry does succeed — the domain never got as far as claiming its name — but
+    # it creates a SECOND pool, and the first is left behind deletion-protected, one
+    # orphan per attempt, each needing an `UpdateUserPool` before it can be removed at
+    # all. A pattern fails the deploy before any of that, at validation, naming the
+    # parameter.
+    # NO DEFAULT either, for a plainer reason than the above: there is no value that
+    # would be right. The certificate must live in us-east-1 whatever region the pool
+    # is in — a Cognito custom domain is fronted by CloudFront, which is global — and
+    # its ARN carries the account id, which this public repository does not hold.
+    # Supplied by `deploy-backend.yml` from the environment's secrets.
+
+  GoogleClientId:
+    Type: String
+    Default: ''
+  GoogleClientSecret:
+    Type: String
+    Default: ''
+    NoEcho: true
+    # EMPTY IS A VALID STATE, and it is what makes the pool deployable before the
+    # Google OAuth client exists. `HasGoogle` below turns the provider on when the id
+    # arrives; until then the pool is password and passkey, and nothing is half-built
+    # — a provider carrying a placeholder secret would exist, appear in managed login,
+    # and fail at the token exchange.
+
 Conditions:
   # DERIVED, never passed. An environment and a tag that disagree is the one mistake
   # this stack could make silently, so it is made unrepresentable rather than
   # documented.
   IsProd: !Equals [!Ref Environment, prod]
+
+  # BOTH HALVES. Keyed on the id alone, the likelier order in which two secrets get
+  # added to a GitHub environment would create the provider with an empty
+  # `client_secret` — precisely the "exists, appears in managed login, and fails at the
+  # token exchange" state the parameters above say this design prevents.
+  HasGoogle: !And
+    - !Not [!Equals [!Ref GoogleClientId, '']]
+    - !Not [!Equals [!Ref GoogleClientSecret, '']]
 
 Resources:
   # --------------------------------------------------------------------------
@@ -123,6 +165,281 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${MigrateFunction}
       RetentionInDays: 30
 
+  # --------------------------------------------------------------------------
+  # Identity
+  # --------------------------------------------------------------------------
+  # ONE POOL PER ENVIRONMENT, beside the cluster whose `app_user` rows its `sub` values
+  # key. `docs/DECISIONS.md`, **Auth model**, left this open — "whether one pool or two
+  # serve the two clusters is the pool's question to answer, not the schema's" — and it
+  # is answered here: a shared pool would make a dev sign-in mint a production identity,
+  # and `app_user_email_uq` holds within an environment precisely so the two need not
+  # agree.
+  #
+  # THREE OF THESE PROPERTIES CANNOT BE CHANGED AFTER CREATION, and that is why the
+  # rehearsal in `docs/reference/COGNITO-POOL-PARAMS.md` happened before this file was
+  # written. Getting one wrong is not an edit — it is recreating the pool with users
+  # already in it. `infra/src/cognito-pool.test.ts` holds all three.
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    # Retained like both clusters, and for the reason that applies to identity rather
+    # than data: every portfolio row hangs off a `user_id` that is a `sub` in here.
+    #
+    # WHAT RETAINING IT ACROSS A STACK DELETE LEAVES: the pool survives and its trigger
+    # does not, so `LambdaConfig.PreSignUp` points at an ARN that no longer exists and
+    # every federated sign-in against the orphan fails. That is a repair by hand either
+    # way — the pool is deletion-protected precisely so somebody has to look at it — and
+    # it is written here so the state is recognised rather than diagnosed.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    # The invoke permission, NOT the other way round. See PreSignUpPermission.
+    DependsOn: [PreSignUpPermission]
+    Properties:
+      UserPoolName: !Sub quirenote-${Environment}
+      # CREATE-TIME ONLY #1. Never `AliasAttributes`: aliases let several users hold one
+      # address and resolve it as "only the last user who verified it can sign in",
+      # which takes sign-in away from an existing account silently.
+      UsernameAttributes: [email]
+      # CREATE-TIME ONLY #2, and the one the decision did not name. `DescribeUserPool`
+      # reports it ABSENT rather than defaulted when the create call omits it, so the
+      # effective default cannot be read off a pool — the rehearsal found it by signing
+      # up twice, and the omitted behaviour is case SENSITIVE: `a@b.com` and `A@b.com`
+      # became two accounts with two subs. It is a MATCHING rule and not a rewriting one,
+      # which is why `app_user_email_lower_ck` still has work to do: the sign-up
+      # application row is written before any identity exists, so the database sees an
+      # address this pool has never had an opinion about.
+      UsernameConfiguration:
+        CaseSensitive: false
+      # CREATE-TIME ONLY #3 — "You can't change required attributes after you create a
+      # user pool", and `Schema` is not an `UpdateUserPool` parameter either.
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      # Passkeys are not in Lite. Threat protection is in Plus, which has no free tier —
+      # the approval gate is what keeps unapproved sign-ups away from data.
+      UserPoolTier: ESSENTIALS
+      DeletionProtection: ACTIVE
+      AutoVerifiedAttributes: [email]
+      MfaConfiguration: 'OFF'
+      Policies:
+        SignInPolicy:
+          # Changeable later, unlike the three above, but a pool that cannot offer the
+          # factor onboarding is built around is not worth deploying. EMAIL_OTP and
+          # SMS_OTP are deliberately absent: the password is already the recovery path,
+          # and SMS needs two AWS review queues and spends money from outside the
+          # account.
+          AllowedFirstAuthFactors: [PASSWORD, WEB_AUTHN]
+      # A passkey with user verification already satisfies MFA, which is why
+      # MfaConfiguration stays OFF above rather than being required separately.
+      WebAuthnUserVerification: required
+      # THE RELYING PARTY IS EFFECTIVELY PERMANENT. A passkey is registered against one
+      # RP ID and no browser will offer it to another, and AWS states that adding a
+      # custom domain later "will cause passkey integration for your prefix domain to
+      # stop working due to a mismatch in RP ID". An amazoncognito.com RP ID is not a
+      # registrable suffix of a quirenote.com origin either, so the prefix domain is not
+      # a step on the way to this one — it is a different, one-way road. Hence the
+      # custom domain from the first deploy.
+      #
+      # AND IT IS THE AUTH HOST, NOT THE APEX, WHICH FORECLOSES ONE THING #48 MIGHT WANT.
+      # AWS requires the RP ID to be the custom domain's FQDN when a pool has a custom
+      # domain and authenticates through managed login, which is the surface **Auth
+      # model** chose. The cost is that a passkey ceremony run from the SPA's OWN origin
+      # would need an RP ID of `quirenote.com` — a registrable suffix of both hosts —
+      # and the two cannot both be true. So sign-in goes through managed login, and a
+      # native `StartWebAuthnRegistration` from the app is closed off. Reopening it is
+      # not an edit: it strands every passkey already registered, so the question has to
+      # be settled before the first one is, not after.
+      WebAuthnRelyingPartyID: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
+      AdminCreateUserConfig:
+        # Registration is an application, not an open door: sign-up writes a row and
+        # creates no identity, and approval is what calls `AdminCreateUser`. #43 builds
+        # that endpoint and the toggle that would open this.
+        AllowAdminCreateUserOnly: true
+      LambdaConfig:
+        PreSignUp: !GetAtt PreSignUpFunction.Arn
+      # NO `app` TAG, and its absence is the decision rather than an omission. That tag
+      # is what the AWS Backup selection matches, and what it matches lands in a Locked
+      # vault with a 35-day floor. Cognito is not a selectable type, so tagging a pool
+      # would state something true of nothing — and blur the one sentence the cluster
+      # above depends on.
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub quirenote-${Environment}-web
+      UserPoolId: !Ref UserPool
+      # PUBLIC. A browser cannot hold a secret, and a client that has one makes every
+      # call from the SPA fail on a missing SECRET_HASH rather than on anything that
+      # names itself.
+      GenerateSecret: false
+      # ALLOW_USER_AUTH is choice-based sign-in — the flow a passkey is selected
+      # through, and the half the rehearsal's client did not have. SRP covers the
+      # password; REFRESH_TOKEN covers everything after the first hour.
+      ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      # "Refresh token measured in years" resolves to 3650 DAYS: TokenValidityUnits has
+      # no `years`, and 315360000 seconds is the documented ceiling. Access and ID stay
+      # at an hour — nothing decided at token-issue time can revoke anything, so the API
+      # reads `status` and `role` from `app_user` on every request instead, and never
+      # `cognito:groups`.
+      RefreshTokenValidity: 3650
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      TokenValidityUnits:
+        RefreshToken: days
+        AccessToken: minutes
+        IdToken: minutes
+      # `!Ref` ON THE PROVIDER, NOT THE LITERAL STRING `Google`, AND THAT IS THE ORDERING.
+      # A `Ref` to this resource type returns its `ProviderName` — the same six characters
+      # — but a literal is not a reference, so CloudFormation would derive no edge from it
+      # and, on the deploy where the credentials FIRST arrive, would be free to update this
+      # client before creating the provider: `UpdateUserPoolClient` then fails with
+      # "identity provider Google does not exist". A `DependsOn` would say the same thing
+      # and is the wrong instrument here — the provider is conditional, and a `DependsOn`
+      # naming a resource that may not exist is an error in its own right. The reference
+      # lives inside the arm that is only evaluated when the provider is there.
+      SupportedIdentityProviders: !If [HasGoogle, [COGNITO, !Ref GoogleIdentityProvider], [COGNITO]]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      # The SPA has no callback route yet — #48 builds it with the HTTP client. These
+      # are an `UpdateUserPoolClient` parameter, so the day it lands is the day they
+      # change; what they must not be is absent, because a client with no callback
+      # cannot complete a managed-login redirect at all.
+      CallbackURLs:
+        - !If
+          - IsProd
+          - https://quirenote.com/auth/callback
+          - https://dev.quirenote.com/auth/callback
+      LogoutURLs:
+        - !If [IsProd, https://quirenote.com/, https://dev.quirenote.com/]
+      # Answers "incorrect username or password" to a wrong address as readily as a
+      # wrong password, so sign-in cannot be used to enumerate who has an account.
+      PreventUserExistenceErrors: ENABLED
+
+  # Conditional, so the stack deploys green before the Google OAuth client exists. The
+  # id and secret are never in this repository: they arrive as NoEcho parameters from
+  # the environment's GitHub secrets.
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasGoogle
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: openid email profile
+      # `email_verified` IS MAPPED ON PURPOSE. The pre-sign-up trigger refuses to link
+      # an address the provider has not asserted verified, and an unmapped claim reaches
+      # it as undefined — which reads as unverified, so Google sign-in would quietly
+      # stop linking and start making second accounts instead of failing.
+      AttributeMapping:
+        email: email
+        email_verified: email_verified
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    # Cognito requires an app client before a custom domain, and CloudFormation has no
+    # way to know that.
+    DependsOn: [UserPoolClient]
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
+      # 2 is managed login; 1 is the classic hosted UI. The decision says managed login.
+      ManagedLoginVersion: 2
+      CustomDomainConfig:
+        CertificateArn: !Ref AuthCertificateArn
+      # Two things this creates that the template cannot finish: a CloudFront
+      # distribution, whose domain name is the UserPoolDomainCloudFrontAlias output
+      # below, and the DNS record pointing at it — which is Cloudflare's and manual.
+      # See docs/reference/DEPLOYMENT.md; the record must be DNS-only, never proxied.
+
+  # WITHOUT THIS THE DOMAIN ABOVE SERVES A BROKEN PAGE. AWS: when an app client has no
+  # style assigned, managed login pages for that client are nonfunctional until one is
+  # created. Branding version 2 does not fall back to the classic UI — it fails. So the
+  # default style is declared rather than left to be clicked into existence in the
+  # branding editor, which is the same reasoning the DNS record gets in DEPLOYMENT.md
+  # and the same failure shape: a green stack and an endpoint nobody can sign in through.
+  #
+  # `UseCognitoProvidedValues: true` REQUIRES `Settings` and `Assets` to be omitted.
+  ManagedLoginBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientId: !Ref UserPoolClient
+      UseCognitoProvidedValues: true
+
+  # ITS OWN FUNCTION for the same blast-radius argument the runner above makes, and one
+  # more: this one is invoked by Cognito on a path a stranger can reach, so it holds the
+  # narrowest grant in the stack — link and list, on one pool.
+  PreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: pre-signup.handler
+      # Spelled out rather than inherited, exactly as the runner's are and for the same
+      # reason: a second copy of the runtime version is a second place to drift from.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # A Cognito trigger's own ceiling is 5 seconds, so a larger number here would only
+      # describe a failure Cognito has already abandoned.
+      Timeout: 5
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+      # NO POLICIES BLOCK. The grant is PreSignUpPolicy below, for the cycle reason
+      # given there — a policy written here would have to name the pool, and the pool
+      # names this function.
+
+  PreSignUpLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PreSignUpFunction}
+      RetentionInDays: 30
+
+  # THE CYCLE, AND THE FIRST OF TWO PLACES IT IS BROKEN. The pool names the function, so
+  # nothing the pool depends on may name the pool — and a trigger that is not permitted
+  # to be invoked fails the sign-up rather than skipping the link. So the permission is
+  # scoped by SourceAccount instead of SourceArn, and the pool waits on it. What that
+  # gives up is narrow: Cognito in this account, rather than this pool specifically.
+  PreSignUpPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PreSignUpFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  # THE SECOND PLACE, and here the cycle is broken without giving anything up: a policy
+  # resource is created after both, so it can name the real pool ARN. Written inline on
+  # the function it would have had to be a wildcard over every pool in the account —
+  # including the other environment's, which is the one this must never touch.
+  #
+  # THE COST OF THAT ORDERING is a window on a fresh create: the pool exists, its trigger
+  # is invocable, and this grant is not there yet, so a sign-up landing inside it fails on
+  # `ListUsers`. It cannot be closed by a `DependsOn` — that is the cycle again — and it
+  # lasts as long as one CloudFormation resource, on a stack whose pool has no users.
+  PreSignUpPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: LinkFederatedIdentity
+      Roles: [!Ref PreSignUpFunctionRole]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              # Two calls, and no third. ListUsers finds the local account that owns the
+              # portfolio; AdminLinkProviderForUser attaches the federated identity to
+              # it. Nothing here may create, disable or delete a user.
+              - cognito-idp:ListUsers
+              - cognito-idp:AdminLinkProviderForUser
+            Resource: !GetAtt UserPool.Arn
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier
@@ -133,3 +450,15 @@ Outputs:
   # stack is replaced.
   MigrateFunctionName:
     Value: !Ref MigrateFunction
+  UserPoolId:
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+  AuthDomain:
+    Value: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
+  # THE ONE VALUE NOBODY CAN CONSTRUCT. Cognito builds a CloudFront distribution for
+  # the custom domain and names it itself; the Cloudflare record has to point at this
+  # exact name, DNS-only. Until that record exists the stack is green and managed login
+  # resolves nowhere — the same shape of half-done state as an empty user cluster.
+  UserPoolDomainCloudFrontAlias:
+    Value: !GetAtt UserPoolDomain.CloudFrontDistribution

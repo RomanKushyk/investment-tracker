@@ -109,15 +109,36 @@ describe('the user stack holds user data and nothing else', () => {
 
   // An ALLOW-list, not a deny-list of the archive's types. A deny-list is a hole
   // where the next archive resource goes.
-  it('uses only the three resource types user data needs', () => {
-    const allowed = new Set([CLUSTER, 'AWS::Serverless::Function', 'AWS::Logs::LogGroup']);
+  //
+  // It grew from three types to ten when the pool arrived, and the widening is the
+  // point rather than a concession: identity splits per environment exactly as user
+  // data does (`docs/DECISIONS.md`, **Auth model**), so the pool belongs beside the
+  // cluster it matches and the list has to say so out loud. What the list still
+  // refuses is the archive's half — a schedule, a DLQ, a metric filter, an alarm.
+  it('uses only the resource types user data and its identity need', () => {
+    const allowed = new Set([
+      CLUSTER,
+      'AWS::Serverless::Function',
+      'AWS::Logs::LogGroup',
+      'AWS::Cognito::UserPool',
+      'AWS::Cognito::UserPoolClient',
+      'AWS::Cognito::UserPoolDomain',
+      'AWS::Cognito::UserPoolIdentityProvider',
+      'AWS::Cognito::ManagedLoginBranding',
+      'AWS::Lambda::Permission',
+      'AWS::IAM::Policy',
+    ]);
     for (const [id, r] of resources(user)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
 
-  it('its one function is the runner, pointed at the USER cluster', () => {
-    const functions = idsOfType(user, 'AWS::Serverless::Function');
-    expect(functions).toHaveLength(1);
-    const fn = user.Resources[functions[0]];
+  // TWO FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
+  // asserted while there was one; a count passes just as well against the wrong pair.
+  it('holds the runner and the sign-up trigger, and nothing else', () => {
+    expect(handlers(user).sort()).toEqual(['migrate.handler', 'pre-signup.handler']);
+  });
+
+  it('its runner is pointed at the USER cluster', () => {
+    const fn = user.Resources.MigrateFunction;
     expect(fn.Properties?.Handler).toBe('migrate.handler');
     const vars = fn.Properties?.Environment?.Variables ?? {};
     expect(vars.DSQL_ENDPOINT).toBe('UserCluster.Endpoint');
@@ -242,6 +263,20 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     expect(archiveStack.if).toBe("github.ref_name != 'main'");
   });
 
+  // EVERY HANDLER A TEMPLATE NAMES IS AN ENTRY POINT THE WORKFLOW BUNDLES, and the gap
+  // between the two lists is silent in both directions: `sam deploy` packages `dist/`
+  // as-is, so a handler left out of the loop deploys a function whose file does not
+  // exist and fails on its first invocation, not on the deploy. Derived from the
+  // templates rather than listed here, so the next handler cannot be added to one and
+  // forgotten in the other.
+  it('bundles an entry point for every handler the templates declare', () => {
+    const bundle = steps.find((s) => s.run?.includes('esbuild'));
+    const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));
+    expect(entries.length).toBeGreaterThan(0);
+    for (const entry of entries)
+      expect([entry, bundle?.run?.includes(entry)]).toEqual([entry, true]);
+  });
+
   // ONE RESOLUTION, USED TWICE. The job's environment decides which credentials the job
   // holds; the step's ENVIRONMENT decides which stack it writes. They are the same
   // expression and must stay so — diverged, the job assumes production's role and
@@ -249,7 +284,28 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
   it('resolves the environment once, for both the credentials and the stack', () => {
     const [userStack] = deploys;
     expect(userStack.env?.ENVIRONMENT).toBe(wf.jobs.deploy.environment?.name);
-    expect(userStack.run).toContain('--parameter-overrides "Environment=${ENVIRONMENT}"');
+    // The PAIRING is the assertion, not its adjacency to the flag: `--parameter-overrides`
+    // grew three more values when the pool arrived and now spans several lines, so a match
+    // that spanned the two would fail on formatting rather than on meaning. The flag itself
+    // is still asserted, separately, so "spans several lines" cannot become "is not passed".
+    expect(userStack.run).toContain('--parameter-overrides');
+    expect(userStack.run).toContain('"Environment=${ENVIRONMENT}"');
+  });
+
+  // EVERY PARAMETER THE TEMPLATE REQUIRES IS ONE THE WORKFLOW PASSES, derived from the
+  // template rather than listed here. A required parameter dropped from the deploy line
+  // fails only at deploy time, which is the same silence the bundle guard above exists for —
+  // and `AuthCertificateArn` is the one whose absence leaves a retained, deletion-protected
+  // orphan pool behind.
+  it('passes every parameter the user template has no default for', () => {
+    const [userStack] = deploys;
+    const required = Object.entries(user.Parameters ?? {})
+      .filter(([, p]) => !('Default' in p))
+      .map(([name]) => name);
+    expect(required).toContain('AuthCertificateArn');
+    for (const name of required) {
+      expect([name, userStack.run?.includes(`"${name}=`)]).toEqual([name, true]);
+    }
   });
 });
 
