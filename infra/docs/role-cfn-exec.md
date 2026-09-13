@@ -91,6 +91,15 @@ Inline permission policy:
       "Resource": "arn:aws:iam::<account-id>:role/quirenote-backend-*"
     },
     {
+      "Sid": "ApiGatewayServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::<account-id>:role/aws-service-role/ops.apigateway.amazonaws.com/AWSServiceRoleForAPIGateway",
+      "Condition": {
+        "StringEquals": { "iam:AWSServiceName": "ops.apigateway.amazonaws.com" }
+      }
+    },
+    {
       "Sid": "Logs",
       "Effect": "Allow",
       "Action": ["logs:CreateLogGroup", "logs:DeleteLogGroup",
@@ -209,8 +218,18 @@ than generated, so both are written out and this role holds nothing on any other
 is the whole of what the split buys, and it is worth having: a domain name is the part an
 attacker would want.
 
-**Two of the seven actions are not HTTP verbs at all, and nothing about the template hints at
-them.** `AddCertificateToDomain` and `RemoveCertificateFromDomain` are permission-only actions —
+**A REGIONAL CUSTOM DOMAIN MAKES API GATEWAY CREATE A SERVICE-LINKED ROLE, and that is a THIRD
+kind of grant again** — not an HTTP verb, not an API Gateway action at all, but `iam:`. Attaching
+an ACM certificate to a regional endpoint is done by `AWSServiceRoleForAPIGateway`, which AWS
+creates in the account the first time one is needed; without permission the domain name fails
+`CREATE` with "Caller does not have permissions to create a Service Linked Role", naming neither
+the role nor the service. `RolesTheStackOwns` above does not cover it — that statement is scoped
+to `role/quirenote-backend-*` and a service-linked role lives under `role/aws-service-role/…`, so
+it needs a statement of its own, scoped to the one role and conditioned on the one service. It is
+needed ONCE per account: every later deploy finds the role already there.
+
+**Two of the seven `apigateway` actions are not HTTP verbs at all, and nothing about the template
+hints at them.** `AddCertificateToDomain` and `RemoveCertificateFromDomain` are permission-only actions —
 they name no API operation, so reading the CloudFormation resource list never produces them.
 API Gateway checks `AddCertificateToDomain` on `/domainnames` when a domain name is created
 carrying a `CertificateArn`, which is exactly what `PublicApi`'s `Domain` block asks for, and the
@@ -250,9 +269,11 @@ trips it before the API is ever imported. `/tags/*` is already in the Resource l
 only ever the ACTION that was missing. A failed UPDATE rolls the stack back cleanly, so the cost of
 finding this out was a red CI run rather than an orphan.
 
-`acm:DescribeCertificate` on the two certificate ARNs is the likeliest next one if the domain name
-still fails after all three: this role holds no `acm:*` at all, and sources disagree about whether
-API Gateway checks it as the caller or looks the certificate up itself.
+**Two deploys, two more grants, and the guess in between was wrong** — which is why this paragraph
+records what the errors actually said rather than what seemed likely. `apigateway:PUT` was the
+first; `acm:DescribeCertificate` was the prediction for the second and it was not that, it was the
+service-linked role. This role still holds no `acm:*`, and it has not been needed. Each failure
+named its own ARN, the readback added exactly that, and nothing was broadened to `*`.
 
 **Create the SAM artifact bucket.** Run this in AWS CloudShell, which already has credentials:
 
