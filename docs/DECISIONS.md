@@ -666,18 +666,30 @@ The `pnpm` field in `package.json`: no longer read, and it fails as a warning th
 ## Deployment
 **Decision.** Amplify Hosting as a manual-deploy app, fed by a GitHub Actions workflow that builds,
 deploys and polls the job to completion; one workflow serves both branches and takes its environment
-from the ref. THE BACKEND FOLLOWS THE SAME RULE AND BREAKS IT ONCE: its workflow also fires on both
-branches and reads the environment from the ref, but the archive stack has a single deploying branch,
-so a dispatch on `main` cannot repair it. Authentication is GitHub OIDC with no long-lived keys, and the deploy role
+from the ref. ONE WORKFLOW, TWO ARTIFACTS: the app build is identical on both branches, and a SECOND
+Vite build appends the API reference page to the same `dist/` on every branch but `main`, so the
+document renders behind the dev site's basic auth and is absent from production rather than merely
+unlinked. Two builds and not two entries on one config: one Rollup graph hoists what the entries share
+into a common chunk, which moves the APP entry's name on dev and leaves it alone on `main` — the two
+artifacts stop being comparable, and dev has to be a place where what production ships can be
+verified. One config would also need a flag to suppress the entry on production, which is the shape
+this whole design exists to avoid. THE BACKEND FOLLOWS THE SAME RULE AND BREAKS
+IT ONCE: its workflow also fires on both branches and reads the environment from the ref, but the
+archive stack has a single deploying branch, so a dispatch on `main` cannot repair it. Authentication is GitHub OIDC with no long-lived keys, and the deploy role
 deliberately lacks the permission to change the app — the SPA 200 rewrite and the cache headers stay
 console-managed, and CI cannot touch hosting configuration. Cloudflare sits in front: the apex,
 `www` and `dev` are proxied; the certificate-validation CNAME and the mail records never are.
 **Why.** A git-connected Amplify app has no build-status badge, and an Actions badge is real
 deployment status when the workflow performs the deploy. Proxying keeps repeat traffic off origin
 egress, the one cost line a flood can move — and a record left grey publishes the address its
-proxied neighbour hides.
+proxied neighbour hides. The reference page is a build step rather than a flag because the flag is
+how this pattern fails: every write-up of hosted API docs names the same defect, a disable switch
+that turns out to be dead code and ships the page anyway. A step that does not run cannot.
 **Rejected.** Console drag-and-drop: unautomatable on an actively developed project. · A proxied
-validation record: the answer becomes the edge's own address and the certificate stops renewing.
+validation record: the answer becomes the edge's own address and the certificate stops renewing. ·
+A reference page on the API's own domain: Amplify's basic auth is a hosting feature and does not
+reach API Gateway, so it would have to be rebuilt inside a public Lambda — the stack's first secret,
+and a second unauthenticated route on an API whose argument is minimal surface.
 
 ## Design pipeline
 **Decision.** The reference is `design/Investment Tracker.dc.html`, whose styles are inline in the

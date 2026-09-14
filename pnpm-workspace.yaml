@@ -1,5 +1,12 @@
 allowBuilds:
   esbuild: false
+  # `@scarf/scarf` is install-time ANALYTICS — its postinstall phones home. It is the one
+  # dependency of `swagger-ui-dist`, the prebuilt Swagger UI the API reference page loads,
+  # and is refused here rather than left as a notice: pnpm blocks an undeclared build
+  # script anyway and prints ERR_PNPM_IGNORED_BUILDS on every install, and a notice that
+  # appears every time is one nobody reads by the third. Listed, the same outcome is a
+  # decision rather than an unread line.
+  '@scarf/scarf': false
 
 # pnpm 11 no longer reads the `pnpm` field in package.json, so overrides live here.
 # GHSA-67mh-4wv8-2f99 rides on esbuild's DEV SERVER, and this copy cannot reach it:

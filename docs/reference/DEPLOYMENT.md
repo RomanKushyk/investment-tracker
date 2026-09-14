@@ -122,7 +122,7 @@ expression and a typo in it silently breaks the site:
 ```json
 [
   {
-    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>",
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|html)$)([^.]+$)/>",
     "status": "200",
     "target": "/index.html",
     "condition": null
@@ -134,6 +134,17 @@ Without a rewrite, every non-root route (`/overview`, `/payouts`, …) 404s on r
 `/<*>` → `/index.html` 200 rule** — it also matches `/assets/index-abc123.js`, producing `Content-Type: text/html` on the bundle
 and the console error `Failed to load module script: … MIME type of "text/html"`, while `curl` still reports `200`. The regex
 above rewrites extensionless paths only.
+
+**`html` is in that list for a second PAGE, not for an asset type.** Without it the regex's second alternative matches
+`/api-docs.html`, which is then served the SPA shell instead of the page — `200 text/html`, and a status code alone cannot tell
+the two apart. With it, no rule matches a `.html` path, so Amplify serves the file when there is one — the behaviour `/robots.txt`
+already relies on, `txt` being in the same list. **When there is NO such file it does not 404**: Amplify normalises the path to
+its extensionless form (`/api-docs.html` → `301` → `/api-docs/`), which the rule above then matches, so the answer is the SPA
+shell after a redirect. That is what production returns for this page, and §3.1 checks for it.
+Nothing regresses: every SPA route is extensionless and the router declares no path parameter, so no route can acquire a dot;
+the only other change is that `GET /index.html` is served as a file rather than rewritten to itself, which is the same bytes.
+**The rule set is APP-LEVEL, so this reaches production too** — where the page is not in the artifact, so the paragraph above is
+what happens there: a redirect to `/api-docs/` and the SPA shell, never the reference. §3.1 checks that.
 
 ### 1.3 Cache headers
 
@@ -149,9 +160,17 @@ customHeaders:
     headers:
       - key: 'Cache-Control'
         value: 'public, max-age=31536000, immutable'
+  - pattern: '/api-docs.html'
+    headers:
+      - key: 'Cache-Control'
+        value: 'no-cache'
 ```
 
-Safe because Vite content-hashes every asset filename.
+Safe because Vite content-hashes every asset filename — which is also why the API reference needs no pattern of its own for
+its chunks: they land in `/assets/**` like the app's and are immutable for the same reason. **The third pattern is not
+optional.** `/api-docs.html` matches neither of the first two, so without it the page falls to Amplify's default, and a cached
+copy keeps pointing at a hashed chunk the next deploy removed — a blank page that survives redeploys, which is the failure
+this section exists to prevent. It is an entry document like `/index.html` and takes the same `no-cache`.
 
 ### 1.4 GitHub OIDC provider
 
@@ -256,10 +275,16 @@ from here: `gh secret set AWS_BACKEND_ROLE_ARN --env prod --body <arn>` is how t
 from `github.ref_name`. Production is promoted by merging `dev` into `main`, **fast-forward only**, when a version is cut or on
 demand (`docs/reference/VERSIONING.md` defines the bump).
 
-`dev` deploys on every push **except commits that touch only Markdown or `docs/`** (via `paths-ignore`, skipped only when every
-changed file matches) — that bites harder on `main`, where a docs-only release deploys nothing and needs a manual run. Concurrency
-is keyed per branch (`deploy-frontend-${{ github.ref_name }}`). Manual re-deploy: Actions → **Deploy** → **Run workflow**. The run
-fails if the Amplify job does not reach `SUCCEED`.
+`dev` deploys on every push **except commits that touch only Markdown, `infra/` or the backend workflow** (via `paths-ignore`,
+skipped only when every
+changed file matches) — that bites harder on `main`, where a docs-only release deploys nothing and needs a manual run. **`docs/`
+is not on that list, and its absence is deliberate:** everything under it is Markdown except `docs/reference/openapi.json`, which
+the API reference page is compiled from, so `**/*.md` covers the rest while a regenerated spec correctly triggers a deploy —
+otherwise the hosted page would go stale in silence. A spec change therefore also runs on `main`, where the page is not built: the
+artifact is byte-identical, though the run still assumes the role and creates a real Amplify deployment. Concurrency is keyed per
+branch
+(`deploy-frontend-${{ github.ref_name }}`). Manual re-deploy: Actions → **Deploy** → **Run workflow**. The run fails if the
+Amplify job does not reach `SUCCEED`.
 
 ### 3.1 Verifying a deploy
 
@@ -277,6 +302,26 @@ curl -sSI "$BASE/index.html" | grep -i 'cache-control'                 # no-cach
 
 `Content-Type: text/html` on a `.js` asset means the rewrite is swallowing static files (§1.2). Finish with a fresh browser
 profile: zero console errors, sidebar version badge.
+
+**The API reference is on `dev` ONLY**, and both halves of that are checked — that it is there, and that it is not on production.
+It is a second Vite build (`pnpm build:api-docs`) that `deploy-frontend.yml` skips when the ref is `main`, so its absence from
+production is a property of the artifact, not of a link or a rule. The basic auth in front of it is the branch's (§0a), which is
+also why the first line matters: the page must not be reachable without credentials.
+
+```bash
+curl -sSI https://dev.quirenote.com/api-docs.html                          # 401 — branch basic auth
+curl -sSI -u "$DEV_USER:$DEV_PASS" https://dev.quirenote.com/api-docs.html # 200, text/html, no-cache
+curl -sS  -u "$DEV_USER:$DEV_PASS" https://dev.quirenote.com/api-docs.html | grep -c 'id="swagger-ui"'
+curl -sSI https://quirenote.com/api-docs.html | head -1                     # 301 — no such file there
+curl -sSL https://quirenote.com/api-docs.html | grep -c 'id="swagger-ui"'   # 0 — never the page
+```
+
+**Production's answer is a redirect, not a 404** (§1.2): the file is not in that artifact, so Amplify normalises the path to
+`/api-docs/` and the SPA rule serves the shell. What matters is the last line — the reference must never appear there. `-L` is
+there to follow that redirect to whatever finally answers; if the page ever did reach production there would be no redirect to
+follow, and the grep would return `1` with or without it. Read the DEV side as the positive check: if that one returns the shell
+instead of the page, the `html` entry is missing from §1.2 and the rewrite is swallowing the path. Status codes cannot separate
+those cases, which is why both sides fetch a body.
 
 ## 4. Rollback
 

@@ -8,12 +8,19 @@ on:
     # (MAJOR, MINOR or PATCH) or on demand (D67). Production's cadence is the
     # release cadence, not a calendar.
     branches: [dev, main]
-    # A docs-only commit cannot change dist/, so skip the deploy. A commit touching both
-    # docs and code still runs — paths-ignore only skips when EVERY changed file matches.
-    # To ship after a docs-only change anyway, use the workflow_dispatch below.
+    # A commit touching only the files below cannot change dist/, so skip the deploy. One
+    # touching both those and code still runs — paths-ignore only skips when EVERY changed
+    # file matches. To ship after an ignored change anyway, use the workflow_dispatch.
+    #
+    # `docs/**` IS DELIBERATELY NOT HERE, and that one absence is what lets the API
+    # reference stay fresh. Everything under docs/ is Markdown except
+    # docs/reference/openapi.json, which this build now reads — the page is compiled FROM
+    # it — so `**/*.md` already covers the rest and the spec correctly triggers a deploy.
+    # Listing docs/ would ignore the one file in it that matters. A spec change therefore
+    # also runs on `main`, where the page is not built: the artifact is byte-identical,
+    # though the run still assumes the role and creates a real Amplify deployment.
     paths-ignore:
       - '**/*.md'
-      - 'docs/**'
       # The backend is a separate stack with its own workflow and its own IAM
       # role. Nothing under infra/ can change dist/, so a backend-only commit
       # must not rebuild and redeploy the SPA.
@@ -75,6 +82,21 @@ jobs:
       - run: pnpm format:check
       - run: pnpm test
       - run: pnpm build # already runs tsc --noEmit
+
+      # The API reference, appended to dist/ on every branch but production — dev is
+      # behind Amplify's branch basic auth and production carries none, so the page has
+      # to be absent from that artifact rather than merely unlinked.
+      - if: github.ref_name != 'main'
+        run: pnpm build:api-docs
+
+      # AND THE ARTIFACT ITSELF IS CHECKED, not just the recipe. The zip below takes
+      # whatever dist/ holds, unconditionally; anything that leaves the page there on a
+      # production run — a reused runner, a restore-cache step, an `if:` a reader
+      # normalises differently from GitHub — ships it. This is the only assertion made
+      # against the bytes that deploy, and it runs before any credential exists.
+      - if: github.ref_name == 'main'
+        name: Production carries no API reference
+        run: test ! -f dist/api-docs.html
 
       - name: Zip the contents of dist
         run: cd dist && zip -qr ../dist.zip .
