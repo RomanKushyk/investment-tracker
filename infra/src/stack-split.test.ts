@@ -441,4 +441,37 @@ describe('migrate.yml names the stack its target chose', () => {
     expect(Object.values(invoke?.env ?? {})).toContain('${{ inputs.email }}');
     expect(Object.values(invoke?.env ?? {})).toContain('${{ inputs.mode }}');
   });
+
+  // A REHEARSAL THAT LEFT ITS SCHEMA BEHIND COMES BACK 200 WITH NO
+  // FunctionError — the statements are the finding and there was none — so the
+  // `has("FunctionError")` check above cannot see it and the run would go
+  // green over a schema still on the cluster. The workflow checking is the only
+  // thing that makes it red, which is exactly the kind of exception that gets
+  // taken back out if nothing pins it.
+  it('fails the run on a teardown that left its schema behind, and names it', () => {
+    const invoke = steps.find((s) => s.run?.includes('aws lambda invoke'));
+    expect(invoke).toBeDefined();
+    // THE WHOLE GUARD LINE, as one expression. `run:` is a block scalar, so the
+    // paragraph above it is string content like any other — matching the key on
+    // its own matched the sentence explaining it, and `out.json` was already in
+    // this step twice before any of this. What has to hold is the polarity, the
+    // file it reads and the name it prints.
+    expect(invoke?.run).toMatch(/if jq -e '\.teardown\.dropped == false' out\.json/);
+    expect(invoke?.run).toMatch(/jq -r '\.teardown\.schema' out\.json/);
+    // AND THAT IT GOES RED. Printing the name while the run stays green is the
+    // whole failure this check exists to stop, and the echo alone does not say
+    // which of the two it does.
+    expect(invoke?.run).toMatch(/drop it by hand[^\r\n]*[\r\n]\s*exit 1/);
+  });
+
+  // THE GUARD ABOVE IT, red for the same reason and pinned nowhere else. A
+  // rehearsal that RAISED carries the orphaned schema's name in its message,
+  // because a Lambda error payload has nowhere else to put it — and that name
+  // reaches an operator only if the step fails.
+  it('fails the run when the handler raised', () => {
+    const invoke = steps.find((s) => s.run?.includes('aws lambda invoke'));
+    expect(invoke).toBeDefined();
+    expect(invoke?.run).toMatch(/if jq -e 'has\("FunctionError"\)' invoke\.json/);
+    expect(invoke?.run).toMatch(/the migration handler raised[^\r\n]*[\r\n]\s*exit 1/);
+  });
 });

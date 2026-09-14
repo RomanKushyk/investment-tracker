@@ -217,22 +217,36 @@ So the third rewrite rule — the `NOT VALID` append — is exercised end to end
 against a CHECK, not only in the suite. The fourth is untouched here: `006` has
 no `REFERENCES`, so the qualifier strip is a no-op on it.
 
-**A rehearsal can apply every statement and still come back red, in the
-teardown.** That is what dev's did before its apply — every statement applied,
-then the cleanup raised; prod's completed. The dev run left its
-`migrate_rehearsal_…` schema behind: every statement applied inside it, then
-`DROP SCHEMA … CASCADE` answered
+**A rehearsal can apply every statement and still fail in the teardown.** A dev
+rehearsal did, where prod's completed: every statement applied inside its
+`migrate_rehearsal_…` schema, then `DROP SCHEMA … CASCADE` answered
 `change conflicts with another transaction (OC000)`, SQLSTATE **`40001`** —
 the serialization class rather than a refusal, which the hand drop then
 confirmed by succeeding on the first attempt. A plausible source of the
 conflict is that `003` ends with two `CREATE INDEX ASYNC` jobs and a waited-for
 job is not the same as a settled catalog; that was not isolated, and prod did
-not reproduce it. **The runner makes one attempt at that drop and does not
-retry it.** The run itself FAILS and prints the driver's message, but the
-Lambda error payload carries `errorType`, `errorMessage` and `trace` and no
-more — so neither the SQLSTATE nor the name of the schema left behind reaches
-the run page. Both are in CloudWatch, in the line the runner logs before it
-rethrows. Issue #142 is the fix; the fact belongs here either way.
+not reproduce it.
+
+`DROP SCHEMA IF EXISTS … CASCADE` is **supported**, on a schema that is there and
+on one that is not — both executed against the dev cluster, neither leaving
+anything behind. The runner's teardown uses it, because a conflict is the
+client's view and not the cluster's: an attempt can commit and still answer
+`40001`, and a bare `DROP SCHEMA` on the retry then answers `3F000`, which is a
+refusal rather than contention and would be reported as a schema still to drop.
+
+**The runner retries that drop on `40001` with a bounded backoff, and reports
+rather than raises when it still will not go.** The distinction is the point.
+A statement that was refused is what a rehearsal is run to find, and still
+raises; a teardown that failed is not a finding at all, and a raise would read
+as one. So a rehearsal that applied cleanly and could not drop its schema
+RESOLVES, carrying a `teardown` key — the schema's name, whether it went, the
+attempt count, the driver's message, and the SQLSTATE where the server gave one
+(a transport failure gives none) — and `migrate.yml` fails the run on that key
+and echoes the name. A schema orphaned by a run that
+raises for some other reason is named in the raised message instead, with its
+SQLSTATE, because a Lambda error payload carries `errorType`, `errorMessage` and
+`trace` and no more. Either way the name reaches the run page without opening
+CloudWatch, and the schema is dropped by hand from there.
 
 `003_user_schema.sql` and `005_demo_user.sql` applied clean through the
 runner, rewrite rules and all, with both `CREATE INDEX ASYNC` jobs waited on via

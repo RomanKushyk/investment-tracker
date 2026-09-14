@@ -598,6 +598,14 @@ export interface MigrateReport {
    * exactly what they reported before this mode existed.
    */
   bootstrap?: BootstrapReport;
+
+  /**
+   * Set by a `rehearse` that OUTLIVED ITS SCHEMA, and absent from every clean run —
+   * so, like `bootstrap`, it moves no existing whole-report assertion. Its presence is
+   * what separates a teardown that failed from a statement that was refused: the second
+   * raises, and only the second is something the rehearsal found.
+   */
+  teardown?: TeardownReport;
 }
 
 /**
@@ -798,6 +806,78 @@ const sdkIdentity: IdentityAdminClient = {
   adminGetUser: (input) => identityClient.send(new AdminGetUserCommand(input)),
 };
 
+/**
+ * `40001` is contention, not a refusal: dropping a six-table schema is a large
+ * catalogue change issued right behind two `CREATE INDEX ASYNC` jobs, and a
+ * waited-for job is not a settled catalogue.
+ *
+ * Bounded, because the alternative to giving up is holding the invocation open
+ * against a conflict that may never clear — and a schema that will not go is
+ * something an operator can finish by hand, once they are told its name.
+ */
+const DROP_RETRY_DELAYS_MS = [500, 2_000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** What became of a rehearsal's schema. Reported only when it outlived the run. */
+export interface TeardownReport {
+  schema: string;
+  dropped: boolean;
+  attempts: number;
+  /** The SQLSTATE that refused, where the server gave one. */
+  sqlstate?: string;
+  message?: string;
+}
+
+export async function dropRehearsalSchema(
+  client: SqlClient,
+  schema: string,
+): Promise<TeardownReport> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      // `IF EXISTS` because a conflict is the client's view, not the cluster's:
+      // an attempt can commit and still come back `40001`, and the retry would
+      // then raise `3F000` over a schema that is already gone.
+      await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      return { schema, dropped: true, attempts: attempt };
+    } catch (err) {
+      const sqlstate = codeOf(err);
+      // COUNTED, NOT INFERRED FROM THE LOOKUP. `noUncheckedIndexedAccess` is off,
+      // so an out-of-range read types as `number` and a guard on `undefined` reads
+      // as dead code — which, removed, leaves this unbounded against a conflict
+      // that never clears.
+      //
+      // A REFUSAL IS REPORTED, NEVER HAMMERED: retrying something the cluster will
+      // not do spends the whole backoff to reach the same answer.
+      if (sqlstate !== '40001' || attempt > DROP_RETRY_DELAYS_MS.length) {
+        return {
+          schema,
+          dropped: false,
+          attempts: attempt,
+          ...(sqlstate === undefined ? {} : { sqlstate }),
+          message: err instanceof Error ? err.message : String(err),
+        };
+      }
+      await sleep(DROP_RETRY_DELAYS_MS[attempt - 1]);
+    }
+  }
+}
+
+/**
+ * Name the orphan in the message of whatever is being raised. A Lambda error
+ * payload carries a type, a message and a trace and no more, so the message is
+ * the only part of a raise that reaches the run page.
+ */
+const orphaned = (err: unknown, teardown: TeardownReport): unknown => {
+  if (teardown.dropped) return err;
+  const message = err instanceof Error ? err.message : String(err);
+  // The SQLSTATE travels with the name. Where the restore failed too it is the
+  // only trace of WHY the drop did not go that leaves the invocation at all —
+  // this raises the restore's error, and the drop's reaches CloudWatch alone.
+  const why = teardown.sqlstate === undefined ? '' : ` (${teardown.sqlstate})`;
+  return new Error(`${message} — ${teardown.schema} could not be dropped${why}`, { cause: err });
+};
+
 export async function migrate(
   client: SqlClient,
   event: MigrateEvent = {},
@@ -859,34 +939,33 @@ export async function migrate(
   // that throws from a `finally` surfaces instead of the statement the
   // rehearsal was run to identify, which is the one thing it exists to report.
   //
-  // The two halves get their own `try` each: sharing one meant a failed drop
-  // skipped the `search_path` restore as well, leaving a caller-owned client —
-  // the suite and the CI smoke step both pass one — resolving every later query
-  // in a schema that may no longer exist.
-  // BOTH HALVES ALWAYS RUN, and neither raises where it stands. Throwing from
-  // the drop skipped the restore — which was the very thing the split was made
-  // to stop — and it did so on the SUCCESS path, where a caller-owned client
-  // then resolved every later query in a schema that had just been dropped.
-  let cleanupFailure: unknown;
-  try {
-    await client.query(`DROP SCHEMA ${schema} CASCADE`);
-  } catch (cleanup) {
-    cleanupFailure = cleanup;
-    // Swallowed, never silent: the rehearsal schema is still on the cluster and
-    // nothing else would say so.
-    console.error(`rehearsal schema ${schema} could not be dropped`, cleanup);
+  // BOTH HALVES ALWAYS RUN, and neither raises where it stands. They are
+  // separate because a failed drop must still restore the path: the suite and
+  // the CI smoke step both pass a client they own, which would otherwise go on
+  // resolving every later query in a schema that may no longer exist.
+  const teardown = await dropRehearsalSchema(client, schema);
+  if (!teardown.dropped) {
+    // The whole report, not just its message: the SQLSTATE and the attempt count
+    // are what separate a conflict that never cleared from a flat refusal.
+    console.error(`rehearsal schema ${schema} could not be dropped`, teardown);
   }
+  let restoreFailure: unknown;
   try {
     await client.query('SET search_path TO public');
   } catch (cleanup) {
-    cleanupFailure ??= cleanup;
+    restoreFailure = cleanup;
     console.error('search_path could not be restored', cleanup);
   }
   // The statement's failure outranks the cleanup's: it is the one the rehearsal
-  // was run to find.
-  if (thrown !== undefined) throw thrown;
-  if (cleanupFailure !== undefined) throw cleanupFailure;
-  return { mode, schema, files };
+  // was run to find. Either way the orphan is named, because on a raise the
+  // message is all that reaches the run page.
+  if (thrown !== undefined) throw orphaned(thrown, teardown);
+  if (restoreFailure !== undefined) throw orphaned(restoreFailure, teardown);
+  // A TEARDOWN FAILURE IS REPORTED, NOT RAISED. The statements are what this
+  // mode exists to test and nothing was wrong with them, so a raise would read
+  // as a finding the rehearsal did not make. The schema is still there, which
+  // is what `migrate.yml` fails the run on.
+  return { mode, schema, files, ...(teardown.dropped ? {} : { teardown }) };
 }
 
 export async function handler(event: MigrateEvent = {}): Promise<MigrateReport> {

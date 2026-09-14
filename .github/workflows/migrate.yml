@@ -183,6 +183,22 @@ jobs:
             echo 'the migration handler raised' >&2
             exit 1
           fi
+          # The same parse guard, for the report this time. The check below reads
+          # `out.json`, and a `jq -e` that cannot parse its input exits non-zero
+          # without ever evaluating the filter — which inside an `if` reads as
+          # "no teardown" and would pass. This fails the step instead.
+          jq empty out.json
+          # A REHEARSAL THAT LEFT ITS SCHEMA BEHIND COMES BACK 200 WITH NO
+          # FunctionError. Its statements are what the mode exists to test and
+          # there was nothing wrong with them, so the runner reports rather than
+          # raises — but the schema is still on the cluster, and this is the only
+          # place its name reaches anyone short of CloudWatch. An absent key makes
+          # `.teardown.dropped` null, and `null == false` is false, so every other
+          # mode and every clean rehearsal fall straight through.
+          if jq -e '.teardown.dropped == false' out.json > /dev/null; then
+            echo "the rehearsal applied cleanly but could not drop $(jq -r '.teardown.schema' out.json) — check the cluster and drop it by hand" >&2
+            exit 1
+          fi
         env:
           # THROUGH THE ENVIRONMENT, NEVER `${{ }}` ON THE RUN LINE — see the comment
           # above `payload=`. The handler refuses the bootstrap mode without it, so an

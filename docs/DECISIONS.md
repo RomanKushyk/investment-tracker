@@ -576,6 +576,13 @@ first super-admin. It lives there because it is already the one thing invoked by
 nothing else, and because the alternative was worse — see **Auth model**. It is an early return
 before any file is read, since the mode that has no guard of its own is the rehearsal, which is the
 fall-through.
+A rehearsal's TEARDOWN IS RETRIED AND THEN REPORTED, never raised. `DROP SCHEMA … CASCADE` can
+answer `40001` — contention, the same serialization class the OCC contract retries, and not a
+refusal — so it retries on a bounded backoff, and a schema that still will not go comes back as a
+`teardown` key on the report, which `migrate.yml` fails the run on and echoes the name from. A
+statement that was refused is what the mode exists to find and still raises; a teardown that failed
+is not a finding at all. Raising both made them indistinguishable from the run page, and the name of
+the orphan reached only CloudWatch, which the workflow does not fetch.
 **Rejected.** Tombstones: nothing here has asked for undo or retention, and a `deleted_at` puts a
 filter in every read that the first forgotten one turns into deleted data rendered as live. ·
 Skipping any statement whose object already exists, in place of the ledger: it passes the retry and

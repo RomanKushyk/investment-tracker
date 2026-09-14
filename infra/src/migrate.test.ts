@@ -19,6 +19,7 @@ import type { SqlClient } from './migrate';
 import {
   MIGRATIONS,
   applyFile,
+  dropRehearsalSchema,
   ensureLedger,
   migrate,
   rewriteForDsql,
@@ -411,6 +412,143 @@ describe('applyFile', () => {
   });
 });
 
+// `40001` IS CONTENTION, NOT A REFUSAL, and the teardown was the one place in
+// the design that met one and gave up. Dropping a six-table schema is a large
+// catalogue change issued right behind two `CREATE INDEX ASYNC` jobs, and a
+// waited-for job is not a settled catalogue — the drop that failed this way then
+// succeeded by hand on its first attempt.
+const conflict = () =>
+  Object.assign(new Error('change conflicts with another transaction (OC000)'), {
+    code: '40001',
+  });
+
+// A REHEARSAL CANNOT REACH ITS OWN TEARDOWN UNDER PGlite unaided: `rewriteForDsql`
+// emits `CREATE INDEX ASYNC`, which the engine refuses, and `waitForIndexJob` then
+// reads the un-stripped text and wants a job id out of the rows. This plays those
+// two DSQL verbs and hands everything else to the engine.
+//
+// It plays them SETTLED — an index valid the moment it returns, a job already
+// complete — which is the very condition a real cluster is thought to violate
+// here. So these tests pin the report and the resolve-or-raise split, and cannot
+// speak to whether the retry defeats the real conflict.
+const dsqlish = (db: PGlite): SqlClient => ({
+  query: async <R>(text: string, values?: unknown[]) => {
+    if (/^CREATE\s+(UNIQUE\s+)?INDEX\s+ASYNC\b/i.test(text)) {
+      await db.query(text.replace(/\bASYNC\s+/i, ''));
+      return { rows: [{ job_id: 'job' }] as unknown as R[] };
+    }
+    if (text.startsWith('CALL sys.wait_for_job')) return { rows: [] as R[] };
+    return db.query<R>(text, values);
+  },
+});
+
+// Each exhausting retry spends the real backoff, which is comfortably inside the
+// suite's default per-test budget only when the machine is not contended.
+const THROUGH_THE_BACKOFF = 20_000;
+
+describe('dropRehearsalSchema', () => {
+  it('retries a drop that answers 40001, and the schema goes', async () => {
+    const db = new PGlite();
+    await db.query('CREATE SCHEMA rehearsal_a');
+    let attempts = 0;
+    const flaky: SqlClient = {
+      query: async (text: string, values?: unknown[]) => {
+        if (text.startsWith('DROP SCHEMA')) {
+          attempts += 1;
+          if (attempts === 1) throw conflict();
+        }
+        return db.query(text, values);
+      },
+    };
+    expect(await dropRehearsalSchema(flaky, 'rehearsal_a')).toEqual({
+      schema: 'rehearsal_a',
+      dropped: true,
+      attempts: 2,
+    });
+    const { rows } = await db.query<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace WHERE nspname = 'rehearsal_a'`,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  // A CONFLICT IS THE CLIENT'S VIEW, NOT THE CLUSTER'S: an attempt can commit
+  // and still answer `40001`. `IF EXISTS` is what keeps the retry from meeting
+  // `3F000` — a refusal, so it is not retried — and reporting a schema that is
+  // already gone as one the operator has to go and drop.
+  //
+  // DSQL accepts `DROP SCHEMA IF EXISTS … CASCADE`, schema present or absent;
+  // measured on the dev cluster and recorded in `infra/docs/dsql-constraints.md`.
+  it('reports a drop that committed under a conflict as dropped, not orphaned', async () => {
+    const db = new PGlite();
+    await db.query('CREATE SCHEMA rehearsal_d');
+    let attempts = 0;
+    let goneByTheRetry: boolean | undefined;
+    const committed: SqlClient = {
+      query: async <R>(text: string, values?: unknown[]) => {
+        if (text.startsWith('DROP SCHEMA')) {
+          attempts += 1;
+          if (attempts === 1) {
+            // It LANDED, and the client was told otherwise.
+            await db.query<R>(text, values);
+            throw conflict();
+          }
+          const { rows } = await db.query<{ n: number }>(
+            `SELECT count(*)::int AS n FROM pg_namespace WHERE nspname = 'rehearsal_d'`,
+          );
+          goneByTheRetry = rows[0].n === 0;
+        }
+        return db.query<R>(text, values);
+      },
+    };
+    expect(await dropRehearsalSchema(committed, 'rehearsal_d')).toEqual({
+      schema: 'rehearsal_d',
+      dropped: true,
+      attempts: 2,
+    });
+    // THE POINT OF THE TEST, and without it this is its sibling above wearing a
+    // different name: the retry has to have met a schema that was ALREADY GONE.
+    expect(goneByTheRetry).toBe(true);
+  });
+
+  // BOUNDED, because the alternative to giving up is holding the invocation
+  // open against a conflict that may never clear. What it reports is what the
+  // operator needs to finish the job by hand.
+  it(
+    'gives up after a bounded number of attempts, and says what refused',
+    async () => {
+      const stubborn: SqlClient = {
+        query: async () => {
+          throw conflict();
+        },
+      };
+      expect(await dropRehearsalSchema(stubborn, 'rehearsal_b')).toEqual({
+        schema: 'rehearsal_b',
+        dropped: false,
+        attempts: 3,
+        sqlstate: '40001',
+        message: expect.stringContaining('OC000'),
+      });
+    },
+    THROUGH_THE_BACKOFF,
+  );
+
+  // A REFUSAL IS REPORTED, NEVER HAMMERED. Retrying something the cluster will
+  // not do spends the whole backoff to reach the same answer.
+  it('does not retry anything but 40001', async () => {
+    const refused: SqlClient = {
+      query: async () => {
+        throw Object.assign(new Error('permission denied for schema'), { code: '42501' });
+      },
+    };
+    expect(await dropRehearsalSchema(refused, 'rehearsal_c')).toMatchObject({
+      schema: 'rehearsal_c',
+      dropped: false,
+      attempts: 1,
+      sqlstate: '42501',
+    });
+  });
+});
+
 describe('migrate', () => {
   // NO SAFE DEFAULT FOR A VERB THIS DESTRUCTIVE. An earlier shape took
   // `rehearse?: boolean` and fell through to the real apply for anything else,
@@ -484,7 +622,22 @@ describe('migrate', () => {
         return db.query(text, values);
       },
     };
-    await expect(migrate(brittle, { mode: 'rehearse' })).rejects.toThrow(/ASYNC|syntax/i);
+    const raised = await migrate(brittle, { mode: 'rehearse' }).catch((err: unknown) => err);
+    expect((raised as Error).message).toMatch(/ASYNC|syntax/i);
+    // A cleanup failure that carries NO SQLSTATE still has to read as prose. The
+    // code is appended only where the server gave one, and this drop gave none.
+    expect((raised as Error).message).not.toContain('undefined');
+  });
+
+  // AND NOT ON A RUN THAT CLEANED UP AFTER ITSELF. The note is appended only
+  // when the schema outlived the run; on the ordinary failure — statements
+  // refused, drop fine — it would send an operator after a schema that is not
+  // there, which is the same wrong answer this issue started from.
+  it('says nothing about a schema on a statement failure whose drop succeeded', async () => {
+    const db = new PGlite();
+    const raised = await migrate(db, { mode: 'rehearse' }).catch((err: unknown) => err);
+    expect((raised as Error).message).toMatch(/ASYNC|syntax/i);
+    expect((raised as Error).message).not.toMatch(/could not be dropped/);
   });
 
   it('drops its throwaway schema and restores search_path even when a statement fails', async () => {
@@ -497,6 +650,78 @@ describe('migrate', () => {
     const path = await db.query<{ search_path: string }>('SHOW search_path');
     expect(path.rows[0].search_path).toContain('public');
   });
+
+  // THE SHAPE EVERY RUN THAT CLEANS UP AFTER ITSELF RETURNS. The key's ABSENCE
+  // is what gives its presence meaning, and it is what the workflow's check
+  // falls through on — so it is worth a test of its own.
+  it('omits the teardown key entirely when it drops its schema', async () => {
+    const db = new PGlite();
+    const report = await migrate(dsqlish(db), { mode: 'rehearse' });
+    expect('teardown' in report).toBe(false);
+    const { rows } = await db.query<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
+    );
+    expect(rows).toEqual([]);
+  });
+
+  // A REHEARSAL THAT APPLIED CLEANLY AND THEN COULD NOT DROP ITS SCHEMA IS NOT
+  // A FINDING, and must not read as one: the statements are what the mode
+  // exists to test, and nothing was wrong with them. So it RESOLVES, carrying
+  // the name of the schema it left behind — the one thing the operator needs,
+  // and the only place they will see it short of CloudWatch.
+  it(
+    'resolves with a report naming the schema when the statements applied and the drop did not',
+    async () => {
+      const db = new PGlite();
+      const settled = dsqlish(db);
+      const conflicted: SqlClient = {
+        query: async <R>(text: string, values?: unknown[]) => {
+          if (text.startsWith('DROP SCHEMA')) throw conflict();
+          return settled.query<R>(text, values);
+        },
+      };
+      const report = await migrate(conflicted, { mode: 'rehearse' });
+      expect(report.schema).toMatch(/^migrate_rehearsal_\d+$/);
+      expect(report.files).toEqual([
+        { file: USER_SCHEMA, applied: 12, skipped: 0, pending: 0 },
+        { file: DEMO_ROW, applied: 1, skipped: 0, pending: 0 },
+        { file: CASE_RULE, applied: 1, skipped: 0, pending: 0 },
+      ]);
+      expect(report.teardown).toEqual({
+        schema: report.schema,
+        dropped: false,
+        attempts: 3,
+        sqlstate: '40001',
+        message: expect.stringContaining('OC000'),
+      });
+    },
+    THROUGH_THE_BACKOFF,
+  );
+
+  // THE ORPHAN IS NAMED ON BOTH PATHS. The statement's failure still outranks
+  // the cleanup's — the test two above pins that — but when the drop failed
+  // too, the schema is on the cluster and the raised message is the only thing
+  // the operator reads.
+  it(
+    'names the schema it could not drop when a statement failed and the drop failed after it',
+    async () => {
+      const db = new PGlite();
+      const doomed: SqlClient = {
+        query: async <R>(text: string, values?: unknown[]) => {
+          if (text.startsWith('DROP SCHEMA')) throw conflict();
+          return db.query<R>(text, values);
+        },
+      };
+      const raised = await migrate(doomed, { mode: 'rehearse' }).catch((err: unknown) => err);
+      expect(raised).toBeInstanceOf(Error);
+      expect((raised as Error).message).toMatch(/ASYNC|syntax/i);
+      expect((raised as Error).message).toMatch(/migrate_rehearsal_\d+ could not be dropped/);
+      // The SQLSTATE rides along, because where the restore fails too this is
+      // the only place it leaves the invocation.
+      expect((raised as Error).message).toContain('(40001)');
+    },
+    THROUGH_THE_BACKOFF,
+  );
 });
 
 describe('the demo user', () => {
