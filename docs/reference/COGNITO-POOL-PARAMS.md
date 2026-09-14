@@ -148,6 +148,16 @@ self-service sign-up, so `SignUp` is no longer what creates an identity.
 password only when it has a message to put it in, so any caller that suppresses the invitation
 has to supply one.
 
+**Alias resolution does not wait for confirmation, and `Enabled` is independent of `UserStatus`.**
+On a throwaway pool carrying the same `UsernameAttributes: ["email"]` and
+`UsernameConfiguration: { CaseSensitive: false }`, one `SignUp` left an account `UNCONFIRMED` under
+a UUID username. `AdminGetUser` with the ADDRESS as `Username` resolved it and reported
+`UserStatus: UNCONFIRMED`, `Enabled: true` — so the alias works before anybody has confirmed
+anything, which is what lets approve tell a squatter's claim from a repair. `AdminDisableUser` by
+the same address then succeeded, and a re-read returned `UserStatus: UNCONFIRMED`, `Enabled: false`:
+**a disabled account keeps its status**, so `UserStatus` alone never says whether an account can be
+signed in to. Anything deciding that has to read `Enabled`.
+
 **The username is a UUID even for the accounts `AdminCreateUser` makes, and the address reaches
 them by ALIAS.** Under `UsernameAttributes: ["email"]` the pool assigns its own username whatever
 created the account: `ListUsers` on the dev pool returns UUIDs for both accounts this system made,

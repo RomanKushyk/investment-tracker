@@ -781,7 +781,7 @@ Resources:
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
             # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S, and it is stated rather than
-            # hidden: this function can mint an identity and take one away. Three actions, one
+            # hidden: this function can mint an identity and take one away. Four actions, one
             # pool, named — `AdminDeleteUser` is deliberately absent, because deleting a user is
             # not implemented and not decided, and a grant held for a call nobody makes is a
             # call somebody can make later without anyone deciding.

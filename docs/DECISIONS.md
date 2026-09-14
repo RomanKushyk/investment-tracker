@@ -408,9 +408,11 @@ what decides: `pending` means the write failed transiently and the application s
 identity is exactly what approving again needs and disabling it would leave the retry writing a
 flawless `active` row onto an account that cannot sign in; `active` means a concurrent approve won,
 adopted this very identity and wrote the row it belongs to; `rejected` means a decision an enabled
-identity must not outlive, and NOTHING AT ALL means nothing refers to it and nothing can. A read
-that fails leaves it ENABLED, and that direction is only defensible because REJECTING AGAIN REPAIRS
-IT, where an account wrongly turned off has no path back. An ADOPTED identity is never touched: it
+identity must not outlive, and NOTHING AT ALL means nothing refers to it — and that an enabled one
+would not stay unreferenced, since with a window open the gate mints a row for any verified identity
+holding none, and the invitation the approval mailed is what reaches that gate. A read that fails
+leaves it ENABLED, and that direction is only defensible because REJECTING AGAIN REPAIRS IT, where
+an account wrongly turned off has no path back. An ADOPTED identity is never touched: it
 is somebody else's. **A `demo` row is REFUSED rather than merely absent from the queue** — approving
 one would call `AdminCreateUser` on a fabricated address, spend a monthly active user and mail a
 mailbox whose bounce cannot be cleared — which is the thing the role was added for, made structural
@@ -427,18 +429,32 @@ a failure leaves the row untouched and rejecting again finishes it, where the ot
 `rejected` row whose owner can still sign in and a retry that reports the work already done. THE
 PRICE OF THAT ORDER IS PAID BY `AdminEnableUser`, granted for this one use and no other: turning the
 address off before the write applies means a reject that LOSES has turned off an account it had no
-say over. It is put back on the SAME EVIDENCE the approve side asks for — what the address holds now
-— because a lost race cannot say WHO won it. `active` and `pending` are somebody's and nobody's
-respectively, and both get the account back; `rejected` means another ruling beat this one and the
-account stays off, since re-enabling there would rebuild the very state this endpoint exists to
-prevent. The repair hangs off the WRITE FAILING rather than on its matching no rows, because DSQL
-settles a write-write conflict by aborting at commit and the loser is thrown at as readily as it is
-answered with nothing. `AdminEnableUser` grants nothing by itself — an enabled identity with no
+say over. TWO THINGS GATE PUTTING IT BACK, and neither is enough alone. The account is read BEFORE
+it is touched, so a reject knows it was ON when it looked — an account already off is not ours to
+undo, and no row state can say that, which is what an operator's out-of-band suspension turns on.
+And the row must still WANT the account, because two rejects can each see it on and each disable
+it, so the loser holds the same evidence as the winner and putting it back would leave an enabled
+identity under a decision that says otherwise. `active` and `pending` want it; `rejected` does not,
+and is UNAMBIGUOUS where `active` is two states — an approve won, or somebody suspended the account
+by hand. NOR DOES AN ABSENT ROW, which is not the harmless case the rejected one is: with a window
+open the gate mints a row for a verified identity holding none, so an enabled orphan self-provisions
+rather than granting nothing. A READ THAT FAILS IS NOT ONE OF THOSE ANSWERS and the account goes
+back on — and since it cannot tell `rejected` from absent, it accepts the worse of the two: not an
+enabled identity under a decision, which grants nothing, but an enabled ORPHAN. Deliberate, because
+an absent row is near-unreachable — the only delete re-inserts inside its own transaction — while
+the other direction strands an approved user on a failure that is not one, and rejecting again
+repairs either. The read is EVIDENCE RATHER THAN PROOF, being taken before the disable: an operator
+suspending the account inside that window has it undone here, which is known and narrower than the
+window it replaced. The repair hangs off the WRITE FAILING rather than on its matching no rows,
+because DSQL settles a write-write conflict by aborting at commit and the loser is thrown at as
+readily as it is answered with nothing. `AdminEnableUser` grants nothing by itself — an enabled identity with no
 `active` row is refused by every route. **A SECOND REJECTION IS A REPAIR**, which is what makes
 "rule again" a real answer wherever an enabled identity outlives a rejection: a `rejected` row
 retries the disable and skips only the write, so `decided_at` and `decided_by` go on naming whoever
-ruled first. Deleting a user is not implemented and not decided, so no `AdminDeleteUser` is granted
-to anything.
+ruled first — and the same read is what keeps that retry from costing anything when the account is
+already off. `UserStatus` cannot stand in for it: a disabled account keeps the status it had
+([`reference/COGNITO-POOL-PARAMS.md`](reference/COGNITO-POOL-PARAMS.md)). Deleting a user is not
+implemented and not decided, so no `AdminDeleteUser` is granted to anything.
 **Three limits on ruling, two of them deliberate and one of them merely known.** NOBODY RULES ON
 THEIR OWN ROW: rejecting yourself disables your own account and marks your row `rejected`, after
 which the gate refuses you and approve refuses a non-pending row — the only repair is hand-written

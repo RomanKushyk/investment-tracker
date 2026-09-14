@@ -37,13 +37,16 @@ export const REJECT_ROUTE = 'POST /admin/users/{id}/reject';
 type UserAttribute = { Name?: string; Value?: string };
 
 /**
- * The three calls this file makes, narrowed so the tests inject a double rather than the SDK —
+ * The four calls this file makes, narrowed so the tests inject a double rather than the SDK —
  * the shape `pre-signup.ts` and `migrate.ts` take theirs in.
  *
- * `adminGetUser` answers two questions, both on the branch where the address is already taken:
- * WHICH `sub` holds it — `AdminCreateUser` answers `UsernameExistsException` the second time and
- * does not hand back the one it made the first — and WHETHER ANYBODY HAS PROVED THEY HOLD THE
- * ADDRESS, which is what `UserStatus` says and what separates a repair from a stranger's claim.
+ * `adminGetUser` answers three questions. Two are for the branch where the address is already
+ * taken: WHICH `sub` holds it — `AdminCreateUser` answers `UsernameExistsException` the second
+ * time and does not hand back the one it made the first — and WHETHER ANYBODY HAS PROVED THEY HOLD
+ * THE ADDRESS, which is what `UserStatus` says and what separates a repair from a stranger's claim.
+ * The third is for reject, which reads `Enabled` on every decision so that it knows whether it was
+ * the one that turned an account off. `UserStatus` cannot stand in for it: a disabled account keeps
+ * the status it had.
  *
  * `adminEnableUser` EXISTS ONLY TO UNDO THIS FILE'S OWN DISABLE, on the one path that can disable
  * an account somebody else has just approved. It is never how an account is granted: approval
@@ -214,37 +217,48 @@ async function identify(
 }
 
 /**
- * Disables an identity THIS CALL MINTED when an approval fails, and only where nothing still wants
- * it. The row the address holds afterwards is what decides, and there are four answers:
+ * Disables an identity THIS CALL MINTED when an approval fails, and only where the row no longer
+ * wants it.
  *
- * `pending` — the write failed transiently and the application is exactly as it was, so approving
- * again finishes the job: `UsernameExistsException` sends the retry to `AdminGetUser` for this same
- * identity. DISABLING HERE WOULD BREAK THAT RETRY, and nothing in this API could undo it — the
- * retry would then write a flawless `active` row onto an account that cannot sign in.
- * `active` — a concurrent approve won, adopted this identity and wrote the row it belongs to. It is
- * somebody's approved account now.
- * `rejected` — a reject won the race, and an enabled identity must not outlive that decision.
- * Absent — nothing refers to it and nothing can, so it does not survive.
+ * `pending` is the arm worth naming, because it is the one that looks like a leak and is not: the
+ * write failed transiently and the application stands, so approving again finishes the job —
+ * `UsernameExistsException` sends the retry to `AdminGetUser` for this same identity. DISABLING
+ * HERE WOULD BREAK THAT RETRY, which would then write a flawless `active` row onto an account that
+ * cannot sign in.
  *
- * The read failing means the question cannot be answered, and the identity is left ENABLED. That
- * direction is only defensible because REJECTING AGAIN REPAIRS IT: a `rejected` row no longer
- * short-circuits before the pool, so the disable is retried. An account wrongly turned OFF has no
- * such path — approve refuses a decided row — which is why the doubt falls this way.
+ * An ADOPTED identity never reaches here: it is somebody else's, and the caller gates on that.
  */
+/**
+ * Whether the address's row still wants its account ON — the one question both cleanups ask, and
+ * the reason they ask it ONCE here rather than each spelling out the same table.
+ *
+ * `active` wants it: somebody is approved. `pending` wants it: nothing has decided, so an account
+ * that exists should go on existing until something does. `rejected` does not — the address is
+ * unique, so that row means this account must be off whoever turned it off. NOR DOES AN ABSENT
+ * ROW, and not because nothing could refer to the identity: with a window open the gate mints a
+ * row for any verified identity holding none, so an enabled orphan self-provisions.
+ *
+ * A READ THAT FAILS ANSWERS WANTED. It is the direction that leaves an account ON, which is the
+ * one both callers can recover from — rejecting again retries a disable, where an account wrongly
+ * turned off has no path back through this API at all.
+ */
+async function wanted(client: SqlClient, email: string): Promise<boolean> {
+  return client
+    .query<{ status: string }>(ROW_NOW, [email])
+    .then(({ rows }) => rows[0]?.status === 'active' || rows[0]?.status === 'pending')
+    .catch((e: unknown) => {
+      console.error(`approve: could not read back what ${email} holds: ${e}`);
+      return true;
+    });
+}
+
 async function withdraw(
   client: SqlClient,
   idp: IdentityClient,
   UserPoolId: string,
   email: string,
 ): Promise<void> {
-  const status = await client
-    .query<{ status: string }>(ROW_NOW, [email])
-    .then(({ rows }) => rows[0]?.status)
-    .catch((e: unknown) => {
-      console.error(`approve: could not read back what ${email} holds: ${e}`);
-      return 'pending';
-    });
-  if (status === 'pending' || status === 'active') return;
+  if (await wanted(client, email)) return;
   // BEST EFFORT, AND UNDER WHATEVER SENT US HERE. The caller has to be told about the failure that
   // actually happened, so a disable that fails too is logged rather than raised over it.
   await idp.adminDisableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
@@ -253,18 +267,25 @@ async function withdraw(
 }
 
 /**
- * Puts back the disable a reject made before it knew its own write would land, and only where the
- * address now belongs to somebody. The MIRROR of `withdraw`, asking the same statement the same
- * question, because the two share a hazard: a caller that lost a race cannot tell from its own
- * failure WHO won, and guessing is how the account of whoever did gets turned off.
+ * Puts back the disable a reject made before it knew its own write would land.
  *
- * `active` — an approve won and this address is somebody's approved account. `pending` — nothing
- * decided it, so the disable was simply premature and the applicant goes back to awaiting a ruling.
- * `rejected` — ANOTHER REJECT WON, whether a second super-admin's or a double-click, and the
- * account must stay off; re-enabling here would recreate the very state this endpoint exists to
- * prevent. Absent, or a read that fails, is not evidence that anybody is entitled to the account,
- * so it stays off — the direction that withholds access rather than granting it, and one a repeat
- * reject can still finish because a `rejected` row no longer short-circuits before the pool.
+ * TWO THINGS MUST BE TRUE, AND NEITHER IS ENOUGH ALONE. The caller's `live` says the account was
+ * ON WHEN THIS CALL READ IT, which is what an operator's out-of-band suspension fails — already
+ * off means there is nothing of ours to undo, and no row state can tell you that. And the row must
+ * still WANT the account, which is what a reject losing to ANOTHER REJECT fails: two callers can
+ * both see the account on and both disable it, so the loser's own evidence says to put it back,
+ * and doing so would leave an enabled identity under a decision that says otherwise.
+ *
+ * What `wanted` decides is why a `rejected` row is unambiguous where `active` is two states. The
+ * price of its failed-read arm is paid HERE rather than in `withdraw`: a failed read cannot tell
+ * `rejected` from absent, so answering wanted accepts the worse of the two — not merely an enabled
+ * identity under a decision, which grants nothing, but an enabled ORPHAN. Deliberate, because
+ * absent is near-unreachable, `REMOVE` being the only delete and re-inserting in the same
+ * transaction, while the other direction strands an approved user on a failure that is not one.
+ *
+ * `live` is sampled BEFORE the disable, so it is evidence rather than proof — an operator
+ * suspending the account inside that window is undone here. Known, and narrower than what it
+ * replaced.
  */
 async function restore(
   client: SqlClient,
@@ -272,14 +293,7 @@ async function restore(
   UserPoolId: string,
   email: string,
 ): Promise<void> {
-  const status = await client
-    .query<{ status: string }>(ROW_NOW, [email])
-    .then(({ rows }) => rows[0]?.status)
-    .catch((e: unknown) => {
-      console.error(`approve: could not read back what ${email} holds: ${e}`);
-      return undefined;
-    });
-  if (status !== 'active' && status !== 'pending') return;
+  if (!(await wanted(client, email))) return;
   await idp.adminEnableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
     // The ordinary applicant has no identity at all, so the disable above was already a no-op and
     // so is this — not an error, and the commonest way through here.
@@ -348,6 +362,14 @@ async function rejectRow(
   // `UserNotFoundException` IS THE ABSENCE, and the only pool answer that is one. Every other
   // failure still stops the reject with the row untouched, which is the order chosen above.
   //
+  // AND THE ACCOUNT IS READ BEFORE IT IS TOUCHED, so this call knows whether IT was the one that
+  // turned the account off. That is the only evidence that distinguishes the three ways a decision
+  // fails to land — an approve won, another reject won, or the write simply broke — because the
+  // row cannot: it reads `rejected` whether this caller ruled or somebody else did, and `active`
+  // whether an approve won or an operator suspended the account in the console by hand. Acting on
+  // what this call CHANGED rather than on what the row now SAYS is what keeps a failed reject from
+  // handing back an account it never turned off.
+  //
   // THE ADDRESS FINDS THE ACCOUNT BY ALIAS, not because it is the username. Under
   // `UsernameAttributes: [email]` every account carries a UUID username, the ones
   // `AdminCreateUser` makes included, and the address resolves through the `email` alias instead —
@@ -355,16 +377,30 @@ async function rejectRow(
   // federated-only profile gets no such alias and answers not-found, which marks the row and logs
   // rather than failing; the row is what governs access. `docs/DECISIONS.md`, **Auth model**, and
   // `docs/reference/COGNITO-POOL-PARAMS.md` for what the pool actually answered.
-  await idp.adminDisableUser({ UserPoolId, Username: row.email }).catch((err: unknown) => {
-    if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
-    console.log(`approve: ${row.user_id} is being rejected with no local identity to disable`);
-  });
+  const live = await idp
+    .adminGetUser({ UserPoolId, Username: row.email })
+    .then((found) => found.Enabled !== false)
+    .catch((err: unknown) => {
+      if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
+      console.log(`approve: ${row.user_id} is being rejected with no local identity to disable`);
+      return false;
+    });
+  // The account can still go between the read and this — an operator deleting it in the console is
+  // the only lever that does it — and that is an absence like any other, not a reason to refuse.
+  if (live) {
+    await idp.adminDisableUser({ UserPoolId, Username: row.email }).catch((err: unknown) => {
+      if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
+      console.log(`approve: ${row.email} went between being read and being disabled`);
+    });
+  }
 
   // A ROW ALREADY `rejected` IS A REPAIR RATHER THAN A NO-OP, which is what makes "rule again" a
   // real answer to every way an enabled identity can outlive a rejection — a disable that failed,
-  // and the arms of `withdraw` and `restore` that deliberately leave an account on rather than
-  // guess. Short-circuiting before the pool made those states reachable and unrepairable at once.
-  // The write is what does not repeat: `decided_at` and `decided_by` name whoever ruled first.
+  // or either cleanup leaving one on rather than guess — `withdraw` where the row still wants it,
+  // `restore` where the row could not be read. Short-circuiting before the pool made
+  // those states reachable and unrepairable at once, and the read above is what keeps the repair
+  // from costing a write when there is nothing to repair. What does not repeat is the DECISION:
+  // `decided_at` and `decided_by` go on naming whoever ruled first.
   if (row.status === 'rejected') return ALREADY_DECIDED;
 
   // THE WRITE REPORTS ITSELF. Without this a reject that matched nothing would answer 200 having
@@ -378,12 +414,12 @@ async function rejectRow(
   const { rows } = await client
     .query<{ user_id: string }>(DECIDE, [row.user_id, decidedBy, row.status])
     .catch(async (err: unknown) => {
-      await restore(client, idp, UserPoolId, row.email);
+      if (live) await restore(client, idp, UserPoolId, row.email);
       throw err;
     });
   if (rows.length === 0) {
     console.error(`approve: reject matched no row for ${row.user_id}; it was decided elsewhere`);
-    await restore(client, idp, UserPoolId, row.email);
+    if (live) await restore(client, idp, UserPoolId, row.email);
     return ALREADY_DECIDED;
   }
   return REJECTED;

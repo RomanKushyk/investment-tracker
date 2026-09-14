@@ -92,14 +92,14 @@ const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = 
  */
 const holdingNobody = () => {
   const base = spy();
-  const disabled: { Username: string }[] = [];
+  const fetched: unknown[] = [];
   return {
     ...base,
-    disabled,
+    fetched,
     idp: {
       ...base.idp,
-      adminDisableUser: async (input: { UserPoolId: string; Username: string }) => {
-        disabled.push(input);
+      adminGetUser: async (input: { UserPoolId: string; Username: string }) => {
+        fetched.push(input);
         throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
       },
     },
@@ -493,8 +493,11 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     const res = await approve(db, idp, call(REJECT_ROUTE));
 
     expect(res.statusCode).toBe(200);
-    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
-    expect([created, fetched]).toEqual([[], []]);
+    // ASKED — without this the test passes for a reject that short-circuited before Cognito, which
+    // is the defect it exists to catch.
+    expect(fetched).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    // And answered not-found, so there was nothing to turn off and nothing was attempted.
+    expect([created, disabled]).toEqual([[], []]);
     expect(await rows()).toEqual([
       expect.objectContaining({
         user_id: PLACEHOLDER,
@@ -534,6 +537,37 @@ describe('rejecting is a status, and disabling is its consequence', () => {
   // accepted. Written the other way round, a disable that failed after the row was written would
   // leave a `rejected` row whose owner can still sign in — and the retry would answer "already
   // decided" and repair nothing.
+  // THE LOOKUP IS NEW SURFACE ON EVERY REJECT, so it is a new way for every reject to fail — and
+  // only `UserNotFoundException` may be read as an absence. Anything else stops the decision with
+  // the row untouched, the same direction the disable below takes.
+  it('stops the rejection when the pool cannot be asked at all', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const idp = {
+      ...spy().idp,
+      adminGetUser: async () => {
+        throw new Error('TooManyRequestsException');
+      },
+    };
+    const res = await approve(db, idp, call(REJECT_ROUTE));
+    expect(res.statusCode).toBe(500);
+    expect((await rows())[0].status).toBe('pending');
+  });
+
+  // THE ACCOUNT CAN GO BETWEEN BEING READ AND BEING DISABLED — an operator deleting it in the
+  // console is the only lever that does — and an absence is not a reason to refuse the decision.
+  it('records the decision when the account vanishes between the read and the disable', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const idp = {
+      ...spy().idp,
+      adminDisableUser: async () => {
+        throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
+      },
+    };
+    const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
+    expect(res.statusCode).toBe(200);
+    expect((await rows())[0].status).toBe('rejected');
+  });
+
   it('leaves the row active when the disable fails, so a retry still repairs it', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
     const idp = {
@@ -572,11 +606,10 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
   });
 
-  // AND NOT WHEN ANOTHER REJECT WON IT. Both rejects disable, one write lands, and the loser must
-  // not read its own failure as "somebody was approved" — re-enabling there rebuilds the exact
-  // state this endpoint exists to prevent, an enabled identity under a `rejected` row, and no
-  // later call would reach it. `DECIDE` matching nothing cannot say WHICH ruling beat it, so the
-  // row is what gets asked.
+  // AND NOT WHEN ANOTHER REJECT WON IT, which takes BOTH tests to see. Two rejects can each read
+  // the account while it is still on, so both hold "I turned it off" and the loser's own evidence
+  // says to put it back — while a `rejected` row says it must stay off whoever turned it off. The
+  // address is unique, so that row is unambiguous where `active` is not.
   it('leaves the account off when another reject won the race', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp, disabled, enabled } = spy();
@@ -587,21 +620,65 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect(enabled).toEqual([]);
   });
 
-  // A WRITE THAT SIMPLY FAILED LEAVES THE APPLICANT UNDECIDED, so turning their account off was
-  // premature rather than wrong, and they go back to awaiting a ruling with it on.
-  it('puts the account back when nothing decided the row at all', async () => {
+  // THE OTHER ORDERING OF THE SAME RACE: this reject reads the account after the winner has
+  // already turned it off, so it disables nothing. Both guards would answer it, and what only this
+  // one pins is the DISABLE being skipped — the row check cannot reach that far.
+  it('leaves the account off when it arrives after the winner disabled it', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
-    const { idp, enabled } = spy();
+    const { idp, disabled, enabled } = spy(undefined, undefined, false);
+    const res = await approve(decidedDuring('rejected'), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([]);
+    expect(enabled).toEqual([]);
+  });
+
+  // THE SAME EVIDENCE ANSWERS AN OUT-OF-BAND SUSPENSION. Somebody disabled the account in the
+  // console and left the row `active`; a reject whose write then fails must not hand that account
+  // back. Reading the row cannot see this at all — it says `active`, which is exactly what a
+  // winning approve says too.
+  it('leaves an account suspended elsewhere off when its own write fails', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, disabled, enabled } = spy(undefined, undefined, false);
+    const res = await approve(swallowing('UPDATE app_user'), idp, call(REJECT_ROUTE, SUB));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([]);
+    expect(enabled).toEqual([]);
+  });
+
+  // A ROW STILL WANTING THE ACCOUNT PUTS IT BACK, and `pending` wants it as much as `active`
+  // does: nothing decided, so turning the account off was premature rather than wrong. The
+  // `active` half of the same rule is the approve-won case above.
+  it('puts the account back where the row still wants it', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, enabled } = spy();
     const res = await approve(decidedDuring('pending'), idp, call(REJECT_ROUTE));
 
     expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
     expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    // BY ADDRESS — the row this reject read may now be keyed by a `sub` the winner wrote.
     expect(askedFor).toEqual([[EMAIL]]);
   });
 
-  // NEITHER AN ABSENT ROW NOR A READ THAT FAILS IS EVIDENCE that anybody is entitled to the
-  // account, so it stays off — the direction that withholds access rather than granting it, and
-  // the mirror of what `withdraw` does with the same two answers.
+  // AN OPERATOR-SUSPENDED ACCOUNT IS STILL REJECTABLE. `live` gates the disable as well as the
+  // repair, so the guard could have made a reject skip its own decision — this is the half of it
+  // that no race touches.
+  it('records the decision for an account somebody else had already turned off', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, disabled, enabled } = spy(undefined, undefined, false);
+    const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
+
+    expect(res.statusCode).toBe(200);
+    expect([disabled, enabled]).toEqual([[], []]);
+    expect((await rows())[0].status).toBe('rejected');
+  });
+
+  // AN ADDRESS HOLDING NO ROW WANTS NOTHING, and the account stays off — the same answer
+  // `withdraw` gives the same evidence. It is not the harmless case the `rejected` arm is: with a
+  // window open the gate MINTS an `active` row for any verified identity holding none, so an
+  // enabled orphan self-provisions rather than granting nothing.
   it('leaves the account off when the address ends up holding no row', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const { idp, disabled, enabled } = spy();
@@ -612,14 +689,17 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect(enabled).toEqual([]);
   });
 
-  it('leaves the account off when it cannot read what the address holds', async () => {
+  // AND A READ THAT FAILS COUNTS AS NOT DECIDED, so the account goes back on. Turning it off is
+  // already proved; the worst case is an enabled identity under a `rejected` row, which grants
+  // nothing and which rejecting again repairs. Failing the other way strands an approved user with
+  // no path back at all.
+  it('puts the account back when it cannot tell whether the row was decided', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
-    const { idp, disabled, enabled } = spy();
+    const { idp, enabled } = spy();
     const res = await approve(blindTo('SELECT status FROM app_user'), idp, call(REJECT_ROUTE));
 
     expect(res.statusCode).not.toBe(200);
-    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
-    expect(enabled).toEqual([]);
+    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
   });
 
   // A LOST RACE ARRIVES IN TWO SHAPES. DSQL settles a write-write conflict by ABORTING at commit,
@@ -632,6 +712,17 @@ describe('rejecting is a status, and disabling is its consequence', () => {
 
     expect(res.statusCode).toBe(500);
     expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  // AND THE ABORTED SHAPE IS GATED ON `live` TOO. It is the shape the repair was added for, so an
+  // account this call never turned off must not come back through it either.
+  it('puts nothing back on an aborted decision it never turned off', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, enabled } = spy(undefined, undefined, false);
+    const res = await approve(failingOn('UPDATE app_user'), idp, call(REJECT_ROUTE, SUB));
+
+    expect(res.statusCode).toBe(500);
+    expect(enabled).toEqual([]);
   });
 
   // AND ONLY THEN. A reject that decided the row must leave the account off; re-enabling on the
@@ -647,9 +738,23 @@ describe('rejecting is a status, and disabling is its consequence', () => {
 
   // A SECOND REJECTION IS A REPAIR, NOT A NO-OP, and that is what makes "reject again" a real
   // answer to every way an enabled identity can outlive a rejection — a disable that failed, and
-  // the arms of the two cleanups that deliberately leave an account on rather than guess. What
-  // does not repeat is the WRITE: `decided_at` and `decided_by` go on naming whoever ruled first.
-  it('retries the disable on a second rejection, but does not report it as a fresh one', async () => {
+  // the arms of `withdraw` and `restore` that deliberately leave an account on rather than guess
+  // — `restore`'s failed read turns one back on, so it belongs in that list too.
+  // It repairs only what is broken: after a rejection that landed the account is already off, so a
+  // second one finds nothing to do, where an enabled account under a `rejected` row gets the retry.
+  it('retries the disable for an enabled account under a rejected row', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'rejected'));
+    const { idp, disabled, enabled } = spy();
+    const res = await approve(db, idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(enabled).toEqual([]);
+  });
+
+  // AND WHAT DOES NOT REPEAT IS THE WRITE: `decided_at` and `decided_by` go on naming whoever
+  // ruled first, so a second super-admin re-rejecting cannot overwrite the record of who did.
+  it('does not restamp the decision pair on a second rejection, nor report it as a fresh one', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
     await approve(db, spy().idp, call(REJECT_ROUTE, SUB));
     // THE RAW PAIR, not the boolean `rows()` projects: a restamped `decided_at` is invisible to
@@ -663,7 +768,8 @@ describe('rejecting is a status, and disabling is its consequence', () => {
       ).rows;
     const first = await pair();
 
-    const again = spy();
+    // The first rejection turned the account off, so the second finds it already off.
+    const again = spy(undefined, undefined, false);
     const other = '9f1e2d3c-0000-4000-8000-00000000ad22';
     await db.exec(insert(other, 'second@quirenote.com', 'active', 'super_admin'));
     const res = await approve(
@@ -672,8 +778,7 @@ describe('rejecting is a status, and disabling is its consequence', () => {
       call(REJECT_ROUTE, SUB, token(other, 'second@quirenote.com')),
     );
     expect(res.statusCode).not.toBe(200);
-    expect(again.disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
-    expect(again.enabled).toEqual([]);
+    expect([again.disabled, again.enabled]).toEqual([[], []]);
     expect(await pair()).toEqual(first);
   });
 });
