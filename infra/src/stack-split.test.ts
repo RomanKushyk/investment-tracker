@@ -411,4 +411,33 @@ describe('migrate.yml names the stack its target chose', () => {
     expect(target).not.toHaveProperty('default');
     expect(target?.required).toBe(true);
   });
+
+  // The fourth mode, and `rehearse` stays first for the reason the target's order
+  // exists: a dropdown dispatched without being touched preselects its first option,
+  // and `bootstrap` mints a real Cognito identity.
+  it('offers the bootstrap mode without displacing the harmless default', () => {
+    const mode = wf.on.workflow_dispatch?.inputs?.mode;
+    expect(mode?.options).toEqual(['rehearse', 'dry-run', 'apply', 'bootstrap']);
+    expect(mode?.default).toBe('rehearse');
+  });
+
+  // NOTHING REACHES THE INVOKE LINE BY SUBSTITUTION. The payload used to be a
+  // single-quoted shell literal with the mode pasted into it, which was safe only because
+  // `mode` is a `choice` GitHub validates. An operator-typed address pasted the same way is
+  // shell injection on a `bash -e` line and JSON injection inside the literal at once — so
+  // both values now travel through `env:` and are built in with `jq -n --arg`. This asserts
+  // neither has drifted back, the mode included: an exception nothing pins is one that gets
+  // taken.
+  it('builds the payload around the address rather than substituting it in', () => {
+    const invoke = steps.find((s) => s.run?.includes('aws lambda invoke'));
+    expect(invoke).toBeDefined();
+    expect(invoke?.run).not.toContain('inputs.email');
+    expect(invoke?.run).not.toContain('inputs.mode');
+    expect(invoke?.run).toContain('jq -n');
+    expect(invoke?.run).toContain('--arg');
+    // And the value it reads is an environment variable the step was given, rather than
+    // a second expression spelled differently.
+    expect(Object.values(invoke?.env ?? {})).toContain('${{ inputs.email }}');
+    expect(Object.values(invoke?.env ?? {})).toContain('${{ inputs.mode }}');
+  });
 });

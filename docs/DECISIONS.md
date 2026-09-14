@@ -324,6 +324,26 @@ refusal covering that would close the door on the people who were let through it
 deliberately COARSE: an open-registration window leaves local accounts behind that outlive it,
 so what the trigger governs is who gets an IDENTITY, and the `status`/`role` check on every
 request is what governs access.
+**The first super-admin is bootstrapped by hand, and the row approves itself.** Everyone starts
+`pending` and only a super-admin approves, so without one the system cannot be started at all — and
+the seeding cannot be a migration. `user_id` holds the Cognito `sub`, which only `AdminCreateUser`
+mints, so a migration could not produce the value; and a schema migration must not carry a fixed
+privileged identity in the first place. It is a fourth mode on the MIGRATION RUNNER, which is
+already the one thing invoked by hand and by nothing else, and the ADDRESS IS AN OPERATOR INPUT AT
+INVOKE TIME rather than a committed literal or a stack parameter — the person running it names who
+it creates. The cost is stated rather than hidden: the runner gains `AdminCreateUser` on its own
+pool, so the thing that can rewrite the schema can also mint an identity. The row names ITSELF as
+its approver, because `app_user_decided_ck` exempts only the demo role and an `active` row must
+carry both halves of the decision pair — a pair naming anybody else would be a fabricated approval
+by somebody who never ruled on it. **It asks the database everything before it asks Cognito
+anything**, because `AdminCreateUser` cannot be undone by a runner that holds no `AdminDeleteUser`:
+an unapplied schema, an address that already applied, and a super-admin that already exists are all
+refusals that create nothing, where insert-first would have stranded an identity behind a raw
+constraint error. And the INVITATION IS SENT rather than suppressed — `AdminCreateUser` generates a
+temporary password whatever else happens and leaves the account in `FORCE_CHANGE_PASSWORD`, which
+`ForgotPassword` refuses to reset, so suppressing the one message that carries that password
+produces an account nobody can sign into. The pool declares no `EmailConfiguration`, so this costs
+no SES.
 **Registration opens by DEPLOY, not by a row.** Opening it needs two things true at once — the
 pool accepting `SignUp` and the trigger admitting an address with no application — and
 `AllowAdminCreateUserOnly` is an `UpdateUserPool` parameter, so a settings row could only ever
@@ -409,6 +429,11 @@ batching is the only shape that works — a cascading key would not remove it, s
 count against the same ceiling. Parent last makes a failure resumable, and the key exists for the
 second writer, whose orphans are invisible to reads that run parent to child. Free cash sums across
 accounts and the breakdown is a group, so a provider row with nothing in it adds nothing to either.
+The runner has a FOURTH mode beside those three, and it applies nothing: `bootstrap` creates the
+first super-admin. It lives there because it is already the one thing invoked by hand and by
+nothing else, and because the alternative was worse — see **Auth model**. It is an early return
+before any file is read, since the mode that has no guard of its own is the rehearsal, which is the
+fall-through.
 **Rejected.** Tombstones: nothing here has asked for undo or retention, and a `deleted_at` puts a
 filter in every read that the first forgotten one turns into deleted data rendered as live. ·
 Skipping any statement whose object already exists, in place of the ledger: it passes the retry and

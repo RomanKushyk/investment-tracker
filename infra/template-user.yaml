@@ -196,6 +196,10 @@ Resources:
           DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
+          # THE BOOTSTRAP MODE NEEDS A POOL, and a hand-typed invoke carries none — a
+          # Cognito trigger reads it off the event, which is why `pre-signup.ts` has no
+          # environment variable at all. This one has nowhere else to come from.
+          USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
             # This cluster and nothing else — not the archive, and not the other
@@ -204,6 +208,25 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
+            # THE RUNNER CAN MINT AN IDENTITY, and the cost is stated rather than hidden:
+            # the thing that can rewrite the schema can also create a user. It is taken
+            # because bootstrapping the first super-admin needs a `sub`, which only
+            # `AdminCreateUser` produces, and because this is already the one function
+            # invoked by hand and by nothing else — no schedule, no DLQ.
+            #
+            # INLINE HERE, unlike the trigger's grant, and the difference is the cycle:
+            # the pool names `PreSignUpFunction`, so nothing the pool depends on may name
+            # the pool. `MigrateFunction` is not in that chain, so it can.
+            #
+            # TWO CALLS AND NO THIRD. Create the account, and read it back on a re-run to
+            # recover the `sub` the first run made. Nothing here may approve, disable or
+            # delete anybody.
+            - Sid: BootstrapTheFirstSuperAdmin
+              Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
 
   # Declared explicitly rather than letting Lambda auto-create it: the implicit log
   # group defaults to "Never expire".

@@ -38,6 +38,30 @@ on:
           - rehearse # throwaway schema, dropped CASCADE at the end
           - dry-run # read the files, contact no object
           - apply # public, for real
+          # LAST, AND IT APPLIES NOTHING. It creates the one account that can approve the
+          # others — a Cognito user and its `active` + `super_admin` row — because
+          # everyone else starts `pending` and only a super-admin approves, so without it
+          # the system cannot be started at all. It has no rehearsal: `rehearse` applies
+          # `MIGRATIONS` inside a throwaway schema, and a mode that mints a real identity
+          # in a real pool has no throwaway form.
+          - bootstrap # the first super-admin, named by `email` below
+      email:
+        description: bootstrap only — the address to make a super-admin
+        required: false
+        # FREE TEXT, WHICH IS WHY IT NEVER REACHES THE PAYLOAD BY SUBSTITUTION. `mode` and
+        # `target` are `choice`, so GitHub will not send a value outside their lists and
+        # `${{ }}` on the invoke line is safe for them. This one accepts anything typed
+        # into it. So it travels through `env:` and is built in with `jq -n --arg`, which
+        # QUOTES it as JSON rather than pasting it — and `mode` takes the same route, because
+        # one rule is cheaper to keep true than an exception. `stack-split.test.ts` fails if
+        # either reaches the invoke line.
+        #
+        # THE INVITATION EXPIRES. Cognito sends a temporary password valid for seven days by
+        # default, and `ForgotPassword` refuses an account that has never used it — so an
+        # invitation left unopened that long needs
+        # `aws cognito-idp admin-create-user --message-action RESEND`, by hand. A re-run of
+        # this mode cannot do it: the row is already correct, so it reports `existing`.
+        type: string
       target:
         description: Which environment's user database
         required: true
@@ -130,10 +154,18 @@ jobs:
           # up to three times by default, so the timeout would RE-INVOKE the
           # function into a migration already in flight. `AWS_MAX_ATTEMPTS=1`
           # says the same thing a second way.
+          # BUILT, NOT SUBSTITUTED, and the address is what forces it. `email` is free
+          # text: pasted into a shell string it is shell injection, and pasted into the JSON
+          # it is JSON injection — from a field whose whole purpose is to accept what someone
+          # typed. `jq -n --arg` takes both values from the environment and QUOTES them as
+          # JSON, the one shape safe for both at once. `mode` is a `choice` and would survive
+          # substitution; it goes the same way so there is one rule here, not an exception.
+          payload=$(jq -n --arg mode "$MIGRATE_MODE" --arg email "$BOOTSTRAP_EMAIL" \
+            '{mode: $mode} + (if $email == "" then {} else {email: $email} end)')
           AWS_MAX_ATTEMPTS=1 aws lambda invoke \
             --function-name "${{ steps.fn.outputs.name }}" \
             --cli-binary-format raw-in-base64-out \
-            --payload '{"mode":"${{ inputs.mode }}"}' \
+            --payload "$payload" \
             --cli-read-timeout 0 \
             --output json \
             out.json > invoke.json
@@ -151,6 +183,16 @@ jobs:
             echo 'the migration handler raised' >&2
             exit 1
           fi
+        env:
+          # THROUGH THE ENVIRONMENT, NEVER `${{ }}` ON THE RUN LINE — see the comment
+          # above `payload=`. The handler refuses the bootstrap mode without it, so an
+          # empty value fails in the runner rather than half-running here.
+          # Both inputs through the environment, not only the free-text one. `mode` is a
+          # `choice` and safe either way, but it now sits in a DOUBLE-quoted shell string
+          # where the single-quoted literal used to be — and one rule for both is cheaper
+          # to keep true than an exception that has to be re-derived.
+          MIGRATE_MODE: ${{ inputs.mode }}
+          BOOTSTRAP_EMAIL: ${{ inputs.email }}
 
       # The report is the only evidence a migration run leaves, and a log
       # expires. `if: always()` so a failed run keeps its half of one.

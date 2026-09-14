@@ -43,6 +43,13 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import {
+  AdminCreateUserCommand,
+  AdminGetUserCommand,
+  CognitoIdentityProviderClient,
+} from '@aws-sdk/client-cognito-identity-provider';
+
+import { canonicalAddress } from './address';
 import { connect } from './dsql';
 
 /**
@@ -525,7 +532,39 @@ async function indexBuildJob(
   }
 }
 
-export type MigrateMode = 'rehearse' | 'dry-run' | 'apply';
+export type MigrateMode = 'rehearse' | 'dry-run' | 'apply' | 'bootstrap';
+
+type UserAttribute = { Name?: string; Value?: string };
+
+/**
+ * The two Cognito calls the bootstrap makes, narrowed so the tests inject a double rather
+ * than the SDK — the shape `pre-signup.ts` takes its `IdentityClient` in.
+ *
+ * `AdminGetUser` is here only for the re-run: `AdminCreateUser` answers
+ * `UsernameExistsException` the second time and does not hand back the `sub` it made the
+ * first time, and the bootstrap has to report the same identity rather than a fresh one.
+ */
+export type IdentityAdminClient = {
+  adminCreateUser(input: {
+    UserPoolId: string;
+    Username: string;
+    UserAttributes: { Name: string; Value: string }[];
+    // The literal rather than `string`: the SDK types this as an enum, and a widened
+    // narrowing would stop compiling against the very call it exists to describe.
+    DesiredDeliveryMediums?: ['EMAIL'];
+  }): Promise<{ User?: { Attributes?: UserAttribute[] } }>;
+  adminGetUser(input: {
+    UserPoolId: string;
+    Username: string;
+  }): Promise<{ UserAttributes?: UserAttribute[] }>;
+};
+
+/** What the bootstrap did, which the other three modes never set. */
+export interface BootstrapReport {
+  email: string;
+  identity: 'created' | 'existing';
+  row: 'created' | 'existing';
+}
 
 export interface MigrateEvent {
   /**
@@ -538,12 +577,27 @@ export interface MigrateEvent {
    * destructive, so there is none.
    */
   mode?: MigrateMode;
+
+  /**
+   * The address `bootstrap` creates, and an OPERATOR INPUT rather than a committed
+   * literal or a stack parameter. The person running it names who it creates, at the
+   * moment they run it — a migration must not carry a fixed privileged identity, and
+   * this one could not produce the value anyway: `user_id` is the Cognito `sub`, which
+   * only `AdminCreateUser` mints.
+   */
+  email?: string;
 }
 
 export interface MigrateReport {
   mode: MigrateMode;
   schema: string;
   files: FileReport[];
+  /**
+   * Set by `bootstrap` ALONE, and absent everywhere else — which is why the whole-report
+   * `toEqual` assertions on the other three modes did not have to move. They report
+   * exactly what they reported before this mode existed.
+   */
+  bootstrap?: BootstrapReport;
 }
 
 /**
@@ -561,13 +615,195 @@ export interface MigrateReport {
 const fileText = (file: string) =>
   readFileSync(join(process.env.LAMBDA_TASK_ROOT ?? 'infra', 'migrations', file), 'utf8');
 
-const MODES: readonly MigrateMode[] = ['rehearse', 'dry-run', 'apply'];
+const MODES: readonly MigrateMode[] = ['rehearse', 'dry-run', 'apply', 'bootstrap'];
 
-export async function migrate(client: SqlClient, event: MigrateEvent = {}): Promise<MigrateReport> {
+/**
+ * The first super-admin, and the row is self-approved because that is the only truthful
+ * shape available.
+ *
+ * `app_user_decided_ck` exempts `role = 'demo'` alone, so an `active` row MUST carry both
+ * halves of the decision pair — and `decided_by` has no foreign key, so the row can name
+ * itself. A pair naming somebody else would be a fabricated approval by a person who never
+ * ruled on it, which is exactly what `005_demo_user.sql` refused to write.
+ *
+ * `ON CONFLICT (user_id)` rather than absorbing a `23505`, following `005` and for its
+ * reason: a `23505` does not say which constraint raised it, and `app_user_email_uq` can
+ * raise one for a DIFFERENT row — an address that already applied. That is a real
+ * collision and must stop the run rather than read as "already bootstrapped".
+ */
+/**
+ * WHAT THE CLUSTER ALREADY HOLDS, asked BEFORE anything irreversible happens.
+ *
+ * `AdminCreateUser` cannot be undone by this runner — it has no `AdminDeleteUser` — so
+ * every question that can be answered from the database is answered first. Three states
+ * this turns into clean refusals that create nothing: the schema has not been applied yet
+ * (`42P01` from here rather than an identity stranded in the pool), the address already
+ * holds an application row, and a super-admin already exists under another address.
+ */
+const BOOTSTRAP_LOOK = `SELECT user_id, email, status, role FROM app_user
+                        WHERE email = $1 OR role = 'super_admin'`;
+
+/**
+ * `ON CONFLICT (user_id) DO NOTHING` and NOT `… RETURNING`.
+ *
+ * Following `005` on the conflict target, and for its reason: a `23505` does not say which
+ * constraint raised it, and `app_user_email_uq` can raise one for a different row. What is
+ * deliberately absent is `RETURNING` — `infra/docs/dsql-constraints.md` measured
+ * `DO NOTHING` on the cluster, but not in combination with a returning clause, and this is
+ * the one mode with no rehearsal to find that out in. Whether the row is new is already
+ * known from the look above, so the unmeasured shape buys nothing.
+ */
+const BOOTSTRAP_ROW = `INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                             decided_at, decided_by)
+                       VALUES ($1, $2, 'active', 'super_admin', now(), now(), $1)
+                       ON CONFLICT (user_id) DO NOTHING`;
+
+const subOf = (attributes: UserAttribute[] | undefined): string | undefined =>
+  attributes?.find((a) => a.Name === 'sub')?.Value;
+
+type AppUserRow = { user_id: string; email: string; status: string; role: string };
+
+async function bootstrap(
+  client: SqlClient,
+  idp: IdentityAdminClient,
+  supplied: unknown,
+): Promise<MigrateReport> {
+  // CANONICALISED BEFORE ANYTHING IS ASKED, so `app_user_email_lower_ck` is never what
+  // reports an operator's capital letter. This runner holds the cluster's admin grant, so
+  // a constraint violation here is a surprise in the middle of a privileged run rather
+  // than a clean refusal — and the address arrives typed by hand.
+  const email = canonicalAddress(supplied);
+  if (email === undefined) {
+    throw new Error(
+      `email must be an address this schema can store, got ${JSON.stringify(supplied)}`,
+    );
+  }
+
+  const UserPoolId = process.env.USER_POOL_ID;
+  if (!UserPoolId) throw new Error('USER_POOL_ID is not set on this function');
+
+  const { rows } = await client.query<AppUserRow>(BOOTSTRAP_LOOK, [email]);
+  const mine = rows.find((r) => r.email === email);
+  const otherAdmin = rows.find((r) => r.role === 'super_admin' && r.email !== email);
+
+  // THE FINISHED STATE IS ANSWERED FIRST, and the order matters only for its message: a
+  // re-run for the address that IS the super-admin must report that, not be told it is
+  // trying to promote a second one.
+  if (mine && mine.status === 'active' && mine.role === 'super_admin') {
+    // The row says the identity exists; this is what makes that falsifiable rather than
+    // assumed, and it is the difference between a recovery tool and one that reports
+    // success while repairing nothing.
+    const found = await idp.adminGetUser({ UserPoolId, Username: email }).catch((err: unknown) => {
+      // NAMED ON BOTH SIDES, like every other refusal here. The raw SDK answer is "User
+      // does not exist." with no address, no row and no next step — and this is the one
+      // state an operator reaches while already locked out.
+      throw new Error(
+        `${email} holds a super-admin row (${mine.user_id}) but the pool has no such user: ${String(err)}`,
+      );
+    });
+    const sub = subOf(found.UserAttributes);
+    if (sub !== mine.user_id) {
+      throw new Error(`${email} is row ${mine.user_id} but pool user ${sub ?? 'unknown'}`);
+    }
+    return {
+      mode: 'bootstrap',
+      schema: 'public',
+      files: [],
+      bootstrap: { email, identity: 'existing', row: 'existing' },
+    };
+  }
+
+  // ALREADY IN THE WAY. A row this mode must not overwrite — most likely an application
+  // from that address, which `POST /v1/applications` accepts from anyone. Refused by NAME,
+  // because the alternative is a raw `app_user_email_uq` violation raised after an identity
+  // has already been minted.
+  if (mine) {
+    throw new Error(
+      `${email} already holds an app_user row (${mine.status}/${mine.role}); remove or decide it before bootstrapping`,
+    );
+  }
+
+  // THE FIRST super-admin, which is what this mode is named for and what three documents
+  // promise. Without this the second dispatch would quietly write another `active`
+  // super-admin for an address nobody approved — the property the approval gate exists to
+  // hold. Promoting a second one is the admin surface's decision, not a runner mode's.
+  if (otherAdmin) {
+    throw new Error(
+      `a super-admin already exists (${otherAdmin.email}); promoting another is not this mode's to do`,
+    );
+  }
+
+  // IDEMPOTENT ACROSS BOTH HALVES, because they can still fail apart: an identity created
+  // and a row that did not land leaves a `sub` nothing refers to, and the only way back is
+  // to run this again. So a create that says "already there" continues to the row.
+  let userId: string | undefined;
+  let identity: 'created' | 'existing' = 'created';
+  try {
+    const made = await idp.adminCreateUser({
+      UserPoolId,
+      Username: email,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        // The address is the operator's own and needs no round trip to prove. It is also
+        // what makes forgot-password work afterwards.
+        { Name: 'email_verified', Value: 'true' },
+      ],
+      // THE INVITATION IS SENT, and suppressing it was a trap. `AdminCreateUser` generates
+      // a temporary password whatever else happens and leaves the account in
+      // `FORCE_CHANGE_PASSWORD`; suppressed, nobody is ever told that password, and
+      // `ForgotPassword` REFUSES a user in that state — so the mode would have produced a
+      // perfect row attached to an account nobody could sign into, which is the one thing
+      // it exists to prevent. The pool declares no `EmailConfiguration`, so Cognito's own
+      // sender delivers this and no SES sandbox is involved.
+      //
+      // EMAIL, EXPLICITLY: the delivery medium defaults to SMS, and this pool carries no
+      // phone number at all.
+      DesiredDeliveryMediums: ['EMAIL'],
+    });
+    userId = subOf(made.User?.Attributes);
+  } catch (err) {
+    if ((err as { name?: string })?.name !== 'UsernameExistsException') throw err;
+    identity = 'existing';
+    const found = await idp.adminGetUser({ UserPoolId, Username: email });
+    userId = subOf(found.UserAttributes);
+  }
+  if (!userId) throw new Error(`the pool returned no sub for ${email}`);
+
+  await client.query(BOOTSTRAP_ROW, [userId, email]);
+  // THE SUB IS LOGGED, NOT RETURNED. The report is printed and kept as a workflow artifact
+  // on a PUBLIC repository; the address is in the dispatch inputs already, but the `sub` is
+  // the key every row in this database is scoped by and has no reason to be published.
+  console.log(`bootstrap: ${email} is ${userId} (identity ${identity})`);
+  return {
+    mode: 'bootstrap',
+    schema: 'public',
+    files: [],
+    bootstrap: { email, identity, row: 'created' },
+  };
+}
+
+// Constructed once, at module scope, the way `pre-signup.ts` constructs its own — and
+// passed in, so every test injects a double instead.
+const identityClient = new CognitoIdentityProviderClient({});
+const sdkIdentity: IdentityAdminClient = {
+  adminCreateUser: (input) => identityClient.send(new AdminCreateUserCommand(input)),
+  adminGetUser: (input) => identityClient.send(new AdminGetUserCommand(input)),
+};
+
+export async function migrate(
+  client: SqlClient,
+  event: MigrateEvent = {},
+  idp: IdentityAdminClient = sdkIdentity,
+): Promise<MigrateReport> {
   const mode = event.mode;
   if (mode === undefined || !MODES.includes(mode)) {
     throw new Error(`mode must be one of ${MODES.join(' | ')}, got ${JSON.stringify(event.mode)}`);
   }
+
+  // BEFORE THE PLAN AND WELL BEFORE THE REHEARSE TAIL. This mode reads no migration file,
+  // and the tail has no guard of its own — it is the fall-through — so a branch added
+  // after it would land in `CREATE SCHEMA`, create nothing, and report a rehearsal.
+  if (mode === 'bootstrap') return bootstrap(client, idp, event.email);
 
   const plan = MIGRATIONS.map((file) => ({ file, statements: statementsOf(fileText(file)) }));
 

@@ -12,7 +12,7 @@
 // apart: only the unrewritten half can be executed here.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { SqlClient } from './migrate';
@@ -523,5 +523,227 @@ describe('the demo user', () => {
   // DSQL refuses `VALIDATE CONSTRAINT`, so nothing goes looking later.
   it('is already the canonical spelling `006` requires', () => {
     expect(DEMO_USER_EMAIL).toBe(DEMO_USER_EMAIL.toLowerCase());
+  });
+});
+
+describe('the bootstrap mode makes the one account that can approve the others', () => {
+  // THE SUB IS NOT THIS FILE'S TO INVENT. `user_id` holds the Cognito `sub` and only
+  // `AdminCreateUser` mints one, which is the whole reason this is a runner mode rather
+  // than a line in `003`: a migration could not produce the value, and `005` gets away
+  // with a pinned literal only because the demo identity must never gain a provider
+  // account at all.
+  const SUB = '9f1e2d3c-0000-4000-8000-00000000ad11';
+  const POOL = 'eu-north-1_EXAMPLE';
+
+  // The pool reaches this mode as an environment variable, because a hand-typed invoke
+  // carries no pool the way a Cognito trigger's event does. Stubbed rather than assumed,
+  // and restored after — a shell that happened to export it would make the refusal below
+  // pass for the wrong reason.
+  beforeEach(() => {
+    vi.stubEnv('USER_POOL_ID', POOL);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  /** Records what the runner asked Cognito for, in the shape `pre-signup.test.ts` uses. */
+  const spy = (existing?: string) => {
+    const created: unknown[] = [];
+    const fetched: unknown[] = [];
+    const idp = {
+      adminCreateUser: async (input: { UserPoolId: string; Username: string }) => {
+        created.push(input);
+        if (existing !== undefined) {
+          throw Object.assign(new Error('User account already exists'), {
+            name: 'UsernameExistsException',
+          });
+        }
+        return { User: { Attributes: [{ Name: 'sub', Value: SUB }] } };
+      },
+      adminGetUser: async (input: { UserPoolId: string; Username: string }) => {
+        fetched.push(input);
+        return { UserAttributes: [{ Name: 'sub', Value: existing ?? SUB }] };
+      },
+    };
+    return { idp, created, fetched };
+  };
+
+  const applied = async () => {
+    const db = new PGlite();
+    await ensureLedger(db);
+    for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
+    return db;
+  };
+
+  const rows = async (db: PGlite) =>
+    (
+      await db.query<{ user_id: string; email: string; status: string; role: string }>(
+        `SELECT user_id, email, status, role, decided_by, decided_at IS NOT NULL AS decided
+           FROM app_user WHERE role = 'super_admin'`,
+      )
+    ).rows;
+
+  it('creates the identity and one row keyed by the sub the create call returned', async () => {
+    const db = await applied();
+    const { idp, created } = spy();
+    const report = await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp);
+
+    expect(created).toHaveLength(1);
+    expect(report.bootstrap).toEqual({
+      email: 'owner@quirenote.com',
+      identity: 'created',
+      row: 'created',
+    });
+    expect(await rows(db)).toEqual([
+      {
+        user_id: SUB,
+        email: 'owner@quirenote.com',
+        status: 'active',
+        role: 'super_admin',
+        // SELF-APPROVED, and it is the only truthful shape available.
+        // `app_user_decided_ck` exempts `role = 'demo'` alone, so an active row MUST
+        // carry both halves of the pair — and naming anybody else would be a
+        // fabricated approval by somebody who never ruled on it.
+        decided_by: SUB,
+        decided: true,
+      },
+    ]);
+  });
+
+  it('creates no second identity and no second row, and says so', async () => {
+    const db = await applied();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+
+    const again = spy(SUB);
+    const report = await migrate(
+      db,
+      { mode: 'bootstrap', email: 'owner@quirenote.com' },
+      again.idp,
+    );
+    expect(report.bootstrap).toEqual({
+      email: 'owner@quirenote.com',
+      identity: 'existing',
+      row: 'existing',
+    });
+    expect(await rows(db)).toHaveLength(1);
+    // The identity is CONFIRMED rather than assumed on the re-run — otherwise a row
+    // whose Cognito user had been deleted would report "existing" and repair nothing.
+    expect(again.fetched).toHaveLength(1);
+    expect(again.created).toEqual([]);
+  });
+
+  // `app_user_email_lower_ck` must never be the thing that reports this. The runner
+  // holds the cluster's admin grant, so a constraint violation here is a half-applied
+  // surprise rather than a clean refusal — and the address is operator-typed, which is
+  // exactly where a capital letter comes from.
+  it('canonicalises the address before the insert, and asks Cognito for the same one', async () => {
+    const db = await applied();
+    const { idp, created } = spy();
+    const report = await migrate(db, { mode: 'bootstrap', email: 'Owner@Quirenote.COM' }, idp);
+    expect(report.bootstrap?.email).toBe('owner@quirenote.com');
+    expect((created[0] as { Username: string }).Username).toBe('owner@quirenote.com');
+    expect((await rows(db))[0].email).toBe('owner@quirenote.com');
+  });
+
+  it('refuses an address it cannot canonicalise, before asking Cognito anything', async () => {
+    const db = await applied();
+    for (const email of [undefined, '', 'not-an-address', 'ольга@quirenote.com']) {
+      const { idp, created } = spy();
+      await expect(migrate(db, { mode: 'bootstrap', email }, idp)).rejects.toThrow(
+        /email must be an address this schema can store/,
+      );
+      expect([email, created]).toEqual([email, []]);
+    }
+  });
+
+  // THE INVITATION IS WHAT MAKES THE ACCOUNT USABLE, and suppressing it was the trap.
+  // `AdminCreateUser` generates a temporary password whatever else happens and leaves the
+  // user in `FORCE_CHANGE_PASSWORD`; nobody told the password cannot sign in, and
+  // `ForgotPassword` refuses a user in that state — so the mode would have produced a
+  // perfect row attached to an account nobody could get into. The medium is named because
+  // it DEFAULTS to SMS and this pool carries no phone number.
+  it('sends the invitation, by email, rather than suppressing it', async () => {
+    const db = await applied();
+    const { idp, created } = spy();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp);
+    const call = created[0] as { MessageAction?: string; DesiredDeliveryMediums?: string[] };
+    expect(call.MessageAction).toBeUndefined();
+    expect(call.DesiredDeliveryMediums).toEqual(['EMAIL']);
+  });
+
+  // ASKED BEFORE ANYTHING IRREVERSIBLE. `POST /v1/applications` is public, so any address
+  // — including the owner's own, most likely from testing it — can already hold a pending
+  // row. Insert-first, that collides on `app_user_email_uq` AFTER a Cognito identity has
+  // been minted, raises a raw constraint message, and wedges: every re-run repeats it, and
+  // this runner has no `AdminDeleteUser` to undo the identity with.
+  it('refuses an address that already applied, without minting an identity', async () => {
+    const db = await applied();
+    await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at)
+                   VALUES ('11111111-0000-4000-8000-000000000001',
+                           'owner@quirenote.com', 'pending', 'user', now());`);
+    const { idp, created } = spy();
+    await expect(
+      migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),
+    ).rejects.toThrow(/already holds an app_user row \(pending\/user\)/);
+    expect(created).toEqual([]);
+  });
+
+  // THE FIRST super-admin, which is what the mode is named for in three places. Without
+  // this the second dispatch writes another `active` super-admin for an address nobody
+  // approved — the property the whole approval gate exists to hold.
+  it('refuses to mint a second super-admin under another address', async () => {
+    const db = await applied();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+    const { idp, created } = spy();
+    await expect(
+      migrate(db, { mode: 'bootstrap', email: 'someone.else@quirenote.com' }, idp),
+    ).rejects.toThrow(/super-admin already exists/);
+    expect(created).toEqual([]);
+  });
+
+  // The schema not being applied yet is the other way this used to strand an identity: the
+  // read fails with `42P01` where the insert would have, which is one statement later.
+  it('refuses before Cognito when the schema is not there at all', async () => {
+    const db = new PGlite();
+    const { idp, created } = spy();
+    await expect(
+      migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),
+      // PATTERNED. A bare `toThrow()` here is satisfied by the USER_POOL_ID refusal just
+      // as well, which is the trap this file already records at the unrecognised-mode case.
+    ).rejects.toThrow(/app_user/);
+    expect(created).toEqual([]);
+  });
+
+  // The pool is the template's to supply, and its absence means the function was deployed
+  // without the wiring rather than that the operator typed something wrong — so it fails
+  // before touching either side rather than creating an identity in no pool.
+  it('refuses when the function was given no pool', async () => {
+    vi.stubEnv('USER_POOL_ID', '');
+    const db = await applied();
+    const { idp, created } = spy();
+    await expect(
+      migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),
+    ).rejects.toThrow(/USER_POOL_ID/);
+    expect(created).toEqual([]);
+  });
+
+  // THE REHEARSE TAIL HAS NO GUARD OF ITS OWN — it is the fall-through — so a fourth
+  // mode added without its own early return lands in `CREATE SCHEMA` and drops it
+  // again, having created nothing and reported a rehearsal.
+  it('does not fall through into the rehearsal', async () => {
+    const db = await applied();
+    const report = await migrate(
+      db,
+      { mode: 'bootstrap', email: 'owner@quirenote.com' },
+      spy().idp,
+    );
+    expect(report.schema).toBe('public');
+    expect(report.files).toEqual([]);
+    const schemas = await db.query<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
+    );
+    expect(schemas.rows).toEqual([]);
+    const path = await db.query<{ search_path: string }>('SHOW search_path');
+    expect(path.rows[0].search_path).toContain('public');
   });
 });

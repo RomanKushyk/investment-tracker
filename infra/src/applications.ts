@@ -10,6 +10,7 @@
 // THE RESPONSE IS A CONSTANT, and that is the whole of what stops this route answering who
 // has already applied. A first submission and a repeat return the same bytes; nothing
 // about the row, its age or its status reaches the caller.
+import { canonicalAddress } from './address';
 import { connect } from './dsql';
 import type { SqlClient } from './migrate';
 
@@ -44,25 +45,6 @@ const RECEIVED = json(202, '{"status":"received"}');
 const INVALID = json(400, '{"error":"invalid_request"}');
 const INTERNAL = json(500, '{"error":"internal"}');
 
-/**
- * The addresses this endpoint will write, ASCII by necessity rather than by taste.
- *
- * `006_email_lower.sql` constrains the column to `email = lower(email)`, so the row has to
- * arrive already folded — the pool canonicalises nothing, and this row is written before
- * any identity exists, so nothing upstream will do it. Postgres `lower()` and JavaScript
- * `toLowerCase()` agree on ASCII and part company outside it, where one of them can fold a
- * single character into two. Restricting the input is what makes the fold done here and
- * the check done on the cluster the same operation; anything else is refused before a
- * connection is opened rather than sent for the cluster to reject by name.
- *
- * Local part is the RFC 5322 dot-atom, domain is LDH labels under an alphabetic TLD.
- */
-const ADDRESS =
-  /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
-
-/** The octet ceiling an SMTP path allows: longer is undeliverable, not merely long. */
-const MAX_ADDRESS = 254;
-
 /** The address a request carries, already folded — or nothing, which is the 400. */
 function addressOf(event: ApiEvent): string | undefined {
   if (typeof event.body !== 'string') return undefined;
@@ -83,9 +65,7 @@ function addressOf(event: ApiEvent): string | undefined {
   const supplied = (parsed as { email?: unknown }).email;
   if (typeof supplied !== 'string') return undefined;
 
-  const email = supplied.trim().toLowerCase();
-  if (email.length > MAX_ADDRESS || !ADDRESS.test(email)) return undefined;
-  return email;
+  return canonicalAddress(supplied);
 }
 
 /**

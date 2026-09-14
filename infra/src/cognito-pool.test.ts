@@ -150,6 +150,31 @@ describe('one parameter opens registration, in both places at once', () => {
     expect(JSON.stringify(vars)).not.toContain('Cluster');
   });
 
+  // THE RUNNER CAN MINT AN IDENTITY, AND THE GRANT SAYS WHICH POOL'S. Bootstrapping the
+  // first super-admin needs a `sub`, which only `AdminCreateUser` produces — so the thing
+  // that can rewrite the schema can also create a user. That cost is taken deliberately
+  // (it is already the one function invoked by hand and by nothing else) and bounded
+  // here: ONE pool, named, never `userpool/*`. Written inline on the function rather than
+  // as a separate policy, which the trigger's grant cannot be — `MigrateFunction` is not
+  // in the pool's `DependsOn` chain, so naming the pool from it closes no cycle.
+  it('lets the runner create a user in one named pool, and nothing wider', () => {
+    const policies = props('MigrateFunction').Policies as {
+      Statement: Record<string, unknown>[];
+    }[];
+    const statements = policies.flatMap((p) => p.Statement);
+    const identity = statements.find((s) =>
+      JSON.stringify(s.Action).includes('cognito-idp:AdminCreateUser'),
+    );
+    expect(identity).toBeDefined();
+    expect(identity?.Resource).toBe('UserPool.Arn');
+    expect(JSON.stringify(identity?.Resource)).not.toContain('*');
+    // And the pool id reaches the handler as an environment variable, since the event
+    // carries no pool for a hand-typed invoke the way a Cognito trigger's does.
+    const vars = (props('MigrateFunction').Environment as { Variables: Record<string, string> })
+      .Variables;
+    expect(vars.USER_POOL_ID).toBe('UserPool');
+  });
+
   // CLOSED IS THE DEFAULT, asserted as the default rather than as whatever an environment
   // happens to pass — an environment that passes nothing is the case that matters, and it is
   // the one a test reading a passed value would never see.
