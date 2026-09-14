@@ -10,7 +10,7 @@
 // THE RESPONSE IS A CONSTANT, and that is the whole of what stops this route answering who
 // has already applied. A first submission and a repeat return the same bytes; nothing
 // about the row, its age or its status reaches the caller.
-import { canonicalAddress } from './address';
+import { ADDRESS, MAX_ADDRESS, canonicalAddress } from './address';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
 import type { SqlClient } from './migrate';
@@ -21,6 +21,46 @@ import type { SqlClient } from './migrate';
 // has applied. The other two are `http.ts`'s, shared so that one of them cannot start saying
 // something else. The CORS headers are the API's, not this file's.
 const RECEIVED = json(202, '{"status":"received"}');
+
+/**
+ * WHAT THIS ROUTE CAN ANSWER, and the only list of it. `openapi.ts` builds the document
+ * from this rather than from a second copy kept beside it, because a list of these kept by
+ * hand went stale inside one milestone. A constant added above and not added here is caught
+ * by `openapi.test.ts`, which scans this file for `json(…)` literals.
+ */
+export const ROUTE = 'POST /v1/applications';
+/**
+ * WHAT THIS ROUTE TAKES, declared beside what it answers and for the same reason. It is the one
+ * route on this API with a body, and `addressOf` refuses anything whose `email` is not a string —
+ * so a document describing the 400 and never the shape that avoids it sends every reader into it.
+ */
+export const REQUEST_BODY = {
+  required: true,
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        required: ['email'],
+        // THE RULE ITSELF, not a description of it. `format` is annotation-only, so a client
+        // generated from a schema carrying only that sends `user@localhost` and is told
+        // `invalid_request`; and the length ceiling is checked BEFORE the pattern, so a
+        // 300-character RFC-valid address is refused too. Both come from `address.ts`.
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            maxLength: MAX_ADDRESS,
+            pattern: ADDRESS.source,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+export const RESPONSES: Record<string, readonly ApiResult[]> = {
+  [ROUTE]: [RECEIVED, INVALID, INTERNAL],
+};
 
 /** The address a request carries, already folded — or nothing, which is the 400. */
 function addressOf(event: ApiEvent): string | undefined {

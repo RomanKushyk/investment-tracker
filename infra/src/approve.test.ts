@@ -13,10 +13,25 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { APPROVE_ROUTE, REJECT_ROUTE, approve, handler } from './approve';
+import {
+  APPROVE_ROUTE,
+  REJECT_ROUTE,
+  RESPONSES,
+  approve as approveRoute,
+  handler as rawHandler,
+} from './approve';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import { proveRouteContract, recorder } from './route-contract';
+
+const { observed, record } = recorder(APPROVE_ROUTE);
+
+const approve = async (...args: Parameters<typeof approveRoute>): ReturnType<typeof approveRoute> =>
+  record(args[2], await approveRoute(...args));
+
+const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
+  record(args[0], await rawHandler(...args));
 
 const DML = '005_demo_user.sql';
 const DDL = MIGRATIONS.filter((f) => f !== DML);
@@ -909,3 +924,50 @@ describe('the one mail in this flow is Cognito’s own', () => {
     }
   });
 });
+
+// THE ANSWERS THE TWO ROUTES SHARE BUT ONLY ONE OF THEM WAS DRIVEN THROUGH. The gate's own
+// refusals are covered in `authorize.test.ts`, and reject's argument handling was thinner than
+// approve's — which the recorder below turned from an invisible gap into a red test. Every case
+// here is reachable on the route it names; none of them was observed before.
+describe('both routes meet the gate, and reject reads its argument like approve does', () => {
+  const OUTSIDER = '9f1e2d3c-0000-4000-8000-0000000000f7';
+
+  for (const route of [APPROVE_ROUTE, REJECT_ROUTE]) {
+    it(`refuses a caller whose own row was rejected, on ${route}`, async () => {
+      await db.exec(insert(OUTSIDER, 'outsider@quirenote.com', 'rejected'));
+      const res = await approve(
+        db,
+        spy().idp,
+        call(route, PLACEHOLDER, token(OUTSIDER, 'outsider@quirenote.com')),
+      );
+      expect([route, res.statusCode, res.body]).toEqual([route, 403, '{"error":"rejected"}']);
+    });
+
+    it(`refuses a caller with no application at all, on ${route}`, async () => {
+      const res = await approve(
+        db,
+        spy().idp,
+        call(route, PLACEHOLDER, token(OUTSIDER, 'nobody@quirenote.com')),
+      );
+      expect([route, res.statusCode, res.body]).toEqual([route, 403, '{"error":"no_application"}']);
+    });
+  }
+
+  it('refuses an unparseable id on reject, the way approve does', async () => {
+    const res = await approve(db, spy().idp, call(REJECT_ROUTE, 'not-a-uuid'));
+    expect([res.statusCode, res.body]).toEqual([400, '{"error":"invalid_request"}']);
+  });
+
+  it('answers not_found when reject names a row that is not there', async () => {
+    const res = await approve(db, spy().idp, call(REJECT_ROUTE, OUTSIDER));
+    expect([res.statusCode, res.body]).toEqual([404, '{"error":"not_found"}']);
+  });
+
+  it('refuses a demo row on reject, as its own answer', async () => {
+    await db.exec(insert(DEMO_USER_ID, DEMO_USER_EMAIL, 'active', 'demo'));
+    const res = await approve(db, spy().idp, call(REJECT_ROUTE, DEMO_USER_ID));
+    expect([res.statusCode, res.body]).toEqual([409, '{"error":"demo"}']);
+  });
+});
+
+proveRouteContract({ declared: RESPONSES, observed, minimum: 20 });

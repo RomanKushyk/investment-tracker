@@ -1,0 +1,359 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Quirenote API",
+    "version": "1.0.0",
+    "description": "Derived from infra/template-user.yaml and the handlers’ own response constants by infra/src/openapi.ts. Do not edit: run `pnpm openapi` and commit the result. These are the HANDLERS’ answers. API Gateway answers ahead of them too and those are not described here: 401 for a token the JWT authorizer refuses, which is the commonest admin failure once an access token passes its hour, and 429 from the per-route throttle."
+  },
+  "paths": {
+    "/v1/applications": {
+      "post": {
+        "operationId": "postV1Applications",
+        "summary": "POST /v1/applications",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "maxLength": 254,
+                    "pattern": "^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "received": {
+                    "value": {
+                      "status": "received"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/approve": {
+      "post": {
+        "operationId": "postAdminUsersIdApprove",
+        "summary": "POST /admin/users/{id}/approve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "approved": {
+                    "value": {
+                      "status": "approved"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "error": "not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "self": {
+                    "value": {
+                      "error": "self"
+                    }
+                  },
+                  "demo": {
+                    "value": {
+                      "error": "demo"
+                    }
+                  },
+                  "already_decided": {
+                    "value": {
+                      "error": "already_decided"
+                    }
+                  },
+                  "unclaimed_identity": {
+                    "value": {
+                      "error": "unclaimed_identity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/reject": {
+      "post": {
+        "operationId": "postAdminUsersIdReject",
+        "summary": "POST /admin/users/{id}/reject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "CognitoJwt": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "rejected": {
+                    "value": {
+                      "status": "rejected"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "pending": {
+                    "value": {
+                      "error": "pending"
+                    }
+                  },
+                  "rejected": {
+                    "value": {
+                      "error": "rejected"
+                    }
+                  },
+                  "no_application": {
+                    "value": {
+                      "error": "no_application"
+                    }
+                  },
+                  "forbidden": {
+                    "value": {
+                      "error": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "error": "not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "self": {
+                    "value": {
+                      "error": "self"
+                    }
+                  },
+                  "demo": {
+                    "value": {
+                      "error": "demo"
+                    }
+                  },
+                  "already_decided": {
+                    "value": {
+                      "error": "already_decided"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "CognitoJwt": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

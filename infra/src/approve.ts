@@ -25,7 +25,14 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
 
-import { authorize, superAdminOnly } from './authorize';
+import {
+  FORBIDDEN,
+  NO_APPLICATION,
+  PENDING,
+  REJECTED as REJECTED_APPLICANT,
+  authorize,
+  superAdminOnly,
+} from './authorize';
 import { connect } from './dsql';
 import { INTERNAL, INVALID, type ApiEvent, type ApiResult, canonicalUuid, json } from './http';
 import type { SqlClient } from './migrate';
@@ -95,6 +102,31 @@ const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
 // its own refusal because the repair is outside this API: the account has to go, and nothing here
 // holds `AdminDeleteUser`.
 const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
+
+/** The gate's four, which both routes meet before either of them decides anything. */
+const GATE = [PENDING, REJECTED_APPLICANT, NO_APPLICATION, FORBIDDEN] as const;
+
+/**
+ * WHAT EACH ROUTE CAN ANSWER, and the only list of it. The two differ in exactly two
+ * places — the success body, and `unclaimed_identity`, which only the approve path can
+ * reach because only it creates an identity. `openapi.ts` builds the document from this;
+ * `openapi.test.ts` scans this file for `json(…)` literals, so a constant added above and
+ * not added here fails the suite rather than going undocumented.
+ */
+export const RESPONSES: Record<string, readonly ApiResult[]> = {
+  [APPROVE_ROUTE]: [
+    APPROVED,
+    ...GATE,
+    INVALID,
+    SELF,
+    NOT_FOUND,
+    DEMO,
+    ALREADY_DECIDED,
+    UNCLAIMED_IDENTITY,
+    INTERNAL,
+  ],
+  [REJECT_ROUTE]: [REJECTED, ...GATE, INVALID, SELF, NOT_FOUND, DEMO, ALREADY_DECIDED, INTERNAL],
+};
 
 const TARGET = `SELECT user_id, email, status, role, applied_at FROM app_user
                 WHERE user_id = $1`;

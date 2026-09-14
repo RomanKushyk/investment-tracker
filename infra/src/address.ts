@@ -13,12 +13,17 @@
 // is typed by an operator. Same constraint, same fold, one source. A second copy is a
 // second answer to "what will the cluster accept", and only one of them gets updated.
 
-/** Local part is the RFC 5322 dot-atom; domain is LDH labels under an alphabetic TLD. */
-const ADDRESS =
+/**
+ * Local part is the RFC 5322 dot-atom; domain is LDH labels under an alphabetic TLD.
+ *
+ * EXPORTED so the API's published schema is this rule rather than a description of it. A second
+ * copy is a second answer to what the cluster accepts, and only one of them gets updated.
+ */
+export const ADDRESS =
   /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
 
 /** The octet ceiling an SMTP path allows: longer is undeliverable, not merely long. */
-const MAX_ADDRESS = 254;
+export const MAX_ADDRESS = 254;
 
 /**
  * The canonical form of `supplied`, or `undefined` when there is none.

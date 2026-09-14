@@ -14,9 +14,15 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { applications, handler } from './applications';
+import {
+  ROUTE,
+  RESPONSES,
+  applications as applicationsRoute,
+  handler as rawHandler,
+} from './applications';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
+import { proveRouteContract, recorder } from './route-contract';
 
 // `005` is DML — the demo row — and it would sit underneath every count below. `DDL` is
 // derived from `MIGRATIONS` so a new schema file cannot be forgotten here, exactly as
@@ -24,6 +30,15 @@ import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrat
 const DML = '005_demo_user.sql';
 const DDL = MIGRATIONS.filter((f) => f !== DML);
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
+
+const { observed, record } = recorder(ROUTE);
+
+const applications = async (
+  ...args: Parameters<typeof applicationsRoute>
+): ReturnType<typeof applicationsRoute> => record(args[1], await applicationsRoute(...args));
+
+const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
+  record(args[0], await rawHandler(...args));
 
 const raw = (body?: string): ApiEvent => ({ body, isBase64Encoded: false });
 const submit = (email: unknown): ApiEvent => raw(JSON.stringify({ email }));
@@ -237,3 +252,5 @@ describe('a submission costs one parameterised statement and no mail', () => {
     for (const name of forbidden) expect([name, source.includes(name)]).toEqual([name, false]);
   });
 });
+
+proveRouteContract({ declared: RESPONSES, observed, minimum: 10 });

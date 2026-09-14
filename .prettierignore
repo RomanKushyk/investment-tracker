@@ -39,3 +39,9 @@ infra/package-lock.json
 # its Markdown. Measured: four files, `format:check` RED. Narrowing this to
 # `settings.json` was tried and covered only the first of them.
 .claude/
+
+# Machine-written, never hand-edited: `pnpm openapi` emits it with JSON.stringify, whose
+# array style differs from prettier's. Left un-ignored, the two merge gates deadlock the first
+# time the generator emits an array of short scalars — formatting it fails the drift test, and
+# regenerating it fails format:check.
+docs/reference/openapi.json
