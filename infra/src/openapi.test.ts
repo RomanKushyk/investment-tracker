@@ -19,7 +19,7 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
-import { ANSWERS, buildSpec, servers } from './openapi';
+import { ANSWERS, buildSpec, securityOf, servers } from './openapi';
 
 const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
 
@@ -246,26 +246,51 @@ describe('the routes, the authorizer, and the one route outside it', () => {
     expect(Object.keys(spec.components.securitySchemes)).toEqual(['CognitoJwt']);
   });
 
-  // THE ASYMMETRY IS THE POINT. `POST /v1/applications` creates the very row every
-  // other route is checked against, so it alone carries no security.
-  it('puts security on the admin routes and none on the application', () => {
+  // THE ASYMMETRY IS THE POINT, AND IT IS STATED RATHER THAN IMPLIED.
+  // `POST /v1/applications` creates the very row every other route is checked against, so it
+  // alone needs nothing — and it says so with an EMPTY ARRAY, which the specification defines
+  // as removing the document's default. Omitting the field instead would INHERIT that default
+  // and publish the sign-up route as needing the token it exists to let somebody ask for.
+  it('opts the application route out explicitly, and names the scheme on the admin routes', () => {
     const op = (key: string) => {
       const [method, path] = key.split(' ');
       return spec.paths[path][method.toLowerCase()];
     };
-    expect(op(APPLY_ROUTE).security).toBeUndefined();
+    expect(op(APPLY_ROUTE).security).toEqual([]);
     for (const key of [APPROVE_ROUTE, REJECT_ROUTE]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
   });
 
-  // AND THE ABSENCE READS AS "NONE" ONLY BECAUSE THERE IS NO DEFAULT TO INHERIT. An operation
-  // without `security` takes the document's, so a root-level default added later would put the
-  // authorizer on the one route that cannot have it, silently and in the document alone.
-  // `redocly lint`'s `security-defined` asks for exactly that default; it is declined, and
-  // `openapi.ts` says why beside the code that declines it.
-  it('declares no document-level default for that absence to inherit', () => {
-    expect(spec).not.toHaveProperty('security');
+  // AND THERE IS A DEFAULT FOR IT TO OVERRIDE. The empty array above means "needs none" on
+  // its own — an operation's list carries no "may be incomplete" caveat, which belongs to the
+  // root field alone. What the default adds is one level up: a posture the DOCUMENT states,
+  // rather than one a reader has to infer from the operations that happen to be in it.
+  it('declares the scheme as the document-level default', () => {
+    expect(spec.security).toEqual([{ CognitoJwt: [] }]);
+  });
+
+  // NO OPERATION LEAVES ITS POSTURE TO THE DEFAULT, read from the COMMITTED JSON rather than
+  // from `buildSpec()`. Against the typed value this cannot fail: `Operation.security` is a
+  // required field, so `tsc` rejects an operation built without one and `Array.isArray` is
+  // statically true. The compiler is the guard on the GENERATOR; this is the guard on the
+  // ARTIFACT, which is where an omitted field is observable at all.
+  it('makes every operation state its own posture', () => {
+    const committed = JSON.parse(readFileSync(COMMITTED, 'utf8')) as {
+      paths: Record<string, Record<string, { security?: unknown }>>;
+    };
+    const stated = Object.entries(committed.paths).flatMap(([path, operations]) =>
+      Object.entries(operations).map(([method, operation]) => ({
+        route: `${method.toUpperCase()} ${path}`,
+        security: operation.security,
+      })),
+    );
+    // NOT A COUNT — the routes the handlers declare, so an empty `paths` cannot pass the loop
+    // below vacuously, which is the standard this file sets itself for every other scan.
+    expect(stated.map((o) => o.route).sort()).toEqual(Object.keys(DECLARED).sort());
+    for (const { route, security } of stated) {
+      expect([route, Array.isArray(security)]).toEqual([route, true]);
+    }
   });
 
   it('gives the admin routes their path parameter', () => {
@@ -387,5 +412,30 @@ describe('the host derivation refuses what it cannot read', () => {
       { url: 'https://api.dev.quirenote.com', description: 'dev' },
       { url: 'https://api.quirenote.com', description: 'prod' },
     ]);
+  });
+});
+
+describe('what an operation says about credentials', () => {
+  // DRIVEN FROM THE FUNCTION, because `buildSpec()` only ever sees the two authorizers this
+  // template writes and the third case is the one that matters. Every guard in this module has
+  // had to be reached this way: one that cannot be driven is deletable with the gates green.
+  it('names the scheme for a route that names the authorizer', () => {
+    expect(securityOf('CognitoJwt')).toEqual([{ CognitoJwt: [] }]);
+  });
+
+  // AN EMPTY ARRAY, not an absent field: it removes the document's default, which an omission
+  // would inherit instead. `[{}]` would be a third statement again — credentials optional.
+  it('opts a route with no authorizer out explicitly', () => {
+    expect(securityOf(undefined)).toEqual([]);
+  });
+
+  // AND ANYTHING ELSE RAISES. A second authorizer, or a typo in the first, would otherwise be
+  // published as `security: []` — a positive claim that a stranger may call the route, which
+  // is a worse thing to get wrong than the absent field that claim replaced. The template side
+  // is held by `public-api.test.ts`; this is the half that would publish it.
+  it('refuses a route naming an authorizer it does not declare', () => {
+    expect(() => securityOf('CognitoJwtV2')).toThrow(
+      /route names authorizer CognitoJwtV2, and only CognitoJwt is declared/,
+    );
   });
 });

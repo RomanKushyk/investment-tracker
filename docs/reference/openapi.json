@@ -15,6 +15,11 @@
       "description": "prod"
     }
   ],
+  "security": [
+    {
+      "CognitoJwt": []
+    }
+  ],
   "paths": {
     "/v1/applications": {
       "post": {
@@ -41,6 +46,7 @@
             }
           }
         },
+        "security": [],
         "responses": {
           "202": {
             "description": "Accepted",

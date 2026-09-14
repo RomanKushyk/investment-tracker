@@ -68,7 +68,7 @@ type Operation = {
   summary: string;
   parameters?: { name: string; in: string; required: boolean; schema: { type: string } }[];
   requestBody?: unknown;
-  security?: { [scheme: string]: string[] }[];
+  security: { [scheme: string]: string[] }[];
   responses: Record<
     string,
     {
@@ -82,6 +82,7 @@ export type OpenApiDocument = {
   openapi: string;
   info: { title: string; version: string; description: string };
   servers: { url: string; description: string }[];
+  security: { [scheme: string]: string[] }[];
   paths: Record<string, Record<string, Operation>>;
   components: { securitySchemes: Record<string, Record<string, unknown>> };
 };
@@ -179,6 +180,31 @@ const operationId = (method: string, path: string): string =>
     .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
     .join('');
 
+/**
+ * WHAT AN OPERATION SAYS ABOUT CREDENTIALS. A route naming THE authorizer requires it; a route
+ * naming none gets an EMPTY ARRAY, which the specification defines as removing the document's
+ * default. Not `[{}]` — an array holding the empty security requirement `{}`, which says
+ * credentials are OPTIONAL: a third thing again.
+ *
+ * "NAMING NONE IS PUBLIC" IS AN ASSUMPTION, and it is this function's fail-open edge. A route
+ * whose `Auth` block was forgotten in the template arrives here indistinguishable from the
+ * sign-up route and is published as callable by a stranger. Nothing in this module can tell the
+ * two apart; what holds the line is `public-api.test.ts`, which fails a route that names no
+ * authorizer and is not on its written public list.
+ *
+ * A ROUTE NAMING SOMETHING ELSE RAISES, because that one IS distinguishable: a second
+ * authorizer, or a typo in the first, is a public surface by no reading.
+ */
+export const securityOf = (authorizer: string | undefined): Operation['security'] => {
+  if (authorizer === SCHEME) {
+    return [{ [SCHEME]: [] }];
+  }
+  if (authorizer === undefined) {
+    return [];
+  }
+  throw new Error(`route names authorizer ${authorizer}, and only ${SCHEME} is declared`);
+};
+
 /** `{id}` in a path is a required string parameter, and the only kind this API has. */
 const parameters = (path: string) =>
   [...path.matchAll(/\{([^}]+)\}/g)].map((m) => ({
@@ -258,14 +284,18 @@ export function buildSpec(): OpenApiDocument {
       summary: `${route.method.toUpperCase()} ${route.path}`,
       ...(params.length > 0 ? { parameters: params } : {}),
       ...(BODIES[key] === undefined ? {} : { requestBody: BODIES[key] }),
-      // ABSENT RATHER THAN EMPTY on the one public route, and NO DOCUMENT-LEVEL DEFAULT for it
-      // to override. `security: []` means "this operation overrides the document's default and
-      // needs none", which is a different statement from a document that declares no default at
-      // all — and this one does not. `redocly lint`'s `security-defined` asks for the other
-      // shape and is DECLINED: the template sets no `DefaultAuthorizer` either, every route
-      // naming its own for the reason written above `PublicApi`, so a root default here would be
-      // the one statement in this document that its source does not make.
-      ...(route.authorizer === SCHEME ? { security: [{ [SCHEME]: [] }] } : {}),
+      // AN EMPTY ARRAY RATHER THAN AN ABSENT FIELD on the one public route, and the hazard
+      // here is FAIL-CLOSED. An operation that omits `security` inherits the document's
+      // default, so omitting it on `POST /v1/applications` would publish the sign-up route as
+      // needing a bearer token — the one route somebody without a token has to reach in order
+      // to ask for one.
+      //
+      // AND NO OPERATION THIS GENERATOR WRITES CAN OMIT IT: `securityOf` always answers and the
+      // field is required, so the default below governs nothing here and catches no forgotten
+      // route. It earns its place for what it SAYS: the shipped document states the API's
+      // posture once instead of leaving a reader to infer it from three operations, and the
+      // empty array above overrides something rather than standing alone.
+      security: securityOf(route.authorizer),
       responses: responses(answers),
     };
   }
@@ -283,6 +313,12 @@ export function buildSpec(): OpenApiDocument {
         'admin failure once an access token passes its hour, and 429 from the per-route throttle.',
     },
     servers: servers(user),
+    // THE DEFAULT EVERY OPERATION ABOVE OVERRIDES, beside `servers` rather than after
+    // `components` where the specification's field table lists it. JSON members are unordered,
+    // so the placement costs nothing and a default sitting below every path is one a reader
+    // does not know to look for. It is the scheme the template's own authorizer declares, so
+    // nothing is decided here that is not decided there.
+    security: [{ [SCHEME]: [] }],
     paths,
     components: {
       securitySchemes: {

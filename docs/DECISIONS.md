@@ -362,7 +362,16 @@ a warning the import merely records. Whether it records one there cannot be answ
 deploy, and the answer would arrive as a red deploy blocking `dev`. So the guarantee sits one step
 earlier, where it is cheaper and stricter: the suite derives the route list from the template and
 fails a route that names no authorizer and is not on the written public list — and the tests run in
-the same workflow BEFORE the deploy step, so such a route never reaches AWS at all. The refusals are
+the same workflow BEFORE the deploy step, so such a route never reaches AWS at all. **The OpenAPI
+document takes the opposite shape, and deliberately:** it declares the scheme as a document-level
+default and every operation states its own posture against it, the sign-up route as an empty array.
+The generator reads the same template, but nothing it writes goes through SAM, so the defect that
+forced the decision above cannot reach it. The default governs no operation — the generator writes
+one onto every operation it produces — and is there for what it says rather than what it catches:
+the shipped document states the API's posture once, and the sign-up route's empty array overrides
+something instead of standing alone. What still fails a route that forgot its authorizer is the
+suite, not the document; by the time the generator sees such a route it is indistinguishable from
+the public one. The refusals are
 three and they are told apart: `pending` is a caller who is genuinely signed in and may not act yet,
 and is never a 401 — that would say they are not signed in, which is false and sends them back
 through a sign-in that succeeds and changes nothing; `rejected` is a decision; and no row at all,
