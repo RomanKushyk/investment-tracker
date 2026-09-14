@@ -22,12 +22,26 @@ import type { ApiResult } from './http';
 /** The one security scheme, named as the template names it. */
 const SCHEME = 'CognitoJwt';
 
+/** The environment this repository deploys to production, as `IsProd` spells it. */
+const PRODUCTION = 'prod';
+
+/**
+ * A hostname and nothing else, because an intrinsic arm arrives as its inner text. Case is
+ * ignored: DNS ignores it, CloudFormation accepts it, and refusing `Api.Quirenote.com` would
+ * stop `pnpm openapi` with a message about intrinsics that misnames what it found.
+ */
+const HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
+
 type Event = {
   Type?: string;
   Properties?: { Method?: string; Path?: string; Auth?: { Authorizer?: string } };
 };
 type Resource = { Type: string; Properties?: Record<string, unknown> };
-type Template = { Resources: Record<string, Resource> };
+type Template = {
+  Parameters?: Record<string, { AllowedValues?: string[] }>;
+  Conditions?: Record<string, unknown>;
+  Resources: Record<string, Resource>;
+};
 
 /**
  * Which module answers a route, keyed by the `Handler` the template names. The template is
@@ -67,6 +81,7 @@ type Operation = {
 export type OpenApiDocument = {
   openapi: string;
   info: { title: string; version: string; description: string };
+  servers: { url: string; description: string }[];
   paths: Record<string, Record<string, Operation>>;
   components: { securitySchemes: Record<string, Record<string, unknown>> };
 };
@@ -85,6 +100,70 @@ const declaredRoutes = (user: Template) =>
           authorizer: e.Properties?.Auth?.Authorizer,
         })),
     );
+
+/**
+ * THE HOSTS, from the API's own custom domain. Without them the document describes three
+ * operations and no base URL, and a client generated from it cannot call anything until a
+ * hostname arrives out of band.
+ *
+ * `toJS()` drops an intrinsic's tag and keeps its value, so `!If [IsProd, a, b]` arrives as
+ * `['IsProd', a, b]` and the PAIRING survives as an order alone. That pairing is the
+ * load-bearing half — a client that takes the wrong arm for production calls production — so
+ * it is read back out of the condition rather than assumed: `IsProd` is
+ * `!Equals [!Ref Environment, prod]`, which names the true arm's environment, and the false
+ * arm's is the other value `Environment` allows.
+ *
+ * PRODUCTION LAST, by name rather than by arm position — `IsDev` with the arms swapped
+ * describes the same API and would otherwise put production first. Tools take `servers[0]` as
+ * the default, Redoc's selector opens on it, and the two accidents are not the same size: a dev
+ * caller who never chooses writes into production.
+ */
+export const servers = (user: Template): OpenApiDocument['servers'] => {
+  const domain = (user.Resources.PublicApi?.Properties?.Domain as { DomainName?: unknown })
+    ?.DomainName;
+  // THE ARMS ARE READ, NOT JUST COUNTED. The same dropped tag that makes the array readable
+  // makes `!Sub 'api.${Zone}'` arrive as that text, which would ship unresolved inside a URL.
+  if (
+    !Array.isArray(domain) ||
+    domain.length !== 3 ||
+    !domain.slice(1).every((arm) => typeof arm === 'string' && HOSTNAME.test(arm))
+  ) {
+    throw new Error(
+      `PublicApi.Domain.DomainName is not an !If over two hostnames: ${JSON.stringify(domain)}`,
+    );
+  }
+  const [condition, whenTrue, whenFalse] = domain as [string, string, string];
+  // ARRAY-CHECKED BEFORE IT IS DESTRUCTURED. The full function form — `Fn::Equals: [...]` — is
+  // legal in this template and `toJS()` gives it as an OBJECT, which destructures into a
+  // `TypeError` rather than the message below; every other unknown in this module names itself.
+  const equals = user.Conditions?.[condition];
+  const [parameter, whenTrueIs] = (Array.isArray(equals) ? equals : []) as [string?, string?];
+  const rest = (user.Parameters?.[parameter ?? '']?.AllowedValues ?? []).filter(
+    (value) => value !== whenTrueIs,
+  );
+  if (whenTrueIs === undefined || rest.length !== 1) {
+    throw new Error(`${condition} is not an !Equals over one of two values ${parameter} allows`);
+  }
+  const named = [
+    { url: `https://${whenTrue}`, description: whenTrueIs },
+    { url: `https://${whenFalse}`, description: rest[0] },
+  ];
+  // ONE OF THE TWO MUST BE PRODUCTION, or the ordering below has nothing to order by and would
+  // fall back to arm position without a word — the thing it exists to stop. It is also the only
+  // check that the condition is about ENVIRONMENTS at all: this template carries a second
+  // two-valued parameter and a matching condition, `IsRegistrationOpen` over `[closed, open]`,
+  // and an `!If` copied from it satisfies every check above while naming the two hosts `open`
+  // and `closed` and putting production first.
+  if (!named.some((server) => server.description === PRODUCTION)) {
+    throw new Error(
+      `neither environment ${condition} selects is ${PRODUCTION}: ` +
+        named.map((server) => server.description).join(', '),
+    );
+  }
+  return named.sort(
+    (a, b) => Number(a.description === PRODUCTION) - Number(b.description === PRODUCTION),
+  );
+};
 
 /**
  * A readable, unique id per operation, DERIVED from the route rather than named by hand — a
@@ -179,9 +258,13 @@ export function buildSpec(): OpenApiDocument {
       summary: `${route.method.toUpperCase()} ${route.path}`,
       ...(params.length > 0 ? { parameters: params } : {}),
       ...(BODIES[key] === undefined ? {} : { requestBody: BODIES[key] }),
-      // ABSENT RATHER THAN EMPTY on the one public route. `security: []` means "this operation
-      // overrides the document default and needs none", which is a different statement from a
-      // document that declares no default at all — and this one does not.
+      // ABSENT RATHER THAN EMPTY on the one public route, and NO DOCUMENT-LEVEL DEFAULT for it
+      // to override. `security: []` means "this operation overrides the document's default and
+      // needs none", which is a different statement from a document that declares no default at
+      // all — and this one does not. `redocly lint`'s `security-defined` asks for the other
+      // shape and is DECLINED: the template sets no `DefaultAuthorizer` either, every route
+      // naming its own for the reason written above `PublicApi`, so a root default here would be
+      // the one statement in this document that its source does not make.
       ...(route.authorizer === SCHEME ? { security: [{ [SCHEME]: [] }] } : {}),
       responses: responses(answers),
     };
@@ -199,6 +282,7 @@ export function buildSpec(): OpenApiDocument {
         'not described here: 401 for a token the JWT authorizer refuses, which is the commonest ' +
         'admin failure once an access token passes its hour, and 429 from the per-route throttle.',
     },
+    servers: servers(user),
     paths,
     components: {
       securitySchemes: {

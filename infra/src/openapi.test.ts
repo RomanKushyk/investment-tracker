@@ -10,6 +10,7 @@
 // the responses from the handlers' own frozen constants.
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { parseDocument } from 'yaml';
 
 import { ADDRESS, MAX_ADDRESS } from './address';
 import {
@@ -18,9 +19,34 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
-import { ANSWERS, buildSpec } from './openapi';
+import { ANSWERS, buildSpec, servers } from './openapi';
 
 const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
+
+/**
+ * THE TEMPLATE READ A SECOND TIME, here rather than through the generator, so the assertions
+ * below compare two readings of one file instead of one reading against itself. Parsed the way
+ * `public-api.test.ts` parses it: `toJS()` drops an intrinsic's tag and keeps its value, so
+ * `!If [IsProd, a, b]` arrives as the three-element array `['IsProd', a, b]`.
+ *
+ * CHECKED ON THE WAY DOWN, because this runs at collection: `yaml` recovers from a structural
+ * error by DROPPING content, and a mangled `Domain:` would take the whole file out with a
+ * TypeError five levels deep — hiding the generator's own message and the tests below.
+ */
+const TEMPLATE = parseDocument(
+  readFileSync(new URL('../template-user.yaml', import.meta.url), 'utf8'),
+);
+if (TEMPLATE.errors.length > 0) {
+  throw new Error(`template-user.yaml does not parse: ${TEMPLATE.errors[0].message}`);
+}
+const DOMAIN = (
+  TEMPLATE.toJS() as {
+    Resources?: { PublicApi?: { Properties?: { Domain?: { DomainName?: string[] } } } };
+  }
+).Resources?.PublicApi?.Properties?.Domain?.DomainName;
+if (DOMAIN === undefined) {
+  throw new Error('template-user.yaml declares no Domain on PublicApi');
+}
 
 /**
  * EVERY module beside this one, not a written list of four. A list of the answers went stale
@@ -233,11 +259,133 @@ describe('the routes, the authorizer, and the one route outside it', () => {
     }
   });
 
+  // AND THE ABSENCE READS AS "NONE" ONLY BECAUSE THERE IS NO DEFAULT TO INHERIT. An operation
+  // without `security` takes the document's, so a root-level default added later would put the
+  // authorizer on the one route that cannot have it, silently and in the document alone.
+  // `redocly lint`'s `security-defined` asks for exactly that default; it is declined, and
+  // `openapi.ts` says why beside the code that declines it.
+  it('declares no document-level default for that absence to inherit', () => {
+    expect(spec).not.toHaveProperty('security');
+  });
+
   it('gives the admin routes their path parameter', () => {
     const [, path] = APPROVE_ROUTE.split(' ');
     const params = spec.paths[path].post.parameters ?? [];
     expect(params).toEqual([
       { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+    ]);
+  });
+});
+
+describe('the document names the hosts it can be called at', () => {
+  const spec = buildSpec();
+
+  // THE OTHER HALF THAT WAS MISSING, one field wide. A client generated from a document with no
+  // `servers` has the three operations and no base URL, so it cannot call anything until a
+  // hostname arrives out of band — the same gap the response half had.
+  it('takes both hosts from the API’s own Domain, and names no others', () => {
+    const [, ...arms] = DOMAIN;
+    expect(spec.servers.map((s) => s.url).sort()).toEqual(
+      arms.map((host) => `https://${host}`).sort(),
+    );
+  });
+
+  // AND WHICH ARM IS WHICH, written out rather than derived a second time here. `toJS()` keeps
+  // an `!If`'s arms and drops its tag, so the pairing survives as an ORDER alone — and this
+  // template's own comment records that a copied `!If` reads plausibly with its arms inverted.
+  // A client that takes the wrong arm for production calls production. The template side of the
+  // same pair is pinned in `public-api.test.ts`.
+  it('pairs each host with its environment, dev first', () => {
+    expect(spec.servers).toEqual([
+      { url: 'https://api.dev.quirenote.com', description: 'dev' },
+      { url: 'https://api.quirenote.com', description: 'prod' },
+    ]);
+  });
+});
+
+describe('the host derivation refuses what it cannot read', () => {
+  // A TEMPLATE SHAPED LIKE THE REAL ONE, one part swapped per case. `buildSpec` always reads
+  // the committed `template-user.yaml`, so a refusal reached only through it cannot be driven
+  // at all — and every guard below was, until this block, deletable with five gates still green.
+  const templateWith = (swap: {
+    domainName?: unknown;
+    conditions?: Record<string, unknown>;
+    parameters?: Record<string, { AllowedValues?: string[] }>;
+  }) => ({
+    Parameters: swap.parameters ?? { Environment: { AllowedValues: ['dev', 'prod'] } },
+    Conditions: swap.conditions ?? { IsProd: ['Environment', 'prod'] },
+    Resources: {
+      PublicApi: {
+        Type: 'AWS::Serverless::HttpApi',
+        Properties: {
+          Domain: {
+            DomainName: swap.domainName ?? ['IsProd', 'api.quirenote.com', 'api.dev.quirenote.com'],
+          },
+        },
+      },
+    },
+  });
+
+  it('reproduces the real document from the shape above, so the swaps below mean something', () => {
+    expect(servers(templateWith({}))).toEqual(buildSpec().servers);
+  });
+
+  // `toJS()` keeps an intrinsic's value and drops its tag, so this is what `!Sub 'api.${Zone}'`
+  // looks like by the time it arrives — and `https://api.${Zone}` is what would ship.
+  it('refuses an arm that arrived as an intrinsic’s inner text', () => {
+    expect(() =>
+      servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com', 'api.${Zone}'] })),
+    ).toThrow(/not an !If over two hostnames/);
+  });
+
+  it('refuses an !If that carries one arm rather than two', () => {
+    expect(() => servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com'] }))).toThrow(
+      /not an !If over two hostnames/,
+    );
+  });
+
+  it('refuses a Domain that is not an !If at all', () => {
+    expect(() => servers(templateWith({ domainName: 'api.quirenote.com' }))).toThrow(
+      /not an !If over two hostnames/,
+    );
+  });
+
+  // The full function form is legal YAML and arrives as an OBJECT, which destructures into a
+  // TypeError rather than a message naming the file.
+  it('refuses a condition written as Fn::Equals', () => {
+    expect(() =>
+      servers(templateWith({ conditions: { IsProd: { 'Fn::Equals': ['Environment', 'prod'] } } })),
+    ).toThrow(/is not an !Equals/);
+  });
+
+  // THE COPY-PASTE THIS TEMPLATE INVITES. `IsRegistrationOpen` is a second two-valued condition
+  // in the same file, and an `!If` copied from it passes every structural check while naming
+  // the hosts `open` and `closed` — production first, silently, before this refusal existed.
+  it('refuses a condition that is not about environments', () => {
+    expect(() =>
+      servers(
+        templateWith({
+          domainName: ['IsRegistrationOpen', 'api.quirenote.com', 'api.dev.quirenote.com'],
+          conditions: { IsRegistrationOpen: ['OpenRegistration', 'open'] },
+          parameters: { OpenRegistration: { AllowedValues: ['closed', 'open'] } },
+        }),
+      ),
+    ).toThrow(/neither environment IsRegistrationOpen selects is prod/);
+  });
+
+  // AND THE ORDER IS BY NAME, NOT BY ARM. Reverting to the arm order regenerates the committed
+  // document byte-for-byte, so this is the only thing that holds it.
+  it('puts production last whichever arm carries it', () => {
+    expect(
+      servers(
+        templateWith({
+          domainName: ['IsDev', 'api.dev.quirenote.com', 'api.quirenote.com'],
+          conditions: { IsDev: ['Environment', 'dev'] },
+        }),
+      ),
+    ).toEqual([
+      { url: 'https://api.dev.quirenote.com', description: 'dev' },
+      { url: 'https://api.quirenote.com', description: 'prod' },
     ]);
   });
 });

@@ -5,6 +5,16 @@
     "version": "1.0.0",
     "description": "Derived from infra/template-user.yaml and the handlers’ own response constants by infra/src/openapi.ts. Do not edit: run `pnpm openapi` and commit the result. These are the HANDLERS’ answers. API Gateway answers ahead of them too and those are not described here: 401 for a token the JWT authorizer refuses, which is the commonest admin failure once an access token passes its hour, and 429 from the per-route throttle."
   },
+  "servers": [
+    {
+      "url": "https://api.dev.quirenote.com",
+      "description": "dev"
+    },
+    {
+      "url": "https://api.quirenote.com",
+      "description": "prod"
+    }
+  ],
   "paths": {
     "/v1/applications": {
       "post": {
