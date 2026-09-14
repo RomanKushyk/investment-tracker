@@ -387,28 +387,82 @@ returns becomes the row's key — and a DSQL primary key is immutable, so the pl
 deleted and rewritten in ONE TRANSACTION rather than updated. `applied_at` crosses with it, being
 the only thing the pending row held that cannot be reconstructed. A run that made the identity and
 lost the row is finished by running it again: `UsernameExistsException` sends it to `AdminGetUser`
-for the same `sub`. **A `demo` row is REFUSED rather than merely absent from the queue** — approving
+for the same `sub` — UNLESS THE ACCOUNT FOUND THERE IS `UNCONFIRMED`, which is refused by its own
+name. The pool holds a username as taken even for a sign-up nobody confirmed, so an open window lets
+anyone take an address they do not hold, and adopting that `sub` would write a flawless `active` row
+for an account nobody can sign in as while no invitation was sent — the create threw. `CONFIRMED`
+means the mailbox was reached, so its holder IS the owner and is adopted; a self-signup and the
+genuine applicant are indistinguishable there, and that costs nothing. WHAT IT DOES COST is stated
+rather than hidden: Cognito never expires an unconfirmed account, so an applicant who began a
+sign-up during a window and has not yet typed their code reads exactly like a squatter, and
+approving them answers the refusal for as long as the account stands. Nothing here can clear it —
+that is `AdminDeleteUser`, which is not granted — so the repair is the console, and the likeliest
+holder of an unconfirmed account at an applicant's address is the applicant. **APPROVAL OWNS "ON"**,
+and an ADOPTED account is where it says so rather than assumes it: reject turns an address off
+before it knows its own write will land, so a reject that failed leaves a disabled identity under a
+row still `pending`, and adopting it blindly would write a flawless `active` row for an account
+nobody can sign in as. Safe exactly there, because approve refuses every non-pending row, so a
+`pending` one means no decision says that account should be off. AN IDENTITY THE APPROVAL
+MINTED DOES NOT OUTLIVE A ROW THAT NOTHING WANTS, and what the ADDRESS holds after the rollback is
+what decides: `pending` means the write failed transiently and the application stands, so the
+identity is exactly what approving again needs and disabling it would leave the retry writing a
+flawless `active` row onto an account that cannot sign in; `active` means a concurrent approve won,
+adopted this very identity and wrote the row it belongs to; `rejected` means a decision an enabled
+identity must not outlive, and NOTHING AT ALL means nothing refers to it and nothing can. A read
+that fails leaves it ENABLED, and that direction is only defensible because REJECTING AGAIN REPAIRS
+IT, where an account wrongly turned off has no path back. An ADOPTED identity is never touched: it
+is somebody else's. **A `demo` row is REFUSED rather than merely absent from the queue** — approving
 one would call `AdminCreateUser` on a fabricated address, spend a monthly active user and mail a
 mailbox whose bounce cannot be cleared — which is the thing the role was added for, made structural
 instead of remembered. Reject records the decision, and `AdminDisableUser` is its CONSEQUENCE and
-never its record: an applicant who was never approved has no identity, so the pool is not asked
-about them, and where there is one the disable goes FIRST. A failure then leaves the row untouched
-and rejecting again finishes it, where the other order leaves a `rejected` row whose owner can still
-sign in and a retry that reports the work already done. Deleting a user is not implemented and not
-decided, so no `AdminDeleteUser` is granted to anything.
+never its record — but THE POOL IS ASKED ABOUT EVERY REJECT, because nothing in the schema records
+whether an identity exists and `status` only ever LOOKED like it did. It looks like it while
+registration has only ever been closed, approval being then the one thing that mints an identity;
+it stops the moment a window opens, when somebody who applied first can sign themselves up and hold
+an identity under a row that stays `pending`. Cognito owns the fact, so Cognito is what gets asked —
+a column here would be a second record of it that a federated sign-in never writes, and the trigger
+next door keeps no such record for the same reason. `UserNotFoundException` is the absence, and the
+only pool answer that is one; every other failure still stops the reject. The disable goes FIRST, so
+a failure leaves the row untouched and rejecting again finishes it, where the other order leaves a
+`rejected` row whose owner can still sign in and a retry that reports the work already done. THE
+PRICE OF THAT ORDER IS PAID BY `AdminEnableUser`, granted for this one use and no other: turning the
+address off before the write applies means a reject that LOSES has turned off an account it had no
+say over. It is put back on the SAME EVIDENCE the approve side asks for — what the address holds now
+— because a lost race cannot say WHO won it. `active` and `pending` are somebody's and nobody's
+respectively, and both get the account back; `rejected` means another ruling beat this one and the
+account stays off, since re-enabling there would rebuild the very state this endpoint exists to
+prevent. The repair hangs off the WRITE FAILING rather than on its matching no rows, because DSQL
+settles a write-write conflict by aborting at commit and the loser is thrown at as readily as it is
+answered with nothing. `AdminEnableUser` grants nothing by itself — an enabled identity with no
+`active` row is refused by every route. **A SECOND REJECTION IS A REPAIR**, which is what makes
+"rule again" a real answer wherever an enabled identity outlives a rejection: a `rejected` row
+retries the disable and skips only the write, so `decided_at` and `decided_by` go on naming whoever
+ruled first. Deleting a user is not implemented and not decided, so no `AdminDeleteUser` is granted
+to anything.
 **Three limits on ruling, two of them deliberate and one of them merely known.** NOBODY RULES ON
 THEIR OWN ROW: rejecting yourself disables your own account and marks your row `rejected`, after
-which the gate refuses you, approve refuses a non-pending row and the runner's bootstrap throws on
-both of its branches — the only repair is hand-written SQL against the cluster, which is too far to
-fall for one mis-click. REJECT IS TERMINAL FOR A MAILBOX: a `rejected` row cannot be approved, and
+which the gate refuses you and approve refuses a non-pending row — the only repair is hand-written
+SQL against the cluster, which is too far to fall for one mis-click. THE RUNNER'S BOOTSTRAP IS NOT A
+THIRD DOOR ONTO THAT STATE, and it takes a narrowed look to keep it open: reject sets the status and
+the decision pair and never touches `role`, so a ruled-on row goes on saying `super_admin`, and a
+look that read it as one would refuse to bootstrap ANY address for as long as the row existed. Only
+a NON-REJECTED row counts as the super-admin that already exists; the ADDRESS arm stays
+unconditional, so a rejected row at the address being bootstrapped is still refused by name rather
+than by `app_user_email_uq` raised after an identity has been minted. REJECT IS TERMINAL FOR A
+MAILBOX: a `rejected` row cannot be approved, and
 re-applying is absorbed by the unique index and answered with the same 202, so the address is spent
 until somebody decides otherwise — the admin surface's call, not this endpoint's. And a
-FEDERATED-ONLY identity cannot be disabled at all: the pool's username is the address for every
-account this system creates, but a profile minted straight from a provider is named for the provider
-and its subject instead, so the disable answers `UserNotFoundException` and the reject fails with
-the row untouched. It is reachable only with registration open and a provider configured, and it
-fails LOUDLY and leaves access in place rather than marking somebody rejected who is not — which is
-the right direction to fail in, and the reason it is recorded here rather than guessed at in code.
+FEDERATED-ONLY identity cannot be disabled at all, and the reason is NOT that the pool's username is
+the address. Under `UsernameAttributes: [email]` every account carries a UUID username, the ones
+`AdminCreateUser` makes included, and what makes an admin call by address work is ALIAS RESOLUTION
+on the `email` attribute ([`reference/COGNITO-POOL-PARAMS.md`](reference/COGNITO-POOL-PARAMS.md)).
+That covers every LOCAL account however it was made, which is what reaches an open-window
+signer-up; a profile minted straight from a provider is named for the provider and its subject and
+gets no such alias, so the disable answers `UserNotFoundException`. That answer is what an absence
+MEANS, so rejecting such a holder marks the row and logs rather than failing — DELIBERATELY, because
+the row is what governs access, and failing there would leave the row `active` and every route open
+to somebody a super-admin had just ruled against. It is reachable only with registration open and a
+provider configured, and it is recorded here rather than guessed at in code.
 **The post-confirmation trigger the plan named cannot serve either path, and is declined in
 writing.** AWS invokes it on `ConfirmSignUp`, `AdminConfirmSignUp` and `ConfirmForgotPassword` alone
 — "not for user accounts that you create with your administrator credentials" — so it would never

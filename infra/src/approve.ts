@@ -8,9 +8,9 @@
 // makes approval the verification step: the invitation reaches only the address's owner.
 // `docs/DECISIONS.md`, **Auth model**.
 //
-// AND REJECT IS THE OPPOSITE SHAPE: a status, with a Cognito call only as its consequence. An
-// applicant who was never approved has no identity to disable, so nothing is asked of the pool;
-// the row's own status is what says whether there is one.
+// AND REJECT IS THE OPPOSITE SHAPE: a status, with a Cognito call only as its consequence. The
+// pool is asked on every reject, because nothing in the schema records whether an identity exists
+// and the row's status only ever looked as though it did — `UserNotFoundException` is the absence.
 //
 // THE ROW IS REPLACED RATHER THAN UPDATED, because a DSQL primary key is immutable — changing
 // one is a delete and an insert, not an update (`demo-user.ts`). A pending row owns nothing:
@@ -20,6 +20,7 @@
 import {
   AdminCreateUserCommand,
   AdminDisableUserCommand,
+  AdminEnableUserCommand,
   AdminGetUserCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -39,9 +40,14 @@ type UserAttribute = { Name?: string; Value?: string };
  * The three calls this file makes, narrowed so the tests inject a double rather than the SDK —
  * the shape `pre-signup.ts` and `migrate.ts` take theirs in.
  *
- * `adminGetUser` is here for the RE-RUN alone: `AdminCreateUser` answers
- * `UsernameExistsException` the second time and does not hand back the `sub` it made the first,
- * and an approval that failed between the identity and the row has to find it again.
+ * `adminGetUser` answers two questions, both on the branch where the address is already taken:
+ * WHICH `sub` holds it — `AdminCreateUser` answers `UsernameExistsException` the second time and
+ * does not hand back the one it made the first — and WHETHER ANYBODY HAS PROVED THEY HOLD THE
+ * ADDRESS, which is what `UserStatus` says and what separates a repair from a stranger's claim.
+ *
+ * `adminEnableUser` EXISTS ONLY TO UNDO THIS FILE'S OWN DISABLE, on the one path that can disable
+ * an account somebody else has just approved. It is never how an account is granted: approval
+ * still goes through `adminCreateUser` and the row.
  *
  * There is no `adminDeleteUser`. Deleting a user is not implemented and not decided.
  */
@@ -57,19 +63,20 @@ export type IdentityClient = {
   adminGetUser(input: {
     UserPoolId: string;
     Username: string;
-  }): Promise<{ UserAttributes?: UserAttribute[] }>;
+  }): Promise<{ UserAttributes?: UserAttribute[]; UserStatus?: string; Enabled?: boolean }>;
   adminDisableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
+  adminEnableUser(input: { UserPoolId: string; Username: string }): Promise<unknown>;
 };
 
 const APPROVED = json(200, '{"status":"approved"}');
 const REJECTED = json(200, '{"status":"rejected"}');
 const NOT_FOUND = json(404, '{"error":"not_found"}');
 // NOBODY RULES ON THEIR OWN ROW, and the reason is that the state it produces has no way back in
-// code: rejecting yourself disables your own account and sets your row `rejected`, after which
-// the gate refuses you, approve refuses a non-pending row, and the runner's `bootstrap` throws on
-// both of its branches — on the row that exists and on the super-admin that already does. The
-// only repair is hand-written SQL against the cluster, which is not something anybody should have
-// to reach for because of one mis-click.
+// code: rejecting yourself disables your own account and sets your row `rejected`, after which the
+// gate refuses you, approve refuses a non-pending row, and the runner's `bootstrap` refuses the
+// address it already holds a row for. Bootstrapping a DIFFERENT address is the way back, and it is
+// a new super-admin rather than your account returned — still further than anybody should be sent
+// by one mis-click.
 const SELF = json(409, '{"error":"self"}');
 // NAMED AS ITS OWN REFUSAL rather than folded into "already decided", because the reason is
 // different in kind and the caller has to be able to tell them apart: approving a demo row would
@@ -78,6 +85,13 @@ const SELF = json(409, '{"error":"self"}');
 // the admin screen has to remember.
 const DEMO = json(409, '{"error":"demo"}');
 const ALREADY_DECIDED = json(409, '{"error":"already_decided"}');
+// AN UNCONFIRMED ACCOUNT IS SOMEBODY WHO CLAIMED THE ADDRESS AND NEVER PROVED IT. Cognito holds a
+// username as taken even for a sign-up nobody confirmed, so while a registration window is open
+// anyone can take an address they do not hold. Adopting that `sub` would write a flawless `active`
+// row for an account nobody can sign in as, and no invitation was sent — the create threw. Named as
+// its own refusal because the repair is outside this API: the account has to go, and nothing here
+// holds `AdminDeleteUser`.
+const UNCLAIMED_IDENTITY = json(409, '{"error":"unclaimed_identity"}');
 
 const TARGET = `SELECT user_id, email, status, role, applied_at FROM app_user
                 WHERE user_id = $1`;
@@ -127,17 +141,32 @@ const DECIDE = `UPDATE app_user SET status = 'rejected', decided_at = now(), dec
                 WHERE user_id = $1 AND status = $3
                 RETURNING user_id`;
 
+/**
+ * WHAT THE ADDRESS HOLDS AFTER AN APPROVAL THAT FAILED, which is the only thing that says whether
+ * the identity it minted is still wanted. Read by address rather than by id, because the row this
+ * call was rekeying may now be keyed by a `sub` — the winner of a concurrent approve — or may be
+ * the `rejected` row somebody else left under the placeholder.
+ */
+const ROW_NOW = `SELECT status FROM app_user WHERE email = $1`;
+
 const subOf = (attributes: UserAttribute[] | undefined): string | undefined =>
   attributes?.find((a) => a.Name === 'sub')?.Value;
 
 type Target = { user_id: string; email: string; status: string; role: string; applied_at: Date };
 
-/** The identity for this address — created, or found because a previous run had made it. */
+/**
+ * The identity for this address — created, or found because something else already made it.
+ *
+ * `minted` IS WHAT THIS CALL MAY UNDO. An identity created here belongs to this approval and
+ * nothing else refers to it yet, so a row that then fails to land leaves it to be disabled. An
+ * ADOPTED one is somebody else's: a concurrent approve resolves to the same `sub`, and turning it
+ * off would disable an account that was just approved.
+ */
 async function identify(
   idp: IdentityClient,
   UserPoolId: string,
   email: string,
-): Promise<string | undefined> {
+): Promise<{ sub: string | undefined; minted: boolean } | 'unclaimed'> {
   try {
     const made = await idp.adminCreateUser({
       UserPoolId,
@@ -156,15 +185,107 @@ async function identify(
       // EMAIL EXPLICITLY: the delivery medium defaults to SMS and this pool holds no number.
       DesiredDeliveryMediums: ['EMAIL'],
     });
-    return subOf(made.User?.Attributes);
+    return { sub: subOf(made.User?.Attributes), minted: true };
   } catch (err) {
     if ((err as { name?: string })?.name !== 'UsernameExistsException') throw err;
     // THE HALF-DONE STATE, AND THE ONLY WAY OUT OF IT IS THROUGH. An identity made and a row
     // that did not land leaves a `sub` nothing refers to; approving again has to finish the job
-    // rather than report a duplicate.
+    // rather than report a duplicate. The same branch covers an owner who signed themselves up
+    // during an open window: the gate kept answering with their `pending` row, so nothing wrote
+    // `active` and only this call can finish the approval.
     const found = await idp.adminGetUser({ UserPoolId, Username: email });
-    return subOf(found.UserAttributes);
+    // WHAT SEPARATES THE OWNER FROM A STRANGER, and the only thing that can. `CONFIRMED` means
+    // somebody received mail at the address, so they hold it; `FORCE_CHANGE_PASSWORD` is this
+    // system's own earlier `AdminCreateUser`. `UNCONFIRMED` is neither — a claim nobody proved.
+    // A confirmed self-signup is indistinguishable from the genuine applicant, and costs nothing
+    // to treat as them: confirming required the mailbox.
+    if (found.UserStatus === 'UNCONFIRMED') return 'unclaimed';
+    // APPROVAL OWNS "ON", and an adopted account is the one place it has to say so rather than
+    // assume it. Reject turns an address off before it knows its own write will land, so a reject
+    // that failed leaves a DISABLED identity under a row still `pending` — and this branch would
+    // otherwise write a flawless `active` row for an account nobody can sign in as, with no
+    // invitation sent because the create threw. Safe precisely here: approve refuses every
+    // non-pending row, so a `pending` one means no decision says this account should be off.
+    if (found.Enabled === false) {
+      await idp.adminEnableUser({ UserPoolId, Username: email });
+    }
+    return { sub: subOf(found.UserAttributes), minted: false };
   }
+}
+
+/**
+ * Disables an identity THIS CALL MINTED when an approval fails, and only where nothing still wants
+ * it. The row the address holds afterwards is what decides, and there are four answers:
+ *
+ * `pending` — the write failed transiently and the application is exactly as it was, so approving
+ * again finishes the job: `UsernameExistsException` sends the retry to `AdminGetUser` for this same
+ * identity. DISABLING HERE WOULD BREAK THAT RETRY, and nothing in this API could undo it — the
+ * retry would then write a flawless `active` row onto an account that cannot sign in.
+ * `active` — a concurrent approve won, adopted this identity and wrote the row it belongs to. It is
+ * somebody's approved account now.
+ * `rejected` — a reject won the race, and an enabled identity must not outlive that decision.
+ * Absent — nothing refers to it and nothing can, so it does not survive.
+ *
+ * The read failing means the question cannot be answered, and the identity is left ENABLED. That
+ * direction is only defensible because REJECTING AGAIN REPAIRS IT: a `rejected` row no longer
+ * short-circuits before the pool, so the disable is retried. An account wrongly turned OFF has no
+ * such path — approve refuses a decided row — which is why the doubt falls this way.
+ */
+async function withdraw(
+  client: SqlClient,
+  idp: IdentityClient,
+  UserPoolId: string,
+  email: string,
+): Promise<void> {
+  const status = await client
+    .query<{ status: string }>(ROW_NOW, [email])
+    .then(({ rows }) => rows[0]?.status)
+    .catch((e: unknown) => {
+      console.error(`approve: could not read back what ${email} holds: ${e}`);
+      return 'pending';
+    });
+  if (status === 'pending' || status === 'active') return;
+  // BEST EFFORT, AND UNDER WHATEVER SENT US HERE. The caller has to be told about the failure that
+  // actually happened, so a disable that fails too is logged rather than raised over it.
+  await idp.adminDisableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
+    console.error(`approve: could not disable the identity minted for ${email}: ${e}`);
+  });
+}
+
+/**
+ * Puts back the disable a reject made before it knew its own write would land, and only where the
+ * address now belongs to somebody. The MIRROR of `withdraw`, asking the same statement the same
+ * question, because the two share a hazard: a caller that lost a race cannot tell from its own
+ * failure WHO won, and guessing is how the account of whoever did gets turned off.
+ *
+ * `active` — an approve won and this address is somebody's approved account. `pending` — nothing
+ * decided it, so the disable was simply premature and the applicant goes back to awaiting a ruling.
+ * `rejected` — ANOTHER REJECT WON, whether a second super-admin's or a double-click, and the
+ * account must stay off; re-enabling here would recreate the very state this endpoint exists to
+ * prevent. Absent, or a read that fails, is not evidence that anybody is entitled to the account,
+ * so it stays off — the direction that withholds access rather than granting it, and one a repeat
+ * reject can still finish because a `rejected` row no longer short-circuits before the pool.
+ */
+async function restore(
+  client: SqlClient,
+  idp: IdentityClient,
+  UserPoolId: string,
+  email: string,
+): Promise<void> {
+  const status = await client
+    .query<{ status: string }>(ROW_NOW, [email])
+    .then(({ rows }) => rows[0]?.status)
+    .catch((e: unknown) => {
+      console.error(`approve: could not read back what ${email} holds: ${e}`);
+      return undefined;
+    });
+  if (status !== 'active' && status !== 'pending') return;
+  await idp.adminEnableUser({ UserPoolId, Username: email }).catch((e: unknown) => {
+    // The ordinary applicant has no identity at all, so the disable above was already a no-op and
+    // so is this — not an error, and the commonest way through here.
+    if ((e as { name?: string })?.name === 'UserNotFoundException') return;
+    console.error(`approve: could not re-enable ${email} after losing the decision: ${e}`);
+  });
 }
 
 async function approveRow(
@@ -176,19 +297,28 @@ async function approveRow(
 ): Promise<ApiResult> {
   if (row.status !== 'pending') return ALREADY_DECIDED;
 
-  const sub = await identify(idp, UserPoolId, row.email);
+  const identity = await identify(idp, UserPoolId, row.email);
+  if (identity === 'unclaimed') return UNCLAIMED_IDENTITY;
+  const { sub, minted } = identity;
   if (!sub) {
     console.error(`approve: the pool returned no sub for ${row.user_id}`);
+    // The row is untouched, so `withdraw` will find it `pending` and leave the identity alone —
+    // which is right: approving again is what recovers a create whose `sub` did not come back.
+    if (minted) await withdraw(client, idp, UserPoolId, row.email);
     return INTERNAL;
   }
 
-  await client.query('BEGIN');
+  // `BEGIN` IS INSIDE THE TRY for the same reason the rest is: past the mint, EVERY way out of
+  // this function has to pass the cleanup, and a connection that fails on the first statement
+  // would otherwise carry an enabled identity out with it.
   try {
+    await client.query('BEGIN');
     await client.query(REMOVE, [row.user_id]);
     await client.query(REPLACE, [sub, row.email, row.role, row.applied_at, decidedBy]);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK').catch(() => undefined);
+    if (minted) await withdraw(client, idp, UserPoolId, row.email);
     throw err;
   }
   return APPROVED;
@@ -201,45 +331,59 @@ async function rejectRow(
   row: Target,
   decidedBy: string,
 ): Promise<ApiResult> {
-  if (row.status === 'rejected') return ALREADY_DECIDED;
-
   // THE IDENTITY GOES FIRST, AND THE ORDER IS THE FAILURE DIRECTION BEING CHOSEN. Written the
   // other way round, a disable that failed after the row was written would leave a `rejected`
   // row whose owner can still sign in — and the retry would answer "already decided" and repair
   // nothing. This way a failure leaves the row untouched and rejecting again finishes it.
   //
-  // `active` IS A PROXY FOR "AN IDENTITY EXISTS", AND IT IS NOT A SOUND ONE. It holds while
-  // registration has only ever been closed, which is both environments today: approval is then
-  // the only thing that mints an identity and it always leaves the row `active`. It stops holding
-  // the moment a window opens — somebody who applied BEFORE the window can sign themselves up
-  // during it, which gives them an identity while their row stays `pending`, and this branch then
-  // skips the disable for a person who has one. They keep an enabled account and a refresh token;
-  // they gain no access, because every route is authorized against the row and the row says
-  // `rejected`. The sound test is to ask Cognito, and it is not made here because the acceptance
-  // criterion this endpoint was built to explicitly asks for NO Cognito call when rejecting an
-  // applicant who never had an identity — so changing the proxy changes the contract, and that is
-  // a decision rather than a patch. Split out rather than smuggled in; see the issue.
+  // THE POOL IS ASKED ABOUT EVERY REJECT, because nothing in the schema records whether an
+  // identity exists and `status` only ever looked like it did. `active` holds while registration
+  // has only ever been closed — approval is then the one thing that mints an identity and it
+  // always leaves the row `active` — and stops holding the moment a window opens: somebody who
+  // applied BEFORE the window can sign themselves up during it, which gives them an identity while
+  // `authorize.ts` keeps answering with their `pending` row, deliberately, so an open door cannot
+  // jump the approval queue. Cognito owns the fact, so Cognito is what gets asked; a column here
+  // would be a second record of it that a federated sign-in never writes.
   //
-  // THE ADDRESS IS THE USERNAME, because the pool declares `UsernameAttributes: [email]`. That
-  // holds for every identity this system creates — approval's `AdminCreateUser` and an
-  // open-registration sign-up both make a LOCAL account — and not for a federated-only profile,
-  // whose username is the provider and its subject. Such a profile can exist only with
-  // registration open and a provider configured, since `pre-signup.ts` otherwise refuses it;
-  // rejecting one answers `UserNotFoundException`, which is caught into a 500 that leaves the row
-  // untouched. A stuck state rather than a silent one, and recorded rather than repaired here —
-  // `docs/DECISIONS.md`, **Auth model**.
-  if (row.status === 'active') {
-    await idp.adminDisableUser({ UserPoolId, Username: row.email });
-  }
+  // `UserNotFoundException` IS THE ABSENCE, and the only pool answer that is one. Every other
+  // failure still stops the reject with the row untouched, which is the order chosen above.
+  //
+  // THE ADDRESS FINDS THE ACCOUNT BY ALIAS, not because it is the username. Under
+  // `UsernameAttributes: [email]` every account carries a UUID username, the ones
+  // `AdminCreateUser` makes included, and the address resolves through the `email` alias instead —
+  // so this reaches every LOCAL account however it was made, the open-window signer-up included. A
+  // federated-only profile gets no such alias and answers not-found, which marks the row and logs
+  // rather than failing; the row is what governs access. `docs/DECISIONS.md`, **Auth model**, and
+  // `docs/reference/COGNITO-POOL-PARAMS.md` for what the pool actually answered.
+  await idp.adminDisableUser({ UserPoolId, Username: row.email }).catch((err: unknown) => {
+    if ((err as { name?: string })?.name !== 'UserNotFoundException') throw err;
+    console.log(`approve: ${row.user_id} is being rejected with no local identity to disable`);
+  });
+
+  // A ROW ALREADY `rejected` IS A REPAIR RATHER THAN A NO-OP, which is what makes "rule again" a
+  // real answer to every way an enabled identity can outlive a rejection — a disable that failed,
+  // and the arms of `withdraw` and `restore` that deliberately leave an account on rather than
+  // guess. Short-circuiting before the pool made those states reachable and unrepairable at once.
+  // The write is what does not repeat: `decided_at` and `decided_by` name whoever ruled first.
+  if (row.status === 'rejected') return ALREADY_DECIDED;
+
   // THE WRITE REPORTS ITSELF. Without this a reject that matched nothing would answer 200 having
   // changed nothing, which is the one thing an admin surface must not do.
-  const { rows } = await client.query<{ user_id: string }>(DECIDE, [
-    row.user_id,
-    decidedBy,
-    row.status,
-  ]);
+  //
+  // AND A WRITE CAN FAIL IN TWO SHAPES, so the repair hangs off the failure rather than off one of
+  // them: DSQL settles a write-write conflict by ABORTING at commit, so a reject that lost the row
+  // to an approve arrives here as a thrown `40001` just as readily as it arrives as no rows.
+  // Attached to the row count alone, the restore would be skipped on exactly the ordering it
+  // exists for.
+  const { rows } = await client
+    .query<{ user_id: string }>(DECIDE, [row.user_id, decidedBy, row.status])
+    .catch(async (err: unknown) => {
+      await restore(client, idp, UserPoolId, row.email);
+      throw err;
+    });
   if (rows.length === 0) {
     console.error(`approve: reject matched no row for ${row.user_id}; it was decided elsewhere`);
+    await restore(client, idp, UserPoolId, row.email);
     return ALREADY_DECIDED;
   }
   return REJECTED;
@@ -308,6 +452,7 @@ const sdk: IdentityClient = {
   adminCreateUser: (input) => identityClient.send(new AdminCreateUserCommand(input)),
   adminGetUser: (input) => identityClient.send(new AdminGetUserCommand(input)),
   adminDisableUser: (input) => identityClient.send(new AdminDisableUserCommand(input)),
+  adminEnableUser: (input) => identityClient.send(new AdminEnableUserCommand(input)),
 };
 
 export async function handler(event: ApiEvent): Promise<ApiResult> {

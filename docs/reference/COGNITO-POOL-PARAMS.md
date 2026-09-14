@@ -148,6 +148,16 @@ self-service sign-up, so `SignUp` is no longer what creates an identity.
 password only when it has a message to put it in, so any caller that suppresses the invitation
 has to supply one.
 
+**The username is a UUID even for the accounts `AdminCreateUser` makes, and the address reaches
+them by ALIAS.** Under `UsernameAttributes: ["email"]` the pool assigns its own username whatever
+created the account: `ListUsers` on the dev pool returns UUIDs for both accounts this system made,
+with the address only in the `email` attribute. `AdminGetUser` with the address as `Username`
+returns that account anyway — alias resolution on `email`, not a username match — and an address
+the pool holds no local account for answers `UserNotFoundException`. So an admin call by address
+reaches every LOCAL account however it was made, a self-service `SignUp` included, and reaches a
+federated-only profile never: that one is named for its provider and subject and carries no such
+alias. Anything that infers "this account was created by us" from the username shape is wrong.
+
 **`DescribeUserPool` does not report the WebAuthn settings, even when they are set.**
 `WebAuthnRelyingPartyID` and `WebAuthnUserVerification` both read back `null` there. They live
 behind `GetUserPoolMfaConfig`, as `WebAuthnConfiguration.RelyingPartyId` and

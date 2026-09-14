@@ -47,11 +47,18 @@ const call = (
   requestContext: context,
 });
 
-/** Records every Cognito call, and answers `UsernameExistsException` when `existing` is set. */
-const spy = (existing?: string) => {
+/**
+ * Records every Cognito call, and answers `UsernameExistsException` when `existing` is set.
+ *
+ * `UserStatus` defaults to what an identity THIS SYSTEM made looks like: `AdminCreateUser` leaves
+ * `FORCE_CHANGE_PASSWORD` until the invitation is used. The parameter exists because approve now
+ * reads it — an `UNCONFIRMED` account is somebody who claimed the address and never proved it.
+ */
+const spy = (existing?: string, UserStatus = 'FORCE_CHANGE_PASSWORD', Enabled = true) => {
   const created: { Username: string; MessageAction?: string }[] = [];
   const fetched: unknown[] = [];
   const disabled: { Username: string }[] = [];
+  const enabled: { Username: string }[] = [];
   const idp = {
     adminCreateUser: async (input: { UserPoolId: string; Username: string }) => {
       created.push(input as { Username: string });
@@ -64,14 +71,39 @@ const spy = (existing?: string) => {
     },
     adminGetUser: async (input: { UserPoolId: string; Username: string }) => {
       fetched.push(input);
-      return { UserAttributes: [{ Name: 'sub', Value: existing ?? SUB }] };
+      return { UserAttributes: [{ Name: 'sub', Value: existing ?? SUB }], UserStatus, Enabled };
     },
     adminDisableUser: async (input: { UserPoolId: string; Username: string }) => {
       disabled.push(input);
       return {};
     },
+    adminEnableUser: async (input: { UserPoolId: string; Username: string }) => {
+      enabled.push(input);
+      return {};
+    },
   };
-  return { idp, created, fetched, disabled };
+  return { idp, created, fetched, disabled, enabled };
+};
+
+/**
+ * A pool holding no LOCAL account for the address, which is what "never had an identity" looks
+ * like now that the row is not asked. `UserNotFoundException` is the only pool answer reject
+ * treats as an absence; every other failure still stops it.
+ */
+const holdingNobody = () => {
+  const base = spy();
+  const disabled: { Username: string }[] = [];
+  return {
+    ...base,
+    disabled,
+    idp: {
+      ...base.idp,
+      adminDisableUser: async (input: { UserPoolId: string; Username: string }) => {
+        disabled.push(input);
+        throw Object.assign(new Error('User does not exist.'), { name: 'UserNotFoundException' });
+      },
+    },
+  };
 };
 
 let db: PGlite;
@@ -90,6 +122,51 @@ const swallowing = (needle: string): SqlClient => ({
     text.includes(needle)
       ? { rows: [] as R[] }
       : (db.query<R>(text, values) as Promise<{ rows: R[] }>),
+});
+
+/**
+ * The real cluster, except that somebody else decided the row between the read and the write.
+ *
+ * The delete is answered rather than run, so the pending row SURVIVES and the real `REPLACE`
+ * collides on `app_user_email_uq` — a genuine constraint violation, which is what a decided row
+ * produces. The read-back is answered too, because a row the harness wrote inside the transaction
+ * would be rolled back with it and the read would then see the old state again.
+ *
+ * `status: undefined` stands for the address holding no row at all. The read-back is matched on
+ * its PARAMETER as well as its text: looking the row up BY ADDRESS is the whole point of it, and
+ * a lookup changed to the id would otherwise go on passing.
+ */
+const decidedDuring = (status?: string): SqlClient => ({
+  query: async <R>(text: string, values?: unknown[]) => {
+    // Both writes, because both cleanups face the same hazard: approve's `REMOVE` and reject's
+    // `DECIDE` are each guarded on the status that was read, and each matches nothing once
+    // somebody else has ruled.
+    if (text.includes('DELETE FROM app_user') || text.includes('UPDATE app_user')) {
+      return { rows: [] as R[] };
+    }
+    if (text.includes('SELECT status FROM app_user')) {
+      // CAPTURED RATHER THAN ASSERTED HERE. Both cleanups catch a failing read by design, so an
+      // expectation thrown inside this call is swallowed into the very "no call" outcome the
+      // negative tests assert — it has to be checked by the test afterwards.
+      askedFor.push(values);
+      return { rows: (status === undefined ? [] : [{ status }]) as R[] };
+    }
+    return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+  },
+});
+
+/** What the read-back was looked up by. Reading it BY ADDRESS is the whole point of `ROW_NOW`. */
+let askedFor: unknown[] = [];
+
+/** The real cluster, except that the read-back the cleanup depends on is the statement that fails. */
+const blindTo = (needle: string): SqlClient => ({
+  query: async <R>(text: string, values?: unknown[]) => {
+    if (text.includes('DELETE FROM app_user') || text.includes('UPDATE app_user')) {
+      return { rows: [] as R[] };
+    }
+    if (text.includes(needle)) throw new Error('the cluster said no');
+    return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+  },
 });
 
 const insert = (userId: string, email: string, status: string, role = 'user') =>
@@ -128,6 +205,7 @@ beforeEach(async () => {
     });
   }
   await db.exec(insert(ADMIN, ADMIN_EMAIL, 'active', 'super_admin'));
+  askedFor = [];
   vi.stubEnv('USER_POOL_ID', POOL);
   vi.stubEnv('OPEN_REGISTRATION', 'false');
 });
@@ -224,6 +302,146 @@ describe('approving replaces the placeholder with the sub the create call return
     expect(fetched).toHaveLength(1);
     expect((await rows())[0].user_id).toBe(SUB);
   });
+
+  // THE OWNER SIGNED THEMSELVES UP, which is the state an open window leaves behind: their row
+  // stayed `pending` because the gate would not let an open door jump the approval queue, and
+  // the identity exists anyway. Adopting it is the repair, and a `CONFIRMED` account is one
+  // whose holder received mail at that address — so it is the owner, and the adoption is right.
+  it('adopts the identity of an owner who signed themselves up', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, created, fetched } = spy(SUB, 'CONFIRMED');
+    const res = await approve(db, idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect([created.length, fetched.length]).toEqual([1, 1]);
+    expect((await rows())[0].user_id).toBe(SUB);
+  });
+
+  // APPROVAL OWNS "ON", and adoption is the one place it has to say so. Reject turns an address
+  // off before it knows its own write will land, so a reject that failed leaves a DISABLED
+  // identity under a row still `pending` — and adopting it blindly writes a flawless `active` row
+  // for an account nobody can sign in as, with no invitation, and approve refuses to run twice.
+  it('turns an adopted account back on rather than approving onto a disabled one', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, enabled } = spy(SUB, 'CONFIRMED', false);
+    const res = await approve(db, idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect((await rows())[0].user_id).toBe(SUB);
+  });
+
+  // AND ONLY WHERE IT IS OFF, because an enable is a write and the common adoption needs none.
+  it('does not touch an adopted account that is already on', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, enabled } = spy(SUB, 'CONFIRMED');
+    await approve(db, idp, call(APPROVE_ROUTE));
+
+    expect(enabled).toEqual([]);
+  });
+
+  // AND AN UNCONFIRMED ACCOUNT IS NOT THE OWNER. The pool holds a username as taken even for a
+  // sign-up nobody ever confirmed, so while the window is open anyone can take an address they
+  // do not hold. Adopting that `sub` writes a flawless `active` row for an account nobody can
+  // sign in as, and no invitation was sent — the create threw. Re-approving then answers
+  // "already decided", so the address is bricked rather than merely taken.
+  it('refuses an identity whose holder never proved the address', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp } = spy(SUB, 'UNCONFIRMED');
+    const res = await approve(db, idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toContain('unclaimed_identity');
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending', decided: false }),
+    ]);
+  });
+
+  // A REJECT RACING AN APPROVE, from the approve side. The identity is minted, then the pending
+  // row is not ours to remove — decided under us — and `REPLACE` collides on `app_user_email_uq`
+  // against the row the other caller left. The database stops the bad ROW; only this stops the
+  // enabled identity attached to it, at the moment the decision is known rather than whenever
+  // somebody thinks to rule again.
+  it('disables the identity it minted when a reject won the race', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled } = spy();
+    const res = await approve(decidedDuring('rejected'), idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  // AND ONLY WHERE NOTHING STILL WANTS IT. A concurrent approve that won adopted this very
+  // identity and wrote the row it belongs to, so disabling it here would turn off an account
+  // somebody was just approved into.
+  it('leaves the identity alone when a concurrent approve won the race', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, created, disabled } = spy();
+    const res = await approve(decidedDuring('active'), idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    // THE MINT HAS TO HAVE HAPPENED for "left alone" to mean anything: without this the test
+    // passes on any early refusal, which records no calls of either kind.
+    expect(created).toHaveLength(1);
+    expect(disabled).toEqual([]);
+  });
+
+  // NOTHING REFERS TO IT AND NOTHING CAN, which is the fourth arm of the same rule.
+  it('disables the identity it minted when the address ends up holding no row', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, created, disabled } = spy();
+    const res = await approve(decidedDuring(undefined), idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(created).toHaveLength(1);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    // BY ADDRESS, not by the id this call was rekeying — the row may now be keyed by a `sub`.
+    expect(askedFor).toEqual([[EMAIL]]);
+  });
+
+  // AND A READ THAT FAILS ANSWERS NOTHING, so the identity stays enabled: rejecting again retries
+  // the disable, where an account wrongly turned off has no path back through this API.
+  it('leaves the identity enabled when it cannot read what the address holds', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, created, disabled } = spy();
+    const res = await approve(blindTo('SELECT status FROM app_user'), idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(created).toHaveLength(1);
+    expect(disabled).toEqual([]);
+  });
+
+  // A TRANSIENT FAILURE IS NOT A RACE, and this is the difference the cleanup turns on. The
+  // application is still `pending` and still nobody's, so the identity is exactly what approving
+  // again needs: `UsernameExistsException` sends the retry to `AdminGetUser` for this same one.
+  // Disabling it would leave a retry that answers 200 having written a flawless `active` row onto
+  // an account that cannot sign in, and nothing in this API holds `AdminEnableUser` to undo it.
+  it('leaves the identity enabled when the write failed and the application still stands', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled } = spy();
+    const res = await approve(failingOn('INSERT INTO app_user'), idp, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(500);
+    expect(disabled).toEqual([]);
+
+    // AND THE RETRY FINISHES IT, which is the promise that disabling would have broken.
+    const retry = spy(SUB);
+    expect((await approve(db, retry.idp, call(APPROVE_ROUTE))).statusCode).toBe(200);
+    expect((await rows())[0].user_id).toBe(SUB);
+  });
+
+  // THE MINT IS NOT THE ONLY WAY OUT OF THIS FUNCTION past the create, so the cleanup cannot hang
+  // off the transaction alone. A create that answers without a `sub` leaves the application whole,
+  // so the identity stays enabled for the retry to find.
+  it('leaves the identity enabled when the create answered no sub', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp } = spy();
+    const idpWithoutSub = { ...idp, adminCreateUser: async () => ({ User: { Attributes: [] } }) };
+    const res = await approve(db, idpWithoutSub, call(APPROVE_ROUTE));
+
+    expect(res.statusCode).toBe(500);
+    expect((await rows())[0].status).toBe('pending');
+  });
 });
 
 describe('what approve refuses before it asks Cognito anything', () => {
@@ -264,13 +482,19 @@ describe('what approve refuses before it asks Cognito anything', () => {
 });
 
 describe('rejecting is a status, and disabling is its consequence', () => {
-  it('sets rejected with both halves of the pair and makes no Cognito call at all', async () => {
+  // THE POOL IS ASKED ABOUT EVERY REJECT, and this is the criterion #146 shipped with rewritten:
+  // it asked for NO Cognito call when rejecting an applicant who never had an identity, on the
+  // reasoning that `status` says whether there is one. `status` never said that — it only looked
+  // like it while registration had never been open. So the call is made and the pool's own
+  // `UserNotFoundException` is what "never had one" means.
+  it('asks the pool even for a row that never had an identity, and still records the decision', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
-    const { idp, created, fetched, disabled } = spy();
+    const { idp, created, fetched, disabled } = holdingNobody();
     const res = await approve(db, idp, call(REJECT_ROUTE));
 
     expect(res.statusCode).toBe(200);
-    expect([created, fetched, disabled]).toEqual([[], [], []]);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect([created, fetched]).toEqual([[], []]);
     expect(await rows()).toEqual([
       expect.objectContaining({
         user_id: PLACEHOLDER,
@@ -281,9 +505,22 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     ]);
   });
 
-  // AN APPLICANT WHO WAS NEVER APPROVED HAS NO COGNITO IDENTITY, so the row's own status is what
-  // says whether there is anything to disable. Nothing asks the pool.
-  it('disables the identity when one exists, and only then', async () => {
+  // THE CASE THE OLD PROXY SKIPPED, and the reason this issue exists. Somebody applies, the
+  // window opens, they sign themselves up — Cognito mints a local identity and `authorize.ts`
+  // deliberately keeps answering with their PENDING row, so nothing ever writes `active`.
+  // Reading the disable off the row skips it for exactly this person, who keeps an enabled
+  // account and a refresh token while their record says they were turned away.
+  it('disables the identity of an applicant who signed up during an open window', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled } = spy();
+    const res = await approve(db, idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect((await rows())[0].status).toBe('rejected');
+  });
+
+  it('disables the identity of somebody who was approved', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
     const { idp, disabled } = spy();
     const res = await approve(db, idp, call(REJECT_ROUTE, SUB));
@@ -320,14 +557,124 @@ describe('rejecting is a status, and disabling is its consequence', () => {
     expect((await rows())[0].status).toBe('pending');
   });
 
-  it('does not report a second rejection as a fresh one, and disables nothing twice', async () => {
+  // THE OTHER HALF OF DISABLING FIRST. Reject turns the address off before it knows its own write
+  // applied, which is what keeps a rejection from ever leaving a signed-in owner behind — but
+  // where an approve won the race, the account it just turned off is somebody's approved one and
+  // `DECIDE` matches nothing. Without the repair the row says `active`, the person cannot sign in,
+  // and no route in this API can put it back.
+  it('puts the account back when an approve won the race', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, enabled } = spy();
+    const res = await approve(decidedDuring('active'), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  // AND NOT WHEN ANOTHER REJECT WON IT. Both rejects disable, one write lands, and the loser must
+  // not read its own failure as "somebody was approved" — re-enabling there rebuilds the exact
+  // state this endpoint exists to prevent, an enabled identity under a `rejected` row, and no
+  // later call would reach it. `DECIDE` matching nothing cannot say WHICH ruling beat it, so the
+  // row is what gets asked.
+  it('leaves the account off when another reject won the race', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, enabled } = spy();
+    const res = await approve(decidedDuring('rejected'), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(enabled).toEqual([]);
+  });
+
+  // A WRITE THAT SIMPLY FAILED LEAVES THE APPLICANT UNDECIDED, so turning their account off was
+  // premature rather than wrong, and they go back to awaiting a ruling with it on.
+  it('puts the account back when nothing decided the row at all', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, enabled } = spy();
+    const res = await approve(decidedDuring('pending'), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(askedFor).toEqual([[EMAIL]]);
+  });
+
+  // NEITHER AN ABSENT ROW NOR A READ THAT FAILS IS EVIDENCE that anybody is entitled to the
+  // account, so it stays off — the direction that withholds access rather than granting it, and
+  // the mirror of what `withdraw` does with the same two answers.
+  it('leaves the account off when the address ends up holding no row', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, enabled } = spy();
+    const res = await approve(decidedDuring(undefined), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(enabled).toEqual([]);
+  });
+
+  it('leaves the account off when it cannot read what the address holds', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, disabled, enabled } = spy();
+    const res = await approve(blindTo('SELECT status FROM app_user'), idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).not.toBe(200);
+    expect(disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(enabled).toEqual([]);
+  });
+
+  // A LOST RACE ARRIVES IN TWO SHAPES. DSQL settles a write-write conflict by ABORTING at commit,
+  // so the reject that lost the row to an approve is thrown at rather than answered with no rows.
+  // Hung off the row count alone, the repair is skipped on exactly the ordering it exists for.
+  it('puts the account back when the decision is aborted rather than unmatched', async () => {
+    await db.exec(insert(SUB, EMAIL, 'active'));
+    const { idp, enabled } = spy();
+    const res = await approve(failingOn('UPDATE app_user'), idp, call(REJECT_ROUTE, SUB));
+
+    expect(res.statusCode).toBe(500);
+    expect(enabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+  });
+
+  // AND ONLY THEN. A reject that decided the row must leave the account off; re-enabling on the
+  // success path would undo the whole point of the call.
+  it('leaves the account off when the rejection is the one that decided the row', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const { idp, enabled } = spy();
+    const res = await approve(db, idp, call(REJECT_ROUTE));
+
+    expect(res.statusCode).toBe(200);
+    expect(enabled).toEqual([]);
+  });
+
+  // A SECOND REJECTION IS A REPAIR, NOT A NO-OP, and that is what makes "reject again" a real
+  // answer to every way an enabled identity can outlive a rejection — a disable that failed, and
+  // the arms of the two cleanups that deliberately leave an account on rather than guess. What
+  // does not repeat is the WRITE: `decided_at` and `decided_by` go on naming whoever ruled first.
+  it('retries the disable on a second rejection, but does not report it as a fresh one', async () => {
     await db.exec(insert(SUB, EMAIL, 'active'));
     await approve(db, spy().idp, call(REJECT_ROUTE, SUB));
+    // THE RAW PAIR, not the boolean `rows()` projects: a restamped `decided_at` is invisible to
+    // "is not null", and a second ruler is what makes an overwritten `decided_by` visible at all.
+    const pair = async () =>
+      (
+        await db.query<{ decided_at: Date; decided_by: string }>(
+          `SELECT decided_at, decided_by FROM app_user WHERE email = $1`,
+          [EMAIL],
+        )
+      ).rows;
+    const first = await pair();
 
     const again = spy();
-    const res = await approve(db, again.idp, call(REJECT_ROUTE, SUB));
+    const other = '9f1e2d3c-0000-4000-8000-00000000ad22';
+    await db.exec(insert(other, 'second@quirenote.com', 'active', 'super_admin'));
+    const res = await approve(
+      db,
+      again.idp,
+      call(REJECT_ROUTE, SUB, token(other, 'second@quirenote.com')),
+    );
     expect(res.statusCode).not.toBe(200);
-    expect(again.disabled).toEqual([]);
+    expect(again.disabled).toEqual([{ UserPoolId: POOL, Username: EMAIL }]);
+    expect(again.enabled).toEqual([]);
+    expect(await pair()).toEqual(first);
   });
 });
 
@@ -398,8 +745,8 @@ describe('every admin route reads the caller off the row', () => {
 
   // NOBODY RULES ON THEIR OWN ROW, because the state it makes has no repair in code: the
   // super-admin disables their own account and marks their own row `rejected`, and from there the
-  // gate refuses them, approve refuses a non-pending row, and the runner's bootstrap throws on
-  // both of its branches. Refused before the row is even read.
+  // gate refuses them, approve refuses a non-pending row, and the runner's bootstrap refuses the
+  // address it already holds a row for. Refused before the row is even read.
   //
   // SPELLED BOTH WAYS, AND THE SECOND SPELLING IS THE WHOLE TEST. Hex is hex in either case and a
   // `uuid` column compares canonically, so capitals are the same row to the cluster and a

@@ -353,16 +353,20 @@ describe('the approval handler holds exactly two grants, and they are different 
 
   // THE COGNITO HALF IS THE ONE WORTH ASSERTING. This function can mint an identity and
   // disable one, which is the widest thing in the stack after the runner's — so the pool it
-  // may do that to is named, never wildcarded, and the actions are the three the handler
-  // makes and no fourth. `AdminDeleteUser` in particular is absent: deleting a user is not
-  // implemented and not decided.
-  it('may create, read and disable a user in ONE pool, and nothing else', () => {
+  // may do that to is named, never wildcarded, and the actions are the four the handler
+  // makes and no fifth. `AdminEnableUser` is there to undo this file's own disable on the one
+  // path that can turn off an account another caller just approved, and it grants no access by
+  // itself: an enabled identity with no `active` row is refused by every route.
+  // `AdminDeleteUser` in particular is absent: deleting a user is not implemented and not
+  // decided.
+  it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
     const statements = policies[0].Statement;
     const cognito = statements.find((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
     expect(cognito?.Resource).toBe('UserPool.Arn');
     expect((cognito?.Action as string[]).slice().sort()).toEqual([
       'cognito-idp:AdminCreateUser',
       'cognito-idp:AdminDisableUser',
+      'cognito-idp:AdminEnableUser',
       'cognito-idp:AdminGetUser',
     ]);
     const block = source.slice(source.indexOf('  ApproveFunction:'));

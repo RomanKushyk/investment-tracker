@@ -727,7 +727,8 @@ Resources:
 
   # THE APPROVAL GATE, AND THE TWO ROUTES BEHIND THE AUTHORIZER. Approve calls
   # `AdminCreateUser` and rekeys the application row onto the `sub` it returns; reject sets the
-  # status and disables an identity only where one exists. `docs/DECISIONS.md`, **Auth model**.
+  # status and asks the pool to disable the address, taking `UserNotFoundException` as the absence
+  # of an identity rather than reading it off the row. `docs/DECISIONS.md`, **Auth model**.
   #
   # ONE FUNCTION FOR BOTH, dispatching on the route key. They read the same row, take the same
   # gate and differ in one branch; two functions would be two copies of everything but that
@@ -795,6 +796,12 @@ Resources:
                 - cognito-idp:AdminCreateUser
                 - cognito-idp:AdminGetUser
                 - cognito-idp:AdminDisableUser
+                # PAIRED WITH THE DISABLE, and held for nothing else. Reject disables the address
+                # before it knows its own write applied, which is what keeps a rejection from
+                # leaving a signed-in owner behind; where an approve won that race, this is what
+                # puts back an account somebody was just approved into. It grants no access on its
+                # own — an enabled identity with no `active` row is refused by every route.
+                - cognito-idp:AdminEnableUser
               Resource: !GetAtt UserPool.Arn
       Events:
         Approve:

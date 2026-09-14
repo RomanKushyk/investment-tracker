@@ -639,9 +639,17 @@ const MODES: readonly MigrateMode[] = ['rehearse', 'dry-run', 'apply', 'bootstra
  * this turns into clean refusals that create nothing: the schema has not been applied yet
  * (`42P01` from here rather than an identity stranded in the pool), the address already
  * holds an application row, and a super-admin already exists under another address.
+ *
+ * A REJECTED SUPER-ADMIN IS NOT ONE. Reject sets the status and the decision pair and never
+ * touches `role`, so a ruled-on row keeps saying `super_admin` — and read as one it makes this
+ * mode throw for EVERY address, forever, with no endpoint able to undo it: approve refuses a
+ * non-pending row and the gate refuses the caller. The two arms are separate on purpose. Only
+ * the ROLE arm is narrowed; `email = $1` stays unconditional, because a rejected row at the
+ * address being bootstrapped must still be found and refused BY NAME below, rather than reaching
+ * the insert and raising `app_user_email_uq` after an identity has been minted.
  */
 const BOOTSTRAP_LOOK = `SELECT user_id, email, status, role FROM app_user
-                        WHERE email = $1 OR role = 'super_admin'`;
+                        WHERE email = $1 OR (role = 'super_admin' AND status <> 'rejected')`;
 
 /**
  * `ON CONFLICT (user_id) DO NOTHING` and NOT `… RETURNING`.

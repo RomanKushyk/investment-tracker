@@ -189,7 +189,11 @@ describe('no output alias shadows a sorted column (D91)', () => {
     // every request and the target read `approve.ts` makes before it rules.
     // Neither sorts and neither aliases, so both pass trivially too — and both
     // are now in the scan, which is what the set is for.
-    expect(queries.length).toBe(14);
+    //
+    // 14 -> 15 with the read-back `approve.ts` makes after an approval that
+    // failed, which decides whether the identity it minted is still wanted. One
+    // column, no sort and no alias, so it passes trivially and joins the scan.
+    expect(queries.length).toBe(15);
     expect(new Set(queries.map((q) => q.file))).toEqual(
       new Set(['capture.ts', 'asset-delete.ts', 'authorize.ts', 'approve.ts']),
     );

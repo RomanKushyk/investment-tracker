@@ -701,6 +701,47 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(created).toEqual([]);
   });
 
+  // A REJECTED SUPER-ADMIN IS NOT A SUPER-ADMIN. Reject sets the status and the decision pair
+  // and never touches `role`, so the row keeps saying `super_admin` after the decision — and
+  // this look used to read it as one, which made the mode throw for EVERY address, forever. No
+  // endpoint could undo it: approve refuses a non-pending row and the gate refuses the caller,
+  // so the only repair was hand-written SQL against the cluster.
+  it('is not blocked by a super-admin row that was rejected', async () => {
+    const db = await applied();
+    await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         decided_at, decided_by)
+                   VALUES ('11111111-0000-4000-8000-000000000001',
+                           'former@quirenote.com', 'rejected', 'super_admin', now(), now(),
+                           '11111111-0000-4000-8000-000000000001');`);
+    const { idp, created } = spy();
+    const report = await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp);
+
+    expect(created).toHaveLength(1);
+    expect(report.bootstrap).toEqual({
+      email: 'owner@quirenote.com',
+      identity: 'created',
+      row: 'created',
+    });
+  });
+
+  // AND THE ADDRESS ITSELF IS STILL REFUSED BY NAME. Narrowing the look must not narrow the arm
+  // that finds the caller's own row: without it a rejected row at the same address reaches the
+  // insert and raises `app_user_email_uq` AFTER an identity has been minted, which is the exact
+  // stranding this mode asks the database everything first to avoid.
+  it('still refuses a rejected row at the address being bootstrapped', async () => {
+    const db = await applied();
+    await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         decided_at, decided_by)
+                   VALUES ('11111111-0000-4000-8000-000000000002',
+                           'owner@quirenote.com', 'rejected', 'super_admin', now(), now(),
+                           '11111111-0000-4000-8000-000000000002');`);
+    const { idp, created } = spy();
+    await expect(
+      migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),
+    ).rejects.toThrow(/already holds an app_user row \(rejected\/super_admin\)/);
+    expect(created).toEqual([]);
+  });
+
   // The schema not being applied yet is the other way this used to strand an identity: the
   // read fails with `42P01` where the insert would have, which is one statement later.
   it('refuses before Cognito when the schema is not there at all', async () => {
