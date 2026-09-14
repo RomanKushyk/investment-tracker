@@ -527,14 +527,24 @@ Resources:
   # --------------------------------------------------------------------------
   # The public API
   # --------------------------------------------------------------------------
-  # THE FIRST HTTP API IN THIS REPOSITORY, and it carries one route. The authenticated
-  # routes and the JWT authorizer arrive with the approval endpoint and inherit this API
-  # rather than creating a second one.
+  # THE ONLY HTTP API IN THIS REPOSITORY, and every route the backend grows joins it rather
+  # than creating a second one.
   #
   # `POST /v1/applications` STANDS OUTSIDE THE AUTHORIZER ON PURPOSE. It exists to create
   # the very `app_user` row every other route is checked against, so there is nothing to
   # check it with — `docs/DECISIONS.md`, **Auth model**, names it as one of exactly three
   # such surfaces.
+  #
+  # EVERY OTHER ROUTE NAMES THE AUTHORIZER, and `DefaultAuthorizer` is deliberately NOT set. The
+  # default reads safer and would have been the choice, but SAM renders an opted-out route as
+  # `security: [{"NONE": []}]` against a scheme it never declares — and `FailOnWarnings: true`
+  # above rolls the stack back on a warning `ImportApi` merely records. Whether it records one
+  # here is not answerable before a deploy, and the answer would arrive as a red deploy blocking
+  # `dev`. So the guarantee is held one step earlier instead: `public-api.test.ts` derives the
+  # route list from the events and fails when a route names no authorizer and is not on the
+  # written public list — and `pnpm test` runs in this same workflow, before the deploy step. A
+  # route that forgot its authorizer therefore cannot reach AWS at all, which is the property
+  # `DefaultAuthorizer` was wanted for. Measure the warning and this can become the default.
   #
   # NO `Globals:` BLOCK, here as everywhere in this file: properties are spelled out so
   # there is one place per value rather than two that can drift.
@@ -547,6 +557,36 @@ Resources:
       # warning. That is how the CORS block below could have shipped as the wrong shape
       # with every stack green. Rolling back on a warning is what makes such a thing loud.
       FailOnWarnings: true
+      # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER, and the split is the whole design.
+      # This authorizer proves the token — signature against the pool's `jwks_uri`, issuer,
+      # audience, expiry — and NOTHING ELSE. It cannot prove anything that has happened since
+      # the token was issued, and the client's refresh token lasts 3650 days against a
+      # 60-minute access token, so `status` and `role` are read from the `app_user` row on
+      # every request and `cognito:groups` is never the source. `docs/DECISIONS.md`,
+      # **Auth model**.
+      #
+      # NATIVE, WITH NO LAMBDA IN THE PATH. A request token authorizer would be a second
+      # function on every authenticated route, a second cold start, and a second thing that can
+      # be wrong about a signature AWS already checks.
+      #
+      # THE POOL AND THE CLIENT ARE THIS ENVIRONMENT'S OWN, read from the stack. One pool per
+      # environment is what stops a dev sign-in minting a production identity, and a spelled-out
+      # id here would undo that in the quietest possible way.
+      Auth:
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
+              # THE AUDIENCE ADMITS BOTH TOKEN KINDS AND ONLY THE HANDLER CAN TELL THEM APART.
+              # API Gateway matches `aud`, or `client_id` when `aud` is absent — an ID token
+              # carries the first and a Cognito access token the second, so both pass here. Only
+              # the ID token carries `email`, which the gate needs to write a row for somebody
+              # who arrives through an open door, so `authorize.ts` requires `token_use: id` and
+              # refuses the other by name. AWS's own note says there is no standard mechanism
+              # for this distinction, which is why it is made in code rather than assumed here.
+              audience:
+                - !Ref UserPoolClient
       # NO `StageName`, so the stage is `$default` and the path is the same on both
       # hostnames. A named stage prefixes the generated endpoint and not the custom
       # domain, which would make the verification URL and the real one differ by a
@@ -570,8 +610,22 @@ Resources:
       #
       # QUOTED, because the key is `<METHOD> <path>` and YAML 1.1 reads a bare ON/OFF/NO/YES
       # as a boolean. A key that arrived as `true` would configure nothing and fail nowhere.
+      #
+      # EVERY ROUTE HAS ONE, NOT ONLY THE UNAUTHENTICATED ONE, and the admin routes need it for a
+      # reason their function's timeout makes concrete: the role check runs INSIDE the Lambda,
+      # after the connection, so the authorizer admits every holder of a valid pool token and only
+      # the handler knows they are not a super-admin. A `pending` applicant left on the stage's 25
+      # rps against a 10-second timeout would want hundreds of concurrent executions out of an
+      # account pool this file sizes at about ten — starving the capture job, the sign-up trigger
+      # and the runner. `public-api.test.ts` holds every declared route to having an entry.
       RouteSettings:
         'POST /v1/applications':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /admin/users/{id}/approve':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, because both serve the app: the custom domain and the
@@ -596,11 +650,11 @@ Resources:
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
           AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [content-type]
+          AllowHeaders: [authorization, content-type]
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
           AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [content-type]
+          AllowHeaders: [authorization, content-type]
           MaxAge: 600
       Domain:
         DomainName: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
@@ -660,11 +714,110 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /v1/applications
+            # NO `Auth` BLOCK, AND THAT IS THE ONE PLACE IN THIS FILE WHERE ABSENCE IS THE
+            # DECISION. This endpoint creates the row every other route is checked against, so
+            # there is nothing to check it with — see the API's comment above, and
+            # `public-api.test.ts`, which names it as the only route allowed to be here.
 
   ApplicationsLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ApplicationsFunction}
+      RetentionInDays: 30
+
+  # THE APPROVAL GATE, AND THE TWO ROUTES BEHIND THE AUTHORIZER. Approve calls
+  # `AdminCreateUser` and rekeys the application row onto the `sub` it returns; reject sets the
+  # status and disables an identity only where one exists. `docs/DECISIONS.md`, **Auth model**.
+  #
+  # ONE FUNCTION FOR BOTH, dispatching on the route key. They read the same row, take the same
+  # gate and differ in one branch; two functions would be two copies of everything but that
+  # branch and a second place for the gate to be forgotten.
+  ApproveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: approve.handler
+      # Spelled out rather than inherited, as its neighbours are and for the same reason.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # LONGER THAN THE APPLICATION'S 5, and the reason is the extra round trip rather than extra
+      # work: approve makes a Cognito call between two database statements, and `AdminCreateUser`
+      # sends an email before it answers.
+      #
+      # THE CONCURRENCY BUDGET STILL GOVERNS, AND IT IS THE ROUTES' THROTTLES THAT BOUND IT — not
+      # the fact that only a super-admin may act. The role check runs HERE, after the connection,
+      # so the authorizer admits every holder of a valid pool token and a `pending` applicant
+      # reaches this function exactly as often as they care to ask. TWO ROUTES SHARE THIS
+      # FUNCTION, so the ceiling is both of them: 4 rps against a 10-second timeout wants ~40
+      # concurrent executions out of a pool this file sizes at about ten. That is the pessimistic
+      # reading — timeout times rate assumes every call runs to the limit, where a refusal returns
+      # in well under a second — but it is the reading this file uses everywhere else, and it is
+      # the reason the two throttles exist rather than the stage default.
+      Timeout: 10
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
+          AWS_REGION_NAME: !Ref AWS::Region
+          NODE_OPTIONS: --enable-source-maps
+          # The pool this function may act on, read from the stack — the same way the runner
+          # reads it, and for the same reason: there is no second place for it to be wrong.
+          USER_POOL_ID: !Ref UserPool
+          # THE THIRD CONSUMER OF THE ONE SWITCH, beside the pool's `AllowAdminCreateUserOnly`
+          # and the trigger's own copy. The gate is what writes a row for somebody who got in
+          # while the door was open, so a switch that drove only the first two would let them
+          # through the pool and then refuse them at every route. Quoted, and read as the exact
+          # string: an environment variable arrives as text and `Boolean('false')` is `true`.
+          OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
+      Policies:
+        - Statement:
+            # The same admin grant the runner and the applications endpoint hold, for the
+            # reason written out beside theirs: DSQL authenticates as a database role and the
+            # only one this cluster has is `admin`.
+            - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S, and it is stated rather than
+            # hidden: this function can mint an identity and take one away. Three actions, one
+            # pool, named — `AdminDeleteUser` is deliberately absent, because deleting a user is
+            # not implemented and not decided, and a grant held for a call nobody makes is a
+            # call somebody can make later without anyone deciding.
+            #
+            # NAMING THE POOL FROM HERE BUILDS NO CYCLE, unlike the trigger's grant: the pool
+            # names `PreSignUpFunction` in its `LambdaConfig`, so nothing the pool depends on may
+            # name the pool back — and this function is not in that chain. The trigger's policy
+            # is a separate `AWS::IAM::Policy` for exactly that reason; this one is inline.
+            - Sid: RuleOnApplications
+              Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminDisableUser
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Approve:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /admin/users/{id}/approve
+            Auth:
+              Authorizer: CognitoJwt
+        Reject:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /admin/users/{id}/reject
+            Auth:
+              Authorizer: CognitoJwt
+
+  ApproveLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ApproveFunction}
       RetentionInDays: 30
 
 Outputs:

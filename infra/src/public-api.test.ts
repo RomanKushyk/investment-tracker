@@ -11,6 +11,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
+// THE HANDLER'S OWN CONSTANTS, NOT A SECOND COPY OF THE SAME STRINGS. The route key is matched by
+// string equality in three places — the template declares it, the template throttles it by the
+// same key, and the handler dispatches on it — and nothing validates any of them against another.
+// Renamed on one side alone, every suite here stays green and every admin call answers 400.
+import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
+
 type Resource = {
   Type: string;
   Properties?: Record<string, unknown>;
@@ -28,8 +34,29 @@ const user = doc.toJS() as Template;
 const props = (id: string) => user.Resources[id]?.Properties ?? {};
 
 const ROUTE = 'POST /v1/applications';
+const AUTHORIZER = 'CognitoJwt';
 const DEV_API = 'api.dev.quirenote.com';
 const PROD_API = 'api.quirenote.com';
+
+type Event = {
+  Type?: string;
+  Properties?: { ApiId?: string; Method?: string; Path?: string; Auth?: { Authorizer?: string } };
+};
+
+/** Every HttpApi route the template declares, as `<function> <METHOD> <path>` plus its authorizer. */
+const declaredRoutes = () =>
+  Object.entries(user.Resources)
+    .filter(([, r]) => r.Type === 'AWS::Serverless::Function')
+    .flatMap(([id, r]) =>
+      Object.values((r.Properties?.Events ?? {}) as Record<string, Event>)
+        .filter((e) => e.Type === 'HttpApi')
+        .map((e) => ({
+          fn: id,
+          api: e.Properties?.ApiId,
+          key: `${e.Properties?.Method} ${e.Properties?.Path}`,
+          authorizer: e.Properties?.Auth?.Authorizer,
+        })),
+    );
 
 describe('one unauthenticated route, on a domain the stack cannot finish', () => {
   // The anchor `cognito-pool.test.ts` and `stack-split.test.ts` both open with, for the
@@ -54,14 +81,90 @@ describe('one unauthenticated route, on a domain the stack cannot finish', () =>
     expect(props('ApplicationsFunction').Handler).toBe('applications.handler');
   });
 
-  // NO AUTHORIZER, DELIBERATELY, and this is the one place that is true by design rather
-  // than by omission. `docs/DECISIONS.md`, **Auth model**: three surfaces stand outside the
-  // authorizer and check no application row — the archive's reads, the demo's, and the
-  // sign-up application, which exists to create the very row the others are checked
-  // against. The authorizer arrives with the authenticated routes; an `Auth` block landing
-  // here quietly before then would close the only door a first visitor has.
+  // NO AUTHORIZER IN FRONT OF THIS ONE ROUTE, deliberately. `docs/DECISIONS.md`, **Auth
+  // model**: three surfaces stand outside the authorizer and check no application row — the
+  // archive's reads, the demo's, and the sign-up application, which exists to create the very
+  // row the others are checked against. One of the three is a route on this API today.
   it('puts no authorizer in front of the application', () => {
-    expect(props('PublicApi').Auth).toBeUndefined();
+    const [submit] = declaredRoutes().filter((r) => r.key === ROUTE);
+    expect(submit.authorizer).toBeUndefined();
+  });
+});
+
+describe('every other route is behind the pool, and the pool is the only issuer', () => {
+  const auth = props('PublicApi').Auth as {
+    Authorizers?: Record<string, Record<string, unknown>>;
+    DefaultAuthorizer?: string;
+  };
+
+  // ONE AUTHORIZER, NATIVE, NO LAMBDA IN THE PATH — `docs/DECISIONS.md`, **Auth model**. A
+  // second one would be a second answer to which pool a token may come from.
+  //
+  // AND NO `DefaultAuthorizer`, WHICH IS A DECISION RATHER THAN AN OVERSIGHT. SAM renders a
+  // route opted out of a default as `security: [{"NONE": []}]` against a scheme it never
+  // declares, and this API sets `FailOnWarnings: true` — which rolls the stack back on a warning
+  // `ImportApi` merely records. Whether it records one there is not answerable before a deploy,
+  // and the answer would arrive as a red deploy blocking `dev`. The guarantee the default was
+  // wanted for is the next test instead, and it runs in this same workflow BEFORE the deploy
+  // step, so a route that forgot its authorizer cannot reach AWS at all.
+  it('declares one JWT authorizer and no default', () => {
+    expect(Object.keys(auth?.Authorizers ?? {})).toEqual([AUTHORIZER]);
+    expect(auth?.DefaultAuthorizer).toBeUndefined();
+    expect(source).not.toMatch(/Authorizer:\s*NONE/);
+  });
+
+  it('trusts this environment’s own pool and this environment’s own client', () => {
+    const jwt = auth.Authorizers?.[AUTHORIZER].JwtConfiguration as {
+      issuer?: string;
+      audience?: string[];
+    };
+    // `toJS()` keeps an intrinsic's value and discards its tag, so the `!Sub` arrives as its
+    // template text and the `!Ref` as the bare logical id.
+    expect(jwt?.issuer).toBe('https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}');
+    expect(jwt?.audience).toEqual(['UserPoolClient']);
+    // AND BOTH ARE STILL INTRINSICS. A pool id spelled out here would pin one environment's
+    // pool into both stacks, and the assertions above cannot tell that from a string.
+    expect(source).toMatch(/issuer:\s*!Sub\s+https:\/\/cognito-idp\./);
+    expect(source).toMatch(/-\s*!Ref\s+UserPoolClient/);
+    expect(auth.Authorizers?.[AUTHORIZER].IdentitySource).toBe('$request.header.Authorization');
+  });
+
+  // THIS IS THE ONE THAT STANDS IN FOR `DefaultAuthorizer`, and it is stronger in the way that
+  // matters: a route declared with no authorizer fails the suite, and `pnpm test` runs earlier in
+  // the same workflow than `sam deploy`, so such a route never reaches AWS. PUBLIC IS A WRITTEN
+  // LIST, not a count — a count is satisfied by the wrong route being the exception.
+  const PUBLIC = [ROUTE];
+
+  // A `Globals:` BLOCK IS THE ONE WAY AUTH CAN MOVE WITHOUT A ROUTE MOVING. The template forbids
+  // one in prose — "NO `Globals:` BLOCK, here as everywhere in this file" — and prose is not a
+  // gate: `Globals.HttpApi.Auth` would reach every route at once, from outside the derivation
+  // below, and the test would keep reading the events and keep passing.
+  it('declares no Globals block', () => {
+    expect(user as Record<string, unknown>).not.toHaveProperty('Globals');
+  });
+
+  it('gives every route the authorizer except the ones written down as public', () => {
+    const unprotected = declaredRoutes()
+      .filter((r) => r.authorizer !== AUTHORIZER)
+      .map((r) => r.key);
+    expect(unprotected).toEqual(PUBLIC);
+  });
+
+  // AND EVERY ROUTE IS ON THIS API. A second `AWS::Serverless::HttpApi` is an allowed resource
+  // type here, so a route could be declared against one that carries no authorizer at all — and
+  // the check above, which reads the event's own `Auth` block, would not notice.
+  it('declares every route against the one API', () => {
+    expect(declaredRoutes().map((r) => r.api)).toEqual(declaredRoutes().map(() => 'PublicApi'));
+  });
+
+  it('puts approve and reject on this API, each naming the authorizer', () => {
+    const admin = declaredRoutes().filter((r) => r.fn === 'ApproveFunction');
+    expect(admin.map((r) => r.key).sort()).toEqual([APPROVE_ROUTE, REJECT_ROUTE].sort());
+    for (const route of admin) {
+      expect([route.key, route.api]).toEqual([route.key, 'PublicApi']);
+      expect([route.key, route.authorizer]).toEqual([route.key, AUTHORIZER]);
+    }
+    expect(props('ApproveFunction').Handler).toBe('approve.handler');
   });
 });
 
@@ -72,13 +175,26 @@ describe('the route is throttled below the stage it sits in', () => {
   // the account-level token bucket rather than the table: an unauthenticated route left on
   // the stage default drains the bucket and takes every other route down with it,
   // including the ones a signed-in owner needs to reach their own portfolio.
-  it('gives the route its own ceiling, under the stage default', () => {
+  // EVERY ROUTE, NOT ONLY THE UNAUTHENTICATED ONE. The admin routes need it for a reason that is
+  // easy to talk yourself out of: the role check runs inside the Lambda, after the connection, so
+  // the authorizer admits every holder of a valid pool token and a `pending` applicant reaches
+  // the function as often as they like. Left on the stage default they would want hundreds of
+  // concurrent executions out of an account pool the template sizes at about ten.
+  it('gives every route its own ceiling, under the stage default', () => {
     const stage = props('PublicApi').DefaultRouteSettings as Record<string, number>;
     const routes = props('PublicApi').RouteSettings as Record<string, Record<string, number>>;
     expect(stage.ThrottlingRateLimit).toBeGreaterThan(0);
-    expect(routes[ROUTE]).toBeDefined();
-    expect(routes[ROUTE].ThrottlingRateLimit).toBeLessThan(stage.ThrottlingRateLimit);
-    expect(routes[ROUTE].ThrottlingBurstLimit).toBeLessThan(stage.ThrottlingBurstLimit);
+    for (const { key } of declaredRoutes()) {
+      expect([key, routes[key] !== undefined]).toEqual([key, true]);
+      expect([key, routes[key].ThrottlingRateLimit < stage.ThrottlingRateLimit]).toEqual([
+        key,
+        true,
+      ]);
+      expect([key, routes[key].ThrottlingBurstLimit < stage.ThrottlingBurstLimit]).toEqual([
+        key,
+        true,
+      ]);
+    }
   });
 
   // ONE ENTRY, SPELLED THE WAY THE ROUTE ITSELF IS DECLARED. A throttle is matched to its
@@ -86,15 +202,12 @@ describe('the route is throttled below the stage it sits in', () => {
   // route that does not exist configures nothing, fails nowhere, and leaves the real route
   // on the stage default — the exact state this block exists to prevent. So the key is
   // derived from the event rather than compared to a second copy of the same literal.
-  it('names one route, and names it the way the route is declared', () => {
-    expect(Object.keys(props('PublicApi').RouteSettings as object)).toEqual([ROUTE]);
-    const submit = Object.values(
-      (props('ApplicationsFunction').Events ?? {}) as Record<
-        string,
-        { Properties?: { Method?: string; Path?: string } }
-      >,
-    )[0]?.Properties;
-    expect(`${submit?.Method} ${submit?.Path}`).toBe(ROUTE);
+  it('throttles the routes that exist and no others', () => {
+    expect(Object.keys(props('PublicApi').RouteSettings as object).sort()).toEqual(
+      declaredRoutes()
+        .map((r) => r.key)
+        .sort(),
+    );
   });
 });
 
@@ -129,7 +242,14 @@ describe('the browser origins are named per environment', () => {
       ['dev', dev],
     ] as const) {
       expect([name, arm.AllowMethods?.slice().sort()]).toEqual([name, ['OPTIONS', 'POST']]);
-      expect([name, arm.AllowHeaders]).toEqual([name, ['content-type']]);
+      // `authorization` IS WHAT LETS A BROWSER SEND THE TOKEN AT ALL. The admin routes are on
+      // a different host from the app, so every call is cross-origin and the preflight refuses
+      // a header the list does not name — a failure that appears only in a browser, never in
+      // `curl`, and only once a screen exists to make the call.
+      expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
+        name,
+        ['authorization', 'content-type'],
+      ]);
     }
   });
 });
@@ -225,5 +345,53 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
   it('carries a log group of its own, retained like the others', () => {
     expect(user.Resources.ApplicationsLogGroup?.Type).toBe('AWS::Logs::LogGroup');
     expect(props('ApplicationsLogGroup').RetentionInDays).toBe(30);
+  });
+});
+
+describe('the approval handler holds exactly two grants, and they are different in kind', () => {
+  const policies = props('ApproveFunction').Policies as [{ Statement: Record<string, unknown>[] }];
+
+  // THE COGNITO HALF IS THE ONE WORTH ASSERTING. This function can mint an identity and
+  // disable one, which is the widest thing in the stack after the runner's — so the pool it
+  // may do that to is named, never wildcarded, and the actions are the three the handler
+  // makes and no fourth. `AdminDeleteUser` in particular is absent: deleting a user is not
+  // implemented and not decided.
+  it('may create, read and disable a user in ONE pool, and nothing else', () => {
+    const statements = policies[0].Statement;
+    const cognito = statements.find((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
+    expect(cognito?.Resource).toBe('UserPool.Arn');
+    expect((cognito?.Action as string[]).slice().sort()).toEqual([
+      'cognito-idp:AdminCreateUser',
+      'cognito-idp:AdminDisableUser',
+      'cognito-idp:AdminGetUser',
+    ]);
+    const block = source.slice(source.indexOf('  ApproveFunction:'));
+    expect(block).toMatch(/Resource:\s*!GetAtt\s+UserPool\.Arn/);
+  });
+
+  it('may connect to the user cluster and to no other', () => {
+    const statements = policies[0].Statement;
+    const dsql = statements.find((s) => s.Action === 'dsql:DbConnectAdmin');
+    expect(dsql?.Resource).toBe('UserCluster.ResourceArn');
+    expect(statements).toHaveLength(2);
+    const block = source.slice(source.indexOf('  ApproveFunction:'));
+    expect(block).toMatch(/Resource:\s*!GetAtt\s+UserCluster\.ResourceArn/);
+  });
+
+  // ONE PARAMETER DRIVES EVERY CONSUMER OF THE SWITCH. The pool's `AllowAdminCreateUserOnly`
+  // and the trigger's environment were the first two; the gate is the third, because it is
+  // what creates a row for somebody who got in through the open door. Read from the same
+  // condition so the three cannot disagree.
+  it('reads the pool and the registration switch from the stack, not from a literal', () => {
+    const vars = (props('ApproveFunction').Environment as { Variables?: Record<string, unknown> })
+      ?.Variables;
+    expect(vars?.USER_POOL_ID).toBe('UserPool');
+    expect(vars?.DSQL_ENDPOINT).toBe('UserCluster.Endpoint');
+    expect(vars?.OPEN_REGISTRATION).toEqual(['IsRegistrationOpen', 'true', 'false']);
+  });
+
+  it('carries a log group of its own, retained like the others', () => {
+    expect(user.Resources.ApproveLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('ApproveLogGroup').RetentionInDays).toBe(30);
   });
 });

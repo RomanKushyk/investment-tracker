@@ -138,11 +138,12 @@ describe('the user stack holds user data and nothing else', () => {
     for (const [id, r] of resources(user)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
 
-  // THREE FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
+  // FOUR FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
   // asserted while there was one; a count passes just as well against the wrong set.
-  it('holds the runner, the sign-up trigger and the applications endpoint, and nothing else', () => {
+  it('holds the runner, the trigger, the application and the approval, and nothing else', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
+      'approve.handler',
       'migrate.handler',
       'pre-signup.handler',
     ]);

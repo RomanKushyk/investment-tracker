@@ -351,6 +351,72 @@ drive the second. The two would then disagree with no symptom: the trigger wavin
 a door the pool still holds shut. One CloudFormation parameter drives both, defaulting to closed,
 and reading it from the trigger's environment rather than from a table is also what keeps a
 Lambda on a path a stranger reaches out of the portfolio database.
+**The gate is a MODULE every route calls, not a Lambda in the path, and it answers with more than
+yes or no.** The authorizer in front of it is API Gateway's own and proves one thing: the signature
+against the pool's `jwks_uri`, the issuer, the audience and the expiry. Authentication is its,
+authorization is the handler's. EVERY ROUTE NAMES THE AUTHORIZER and the public surfaces carry no
+auth block at all — one of the three is a route today, the sign-up application. A
+`DefaultAuthorizer` would read safer and was declined: SAM renders an opted-out route against a
+security scheme it never declares, and the API sets `FailOnWarnings`, which rolls the stack back on
+a warning the import merely records. Whether it records one there cannot be answered before a
+deploy, and the answer would arrive as a red deploy blocking `dev`. So the guarantee sits one step
+earlier, where it is cheaper and stricter: the suite derives the route list from the template and
+fails a route that names no authorizer and is not on the written public list — and the tests run in
+the same workflow BEFORE the deploy step, so such a route never reaches AWS at all. The refusals are
+three and they are told apart: `pending` is a caller who is genuinely signed in and may not act yet,
+and is never a 401 — that would say they are not signed in, which is false and sends them back
+through a sign-in that succeeds and changes nothing; `rejected` is a decision; and no row at all,
+while registration is closed, is a third thing. Each is a 403 naming its own reason, and the body
+describes the caller's own record, which is theirs to know — unlike the application endpoint next
+door, whose fixed text exists so it answers nothing about anybody. The API takes the ID TOKEN alone:
+AWS matches `aud`, or `client_id` where there is no `aud`, so a Cognito access token clears the
+authorizer too — and it carries no `email`, which is what a row is written from. `token_use` is what
+separates them and the gate refuses the other by name. **With registration open, the gate is what
+writes that row**, from the token's own `sub` and address, `active` and self-approved for the
+bootstrap's reason — and only where the provider ASSERTS THE ADDRESS VERIFIED, which is the check
+the pre-sign-up trigger makes before it will link an identity and does not make before it lets a
+sign-up through. Without it an open window and a careless provider buy a row for a mailbox its
+holder does not own, and the real owner's later application is absorbed by the unique index and
+answered as though it had been received. Where the address already holds a row under another id —
+somebody applied, and then the window opened — it answers with THAT row's status instead of writing
+a second one, so an open door can neither overturn a rejection nor jump the queue.
+**Approve is a COGNITO WRITE and a row REPLACEMENT; reject is a status.** `AdminCreateUser` is where
+the identity is minted, the monthly active user spent and the one invitation sent, so an approve
+that only moved `status` would leave a flawless row attached to nobody who can sign in. The `sub` it
+returns becomes the row's key — and a DSQL primary key is immutable, so the placeholder row is
+deleted and rewritten in ONE TRANSACTION rather than updated. `applied_at` crosses with it, being
+the only thing the pending row held that cannot be reconstructed. A run that made the identity and
+lost the row is finished by running it again: `UsernameExistsException` sends it to `AdminGetUser`
+for the same `sub`. **A `demo` row is REFUSED rather than merely absent from the queue** — approving
+one would call `AdminCreateUser` on a fabricated address, spend a monthly active user and mail a
+mailbox whose bounce cannot be cleared — which is the thing the role was added for, made structural
+instead of remembered. Reject records the decision, and `AdminDisableUser` is its CONSEQUENCE and
+never its record: an applicant who was never approved has no identity, so the pool is not asked
+about them, and where there is one the disable goes FIRST. A failure then leaves the row untouched
+and rejecting again finishes it, where the other order leaves a `rejected` row whose owner can still
+sign in and a retry that reports the work already done. Deleting a user is not implemented and not
+decided, so no `AdminDeleteUser` is granted to anything.
+**Three limits on ruling, two of them deliberate and one of them merely known.** NOBODY RULES ON
+THEIR OWN ROW: rejecting yourself disables your own account and marks your row `rejected`, after
+which the gate refuses you, approve refuses a non-pending row and the runner's bootstrap throws on
+both of its branches — the only repair is hand-written SQL against the cluster, which is too far to
+fall for one mis-click. REJECT IS TERMINAL FOR A MAILBOX: a `rejected` row cannot be approved, and
+re-applying is absorbed by the unique index and answered with the same 202, so the address is spent
+until somebody decides otherwise — the admin surface's call, not this endpoint's. And a
+FEDERATED-ONLY identity cannot be disabled at all: the pool's username is the address for every
+account this system creates, but a profile minted straight from a provider is named for the provider
+and its subject instead, so the disable answers `UserNotFoundException` and the reject fails with
+the row untouched. It is reachable only with registration open and a provider configured, and it
+fails LOUDLY and leaves access in place rather than marking somebody rejected who is not — which is
+the right direction to fail in, and the reason it is recorded here rather than guessed at in code.
+**The post-confirmation trigger the plan named cannot serve either path, and is declined in
+writing.** AWS invokes it on `ConfirmSignUp`, `AdminConfirmSignUp` and `ConfirmForgotPassword` alone
+— "not for user accounts that you create with your administrator credentials" — so it would never
+see an approved user and never see a federated one, which is both of the cases it was meant to
+cover. Its two jobs went to the two places that already hold what it would have needed: approve,
+which has the `sub` at the moment it creates the identity, and the gate, which loads the row on
+every request anyway and so covers self-service and federation with one mechanism rather than two
+that can drift.
 Reads answer to THREE policies, never mixed in one response and never sharing a route: the price
 archive is public and global, a user's own data is private and per-user, and the demo is public but
 belongs to one owner — the seeded original is a single row set under an
@@ -401,7 +467,13 @@ road. The passkey relying party is what a browser matches a credential against, 
 says as much. The certificate in us-east-1 and one DNS record are the whole of what the cheaper
 option saves. ·
 One pool serving both clusters: it would spend a production monthly active user on every dev
-sign-in and put dev identities in the table a real portfolio is keyed by.
+sign-in and put dev identities in the table a real portfolio is keyed by. ·
+A post-confirmation trigger creating the application row: AWS does not invoke it for an
+admin-created or a federated user, so the two routes into the pool that matter are exactly the
+two it cannot see. · Cognito groups as the role: a token is stamped at issue time and this
+client's refresh token lasts 3650 days, so a demotion would take effect whenever the holder
+happened to refresh. · Letting an open-registration sign-in approve its own earlier application:
+it reads as convenience and is a way to overturn a rejection by signing up again.
 
 ## User schema and deletes
 **Decision.** DSQL refuses `USING btree`, refuses a `CREATE INDEX` that is not `ASYNC`, and has DDL

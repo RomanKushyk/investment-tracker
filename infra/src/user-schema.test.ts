@@ -221,6 +221,36 @@ describe('app_user', () => {
                              now(), ${USER});`);
   });
 
+  // THE TWO CASES ABOVE ARE INSERTS, AND THE APPROVAL GATE TAKES A THIRD SHAPE: it moves a
+  // row out of `pending` with an UPDATE. Nothing here had ever asked the constraint about one,
+  // and an UPDATE is where the pair is likeliest to be forgotten — `SET status = 'rejected'`
+  // reads complete on its own, which is exactly why the database has to be the thing that
+  // refuses it rather than a reviewer.
+  it('refuses an UPDATE that decides a row without recording the decision', async () => {
+    const id = nextId();
+    await accepts(other(id, 'reject-me@x.com'));
+    await refuses(`UPDATE app_user SET status = 'rejected' WHERE user_id = ${id};`);
+  });
+
+  it('refuses an UPDATE that puts a decided row back to `pending` and keeps the pair', async () => {
+    const id = nextId();
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at,
+                                         decided_at, decided_by)
+                     VALUES (${id}, 'decided@x.com', 'active', 'user', now(), now(), ${USER});`);
+    await refuses(`UPDATE app_user SET status = 'pending' WHERE user_id = ${id};`);
+  });
+
+  // THE CHECK IS "NOT BOTH NULL", NOT "BOTH PRESENT", and the gap is recorded here rather
+  // than discovered: a decided row carrying `decided_at` and naming NO approver is legal, so
+  // the constraint cannot be what holds the pair together. `003` is applied on both clusters
+  // and the ledger keys by content hash, so tightening it would be a new migration file and a
+  // new decision — meanwhile what keeps the pair whole is that ONE statement writes both
+  // halves, which is how the approval gate is written.
+  it('ACCEPTS a decided row naming no approver — the halves are held by the writer', async () => {
+    await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at)
+                     VALUES (${nextId()}, 'half@x.com', 'active', 'user', now(), now());`);
+  });
+
   // THE ACCEPTING TWIN COMES FIRST, by the rule stated further down this file.
   // The two halves name ONE mailbox and differ only in case, which is what
   // makes the refusal below attributable: `app_user_email_uq` is byte-exact, so

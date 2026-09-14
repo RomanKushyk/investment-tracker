@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { type ApiEvent, applications, handler } from './applications';
+import { applications, handler } from './applications';
+import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 
 // `005` is DML — the demo row — and it would sit underneath every count below. `DDL` is

@@ -167,7 +167,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications; do
+          for entry in capture migrate pre-signup applications approve; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -196,7 +196,7 @@ jobs:
           # guard beside it was not: `stack-split.test.ts` derived its check from the
           # esbuild step alone, so a handler could be bundled, deployed and never loaded
           # once while the test that looked like it covered this passed.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
@@ -326,6 +326,45 @@ jobs:
                 throw new Error('address not folded: ' + asked[0].values[0]);
               }
               console.log('applications bundle loads, accepts one address and refuses the other');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The approval gate, exercised on the two refusals that cost nothing. Both are
+          # answered BEFORE any Cognito call, which is the property worth holding in the bundled
+          # shape: a mistake here spends a monthly active user and mails an address, and neither
+          # can be taken back. The stub client answers the gate's lookup and the target read from
+          # the same function, told apart by the column only the second one selects.
+          node -e "
+            const a = require('./approve.js');
+            if (typeof a.handler !== 'function') throw new Error('handler missing from approve bundle');
+            process.env.USER_POOL_ID = 'eu-north-1_EXAMPLE';
+            const ADMIN = '9f1e2d3c-0000-4000-8000-00000000ad11';
+            const DEMO = '00000000-0000-4000-8000-00000000de70';
+            const calls = [];
+            const idp = {
+              adminCreateUser: async () => { calls.push('create'); return {}; },
+              adminGetUser: async () => { calls.push('get'); return {}; },
+              adminDisableUser: async () => { calls.push('disable'); return {}; },
+            };
+            const client = (role) => ({
+              query: async (text) => ({
+                rows: text.includes('applied_at')
+                  ? [{ user_id: DEMO, email: 'demo@quirenote.com', status: 'active', role: 'demo', applied_at: new Date() }]
+                  : [{ user_id: ADMIN, email: 'owner@quirenote.com', status: 'active', role: role }],
+              }),
+            });
+            const event = {
+              routeKey: 'POST /admin/users/{id}/approve',
+              pathParameters: { id: DEMO },
+              requestContext: { authorizer: { jwt: { claims: { token_use: 'id', sub: ADMIN, email: 'owner@quirenote.com' } } } },
+            };
+            Promise.all([
+              a.approve(client('super_admin'), idp, event),
+              a.approve(client('user'), idp, event),
+            ]).then(([demo, ordinary]) => {
+              if (demo.statusCode !== 409) throw new Error('approve bundle did not refuse a demo row: ' + demo.statusCode);
+              if (ordinary.statusCode !== 403) throw new Error('approve bundle admitted an ordinary user: ' + ordinary.statusCode);
+              if (calls.length) throw new Error('approve bundle called Cognito on a refusal: ' + calls.join());
+              console.log('approve bundle loads and refuses a demo row and an ordinary caller, without calling Cognito');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 

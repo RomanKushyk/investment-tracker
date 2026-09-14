@@ -12,38 +12,15 @@
 // about the row, its age or its status reaches the caller.
 import { canonicalAddress } from './address';
 import { connect } from './dsql';
+import { INTERNAL, INVALID, type ApiEvent, type ApiResult, json } from './http';
 import type { SqlClient } from './migrate';
-
-/** What API Gateway's payload format 2.0 sends that this handler reads. */
-export type ApiEvent = {
-  body?: string;
-  isBase64Encoded?: boolean;
-};
-
-/** What API Gateway expects back — the shape every route this API grows will answer in. */
-export type ApiResult = {
-  statusCode: number;
-  headers: Record<string, string>;
-  body: string;
-};
-
-// FROZEN, because these are singletons shared by every request this Lambda ever answers.
-// A route that reached for one and added a header would change the answer given to
-// everyone after it, on a container that lives for hours.
-const json = (statusCode: number, body: string): ApiResult =>
-  Object.freeze({
-    statusCode,
-    headers: Object.freeze({ 'content-type': 'application/json' }),
-    body,
-  });
 
 // THREE ANSWERS, EVERY ONE OF THEM FIXED TEXT. A body carrying the cluster's message would
 // repeat a constraint name back to an unauthenticated caller, and a constraint name is a
 // description of the schema; a body that varied with the row would be a directory of who
-// has applied. The CORS headers are the API's, not this file's.
+// has applied. The other two are `http.ts`'s, shared so that one of them cannot start saying
+// something else. The CORS headers are the API's, not this file's.
 const RECEIVED = json(202, '{"status":"received"}');
-const INVALID = json(400, '{"error":"invalid_request"}');
-const INTERNAL = json(500, '{"error":"internal"}');
 
 /** The address a request carries, already folded — or nothing, which is the 400. */
 function addressOf(event: ApiEvent): string | undefined {

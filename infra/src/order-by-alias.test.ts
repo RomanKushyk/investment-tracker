@@ -184,8 +184,15 @@ describe('no output alias shadows a sorted column (D91)', () => {
     // with no `ORDER BY` and no output alias, so they pass the guard below
     // trivially — but they are in its scan, which is the point of naming the
     // set rather than counting alone.
-    expect(queries.length).toBe(12);
-    expect(new Set(queries.map((q) => q.file))).toEqual(new Set(['capture.ts', 'asset-delete.ts']));
+    //
+    // 12 -> 14 with the approval gate: the row lookup `authorize.ts` makes on
+    // every request and the target read `approve.ts` makes before it rules.
+    // Neither sorts and neither aliases, so both pass trivially too — and both
+    // are now in the scan, which is what the set is for.
+    expect(queries.length).toBe(14);
+    expect(new Set(queries.map((q) => q.file))).toEqual(
+      new Set(['capture.ts', 'asset-delete.ts', 'authorize.ts', 'approve.ts']),
+    );
   });
 
   it.each(queries.map((q, i) => [i, q.file, q.sql] as const))(
