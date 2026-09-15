@@ -699,7 +699,9 @@ The skill frontmatter those three skip keeps one guard in `src/`: a description 
 scalar, because an unquoted one ends at the first ` #` and the harness never receives the rest.
 A CloudFormation assertion that depends on an intrinsic reads the tag off the parsed document
 through `intrinsicAt`, which returns the tag and the value apart, never from a regex over the
-template text.
+template text. An `!If` is a sequence, which `intrinsicAt` refuses, so its tag is read by `tagAt`
+and every `!If` in the user stack is held as one set derived by walking the document, not as a
+guard written beside each value.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
 happens to be running is not a gate, and prettier re-pads every table cell it is let near. `toJS()`
@@ -708,12 +710,23 @@ one value to a parsed template; a text guard beside it has to be unique to the l
 and a template writes the same variable on several lines, so the guards meant to catch a dropped
 tag passed against another resource's line. Apart rather than joined into one string, because a
 QUOTED tag is a scalar whose value is that text: joined it reads as the intrinsic and deploys as
-the text.
+the text. The sequence form is the same hazard behind a louder excuse — that a dropped `!If` is a
+list where a string belongs, so the deploy refuses it. The only instrument standing before the
+deploy is the SAM transform, and run with one tag removed at a time it refuses `CorsConfiguration`
+alone and passes every other one through: SAM rewrites only its own resources and type-checks fewer
+properties still. What CloudFormation does with the rest is not answerable without deploying a
+template broken on purpose at a live pool — the same trade the auth model already took, where a
+question that only a red deploy could settle is settled instead by a test running before the deploy
+step. Derived rather than listed because a guard beside a value catches one removed and never one
+added, and the stack has conditional values with no assertion on their arms to sit beside.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · A component or E2E harness: the browser check is the verification. · A
 source regex per value, or one sliced to a resource's own block: both make every value that comes
 after re-derive which spelling happens to be unique, and a slice taken to the end of the file is
-not a block.
+not a block. · Widening `intrinsicAt` to reach a sequence: a scalar that quietly became one must
+keep throwing rather than read as a value. · A list of the conditional paths standing on its own,
+reconciled against nothing: it catches an intrinsic removed and never one added, and a hand-kept
+inventory went stale inside a milestone in this suite already.
 
 ## Dependabot
 **Decision.** Security only — alerts and automated security fixes as repository settings, and
