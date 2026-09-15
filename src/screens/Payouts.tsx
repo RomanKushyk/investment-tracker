@@ -123,13 +123,22 @@ export function Payouts() {
             the rail. Card no longer sets overflow — a rounded card clipping its
             own content is where the square platform track came from. */}
           <Scroller orientation="horizontal">
-            <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
+            {/* 720, NOT 560: that bound was written for five columns and there
+              are seven. Measured, the seven need 717,86 of max-content, and at
+              768 the table already scrolls at five — so leaving 560 would cramp
+              the two new columns instead of letting the Scroller do its job. */}
+            <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="text-left text-muted">
                   <th className="py-2 font-normal">{t.analytics.date}</th>
                   <th className="py-2 font-normal">{t.analytics.asset}</th>
                   <th className="py-2 font-normal">{t.analytics.type}</th>
                   <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
+                  {/* AFTER the amount, where they read as a deduction from it and
+                    the remainder — the order the tax spec names when it says a
+                    tracker carries gross, withholding and net. */}
+                  <th className="py-2 text-right font-normal">{t.analytics.withheldUah}</th>
+                  <th className="py-2 text-right font-normal">{t.analytics.netOfTaxUah}</th>
                   <th className="py-2 font-normal">{t.analytics.destination}</th>
                 </tr>
               </thead>
@@ -145,6 +154,16 @@ export function Payouts() {
                       <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
                     </td>
                     <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
+                    {/* EMPTY WHERE THERE IS NONE, the net cell included: such a
+                      row's net IS the amount column, so printing it would repeat
+                      one figure on seven of the eight seeded rows. Not a dash and
+                      not a zero — the rule the ledger row's note already follows. */}
+                    <td className="py-2 text-right font-bold">
+                      {row.taxWithheld !== undefined ? f.num(row.taxWithheld) : ''}
+                    </td>
+                    <td className="py-2 text-right font-bold">
+                      {row.taxWithheld !== undefined ? f.num(row.net) : ''}
+                    </td>
                     <td className="py-2">{destination(row)}</td>
                   </tr>
                 ))}
@@ -167,6 +186,27 @@ export function Payouts() {
             >
               <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
               <Fact label={t.analytics.destination}>{destination(row)}</Fact>
+              {/* The two-column `<dl>` takes these as a SECOND ROW — measured
+                137 × 137, and both labels hold one line there. On a row with no
+                withholding the pair is absent rather than empty: a card has no
+                table structure to keep, so there is nothing to fill. The labels
+                are the table's headers verbatim, which `RecordCard` requires —
+                a reader who learns a column name on a laptop must find it again
+                on a phone.
+
+                THE ORDER DIVERGES FROM THE TABLE'S, deliberately. The table runs
+                Amount · Withheld · Net · Destination; here the pair comes after
+                Destination, which puts Withheld directly BELOW the amount it was
+                taken from in the two-column grid, and keeps the deduction beside
+                its own remainder. Inserting before Destination would read the
+                table's order and split the pair diagonally instead. `RecordCard`
+                binds the LABELS, not the sequence. */}
+              {row.taxWithheld !== undefined && (
+                <>
+                  <Fact label={t.analytics.withheldUah}>{f.num(row.taxWithheld)}</Fact>
+                  <Fact label={t.analytics.netOfTaxUah}>{f.num(row.net)}</Fact>
+                </>
+              )}
             </RecordCard>
           ))}
         </div>

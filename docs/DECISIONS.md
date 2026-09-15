@@ -882,10 +882,21 @@ user types; naming a bond from the provider list fills its maturity, next coupon
 A payout also asks what was WITHHELD from it, in the two-column slot the units take on the other side
 of the amount — one layout rule with a second occupant, so «Джерело коштів» drops to its own row
 exactly as units already make it drop. The amount changes column with the type there as it already
-does between a buy and a deposit; what the placement settles is which field it is paired with. Every type asks for a NOTE, up to
+does between a buy and a deposit; what the placement settles is which field it is paired with. A
+withholding is also READ BACK, on the two surfaces that owe it: a line of its own on the ledger row,
+between the amount and the note, and a withheld and a net-of-tax column on the payout log — so
+`/payouts` stops reporting only gross. Both name the withheld figure and the net beside it, and
+both draw NOTHING where a payout carries none — no dash, no zero, no empty line, the net cell
+included, since such a row's net is its amount already. Every type asks for a NOTE, up to
 **100 characters**, absent rather than empty and refused by a sentence rather than capped by the
 control; the ledger row draws it as a second line, and a row with no note draws nothing at all.
-**Why.** The note's cap is a DRAWN number rather than a stored one: at 360 the ledger row is 280 px
+**Why.** A figure that is written, stored and derived from but shown nowhere cannot be checked: the
+bound catches a decimal slipped up and deliberately not one slipped down, so a wrong withholding
+understates the tax, overstates the net and lifts that asset's XIRR in silence. The row's line
+carries a MINUS rather than the word «утримано», and that is measured rather than preferred — at
+11 px the second line holds 42,4 characters, and spelling the word out clears 280 by 9,39 on a
+three-figure payout and overruns it on a four-figure dividend, so it fits the demo and not the data. The note's cap is a DRAWN number
+rather than a stored one: at 360 the ledger row is 280 px
 and its label already truncates, so a note cannot join that line, and on a second line a hundred
 characters is three lines and 48 px — taking a bordered record from 61 to 111, near double, where a
 fourth line would read as a paragraph hanging under it. It is counted in characters and not lines because
@@ -895,7 +906,12 @@ the cap. Those four are facts about the instrument, not the user's data, so over
 right where overwriting a typed code is not. A screen that is locally optimal and globally foreign
 is the worse outcome, and a field that is not read where it is filled cannot be fixed by making it
 easier to fill.
-**Rejected.** Six characters in the code: it fits only by widening the circle into a pill. · A
+**Rejected.** A withholding line SHARING the note's: it would narrow the note and so re-derive the
+100 that `transaction_note_ck` holds in SQL, where a full-width line above it leaves the note at
+three lines and moves only the record's height. · A third word for the net: «чистими» fits every
+width and is still refused, the dictionary already having «після податку». · A net printed on an
+untaxed payout: it would repeat the amount column on seven of the eight seeded rows. ·
+Six characters in the code: it fits only by widening the circle into a pill. · A
 control with no answer of its own: it can only agree with what it sits beside, or contradict it. · A
 `textarea` for the note: a hundred characters is a line, not a paragraph, and a control at any height
 but 36 is invisible to the structural walk that holds every field edge — the guard would silently

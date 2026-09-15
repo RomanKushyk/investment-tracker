@@ -64,6 +64,10 @@ export const SEED_ASSETS: Asset[] = [
 // Deposits = own-funded buys + the ₴7,75 cash residue (D5#6). The 12.05/648,13
 // dividend of the reference log is seeded as 10.05/472,13 (D5#3); reinvests sit
 // on the same date+asset as their source payout so Destination cells derive.
+// ONE PAYOUT IS TAXED, and p7 is the only row that can be: a withholding needs a
+// DIVIDEND (ОВДП coupons are exempt), inside the 3-month window so the period
+// control is exercised, and a paired reinvest payable out of the NET — p8 fails
+// that last one, its 687,02 reinvest exceeding what 700,36 less the rate leaves.
 // prettier-ignore — THE LEDGER IS A TABLE, and it is read as one. README §7
 // pins these eighteen rows figure by figure, and at printWidth 100 the four
 // `buy` rows fit on one line while the eleven payout rows are 101–110 chars and
@@ -85,7 +89,7 @@ export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'p4', date: '2026-04-10', type: 'dividend_accrual', assetId: 'reit', amount: 612.4, source: 'accrual' },
   { id: 'p5', date: '2026-05-10', type: 'dividend_accrual', assetId: 'reit', amount: 472.13, source: 'accrual' },
   { id: 'p6', date: '2026-06-03', type: 'interest_payout', assetId: 'ovdp6475', amount: 216, source: 'accrual' },
-  { id: 'p7', date: '2026-06-10', type: 'dividend_accrual', assetId: 'reit', amount: 680.55, source: 'accrual' },
+  { id: 'p7', date: '2026-06-10', type: 'dividend_accrual', assetId: 'reit', amount: 680.55, taxWithheld: 95.28, source: 'accrual' },
   { id: 'p8', date: '2026-07-10', type: 'dividend_accrual', assetId: 'reit', amount: 700.36, source: 'accrual' },
   { id: 'r1', date: '2026-06-03', type: 'reinvest', assetId: 'ovdp6475', amount: 216, quantity: 0.2192, source: 'reinvest_6475' },
   { id: 'r2', date: '2026-06-10', type: 'reinvest', assetId: 'reit', amount: 484.36, quantity: 43.4835, source: 'reinvest_reit' },

@@ -1401,6 +1401,41 @@ export function TransactionPanel() {
                       </>
                     )}
                   </div>
+                  {/* THE WITHHOLDING, READ BACK (#138). It was written at the
+                      form, stored on the row and derived into three totals, and
+                      no screen showed it as itself — so a figure small enough to
+                      pass `tax_withheld < amount` understated the tax, overstated
+                      the net and lifted the asset's XIRR with nothing to check it
+                      against a statement.
+
+                      A LINE OF ITS OWN, ABOVE THE NOTE, AND THAT IS THE CAP'S
+                      DOING. The note's 100 characters is a DRAWN number that
+                      `transaction_note_ck` enforces in SQL, derived from a
+                      hundred characters wrapping to three lines at the row's
+                      280 px. Sharing the note's line would narrow it and
+                      re-derive that number; a full-width line above it does not,
+                      and the note still wraps to three at 360 and two at 1280.
+                      The first line was never a candidate — it is already full
+                      there, the label truncating at 53,98.
+
+                      THE MINUS RATHER THAN THE WORD, measured rather than
+                      preferred. At 11 px the line holds 42,4 characters, and
+                      spelling «утримано» out clears 280 by 9,39 on a three-figure
+                      payout and overruns it at 290,41 on a FOUR-figure dividend —
+                      a sum this portfolio's REIT position reaches, so the word
+                      fits today's demo and not tomorrow's data. The minus form
+                      holds to six figures. `signedMoney` carries the U+2212 the
+                      app pins in one place, and «після податку» keeps the net
+                      wording the dictionary already had.
+                      Figures in `design/extensions/withholding-read-back.dc.html` T1. */}
+                  {!asking && tx.taxWithheld !== undefined && (
+                    <div className="mt-0.5 text-[11px] leading-4 text-muted">
+                      {t.transaction.withheldAndNet(
+                        f.signedMoney(-tx.taxWithheld),
+                        f.money(tx.amount - tx.taxWithheld),
+                      )}
+                    </div>
+                  )}
                   {/* THE NOTE, AND NOTHING WHERE THERE IS NONE — no empty line,
                       no dash, no placeholder. Eighteen of eighteen seeded rows
                       are in that state, so it is the normal one and drawing a

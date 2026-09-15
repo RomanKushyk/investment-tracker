@@ -404,11 +404,12 @@ export function Overview() {
                   f.money(income.dividends),
                   f.money(income.coupons),
                 )}
-                {/* S9a net-of-tax line (incomeReceivedNet.total) — equals the
-                    gross value while no payout carries a withholding (demo:
-                    taxes 0). The two categories printed above it come from the
-                    GROSS `incomeReceived`; `incomeReceivedNet` nets both, and
-                    only its total is read here. */}
+                {/* S9a net-of-tax line. The two categories printed above it come
+                    from the GROSS `incomeReceived`; `incomeReceivedNet` nets both
+                    and only its total is read here, so the split and the total
+                    are deliberately on different bases. It sits below gross by
+                    every withholding recorded, and the part itself is named on
+                    the two screens #138 gave it rather than here. */}
                 <div>{t.analytics.prose.netOfTax(f.money(incomeNet.total))}</div>
               </>
             }

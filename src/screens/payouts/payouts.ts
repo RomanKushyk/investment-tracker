@@ -40,6 +40,10 @@ export interface PayoutLogRow {
   assetId: string;
   type: Extract<TxType, 'dividend_accrual' | 'interest_payout'>;
   amount: number;
+  /** Absent is the only spelling of none — never 0 (#136's shape). */
+  taxWithheld?: number;
+  /** `amount − coalesce(taxWithheld, 0)`, derived here so the screen has no arithmetic. */
+  net: number;
   destination: PayoutDestination;
 }
 
@@ -58,7 +62,17 @@ export function payoutLogRows(transactions: Transaction[]): PayoutLogRow[] {
       const destination: PayoutDestination = match
         ? { kind: 'reinvested', amount: match.amount }
         : { kind: 'account' };
-      return { date: t.date, assetId: t.assetId, type: t.type, amount: t.amount, destination };
+      return {
+        date: t.date,
+        assetId: t.assetId,
+        type: t.type,
+        amount: t.amount,
+        // Spread rather than assigned, so an untaxed row carries no key at all
+        // — the same shape the store, the envelope and the CSV already use.
+        ...(t.taxWithheld === undefined ? {} : { taxWithheld: t.taxWithheld }),
+        net: t.amount - (t.taxWithheld ?? 0),
+        destination,
+      };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
 }

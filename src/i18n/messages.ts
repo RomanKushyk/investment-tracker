@@ -492,6 +492,10 @@ export const en = {
     date: 'Date',
     type: 'Type',
     amountUah: 'Amount, ₴',
+    // The payout log's two read-back columns (#138). Units where the table puts
+    // them, because `RecordCard` reuses these VERBATIM as the 360 card's labels.
+    withheldUah: 'Withheld, ₴',
+    netOfTaxUah: 'Net of tax, ₴',
     destination: 'Destination',
     dividends: 'Dividends',
     coupons: 'Coupons',
@@ -896,6 +900,14 @@ export const en = {
     withholdingNotPositive: 'The withholding has to be a positive number.',
     withholdingUnreadable: 'Enter a number.',
     withholdingAboveAmount: 'The withholding has to be smaller than the amount.',
+    // THE LEDGER ROW'S OWN LINE (#138). The withheld half arrives already
+    // signed, through `signedMoney`, so this template carries no glyph of its
+    // own; the net half reuses the wording `analytics.prose.netOfTax` settled.
+    // The word «утримано» is deliberately NOT here: measured, spelling it out
+    // clears the row's 280 by 9,39 on a three-figure payout and overruns it at
+    // 290,41 on a four-figure dividend, so it fits the demo and not the data —
+    // design/extensions/withholding-read-back.dc.html T1.
+    withheldAndNet: (withheld: string, net: string) => `${withheld} · net of tax ${net}`,
     note: 'Note',
     notePlaceholder: 'What this row was',
     noteTooLong: 'A note is at most 100 characters of text.',
@@ -1495,6 +1507,8 @@ export const uk: Dict = {
     date: 'Дата',
     type: 'Тип',
     amountUah: 'Сума, ₴',
+    withheldUah: 'Утримано, ₴',
+    netOfTaxUah: 'Після податку, ₴',
     destination: 'Призначення',
     dividends: 'Дивіденди',
     coupons: 'Купони',
@@ -1816,6 +1830,7 @@ export const uk: Dict = {
     withholdingNotPositive: 'Утриманий податок має бути додатним числом.',
     withholdingUnreadable: 'Вкажіть число.',
     withholdingAboveAmount: 'Утриманий податок має бути меншим за суму.',
+    withheldAndNet: (withheld: string, net: string) => `${withheld} · після податку ${net}`,
     note: 'Нотатка',
     notePlaceholder: 'Про що цей запис',
     noteTooLong: 'Нотатка — не більше 100 символів тексту.',

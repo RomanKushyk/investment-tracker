@@ -115,11 +115,18 @@ describe('deleting a ledger row', () => {
     expect(CODE).not.toMatch(/tx\.note \|\|/);
     // It wraps rather than truncating, and runs the full width — no reserved
     // column for the ✕, which sits on the line above.
-    const note = CODE.match(/className="mt-0\.5 text-\[11px\][^"]*"/);
+    //
+    // THE ANCHOR MOVED A SECOND TIME, for the same reason it moved the first.
+    // #138 put a withholding line above the note, and it opens with the very
+    // `mt-0.5 text-[11px]` this used to match — so the old pattern found the
+    // WITHHOLDING and then asserted the note's wrapping about it. Anchoring on
+    // the element that renders `{tx.note}` is what makes the match structural
+    // rather than positional.
+    const note = CODE.match(/className="(mt-0\.5 text-\[11px\][^"]*)">\s*\{tx\.note\}/);
     expect(note).not.toBeNull();
-    expect(note![0]).toContain('overflow-wrap:anywhere');
-    expect(note![0]).not.toContain('truncate');
-    expect(note![0]).not.toContain('pr-');
+    expect(note![1]).toContain('overflow-wrap:anywhere');
+    expect(note![1]).not.toContain('truncate');
+    expect(note![1]).not.toContain('pr-');
   });
 
   it('reveals the glyph on hover and leaves it visible on touch', () => {

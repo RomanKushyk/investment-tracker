@@ -7,6 +7,7 @@ import {
   globalRoi,
   headlineTotal,
   incomeReceived,
+  incomeReceivedNet,
   investedByAsset,
   latestCash,
   latestQuotes,
@@ -110,6 +111,48 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
     const r = netResult(values, { reit, energy, ovdp8976, ovdp6475 });
     expect(r.uah).toBeCloseTo(4452.61, 2);
     expect(r.pct).toBeCloseTo(0.0308, 4);
+  });
+
+  // ONE SEEDED PAYOUT CARRIES A WITHHOLDING, so the first run demonstrates the
+  // feature on a row rather than on an empty column. Three constraints narrow
+  // it: a DIVIDEND (ОВДП coupons are exempt, which is why the bond half is
+  // permanently untaxed); INSIDE the three-month window, so the period control
+  // is exercised and not only the full-history column; and a paired reinvest
+  // payable out of the NET — `p8` fails that one, 700,36 less the rate being
+  // 602,31 against `r3`'s 687,02, which would reinvest more than arrived.
+  //
+  // `p5` clears all three as well, its reinvest constraint being vacuous. `p7`
+  // is chosen over it because `p5` is already the D5#3 deviation row — the
+  // 12.05/648,13 dividend reseated at 10.05/472,13 — and one row should not
+  // carry two annotations; and because `p7` HAS a paired reinvest, so it is the
+  // row that exercises net-against-reinvest rather than leaving it untested.
+  it('p7 is the one seeded payout carrying a withholding', () => {
+    const taxed = SEED_TRANSACTIONS.filter((t) => t.taxWithheld !== undefined);
+    expect(taxed).toHaveLength(1);
+    expect(taxed[0].id).toBe('p7');
+    expect(taxed[0].type).toBe('dividend_accrual');
+    expect(taxed[0].taxWithheld).toBeCloseTo(95.28, 2);
+    // Strictly below its own amount — `transaction_tax_bound_ck`'s rule, and
+    // the seed may not be the fixture that violates it.
+    expect(taxed[0].taxWithheld!).toBeLessThan(taxed[0].amount);
+    // Its reinvest is payable out of the net, not merely out of the gross.
+    const r2 = SEED_TRANSACTIONS.find((t) => t.id === 'r2')!;
+    expect(r2.amount).toBeLessThanOrEqual(taxed[0].amount - taxed[0].taxWithheld!);
+  });
+
+  // THE FIGURE THE WITHHOLDING PUTS ON SCREEN, pinned where the rest of the
+  // seed's published aggregates are. `/overview`'s income card reads this total
+  // under its gross one, and before this it lived only in `navigation-map.md` —
+  // a figure lives in a test or not at all. Gross is asserted separately below
+  // and deliberately does NOT move: the two are different bases.
+  it('income net of tax ₴4,945.66 — gross less the one withholding', () => {
+    const net = incomeReceivedNet(SEED_TRANSACTIONS);
+    expect(net.taxes).toBeCloseTo(95.28, 2);
+    expect(net.total).toBeCloseTo(4945.66, 2);
+    expect(incomeReceived(SEED_TRANSACTIONS).total - net.total).toBeCloseTo(95.28, 2);
+    // The withholding sits on a dividend, so it nets the dividend half alone.
+    expect(net.dividends).toBeCloseTo(3546.16, 2);
+    expect(net.coupons).toBeCloseTo(1399.5, 2);
   });
 
   it('income ₴5,040.94 = ₴3,641.44 dividends + ₴1,399.50 coupons', () => {

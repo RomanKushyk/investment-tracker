@@ -75,17 +75,24 @@ describe('yieldTableRows', () => {
 
   // S9b new columns — demo derivations via core/derive + core/xirr (the
   // extension mock cells are illustrative; these figures are the app's).
-  it('Total return (net of tax, incl. payouts): REIT +10.12%, Energy +1.48%, …8976 +10.65%, …6475 +10.96%', () => {
+  // REIT RE-DERIVED FOR #138's SEEDED WITHHOLDING, not retuned: `p7` now carries
+  // 95,28 of tax, and this column is net of it, so REIT falls 10,1248 → 9,9774
+  // while the three untaxed assets stand. That is the column reporting what it
+  // says it reports; a figure that had NOT moved here would be the defect.
+  it('Total return (net of tax, incl. payouts): REIT +9.98%, Energy +1.48%, …8976 +10.65%, …6475 +10.96%', () => {
     const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
-    expect(byId.reit.totalReturn! * 100).toBeCloseTo(10.1248, 3);
+    expect(byId.reit.totalReturn! * 100).toBeCloseTo(9.9774, 3);
     expect(byId.energy.totalReturn! * 100).toBeCloseTo(1.4831, 3);
     expect(byId.ovdp8976.totalReturn! * 100).toBeCloseTo(10.655, 3);
     expect(byId.ovdp6475.totalReturn! * 100).toBeCloseTo(10.9619, 3);
   });
 
-  it('XIRR (money-weighted, ACT/365): REIT +23.0%, Energy +3.1%, …8976 +25.8%, …6475 +99.4%', () => {
+  // REIT re-derived for the same reason — `yield.ts` nets each payout flow by
+  // its own withholding, so the money-weighted column follows the total-return
+  // one down: 23,05 → 22,68.
+  it('XIRR (money-weighted, ACT/365): REIT +22.7%, Energy +3.1%, …8976 +25.8%, …6475 +99.4%', () => {
     const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
-    expect(byId.reit.xirr! * 100).toBeCloseTo(23.05, 1);
+    expect(byId.reit.xirr! * 100).toBeCloseTo(22.68, 1);
     expect(byId.energy.xirr! * 100).toBeCloseTo(3.14, 1);
     expect(byId.ovdp8976.xirr! * 100).toBeCloseTo(25.81, 1);
     expect(byId.ovdp6475.xirr! * 100).toBeCloseTo(99.43, 1);

@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Withholding, read back — Quirenote design extension</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+  body { margin: 0; background: #efeae2; color: #1c1a19;
+         font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .sheet { max-width: 1180px; margin: 0 auto; padding: 40px 28px 72px; }
+  h1 { font-family: "Manrope", system-ui, sans-serif; font-size: 27px; font-weight: 700; line-height: 1.25; margin: 0 0 10px; }
+  h2 { font-family: "Manrope", system-ui, sans-serif; font-size: 17px; font-weight: 700; line-height: 1.3;
+       margin: 52px 0 8px; padding-top: 18px; border-top: 1px solid #ddd5c8; }
+  p  { font-size: 12px; line-height: 1.65; color: #5e5955; max-width: 780px; margin: 0 0 12px; }
+  strong { color: #1c1a19; }
+  code { font-size: 11.5px; }
+  .eyebrow { font-family: "Manrope", system-ui, sans-serif; font-size: 10px; letter-spacing: .12em;
+             text-transform: uppercase; color: #5e5955; }
+  /* Dashed chips are SPEC ANNOTATION, never UI — design/extensions/README.md. */
+  .mi { display: inline-block; border: 1px dashed #847e77; border-radius: 5px; padding: 1px 7px;
+        font-size: 9.5px; letter-spacing: .04em; color: #5e5955; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 14px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 28px; margin-top: 20px; align-items: flex-start; }
+  .frame { border: 1px solid #c6bbab; border-radius: 12px; overflow: hidden; }
+  .frame > .cap { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase;
+                  padding: 7px 12px; border-bottom: 1px solid #c6bbab; color: #5e5955; background: #e7e0d5; }
+  .pad { padding: 20px; }
+  .yes { color: #2f6b3f; font-weight: 700; }
+  .no  { color: #a03c30; font-weight: 700; }
+
+  /* ── the ledger row, drawn to the app's own classes ───────────────────── */
+  .ledger { border-radius: 20px; padding: 16px 22px; }
+  .row { border-top: 1px solid; padding: 8px 0; }
+  .row.first { border-top: 0; }
+  .l1 { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; }
+  .l1.narrow { gap: 8px; height: 44px; }      /* max-md:gap-2, the ✕'s 44 hit area */
+  .l1.wide   { gap: 10px; height: 20px; }     /* gap-2.5 */
+  .lbl { min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .amt { font-weight: 700; white-space: nowrap; }
+  .dte { white-space: nowrap; }
+  .sub  { margin-top: 2px; font-size: 11px; line-height: 16px; }
+  .note { margin-top: 2px; font-size: 11px; line-height: 16px; overflow-wrap: anywhere; }
+  .x { flex: none; display: grid; place-items: center; }
+  .x.narrow { width: 44px; height: 44px; }
+  .x.wide { width: 20px; height: 20px; }
+
+  /* ── the payout log ───────────────────────────────────────────────────── */
+  .logcard { border-radius: 24px; padding: 10px 22px; box-sizing: border-box; }
+  table { border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+  th { padding: 8px 0; font-weight: 400; text-align: left; }
+  td { padding: 8px 0; }
+  .num { text-align: right; }
+  .tag { display: inline-block; border-radius: 6px; padding: 3px 10px;
+         font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  /* ── the record card at 360 ───────────────────────────────────────────── */
+  .rc { width: 336px; border-radius: 24px; padding: 22px; box-sizing: border-box; }
+  .rchead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .rctitle { margin: 0; font-size: 17px; font-family: "Manrope", system-ui, sans-serif;
+             overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 18px; row-gap: 10px; }
+  .dt { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+  .dd { margin: 0; font-size: 12.5px; font-weight: 700; }
+
+  /* ── T1's bars, drawn at TRUE SCALE against the 280 budget ─────────────
+     THE CASE COLUMN IS INSIDE THE TRACK, so both the width and the datum have
+     to account for it: the bars begin at 74 (66 of label + 8 of gap), the rule
+     stands at 74 + 280 = 354, and the track is wide enough for the 310,20 bar
+     to overrun the rule rather than be clipped by it. `flex: none` is what
+     keeps a bar at its stated width — without it the row shrinks the widest
+     three and the figure quietly stops being to scale. */
+  .track { position: relative; width: 394px; padding-left: 74px; box-sizing: border-box; }
+  .barrow > .case { margin-left: -74px; }
+  .bar { flex: none; height: 18px; border-radius: 3px; display: flex; align-items: center;
+         padding-left: 5px; font-size: 9.5px; white-space: nowrap; box-sizing: border-box; }
+  .budget { position: absolute; top: -6px; bottom: -6px; left: 354px; width: 1px; background: #a03c30; }
+  .case { font-size: 9.5px; color: #5e5955; width: 66px; display: inline-block; }
+  .barrow { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .proof { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 44px; margin-top: 22px; }
+</style>
+</helmet>
+
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ design/extensions/withholding-read-back.dc.html                              ║
+║                                                                              ║
+║ Brief: issue #138, as a comment on the issue. Implementing task: issue #138.  ║
+║ One branch, the drawing committed before any code — the shape #136 set.      ║
+║                                                                              ║
+║ WHAT IT DRAWS. #136 made a withholding a field on the payout it was taken    ║
+║ from: written at the form, stored on the row, derived into three figures,    ║
+║ and displayed NOWHERE as itself. This sheet gives it two read surfaces —     ║
+║ a line of its own on the ledger row, and two columns on the payout log —     ║
+║ each carrying the withholding AND the net, the pair the tax spec names when  ║
+║ it says mature trackers hold "gross, withholding and net with no breakdown   ║
+║ beneath them". Nine frames: the row and the log, at 1280 and at a true 360,  ║
+║ in both themes, plus the measured proof that decides the copy.               ║
+║                                                                              ║
+║ ITS ONE STRUCTURAL FINDING IS MEASURED AND DECIDES THE WORDING. The row's    ║
+║ second line holds 42,4 characters — 280 px at a 6,6002 px advance, the       ║
+║ 11 px JetBrains Mono the note already sets. The phrasing that keeps both     ║
+║ settled phrases, «утримано X ₴ · після податку Y ₴», measures 270,61 on the  ║
+║ seeded payout, clearing 280 by 9,39, and 290,41 on a FOUR-FIGURE dividend    ║
+║ — a sum this REIT position reaches. A line that fits the demo and not the    ║
+║ data is not a shape, so the word «утримано» gives way to the minus sign      ║
+║ `money.ts` already pins at U+2212, and «після податку» stays because it is   ║
+║ the net wording the dictionary already carries. The refused variant is kept  ║
+║ in T1 BECAUSE it is the one a reader would otherwise reach for.              ║
+║                                                                              ║
+║ WHAT IT DOES NOT MOVE, AND THAT IS THE POINT. The note's cap of 100 is a     ║
+║ DRAWN number that `transaction_note_ck` enforces in SQL, and a line ABOVE    ║
+║ the note does not narrow it: measured with the withholding line in place, a  ║
+║ hundred-character note still reads 280 wide and still wraps to exactly 3     ║
+║ lines at 360 and 2 at 1280 — the figures withholding-and-note.dc.html T5     ║
+║ published, unchanged. Only the record's HEIGHT grows, by a flat +18 at both  ║
+║ widths (16 of `leading-4` plus 2 of `mt-0.5`), because the line never wraps. ║
+║ A line SHARING the note's would have re-derived the cap; that is why it      ║
+║ does not.                                                                    ║
+║                                                                              ║
+║ NOTHING IS DRAWN WHERE THERE IS NONE — no dash, no zero, no empty line —     ║
+║ the note's own rule, for the note's own reason: absence is the normal state  ║
+║ and the bond half of this portfolio is permanently in it. On the log that    ║
+║ means BOTH new cells stay empty, the net one included: such a row's net IS   ║
+║ the Сума column, so printing it would repeat one figure on six of the        ║
+║ eight seeded rows.                                                           ║
+║                                                                              ║
+║ MINTS NOTHING AND SUPERSEDES NO COLOUR. The line reads `muted` on `panel`    ║
+║ at 11 / 16 — the pair the note, the units and the date already read, whose   ║
+║ contrast figures withholding-and-note.dc.html T6 publishes and which this    ║
+║ sheet cites rather than recomputing, because it moves neither token.         ║
+║                                                                              ║
+║ SUPERSEDES GEOMETRY IN TWO SHEETS AND EDITS NEITHER (D14):                   ║
+║   · withholding-and-note.dc.html T4 — its ledger row is at most two lines;   ║
+║     a payout that carries a withholding is now three, and four with a note.  ║
+║   · design/Investment Tracker.dc.html, PAYOUTS — its payout log is five      ║
+║     columns; it is seven.                                                    ║
+║                                                                              ║
+║ Every box is read through the chrome-devtools MCP at DPR 1 behind a          ║
+║ 100 × 100 calibration probe that measured exactly 100 × 100, on the running  ║
+║ app with `document.visibilityState` "visible" — the precedent #98, #88 and   ║
+║ #136 set. Every colour is a literal from the `@theme` block `src/index.css`  ║
+║ holds today; this sheet mints none.                                          ║
+║                                                                              ║
+║ MOTION: none introduced. The line enters and leaves with its row, on the     ║
+║ ledger's existing `animate-in … fade-in slide-in-from-top-1` at 300 ms, and  ║
+║ inherits the app's global `prefers-reduced-motion` kill-switch.              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+-->
+
+<div class="sheet">
+
+  <div class="eyebrow">Quirenote · розширення · #138</div>
+  <h1>Утримання, читане назад</h1>
+  <p>
+    Записане утримання не читалося з жодного екрана. Помилка на копійку проходила перевірку
+    <code>tax_withheld &lt; amount</code>, тихо занижувала сплачений податок, завищувала чисту
+    виплату й підіймала XIRR активу — і жоден екран не показував число, яке було хибним.
+    Цей аркуш дає йому два місця: власний рядок у реєстрі та два стовпці в журналі виплат.
+  </p>
+
+  <!-- ══ T1 ══════════════════════════════════════════════════════════════ -->
+  <h2>T1 · Що рядок тримає, і формулювання, якому ширина відмовляє</h2>
+  <p>
+    Внутрішня ширина рядка на 360 — <strong>280</strong>, відтворює
+    <code>withholding-and-note.dc.html</code> T1 точно. Накреслення другого рядка —
+    JetBrains&nbsp;Mono 11&nbsp;px, крок символу <strong>6,6002</strong>, тож рядок тримає
+    <strong>42,4 символи</strong>. Чотири формулювання перевірено на трьох масштабах чисел:
+    засіяна виплата <code>p7</code>, найбільша виплата насіння під тією самою ставкою, і
+    п’ятизначна, яку живий набір даних цілком може тримати. Смуги накреслено
+    <strong>в натуральну величину</strong>; червона межа — 280.
+  </p>
+
+  <div class="proof">
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px;">
+        <span class="no">✗</span> утримано&nbsp;X&nbsp;₴ · після податку&nbsp;Y&nbsp;₴
+      </div>
+      <div class="track">
+        <div class="barrow"><span class="case">p7</span><div class="bar" style="width: 270.61px; background: #e0e4da; color: #2f6b3f;">270,61</div></div>
+        <div class="barrow"><span class="case">чотиризначна</span><div class="bar" style="width: 290.41px; background: #eddfd8; color: #a03c30;">290,41 — переноситься</div></div>
+        <div class="barrow"><span class="case">п’ятизначна</span><div class="bar" style="width: 310.2px; background: #eddfd8; color: #a03c30;">310,20 — переноситься</div></div>
+        <div class="budget"></div>
+      </div>
+      <p style="margin-top: 12px; font-size: 11px;">
+        Тримає лише тризначну виплату, і то із запасом у 9,39. Падає на ЧОТИРИЗНАЧНОМУ
+        дивіденді — сумі, якої ця позиція REIT сягає. Форма, придатна для сьогоднішньої
+        демонстрації і не для завтрашніх даних, не є формою.
+      </p>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px;">
+        <span class="yes">✓</span> −X&nbsp;₴ · після податку&nbsp;Y&nbsp;₴
+      </div>
+      <div class="track">
+        <div class="barrow"><span class="case">p7</span><div class="bar" style="width: 217.81px; background: #e0e4da; color: #2f6b3f;">217,81</div></div>
+        <div class="barrow"><span class="case">чотиризначна</span><div class="bar" style="width: 237.61px; background: #e0e4da; color: #2f6b3f;">237,61</div></div>
+        <div class="barrow"><span class="case">п’ятизначна</span><div class="bar" style="width: 257.41px; background: #e0e4da; color: #2f6b3f;">257,41</div></div>
+        <div class="budget"></div>
+      </div>
+      <p style="margin-top: 12px; font-size: 11px;">
+        Слово поступається знаку, який у застосунку вже є: <code>money.ts</code> закріплює U+2212,
+        і мінус під сумою читається як відрахування від неї. «Після податку» лишається — це наявне
+        формулювання чистої суми, і саме воно робить мінус однозначним.
+      </p>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px;">
+        <span class="no">✗</span> утримано&nbsp;X&nbsp;₴ · чистими&nbsp;Y&nbsp;₴
+      </div>
+      <div class="track">
+        <div class="barrow"><span class="case">p7</span><div class="bar" style="width: 231.02px; background: #efe6dc; color: #895f40;">231,02</div></div>
+        <div class="barrow"><span class="case">чотиризначна</span><div class="bar" style="width: 250.81px; background: #efe6dc; color: #895f40;">250,81</div></div>
+        <div class="barrow"><span class="case">п’ятизначна</span><div class="bar" style="width: 270.61px; background: #efe6dc; color: #895f40;">270,61</div></div>
+        <div class="budget"></div>
+      </div>
+      <p style="margin-top: 12px; font-size: 11px;">
+        Вміщується скрізь — і відмовлено не на ширині. «Чистими» було б третім словом для суми,
+        яку словник уже називає «після податку», а <code>messages.ts</code> записує, що відмови
+        утримання свідомо сформульовано навколо однієї іменникової фрази, а не третього слова.
+      </p>
+    </div>
+
+    <div>
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px;">
+        <span class="no">✗</span> утримано&nbsp;X&nbsp;₴, саме́ по собі
+      </div>
+      <div class="track">
+        <div class="barrow"><span class="case">p7</span><div class="bar" style="width: 105.61px; background: #e3e3e1; color: #4a6178;">105,61</div></div>
+        <div class="barrow"><span class="case">чотиризначна</span><div class="bar" style="width: 112.2px; background: #e3e3e1; color: #4a6178;">112,20</div></div>
+        <div class="barrow"><span class="case">п’ятизначна</span><div class="bar" style="width: 125.41px; background: #e3e3e1; color: #4a6178;">125,41</div></div>
+        <div class="budget"></div>
+      </div>
+      <p style="margin-top: 12px; font-size: 11px;">
+        Найкоротше з усіх і ніколи не переноситься, але губить чисту суму — а власник просив
+        обидві. Записано як запасний шлях, якщо колись знадобиться ще вужчий рядок, і ні для чого
+        більше.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="chips">
+    <span class="mi">англійська ніколи не є визначальною — 184,81 / 204,61 / 224,41</span>
+    <span class="mi">280 ÷ 6,6002 = 42,4 символи</span>
+  </div>
+
+  <!-- ══ T2 ══════════════════════════════════════════════════════════════ -->
+  <h2>T2 · Рядок реєстру — чотири кадри</h2>
+  <p>
+    Утримання стає <strong>власним рядком між сумою та нотаткою</strong>. Воно не може стати
+    на перший рядок — T1 аркуша <code>withholding-and-note</code> виміряв його повним на 360,
+    де 280 мінус 194 вмісту та 32 проміжків лишає підпису 53,98. Воно не може стати й на рядок
+    нотатки: це звузило б її та переглянуло межу в 100 символів, яку
+    <code>transaction_note_ck</code> тримає в SQL. Рядок на всю ширину НАД нотаткою не робить ні
+    того, ні того — нотатка лишається 3 рядки на 360 і 2 на 1280.
+  </p>
+
+  <div class="frames">
+
+    <div class="frame">
+      <div class="cap">360 · світла · три стани</div>
+      <div class="pad" style="background: #efeae2;">
+        <div class="ledger" style="width: 324px; background: #e7e0d5; box-sizing: border-box;">
+          <div class="row first" style="border-color: #ddd5c8;">
+            <div class="l1 narrow">
+              <span class="lbl">Купон · ОВДП …6475</span>
+              <span class="amt">216,00&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">03.06</span>
+              <span class="x narrow" style="color: #b4aa9a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+          </div>
+          <div class="row" style="border-color: #ddd5c8;">
+            <div class="l1 narrow">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">680,55&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">10.06</span>
+              <span class="x narrow" style="color: #b4aa9a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #5e5955;">−95,28&nbsp;₴ · після податку 585,27&nbsp;₴</div>
+          </div>
+          <div class="row" style="border-color: #ddd5c8;">
+            <div class="l1 narrow">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">700,36&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">10.07</span>
+              <span class="x narrow" style="color: #b4aa9a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #5e5955;">−98,05&nbsp;₴ · після податку 602,31&nbsp;₴</div>
+            <div class="note" style="color: #5e5955;">Виплата за липень, довідка від провайдера збережена в теці за 2026 рік, сума звірена</div>
+          </div>
+        </div>
+        <div class="chips">
+          <span class="mi">без утримання 61 · перший 60</span>
+          <span class="mi">з утриманням 79</span>
+          <span class="mi">і з нотаткою на 100 — 129</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame" style="border-color: #3a373c;">
+      <div class="cap" style="background: #201f22; border-color: #3a373c; color: #a3a19e;">360 · темна · три стани</div>
+      <div class="pad" style="background: #111110;">
+        <div class="ledger" style="width: 324px; background: #201f22; box-sizing: border-box; color: #eceae7;">
+          <div class="row first" style="border-color: #2a282c;">
+            <div class="l1 narrow">
+              <span class="lbl">Купон · ОВДП …6475</span>
+              <span class="amt">216,00&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">03.06</span>
+              <span class="x narrow" style="color: #6e6a65;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+          </div>
+          <div class="row" style="border-color: #2a282c;">
+            <div class="l1 narrow">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">680,55&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">10.06</span>
+              <span class="x narrow" style="color: #6e6a65;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #a3a19e;">−95,28&nbsp;₴ · після податку 585,27&nbsp;₴</div>
+          </div>
+          <div class="row" style="border-color: #2a282c;">
+            <div class="l1 narrow">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">700,36&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">10.07</span>
+              <span class="x narrow" style="color: #6e6a65;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #a3a19e;">−98,05&nbsp;₴ · після податку 602,31&nbsp;₴</div>
+            <div class="note" style="color: #a3a19e;">Виплата за липень, довідка від провайдера збережена в теці за 2026 рік, сума звірена</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="frames">
+
+    <div class="frame">
+      <div class="cap">1280 · світла · ✕ показано під курсором на нижньому рядку</div>
+      <div class="pad" style="background: #efeae2;">
+        <div class="ledger" style="width: 573px; background: #e7e0d5; box-sizing: border-box;">
+          <div class="row first" style="border-color: #ddd5c8;">
+            <div class="l1 wide">
+              <span class="lbl">Купон · ОВДП …6475</span>
+              <span class="amt">216,00&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">03.06</span>
+              <span class="x wide" style="color: #b4aa9a; opacity: 0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+          </div>
+          <div class="row" style="border-color: #ddd5c8;">
+            <div class="l1 wide">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">680,55&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">10.06</span>
+              <span class="x wide" style="color: #b4aa9a; opacity: 0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #5e5955;">−95,28&nbsp;₴ · після податку 585,27&nbsp;₴</div>
+          </div>
+          <div class="row" style="border-color: #ddd5c8;">
+            <div class="l1 wide">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">700,36&nbsp;₴</span>
+              <span class="dte" style="color: #5e5955;">10.07</span>
+              <span class="x wide" style="color: #b4aa9a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #5e5955;">−98,05&nbsp;₴ · після податку 602,31&nbsp;₴</div>
+            <div class="note" style="color: #5e5955;">Виплата за липень, довідка від провайдера збережена в теці за 2026 рік, сума звірена</div>
+          </div>
+        </div>
+        <div class="chips">
+          <span class="mi">без утримання 37 · перший 36</span>
+          <span class="mi">з утриманням 55</span>
+          <span class="mi">і з нотаткою — 89, бо нотатка тут 2 рядки</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame" style="border-color: #3a373c;">
+      <div class="cap" style="background: #201f22; border-color: #3a373c; color: #a3a19e;">1280 · темна</div>
+      <div class="pad" style="background: #111110;">
+        <div class="ledger" style="width: 573px; background: #201f22; box-sizing: border-box; color: #eceae7;">
+          <div class="row first" style="border-color: #2a282c;">
+            <div class="l1 wide">
+              <span class="lbl">Купон · ОВДП …6475</span>
+              <span class="amt">216,00&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">03.06</span>
+              <span class="x wide" style="color: #6e6a65; opacity: 0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+          </div>
+          <div class="row" style="border-color: #2a282c;">
+            <div class="l1 wide">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">680,55&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">10.06</span>
+              <span class="x wide" style="color: #6e6a65; opacity: 0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #a3a19e;">−95,28&nbsp;₴ · після податку 585,27&nbsp;₴</div>
+          </div>
+          <div class="row" style="border-color: #2a282c;">
+            <div class="l1 wide">
+              <span class="lbl">Нарахування дивідендів · REIT</span>
+              <span class="amt">700,36&nbsp;₴</span>
+              <span class="dte" style="color: #a3a19e;">10.07</span>
+              <span class="x wide" style="color: #6e6a65;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+            </div>
+            <div class="sub" style="color: #a3a19e;">−98,05&nbsp;₴ · після податку 602,31&nbsp;₴</div>
+            <div class="note" style="color: #a3a19e;">Виплата за липень, довідка від провайдера збережена в теці за 2026 рік, сума звірена</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ T3 ══════════════════════════════════════════════════════════════ -->
+  <h2>T3 · Журнал виплат на 1280 — сім стовпців</h2>
+  <p>
+    «Утримано,&nbsp;₴» та «Після податку,&nbsp;₴» стають двома стовпцями <strong>після суми</strong>,
+    де вони читаються як відрахування від неї та залишок. Сім стовпців потребують
+    <strong>717,86</strong> власної ширини, тож <code>min-w-[560px]</code>, писаний для п’яти,
+    підіймається до <strong>720</strong>: на 768 таблиця вже прокручується при п’яти стовпцях, і
+    горизонтальний <code>Scroller</code> має робити роботу, заради якої там стоїть, замість того
+    щоб стовпці тиснулися. На 1280 таблиця має 902 при 910 доступних.
+  </p>
+
+  <div class="frames">
+    <div class="frame">
+      <div class="cap">1280 · світла</div>
+      <div class="pad" style="background: #efeae2;">
+        <div class="logcard" style="width: 946px; background: #e7e0d5;">
+          <table style="width: 902px;">
+            <colgroup><col style="width:94.23px"><col style="width:160.2px"><col style="width:91.48px"><col style="width:75.39px"><col style="width:103.67px"><col style="width:150.8px"><col style="width:226.22px"></colgroup>
+            <thead><tr style="color: #5e5955;">
+              <th>Дата</th><th>Актив</th><th>Тип</th>
+              <th class="num">Сума,&nbsp;₴</th><th class="num">Утримано,&nbsp;₴</th><th class="num">Після податку,&nbsp;₴</th>
+              <th>Призначення</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-top: 1px solid #ddd5c8;"><td>10.07.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#efe6dc;color:#895f40;">дивіденд</span></td><td class="num" style="font-weight:700;">700,36</td><td class="num"></td><td class="num"></td><td>реінвестовано (687,02&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #ddd5c8;"><td>10.06.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#efe6dc;color:#895f40;">дивіденд</span></td><td class="num" style="font-weight:700;">680,55</td><td class="num" style="font-weight:700;">95,28</td><td class="num" style="font-weight:700;">585,27</td><td>реінвестовано (484,36&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #ddd5c8;"><td>03.06.2026</td><td style="font-weight:600;">ОВДП …6475</td><td><span class="tag" style="background:#e3e3e1;color:#4a6178;">купон</span></td><td class="num" style="font-weight:700;">216,00</td><td class="num"></td><td class="num"></td><td>реінвестовано (216,00&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #ddd5c8;"><td>10.05.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#efe6dc;color:#895f40;">дивіденд</span></td><td class="num" style="font-weight:700;">472,13</td><td class="num"></td><td class="num"></td><td>на рахунок</td></tr>
+              <tr style="border-top: 1px solid #ddd5c8;"><td>25.02.2026</td><td style="font-weight:600;">ОВДП …8976</td><td><span class="tag" style="background:#e3e3e1;color:#4a6178;">купон</span></td><td class="num" style="font-weight:700;">1 183,50</td><td class="num"></td><td class="num"></td><td>на рахунок</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="chips">
+          <span class="mi">94,23 · 160,20 · 91,48 · 75,39 · 103,67 · 150,80 · 226,22 = 902</span>
+          <span class="mi">сім із восьми засіяних рядків лишають обидві комірки порожніми</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="frames">
+    <div class="frame" style="border-color: #3a373c;">
+      <div class="cap" style="background: #201f22; border-color: #3a373c; color: #a3a19e;">1280 · темна</div>
+      <div class="pad" style="background: #111110;">
+        <div class="logcard" style="width: 946px; background: #201f22; color: #eceae7;">
+          <table style="width: 902px;">
+            <colgroup><col style="width:94.23px"><col style="width:160.2px"><col style="width:91.48px"><col style="width:75.39px"><col style="width:103.67px"><col style="width:150.8px"><col style="width:226.22px"></colgroup>
+            <thead><tr style="color: #a3a19e;">
+              <th>Дата</th><th>Актив</th><th>Тип</th>
+              <th class="num">Сума,&nbsp;₴</th><th class="num">Утримано,&nbsp;₴</th><th class="num">Після податку,&nbsp;₴</th>
+              <th>Призначення</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-top: 1px solid #2a282c;"><td>10.07.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#2e2622;color:#bb8157;">дивіденд</span></td><td class="num" style="font-weight:700;">700,36</td><td class="num"></td><td class="num"></td><td>реінвестовано (687,02&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #2a282c;"><td>10.06.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#2e2622;color:#bb8157;">дивіденд</span></td><td class="num" style="font-weight:700;">680,55</td><td class="num" style="font-weight:700;">95,28</td><td class="num" style="font-weight:700;">585,27</td><td>реінвестовано (484,36&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #2a282c;"><td>03.06.2026</td><td style="font-weight:600;">ОВДП …6475</td><td><span class="tag" style="background:#2a2c30;color:#93a4b5;">купон</span></td><td class="num" style="font-weight:700;">216,00</td><td class="num"></td><td class="num"></td><td>реінвестовано (216,00&nbsp;₴)</td></tr>
+              <tr style="border-top: 1px solid #2a282c;"><td>10.05.2026</td><td style="font-weight:600;">Inzhur REIT</td><td><span class="tag" style="background:#2e2622;color:#bb8157;">дивіденд</span></td><td class="num" style="font-weight:700;">472,13</td><td class="num"></td><td class="num"></td><td>на рахунок</td></tr>
+              <tr style="border-top: 1px solid #2a282c;"><td>25.02.2026</td><td style="font-weight:600;">ОВДП …8976</td><td><span class="tag" style="background:#2a2c30;color:#93a4b5;">купон</span></td><td class="num" style="font-weight:700;">1 183,50</td><td class="num"></td><td class="num"></td><td>на рахунок</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ T4 ══════════════════════════════════════════════════════════════ -->
+  <h2>T4 · Журнал виплат на 360 — другий ряд тієї самої сітки</h2>
+  <p>
+    <code>RecordCard</code> вимагає, щоб кожен заголовок стовпця став <code>dt</code>
+    <strong>дослівно</strong> — «читач, який вивчив назву стовпця на ноутбуці, мусить знайти її
+    на телефоні». Тож підписи ті самі. <code>&lt;dl&gt;</code> — це <strong>137 × 137</strong> із
+    проміжками 10 та 18, і дві нові пари стають другим рядом; обидва підписи тримаються
+    <strong>одного рядка на 137</strong>, «Після податку,&nbsp;₴» не переноситься.
+    Картка без утримання <strong>не має цих пар узагалі</strong> — не порожніх, а відсутніх.
+  </p>
+
+  <div class="frames">
+
+    <div class="frame">
+      <div class="cap">360 · світла</div>
+      <div class="pad" style="background: #efeae2;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="rc" style="background: #e7e0d5;">
+            <div class="rchead">
+              <div style="min-width: 0; flex: 1 1 0;">
+                <div style="font-size: 10.5px; color: #5e5955;">10.06.2026</div>
+                <h3 class="rctitle">Inzhur REIT</h3>
+              </div>
+              <span style="flex: none;"><span class="tag" style="background:#efe6dc;color:#895f40;">дивіденд</span></span>
+            </div>
+            <dl class="dl">
+              <div><dt class="dt" style="color:#5e5955;">Сума,&nbsp;₴</dt><dd class="dd">680,55</dd></div>
+              <div><dt class="dt" style="color:#5e5955;">Призначення</dt><dd class="dd">реінвестовано (484,36&nbsp;₴)</dd></div>
+              <div><dt class="dt" style="color:#5e5955;">Утримано,&nbsp;₴</dt><dd class="dd">95,28</dd></div>
+              <div><dt class="dt" style="color:#5e5955;">Після податку,&nbsp;₴</dt><dd class="dd">585,27</dd></div>
+            </dl>
+          </div>
+          <div class="rc" style="background: #e7e0d5;">
+            <div class="rchead">
+              <div style="min-width: 0; flex: 1 1 0;">
+                <div style="font-size: 10.5px; color: #5e5955;">03.06.2026</div>
+                <h3 class="rctitle">ОВДП …6475</h3>
+              </div>
+              <span style="flex: none;"><span class="tag" style="background:#e3e3e1;color:#4a6178;">купон</span></span>
+            </div>
+            <dl class="dl">
+              <div><dt class="dt" style="color:#5e5955;">Сума,&nbsp;₴</dt><dd class="dd">216,00</dd></div>
+              <div><dt class="dt" style="color:#5e5955;">Призначення</dt><dd class="dd">реінвестовано (216,00&nbsp;₴)</dd></div>
+            </dl>
+          </div>
+        </div>
+        <div class="chips">
+          <span class="mi">з утриманням 197</span>
+          <span class="mi">без — 152,5</span>
+          <span class="mi">картка 336, всередині 292 = 137 + 18 + 137</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame" style="border-color: #3a373c;">
+      <div class="cap" style="background: #201f22; border-color: #3a373c; color: #a3a19e;">360 · темна</div>
+      <div class="pad" style="background: #111110;">
+        <div style="display: flex; flex-direction: column; gap: 14px; color: #eceae7;">
+          <div class="rc" style="background: #201f22;">
+            <div class="rchead">
+              <div style="min-width: 0; flex: 1 1 0;">
+                <div style="font-size: 10.5px; color: #a3a19e;">10.06.2026</div>
+                <h3 class="rctitle">Inzhur REIT</h3>
+              </div>
+              <span style="flex: none;"><span class="tag" style="background:#2e2622;color:#bb8157;">дивіденд</span></span>
+            </div>
+            <dl class="dl">
+              <div><dt class="dt" style="color:#a3a19e;">Сума,&nbsp;₴</dt><dd class="dd">680,55</dd></div>
+              <div><dt class="dt" style="color:#a3a19e;">Призначення</dt><dd class="dd">реінвестовано (484,36&nbsp;₴)</dd></div>
+              <div><dt class="dt" style="color:#a3a19e;">Утримано,&nbsp;₴</dt><dd class="dd">95,28</dd></div>
+              <div><dt class="dt" style="color:#a3a19e;">Після податку,&nbsp;₴</dt><dd class="dd">585,27</dd></div>
+            </dl>
+          </div>
+          <div class="rc" style="background: #201f22;">
+            <div class="rchead">
+              <div style="min-width: 0; flex: 1 1 0;">
+                <div style="font-size: 10.5px; color: #a3a19e;">03.06.2026</div>
+                <h3 class="rctitle">ОВДП …6475</h3>
+              </div>
+              <span style="flex: none;"><span class="tag" style="background:#2a2c30;color:#93a4b5;">купон</span></span>
+            </div>
+            <dl class="dl">
+              <div><dt class="dt" style="color:#a3a19e;">Сума,&nbsp;₴</dt><dd class="dd">216,00</dd></div>
+              <div><dt class="dt" style="color:#a3a19e;">Призначення</dt><dd class="dd">реінвестовано (216,00&nbsp;₴)</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ T5 ══════════════════════════════════════════════════════════════ -->
+  <h2>T5 · Що цей аркуш відмовляє поіменно</h2>
+  <p>
+    <strong>Рядок, що ділить лінію з нотаткою.</strong> Він звузив би її й тим переглянув межу в
+    100 символів, яку <code>transaction_note_ck</code> тримає в SQL — а це число й розкладка є
+    одним рішенням, не двома. Виміряно: з окремим рядком над нею нотатка лишається 3 рядки на 360
+    і 2 на 1280, тобто межа стоїть недоторканою.
+  </p>
+  <p>
+    <strong>Риска або нуль там, де утримання немає.</strong> Відсутність — нормальний стан:
+    сім із восьми засіяних виплат ніколи не будуть оподатковані, бо купони ОВДП звільнені.
+    Малювати для них щось означало б коштувати кожен рядок заради кількох — та сама відмова, яку
+    нотатка вже несе.
+  </p>
+  <p>
+    <strong>Стовпець «Після податку», надрукований на неоподаткованому рядку.</strong> Його чиста
+    сума і є стовпець «Сума»; надрукувати її означало б повторити одну цифру на шести з восьми
+    рядків і навчити читача, що стовпець нічого не додає.
+  </p>
+  <p>
+    <strong>Третє слово для чистої суми.</strong> «Чистими» вміщується скрізь і все одно
+    відмовлено: словник уже має «після податку», і <code>messages.ts</code> записує, що відмови
+    утримання свідомо сформульовано навколо однієї іменникової фрази.
+  </p>
+  <p>
+    <strong>Другий стовпець для двох українських складників.</strong> Провайдер звітує одну
+    утримувану суму; записувати їх окремо означало б виводити їх зі ставок — саме те, що ця
+    модель відмовляє. Відмовлено власним рішенням утримання, не цим аркушем.
+  </p>
+
+  <div class="chips">
+    <span class="mi">карбує НІЧОГО — muted на panel, 11 / 16, показники цитовано з withholding-and-note T6</span>
+    <span class="mi">рухів не вводить</span>
+    <span class="mi">заміняє геометрію withholding-and-note T4 та п’ятистовпцевий PAYOUTS майстер-аркуша</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
