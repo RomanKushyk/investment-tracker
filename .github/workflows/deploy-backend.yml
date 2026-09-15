@@ -167,7 +167,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications approve backup-freshness; do
+          for entry in capture migrate pre-signup applications approve backup-freshness pool-usage; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -196,7 +196,7 @@ jobs:
           # guard beside it was not: `stack-split.test.ts` derived its check from the
           # esbuild step alone, so a handler could be bundled, deployed and never loaded
           # once while the test that looked like it covered this passed.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/backup-freshness.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/backup-freshness.js infra/dist/pool-usage.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
@@ -393,6 +393,33 @@ jobs:
               if (fresh.cluster !== target.cluster) throw new Error('the metric line carries no cluster dimension');
               if (!(none.value > fresh.value)) throw new Error('an empty vault did not read as older than a backed-up one: ' + none.value);
               console.log('backup-freshness bundle loads, filters by the cluster arn, and puts an empty vault at the bad end');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The free-tier watch, exercised rather than merely loaded, and what is worth
+          # holding in the bundled shape is the REFUSAL. A pool that answers without
+          # `EstimatedNumberOfUsers` must throw: the alarm is `GreaterThan`, so a zero
+          # published for a count nobody could read sits on the HEALTHY side of it and a
+          # permanently failing read would stay green forever. The other half is that a
+          # real zero is still a count — an empty pool is not an error — which is the
+          # distinction a truthiness check would collapse. The threshold itself is not
+          # repeated here; it lives in stack-split.test.ts, which reads the template.
+          node -e "
+            const u = require('./pool-usage.js');
+            if (typeof u.handler !== 'function') throw new Error('handler missing from pool-usage bundle');
+            const asked = [];
+            const idp = (answer) => ({ describeUserPool: async (input) => { asked.push(input); return answer; } });
+            Promise.all([
+              u.poolUsage(idp({ UserPool: { EstimatedNumberOfUsers: 7 } }), 'eu-north-1_EXAMPLE'),
+              u.poolUsage(idp({ UserPool: { EstimatedNumberOfUsers: 0 } }), 'eu-north-1_EXAMPLE'),
+              u.poolUsage(idp({ UserPool: {} }), 'eu-north-1_EXAMPLE').then(() => 'published', () => 'refused'),
+            ]).then(([counted, empty, unknown]) => {
+              if (asked[0].UserPoolId !== 'eu-north-1_EXAMPLE') throw new Error('the read named the wrong pool');
+              if (counted.value !== 7) throw new Error('count wrong: ' + counted.value);
+              if (counted.metric !== 'poolUsers') throw new Error('the metric key the filter reads is gone: ' + counted.metric);
+              if (empty.value !== 0) throw new Error('an empty pool was not published as zero: ' + empty.value);
+              if (unknown !== 'refused') throw new Error('an unreadable count was published as a number');
+              if (u.FREE_TIER_USERS !== 10000) throw new Error('the free-tier ceiling moved: ' + u.FREE_TIER_USERS);
+              console.log('pool-usage bundle loads, counts an empty pool as zero, and refuses a count it could not read');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 

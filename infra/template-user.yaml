@@ -1104,6 +1104,223 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  # --------------------------------------------------------------------------
+  # Free-tier watch — prod only
+  # --------------------------------------------------------------------------
+  # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the free tier cannot be watched
+  # directly at all and the pool's TOTAL user count stands in for one. It is a strict
+  # upper bound — every monthly active is a user, and users who went quiet are still
+  # counted — so an alarm on it fires EARLY and cannot fire late. The alternative already
+  # on offer is AWS's own Free Tier mail at 85%, which arrives with the bill.
+  #
+  # IN THIS STACK, NOT THE CAPTURE'S. Every other number of this shape is emitted by the
+  # capture, which is the ARCHIVE's function in the archive's stack, deployed from `dev`
+  # alone. The pool is neither: it is per-environment and it is here. Handing the capture
+  # a pool id would be the coupling the backup check above already refused
+  # (`docs/DECISIONS.md`, **Alerting**).
+  #
+  # DEV GETS NONE OF IT, like the watch above and by the same `IsProd`. What that gives up
+  # is worth naming rather than discovering: dev identities do count toward the account's
+  # free tier, so this number bounds prod's share of the allowance, not the whole of it.
+  PoolUsageFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsProd
+    Properties:
+      CodeUri: dist/
+      Handler: pool-usage.handler
+      # Spelled out rather than inherited from a `Globals` block, as every function in
+      # this file is and for the same reason: one place per value.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # One API call and no database, the same shape as the backup check beside it.
+      Timeout: 10
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          # REFERENCED, NOT NAMED — the opposite of the vault above, and the difference is
+          # that this pool IS in this stack. A literal would be a second spelling of an id
+          # CloudFormation generates, and it would be the other environment's on a copy.
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - Statement:
+            # ONE CALL, AND THE BOUNDARY IS THE POINT. `DescribeUserPool` reads pool
+            # CONFIGURATION — settings and a count. No attribute, no list and no user datum
+            # becomes reachable through it, so a scheduled job holding this grant cannot read
+            # a user at all. That boundary is a PERMISSION rather than a convention: what
+            # refuses is the policy, not a rule the handler is trusted to keep.
+            #
+            # NAMING THE POOL FROM HERE BUILDS NO CYCLE, for the reason `ApproveFunction`'s
+            # own grant gives: the pool names `PreSignUpFunction` in its `LambdaConfig`, so
+            # nothing the pool depends on may name the pool back — and this function is not
+            # in that chain. So the grant is inline, on the real pool ARN, rather than a
+            # separate `AWS::IAM::Policy`; written as a wildcard it would reach the OTHER
+            # environment's pool, which is the one thing it must never read.
+            - Sid: ReadThisPoolsUserCount
+              Effect: Allow
+              Action: cognito-idp:DescribeUserPool
+              Resource: !GetAtt UserPool.Arn
+
+  PoolUsageLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PoolUsageFunction}
+      RetentionInDays: 30
+
+  # 05:00 UTC, ONE HOUR AFTER THE BACKUP CHECK, so the two prod functions do not share a
+  # minute. Unlike that one's hour, this is derived from nothing — there is no job this
+  # must run after — so the hour is a choice, and the test pins it as written rather
+  # than deriving it from anything.
+  #
+  # `Etc/UTC` RATHER THAN `Europe/Kyiv`, which the capture uses correctly because it
+  # captures a Kyiv trading day. This job has no local-time meaning at all, and a DST
+  # zone would move it against a fixed clock twice a year for no reason. It is not a
+  # silence-alarm argument: two periods of 86400 absorb a 25-hour gap comfortably — see
+  # `PoolUsageSilenceAlarm`, which is sized for the ONE-period window a >24-hour gap can
+  # empty.
+  #
+  # ONCE A DAY, and monthly was the tempting alternative because the allowance is monthly.
+  # It is refused: at `Period: 86400` a two-period silence window would be two days, so a
+  # monthly job's silence alarm could not watch it, and one missed firing would be a month
+  # blind. NO DEAD-LETTER QUEUE and a short retry, for the reason the check above gives —
+  # a delivery that never lands costs one datapoint tomorrow's firing replaces.
+  PoolUsageSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: IsProd
+    Properties:
+      Description: Publish how many identities prod's Cognito pool holds, against the free tier.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(0 5 * * ? *)
+      ScheduleExpressionTimezone: Etc/UTC
+      Target:
+        Arn: !GetAtt PoolUsageFunction.Arn
+        RoleArn: !GetAtt PoolUsageSchedulerRole.Arn
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  PoolUsageSchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: IsProd
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokePoolUsage
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt PoolUsageFunction.Arn
+
+  # UNDIMENSIONED, unlike `UserBackupAgeMetricFilter` above. That one carries a `cluster`
+  # key only because TWO stacks publish under one metric name; this series has a single
+  # publisher, so a dimension would key it on a value nothing else supplies and force the
+  # alarm to repeat that value — a second place for the two to disagree, bought for
+  # nothing.
+  #
+  # AND `DefaultValue` IS LEGAL HERE AND MUST STILL NOT BE SET. CloudWatch Logs rejects a
+  # transformation carrying both a default and dimensions, which is what keeps it off the
+  # filter above; with no dimensions nothing would refuse it. It would publish 0 for every
+  # period with no matching log event — on the HEALTHY side of the `GreaterThan` below,
+  # and enough datapoints to make that alarm's `notBreaching` mean nothing.
+  PoolUsersMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref PoolUsageLogGroup
+      FilterPattern: '{ $.metric = "poolUsers" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: PoolUsers
+          MetricValue: $.value
+
+  # 8000 IS 80% OF THE 10,000 MONTHLY ACTIVES ESSENTIALS BILLS NOTHING FOR, and it sits
+  # deliberately below the 85% at which AWS's own Free Tier alert mails the root account:
+  # a guard that fires with the bill is not a guard. The figure is held against the
+  # module's `FREE_TIER_USERS` in `stack-split.test.ts` rather than explained here twice.
+  #
+  # notBreaching on missing data — honest only because of the two alarms below it. This
+  # value is published BY the function, so its absence means the check did not publish
+  # rather than that the pool is empty: the schedule died, or the function threw.
+  PoolUsersAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        Prod's Cognito pool holds more than 8,000 identities — 80% of the 10,000 monthly
+        actives Essentials bills nothing for. This is TOTAL USERS, not MAU: it is an upper
+        bound, so it fires early rather than late, and it is set ahead of the 85% free-tier
+        alert AWS mails the root account. Check the sign-up path and the approval queue.
+      Namespace: Quirenote
+      MetricName: PoolUsers
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 8000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # TWO PERIODS, NOT ONE, for the reason `BackupFreshnessSilenceAlarm` gives: the window
+  # ends at now rather than at midnight, so two runs more than 24 hours apart — ordinary
+  # Scheduler jitter around a once-daily cron — can leave a one-period window with no run
+  # in it although every day had one.
+  PoolUsageSilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The pool-usage check has stopped running, so prod's identity count is no longer
+        being measured against the free tier. Check the schedule and its role. Expect it on
+        a first deploy too, until the first scheduled run clears it — the function has no
+        invocations yet, and missing data here is treated as breaching.
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Dimensions: [{ Name: FunctionName, Value: !Ref PoolUsageFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  # THE THIRD FAULT, AND NEITHER ALARM ABOVE CAN SEE IT. `pool-usage.ts` throws where the
+  # capture's equivalents warn — it has no other work to protect — and a throw alone is not
+  # a signal: `Invocations` counts a failed invocation too, so the silence alarm stays OK,
+  # and no count is published, so the count alarm stays OK on `notBreaching`. A revoked
+  # grant would otherwise sit green forever.
+  PoolUsageErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The pool-usage check threw, so prod's identity count is unknown rather than low —
+        check the function's cognito-idp:DescribeUserPool grant and its USER_POOL_ID. A
+        pool that answers without EstimatedNumberOfUsers lands here too, deliberately:
+        publishing zero for a count nobody could read would sit on the healthy side of the
+        threshold.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref PoolUsageFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier

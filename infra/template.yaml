@@ -233,7 +233,7 @@ Resources:
                 Resource: !GetAtt CaptureFunction.Arn
 
   # --------------------------------------------------------------------------
-  # Alarms — 3 of the 10 always-free
+  # Alarms
   # --------------------------------------------------------------------------
   # Renamed from `AlertTopic` on 2026-08-11, which mints a NEW topic ARN — that
   # is the point, not a side effect (D44). SNS deactivated the email

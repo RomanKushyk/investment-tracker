@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
+import { FREE_TIER_USERS } from './pool-usage';
 
 // The archive is provider data shared by every environment and user data is not
 // (`docs/DECISIONS.md`, **Cloud target**), so the split is two templates: one archive
@@ -32,10 +33,18 @@ type Resource = {
     Namespace?: string;
     MetricName?: string;
     Dimensions?: { Name: string; Value: unknown }[];
-    MetricTransformations?: { Dimensions?: { Key: string; Value: unknown }[] }[];
+    FilterPattern?: string;
+    MetricTransformations?: {
+      MetricNamespace?: string;
+      MetricName?: string;
+      MetricValue?: string;
+      Dimensions?: { Key: string; Value: unknown }[];
+    }[];
     Threshold?: number;
     EvaluationPeriods?: number;
     Period?: number;
+    Statistic?: string;
+    ComparisonOperator?: string;
     TreatMissingData?: string;
     AlarmActions?: unknown;
     Target?: { Arn?: unknown };
@@ -57,6 +66,21 @@ const templateDoc = (name: string) =>
 const archiveDoc = templateDoc('template.yaml');
 const userDoc = templateDoc('template-user.yaml');
 const userSource = readFileSync(new URL('../template-user.yaml', import.meta.url), 'utf8');
+
+/** One resource's own slice of the template SOURCE, for the assertions that have to see an
+ *  intrinsic tag — `toJS()` drops it and keeps the scalar, so a `!Ref` and a literal spelt
+ *  the same way are indistinguishable after parsing.
+ *
+ *  SCOPED, BECAUSE AN UNSCOPED REGEX OVER THE WHOLE FILE IS THE BUG IT IS MEANT TO CATCH:
+ *  `USER_POOL_ID: !Ref UserPool` appears three times here, so a pattern matching anywhere
+ *  passes on another function's line whatever this one says. */
+const resourceSource = (id: string) => {
+  const start = userSource.search(new RegExp(`^ {2}${id}:\\r?$`, 'm'));
+  if (start === -1) throw new Error(`no such resource in the template source: ${id}`);
+  const rest = userSource.slice(start);
+  const next = rest.slice(1).search(/^ {2}[A-Za-z][\w]*:\r?$/m);
+  return next === -1 ? rest : rest.slice(0, next + 1);
+};
 
 const archive = archiveDoc.toJS() as Template;
 const user = userDoc.toJS() as Template;
@@ -174,14 +198,15 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  // FIVE FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
+  // SIX FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
   // asserted while there was one; a count passes just as well against the wrong set.
-  it('holds the runner, the trigger, the application, the approval and the backup check', () => {
+  it('holds the runner, the trigger, the application, the approval and its two watches', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
       'backup-freshness.handler',
       'migrate.handler',
+      'pool-usage.handler',
       'pre-signup.handler',
     ]);
   });
@@ -432,6 +457,156 @@ describe('the user stack watches its own cluster’s backups', () => {
   });
 });
 
+// Cognito Essentials bills nothing below 10,000 monthly actives and CloudWatch publishes
+// no MAU metric, so the pool's total user count stands in for one — a strict upper bound,
+// which is what makes an alarm on it fire early rather than late. It is watched from the
+// stack that owns the pool, for the reason the backup check gives one describe block up:
+// the capture is the archive's function in the archive's stack, and the pool is neither.
+describe('the user stack watches its pool against the free tier', () => {
+  const POOL_WATCH = [
+    'PoolUsageFunction',
+    'PoolUsageLogGroup',
+    'PoolUsageSchedule',
+    'PoolUsageSchedulerRole',
+    'PoolUsersMetricFilter',
+    'PoolUsersAlarm',
+    'PoolUsageSilenceAlarm',
+    'PoolUsageErrorAlarm',
+  ];
+
+  // DEV GETS NONE OF IT, and the generic loop in the backups block — every resource of a
+  // monitoring type in this stack must carry `IsProd` — cannot see the function, its log
+  // group or its role, because none of those is a monitoring type. Naming them is what
+  // covers the half that loop cannot reach.
+  it('deploys the whole watch on prod only', () => {
+    for (const id of POOL_WATCH) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    }
+  });
+
+  // THE THRESHOLD IS DERIVED, NOT REPEATED — and it is written as the derivation rather
+  // than as its result, so moving `FREE_TIER_USERS` alone fails here. 80% is deliberately
+  // below the 85% at which AWS's own Free Tier alert mails the root account: a guard that
+  // fires with the bill is not a guard.
+  //
+  // AND THE DIRECTION IS PINNED, because nothing else in this repository holds it and the
+  // whole argument for throwing on an unreadable count — zero is the healthy side — is an
+  // argument about `GreaterThan`. Flipped, the alarm fires on a healthy pool and stays
+  // silent on a breached one, with every gate green.
+  it('alarms at 80% of the free tier, and in the direction the argument assumes', () => {
+    const alarm = user.Resources.PoolUsersAlarm.Properties;
+    expect(alarm?.Threshold).toBe(FREE_TIER_USERS * 0.8);
+    expect(alarm?.Threshold ?? Infinity).toBeLessThan(FREE_TIER_USERS * 0.85);
+    expect(alarm?.ComparisonOperator).toBe('GreaterThanThreshold');
+    expect(alarm?.Statistic).toBe('Maximum');
+    expect(alarm?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // ONE CONTRACT, TWO FILES. The filter pattern and the handler's log line are the same
+  // sentence written twice, and nothing at run time reconciles them: a function that ran,
+  // succeeded and emitted a line this pattern no longer matched would leave the alarm on
+  // an empty series, which `notBreaching` reads as OK. `pool-usage.test.ts` holds the
+  // emitting half; this holds the reading half.
+  it('reads the metric off the line the handler emits', () => {
+    const filter = user.Resources.PoolUsersMetricFilter.Properties;
+    expect(filter?.FilterPattern).toBe('{ $.metric = "poolUsers" }');
+    const [transformation] = filter?.MetricTransformations ?? [];
+    expect(transformation?.MetricNamespace).toBe('Quirenote');
+    expect(transformation?.MetricName).toBe('PoolUsers');
+    expect(transformation?.MetricValue).toBe('$.value');
+    // UNDIMENSIONED, unlike `BackupAgeHours`, which is dimensioned only because two
+    // stacks publish under one metric name. One stack publishes this one, in one
+    // environment, so a dimension would key a series on a value nothing else supplies.
+    expect(transformation?.Dimensions).toBeUndefined();
+    expect(user.Resources.PoolUsersAlarm.Properties?.Dimensions).toBeUndefined();
+  });
+
+  // THE POOL IT DESCRIBES IS THIS STACK'S OWN, and the grant is what holds that true
+  // rather than the environment variable: a wildcard here would let a dev deploy read the
+  // prod pool, which is the reach `PreSignUpPolicy` exists to avoid one resource along.
+  it('describes this stack’s pool and reads nothing else', () => {
+    const policies = JSON.stringify(user.Resources.PoolUsageFunction.Properties?.Policies);
+    expect(policies).toContain('cognito-idp:DescribeUserPool');
+    expect(policies).toContain('UserPool.Arn');
+    // The one call, and no second: nothing here may list, create, disable or read a USER.
+    // That is the boundary that makes the pool's configuration readable without any user
+    // datum becoming reachable.
+    expect(policies).not.toContain('ListUsers');
+    expect(policies).not.toContain('AdminGet');
+    expect(policies).not.toContain('dsql:');
+    expect(policies).not.toContain('backup:');
+    // Still the intrinsic: `toJS()` drops an unknown tag and keeps the value, so the
+    // assertion above cannot tell a `!GetAtt` from a pinned literal spelt the same way —
+    // and a literal would deploy a policy whose resource matches no ARN at all, so every
+    // nightly run would throw `AccessDenied` and only `PoolUsageErrorAlarm` would say so.
+    //
+    // ANCHORED ON THE ACTION, NOT ON `Resource:` ALONE. Three other grants in this
+    // template name the same pool ARN on the same line, so an unanchored pattern matches
+    // one of THEM and passes whatever this statement says — which it did: dropping the
+    // tag here, the one failure this assertion exists for, left the suite green.
+    //
+    // It therefore expects `Action:` on the line above `Resource:`. A reorder or a
+    // one-item sequence would fail it, which is the safe direction to be brittle in.
+    expect(userSource).toMatch(
+      /Action:\s*cognito-idp:DescribeUserPool\s*\r?\n\s*Resource:\s*!GetAtt\s+UserPool\.Arn/,
+    );
+    const vars = user.Resources.PoolUsageFunction.Properties?.Environment?.Variables ?? {};
+    expect(vars.USER_POOL_ID).toBe('UserPool');
+    // The same tag-drop hazard as the grant above, three lines on: `toJS()` keeps the
+    // string either way, so without this the function would deploy asking Cognito about a
+    // pool literally called `UserPool` and throw every night.
+    //
+    // AGAINST THIS RESOURCE'S OWN SLICE, not the whole file — the other two functions
+    // carry the identical line, so a file-wide pattern passes on theirs.
+    expect(resourceSource('PoolUsageFunction')).toMatch(/USER_POOL_ID:\s*!Ref\s+UserPool\b/);
+  });
+
+  // WHAT MAKES THE `notBreaching` ABOVE HONEST, exactly as it does for the backup check:
+  // the count is published BY this function, so its absence means the function did not
+  // publish — the schedule died, or it threw — and neither of those is "the pool is
+  // fine". A `notBreaching` alarm with no silence alarm behind it reads OK forever.
+  it('watches the publisher as well as the number', () => {
+    const silence = user.Resources.PoolUsageSilenceAlarm.Properties;
+    expect(silence?.Namespace).toBe('AWS/Lambda');
+    expect(silence?.MetricName).toBe('Invocations');
+    expect(silence?.Dimensions).toEqual([{ Name: 'FunctionName', Value: 'PoolUsageFunction' }]);
+    expect(silence?.ComparisonOperator).toBe('LessThanThreshold');
+    expect(silence?.TreatMissingData).toBe('breaching');
+    // TWO PERIODS, for the reason the backup check's own silence alarm gives: a
+    // once-daily cron with ordinary Scheduler jitter can leave a one-period window with
+    // no run in it although every day had one.
+    expect(silence?.EvaluationPeriods).toBe(2);
+
+    const errors = user.Resources.PoolUsageErrorAlarm.Properties;
+    expect(errors?.Namespace).toBe('AWS/Lambda');
+    expect(errors?.MetricName).toBe('Errors');
+    expect(errors?.Dimensions).toEqual([{ Name: 'FunctionName', Value: 'PoolUsageFunction' }]);
+    expect(errors?.ComparisonOperator).toBe('GreaterThanOrEqualToThreshold');
+    expect(errors?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // NO `AlarmActions` AND NO TOPIC, here as everywhere (`docs/DECISIONS.md`, **Alerting**).
+  it('carries no alarm action', () => {
+    for (const id of ['PoolUsersAlarm', 'PoolUsageSilenceAlarm', 'PoolUsageErrorAlarm'])
+      expect([id, user.Resources[id].Properties?.AlarmActions]).toEqual([id, undefined]);
+  });
+
+  // ONCE A DAY AND CLEAR OF THE BACKUP CHECK. A user count is not perishable — tomorrow's
+  // firing republishes it — which is also why there is no queue and why the retry is cut
+  // short. `Etc/UTC` rather than `Europe/Kyiv` for the reason the backup check states: a
+  // Kyiv schedule drifts an hour twice a year against a job that does not move.
+  it('fires once a day, on its own hour', () => {
+    const schedule = user.Resources.PoolUsageSchedule.Properties;
+    expect(schedule?.ScheduleExpression).toBe('cron(0 5 * * ? *)');
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Etc/UTC');
+    expect(schedule?.Target?.Arn).toBe('PoolUsageFunction.Arn');
+    expect(schedule?.ScheduleExpression).not.toBe(
+      user.Resources.BackupFreshnessSchedule.Properties?.ScheduleExpression,
+    );
+  });
+});
+
 // The acceptance criterion "no archive row is duplicated", stated as the structural
 // fact beneath it: there is one capture pipeline in existence, so there is one writer.
 describe('the capture pipeline exists exactly once across both templates', () => {
@@ -447,13 +622,20 @@ describe('the capture pipeline exists exactly once across both templates', () =>
   // schedule of its own. A count cannot tell a second capture from a backup check, so
   // each schedule is held to the function it targets instead — which is the property
   // that was actually wanted all along.
-  it('schedules the capture once, and the user stack schedules only its backup check', () => {
+  it('schedules the capture once, and the user stack schedules only its own watches', () => {
     expect(idsOfType(archive, 'AWS::Scheduler::Schedule')).toEqual(['CaptureSchedule']);
     expect(archive.Resources.CaptureSchedule.Properties?.Target?.Arn).toBe('CaptureFunction.Arn');
-    expect(idsOfType(user, 'AWS::Scheduler::Schedule')).toEqual(['BackupFreshnessSchedule']);
-    expect(user.Resources.BackupFreshnessSchedule.Properties?.Target?.Arn).toBe(
-      'BackupFreshnessFunction.Arn',
-    );
+    // Each one held to the function it targets. The list grows whenever the user stack
+    // takes on another watch of its own — a pool count beside the backup age — and what
+    // it must never acquire is a target that is a CAPTURE.
+    const targets = idsOfType(user, 'AWS::Scheduler::Schedule').map((id) => [
+      id,
+      user.Resources[id].Properties?.Target?.Arn,
+    ]);
+    expect(targets).toEqual([
+      ['BackupFreshnessSchedule', 'BackupFreshnessFunction.Arn'],
+      ['PoolUsageSchedule', 'PoolUsageFunction.Arn'],
+    ]);
   });
 
   // Two declarations, three clusters at run time — the user template is deployed once

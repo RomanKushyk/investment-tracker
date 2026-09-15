@@ -55,7 +55,12 @@ must be **Full (strict)** — `flexible` would loop, since CloudFront answers pl
 is a pipeline, not a gate:** lint/format/test/build all run before the job assumes any AWS credential; `prod` accepts only `main`;
 the role touches nothing but two Amplify branches; the ruleset blocks force-push/delete on `main`. Egress cost is watched by a $5
 monthly AWS Budget (alerts at $1 and $3 actual, $5 forecast) plus a daily Cost Anomaly Detection subscription, both with a live
-email subscriber — notification only, never an automated shutdown.
+email subscriber — notification only, never an automated shutdown. A **second budget over Cognito usage** is specified but not
+yet created — see **Watched by hand** below, which says why and what it takes. **A notification budget costs nothing, however many you hold**
+(the account quota is 20,000, raisable): AWS bills for action-enabled budgets (the first two free, then $0.10/day) and for
+budget reports ($0.01 each), and this account uses neither. Every one of these is a console artefact, held in prose and in no
+template: **Watched by hand** carries the Cognito budget and the free-tier dashboard, and this paragraph carries the $5 budget
+and the anomaly subscription.
 
 **The backend is split too, and asymmetrically** — the environment split stops at user data
 (`docs/DECISIONS.md`, **Cloud target**), so the archive has one deploying branch and user data has two:
@@ -64,7 +69,7 @@ email subscriber — notification only, never an automated shutdown.
 |---|---|---|
 | `quirenote-backend` | the archive cluster (tagged `app=quirenote`), the capture Lambda, the schedule, the DLQ, the alarms | `dev` only |
 | `quirenote-backend-user-dev` | a DSQL cluster of user data, the migration runner for it, and the Cognito pool at `auth.dev.quirenote.com`. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
-| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and, because of that tag, strictly more than its dev twin: a nightly Lambda that reads THIS cluster's recovery points, its log group, its schedule and role, a metric filter, and three alarms — one on the age it publishes, two on the function itself. They hang off `IsProd`, so `dev` renders none of them | `main` |
+| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and, because of that tag, strictly more than its dev twin: two nightly Lambdas — one reads THIS cluster's recovery points, the other THIS pool's user count against the free tier — each with its log group, schedule and role, a metric filter, and three alarms: one on the value it publishes, two on the function itself. They hang off `IsProd`, so `dev` renders none of them | `main` |
 
 `deploy-backend.yml` fires on both branches and picks its environment from the ref exactly as the frontend does; the archive step
 is skipped off `main`. **The consequence worth knowing before it is needed: a `workflow_dispatch` on `main` cannot repair the
@@ -347,3 +352,90 @@ purge.
 Amplify's free tier is 12 months only (1,000 build min/mo, 15 GB served, 5 GB CDN storage). Builds run in GitHub Actions
 (unlimited-free on public repos), so Amplify bills only storage (~1.8 MB ≈ $0.00004/mo) and transfer ($0.15/GB) — effectively
 $0/mo solo.
+
+### Watched by hand
+
+Two guardrails are console artefacts rather than stack resources, because
+`quirenote-backend-cfn-exec` grants neither `budgets:*` nor `cloudwatch:PutDashboard` and widening a
+hand-made execution role for resources no gate reads buys nothing. **Nothing re-creates either one.
+Deleted, they are a repair by hand, and this section is the whole of the instructions.**
+
+**1. The Cognito usage budget — NOT YET CREATED.** A **usage** budget (not a cost budget) at 100% of the Cognito free
+tier — 10,000 monthly active users on Essentials, per ACCOUNT rather than per pool — with the
+owner's live email as the subscriber, notification only. A notification budget costs nothing however many the
+account holds (the quota is 20,000, raisable); what bills is an ACTION-enabled budget, and no budget
+here carries an action.
+
+**The usage type follows the pool's TIER, and picking the wrong one is the failure this budget
+exists to prevent** — a filter that matches nothing cannot be told apart from one that is never
+breached. This pool is `UserPoolTier: ESSENTIALS`, so it meters under `CognitoEssentialsOperation`,
+and these are the lines that matter, read from AWS's own pricing offer file
+(`https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonCognito/current/index.json` — public,
+no credentials):
+
+| Usage type | Range | Price | What it is |
+|---|---|---|---|
+| `EUN1-CognitoEssentialsMAU` | 0–Inf | $0.015/MAU | The Essentials meter in `eu-north-1` |
+| `Global-CognitoFreeTierMAU` | 0–10,000 | $0.00 | The 10,000 free MAUs, as a QUANTITY range |
+| `Global-CognitoUserPoolMAU` | 0–50,000 | $0.00 | **Not ours** — the legacy classic User Pools allowance |
+| `EUN1-CognitoUserPoolsMAU` | 0–50,000 | $0.0055/MAU | **Not ours** — classic tier, and note the plural |
+
+Two traps in that table. `EUN1-CognitoUserPoolMAU` (singular, regional) **does not exist**; the
+regional classic type is plural. And AWS's Free Tier tracking documentation still lists
+`CognitoUserPoolMAU` against Amazon Cognito, which is the legacy 50,000 line and not the 10,000 this
+budget is about.
+
+**WHICH METER THE COVERED MAUs LAND ON IS NOT SETTLED HERE, and it decides the limit.** The offer
+file gives quantities, not the posting rule, and both readings fit it — the Essentials meter prices
+from unit 0 with no free band, so something absorbs the first 10,000, and `Global-CognitoFreeTierMAU`
+is the only candidate in the file. So, in the console, **look at which line carries non-zero usage
+before choosing**:
+
+| If Cost Explorer shows | Then the covered MAUs meter on | Filter on | Limit |
+|---|---|---|---|
+| usage on `EUN1-CognitoEssentialsMAU` while the bill is $0 | the Essentials meter, free tier applied as a credit | `EUN1-CognitoEssentialsMAU` | 10,000 |
+| `EUN1-CognitoEssentialsMAU` at zero, usage on the `Global-` free-tier line | the free-tier line, with only the excess billed | `EUN1-CognitoEssentialsMAU` | a near-zero limit — any billable Essentials MAU means the allowance is already gone |
+
+Choosing the wrong pairing is the failure named above: a budget on the Essentials meter with a
+10,000 limit, under the second reading, reads **zero across the whole range it exists to watch** and
+only trips at roughly 20,000 MAUs, long after the bill started. Record which line actually showed
+usage, and the pairing chosen:
+
+| Field | Value |
+|---|---|
+| Budget name | `cognito-free-tier` |
+| Type | Usage |
+| Service | Amazon Cognito |
+| Usage type | *(record the exact line that showed non-zero usage)* |
+| Limit | *(10,000 or near-zero, per the table above)* |
+| Alert | 100% of budgeted amount, actual |
+| Subscriber | the owner's email |
+
+One CLI call settles it if credentials are to hand, and is worth preferring to reading the console:
+`aws ce get-dimension-values --dimension USAGE_TYPE --search-string Cognito`, or
+`aws freetier get-free-tier-usage`.
+
+**If the console offers no Cognito usage line yet**, that is possible while the pool is nearly
+empty, and the budget cannot be created honestly until it does. Say so rather than guessing;
+`Quirenote/PoolUsers` and its alarm are the watch that works in the meantime, and they are in the
+stack.
+
+AWS also mails at 85% of a Free Tier limit — *"AWS Free Tier usage alerts automatically notifies you
+over email when you exceed 85 percent of your Free Tier limit for each service"* — to the account
+root user's address unless changed under Billing → Preferences → Alert preferences, and it is
+automatic for an individual account but opt-in for an Organizations management account. **The thing
+to verify is that somebody reads it.** `PoolUsersAlarm` sits at 80% of the same 10,000, which puts
+it ahead of that mail **for prod's share of the allowance** — not for the account's, since dev's
+pool spends the same 10,000 and nothing here measures it.
+
+**2. The free-tier dashboard — NOT YET CREATED.** Two widgets, in `eu-north-1`:
+
+| Widget | Metric | Notes |
+|---|---|---|
+| Pool identities | `Quirenote` / `PoolUsers` | Horizontal annotation at 8,000, where the alarm sits |
+| Sign-ups | `AWS/Cognito` / `SignUpSuccesses`, prod pool | Confirm the dimensions the console offers rather than assuming them |
+
+**Title each widget with what it is not: neither of these is MAU.** `PoolUsers` is total identities
+— an upper bound, which is what makes it useful early and wrong as a measurement. `SignUpSuccesses`
+is the one that shows the risk open registration actually adds, a sign-up spike, and it only has
+datapoints once somebody signs up.

@@ -253,7 +253,19 @@ same way and PER CLUSTER, by the stack that owns the cluster: each check lists r
 that cluster's own ARN and publishes an age, alarmed above 48 hours, with two alarms over the
 publisher itself beside it — its silence and its errors — because a value published by a check is
 absent when the CHECK fails, not when the backups do, and a check that throws is still an
-invocation.
+invocation. THE FREE TIER ON MONTHLY ACTIVES IS WATCHED THE SAME SHAPE AGAIN: there is no
+CloudWatch MAU metric, so prod's user stack publishes its own pool's total user count daily and
+alarms above 8,000 — 80% of the 10,000 Essentials bills nothing for, and deliberately ahead of the
+85% at which AWS mails the root account, because a guard that fires with the bill is not a guard.
+Total users bounds monthly actives from ABOVE — an active user is one the pool still holds, short of
+a deletion nothing in this stack can perform — but the allowance is per ACCOUNT and dev's pool spends
+it too, so what this measures is prod's share, and the alarm is early rather than late only against
+that share. A count that could not be read THROWS
+rather than publishing zero, which on a `GreaterThan` alarm is the healthy side. That is twelve
+alarms against ten always-free, knowingly: the two over the allowance cost $0.10 a month each, where
+the overshoot they are bought against is open-ended. The usage budget and the dashboard are made BY HAND in the
+console, like the $5 cost budget, and `docs/reference/DEPLOYMENT.md` is the only thing that
+re-creates them.
 **Why.** An alarm that cannot deliver is worse than none — it turns an unmonitored system into one
 everybody believes is monitored, and every surrounding indicator reads healthy because nothing was
 ever attempted. A liveness signal cannot arrive through the channel it is checking, so its primary
@@ -266,7 +278,14 @@ one vault with one tag-matched selection holds every backed-up cluster — so th
 job keeps that number up while another cluster has silently left the selection, which is the exact
 failure the check exists to catch. · Teaching the capture the second cluster: it is the archive's
 function in the archive's stack, and one check reading two clusters is how one cluster's backup
-comes to cover for another's.
+comes to cover for another's. · Emitting the pool count from the capture for the same reason one
+step on — the pool is per-environment and in the user stack, so the archive's function would hold a
+pool it does not own, from the branch that does not deploy it. · A budget or a dashboard as stack
+resources: both would widen a hand-made execution role for resources no gate reads, and the cost
+budget has been a console artefact throughout without anything going wrong. · Publishing zero, or a
+large sentinel, for a count that could not be read: zero reads as healthy, and a sentinel fires the
+alarm with the wrong first hypothesis — it sends whoever reads it to the sign-up path when the fault
+is an IAM grant.
 
 ## Cloud target
 **Decision.** The backend is Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the
@@ -280,7 +299,8 @@ the schema it applies rather than the stack it started in, so each user cluster 
 reach no other cluster at all. A cluster joins the locked backup vault by its `app` tag: the archive
 and prod's user cluster carry it, dev's does not. Cross-browser beats offline, so there is no
 service worker and no PWA shell. Any statement over the archive is bounded by a SQL date window, and completeness names both
-bounds, the row limit first. The free tier on monthly actives is watched via the pool's user count.
+bounds, the row limit first. The free tier on monthly actives is watched via the pool's user count,
+published daily by the prod user stack because that is the stack the pool is in.
 **Why.** One implementation cannot be a second source of truth, which is the objection to server
 derivation and the reason importing answers it. The archive is public reference data — a second copy
 would be a second history to keep honest, and worthless anyway, since its value IS its accumulation.
