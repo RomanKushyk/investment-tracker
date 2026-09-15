@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from 'yaml';
+import { isMap, parseDocument, type Document } from 'yaml';
 import { envVars, tagAt, taggedCollections } from './template-intrinsic';
 
 // EVERY TAGGED COLLECTION IN THE USER STACK, HELD AS ONE SET — the seven intrinsics defining
@@ -98,16 +98,33 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
 
 const shown = (path: readonly (string | number)[]) => path.join('.');
 
+// How many resources a stack declares, read off the NODE — a `Resources` that is a string or a
+// list is not a count of anything, and both render as something `Object.keys` will happily size.
+const resourceCount = (doc: Document) => {
+  const node = doc.get('Resources', true);
+  return isMap(node) ? node.items.length : 0;
+};
+
 describe('every conditional in the user stack is an intrinsic and not a list spelt like one', () => {
-  // THE ANCHOR THE OTHER TEMPLATE FILES OPEN WITH, both halves of it. An empty file parses with
-  // NO errors — `parseDocument('')` gives `errors: []` and null contents — so `errors` alone
-  // would let the absence assertion below pass against nothing, and would let the inventory
-  // pass against a truncated template. `Resources` is what says a file is actually here.
+  // THE ANCHOR THE OTHER TEMPLATE FILES OPEN WITH, both halves of it. `errors` alone says
+  // nothing about whether a file is a template: a GUTTED one — the line `Resources:` by itself,
+  // or `Resources: hello` — parses with none. What slips through on that is the ARCHIVE's
+  // assertion, `carries none` below, because a gutted file derives the empty set that one is
+  // looking for. The user stack is caught anyway, by the twenty. `Resources` is what says a
+  // file is actually here.
+  //
+  // COUNTED ON THE NODE, not merely defined and not counted on `toJS()`. The gutted file renders
+  // as `{ Resources: null }`, which `toBeDefined()` accepts — only `undefined` fails it — and
+  // `Object.keys` over the rendered value is no better, counting the five characters of
+  // `hello`. The node is the only one of the three that knows a map from a string.
   it('parses, and both stacks are in it', () => {
     expect(user.errors).toEqual([]);
     expect(archive.errors).toEqual([]);
-    expect(user.toJS()?.Resources).toBeDefined();
-    expect(archive.toJS()?.Resources).toBeDefined();
+    expect(resourceCount(user)).toBeGreaterThan(0);
+    expect(resourceCount(archive)).toBeGreaterThan(0);
+    // THE COUNT'S OWN CLAIM, against the two spellings a rendered value gets wrong.
+    expect(resourceCount(parseDocument('Resources:\n'))).toBe(0);
+    expect(resourceCount(parseDocument('Resources: hello\n'))).toBe(0);
   });
 
   // BOTH DIRECTIONS IN ONE ASSERTION. A tag deleted takes its entry out of the derived set; a

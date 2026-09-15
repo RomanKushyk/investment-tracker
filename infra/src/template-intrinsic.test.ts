@@ -245,6 +245,106 @@ describe('taggedCollections', () => {
     expect(taggedCollections(parseDocument(SCALARS_ONLY))).toEqual([]);
   });
 
+  // WHAT IT CANNOT ADDRESS IT NAMES, and it is the ADDED direction that rests on this entirely:
+  // the set is read by equality, so an intrinsic the walk steps over never enters it and cannot
+  // redden anything. (A subtree holding entries the list ALREADY carries reddens either way —
+  // they go missing.) Each fixture parses with NO errors and hides one tagged `!Equals` a step
+  // in, and the test below holds that "one" to the document rather than to this sentence. The
+  // path in the message is the point of throwing: "under Conditions" is something a reader can
+  // act on, where a set one entry short is not.
+  it.each([
+    [
+      'a key that is not a scalar',
+      'Conditions:\n  ? [a, b]\n  : !Equals [!Ref Environment, prod]\n',
+    ],
+    ['a key that is a boolean', 'Conditions:\n  true: !Equals [!Ref Environment, prod]\n'],
+    ['a key that is null', 'Conditions:\n  ~: !Equals [!Ref Environment, prod]\n'],
+    // A NUMBER AND STILL NO NAME: `YAMLMap.get` compares strictly and `NaN !== NaN`, so the
+    // path this would emit is one `tagAt` reports is not in the document.
+    ['a key that is NaN', 'Conditions:\n  .nan: !Equals [!Ref Environment, prod]\n'],
+  ])('throws naming the path on %s', (_name, src) => {
+    const doc = parseDocument(src);
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/Conditions/);
+  });
+
+  // AND EACH OF THOSE REALLY IS HIDING AN ENTRY. The same condition under a key a path can
+  // carry derives exactly one, so what those four spellings cost is that entry — the figure
+  // held against the parser instead of asserted in a comment nobody runs.
+  it('derives from a nameable key the entry those spellings hide', () => {
+    const named = parseDocument('Conditions:\n  Named: !Equals [!Ref Environment, prod]\n');
+    expect(taggedCollections(named)).toEqual([[['Conditions', 'Named'], '!Equals']]);
+  });
+
+  // THE JOINED PATH, AND THE KEY ITSELF. Every fixture in the table above puts its bad key
+  // directly under `Conditions`, where the joined path and its first segment read alike — so
+  // the join is unheld there, and so is the key, which is the half that finds the line.
+  it('names the joined path and the offending key', () => {
+    const doc = parseDocument(
+      'Conditions:\n  Inner:\n    true: !Equals [!Ref Environment, prod]\n',
+    );
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/under Conditions\.Inner: true/);
+  });
+
+  // AND THE SAME AT A SEQUENCE INDEX, which is where a real `!If` arm lives. Every other
+  // fixture here hangs its unaddressable node off a MAP key, so the seq branch's half of the
+  // throw is held by this one alone — and stepping over an item there reopens the whole hole.
+  it('throws naming the path on an alias inside a sequence', () => {
+    const doc = parseDocument('Conditions:\n  A: &p !Equals [a, b]\n  B:\n    - *p\n');
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/at Conditions\.B\.0/);
+  });
+
+  // AN EMPTY-STRING KEY IS A ONE-LEVEL PATH, and joined it is `''` — which a falsy test reads
+  // as no path at all, handing a non-root site the root's own spelling and letting the anchor
+  // above be satisfied from the wrong place.
+  it('does not spell a one-level path as the document root', () => {
+    const doc = parseDocument("'':\n  ~: !Equals [a, b]\n");
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/under : null/);
+  });
+
+  // A RAW NULL IS NEITHER SCALAR NOR COLLECTION EITHER, and it is not the `Empty:` spelling —
+  // that one parses to a null SCALAR and is a leaf. These two give the pair a value of raw
+  // `null`, a node with no kind at all, and the subtree it stands for is whatever gets written
+  // there next.
+  it.each([
+    ['a flow map entry with no value', 'Conditions: {A}\n'],
+    ['an explicit key with no value', 'Conditions:\n  ? A\n'],
+  ])('throws naming the path on %s', (_name, src) => {
+    const doc = parseDocument(src);
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/Conditions\.A/);
+  });
+
+  // AN ALIAS IS NOT A COLLECTION, so the node it names is walked at the anchor and never at the
+  // alias — and an anchor on an UNTAGGED collection puts every tag under it out of reach at the
+  // second path entirely. It throws for the same reason a bad key does.
+  it('throws naming the path on an alias', () => {
+    const doc = parseDocument(
+      'Conditions:\n  IsProd: &p !Equals [!Ref Environment, prod]\n  Other: *p\n',
+    );
+    expect(doc.errors).toEqual([]);
+    expect(() => taggedCollections(doc)).toThrow(/Conditions\.Other/);
+  });
+
+  // AN EMPTY FILE IS THE ABSENCE ASSERTION'S OLDEST TRAP: `parseDocument('')` gives
+  // `errors: []` and NULL contents, so a set derived from nothing reads exactly like a template
+  // that carries nothing. Null is neither collection nor scalar, so it throws with the rest.
+  // A SCALAR at the root is a different thing and is a leaf, like a scalar anywhere — `---`, `~`
+  // and a bare string all parse to one. Whether a file is a template at all is what
+  // `template-conditionals.test.ts` anchors on `Resources`, and that anchor has to reject a
+  // NULL `Resources:` to be worth leaning on here.
+  //
+  // THE MESSAGE AND NOT MERELY A THROW: delete the root's fallback spelling and a bare
+  // `toThrow()` still passes, on an error naming an empty path.
+  it('throws on a document with no contents, and reads a scalar root as the leaf it is', () => {
+    expect(() => taggedCollections(parseDocument(''))).toThrow(/the document root/);
+    expect(taggedCollections(parseDocument('just a string\n'))).toEqual([]);
+    expect(taggedCollections(parseDocument('---\n'))).toEqual([]);
+  });
+
   // THE HALF THAT REDDENS. One tag deleted and the entry is simply gone from the set — which
   // is what an inventory written against this holds the template to.
   it('loses the entry when the tag goes', () => {

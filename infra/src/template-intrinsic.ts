@@ -65,19 +65,40 @@ export const tagAt = (doc: Document, ...path: (string | number)[]): string | und
  *  in CloudFormation, so a key is a step and never a find. Uncoerced because `YAMLMap.get`
  *  compares strictly: a `2024:` key stringified here would come back as a path `tagAt` then
  *  says is not in the document — the two have to compose, since one derives what the other
- *  reads. A key that is neither a string nor a number is not addressable by either. */
+ *  reads.
+ *
+ *  AND WHAT IT CANNOT ADDRESS IT NAMES. A key no path can carry, and a node that is neither
+ *  scalar nor collection — an alias, a raw null, a bare `Pair` — each throw, because stepping
+ *  over one takes the whole SUBTREE beneath it while the document parses with no errors. That is
+ *  the one failure this set cannot survive: it is read by equality, so an intrinsic the walk
+ *  never reaches cannot redden anything, which is the ADDED direction the derivation exists for.
+ *
+ *  A SCALAR is the one thing that stops here rather than throwing — it is a leaf, and
+ *  `intrinsicAt`'s case, at the root as anywhere else. An EMPTY file is neither:
+ *  `parseDocument('')` gives null contents and no errors, so it would otherwise hand back the
+ *  same empty set a template with no tagged collection hands back. Whether a file is a template
+ *  at all is the inventory's own anchor and not this walk's. */
 export const taggedCollections = (doc: Document): [(string | number)[], string][] => {
   const found: [(string | number)[], string][] = [];
   const walk = (node: unknown, path: (string | number)[]): void => {
-    if (!isCollection(node)) return;
+    // THE ROOT BY ITS LENGTH, not by a falsy join: a key that is the empty string joins to `''`
+    // too, and the root's own spelling has to stay something only the root can produce.
+    const shown = path.length ? path.join('.') : 'the document root';
+    if (isScalar(node)) return;
+    if (!isCollection(node)) {
+      throw new Error(`no scalar or collection in the template at ${shown}`);
+    }
     if (node.tag) found.push([path, node.tag]);
     if (isMap(node)) {
       for (const pair of node.items) {
-        if (!isScalar(pair.key)) continue;
-        const key = pair.key.value;
-        if (typeof key === 'string' || typeof key === 'number') {
-          walk(pair.value, [...path, key]);
+        const key = isScalar(pair.key) ? pair.key.value : undefined;
+        // `NaN` IS EXCLUDED THOUGH IT IS A NUMBER, because `YAMLMap.get` compares strictly and
+        // `NaN !== NaN`: a path carrying one is a path `tagAt` then reports is not in the
+        // document, which is the composition the uncoerced key above exists to keep.
+        if (typeof key !== 'string' && (typeof key !== 'number' || Number.isNaN(key))) {
+          throw new Error(`no addressable key in the template under ${shown}: ${String(pair.key)}`);
         }
+        walk(pair.value, [...path, key]);
       }
     } else if (isSeq(node)) {
       node.items.forEach((item, index) => walk(item, [...path, index]));
