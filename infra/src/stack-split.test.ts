@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO } from '../../src/repo-root';
+import { NO_BACKUP_HOURS } from './backup-age';
 
 // The archive is provider data shared by every environment and user data is not
 // (`docs/DECISIONS.md`, **Cloud target**), so the split is two templates: one archive
@@ -19,6 +20,7 @@ import { REPO } from '../../src/repo-root';
 
 type Resource = {
   Type: string;
+  Condition?: string;
   DeletionPolicy?: string;
   UpdateReplacePolicy?: string;
   Properties?: {
@@ -26,6 +28,19 @@ type Resource = {
     DeletionProtectionEnabled?: boolean;
     Environment?: { Variables?: Record<string, string> };
     Tags?: { Key: string; Value: unknown }[];
+    Policies?: unknown;
+    Namespace?: string;
+    MetricName?: string;
+    Dimensions?: { Name: string; Value: unknown }[];
+    MetricTransformations?: { Dimensions?: { Key: string; Value: unknown }[] }[];
+    Threshold?: number;
+    EvaluationPeriods?: number;
+    Period?: number;
+    TreatMissingData?: string;
+    AlarmActions?: unknown;
+    Target?: { Arn?: unknown };
+    ScheduleExpression?: string;
+    ScheduleExpressionTimezone?: string;
   };
 };
 
@@ -115,8 +130,17 @@ describe('the user stack holds user data and nothing else', () => {
   // environment exactly as user data does (`docs/DECISIONS.md`, **Auth model**), so the
   // pool belongs beside the cluster it matches and the list has to say so out loud. The
   // API is here on the same argument — it is the door to those rows and to no others.
-  // What the list still refuses is the archive's half — a schedule, a DLQ, a metric
-  // filter, an alarm.
+  //
+  // A SCHEDULE, A ROLE FOR IT, A METRIC FILTER AND AN ALARM ARE NOW HERE TOO, and this
+  // list used to name three of the four as the archive's half. They are not: monitoring follows the CLUSTER,
+  // the same way the runner follows the schema it applies. Prod's user cluster is in the
+  // locked vault and nothing reported whether it was still landing there, because both
+  // existing checks read the ARCHIVE's ARN — correctly, so that neither cluster can make
+  // the other look fresh. The cost of that correctness is a second check, and it belongs
+  // beside the cluster it reads.
+  //
+  // WHAT THE LIST STILL REFUSES is a second CAPTURE: no DLQ, and the schedule assertion
+  // further down names the function each schedule targets rather than counting them.
   //
   // ONE ENTRY FOR THE API, not four, because `Domain:` is SAM's sugar: the transform
   // generates the `AWS::ApiGatewayV2::DomainName`, `::ApiMapping` and `::Stage` beside
@@ -134,16 +158,29 @@ describe('the user stack holds user data and nothing else', () => {
       'AWS::Cognito::ManagedLoginBranding',
       'AWS::Lambda::Permission',
       'AWS::IAM::Policy',
+      'AWS::IAM::Role',
+      'AWS::Scheduler::Schedule',
+      'AWS::Logs::MetricFilter',
+      'AWS::CloudWatch::Alarm',
     ]);
     for (const [id, r] of resources(user)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
   });
 
-  // FOUR FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
+  // NO DEAD-LETTER QUEUE ANYWHERE IN THIS STACK, stated separately from the allow-list
+  // above because that list only says what MAY appear. A DLQ is the capture's, and it is
+  // there for a reason that does not hold here: a missed price is unrecoverable, where a
+  // missed freshness reading is republished by the next firing.
+  it('carries no queue', () => {
+    expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
+  });
+
+  // FIVE FUNCTIONS NOW, AND THEY ARE NAMED RATHER THAN COUNTED. A count was what this
   // asserted while there was one; a count passes just as well against the wrong set.
-  it('holds the runner, the trigger, the application and the approval, and nothing else', () => {
+  it('holds the runner, the trigger, the application, the approval and the backup check', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
+      'backup-freshness.handler',
       'migrate.handler',
       'pre-signup.handler',
     ]);
@@ -190,6 +227,211 @@ describe('the user stack holds user data and nothing else', () => {
   });
 });
 
+// The other half of the tag decision above. Carrying `app=quirenote` puts prod's cluster
+// in the locked vault; nothing reported whether it was still LANDING there, because both
+// existing checks filter recovery points by the ARCHIVE's ARN. That filter is right — it
+// is what stops one cluster's backup making another look fresh — so the answer is a
+// second check reading this cluster's own ARN, in the stack that owns the cluster.
+describe('the user stack watches its own cluster’s backups', () => {
+  const WATCH = [
+    'BackupFreshnessFunction',
+    'BackupFreshnessLogGroup',
+    'BackupFreshnessSchedule',
+    'BackupFreshnessSchedulerRole',
+    'UserBackupAgeMetricFilter',
+    'UserBackupAgeAlarm',
+    'BackupFreshnessSilenceAlarm',
+    'BackupFreshnessErrorAlarm',
+  ];
+
+  /** Types this stack holds for monitoring and nothing else, so every one of them must
+   *  be prod's. `AWS::IAM::Role` is deliberately NOT here: the watch brought the only one
+   *  today, but a role is not a monitoring resource, and the next unrelated one — an API
+   *  logging role, a second scheduler — would fail a test named for this check with a
+   *  message pointing at the wrong thing. `WATCH` names that role instead. */
+  const MONITORING = [
+    'AWS::CloudWatch::Alarm',
+    'AWS::Logs::MetricFilter',
+    'AWS::Scheduler::Schedule',
+  ];
+
+  // DEV GETS NONE OF IT, and the condition is the only thing that says so. Dev's cluster
+  // carries `app=quirenote-dev` and is deliberately outside the vault, so an alarm there
+  // would watch a backup nobody asked for and read "no recovery point" every night from
+  // the day it deployed.
+  //
+  // BOTH HALVES, AND THE SECOND IS DERIVED. The named list catches a resource that lost
+  // its condition; it cannot catch the NEXT alarm somebody adds without one, because an
+  // id missing from a hand-kept list is missing silently — and the allow-list above now
+  // permits alarms, schedules and metric filters unconditionally, so nothing else would.
+  // Named alone is the shape this file argues against twice in its own comments.
+  it('deploys the whole check on prod only', () => {
+    for (const id of WATCH) {
+      expect([id, user.Resources[id]?.Type]).not.toEqual([id, undefined]);
+      expect([id, user.Resources[id]?.Condition]).toEqual([id, 'IsProd']);
+    }
+    for (const [id, r] of resources(user))
+      if (MONITORING.includes(r.Type)) expect([id, r.Condition]).toEqual([id, 'IsProd']);
+  });
+
+  // THE CLUSTER IT READS IS THIS STACK'S OWN. Pointed at the archive it would report a
+  // number that is already reported, twice, and prod's user data would still be watched
+  // by nothing — green, and the exact state this resource exists to end.
+  it('reads the USER cluster’s ARN, and never the archive’s', () => {
+    const vars = user.Resources.BackupFreshnessFunction.Properties?.Environment?.Variables ?? {};
+    expect(vars.DSQL_CLUSTER_ARN).toBe('UserCluster.ResourceArn');
+    // Still the intrinsic: `toJS()` drops an unknown tag and keeps the value, so the
+    // assertion above cannot tell a `!GetAtt` from a pinned literal spelt the same way.
+    expect(userSource).toMatch(/DSQL_CLUSTER_ARN:\s*!GetAtt\s+UserCluster\.ResourceArn/);
+    expect(JSON.stringify(vars)).not.toContain('PriceCluster');
+  });
+
+  // ONE `!GetAtt`, READ TWICE, which is what makes "the number and the alarm are about
+  // the same cluster" true rather than remembered. The metric line carries the id the
+  // function is given and the alarm selects on the id the template resolves; spelled
+  // apart, a replaced cluster would publish under one value while the alarm watched the
+  // other — and the alarm would then sit on a series that never gets another datapoint.
+  it('dimensions the metric and the alarm by the same cluster', () => {
+    const vars = user.Resources.BackupFreshnessFunction.Properties?.Environment?.Variables ?? {};
+    expect(vars.DSQL_CLUSTER_ID).toBe('UserCluster.Identifier');
+    expect(user.Resources.UserBackupAgeAlarm.Properties?.Dimensions).toEqual([
+      { Name: 'cluster', Value: 'UserCluster.Identifier' },
+    ]);
+    const [transformation] =
+      user.Resources.UserBackupAgeMetricFilter.Properties?.MetricTransformations ?? [];
+    expect(transformation?.Dimensions).toEqual([{ Key: 'cluster', Value: '$.cluster' }]);
+  });
+
+  // IT READS A BACKUP VAULT AND NOTHING ELSE. The ARN above is a string to this function
+  // — it never connects — so a `dsql:` grant would be reach it has no use for, on the one
+  // cluster in this system that holds somebody's portfolio.
+  it('grants a read of the vault and no access to any cluster', () => {
+    const policies = JSON.stringify(user.Resources.BackupFreshnessFunction.Properties?.Policies);
+    expect(policies).toContain('backup:ListRecoveryPointsByBackupVault');
+    expect(policies).not.toContain('dsql:');
+    expect(policies).not.toContain('cognito-idp:');
+  });
+
+  // 48, FOR THE ARCHIVE'S REASON: the plan has a 60-minute start window, so a single late
+  // or skipped night is normal operation and an alarm that pages for it gets muted. And
+  // `NO_BACKUP_HOURS` has to clear that threshold, or "no recovery point at all" would be
+  // published as a number the alarm reads as healthy.
+  it('alarms at 48 hours, above the value that means no backup exists', () => {
+    const alarm = user.Resources.UserBackupAgeAlarm.Properties;
+    expect(alarm?.Threshold).toBe(48);
+    expect(alarm?.TreatMissingData).toBe('notBreaching');
+    expect(NO_BACKUP_HOURS).toBeGreaterThan(alarm?.Threshold ?? 0);
+    expect(NO_BACKUP_HOURS).toBeGreaterThan(
+      archive.Resources.BackupAgeAlarm.Properties?.Threshold ?? 0,
+    );
+  });
+
+  // WHAT MAKES THE `notBreaching` ABOVE HONEST. The freshness value is published BY this
+  // function, so its absence means the CHECK did not publish — the schedule died, or the
+  // function threw — rather than that the backups stopped. In the archive's stack the
+  // first is already covered by `SilenceAlarm` over the capture's invocations; nothing
+  // covered either here, so `notBreaching` would have parked a dead check in OK forever.
+  // One way for the value to go absent is still uncovered and is named in the template:
+  // a run that succeeds and emits a line the metric filter no longer matches.
+  it('watches the publisher too, so a dead check is not a quiet one', () => {
+    const silence = user.Resources.BackupFreshnessSilenceAlarm.Properties;
+    expect(silence?.Namespace).toBe('AWS/Lambda');
+    expect(silence?.MetricName).toBe('Invocations');
+    expect(silence?.Dimensions).toEqual([
+      { Name: 'FunctionName', Value: 'BackupFreshnessFunction' },
+    ]);
+    expect(silence?.TreatMissingData).toBe('breaching');
+    // TWO DAILY PERIODS, NOT ONE. Not because one missed firing would page — it would
+    // not: CloudWatch pulls more datapoints from the evaluation range than
+    // `EvaluationPeriods` asks for and ignores the missing-data treatment where it finds
+    // enough real ones. It is the BOUNDARY: the window ends at now rather than at
+    // midnight, so two runs more than 24h apart — jitter around a once-daily cron — can
+    // empty a one-period window although every day had a run. The template says it at
+    // length; this pins it.
+    expect(silence?.EvaluationPeriods).toBe(2);
+    expect(silence?.Period).toBe(86400);
+  });
+
+  // THE THIRD FAULT, AND THE ONE THE OTHER TWO CANNOT SEE. `backup-freshness.ts` throws
+  // where the capture's equivalent warns, so a read it cannot make — a revoked grant, a
+  // renamed vault, a missing variable — is a FAILED invocation. `Invocations` counts a
+  // failed one too, so the silence alarm stays OK; and no age is published, so the age
+  // alarm stays OK on `notBreaching`. Without this the check could fail every night with
+  // both of its own alarms green, which is the silent-green class this whole family of
+  // checks exists to end. The archive pairs the same three.
+  it('alarms when the check itself fails, which neither other alarm can see', () => {
+    const errors = user.Resources.BackupFreshnessErrorAlarm.Properties;
+    expect(errors?.Namespace).toBe('AWS/Lambda');
+    expect(errors?.MetricName).toBe('Errors');
+    expect(errors?.Dimensions).toEqual([
+      { Name: 'FunctionName', Value: 'BackupFreshnessFunction' },
+    ]);
+    expect(errors?.TreatMissingData).toBe('notBreaching');
+  });
+
+  // NO `AlarmActions` AND NO TOPIC, here as everywhere: CloudWatch publishes every state
+  // change to EventBridge regardless, and the SNS topic was removed deliberately
+  // (`docs/DECISIONS.md`, **Alerting**).
+  it('carries no alarm action and adds no topic', () => {
+    for (const id of [
+      'UserBackupAgeAlarm',
+      'BackupFreshnessSilenceAlarm',
+      'BackupFreshnessErrorAlarm',
+    ])
+      expect([id, user.Resources[id].Properties?.AlarmActions]).toEqual([id, undefined]);
+    expect(idsOfType(user, 'AWS::SNS::Topic')).toEqual([]);
+  });
+
+  // THE HOUR IS DERIVED FROM ANOTHER FILE, so it is derived HERE rather than asserted in
+  // a sentence. `bootstrap-backups.sh` owns the plan: its cron, its start window and its
+  // completion window are what bound when a night's job can still be running, and a
+  // check that ran before that bound would measure a job in flight and report yesterday.
+  // Nothing coupled the two, so shortening `CompletionWindowMinutes` in the script would
+  // have invalidated this schedule's reasoning silently.
+  //
+  // MINUTES PAST MIDNIGHT UTC ON BOTH SIDES, which is only comparable because both are
+  // pinned to UTC — so BOTH timezones are read, the plan's out of the script and the
+  // schedule's out of the template. That field is the one that makes the other three
+  // comparable and the one most likely to be added later without thought: move the plan
+  // to Europe/Kyiv and every number on its side shifts by two or three hours while this
+  // test goes on passing. The plan's window crosses midnight (22:45 + 240 minutes), so
+  // the worst case is taken modulo the day and the check has to sit after it. Sound while
+  // it crosses: if the plan ever moved early enough not to, this would start demanding
+  // "later the same day" and would fail a correct configuration.
+  it('runs after the backup plan’s worst-case completion', () => {
+    const script = readFileSync(join(REPO, 'infra/scripts/bootstrap-backups.sh'), 'utf8');
+    expect(script).toContain('"ScheduleExpressionTimezone": "Etc/UTC"');
+    const plan = /"ScheduleExpression": "cron\((\d+) (\d+)/.exec(script);
+    const start = /"StartWindowMinutes": (\d+)/.exec(script);
+    const completion = /"CompletionWindowMinutes": (\d+)/.exec(script);
+    expect([plan, start, completion].every((m) => m !== null)).toBe(true);
+    const completesAt =
+      (Number(plan![2]) * 60 + Number(plan![1]) + Number(start![1]) + Number(completion![1])) %
+      1440;
+
+    const schedule = user.Resources.BackupFreshnessSchedule.Properties;
+    expect(schedule?.ScheduleExpressionTimezone).toBe('Etc/UTC');
+    const check = /^cron\((\d+) (\d+)/.exec(String(schedule?.ScheduleExpression));
+    expect(check).not.toBeNull();
+    expect(Number(check![2]) * 60 + Number(check![1])).toBeGreaterThan(completesAt);
+  });
+
+  // AND THE ARCHIVE IS UNTOUCHED BY ALL OF IT, which is the criterion the new check is
+  // most able to break. Its alarm names NO dimensions, so it reads the undimensioned
+  // series the capture publishes and not the per-cluster one added here — CloudWatch
+  // does not roll a custom metric up across dimension sets. Its capture still filters by
+  // the archive's own ARN.
+  it('leaves the archive’s own check reading the archive alone', () => {
+    expect(archive.Resources.BackupAgeAlarm.Properties?.Dimensions).toBeUndefined();
+    expect(
+      archive.Resources.CaptureFunction.Properties?.Environment?.Variables?.DSQL_CLUSTER_ARN,
+    ).toBe('PriceCluster.ResourceArn');
+    expect(
+      archive.Resources.BackupAgeMetricFilter.Properties?.MetricTransformations?.[0]?.Dimensions,
+    ).toBeUndefined();
+  });
+});
+
 // The acceptance criterion "no archive row is duplicated", stated as the structural
 // fact beneath it: there is one capture pipeline in existence, so there is one writer.
 describe('the capture pipeline exists exactly once across both templates', () => {
@@ -200,8 +442,18 @@ describe('the capture pipeline exists exactly once across both templates', () =>
     expect(handlers(archive)).toContain('capture.handler');
   });
 
-  it('has one schedule', () => {
-    expect(both.flatMap((t) => idsOfType(t, 'AWS::Scheduler::Schedule'))).toHaveLength(1);
+  // NAMED, NOT COUNTED, and the count is what had to go: it read 1 and meant "one
+  // capture", which stopped being the same sentence the moment a second stack acquired a
+  // schedule of its own. A count cannot tell a second capture from a backup check, so
+  // each schedule is held to the function it targets instead — which is the property
+  // that was actually wanted all along.
+  it('schedules the capture once, and the user stack schedules only its backup check', () => {
+    expect(idsOfType(archive, 'AWS::Scheduler::Schedule')).toEqual(['CaptureSchedule']);
+    expect(archive.Resources.CaptureSchedule.Properties?.Target?.Arn).toBe('CaptureFunction.Arn');
+    expect(idsOfType(user, 'AWS::Scheduler::Schedule')).toEqual(['BackupFreshnessSchedule']);
+    expect(user.Resources.BackupFreshnessSchedule.Properties?.Target?.Arn).toBe(
+      'BackupFreshnessFunction.Arn',
+    );
   });
 
   // Two declarations, three clusters at run time — the user template is deployed once

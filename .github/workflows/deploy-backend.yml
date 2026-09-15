@@ -167,7 +167,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications approve; do
+          for entry in capture migrate pre-signup applications approve backup-freshness; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -196,7 +196,7 @@ jobs:
           # guard beside it was not: `stack-split.test.ts` derived its check from the
           # esbuild step alone, so a handler could be bundled, deployed and never loaded
           # once while the test that looked like it covered this passed.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/backup-freshness.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
@@ -365,6 +365,34 @@ jobs:
               if (ordinary.statusCode !== 403) throw new Error('approve bundle admitted an ordinary user: ' + ordinary.statusCode);
               if (calls.length) throw new Error('approve bundle called Cognito on a refusal: ' + calls.join());
               console.log('approve bundle loads and refuses a demo row and an ordinary caller, without calling Cognito');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The backup-freshness check, exercised rather than merely loaded, and what is
+          # worth holding in the bundled shape is the FILTER. A read that lost
+          # `ByResourceArn` answers with the whole vault — which holds the ARCHIVE's
+          # recovery points too, so it would report prod's user data as freshly backed up
+          # on a night nothing of it was: the one wrong answer that looks right, and the
+          # entire reason this function exists. The empty case is the other half: no
+          # recovery point at all must land on the BAD side of a fresh reading, never at
+          # zero. The threshold itself is held against that value in
+          # stack-split.test.ts, which reads the template; a figure repeated here would
+          # be a hand-kept one no gate can see.
+          node -e "
+            const b = require('./backup-freshness.js');
+            if (typeof b.handler !== 'function') throw new Error('handler missing from backup-freshness bundle');
+            const target = { vault: 'quirenote-backups', clusterArn: 'arn:cluster', cluster: 'cluster-id' };
+            const asked = [];
+            const vault = (points) => ({ listRecoveryPoints: async (input) => { asked.push(input); return { RecoveryPoints: points }; } });
+            Promise.all([
+              b.backupFreshness(vault([{ Status: 'COMPLETED', CompletionDate: new Date('2026-09-15T02:00:00Z') }]), target, new Date('2026-09-15T12:00:00Z')),
+              b.backupFreshness(vault([]), target, new Date('2026-09-15T12:00:00Z')),
+            ]).then(([fresh, none]) => {
+              if (asked[0].ByResourceArn !== target.clusterArn) throw new Error('the read was not filtered by the cluster arn');
+              if (asked[0].BackupVaultName !== target.vault) throw new Error('the read named the wrong vault');
+              if (fresh.value !== 10) throw new Error('age wrong: ' + fresh.value);
+              if (fresh.cluster !== target.cluster) throw new Error('the metric line carries no cluster dimension');
+              if (!(none.value > fresh.value)) throw new Error('an empty vault did not read as older than a backed-up one: ' + none.value);
+              console.log('backup-freshness bundle loads, filters by the cluster arn, and puts an empty vault at the bad end');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 

@@ -16,6 +16,7 @@ import {
 import type { Client } from 'pg';
 
 import { addDays, kyivDateIso } from '../../src/core/dates';
+import { backupAgeHours } from './backup-age';
 import { connect } from './dsql';
 // Re-exported so the deploy's bundle smoke test can reach them (D71).
 export { inzhurAsOf, nbuAsOf } from './dates';
@@ -1312,12 +1313,6 @@ async function observeAndReport(
   }
 }
 
-/** No usable recovery point. Deliberately large rather than 0 or -1: the metric
- *  is an AGE, so "nothing" has to sit on the bad side of any threshold. A zero
- *  would read as "backed up seconds ago", which is the exact inversion that
- *  makes a broken check look healthy. */
-const NO_BACKUP_HOURS = 9999;
-
 /**
  * Report how old the newest completed backup of the price cluster is, in hours.
  *
@@ -1333,10 +1328,14 @@ const NO_BACKUP_HOURS = 9999;
  * toward the threshold, a boolean can only be watched flipping after it is too
  * late.
  *
- * Filtered by the cluster's OWN arn, which matters more than it looks. Recovery
- * points survive their source for the full 35-day retention, so a recreated
- * cluster with a broken selection would keep this metric comfortably fresh for
- * over a month while nothing at all was being backed up.
+ * Filtered by the cluster's OWN arn, which matters more than it looks. One vault
+ * and one tag-matched selection hold every backed-up cluster, so an unfiltered
+ * read would let another cluster's nightly points keep this number fresh while
+ * the archive's had stopped — and, across a replacement, filtering by the arn
+ * the stack resolves TODAY is what makes the new cluster read as "no recovery
+ * point" the same night rather than ageing out of the old one's surviving
+ * points. `backup-freshness.ts` says the same of the user cluster; the rule the
+ * two share is `backup-age.ts`.
  *
  * Never throws: a capture must not fail because a monitoring read did.
  */
@@ -1352,27 +1351,10 @@ async function reportBackupFreshness(): Promise<void> {
         ByResourceArn: clusterArn,
       }),
     );
-    // Only COMPLETED counts. A job sitting in CREATING or PARTIAL is not
-    // something anything can be restored from, and treating it as one would
-    // reproduce the very failure this check exists to catch.
-    const newest = (page.RecoveryPoints ?? [])
-      .filter((p) => p.Status === 'COMPLETED' && p.CompletionDate !== undefined)
-      .reduce<Date | undefined>(
-        (best, p) => (best === undefined || p.CompletionDate! > best ? p.CompletionDate! : best),
-        undefined,
-      );
-    const value =
-      newest === undefined
-        ? NO_BACKUP_HOURS
-        : Math.round((Date.now() - newest.getTime()) / 3_600_000);
-    console.log(
-      JSON.stringify({
-        metric: 'backupAgeHours',
-        vault,
-        completedAt: newest?.toISOString() ?? null,
-        value,
-      }),
-    );
+    // The rule itself lives in `backup-age.ts` — the user stack's own check
+    // reads the same one, against its own cluster's arn.
+    const { value, completedAt } = backupAgeHours(page.RecoveryPoints ?? [], new Date());
+    console.log(JSON.stringify({ metric: 'backupAgeHours', vault, completedAt, value }));
   } catch (err) {
     // Reported, not thrown, and not silent: a read that failed is not the same
     // as "no backup exists", so it must not be emitted as one.

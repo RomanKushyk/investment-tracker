@@ -248,14 +248,25 @@ Polling a known price-file URL: a new cut publishes at a different, unguessable 
 alarm's state change to EventBridge regardless of actions, so delivery is EventBridge → AWS User
 Notifications → the Console Mobile App, and an alarm with no action still alerts. The channel
 measures itself: the capture emits its channel count on every run, healthy or not, and the number is
-readable in the log and on the dashboard with no delivery at all.
+readable in the log and on the dashboard with no delivery at all. Backup freshness is measured the
+same way and PER CLUSTER, by the stack that owns the cluster: each check lists recovery points by
+that cluster's own ARN and publishes an age, alarmed above 48 hours, with two alarms over the
+publisher itself beside it — its silence and its errors — because a value published by a check is
+absent when the CHECK fails, not when the backups do, and a check that throws is still an
+invocation.
 **Why.** An alarm that cannot deliver is worse than none — it turns an unmonitored system into one
 everybody believes is monitored, and every surrounding indicator reads healthy because nothing was
 ever attempted. A liveness signal cannot arrive through the channel it is checking, so its primary
 form is a value someone can look at.
 **Rejected.** An SNS topic with an email subscription: three subscriptions across two topics died
 within seconds of confirmation, invisibly — do not add the topic back. · Keeping the topic for a
-second channel later: speculative, and SNS was never on the path that worked.
+second channel later: speculative, and SNS was never on the path that worked. · AWS Backup's own
+`NumberOfRecoveryPointsCompleted` in place of a per-cluster check: it is dimensioned by VAULT, and
+one vault with one tag-matched selection holds every backed-up cluster — so the archive's nightly
+job keeps that number up while another cluster has silently left the selection, which is the exact
+failure the check exists to catch. · Teaching the capture the second cluster: it is the archive's
+function in the archive's stack, and one check reading two clusters is how one cluster's backup
+comes to cover for another's.
 
 ## Cloud target
 **Decision.** The backend is Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the

@@ -64,7 +64,7 @@ email subscriber — notification only, never an automated shutdown.
 |---|---|---|
 | `quirenote-backend` | the archive cluster (tagged `app=quirenote`), the capture Lambda, the schedule, the DLQ, the alarms | `dev` only |
 | `quirenote-backend-user-dev` | a DSQL cluster of user data, the migration runner for it, and the Cognito pool at `auth.dev.quirenote.com`. Tagged `app=quirenote-dev`, so it is the one cluster the backup plan does NOT take | `dev` |
-| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` | `main` |
+| `quirenote-backend-user-prod` | the same, tagged `app=quirenote`, at `auth.quirenote.com` — and, because of that tag, strictly more than its dev twin: a nightly Lambda that reads THIS cluster's recovery points, its log group, its schedule and role, a metric filter, and three alarms — one on the age it publishes, two on the function itself. They hang off `IsProd`, so `dev` renders none of them | `main` |
 
 `deploy-backend.yml` fires on both branches and picks its environment from the ref exactly as the frontend does; the archive step
 is skipped off `main`. **The consequence worth knowing before it is needed: a `workflow_dispatch` on `main` cannot repair the

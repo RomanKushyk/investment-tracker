@@ -827,6 +827,283 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${ApproveFunction}
       RetentionInDays: 30
 
+  # --------------------------------------------------------------------------
+  # Backup freshness — prod only
+  # --------------------------------------------------------------------------
+  # THE OTHER HALF OF THE TAG DECISION ON `UserCluster` ABOVE. Carrying
+  # `app=quirenote` puts this cluster in the locked vault; nothing reported whether it
+  # was still LANDING there. Both existing checks read the ARCHIVE alone:
+  # `reportBackupFreshness` in the capture filters recovery points by the archive
+  # cluster's own arn before publishing the metric, and `BackupAgeAlarm` in
+  # `template.yaml` reads that metric. Deliberately, so that neither cluster can make
+  # the other look fresh. The cost of that correctness is a second check, and it belongs beside
+  # the cluster it reads rather than inside a function that has no business knowing this
+  # cluster exists.
+  #
+  # DEV GETS NONE OF IT. Its cluster carries `app=quirenote-dev` and is deliberately
+  # outside the vault, so an alarm there would watch a backup nobody asked for and read
+  # "no recovery point" every night from the day it deployed. `IsProd` is what carries
+  # the one difference the two otherwise identical stacks now have — and the consequence
+  # worth knowing before it is needed: `deploy-backend.yml` deploys `prod` from `main`
+  # alone, so none of this renders on a `dev` push and its first real execution is a
+  # production deploy.
+  BackupFreshnessFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsProd
+    Properties:
+      CodeUri: dist/
+      Handler: backup-freshness.handler
+      # Spelled out rather than inherited from a `Globals` block, as every function in
+      # this file is and for the same reason: one place per value.
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      # One API call and no database. The capture's 600 is for fetching two providers
+      # with retries; there is nothing here that a cold start plus one list does not
+      # cover.
+      Timeout: 10
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          # NAMED, NOT REFERENCED. The vault is outside both stacks on purpose — one
+          # inside the stack it protects is destroyed by the accident it exists for —
+          # so there is nothing to `!Ref`. `infra/scripts/bootstrap-backups.sh`
+          # creates it.
+          BACKUP_VAULT_NAME: quirenote-backups
+          # THE FILTER, AND THE POINT OF THE WHOLE SECTION. An unfiltered read cannot
+          # answer this question at all: one vault and one tag-matched selection hold
+          # every backed-up cluster, so the ARCHIVE's nightly points would keep a
+          # vault-wide age fresh while this cluster's had stopped. And against the other
+          # wrong filter — this cluster's OLD arn, kept across a replacement — it is what
+          # makes the replacement read as "no recovery point" that same night, where a
+          # stale arn would age out of the surviving points over the two days after.
+          DSQL_CLUSTER_ARN: !GetAtt UserCluster.ResourceArn
+          # The metric's `cluster` dimension, from the same resource the alarm below
+          # selects on — so the number and the alarm cannot come to be about different
+          # clusters.
+          DSQL_CLUSTER_ID: !GetAtt UserCluster.Identifier
+      Policies:
+        - Statement:
+            # NO CLUSTER GRANT AT ALL, which is what distinguishes this function from
+            # every other one here: it never connects to the cluster whose arn it holds
+            # — that arn is a filter string, not an endpoint. Read-only, and only about
+            # whether a recovery point exists, never about creating, deleting or
+            # restoring one. The vault is outside this stack, so it is addressed by
+            # constructed arn; the pseudo parameters keep the account id out of a public
+            # repository. What the rendered role carries beyond this statement is SAM's
+            # doing and not a choice made here: `AWSLambdaBasicExecutionRole`, and
+            # `AWSXrayWriteOnlyAccess` because `Tracing: Active` is set.
+            - Sid: ReadThisClusterBackupFreshness
+              Effect: Allow
+              Action: backup:ListRecoveryPointsByBackupVault
+              Resource: !Sub 'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups'
+
+  BackupFreshnessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${BackupFreshnessFunction}
+      RetentionInDays: 30
+
+  # 04:00 UTC, AND THE TIMEZONE IS THE DECISION RATHER THAN THE HOUR. The backup plan
+  # runs `cron(45 22 * * ? *)` on `Etc/UTC` with a 60-minute start window and a
+  # 180-minute completion window, so a night's job is finished by 02:45 UTC at the
+  # latest and 04:00 clears it with room. `Europe/Kyiv` — which the capture's schedule
+  # uses, correctly, because it captures a Kyiv trading day — would drift this an hour
+  # twice a year against a job that does not move, narrowing the gap on one side of each
+  # transition for no reason at all.
+  #
+  # ONCE A DAY, where the capture fires six times: the capture is chasing a perishable
+  # price that cannot be re-fetched tomorrow, and this is reading a number that will
+  # still be there. A 48-hour threshold leaves two firings of slack.
+  #
+  # NO DEAD-LETTER QUEUE, unlike the capture's. A delivery that never lands costs one
+  # datapoint, which tomorrow's firing replaces; a queue nobody reads would be one more
+  # thing to believe in. The retry is cut short for the same reason — Scheduler's
+  # default is 185 attempts over 24 hours, which would still be retrying when the next
+  # firing arrives.
+  BackupFreshnessSchedule:
+    Type: AWS::Scheduler::Schedule
+    Condition: IsProd
+    Properties:
+      Description: Publish the age of prod's newest user-data backup, after the nightly plan has run.
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      ScheduleExpression: cron(0 4 * * ? *)
+      ScheduleExpressionTimezone: Etc/UTC
+      Target:
+        Arn: !GetAtt BackupFreshnessFunction.Arn
+        RoleArn: !GetAtt BackupFreshnessSchedulerRole.Arn
+        RetryPolicy:
+          MaximumRetryAttempts: 2
+          MaximumEventAgeInSeconds: 3600
+
+  BackupFreshnessSchedulerRole:
+    Type: AWS::IAM::Role
+    Condition: IsProd
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: scheduler.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: InvokeBackupFreshness
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt BackupFreshnessFunction.Arn
+
+  # DIMENSIONED BY CLUSTER, WHICH IS WHAT LETS IT SHARE A NAME WITH THE ARCHIVE'S.
+  # CloudWatch keys a custom metric on its namespace, its name AND its exact dimension
+  # set, and rolls nothing up across dimension sets — so `Quirenote/BackupAgeHours` with
+  # a `cluster` dimension is a different series from the undimensioned one the capture
+  # publishes, and `BackupAgeAlarm` over there keeps reading the archive alone. The
+  # dimension is also what makes a REPLACED cluster visible: the new id starts a new
+  # series rather than continuing the old one's reading.
+  #
+  # NO `DefaultValue`: CloudWatch Logs rejects a transformation carrying both a default
+  # and dimensions — a 400 that appears at deploy time and never at validate time.
+  UserBackupAgeMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Condition: IsProd
+    Properties:
+      LogGroupName: !Ref BackupFreshnessLogGroup
+      FilterPattern: '{ $.metric = "backupAgeHours" }'
+      MetricTransformations:
+        - MetricNamespace: Quirenote
+          MetricName: BackupAgeHours
+          MetricValue: $.value
+          Dimensions:
+            - Key: cluster
+              Value: $.cluster
+
+  # 48 hours, not 24, and the archive's alarm gives the reason: the plan runs daily with
+  # a 60-minute start window, so a single late or skipped night is normal operation. The
+  # signal wanted is "the plan has stopped", and an alarm that pages for something which
+  # fixes itself gets muted.
+  #
+  # notBreaching on missing data — which is only honest because of the two alarms below
+  # it. This value is published BY the freshness function, so its absence means the
+  # check did not publish rather than that the backups stopped: the schedule died, or
+  # the function threw. Those are what `BackupFreshnessSilenceAlarm` and
+  # `BackupFreshnessErrorAlarm` are for, and until they existed `notBreaching` would
+  # have parked a dead check in OK forever.
+  #
+  # ONE WAY FOR THE VALUE TO GO ABSENT IS STILL UNCOVERED, and it is named rather than
+  # left to be discovered: a function that runs, succeeds, and emits a line the metric
+  # filter below no longer MATCHES. Invocations are 1, errors are 0, and the series
+  # simply never gets a datapoint — which `notBreaching` reads as OK. Nothing here can
+  # see it; a check cannot watch the filter it publishes through. That is why the filter
+  # pattern and the handler's log line are one contract, held together by
+  # `backup-freshness.test.ts`'s round trip and confirmed on the stack after a deploy.
+  UserBackupAgeAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        Production user data has no completed backup in the last 48h. Check that this
+        cluster still carries `app=quirenote`, then the quirenote-archive-daily plan
+        and the quirenote-backups vault in AWS Backup (eu-north-1) — that plan is named
+        for the archive but its selection matches the tag, so it is this cluster's plan
+        too. Both are outside this stack: infra/scripts/bootstrap-backups.sh.
+      Namespace: Quirenote
+      MetricName: BackupAgeHours
+      Dimensions: [{ Name: cluster, Value: !GetAtt UserCluster.Identifier }]
+      Statistic: Maximum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 48
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # THE ALARM THAT MAKES THE ONE ABOVE MEAN ANYTHING, and the pair is the archive's own
+  # arrangement rather than a second alarm for one fault: a publisher that stopped and
+  # backups that stopped are two different faults with two different repairs, and only
+  # this one is invisible by construction — a schedule that never fires produces no
+  # logs, no errors and no metrics.
+  #
+  # `TreatMissingData: breaching` is the whole point, exactly as it is on the archive's
+  # `SilenceAlarm`: the default parks a dead job in INSUFFICIENT_DATA and reports
+  # nothing, forever.
+  #
+  # TWO PERIODS, AND NOT FOR THE REASON THAT READS OBVIOUSLY. A single missed firing
+  # would not have paged under one period either: CloudWatch pulls MORE datapoints from
+  # the evaluation range than `EvaluationPeriods` asks for, and where it finds enough
+  # real ones the missing-data treatment is ignored altogether — so a skipped night is
+  # judged against the night before it and reads OK.
+  #
+  # What two periods buy is the BOUNDARY. The evaluation window ends at now rather than
+  # at midnight, so two runs more than 24 hours apart — ordinary Scheduler jitter around
+  # a once-daily cron — can leave a one-period window with no run in it although every
+  # day had one. The capture never meets this because it fires six times a day, which is
+  # why its own `SilenceAlarm` is this shape's precedent and not its argument.
+  BackupFreshnessSilenceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The backup-freshness check has stopped running, so the age of prod's user-data
+        backup is no longer being measured. Check the schedule and its role. Expect it on
+        a first deploy too, until the first scheduled run clears it — the function has no
+        invocations yet, and missing data here is treated as breaching.
+      Namespace: AWS/Lambda
+      MetricName: Invocations
+      Dimensions: [{ Name: FunctionName, Value: !Ref BackupFreshnessFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+
+  # THE THIRD FAULT, AND NEITHER ALARM ABOVE CAN SEE IT. `backup-freshness.ts` throws
+  # where the capture's equivalent warns — it has no other work to protect, so a
+  # swallowed error would be an invocation that reported success and measured nothing.
+  # A throw alone is not a signal, though: `Invocations` counts a FAILED invocation too,
+  # so the silence alarm stays OK, and no age is published, so the age alarm stays OK on
+  # `notBreaching`. Without this resource the check could fail every night — a revoked
+  # grant, a renamed vault, a variable lost in a partial deploy — with both of its own
+  # alarms green, which is the silent-green class this whole family of checks exists to
+  # end. The archive pairs the same three (`template.yaml`, `ErrorAlarm`).
+  #
+  # notBreaching on missing data: no data means no invocations, which the silence alarm
+  # above already says. Two alarms for one fault is how alarms get muted.
+  #
+  # THRESHOLD 1, NOT "MORE ERRORS THAN THE RETRY POLICY ALLOWS", and the reason is a
+  # fact this repository has not measured. A threshold of 3 would say exactly what is
+  # wanted — every attempt tonight failed — IF Scheduler retries a Lambda FUNCTION error
+  # the way it retries a delivery failure. If it does not, each night yields one error,
+  # a threshold of 3 never fires, and a dead check sits green forever. So the threshold
+  # errs the other way: a night that a retry rescued pages once, which is noise, where
+  # the other mistake is silence.
+  BackupFreshnessErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: IsProd
+    Properties:
+      AlarmDescription: >-
+        The backup-freshness check threw. It could not read the vault, so the age of
+        prod's user-data backup is unknown rather than stale — check the function's
+        grant, its BACKUP_VAULT_NAME and DSQL_CLUSTER_ARN, and that the vault still
+        exists.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions: [{ Name: FunctionName, Value: !Ref BackupFreshnessFunction }]
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
   ClusterIdentifier:
     Value: !GetAtt UserCluster.Identifier

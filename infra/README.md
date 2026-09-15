@@ -12,7 +12,7 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 | Path | What |
 |---|---|
 | `template.yaml` | The ARCHIVE stack, `quirenote-backend`: DSQL cluster, capture Lambda, schedule, DLQ, alarms. One of it, for every environment, deployed from `dev` alone |
-| `template-user.yaml` | The USER stack: one DSQL cluster, the migration Lambda that fills it, the Cognito pool whose users own its rows, and the HTTP API the app reaches them through. Every route names the native Cognito JWT authorizer except `POST /v1/applications`, which carries none because it creates the row every other route is checked against. There is deliberately no `DefaultAuthorizer` — SAM renders an opted-out route against a scheme it never declares and `FailOnWarnings` is set — so what holds the line is `src/public-api.test.ts`, which derives the routes from this template and fails any that names no authorizer and is not on its written public list. Deployed twice, as `quirenote-backend-user-dev` and `quirenote-backend-user-prod`; the `Environment` parameter has no default, and both the backup tag and the auth domain are derived from it. **Three of the pool's properties cannot be changed after creation** — see [`../docs/reference/COGNITO-POOL-PARAMS.md`](../docs/reference/COGNITO-POOL-PARAMS.md) |
+| `template-user.yaml` | The USER stack: one DSQL cluster, the migration Lambda that fills it, the Cognito pool whose users own its rows, and the HTTP API the app reaches them through. Every route names the native Cognito JWT authorizer except `POST /v1/applications`, which carries none because it creates the row every other route is checked against. There is deliberately no `DefaultAuthorizer` — SAM renders an opted-out route against a scheme it never declares and `FailOnWarnings` is set — so what holds the line is `src/public-api.test.ts`, which derives the routes from this template and fails any that names no authorizer and is not on its written public list. Deployed twice, as `quirenote-backend-user-dev` and `quirenote-backend-user-prod`; the `Environment` parameter has no default, and the backup tag, the auth domain and the prod-only backup watch — a nightly check over THIS cluster's recovery points, with three alarms: one on the age, one on the check's silence, one on its errors — are all derived from it. **Three of the pool's properties cannot be changed after creation** — see [`../docs/reference/COGNITO-POOL-PARAMS.md`](../docs/reference/COGNITO-POOL-PARAMS.md) |
 | `src/capture.ts` | The capture handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
 | `src/migrate.ts` | The migration handler, and the only thing that applies a file from `migrations/`. Manual: `workflow_dispatch` on [`.github/workflows/migrate.yml`](../.github/workflows/migrate.yml). One required mode — `rehearse` (throwaway schema, dropped `CASCADE`), `dry-run`, `apply`, or `bootstrap` (the FIRST super-admin: a Cognito user, its invitation, and a self-approved row, for an address named at invoke time — it applies no file and has no rehearsal, and it asks the cluster what it already holds before it mints anything, because it has no way to un-mint); an unrecognised one is refused rather than defaulted. A rehearsal's `DROP SCHEMA` retries a `40001` conflict and, if the schema still will not go, RESOLVES with a `teardown` key naming it rather than raising — a teardown that failed is not the finding a refused statement is, and `migrate.yml` fails the run on that key |
 | `src/asset-delete.ts` | Deleting an asset: children before the parent, batched, each batch its own transaction, every predicate scoped by `user_id` — what the `ON DELETE RESTRICT` keys deliberately refuse to do |
@@ -23,6 +23,8 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
 | `src/applications.ts` | `POST /v1/applications` — the sign-up application, and the FIRST HTTP handler here: it answers with a status code rather than a `throw`, which is the convention the rest of the API inherits. One insert, the same fixed `202` whether the row is new or already there, and an ASCII-only address rule so the fold it does and the `email = lower(email)` check on the cluster are one operation |
 | `src/address.ts` | The one rule for an address this system will store — ASCII only, so the fold done in TypeScript and `app_user_email_lower_ck` on the cluster are the same operation. Shared by the applications endpoint and the runner's bootstrap, because two copies are two answers to what the cluster accepts |
 | `src/dsql.ts` | `connect()` — the IAM auth token and the one `ssl` policy, shared by every handler that talks to a cluster |
+| `src/backup-freshness.ts` | Publishes how old prod's newest USER-data backup is, nightly, filtered by that cluster's own ARN. Prod only, in the user stack, with three alarms beside it — one on the age it publishes, two on the function itself — because the archive's check reads the archive and must go on doing so, so the second cluster needs a second check rather than a taught one. It never connects to the cluster whose ARN it holds: that ARN is a filter string, and the one statement the template writes is `backup:ListRecoveryPointsByBackupVault` on the vault — SAM adds basic execution and, for `Tracing: Active`, X-Ray write. It THROWS where the capture's equivalent warns, because a capture has a perishable price to write first and this function has no other work to protect |
+| `src/backup-age.ts` | The one rule both freshness checks read: recovery points in, an age in hours out. Only `COMPLETED` counts — a `CREATING` or `PARTIAL` point carries a newer timestamp and nothing can be restored from it — and no point at all reports a large number, never zero, because the metric is an AGE and "nothing" has to land on the bad side of the threshold |
 | `src/xlsx.ts` | A minimal ZIP + SpreadsheetML reader, no package: numbers, shared strings and cached formula text; every other cell type is refused |
 | `src/fund-history.ts` | The provider's fund price files to `nav` rows: columns by caption, the one text-formatted price read only as a string |
 | `schema/user.ts` | Drizzle source for `migrations/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
@@ -61,9 +63,19 @@ what changed since is `docs/DECISIONS.md`, under **The price archive**,
   with a 35-day floor — a recovery point that lands there cannot be removed
   early. The archive carries the tag and so does prod's user cluster; dev's
   carries `app=quirenote-dev` and stays out, because it is the `migrations/`
-  files and a dispatch. Note what this does NOT break: `BackupAgeAlarm` filters recovery
-  points by the archive's own cluster ARN, so a second tagged cluster cannot
-  make the archive look fresh — and equally, nothing watches prod's, which is #139.
+  files and a dispatch. Note what this does NOT break: the capture's own
+  check filters recovery points by the archive's cluster ARN before publishing the
+  metric `BackupAgeAlarm` reads, so a second tagged cluster cannot make the
+  archive look fresh.
+- **Each stack watches the backups of the cluster it owns, and only that one.**
+  The ARN filter above is why: it is correct, and its consequence is that one
+  check cannot cover two clusters. So the archive publishes `BackupAgeHours`
+  undimensioned from the capture, and the user stack publishes it dimensioned by
+  cluster from `src/backup-freshness.ts` — one metric name, two series, because
+  CloudWatch keys a custom metric on its exact dimension set and rolls nothing up
+  across them. A vault-wide count cannot replace either: there is ONE vault and
+  ONE selection, so the archive's nightly job would hold that number up while
+  prod's user cluster had silently left the selection.
 - **Never let an output alias shadow the column you `ORDER BY`.** A bare name
   in `ORDER BY` resolves to the aliased output column first, so the sort
   cannot inherit index order and the planner falls back to a full scan.
