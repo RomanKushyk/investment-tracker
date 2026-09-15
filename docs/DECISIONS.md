@@ -675,11 +675,23 @@ changes. Tests are vitest over pure logic with `fake-indexeddb` for the reposito
 and a nested checkout under `.claude/` stays invisible to git, eslint, vitest and prettier alike.
 The skill frontmatter those three skip keeps one guard in `src/`: a description is a QUOTED YAML
 scalar, because an unquoted one ends at the first ` #` and the harness never receives the rest.
+A CloudFormation assertion that depends on an intrinsic reads the tag off the parsed document
+through `intrinsicAt`, which returns the tag and the value apart, never from a regex over the
+template text.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
-happens to be running is not a gate, and prettier re-pads every table cell it is let near.
+happens to be running is not a gate, and prettier re-pads every table cell it is let near. `toJS()`
+discards an unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are
+one value to a parsed template; a text guard beside it has to be unique to the line it is about,
+and a template writes the same variable on several lines, so the guards meant to catch a dropped
+tag passed against another resource's line. Apart rather than joined into one string, because a
+QUOTED tag is a scalar whose value is that text: joined it reads as the intrinsic and deploys as
+the text.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
-the author is holding. · A component or E2E harness: the browser check is the verification.
+the author is holding. · A component or E2E harness: the browser check is the verification. · A
+source regex per value, or one sliced to a resource's own block: both make every value that comes
+after re-derive which spelling happens to be unique, and a slice taken to the end of the file is
+not a block.
 
 ## Dependabot
 **Decision.** Security only — alerts and automated security fixes as repository settings, and

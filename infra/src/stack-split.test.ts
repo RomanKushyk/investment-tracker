@@ -5,6 +5,7 @@ import { parseDocument } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { FREE_TIER_USERS } from './pool-usage';
+import { envVars, intrinsicAt } from './template-intrinsic';
 
 // The archive is provider data shared by every environment and user data is not
 // (`docs/DECISIONS.md`, **Cloud target**), so the split is two templates: one archive
@@ -16,8 +17,9 @@ import { FREE_TIER_USERS } from './pool-usage';
 // unresolved tag to a YAML parser, so a healthy template warns once per
 // `!GetAtt`/`!Sub`/`!If` — a count that moves whenever anyone edits either file, which
 // is why no assertion names it and why none is written down here.
-// `!GetAtt UserCluster.Endpoint` arrives here as the plain string
-// 'UserCluster.Endpoint', which is what the endpoint assertions below match.
+// `!GetAtt UserCluster.Endpoint` arrives through `toJS()` as the plain string
+// 'UserCluster.Endpoint', so where the tag is what matters the assertion goes through
+// `intrinsicAt`, which reads it off the document node instead.
 
 type Resource = {
   Type: string;
@@ -65,22 +67,6 @@ const templateDoc = (name: string) =>
 
 const archiveDoc = templateDoc('template.yaml');
 const userDoc = templateDoc('template-user.yaml');
-const userSource = readFileSync(new URL('../template-user.yaml', import.meta.url), 'utf8');
-
-/** One resource's own slice of the template SOURCE, for the assertions that have to see an
- *  intrinsic tag — `toJS()` drops it and keeps the scalar, so a `!Ref` and a literal spelt
- *  the same way are indistinguishable after parsing.
- *
- *  SCOPED, BECAUSE AN UNSCOPED REGEX OVER THE WHOLE FILE IS THE BUG IT IS MEANT TO CATCH:
- *  `USER_POOL_ID: !Ref UserPool` appears three times here, so a pattern matching anywhere
- *  passes on another function's line whatever this one says. */
-const resourceSource = (id: string) => {
-  const start = userSource.search(new RegExp(`^ {2}${id}:\\r?$`, 'm'));
-  if (start === -1) throw new Error(`no such resource in the template source: ${id}`);
-  const rest = userSource.slice(start);
-  const next = rest.slice(1).search(/^ {2}[A-Za-z][\w]*:\r?$/m);
-  return next === -1 ? rest : rest.slice(0, next + 1);
-};
 
 const archive = archiveDoc.toJS() as Template;
 const user = userDoc.toJS() as Template;
@@ -215,12 +201,12 @@ describe('the user stack holds user data and nothing else', () => {
     const fn = user.Resources.MigrateFunction;
     expect(fn.Properties?.Handler).toBe('migrate.handler');
     const vars = fn.Properties?.Environment?.Variables ?? {};
-    expect(vars.DSQL_ENDPOINT).toBe('UserCluster.Endpoint');
-    // AND THAT IT IS STILL A `!GetAtt`. `toJS()` discards an unknown tag and keeps the
-    // value, so the assertion above cannot tell the intrinsic from a hard-coded string
-    // spelt the same way — which is what a debugging session pinning one cluster would
-    // leave behind, green. The raw source is the only place the tag survives.
-    expect(userSource).toMatch(/DSQL_ENDPOINT:\s*!GetAtt\s/);
+    // THE INTRINSIC, NOT ONLY THE VALUE. A hard-coded string spelt the same way is what a
+    // debugging session pinning one cluster leaves behind, and `toJS()` cannot see it.
+    expect(intrinsicAt(userDoc, ...envVars('MigrateFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
     // The two ways this stack could quietly become a second archive: a variable
     // still naming the archive cluster, or the capture function's feed.
     expect(JSON.stringify(vars)).not.toContain('PriceCluster');
@@ -304,10 +290,10 @@ describe('the user stack watches its own cluster’s backups', () => {
   // by nothing — green, and the exact state this resource exists to end.
   it('reads the USER cluster’s ARN, and never the archive’s', () => {
     const vars = user.Resources.BackupFreshnessFunction.Properties?.Environment?.Variables ?? {};
-    expect(vars.DSQL_CLUSTER_ARN).toBe('UserCluster.ResourceArn');
-    // Still the intrinsic: `toJS()` drops an unknown tag and keeps the value, so the
-    // assertion above cannot tell a `!GetAtt` from a pinned literal spelt the same way.
-    expect(userSource).toMatch(/DSQL_CLUSTER_ARN:\s*!GetAtt\s+UserCluster\.ResourceArn/);
+    // The intrinsic, not a pinned literal spelt the same way, which `toJS()` cannot tell apart.
+    expect(intrinsicAt(userDoc, ...envVars('BackupFreshnessFunction'), 'DSQL_CLUSTER_ARN')).toEqual(
+      { tag: '!GetAtt', value: 'UserCluster.ResourceArn' },
+    );
     expect(JSON.stringify(vars)).not.toContain('PriceCluster');
   });
 
@@ -317,11 +303,26 @@ describe('the user stack watches its own cluster’s backups', () => {
   // apart, a replaced cluster would publish under one value while the alarm watched the
   // other — and the alarm would then sit on a series that never gets another datapoint.
   it('dimensions the metric and the alarm by the same cluster', () => {
-    const vars = user.Resources.BackupFreshnessFunction.Properties?.Environment?.Variables ?? {};
-    expect(vars.DSQL_CLUSTER_ID).toBe('UserCluster.Identifier');
+    const cluster = { tag: '!GetAtt', value: 'UserCluster.Identifier' };
+    expect(intrinsicAt(userDoc, ...envVars('BackupFreshnessFunction'), 'DSQL_CLUSTER_ID')).toEqual(
+      cluster,
+    );
+    // The alarm's own dimension, as the shape AND as the intrinsic: the shape says there is
+    // one dimension called `cluster`, the tag says it resolves rather than being typed in.
     expect(user.Resources.UserBackupAgeAlarm.Properties?.Dimensions).toEqual([
       { Name: 'cluster', Value: 'UserCluster.Identifier' },
     ]);
+    expect(
+      intrinsicAt(
+        userDoc,
+        'Resources',
+        'UserBackupAgeAlarm',
+        'Properties',
+        'Dimensions',
+        0,
+        'Value',
+      ),
+    ).toEqual(cluster);
     const [transformation] =
       user.Resources.UserBackupAgeMetricFilter.Properties?.MetricTransformations ?? [];
     expect(transformation?.Dimensions).toEqual([{ Key: 'cluster', Value: '$.cluster' }]);
@@ -448,9 +449,10 @@ describe('the user stack watches its own cluster’s backups', () => {
   // the archive's own ARN.
   it('leaves the archive’s own check reading the archive alone', () => {
     expect(archive.Resources.BackupAgeAlarm.Properties?.Dimensions).toBeUndefined();
-    expect(
-      archive.Resources.CaptureFunction.Properties?.Environment?.Variables?.DSQL_CLUSTER_ARN,
-    ).toBe('PriceCluster.ResourceArn');
+    expect(intrinsicAt(archiveDoc, ...envVars('CaptureFunction'), 'DSQL_CLUSTER_ARN')).toEqual({
+      tag: '!GetAtt',
+      value: 'PriceCluster.ResourceArn',
+    });
     expect(
       archive.Resources.BackupAgeMetricFilter.Properties?.MetricTransformations?.[0]?.Dimensions,
     ).toBeUndefined();
@@ -526,7 +528,10 @@ describe('the user stack watches its pool against the free tier', () => {
   // rather than the environment variable: a wildcard here would let a dev deploy read the
   // prod pool, which is the reach `PreSignUpPolicy` exists to avoid one resource along.
   it('describes this stack’s pool and reads nothing else', () => {
-    const policies = JSON.stringify(user.Resources.PoolUsageFunction.Properties?.Policies);
+    const inline = user.Resources.PoolUsageFunction.Properties?.Policies as {
+      Statement: Record<string, unknown>[];
+    }[];
+    const policies = JSON.stringify(inline);
     expect(policies).toContain('cognito-idp:DescribeUserPool');
     expect(policies).toContain('UserPool.Arn');
     // The one call, and no second: nothing here may list, create, disable or read a USER.
@@ -536,30 +541,39 @@ describe('the user stack watches its pool against the free tier', () => {
     expect(policies).not.toContain('AdminGet');
     expect(policies).not.toContain('dsql:');
     expect(policies).not.toContain('backup:');
-    // Still the intrinsic: `toJS()` drops an unknown tag and keeps the value, so the
-    // assertion above cannot tell a `!GetAtt` from a pinned literal spelt the same way —
-    // and a literal would deploy a policy whose resource matches no ARN at all, so every
-    // nightly run would throw `AccessDenied` and only `PoolUsageErrorAlarm` would say so.
+    // STILL THE INTRINSIC, ON THE STATEMENT THAT CARRIES THE ACTION — found by the action
+    // rather than taken as the first, or a wider grant inserted above it would be the one
+    // read and this one could lose its tag unwatched. A literal deploys a policy whose
+    // resource matches no ARN at all, so every nightly run throws `AccessDenied` and only
+    // `PoolUsageErrorAlarm` says so; `toJS()` reads it and the `!GetAtt` as the same string.
     //
-    // ANCHORED ON THE ACTION, NOT ON `Resource:` ALONE. Three other grants in this
-    // template name the same pool ARN on the same line, so an unanchored pattern matches
-    // one of THEM and passes whatever this statement says — which it did: dropping the
-    // tag here, the one failure this assertion exists for, left the suite green.
-    //
-    // It therefore expects `Action:` on the line above `Resource:`. A reorder or a
-    // one-item sequence would fail it, which is the safe direction to be brittle in.
-    expect(userSource).toMatch(
-      /Action:\s*cognito-idp:DescribeUserPool\s*\r?\n\s*Resource:\s*!GetAtt\s+UserPool\.Arn/,
+    // MATCHED WHOLE, NOT AS A PREFIX: `DescribeUserPoolDomain` and `DescribeUserPoolClient`
+    // both begin with this action's name, so a substring match would find such a statement
+    // first and assert ITS resource while this one lost its tag unwatched. Through `flat`
+    // because `Action` is a bare string here and a list on the functions that hold several.
+    const describes = inline[0].Statement.findIndex((s) =>
+      [s.Action].flat().includes('cognito-idp:DescribeUserPool'),
     );
-    const vars = user.Resources.PoolUsageFunction.Properties?.Environment?.Variables ?? {};
-    expect(vars.USER_POOL_ID).toBe('UserPool');
-    // The same tag-drop hazard as the grant above, three lines on: `toJS()` keeps the
-    // string either way, so without this the function would deploy asking Cognito about a
-    // pool literally called `UserPool` and throw every night.
-    //
-    // AGAINST THIS RESOURCE'S OWN SLICE, not the whole file — the other two functions
-    // carry the identical line, so a file-wide pattern passes on theirs.
-    expect(resourceSource('PoolUsageFunction')).toMatch(/USER_POOL_ID:\s*!Ref\s+UserPool\b/);
+    expect(describes).toBeGreaterThanOrEqual(0);
+    expect(
+      intrinsicAt(
+        userDoc,
+        'Resources',
+        'PoolUsageFunction',
+        'Properties',
+        'Policies',
+        0,
+        'Statement',
+        describes,
+        'Resource',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
+    // The same hazard on the variable the handler reads, and the other two functions carry
+    // the identical line — so this addresses THIS function's, not the first one in the file.
+    expect(intrinsicAt(userDoc, ...envVars('PoolUsageFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
   });
 
   // WHAT MAKES THE `notBreaching` ABOVE HONEST, exactly as it does for the backup check:

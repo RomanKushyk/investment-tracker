@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { PROVIDERS } from './pre-signup';
+import { envVars, intrinsicAt } from './template-intrinsic';
 
 // THE ONE RESOURCE IN THIS SYSTEM THAT CANNOT BE EDITED INTO CORRECTNESS. Three of the pool's
 // parameters are fixed at `CreateUserPool` — `UsernameAttributes`, `UsernameConfiguration` and
@@ -12,7 +13,8 @@ import { PROVIDERS } from './pre-signup';
 // Parsed the way `stack-split.test.ts` parses: `parseDocument`, asserting `errors` and never
 // `warnings`, because every CloudFormation intrinsic is an unresolved tag to a YAML parser.
 // `toJS()` keeps an intrinsic's value and discards its tag, so `!If [IsProd, a, b]` arrives as
-// the three-element array `['IsProd', 'a', 'b']`, which is what the paired assertions match.
+// the three-element array `['IsProd', 'a', 'b']`, which is what the paired assertions match —
+// and where the tag itself is what matters, `intrinsicAt` reads it off the document node.
 
 type Resource = {
   Type: string;
@@ -161,18 +163,36 @@ describe('one parameter opens registration, in both places at once', () => {
     const policies = props('MigrateFunction').Policies as {
       Statement: Record<string, unknown>[];
     }[];
-    const statements = policies.flatMap((p) => p.Statement);
-    const identity = statements.find((s) =>
-      JSON.stringify(s.Action).includes('cognito-idp:AdminCreateUser'),
-    );
-    expect(identity).toBeDefined();
-    expect(identity?.Resource).toBe('UserPool.Arn');
-    expect(JSON.stringify(identity?.Resource)).not.toContain('*');
+    // The action matched WHOLE rather than as a substring, which a longer action beginning
+    // with this one would satisfy; `Action` is a list here and a bare string elsewhere.
+    const mints = (s: Record<string, unknown>) =>
+      [s.Action].flat().includes('cognito-idp:AdminCreateUser');
+    const policy = policies.findIndex((p) => p.Statement.some(mints));
+    expect(policy).toBeGreaterThanOrEqual(0);
+    const statement = policies[policy].Statement.findIndex(mints);
+    expect(statement).toBeGreaterThanOrEqual(0);
+    // THE POOL, AS THE INTRINSIC. `toJS()` discards the tag and keeps the value, so a pinned
+    // `UserPool.Arn` reads identically here and deploys a statement matching no ARN at all —
+    // and the exact match is also what says this is one pool rather than `userpool/*`.
+    expect(
+      intrinsicAt(
+        doc,
+        'Resources',
+        'MigrateFunction',
+        'Properties',
+        'Policies',
+        policy,
+        'Statement',
+        statement,
+        'Resource',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
     // And the pool id reaches the handler as an environment variable, since the event
     // carries no pool for a hand-typed invoke the way a Cognito trigger's does.
-    const vars = (props('MigrateFunction').Environment as { Variables: Record<string, string> })
-      .Variables;
-    expect(vars.USER_POOL_ID).toBe('UserPool');
+    expect(intrinsicAt(doc, ...envVars('MigrateFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
   });
 
   // CLOSED IS THE DEFAULT, asserted as the default rather than as whatever an environment
@@ -261,16 +281,24 @@ describe('three sign-in methods reach the pool', () => {
   // them is a dependency. With the literal, CloudFormation derives no ordering, and on the
   // deploy where the credentials first arrive it may update the client before creating the
   // provider: "identity provider Google does not exist". `toJS()` discards the tag and
-  // keeps the value, so the parsed assertion above cannot tell the two apart; the raw
-  // source is the only place the intrinsic survives.
+  // keeps the value, so the parsed assertion above cannot tell the two apart.
   //
   // A `DependsOn` would be the wrong instrument rather than a second-best one: the provider
   // is conditional, and naming a resource that may not exist is an error in itself.
   it('depends on the provider rather than naming it in a string', () => {
-    // Matched loosely on purpose: the parsed assertion above already pins the structure, so
-    // all this has to prove is that the intrinsic is a `!Ref`. A regex spanning the whole
-    // line would fail on prettier reflowing it, which is formatting rather than meaning.
-    expect(source).toContain('!Ref GoogleIdentityProvider');
+    // Inside the `!If`'s middle arm, which the assertion above pins as the shape: the arm is
+    // a sequence, and its second entry is the one that has to resolve rather than be typed.
+    expect(
+      intrinsicAt(
+        doc,
+        'Resources',
+        'UserPoolClient',
+        'Properties',
+        'SupportedIdentityProviders',
+        1,
+        1,
+      ),
+    ).toEqual({ tag: '!Ref', value: 'GoogleIdentityProvider' });
     expect(user.Resources.UserPoolClient.DependsOn).toBeUndefined();
   });
 
@@ -345,7 +373,9 @@ describe('the linking trigger is wired without closing a cycle', () => {
     expect(props('UserPool').LambdaConfig).toEqual({
       PreSignUp: 'PreSignUpFunction.Arn',
     });
-    expect(source).toMatch(/PreSignUp:\s*!GetAtt\s/);
+    expect(
+      intrinsicAt(doc, 'Resources', 'UserPool', 'Properties', 'LambdaConfig', 'PreSignUp'),
+    ).toEqual({ tag: '!GetAtt', value: 'PreSignUpFunction.Arn' });
   });
 
   it('runs the handler this repository tests', () => {

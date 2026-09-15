@@ -5,8 +5,8 @@
 // parser. `toJS()` keeps an intrinsic's value and discards its tag, so `!If [IsProd, a, b]`
 // arrives as the three-element array `['IsProd', 'a', 'b']` — which is what the paired
 // assertions match — and a `!Ref` arrives as the bare parameter name, indistinguishable
-// from a string spelled the same way. Where the tag itself is load-bearing, the raw source
-// is the only place it survives.
+// from a string spelled the same way. Where the tag itself is load-bearing, `intrinsicAt`
+// reads it off the document node, which is the only place it survives.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
@@ -16,6 +16,7 @@ import { parseDocument } from 'yaml';
 // same key, and the handler dispatches on it — and nothing validates any of them against another.
 // Renamed on one side alone, every suite here stays green and every admin call answers 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
+import { envVars, intrinsicAt } from './template-intrinsic';
 
 type Resource = {
   Type: string;
@@ -114,18 +115,21 @@ describe('every other route is behind the pool, and the pool is the only issuer'
   });
 
   it('trusts this environment’s own pool and this environment’s own client', () => {
-    const jwt = auth.Authorizers?.[AUTHORIZER].JwtConfiguration as {
-      issuer?: string;
-      audience?: string[];
-    };
-    // `toJS()` keeps an intrinsic's value and discards its tag, so the `!Sub` arrives as its
-    // template text and the `!Ref` as the bare logical id.
-    expect(jwt?.issuer).toBe('https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}');
+    const jwt = auth.Authorizers?.[AUTHORIZER].JwtConfiguration as { audience?: string[] };
+    // ONE audience and no second, which is the part a path cannot say: a client added here
+    // would be trusted by every route.
     expect(jwt?.audience).toEqual(['UserPoolClient']);
-    // AND BOTH ARE STILL INTRINSICS. A pool id spelled out here would pin one environment's
-    // pool into both stacks, and the assertions above cannot tell that from a string.
-    expect(source).toMatch(/issuer:\s*!Sub\s+https:\/\/cognito-idp\./);
-    expect(source).toMatch(/-\s*!Ref\s+UserPoolClient/);
+    // AND BOTH ARE INTRINSICS, tag and value together. A pool id spelled out would pin one
+    // environment's pool into both stacks, and `toJS()` reads that as the same string.
+    const jwtPath = ['Resources', 'PublicApi', 'Properties', 'Auth', 'Authorizers', AUTHORIZER];
+    expect(intrinsicAt(doc, ...jwtPath, 'JwtConfiguration', 'issuer')).toEqual({
+      tag: '!Sub',
+      value: 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}',
+    });
+    expect(intrinsicAt(doc, ...jwtPath, 'JwtConfiguration', 'audience', 0)).toEqual({
+      tag: '!Ref',
+      value: 'UserPoolClient',
+    });
     expect(auth.Authorizers?.[AUTHORIZER].IdentitySource).toBe('$request.header.Authorization');
   });
 
@@ -259,11 +263,11 @@ describe('the custom domain takes a certificate from its own region', () => {
     const domain = props('PublicApi').Domain as Record<string, unknown>;
     expect(domain.DomainName).toEqual(['IsProd', PROD_API, DEV_API]);
     expect(domain.EndpointConfiguration).toBe('REGIONAL');
-    expect(domain.CertificateArn).toBe('ApiCertificateArn');
-    // AND IT IS STILL A `!Ref`. `toJS()` discards the tag and keeps the value, so the
-    // assertion above cannot tell the intrinsic from a hard-coded string spelled the same
-    // way — and this repository is public, so a hard-coded ARN is an account id in it.
-    expect(source).toMatch(/CertificateArn:\s*!Ref\s+ApiCertificateArn/);
+    // A `!Ref` rather than a string spelled the same way: this repository is public, so a
+    // hard-coded ARN is an account id in it, and `toJS()` cannot tell the two apart.
+    expect(
+      intrinsicAt(doc, 'Resources', 'PublicApi', 'Properties', 'Domain', 'CertificateArn'),
+    ).toEqual({ tag: '!Ref', value: 'ApiCertificateArn' });
   });
 
   // DNS IS CLOUDFLARE'S. SAM creates a Route 53 record set when `Route53:` is present, in a
@@ -308,8 +312,10 @@ describe('the stack publishes what nobody outside it can construct', () => {
   // may change, so `PublicApi.DomainName` is the only stable way to reach it.
   it('outputs the domain, its regional target and the endpoint that works before DNS', () => {
     expect(user.Outputs?.ApiDomain?.Value).toEqual(['IsProd', PROD_API, DEV_API]);
-    expect(user.Outputs?.ApiDomainRegionalTarget).toBeDefined();
-    expect(source).toMatch(/!GetAtt\s+PublicApi\.DomainName\.RegionalDomainName/);
+    expect(intrinsicAt(doc, 'Outputs', 'ApiDomainRegionalTarget', 'Value')).toEqual({
+      tag: '!GetAtt',
+      value: 'PublicApi.DomainName.RegionalDomainName',
+    });
     expect(user.Outputs?.ApiEndpoint).toBeDefined();
   });
 });
@@ -326,20 +332,32 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
     expect(policies).toHaveLength(1);
     const [statement] = policies[0].Statement;
     expect(statement.Action).toBe('dsql:DbConnectAdmin');
-    expect(statement.Resource).toBe('UserCluster.ResourceArn');
-    // Sliced to THIS resource before matching: the runner carries the identical line, so
-    // the same regex over the whole file would stay green against a hard-coded string here.
-    const block = source.slice(source.indexOf('  ApplicationsFunction:'));
-    expect(block).toMatch(/Resource:\s*!GetAtt\s+UserCluster\.ResourceArn/);
+    // Addressed at THIS function's own statement: three grants in the template name the
+    // same cluster ARN, so a hard-coded one here reads as every other one's line.
+    expect(
+      intrinsicAt(
+        doc,
+        'Resources',
+        'ApplicationsFunction',
+        'Properties',
+        'Policies',
+        0,
+        'Statement',
+        0,
+        'Resource',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
   });
 
   it('reads the USER cluster endpoint, as a !GetAtt', () => {
     const vars = (
       props('ApplicationsFunction').Environment as { Variables?: Record<string, string> }
     )?.Variables;
-    expect(vars?.DSQL_ENDPOINT).toBe('UserCluster.Endpoint');
     expect(JSON.stringify(vars)).not.toContain('PriceCluster');
-    expect(source).toMatch(/DSQL_ENDPOINT:\s*!GetAtt\s/);
+    expect(intrinsicAt(doc, ...envVars('ApplicationsFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
   });
 
   it('carries a log group of its own, retained like the others', () => {
@@ -350,6 +368,8 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
 
 describe('the approval handler holds exactly two grants, and they are different in kind', () => {
   const policies = props('ApproveFunction').Policies as [{ Statement: Record<string, unknown>[] }];
+  const approveStatement = (i: number) =>
+    ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement', i] as const;
 
   // THE COGNITO HALF IS THE ONE WORTH ASSERTING. This function can mint an identity and
   // disable one, which is the widest thing in the stack after the runner's — so the pool it
@@ -361,25 +381,31 @@ describe('the approval handler holds exactly two grants, and they are different 
   // decided.
   it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
     const statements = policies[0].Statement;
-    const cognito = statements.find((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
-    expect(cognito?.Resource).toBe('UserPool.Arn');
-    expect((cognito?.Action as string[]).slice().sort()).toEqual([
+    const cognito = statements.findIndex((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
+    expect(cognito).toBeGreaterThanOrEqual(0);
+    expect((statements[cognito]?.Action as string[]).slice().sort()).toEqual([
       'cognito-idp:AdminCreateUser',
       'cognito-idp:AdminDisableUser',
       'cognito-idp:AdminEnableUser',
       'cognito-idp:AdminGetUser',
     ]);
-    const block = source.slice(source.indexOf('  ApproveFunction:'));
-    expect(block).toMatch(/Resource:\s*!GetAtt\s+UserPool\.Arn/);
+    // The pool as the intrinsic, on the statement those actions are in. Three other grants in
+    // the template name the same ARN, so this is addressed by path rather than matched as text.
+    expect(intrinsicAt(doc, ...approveStatement(cognito), 'Resource')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
   });
 
   it('may connect to the user cluster and to no other', () => {
     const statements = policies[0].Statement;
-    const dsql = statements.find((s) => s.Action === 'dsql:DbConnectAdmin');
-    expect(dsql?.Resource).toBe('UserCluster.ResourceArn');
+    const dsql = statements.findIndex((s) => s.Action === 'dsql:DbConnectAdmin');
+    expect(dsql).toBeGreaterThanOrEqual(0);
     expect(statements).toHaveLength(2);
-    const block = source.slice(source.indexOf('  ApproveFunction:'));
-    expect(block).toMatch(/Resource:\s*!GetAtt\s+UserCluster\.ResourceArn/);
+    expect(intrinsicAt(doc, ...approveStatement(dsql), 'Resource')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
   });
 
   // ONE PARAMETER DRIVES EVERY CONSUMER OF THE SWITCH. The pool's `AllowAdminCreateUserOnly`
@@ -389,8 +415,14 @@ describe('the approval handler holds exactly two grants, and they are different 
   it('reads the pool and the registration switch from the stack, not from a literal', () => {
     const vars = (props('ApproveFunction').Environment as { Variables?: Record<string, unknown> })
       ?.Variables;
-    expect(vars?.USER_POOL_ID).toBe('UserPool');
-    expect(vars?.DSQL_ENDPOINT).toBe('UserCluster.Endpoint');
+    expect(intrinsicAt(doc, ...envVars('ApproveFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
+    expect(intrinsicAt(doc, ...envVars('ApproveFunction'), 'DSQL_ENDPOINT')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.Endpoint',
+    });
     expect(vars?.OPEN_REGISTRATION).toEqual(['IsRegistrationOpen', 'true', 'false']);
   });
 
