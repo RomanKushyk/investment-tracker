@@ -263,7 +263,18 @@ it too, so what this measures is prod's share, and the alarm is early rather tha
 that share. A count that could not be read THROWS
 rather than publishing zero, which on a `GreaterThan` alarm is the healthy side. That is twelve
 alarms against ten always-free, knowingly: the two over the allowance cost $0.10 a month each, where
-the overshoot they are bought against is open-ended. The usage budget and the dashboard are made BY HAND in the
+the overshoot they are bought against is open-ended. THE COUNT GROWS AT TWO PER PUBLISHER PLUS ONE
+PER WATCHED VALUE — a check's silence and its errors, then one alarm for each number it
+publishes — so a new scheduled function costs three, and a second number on a publisher that
+already has its pair costs one. `DlqAlarm` sits outside that rule, which is why the set adds to
+twelve rather than eleven: the queue's depth is published by SQS and not by any check here. It
+buys LATENCY AND THE EVIDENCE, not reach — `SilenceAlarm` already covers a firing that never
+arrived, but at a day's period, and a capture is only worth rescuing inside the morning window
+before the feed resettles, so five minutes and a failed event kept for fourteen days is the
+difference between a day re-captured and a day lost for good. `infra/src/stack-split.test.ts`
+holds the whole set by name and the overshoot as a subtraction, because nothing held it before:
+the count grew one issue at a time and a thirteenth alarm passed every gate. The usage budget and
+the dashboard are made BY HAND in the
 console, like the $5 cost budget, and `docs/reference/DEPLOYMENT.md` is the only thing that
 re-creates them.
 **Why.** An alarm that cannot deliver is worse than none — it turns an unmonitored system into one
@@ -285,7 +296,18 @@ resources: both would widen a hand-made execution role for resources no gate rea
 budget has been a console artefact throughout without anything going wrong. · Publishing zero, or a
 large sentinel, for a count that could not be read: zero reads as healthy, and a sentinel fires the
 alarm with the wrong first hypothesis — it sends whoever reads it to the sign-up path when the fault
-is an IAM grant.
+is an IAM grant. · Metric math over several `FunctionName` dimensions, to collapse a class of the
+per-publisher alarms into one resource: a metric alarm bills for EVERY metric named in its
+expression, so two publishers in one expression is two alarm metrics and saves nothing whatever —
+and it would spend the `AlarmDescription`, which is the only thing that can name which function
+died where nothing carries an action. · Composite alarms: $0.50 a month each against $0.10 for a
+metric alarm, and they do not replace their children — the children go on existing and go on
+billing, so the count rises. A composite exists to reduce noise, and there is no noise to reduce
+where nothing has an action. · Folding the two prod checks into one publisher to get back to the
+ten: it would work, one silence alarm and one error alarm over two values instead of two pairs, and
+it is refused one step along from the two entries above. A throw in either half would stop the
+other half publishing, two deliberately narrow grants would become one role, and the error alarm
+could no longer say which check failed — the independence is what the alarms are for.
 
 ## Cloud target
 **Decision.** The backend is Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the

@@ -45,6 +45,7 @@ type Resource = {
     Threshold?: number;
     EvaluationPeriods?: number;
     Period?: number;
+    Metrics?: unknown;
     Statistic?: string;
     ComparisonOperator?: string;
     TreatMissingData?: string;
@@ -656,6 +657,81 @@ describe('the capture pipeline exists exactly once across both templates', () =>
   // per environment. It is the DECLARATIONS that can drift, so they are what is counted.
   it('declares one archive cluster and one user cluster, and no third', () => {
     expect(both.flatMap((t) => idsOfType(t, CLUSTER))).toEqual(['PriceCluster', 'UserCluster']);
+  });
+});
+
+// WHAT NO GATE READ. CloudWatch bills nothing for the first ten alarm metrics in an
+// account, and this set is over that knowingly (`docs/DECISIONS.md`, **Alerting**) — the
+// allowance is a price and not a budget, so this is not a ceiling. What it holds is the
+// figure itself, which until now lived only in prose: the thirteenth alarm is added with
+// the number in view rather than a year later.
+//
+// NAMED, WITH THE TOTAL DERIVED FROM THE NAMES, for the reason this file gives twice
+// already: a count passes just as well against the wrong set. A rename reddens a list here
+// and nothing else; only adding or removing an alarm moves the number.
+describe('the account’s alarms are counted against what CloudWatch bills nothing for', () => {
+  const ALARM = 'AWS::CloudWatch::Alarm';
+  const FREE_TIER_ALARMS = 10;
+
+  // TWO PUBLISHER ALARMS, PLUS ONE PER WATCHED VALUE — the growth rule, and what makes the
+  // next addition predictable instead of a surprise. One publisher here: its silence and
+  // its errors, and the three values it publishes. `DlqAlarm` is the sixth and the one
+  // outside the rule: `SilenceAlarm` already reaches a firing that never arrived, so what
+  // the queue adds is a five-minute period against a day's, and the failed event kept.
+  it('deploys six from the archive stack', () => {
+    expect(idsOfType(archive, ALARM).sort()).toEqual([
+      'AlertChannelAlarm',
+      'BackupAgeAlarm',
+      'DlqAlarm',
+      'ErrorAlarm',
+      'SilenceAlarm',
+      'UnexplainedQuoteAlarm',
+    ]);
+  });
+
+  // THE SAME RULE AT TWO PUBLISHERS, ONE VALUE EACH. Every one of them carries `IsProd`,
+  // held over the TYPE by the backups block above rather than over this list, so these six
+  // are prod's and the dev user stack deploys none — which is why the account's total is
+  // the two templates added once and not the user template counted twice.
+  it('deploys six more from the user stack', () => {
+    expect(idsOfType(user, ALARM).sort()).toEqual([
+      'BackupFreshnessErrorAlarm',
+      'BackupFreshnessSilenceAlarm',
+      'PoolUsageErrorAlarm',
+      'PoolUsageSilenceAlarm',
+      'PoolUsersAlarm',
+      'UserBackupAgeAlarm',
+    ]);
+  });
+
+  // BOTH OF THE ALLOWANCE'S CONDITIONS, because the count above means nothing without
+  // them. AWS writes it "10 Alarm metrics (only applicable to Standard resolution alarms
+  // that list metrics directly and don’t use a Metrics Insights query)", which is two
+  // requirements, and the second is the one that bites: a metric alarm bills for EVERY
+  // metric named in its expression, so ONE resource carrying `Metrics` can spend two or
+  // ten of the allowance while the list above still counts it once. Metric math is
+  // refused in **Alerting** for that reason; this is what holds the refusal.
+  it('lists its metrics directly and holds every alarm at standard resolution', () => {
+    for (const t of [archive, user])
+      for (const id of idsOfType(t, ALARM)) {
+        expect([id, t.Resources[id].Properties?.Metrics]).toEqual([id, undefined]);
+        // A missing `Period` fails this too, and should: an alarm carrying none is not one
+        // whose resolution anybody chose. High resolution is anything under 60 seconds.
+        expect([id, (t.Resources[id].Properties?.Period ?? 0) >= 60]).toEqual([id, true]);
+      }
+  });
+
+  // THE OVERSHOOT, NOT THE TOTAL, written as the subtraction so the allowance appears in
+  // it rather than beside it. Two over, at $0.10 a month each, against an open-ended
+  // overshoot on the other side.
+  //
+  // THIS ONE RECORDS A FIGURE; IT DOES NOT CATCH ANYTHING THE LISTS ABOVE MISS. Every
+  // mutation that reddens it reddens a name list first, and a rename or a swap between
+  // templates reddens a list while leaving this green. That is the point rather than a
+  // weakness — a figure lives in a test or not at all, and this is where the twelve lives.
+  it('is two past the ten, which the Alerting decision takes knowingly', () => {
+    const deployed = [archive, user].flatMap((t) => idsOfType(t, ALARM));
+    expect(deployed.length - FREE_TIER_ALARMS).toBe(2);
   });
 });
 
