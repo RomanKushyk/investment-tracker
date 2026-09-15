@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
-import { intrinsicAt, tagAt, taggedPaths } from './template-intrinsic';
+import { grantAt, intrinsicAt, tagAt, taggedPaths } from './template-intrinsic';
 
 // WHAT A TEMPLATE ASSERTION CANNOT SEE WITHOUT THIS. `toJS()` discards an unknown tag and
 // keeps the scalar, so `!GetAtt UserCluster.Endpoint` and a literal spelt the same way are
@@ -217,5 +217,170 @@ describe('taggedPaths', () => {
     const [path] = taggedPaths(numeric, '!If');
     expect(path).toEqual(['Mappings', 2024]);
     expect(tagAt(numeric, ...path)).toBe('!If');
+  });
+});
+
+// THE THREE SHAPES A POLICY IS WRITTEN IN, which is why `grantAt` takes the path to a statement
+// list rather than a resource id: a SAM function's inline `Policies`, a role's `PolicyDocument`
+// nested inside one, and a standalone `AWS::IAM::Policy` whose document is the property itself.
+// A helper that guessed between them would be one more thing able to read the wrong statement.
+//
+// THE PREFIX TRAP IS IN HERE ON PURPOSE, written BEFORE the action it would be found instead of:
+// `DescribeUserPoolClient` begins with `DescribeUserPool`, so a substring match finds the client's
+// statement first and asserts ITS resource while the one it was about loses its tag unwatched.
+const POLICIES = `Resources:
+  MigrateFunction:
+    Properties:
+      Policies:
+        - Statement:
+            - Sid: ConnectToDsqlAsAdmin
+              Action: dsql:DbConnectAdmin
+              Resource: !GetAtt UserCluster.ResourceArn
+            - Sid: BootstrapTheFirstSuperAdmin
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
+  PoolUsageFunction:
+    Properties:
+      Policies:
+        - Statement:
+            - Action: cognito-idp:DescribeUserPoolClient
+              Resource: !GetAtt UserPoolClient.Arn
+            - Action: cognito-idp:DescribeUserPool
+              Resource: !GetAtt UserPool.Arn
+  SchedulerRole:
+    Properties:
+      Policies:
+        - PolicyName: InvokeCapture
+          PolicyDocument:
+            Statement:
+              - Action: lambda:InvokeFunction
+                Resource: !GetAtt CaptureFunction.Arn
+  PreSignUpPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - cognito-idp:ListUsers
+              - cognito-idp:AdminLinkProviderForUser
+            Resource: '*'
+`;
+
+const policies = parseDocument(POLICIES);
+// The sabotage this helper exists to catch, on a line written once in the fixture.
+const dropped = parseDocument(
+  POLICIES.replace('!GetAtt UserCluster.ResourceArn', 'UserCluster.ResourceArn'),
+);
+// THE WIDENING A FIRST MATCH READS PAST. A grant is widened by a SECOND statement, and a second
+// statement is appended — below the narrow one, not above it. The narrow statement is left exactly
+// as it was, so anything taking the first hit still reads `UserCluster.ResourceArn` and passes
+// while the deployed policy is the union of the two.
+const widened = parseDocument(
+  POLICIES.replace(
+    '            - Sid: BootstrapTheFirstSuperAdmin',
+    '            - Sid: Oops\n              Action: dsql:DbConnectAdmin\n' +
+      "              Resource: '*'\n            - Sid: BootstrapTheFirstSuperAdmin",
+  ),
+);
+
+const INLINE = ['Resources', 'MigrateFunction', 'Properties', 'Policies', 0, 'Statement'] as const;
+const USAGE = ['Resources', 'PoolUsageFunction', 'Properties', 'Policies', 0, 'Statement'] as const;
+const ROLE = [
+  'Resources',
+  'SchedulerRole',
+  'Properties',
+  'Policies',
+  0,
+  'PolicyDocument',
+  'Statement',
+] as const;
+const STANDALONE = [
+  'Resources',
+  'PreSignUpPolicy',
+  'Properties',
+  'PolicyDocument',
+  'Statement',
+] as const;
+
+describe('grantAt', () => {
+  // FOUND BY ITS ACTION, NEVER BY ITS INDEX, which is the whole of the difference: an index is a
+  // position, and a wider grant inserted above a statement silently becomes the one every
+  // assertion about it reads. `Action` is a bare string on some statements and a list on others.
+  it('returns the resource intrinsic of the statement carrying the action', () => {
+    expect(grantAt(policies, INLINE, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+    expect(grantAt(policies, INLINE, 'cognito-idp:AdminGetUser')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
+  });
+
+  // WHOLE, NOT AS A PREFIX. The client's statement is first in the fixture, so a substring match
+  // returns its resource here and the assertion reads as if it were about the pool.
+  it('matches the action whole, so a longer one beginning with it is not the find', () => {
+    expect(grantAt(policies, USAGE, 'cognito-idp:DescribeUserPool')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
+    expect(grantAt(policies, USAGE, 'cognito-idp:DescribeUserPoolClient')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPoolClient.Arn',
+    });
+  });
+
+  // The other two shapes, reached by the same helper because the PATH is the argument.
+  it('reads a role’s nested document and a standalone policy’s alike', () => {
+    expect(grantAt(policies, ROLE, 'lambda:InvokeFunction')).toEqual({
+      tag: '!GetAtt',
+      value: 'CaptureFunction.Arn',
+    });
+    // A resource that is no intrinsic comes back as one that is not, which is what pins a
+    // deliberate wildcard as deliberate rather than leaving it unread.
+    expect(grantAt(policies, STANDALONE, 'cognito-idp:ListUsers')).toEqual({
+      tag: undefined,
+      value: '*',
+    });
+  });
+
+  // THE ONE THAT MATTERS, inherited from `intrinsicAt`: the same value read the same way has to
+  // come back different once the tag is gone. `toJS()` returns one string for both documents.
+  it('tells a dropped tag from the intrinsic it was', () => {
+    expect(grantAt(dropped, INLINE, 'dsql:DbConnectAdmin')).toEqual({
+      tag: undefined,
+      value: 'UserCluster.ResourceArn',
+    });
+    expect(dropped.toJS()).toEqual(policies.toJS());
+  });
+
+  // A STATEMENT DELETED MUST REDDEN, not read as "no grant here" — otherwise the assertion a
+  // grant carries could be made to pass by removing the grant. Both ways of vanishing: the
+  // action nobody grants, and a path that is not a statement list at all.
+  it('throws when no statement carries the action', () => {
+    expect(() => grantAt(policies, INLINE, 'dsql:DbConnect')).toThrow(/dsql:DbConnect\b/);
+    expect(() => grantAt(policies, USAGE, 'cognito-idp:ListUsers')).toThrow(/ListUsers/);
+  });
+
+  // AND WHEN TWO DO, which is the other direction and the one a first match cannot see. The count
+  // is in the message because none and two are opposite repairs — a grant to restore, or a grant
+  // to remove — and the fixture proves the narrow statement is still sitting there reading right.
+  it('throws when the action is granted twice, and says so', () => {
+    expect(() => grantAt(widened, INLINE, 'dsql:DbConnectAdmin')).toThrow(/2 statements/);
+    expect(() => grantAt(policies, INLINE, 'dsql:DbConnect')).toThrow(/0 statements/);
+    expect(intrinsicAt(widened, ...INLINE, 0, 'Resource')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+  });
+
+  it('throws when the path is not a statement list', () => {
+    expect(() =>
+      grantAt(policies, ['Resources', 'MigrateFunction'], 'dsql:DbConnectAdmin'),
+    ).toThrow(/MigrateFunction/);
+    expect(() => grantAt(policies, ['Resources', 'NoSuchRole'], 'lambda:InvokeFunction')).toThrow(
+      /NoSuchRole/,
+    );
   });
 });

@@ -16,7 +16,7 @@ import { parseDocument } from 'yaml';
 // same key, and the handler dispatches on it — and nothing validates any of them against another.
 // Renamed on one side alone, every suite here stays green and every admin call answers 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
-import { envVars, intrinsicAt } from './template-intrinsic';
+import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
 type Resource = {
   Type: string;
@@ -330,21 +330,21 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
       { Statement: [Record<string, unknown>] },
     ];
     expect(policies).toHaveLength(1);
+    // BOTH LISTS, because they are different claims and only one of them was made here. The line
+    // above bounds the POLICIES; this bounds the statements inside the one policy, which is where
+    // a second grant lands — and on the internet-facing unauthenticated function, a second grant
+    // is the whole of what "and nothing else" is promising about.
+    expect(policies[0].Statement).toHaveLength(1);
     const [statement] = policies[0].Statement;
     expect(statement.Action).toBe('dsql:DbConnectAdmin');
-    // Addressed at THIS function's own statement: three grants in the template name the
-    // same cluster ARN, so a hard-coded one here reads as every other one's line.
+    // Addressed at THIS function's own statement, and reached through the action it grants
+    // rather than through its position: three grants in the template name the same cluster ARN,
+    // so a hard-coded one here reads as every other one's line.
     expect(
-      intrinsicAt(
+      grantAt(
         doc,
-        'Resources',
-        'ApplicationsFunction',
-        'Properties',
-        'Policies',
-        0,
-        'Statement',
-        0,
-        'Resource',
+        ['Resources', 'ApplicationsFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
       ),
     ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
   });

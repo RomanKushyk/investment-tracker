@@ -5,7 +5,7 @@ import { parseDocument } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { FREE_TIER_USERS } from './pool-usage';
-import { envVars, intrinsicAt } from './template-intrinsic';
+import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
 // The archive is provider data shared by every environment and user data is not
 // (`docs/DECISIONS.md`, **Cloud target**), so the split is two templates: one archive
@@ -82,6 +82,46 @@ const handlers = (t: Template) =>
     .map(([, r]) => r.Properties?.Handler)
     .filter((h): h is string => h !== undefined);
 
+/** What one IAM role carries ON ITSELF — the shape all three schedulers share.
+ *
+ *  WHAT BACKS "AND NOTHING ELSE" in the three tests below, as far as the role resource goes. A
+ *  grant found by its action says which function that role may invoke; it cannot say that nothing
+ *  was added beside it, and an `iam:PassRole` or a second invoke on `*` is what that looks like.
+ *
+ *  EVERY POLICY AND THE MANAGED ONES, not `Policies[0]`: a widening lands as a second entry in
+ *  `Policies`, or as a `ManagedPolicyArns` naming `AdministratorAccess`, as readily as it lands
+ *  beside the statement already there.
+ *
+ *  ON ITSELF IS THE LIMIT, and two doors are outside it. A standalone `AWS::IAM::Policy` naming
+ *  the role in `Roles` grants it from another resource entirely — `PreSignUpPolicy` is that shape
+ *  one stack along — and `AssumeRolePolicyDocument` says who may assume it rather than what it
+ *  reaches. Neither is read here, or anywhere in this suite; both are raised.
+ *
+ *  Cast, because the local `Resource` type carries `Policies` as `unknown`: a policy is written in
+ *  several shapes and typing this one here would describe only the roles. */
+const roleGrants = (t: Template, id: string) => {
+  const properties = t.Resources[id].Properties as {
+    Policies?: { PolicyDocument: { Statement: { Action?: unknown }[] } }[];
+    ManagedPolicyArns?: unknown[];
+  };
+  return {
+    statements: (properties.Policies ?? []).flatMap((p) => p.PolicyDocument.Statement),
+    managed: properties.ManagedPolicyArns ?? [],
+  };
+};
+
+/** Every statement of one FUNCTION's inline policies — the other shape, with no `PolicyDocument`
+ *  between the policy and its statements.
+ *
+ *  COUNTED WHERE A TEST CLAIMS COMPLETENESS, because a grant is found by its action and an action
+ *  nobody asserts is invisible to every assertion in the file: a `dsql:*` added beside the three
+ *  the capture holds would be read by none of them. Across every entry in `Policies`, for the
+ *  reason `roleGrants` reads every entry. */
+const inlineStatements = (t: Template, id: string) =>
+  (t.Resources[id].Properties?.Policies as { Statement: { Action?: unknown }[] }[]).flatMap(
+    (p) => p.Statement,
+  );
+
 const CLUSTER = 'AWS::DSQL::Cluster';
 
 describe('the archive stack holds the archive and nothing else', () => {
@@ -117,6 +157,57 @@ describe('the archive stack holds the archive and nothing else', () => {
   it('no longer ships the migration handler, nor names it in an output', () => {
     expect(handlers(archive)).not.toContain('migrate.handler');
     expect(Object.keys(archive.Outputs ?? {})).not.toContain('MigrateFunctionName');
+  });
+
+  // THE GRANTS, NOT ONLY THE RESOURCES. Everything above says which resources this stack holds;
+  // these say what the one function in it may reach, which no test read at all. Each is
+  // addressed on the statement carrying its OWN action — three grants share one policy, and an
+  // index is a position a fourth inserted above them would take.
+  it('lets its capture reach the archive, the vault and the alert channel, as themselves', () => {
+    const capture = ['Resources', 'CaptureFunction', 'Properties', 'Policies', 0, 'Statement'];
+    // THREE, AND NO FOURTH. Each assertion below is found by its own action, and an action nobody
+    // asserts is invisible to all of them — a `dsql:*` on `'*'` added here would be read by
+    // nothing. The count is what says these three are the whole of what this function may reach.
+    expect(inlineStatements(archive, 'CaptureFunction')).toHaveLength(3);
+    // THE ARCHIVE'S CLUSTER, as the intrinsic. A literal spelt the same way reads identically
+    // through `toJS()` and deploys a statement matching no ARN at all, so every run six times a
+    // day throws `AccessDenied` and only `ErrorAlarm` says so.
+    expect(grantAt(archiveDoc, capture, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'PriceCluster.ResourceArn',
+    });
+    // The vault lives outside this stack, so it is addressed by constructed ARN and the pseudo
+    // parameters are what keep the account id out of a public repository. With the tag gone they
+    // reach CloudFormation as the text `${AWS::Partition}`, which resolves to nothing.
+    expect(grantAt(archiveDoc, capture, 'backup:ListRecoveryPointsByBackupVault')).toEqual({
+      tag: '!Sub',
+      value:
+        'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups',
+    });
+    // AND THE WILDCARD IS PINNED AS DELIBERATE rather than left the one resource nothing reads.
+    // AWS supports no resource-level scoping for either list operation, so this cannot be
+    // narrowed — and read back it is also what says the narrowing was not simply forgotten.
+    expect(grantAt(archiveDoc, capture, 'notifications:ListChannels')).toEqual({
+      tag: undefined,
+      value: '*',
+    });
+  });
+
+  // WHAT ACTUALLY INVOKES THAT CAPTURE, six times a day, and its grant names this stack's own
+  // function. A literal deploys a role able to invoke nothing: the capture simply stops running,
+  // which `SilenceAlarm` reports and no gate would.
+  it('lets its scheduler invoke that capture and nothing else', () => {
+    expect(
+      grantAt(
+        archiveDoc,
+        ['Resources', 'SchedulerRole', 'Properties', 'Policies', 0, 'PolicyDocument', 'Statement'],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'CaptureFunction.Arn' });
+    expect(roleGrants(archive, 'SchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
+    });
   });
 });
 
@@ -212,6 +303,33 @@ describe('the user stack holds user data and nothing else', () => {
     // still naming the archive cluster, or the capture function's feed.
     expect(JSON.stringify(vars)).not.toContain('PriceCluster');
     expect(vars.FEED_URL).toBeUndefined();
+  });
+
+  // THE GRANT, AND IT IS THE WIDER HALF OF THE SAME SENTENCE — `public-api.test.ts` makes this
+  // argument for the two handlers, and it applies hardest here: the variable above says which
+  // cluster the runner DIALS, this says which one it may rewrite as `admin`, and the runner is
+  // the one function in this system that rewrites a schema at all.
+  //
+  // THE ABSENCE ABOVE CANNOT SEE IT. `not.toContain('PriceCluster')` is asserted over
+  // `Environment.Variables`, so this statement pointed at the archive — the one cluster no
+  // migration of ours may touch — passed every test in this repository.
+  it('may rewrite the USER cluster and no other', () => {
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', 'MigrateFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'dsql:DbConnectAdmin',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'UserCluster.ResourceArn' });
+    // "AND NO OTHER" IS THE HALF ABOVE CANNOT SAY. The grant found by its action names this
+    // cluster; a SECOND statement naming the archive would leave that one exactly as it is. So
+    // the policy takes the same absence the variables take, over the whole of it.
+    const policies = user.Resources.MigrateFunction.Properties?.Policies;
+    expect(JSON.stringify(policies)).not.toContain('PriceCluster');
+    // AND TWO STATEMENTS, NO THIRD — the cluster and the pool, each asserted by its own action.
+    // The absence above catches a third naming the archive; the count catches one naming
+    // something no assertion here looks for, `dsql:*` on `'*'` being the readiest spelling.
+    expect(inlineStatements(user, 'MigrateFunction')).toHaveLength(2);
   });
 
   // THE BACKUP DECISION, AND IT IS ONE SWAPPED `!If` ARM FROM SHIPPING PROD'S PORTFOLIO
@@ -337,6 +455,51 @@ describe('the user stack watches its own cluster’s backups', () => {
     expect(policies).toContain('backup:ListRecoveryPointsByBackupVault');
     expect(policies).not.toContain('dsql:');
     expect(policies).not.toContain('cognito-idp:');
+    // AND ONE STATEMENT, the count its three siblings carry. The two absences name two prefixes;
+    // a second statement granting `iam:PassRole` or `s3:*` is refused by neither and found by no
+    // assertion in this file, which is the whole of the distance between "no cluster" — what the
+    // name claims — and "nothing else", which the comment above it claims.
+    expect(inlineStatements(user, 'BackupFreshnessFunction')).toHaveLength(1);
+    // AND THE VAULT IT READS, as the intrinsic. The line above sees the action and never the
+    // resource, so the `!Sub` could go and the ARN would reach CloudFormation as its own text —
+    // a grant matching nothing, and a check that publishes "no recovery point" every night on a
+    // cluster whose backups are landing fine.
+    expect(
+      grantAt(
+        userDoc,
+        ['Resources', 'BackupFreshnessFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'backup:ListRecoveryPointsByBackupVault',
+      ),
+    ).toEqual({
+      tag: '!Sub',
+      value:
+        'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups',
+    });
+  });
+
+  // ITS SCHEDULER, held to its own function for the archive's reason one stack along: a literal
+  // deploys a role able to invoke nothing, the nightly check stops running, and it is
+  // `BackupFreshnessSilenceAlarm` that says so rather than any gate here.
+  it('lets its scheduler invoke that check and nothing else', () => {
+    expect(
+      grantAt(
+        userDoc,
+        [
+          'Resources',
+          'BackupFreshnessSchedulerRole',
+          'Properties',
+          'Policies',
+          0,
+          'PolicyDocument',
+          'Statement',
+        ],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'BackupFreshnessFunction.Arn' });
+    expect(roleGrants(user, 'BackupFreshnessSchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
+    });
   });
 
   // 48, FOR THE ARCHIVE'S REASON: the plan has a 60-minute start window, so a single late
@@ -529,10 +692,7 @@ describe('the user stack watches its pool against the free tier', () => {
   // rather than the environment variable: a wildcard here would let a dev deploy read the
   // prod pool, which is the reach `PreSignUpPolicy` exists to avoid one resource along.
   it('describes this stack’s pool and reads nothing else', () => {
-    const inline = user.Resources.PoolUsageFunction.Properties?.Policies as {
-      Statement: Record<string, unknown>[];
-    }[];
-    const policies = JSON.stringify(inline);
+    const policies = JSON.stringify(user.Resources.PoolUsageFunction.Properties?.Policies);
     expect(policies).toContain('cognito-idp:DescribeUserPool');
     expect(policies).toContain('UserPool.Arn');
     // The one call, and no second: nothing here may list, create, disable or read a USER.
@@ -542,31 +702,24 @@ describe('the user stack watches its pool against the free tier', () => {
     expect(policies).not.toContain('AdminGet');
     expect(policies).not.toContain('dsql:');
     expect(policies).not.toContain('backup:');
-    // STILL THE INTRINSIC, ON THE STATEMENT THAT CARRIES THE ACTION — found by the action
-    // rather than taken as the first, or a wider grant inserted above it would be the one
-    // read and this one could lose its tag unwatched. A literal deploys a policy whose
-    // resource matches no ARN at all, so every nightly run throws `AccessDenied` and only
-    // `PoolUsageErrorAlarm` says so; `toJS()` reads it and the `!GetAtt` as the same string.
+    // AND ONE STATEMENT, because the absences above name the calls worth refusing and a second
+    // STATEMENT granting something they do not name is found by no assertion here.
     //
-    // MATCHED WHOLE, NOT AS A PREFIX: `DescribeUserPoolDomain` and `DescribeUserPoolClient`
-    // both begin with this action's name, so a substring match would find such a statement
-    // first and assert ITS resource while this one lost its tag unwatched. Through `flat`
-    // because `Action` is a bare string here and a list on the functions that hold several.
-    const describes = inline[0].Statement.findIndex((s) =>
-      [s.Action].flat().includes('cognito-idp:DescribeUserPool'),
-    );
-    expect(describes).toBeGreaterThanOrEqual(0);
+    // WHAT THIS COUNT DOES NOT REACH is a second ACTION inside the one statement: the same
+    // `DescribeUserPoolDomain` written into this statement's own `Action` leaves the count at one
+    // and walks past every absence. Bounding that means pinning the action VALUE, which is a
+    // different assertion from any in this file and is raised rather than made here.
+    expect(inlineStatements(user, 'PoolUsageFunction')).toHaveLength(1);
+    // STILL THE INTRINSIC, ON THE STATEMENT THAT CARRIES THE ACTION. A literal deploys a policy
+    // whose resource matches no ARN at all, so every nightly run throws `AccessDenied` and only
+    // `PoolUsageErrorAlarm` says so; `toJS()` reads it and the `!GetAtt` as the same string. The
+    // action is matched whole, which matters here more than anywhere: `DescribeUserPoolDomain`
+    // and `DescribeUserPoolClient` both begin with this one's name.
     expect(
-      intrinsicAt(
+      grantAt(
         userDoc,
-        'Resources',
-        'PoolUsageFunction',
-        'Properties',
-        'Policies',
-        0,
-        'Statement',
-        describes,
-        'Resource',
+        ['Resources', 'PoolUsageFunction', 'Properties', 'Policies', 0, 'Statement'],
+        'cognito-idp:DescribeUserPool',
       ),
     ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
     // The same hazard on the variable the handler reads, and the other two functions carry
@@ -574,6 +727,31 @@ describe('the user stack watches its pool against the free tier', () => {
     expect(intrinsicAt(userDoc, ...envVars('PoolUsageFunction'), 'USER_POOL_ID')).toEqual({
       tag: '!Ref',
       value: 'UserPool',
+    });
+  });
+
+  // AND ITS SCHEDULER, the third of these roles and the same argument each time: the grant names
+  // the function this stack owns, as the intrinsic, or the count stops being published and only
+  // `PoolUsageSilenceAlarm` notices.
+  it('lets its scheduler invoke that count and nothing else', () => {
+    expect(
+      grantAt(
+        userDoc,
+        [
+          'Resources',
+          'PoolUsageSchedulerRole',
+          'Properties',
+          'Policies',
+          0,
+          'PolicyDocument',
+          'Statement',
+        ],
+        'lambda:InvokeFunction',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'PoolUsageFunction.Arn' });
+    expect(roleGrants(user, 'PoolUsageSchedulerRole')).toEqual({
+      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      managed: [],
     });
   });
 

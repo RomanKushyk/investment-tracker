@@ -701,7 +701,8 @@ A CloudFormation assertion that depends on an intrinsic reads the tag off the pa
 through `intrinsicAt`, which returns the tag and the value apart, never from a regex over the
 template text. An `!If` is a sequence, which `intrinsicAt` refuses, so its tag is read by `tagAt`
 and every `!If` in the user stack is held as one set derived by walking the document, not as a
-guard written beside each value.
+guard written beside each value. A policy's `Resource` is reached through the statement granting
+the action, rather than through its index.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
 happens to be running is not a gate, and prettier re-pads every table cell it is let near. `toJS()`
@@ -718,7 +719,9 @@ properties still. What CloudFormation does with the rest is not answerable witho
 template broken on purpose at a live pool — the same trade the auth model already took, where a
 question that only a red deploy could settle is settled instead by a test running before the deploy
 step. Derived rather than listed because a guard beside a value catches one removed and never one
-added, and the stack has conditional values with no assertion on their arms to sit beside.
+added, and the stack has conditional values with no assertion on their arms to sit beside. By the
+action rather than the index because an index is a position: a wider grant inserted above a
+statement silently becomes the one every assertion about it reads.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · A component or E2E harness: the browser check is the verification. · A
 source regex per value, or one sliced to a resource's own block: both make every value that comes

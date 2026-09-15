@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { PROVIDERS } from './pre-signup';
-import { envVars, intrinsicAt } from './template-intrinsic';
+import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
 // THE ONE RESOURCE IN THIS SYSTEM THAT CANNOT BE EDITED INTO CORRECTNESS. Three of the pool's
 // parameters are fixed at `CreateUserPool` — `UsernameAttributes`, `UsernameConfiguration` and
@@ -396,10 +396,35 @@ describe('the linking trigger is wired without closing a cycle', () => {
   it('grants the link on this pool alone, from a policy of its own', () => {
     const policy = user.Resources.PreSignUpPolicy;
     expect(policy?.Type).toBe('AWS::IAM::Policy');
-    const doc = JSON.stringify(policy?.Properties?.PolicyDocument);
-    expect(doc).toContain('cognito-idp:AdminLinkProviderForUser');
-    expect(doc).toContain('cognito-idp:ListUsers');
-    expect(doc).toContain('UserPool.Arn');
+    const granted = JSON.stringify(policy?.Properties?.PolicyDocument);
+    expect(granted).toContain('cognito-idp:AdminLinkProviderForUser');
+    expect(granted).toContain('cognito-idp:ListUsers');
+    // THE POOL AS THE INTRINSIC, which a text match cannot be: `toContain('UserPool.Arn')` reads
+    // the same with the `!GetAtt` gone, and the literal deploys a grant matching no ARN — so the
+    // trigger fails on `ListUsers` and every federated sign-in is refused. The exact match is
+    // also what says this is ONE pool rather than `userpool/*`, which is the reach a separate
+    // policy resource exists to avoid.
+    // BOTH ACTIONS, not only the first. They share one statement today, so one read would cover
+    // them — but "this pool and no other" is a claim about the grant that ATTACHES an identity as
+    // much as about the one that finds it, and splitting them into two statements is an edit
+    // nothing here would notice.
+    const statements = [
+      'Resources',
+      'PreSignUpPolicy',
+      'Properties',
+      'PolicyDocument',
+      'Statement',
+    ];
+    // AND ONE STATEMENT, so "on this pool alone" is a claim about the POLICY rather than about the
+    // two actions read below: a third action on a wider resource is found by neither of them.
+    const document = policy?.Properties?.PolicyDocument as { Statement: unknown[] };
+    expect(document.Statement).toHaveLength(1);
+    for (const action of ['cognito-idp:ListUsers', 'cognito-idp:AdminLinkProviderForUser']) {
+      expect([action, grantAt(doc, statements, action)]).toEqual([
+        action,
+        { tag: '!GetAtt', value: 'UserPool.Arn' },
+      ]);
+    }
   });
 });
 

@@ -78,6 +78,59 @@ export const taggedPaths = (doc: Document, tag: string): (string | number)[][] =
   return found;
 };
 
+/** The `Resource` intrinsic on the statement at `statements` that grants `action`.
+ *
+ *  FOUND BY THE ACTION, NEVER BY ITS INDEX, which is the whole of the difference: an index is a
+ *  position, and a wider grant inserted above a statement silently becomes the one every
+ *  assertion about it reads — while the statement it was about loses its tag unwatched.
+ *
+ *  AND EXACTLY ONE, or the other direction stays open: a SECOND statement granting the same action
+ *  is what a widening adds, and taking the first match reads past it — the narrow grant is found,
+ *  the assertion passes, and the deployed policy is the union of both.
+ *
+ *  MATCHED WHOLE. `cognito-idp:DescribeUserPoolClient` begins with `cognito-idp:DescribeUserPool`,
+ *  so a substring match finds whichever is written first. Both spellings of `Action` are read,
+ *  because it is a bare scalar on a statement holding one call and a sequence on one holding
+ *  several — and a sequence is walked for the action rather than compared to it.
+ *
+ *  THE PATH RATHER THAN A RESOURCE ID, because a policy is written in three shapes — a SAM
+ *  function's inline `Policies`, a role's `PolicyDocument` nested inside one, a standalone
+ *  `AWS::IAM::Policy` whose document is the property itself — and a helper that guessed between
+ *  them would be one more thing able to read the wrong statement.
+ *
+ *  EVERY WAY OF NOT FINDING ONE THROWS — a path that is no statement list, an action nobody
+ *  grants, an action granted twice — or the assertion a grant carries could be made to pass by
+ *  deleting the grant, or by granting the SAME action again on something wider.
+ *
+ *  A WILDCARD IS NOT THE SAME ACTION and is not counted here: `dsql:*` beside `dsql:DbConnectAdmin`
+ *  is a second grant this reads straight past, because it matches the action string exactly rather
+ *  than as IAM would resolve it. What bounds a second STATEMENT is the statement list's own LENGTH,
+ *  asserted where a test claims to say everything a resource may reach; a second ACTION inside one
+ *  statement is bounded by pinning that statement's `Action`, which is not this helper's to do.
+ *
+ *  The resource itself goes through `intrinsicAt`, so the tag is part of every answer and a
+ *  wildcard resource comes back as the untagged scalar it is. */
+export const grantAt = (
+  doc: Document,
+  statements: readonly (string | number)[],
+  action: string,
+): { tag: string | undefined; value: unknown } => {
+  const node = doc.getIn(statements, true);
+  if (!isSeq(node)) throw new Error(`no statement list in the template at ${statements.join('.')}`);
+  const granting = node.items.flatMap((_, i) => {
+    const carried = doc.getIn([...statements, i, 'Action'], true);
+    if (isScalar(carried)) return carried.value === action ? [i] : [];
+    const listed = isSeq(carried) && carried.items.some((a) => isScalar(a) && a.value === action);
+    return listed ? [i] : [];
+  });
+  if (granting.length !== 1) {
+    throw new Error(
+      `${granting.length} statements grant ${action} at ${statements.join('.')}, wanted 1`,
+    );
+  }
+  return intrinsicAt(doc, ...statements, granting[0], 'Resource');
+};
+
 /** The path to one function's environment variables, where most of these intrinsics live —
  *  written once because nine assertions across three files address the same five steps. */
 export const envVars = (id: string) =>
