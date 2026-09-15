@@ -41,13 +41,22 @@ export const tagAt = (doc: Document, ...path: (string | number)[]): string | und
   return node.tag;
 };
 
-/** Every path in `doc` whose node carries `tag`, in document order.
+/** Every path in `doc` whose node is a COLLECTION carrying a tag, paired with that tag, in
+ *  document order.
  *
  *  DERIVED RATHER THAN LISTED, which is the half a per-site assertion cannot buy: a guard
  *  written beside each intrinsic catches one that is REMOVED and never one that is ADDED, and
  *  a hand-kept inventory of the same thing went stale inside one milestone here already.
  *
- *  It descends into a tagged node, because an intrinsic lives inside another one's arm.
+ *  THE COLLECTION AND NOT THE TAG NAME is what this is keyed on, because the hazard is the
+ *  shape rather than the spelling: a tagged sequence renders through `toJS()` as the array an
+ *  untagged one written the same way renders to, whichever intrinsic it is. Keyed on a list of
+ *  names instead, the next `!Or` or `!Select` would arrive outside the set and be guarded by
+ *  nothing. A tagged SCALAR is a different case and deliberately not here: its value survives
+ *  `toJS()`, so it is read at its site through `intrinsicAt`, tag and value apart.
+ *
+ *  It descends into a tagged node, because an intrinsic lives inside another one's arm: an
+ *  `!And` over two `!Not [!Equals [...]]` is reached only by walking through both.
  *
  *  THE TAG FORM ONLY. `Fn::If` written out long renders as an object, so a dropped key there
  *  changes what every assertion over the arms reads — it is the tag form that is forgeable.
@@ -57,11 +66,11 @@ export const tagAt = (doc: Document, ...path: (string | number)[]): string | und
  *  compares strictly: a `2024:` key stringified here would come back as a path `tagAt` then
  *  says is not in the document — the two have to compose, since one derives what the other
  *  reads. A key that is neither a string nor a number is not addressable by either. */
-export const taggedPaths = (doc: Document, tag: string): (string | number)[][] => {
-  const found: (string | number)[][] = [];
+export const taggedCollections = (doc: Document): [(string | number)[], string][] => {
+  const found: [(string | number)[], string][] = [];
   const walk = (node: unknown, path: (string | number)[]): void => {
-    if (!isCollection(node) && !isScalar(node)) return;
-    if (node.tag === tag) found.push(path);
+    if (!isCollection(node)) return;
+    if (node.tag) found.push([path, node.tag]);
     if (isMap(node)) {
       for (const pair of node.items) {
         if (!isScalar(pair.key)) continue;
@@ -132,6 +141,7 @@ export const grantAt = (
 };
 
 /** The path to one function's environment variables, where most of these intrinsics live —
- *  written once because nine assertions across three files address the same five steps. */
+ *  written once because assertions in several suites and the conditional inventory all address
+ *  the same five steps. */
 export const envVars = (id: string) =>
   ['Resources', id, 'Properties', 'Environment', 'Variables'] as const;

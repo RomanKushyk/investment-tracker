@@ -99,10 +99,11 @@ Conditions:
   # documented.
   IsProd: !Equals [!Ref Environment, prod]
 
-  # ONE CONDITION READ IN TWO PLACES, which is what makes "the two cannot disagree" true rather
-  # than remembered. Both consumers are below: the pool's `AllowAdminCreateUserOnly` and the
-  # trigger's `OPEN_REGISTRATION`. Note the arms point OPPOSITE ways — admin-create-only is TRUE
-  # when registration is closed — so a copied `!If` reads plausibly and inverts one of them.
+  # ONE CONDITION READ IN THREE PLACES, which is what makes "they cannot disagree" true rather
+  # than remembered. All three consumers are below: the pool's `AllowAdminCreateUserOnly`, the
+  # trigger's `OPEN_REGISTRATION` and the approve handler's copy of it. Note the pool's arms
+  # point the OPPOSITE way to both handlers' — admin-create-only is TRUE when registration is
+  # closed — so a copied `!If` reads plausibly and inverts one of them.
   IsRegistrationOpen: !Equals [!Ref OpenRegistration, open]
 
   # BOTH HALVES. Keyed on the id alone, the likelier order in which two secrets get

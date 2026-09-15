@@ -699,10 +699,12 @@ The skill frontmatter those three skip keeps one guard in `src/`: a description 
 scalar, because an unquoted one ends at the first ` #` and the harness never receives the rest.
 A CloudFormation assertion that depends on an intrinsic reads the tag off the parsed document
 through `intrinsicAt`, which returns the tag and the value apart, never from a regex over the
-template text. An `!If` is a sequence, which `intrinsicAt` refuses, so its tag is read by `tagAt`
-and every `!If` in the user stack is held as one set derived by walking the document, not as a
-guard written beside each value. A policy's `Resource` is reached through the statement granting
-the action, rather than through its index.
+template text. A tagged COLLECTION is not a scalar, so `intrinsicAt` refuses it and its tag is
+read by `tagAt`; every tagged collection in the user stack is held as one set of
+path-and-tag pairs derived by walking the document, not as a guard written beside each value. That
+set is keyed on the SHAPE and not on a list of tag names, so the conditions and the `!If` reading
+them are held alike. A policy's `Resource` is reached through the statement granting the action,
+rather than through its index.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
 happens to be running is not a gate, and prettier re-pads every table cell it is let near. `toJS()`
@@ -720,8 +722,12 @@ template broken on purpose at a live pool — the same trade the auth model alre
 question that only a red deploy could settle is settled instead by a test running before the deploy
 step. Derived rather than listed because a guard beside a value catches one removed and never one
 added, and the stack has conditional values with no assertion on their arms to sit beside. By the
-action rather than the index because an index is a position: a wider grant inserted above a
-statement silently becomes the one every assertion about it reads.
+shape rather than the tag name because a list of names guards the ones somebody thought of: the
+`!Equals`, `!Not` and `!And` DEFINING the conditions sat outside a set that held only the `!If`
+reading them, so `IsProd` — which decides the backup tag, the hostnames and the CORS block —
+could lose its own definition's tag with every gate green. By the action rather than the index
+because an index is a position: a wider grant inserted above a statement silently becomes the one
+every assertion about it reads.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · A component or E2E harness: the browser check is the verification. · A
 source regex per value, or one sliced to a resource's own block: both make every value that comes
@@ -729,7 +735,9 @@ after re-derive which spelling happens to be unique, and a slice taken to the en
 not a block. · Widening `intrinsicAt` to reach a sequence: a scalar that quietly became one must
 keep throwing rather than read as a value. · A list of the conditional paths standing on its own,
 reconciled against nothing: it catches an intrinsic removed and never one added, and a hand-kept
-inventory went stale inside a milestone in this suite already.
+inventory went stale inside a milestone in this suite already. · One inventory per tag name: it
+scatters a single condition's nested intrinsics across three lists and leaves the next shape of
+intrinsic outside every one of them.
 
 ## Dependabot
 **Decision.** Security only — alerts and automated security fixes as repository settings, and

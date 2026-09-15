@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
-import { grantAt, intrinsicAt, tagAt, taggedPaths } from './template-intrinsic';
+import { grantAt, intrinsicAt, tagAt, taggedCollections } from './template-intrinsic';
 
 // WHAT A TEMPLATE ASSERTION CANNOT SEE WITHOUT THIS. `toJS()` discards an unknown tag and
 // keeps the scalar, so `!GetAtt UserCluster.Endpoint` and a literal spelt the same way are
@@ -25,11 +25,21 @@ import { grantAt, intrinsicAt, tagAt, taggedPaths } from './template-intrinsic';
 // that takes a node of any kind, and a wider door is not a looser one — the quoted imitation
 // is still a scalar carrying that text, and still reads as untagged.
 //
-// `taggedPaths` DERIVES THE SET rather than trusting a list somebody keeps by hand, which is
-// the half that catches an intrinsic ADDED without a guard. A hand-kept inventory went stale
-// inside one milestone in this suite already (`openapi.test.ts`).
+// `taggedCollections` DERIVES THE SET rather than trusting a list somebody keeps by hand, which
+// is the half that catches an intrinsic ADDED without a guard. A hand-kept inventory went stale
+// inside one milestone in this suite already (`openapi.test.ts`). It is keyed on the SHAPE and
+// not on a list of tag names, because the hazard belongs to every tagged collection alike: an
+// `!Equals`, an `!And` and the next `!Or` all render through `toJS()` as the plain sequence they
+// are written as, and a set of names would guard the ones somebody thought of.
 
-const TAGGED = `Resources:
+const TAGGED = `Conditions:
+  # NESTED, and it is what a walk reaches only by descending INTO a tagged node: five finds down
+  # two paths, each inside the arms of the one above it. BOTH ARMS, so the nesting is exercised
+  # at a sequence index above 0 as well — and because \`Fn::And\` takes two conditions at least.
+  HasGoogle: !And
+    - !Not [!Equals [!Ref GoogleClientId, '']]
+    - !Not [!Equals [!Ref GoogleClientSecret, '']]
+Resources:
   MigrateFunction:
     Properties:
       Environment:
@@ -52,6 +62,18 @@ const TAGGED = `Resources:
           - IsProd
           - https://quirenote.com/auth/callback
           - https://dev.quirenote.com/auth/callback
+  PublicApi:
+    Properties:
+      # AN UNTAGGED COLLECTION INSIDE A TAGGED ONE. The untagged ARM is what
+      # \`CorsConfiguration\` has in the stack; the intrinsic inside it is not — the template says
+      # at length why that \`!If\` sits on the whole block — and not having it yet is the point,
+      # since the set exists to catch what gets ADDED. Descending THROUGH an arm that carries no
+      # tag is the step a walk stopping at untagged children would skip, every other find here
+      # still landing.
+      CorsConfiguration: !If
+        - IsProd
+        - AllowOrigins: !If [IsProd, [https://quirenote.com], [https://dev.quirenote.com]]
+        - AllowOrigins: ['*']
 Outputs:
   AuthDomain:
     Value: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
@@ -59,6 +81,7 @@ Outputs:
 
 const VARS = ['Resources', 'MigrateFunction', 'Properties', 'Environment', 'Variables'] as const;
 const CLIENT = ['Resources', 'UserPoolClient', 'Properties'] as const;
+const CORS = ['Resources', 'PublicApi', 'Properties', 'CorsConfiguration'] as const;
 
 const tagged = parseDocument(TAGGED);
 // THE SABOTAGE THIS FILE EXISTS FOR, spelt once: the tag removed, everything else identical.
@@ -69,7 +92,7 @@ const pinned = parseDocument(
 const quoted = parseDocument(
   TAGGED.replace('!GetAtt UserCluster.Endpoint', "'!GetAtt UserCluster.Endpoint'"),
 );
-// THE SEQUENCE SABOTAGE. Anchored on the condition's name, because `!If [` is written three
+// THE SEQUENCE SABOTAGE. Anchored on the condition's name, because `!If [` is written several
 // times here — the same uniqueness trap the text regexes fell into, one helper along.
 const untagged = parseDocument(TAGGED.replace('!If [IsRegistrationOpen', '[IsRegistrationOpen'));
 
@@ -171,42 +194,64 @@ describe('tagAt', () => {
   });
 });
 
-describe('taggedPaths', () => {
+// EVERY INTRINSIC IN HERE IS A SCALAR, and the collections around them carry no tag — the
+// shape the helper below has to come back empty on.
+const SCALARS_ONLY = `Resources:
+  CaptureFunction:
+    Properties:
+      Environment:
+        Variables:
+          DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - Statement:
+            - Action: [dsql:DbConnectAdmin, dsql:GetCredentials]
+              Resource: !Sub '\${PriceCluster.Arn}'
+`;
+
+describe('taggedCollections', () => {
   // DERIVED, NOT LISTED, which is the half a per-site assertion cannot buy: an intrinsic
   // ADDED without a guard changes this set, so it cannot arrive unnoticed.
-  it('finds every tagged value in the document, block form and Outputs included', () => {
-    expect(taggedPaths(tagged, '!If')).toEqual([
-      [...VARS, 'OPEN_REGISTRATION'],
-      [...CLIENT, 'SupportedIdentityProviders'],
-      [...CLIENT, 'CallbackURLs', 0],
-      ['Outputs', 'AuthDomain', 'Value'],
+  //
+  // THE PAIR AND NOT THE PATH, because the tag is half of what an inventory is holding: a
+  // path alone passes with an `!If` rewritten `!Or` at the same place.
+  //
+  // AND THE UNTAGGED ARMS ARE ABSENT WHILE THE WALK STILL GOES THROUGH THEM.
+  // `SupportedIdentityProviders` holds two plain sequences inside its tagged one and neither is
+  // a find — a collection is here because of its TAG — yet `CorsConfiguration`'s untagged arm
+  // is descended into far enough to reach the `!If` beneath it.
+  it('finds every tagged collection, nested, block form and Outputs included', () => {
+    expect(taggedCollections(tagged)).toEqual([
+      [['Conditions', 'HasGoogle'], '!And'],
+      [['Conditions', 'HasGoogle', 0], '!Not'],
+      [['Conditions', 'HasGoogle', 0, 0], '!Equals'],
+      [['Conditions', 'HasGoogle', 1], '!Not'],
+      [['Conditions', 'HasGoogle', 1, 0], '!Equals'],
+      [[...VARS, 'OPEN_REGISTRATION'], '!If'],
+      [[...CLIENT, 'SupportedIdentityProviders'], '!If'],
+      [[...CLIENT, 'CallbackURLs', 0], '!If'],
+      [[...CORS], '!If'],
+      [[...CORS, 1, 'AllowOrigins'], '!If'],
+      [['Outputs', 'AuthDomain', 'Value'], '!If'],
     ]);
   });
 
-  // IT DESCENDS INTO A TAGGED NODE, which is what reaches the `!Ref` living inside an `!If`
-  // arm — and a list index is a path segment like any other.
-  it('reaches an intrinsic nested inside another one, and inside a list', () => {
-    expect(taggedPaths(tagged, '!Ref')).toEqual([
-      [...VARS, 'USER_POOL_ID'],
-      [...CLIENT, 'SupportedIdentityProviders', 1, 1],
-    ]);
-    expect(taggedPaths(tagged, '!GetAtt')).toEqual([
-      [...VARS, 'DSQL_ENDPOINT'],
-      ['Resources', 'MigrateFunction', 'Policies', 0, 'Statement', 0, 'Resource'],
-    ]);
+  // SCALARS ARE NOT COLLECTIONS, and that line is the whole scope of this helper rather than
+  // an omission: a `!GetAtt` survives `toJS()` as its own value, so it is read at its site by
+  // `intrinsicAt`, tag and value apart. It is also what makes the archive stack's empty set a
+  // statement about that template — which carries scalar intrinsics and no tagged collection —
+  // instead of a statement about a document with no tags at all.
+  it('comes back empty where every intrinsic is a scalar', () => {
+    expect(taggedCollections(parseDocument(SCALARS_ONLY))).toEqual([]);
   });
 
-  // THE HALF THAT REDDENS. One tag deleted and the path is simply gone from the set — which
+  // THE HALF THAT REDDENS. One tag deleted and the entry is simply gone from the set — which
   // is what an inventory written against this holds the template to.
-  it('loses the path when the tag goes', () => {
-    expect(taggedPaths(untagged, '!If')).not.toContainEqual([...VARS, 'OPEN_REGISTRATION']);
+  it('loses the entry when the tag goes', () => {
+    expect(taggedCollections(untagged)).not.toContainEqual([[...VARS, 'OPEN_REGISTRATION'], '!If']);
     // The PROPERTY, not the fixture's count: one fewer than before, so adding a case above
     // does not redden this for a reason it is not about.
-    expect(taggedPaths(untagged, '!If')).toHaveLength(taggedPaths(tagged, '!If').length - 1);
-  });
-
-  it('returns nothing for a tag the document does not carry', () => {
-    expect(taggedPaths(tagged, '!Sub')).toEqual([]);
+    expect(taggedCollections(untagged)).toHaveLength(taggedCollections(tagged).length - 1);
   });
 
   // THE TWO HAVE TO COMPOSE, because one derives the path the other reads back. `YAMLMap.get`
@@ -214,7 +259,7 @@ describe('taggedPaths', () => {
   // `tagAt` then reports is not in the document — an inventory nobody could act on.
   it('emits a key tagAt can read back, a numeric one included', () => {
     const numeric = parseDocument("Mappings:\n  2024: !If [IsProd, 'a', 'b']\n");
-    const [path] = taggedPaths(numeric, '!If');
+    const [[path]] = taggedCollections(numeric);
     expect(path).toEqual(['Mappings', 2024]);
     expect(tagAt(numeric, ...path)).toBe('!If');
   });
