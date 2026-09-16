@@ -313,16 +313,23 @@ Resources:
       # a step on the way to this one — it is a different, one-way road. Hence the
       # custom domain from the first deploy.
       #
-      # AND IT IS THE AUTH HOST, NOT THE APEX, WHICH FORECLOSES ONE THING #48 MIGHT WANT.
-      # AWS requires the RP ID to be the custom domain's FQDN when a pool has a custom
-      # domain and authenticates through managed login, which is the surface **Auth
-      # model** chose. The cost is that a passkey ceremony run from the SPA's OWN origin
-      # would need an RP ID of `quirenote.com` — a registrable suffix of both hosts —
-      # and the two cannot both be true. So sign-in goes through managed login, and a
-      # native `StartWebAuthnRegistration` from the app is closed off. Reopening it is
-      # not an edit: it strands every passkey already registered, so the question has to
-      # be settled before the first one is, not after.
-      WebAuthnRelyingPartyID: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
+      # AND IT IS THE APEX, NOT THE AUTH HOST, WHICH KEEPS A SURFACE OF OUR OWN OPEN. A
+      # relying party is matched by registrable suffix, so quirenote.com covers the host
+      # managed login is served from AND the SPA's own origin at once, where
+      # auth.quirenote.com covers only the first and closes off a native
+      # `StartWebAuthnRegistration`. THE COST IS THAT AN APEX SCOPES A CREDENTIAL TO EVERY
+      # SUBDOMAIN — AWS says a passkey "can authenticate for that domain and subdomains" —
+      # so a name under quirenote.com is part of the auth surface, knowingly.
+      #
+      # AWS SAYS THIS TWO WAYS: the developer guide calls the custom domain's FQDN the
+      # DEFAULT and permits any domain outside the public suffix list, while the API and
+      # CloudFormation references say the RP ID "must be" that FQDN under exactly this
+      # pool's three conditions. `SetUserPoolMfaConfig` took the apex on the dev pool and
+      # read it back, so the config plane does not refuse it; the ceremony is the half
+      # that call does not reach, and `docs/reference/COGNITO-POOL-PARAMS.md` says so and
+      # holds both. Which sign-in surface is built stays open; this only stops the first
+      # passkey from deciding it.
+      WebAuthnRelyingPartyID: !If [IsProd, quirenote.com, dev.quirenote.com]
       AdminCreateUserConfig:
         # Registration is an application, not an open door: sign-up writes a row and
         # creates no identity, and approval is what calls `AdminCreateUser`.

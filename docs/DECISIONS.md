@@ -343,8 +343,14 @@ is a new stack, and a new stack is a second archive cluster.
 Lambda in the path. ONE POOL PER ENVIRONMENT, beside the cluster whose rows its `sub` values key —
 a shared pool would make a dev sign-in mint a production identity, and `app_user_email_uq` holds
 within an environment precisely so the two need not agree. Managed login runs on a CUSTOM domain
-from the first deploy, `auth.quirenote.com` and `auth.dev.quirenote.com`, and the passkey relying
-party is pinned to it. Registration is an APPLICATION, not an open door: sign-up writes a row and
+from the first deploy, `auth.quirenote.com` and `auth.dev.quirenote.com`, while THE PASSKEY RELYING
+PARTY IS THE ENVIRONMENT'S OWN APEX, `quirenote.com` and `dev.quirenote.com`. A relying party is
+matched by registrable suffix, so the apex covers the auth host and the SPA's own origin at once,
+and which sign-in surface gets built is left open rather than decided by the first passkey — an RP
+ID cannot change afterwards without stranding every credential registered against it. THE COST IS
+THAT AN APEX SCOPES A CREDENTIAL TO EVERY SUBDOMAIN, not just those two, so a name under the apex
+is part of the auth surface; accepted knowingly, and `reference/COGNITO-POOL-PARAMS.md` carries it
+with the rest. Registration is an APPLICATION, not an open door: sign-up writes a row and
 creates no identity, a super-admin approves, and approval is what creates the account and sends the
 one invitation. So the application row is written BEFORE the identity that owns it, and `user_id`
 holds the Cognito `sub` — which does not exist yet. The endpoint writes a PLACEHOLDER and approval
@@ -618,6 +624,11 @@ road. The passkey relying party is what a browser matches a credential against, 
 — so moving to the custom domain later does not migrate those passkeys, it strips them, and AWS
 says as much. The certificate in us-east-1 and one DNS record are the whole of what the cheaper
 option saves. ·
+The auth host as the relying party: it is AWS's default, and two of its reference pages call it
+mandatory, but the config plane accepts the apex — `reference/COGNITO-POOL-PARAMS.md` holds the
+measurement and what it does not reach — and the auth host would scope every credential to managed
+login alone, settling the
+sign-in surface by making a passkey unregisterable anywhere else. ·
 One pool serving both clusters: it would spend a production monthly active user on every dev
 sign-in and put dev identities in the table a real portfolio is keyed by. ·
 A post-confirmation trigger creating the application row: AWS does not invoke it for an

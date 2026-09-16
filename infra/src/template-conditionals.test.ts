@@ -64,7 +64,8 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   // The backup selection. `app=quirenote` is what the AWS Backup selection matches on, and it
   // selects into `quirenote-backups`, a LOCKED vault with a 35-day floor; dev's tag is out.
   [['Resources', 'UserCluster', 'Properties', 'Tags', 0, 'Value'], '!If'],
-  // The managed-login hostname, first of the three places that must agree.
+  // The passkey relying party: the environment's own apex, which covers both the auth host
+  // below and the SPA's own origin — a suffix of the first, equal to the second.
   [['Resources', 'UserPool', 'Properties', 'WebAuthnRelyingPartyID'], '!If'],
   // THE HALF-OPEN DOOR, first consumer. The arms point the opposite way to the trigger's below.
   [
@@ -77,7 +78,8 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   [['Resources', 'UserPoolClient', 'Properties', 'CallbackURLs', 0], '!If'],
   // And where it sends the browser after sign-out.
   [['Resources', 'UserPoolClient', 'Properties', 'LogoutURLs', 0], '!If'],
-  // The managed-login hostname, second place: the domain the pool actually serves it from.
+  // The managed-login hostname, first of the two places that must agree: the domain the pool
+  // actually serves it from.
   [['Resources', 'UserPoolDomain', 'Properties', 'Domain'], '!If'],
   // THE HALF-OPEN DOOR, second consumer — the pre-sign-up refusal.
   [[...envVars('PreSignUpFunction'), 'OPEN_REGISTRATION'], '!If'],
@@ -89,7 +91,7 @@ const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] =
   // THE HALF-OPEN DOOR, third consumer: the approve handler reads the same switch as the
   // trigger, so a row is written for whoever got in while the door was open.
   [[...envVars('ApproveFunction'), 'OPEN_REGISTRATION'], '!If'],
-  // The managed-login hostname, third place: the output it is published under.
+  // The managed-login hostname, second place: the output it is published under.
   [['Outputs', 'AuthDomain', 'Value'], '!If'],
   // The API hostname again, as the NAME a Cloudflare record is created for. That record's
   // TARGET is a different output, `ApiDomainRegionalTarget`, which carries no condition.

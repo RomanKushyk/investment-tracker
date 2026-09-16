@@ -40,6 +40,8 @@ const user = doc.toJS() as Template;
 const props = (id: string) => user.Resources[id]?.Properties ?? {};
 const DEV_AUTH = 'auth.dev.quirenote.com';
 const PROD_AUTH = 'auth.quirenote.com';
+const DEV_APEX = 'dev.quirenote.com';
+const PROD_APEX = 'quirenote.com';
 
 describe('the pool is created with the parameters it can never be given later', () => {
   // The anchor `stack-split.test.ts` opens with, for the same reason: an empty or unparsed
@@ -371,7 +373,7 @@ describe('three sign-in methods reach the pool', () => {
   });
 });
 
-describe('managed login runs on a domain the passkeys can keep', () => {
+describe('managed login runs on a custom domain the relying party can cover', () => {
   // THE RELYING PARTY ID IS EFFECTIVELY PERMANENT. A passkey is registered against one RP ID
   // and a browser will not offer it to any other, and AWS states that adding a custom domain
   // later "will cause passkey integration for your prefix domain to stop working due to a
@@ -384,10 +386,47 @@ describe('managed login runs on a domain the passkeys can keep', () => {
     expect(props('UserPoolDomain').CustomDomainConfig).toBeDefined();
   });
 
-  // The same pair, and that is the assertion rather than the value: an RP ID that is not the
-  // domain managed login is served from registers passkeys no browser will offer back.
-  it('pins the relying party to that same domain', () => {
-    expect(props('UserPool').WebAuthnRelyingPartyID).toEqual(props('UserPoolDomain').Domain);
+  // THE APEX, NOT THE AUTH HOST, AND THE VALUES ARE THE ASSERTION. A relying party is matched by
+  // registrable suffix, so each environment's apex covers both the host managed login is served
+  // from and the SPA's own origin, while `auth.<env>` would cover only the first. Held as literals
+  // rather than against `UserPoolDomain.Domain`: the two fields no longer say the same thing, and
+  // an assertion comparing them would pass for any pair that happened to agree.
+  it('sets the relying party to the environment apex', () => {
+    expect(props('UserPool').WebAuthnRelyingPartyID).toEqual(['IsProd', PROD_APEX, DEV_APEX]);
+  });
+
+  // WHAT MAKES THE APEX WORK, and the half the literals above cannot see. A browser runs a
+  // ceremony only when the relying party is equal to the caller's domain or a REGISTRABLE suffix
+  // of it, so the RP ID has to stand in that relation to BOTH surfaces at once — the host managed
+  // login is served from, and the origin the callback returns to. The literals pin the value; this pins
+  // the relation. AN INCONSISTENT MOVE IS WHAT IT CATCHES: `quirenote.app` as the relying party
+  // with the hosts left on `quirenote.com` satisfies the literals once they are edited to match,
+  // and fails here. A CONSISTENT move passes both, which is right — that pool is still valid.
+  //
+  // Plain suffix, not the PUBLIC-suffix rule the prose cites AWS on: `amplifyapp.com` would
+  // satisfy this predicate and no browser would accept it. What keeps a public suffix out is the
+  // pair of literals above, not this check.
+  it('keeps the relying party equal to or a suffix of both surfaces', () => {
+    const covers = (host: string, rp: string) => host === rp || host.endsWith(`.${rp}`);
+    const arm = (v: unknown, i: number) => (v as string[])[i];
+    const callbacks = props('UserPoolClient').CallbackURLs as unknown[];
+    // One entry today, and only that one is examined below. A second callback origin has to be
+    // covered by the relying party too, so adding one fails here rather than passing unseen.
+    expect(callbacks).toHaveLength(1);
+    // AND THE ARMS BELOW ARE READ POSITIONALLY, so the condition has to be the environment one.
+    // `template-conditionals.test.ts` pins that this value carries `!If` and not which condition
+    // it reads; re-keyed to `IsRegistrationOpen` it would still pass there, and dev would render
+    // the production callback whenever the door was open.
+    expect(arm(callbacks[0], 0)).toBe('IsProd');
+    for (const [env, i] of [
+      ['prod', 1],
+      ['dev', 2],
+    ] as const) {
+      const rp = arm(props('UserPool').WebAuthnRelyingPartyID, i);
+      const authHost = arm(props('UserPoolDomain').Domain, i);
+      const origin = new URL(arm(callbacks[0], i)).hostname;
+      expect([env, covers(authHost, rp), covers(origin, rp)]).toEqual([env, true, true]);
+    }
   });
 
   // Cognito requires an app client before a custom domain, and CloudFormation has no way to

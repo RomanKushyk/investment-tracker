@@ -116,7 +116,7 @@ rather than remembered. What the template adds beyond the rehearsal's four corre
 |---|---|---|
 | `Policies.SignInPolicy.AllowedFirstAuthFactors` | `["PASSWORD", "WEB_AUTHN"]` | the note this file left for whoever built the real pool. Changeable, but a pool that cannot offer the factor onboarding is built around is not worth deploying |
 | client `ExplicitAuthFlows` | includes `ALLOW_USER_AUTH` | the other half of the same thing — the flow a passkey is selected through |
-| `WebAuthnRelyingPartyID` | the custom domain | see below; this one is not practically reversible |
+| `WebAuthnRelyingPartyID` | the environment's apex | see below; this one is not practically reversible |
 | `WebAuthnUserVerification` | `required` | a passkey with user verification already satisfies MFA, which is why `MfaConfiguration` stays `OFF` |
 | `LambdaConfig.PreSignUp` | the linking trigger | `infra/src/pre-signup.ts` |
 
@@ -131,14 +131,44 @@ The pool therefore ships with the custom domain from its first deploy: `auth.qui
 and `auth.dev.quirenote.com`, ACM certificate in **us-east-1** whatever region the pool is in,
 because the domain is fronted by a CloudFront distribution Cognito builds and owns.
 
-**And the RP ID is the auth host rather than the apex, which forecloses one thing.** AWS
-requires the RP ID to be the custom domain's FQDN when a pool has a custom domain and
-authenticates through managed login. A ceremony run from the SPA's own origin would instead
-need `quirenote.com` — a registrable suffix of both hosts — and the two cannot both be true.
-So sign-in goes through managed login, and a native `StartWebAuthnRegistration` from the app is
-closed off. Whoever builds the client (#48) inherits that as a constraint, not a preference:
-reopening it strands every passkey already registered, so it has to be settled before the first
-one is.
+**And the RP ID is the apex rather than the auth host, which forecloses nothing and costs one
+thing.** A relying party is matched by registrable suffix, so `quirenote.com` covers
+`auth.quirenote.com` and the SPA's own origin at `quirenote.com` at once — where
+`auth.quirenote.com` would cover only the first and close off a native
+`StartWebAuthnRegistration` from the app. The two environments take their own apex,
+`quirenote.com` and `dev.quirenote.com`, so a passkey registered against dev is not offered at
+the production sign-in page, and a production passkey is not offered at dev's either — a browser
+keys a credential to the exact RP ID, so which passkeys a page is OFFERED is symmetric. WHAT IS
+ONE-WAY IS ORIGIN REACH, and it is the next paragraph: dev sits under the production apex, so code
+on a dev origin can ask for a production credential, and that is the cost of the choice.
+
+**The cost is that the apex scopes a credential to every subdomain, not just the two.** AWS, of
+the same RP ID: a passkey "can authenticate for that domain **and subdomains**". So any origin
+under `quirenote.com` — `dev.quirenote.com` included, and any future or dangling name — can ask
+the browser for a production passkey, where under `auth.quirenote.com` neither host was a suffix
+of the other and that was structurally impossible. This is the ordinary price of an apex relying
+party and it is accepted knowingly; what it means in practice is that a subdomain of the apex is
+part of the auth surface, and adding one is a decision about credentials as well as about
+hosting. The Amplify default hostnames are the other side of it: `main.d17m4jf400my6.amplifyapp.com`
+and `dev.d17m4jf400my6.amplifyapp.com` are live SPA origins (`infra/template-user.yaml`'s CORS
+list, `reference/DEPLOYMENT.md`), and THIS relying party does not reach them — they sit in a
+different domain tree, so no value can cover them and `quirenote.com` at the same time. They are
+not unreachable in principle: `d17m4jf400my6.amplifyapp.com` is one label below a public suffix
+and would be a legal RP ID covering both of them. It is simply not the one chosen, so a passkey
+ceremony run from those URLs cannot work here.
+
+**AWS documents this two ways, and they contradict each other.** The developer guide's
+[authentication flows](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-authentication-flow-methods.html)
+page calls the custom domain's FQDN what a pool "defaults to" when you "don't specify
+otherwise", adds that you "can also configure your RP ID to be any domain name not in the public
+suffix list (PSL)", and says that entry "applies to passkey registration and authentication in
+managed login and in SDK authentication". The API reference for `WebAuthnConfigurationType` and
+the CloudFormation reference for `AWS::Cognito::UserPool` both say the opposite in terms: the RP
+ID "must be the fully-qualified domain name of your custom domain" when the pool is configured
+for passkeys, has a custom domain, and authenticates through managed login or the classic hosted
+UI — which is this pool exactly. Which one the service ACCEPTS was measured, below; the ceremony
+itself is the half that measurement does not reach. It still has to be settled before the first
+passkey, because changing it strands every one already registered.
 
 **Two things the template cannot finish**, both in `reference/DEPLOYMENT.md`: the Cloudflare
 record pointing at that distribution — DNS-only, never proxied — and the fact that until it
@@ -187,6 +217,39 @@ behind `GetUserPoolMfaConfig`, as `WebAuthnConfiguration.RelyingPartyId` and
 `.UserVerification`. Reading the wrong API makes a set value look absent — the same shape of
 mistake as `UsernameConfiguration` reading back absent when omitted, and worth knowing before
 anyone "fixes" a relying party that was never missing.
+
+**The config plane does not enforce the FQDN rule two of its own reference pages state.** The dev pool
+has a custom domain and authenticates through managed login, so it meets every condition under
+which `WebAuthnConfigurationType` and the CloudFormation reference say the RP ID "must be" that
+domain's FQDN. `SetUserPoolMfaConfig` took `RelyingPartyId: dev.quirenote.com` on it regardless,
+and `GetUserPoolMfaConfig` read the value back unchanged. So the FQDN is a default rather than a
+value the config plane refuses to take.
+
+**`SetUserPoolMfaConfig` REPLACES rather than merges, and `required` does not survive an omission.**
+Sending `WebAuthnConfiguration` with `RelyingPartyId` alone returned a configuration with no
+`UserVerification` field at all, where the call before it had been answering `required`. The
+response distinguishes that from the documented default rather than blurring it: setting
+`preferred` EXPLICITLY is echoed back as `"UserVerification": "preferred"`, so an absent field in
+the response is a third state and not a quiet `preferred`. What the guide says about the effective
+behaviour — "this setting defaults to preferred in API requests that don't provide a value" —
+stands alongside that and is not contradicted by it; the pool simply stops reporting a value.
+Either way the outcome is the same one that matters: the setting is no longer `required`, which is
+the state the template deploys. `FactorConfiguration` came back `SINGLE_FACTOR`, which is also its
+default, so that field separates nothing and is not evidence either way. The API reference says
+none of this: every parameter is merely `Required: No`, and the "sets it to its default value"
+language belongs to `UpdateUserPool`, a different call. So the read before the write is not
+optional — anything touching this call echoes back the whole object.
+
+**What that measurement does NOT settle**, and the reason to write it down rather than assume it:
+the third condition the "must be" clause names is about the ceremony — "your application performs
+authentication with managed login or the classic hosted UI" — and accepting the string is not the
+same as running the ceremony with it. Two gaps remain, both closed by use rather than by this
+call. It went through the Cognito API and not CloudFormation, so the deploy is what says the same
+of `AWS::Cognito::UserPool`. And no passkey has been registered through managed login against an
+apex RP ID here; the developer guide states the entry "applies to passkey registration and
+authentication in managed login and in SDK authentication", which is the only assurance on that
+point so far, and it is the same guide the reference pages contradict. The first registration is
+what turns it into a measurement.
 
 **A pool that allows passkeys does not offer them to a user who has none.** `InitiateAuth` with
 `AuthFlow: USER_AUTH` against a password-only user answers `SELECT_CHALLENGE` with
