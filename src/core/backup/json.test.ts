@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Asset, Snapshot, Transaction } from '../types';
+import type { Asset, Snapshot, Transaction, TxType } from '../types';
 import { buildBackup, parseBackup, type BackupEnvelope } from './json';
 
 // Minimal hand-built portfolio (the full 4/174/18 seed round-trip lives in
@@ -643,20 +643,40 @@ describe('the withholding and the note at the envelope door', () => {
     }
   });
 
-  it('refuses a withholding on any of the six types that take none', () => {
-    for (const type of ['buy', 'sell', 'deposit', 'withdrawal', 'reinvest', 'redemption']) {
-      const moving = ['buy', 'sell', 'reinvest', 'redemption'].includes(type);
+  it('refuses a withholding on every type that takes none, and accepts the two that do', () => {
+    // What the reader lets each type carry, written out rather than read from
+    // `isPayout` / `targetsAsset` / `movesPosition` — it asks those predicates,
+    // so a fixture that asked them too would flip with them. A
+    // `Record<TxType, …>` and not a list of six: a ninth type has no row here
+    // and the build stops before this loop under-tests it.
+    //
+    // ONLY THE `withholding` COLUMN IS ASSERTED — every type is parsed and its
+    // outcome compared against it, so a wrong cell there fails. The other two
+    // shape the row, and a wrong cell in them still leaves the row refused for
+    // the withholding reason this test names: `asset` and `quantity` are pinned
+    // exhaustively by `schemas.test.ts` and `import.test.ts` instead.
+    const CARRIES: Record<TxType, { asset: boolean; quantity: boolean; withholding: boolean }> = {
+      buy: { asset: true, quantity: true, withholding: false },
+      sell: { asset: true, quantity: true, withholding: false },
+      deposit: { asset: false, quantity: false, withholding: false },
+      withdrawal: { asset: false, quantity: false, withholding: false },
+      dividend_accrual: { asset: true, quantity: false, withholding: true },
+      interest_payout: { asset: true, quantity: false, withholding: true },
+      reinvest: { asset: true, quantity: true, withholding: false },
+      redemption: { asset: true, quantity: true, withholding: false },
+    };
+    for (const type of Object.keys(CARRIES) as TxType[]) {
       const result = parseBackup(
         withRow(
           payout({
             type,
-            assetId: type === 'deposit' || type === 'withdrawal' ? '' : 'reit',
+            assetId: CARRIES[type].asset ? 'reit' : '',
             taxWithheld: 5,
-            ...(moving ? { quantity: 10 } : {}),
+            ...(CARRIES[type].quantity ? { quantity: 10 } : {}),
           }),
         ),
       );
-      expect(result.ok, type).toBe(false);
+      expect(result.ok, type).toBe(CARRIES[type].withholding);
       if (result.ok) continue;
       expect(result.issues.join(' '), type).toMatch(/transactions\.\d+\.taxWithheld/);
     }

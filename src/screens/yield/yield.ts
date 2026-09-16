@@ -15,7 +15,7 @@ import {
   totalReturnPct,
   yieldSinceStart,
 } from '../../core/derive';
-import type { Asset, Snapshot, Transaction } from '../../core/types';
+import { unnamedType, type Asset, type Snapshot, type Transaction } from '../../core/types';
 import type { PeriodWindow } from '../../core/period';
 import { dayBefore, daysBetween, latestSnapshotDate } from '../../core/dates';
 import { xirr, type CashFlow } from '../../core/xirr';
@@ -52,6 +52,32 @@ export interface YieldTableRow {
   xirr: number | null | undefined; // fraction, money-weighted annualized
 }
 
+// What one row contributes to its asset's series, or `null` when it is not an
+// asset flow at all. A VALUE-RETURNING switch, because the statement switch this
+// replaced had no return type to fail against: a ninth `TxType` reached its
+// `default: break` and left the series short by however much the row carried,
+// with nothing to notice.
+function assetFlowAmount(t: Transaction): number | null {
+  switch (t.type) {
+    case 'buy':
+    case 'reinvest':
+      return -t.amount;
+    case 'dividend_accrual':
+    case 'interest_payout':
+      // Net at the payout's OWN date, which is where the retired `tax` row used
+      // to put it. `taxWithheld < amount` is a CHECK, so this never flips sign.
+      return t.amount - (t.taxWithheld ?? 0);
+    case 'sell':
+    case 'redemption':
+      return t.amount;
+    case 'deposit':
+    case 'withdrawal':
+      return null; // portfolio-level cash, not an asset flow
+    default:
+      return unnamedType(t.type, null);
+  }
+}
+
 // Per-asset dated flows for xirr (S9b): buys/reinvests out (−), sells and
 // redemptions in (+), a payout in at `amount − taxWithheld`, plus the
 // carried-forward latest quote as the terminal value on the latest snapshot
@@ -82,25 +108,8 @@ function assetCashFlows(
   if (openValue > 0 && openDate !== undefined) flows.push({ date: openDate, amount: -openValue });
   for (const t of transactions) {
     if (t.assetId !== assetId) continue;
-    switch (t.type) {
-      case 'buy':
-      case 'reinvest':
-        flows.push({ date: t.date, amount: -t.amount });
-        break;
-      case 'dividend_accrual':
-      case 'interest_payout':
-        // Net at the payout's OWN date, which is where the retired `tax` row
-        // used to put it. `taxWithheld < amount` is a CHECK, so this never
-        // flips sign.
-        flows.push({ date: t.date, amount: t.amount - (t.taxWithheld ?? 0) });
-        break;
-      case 'sell':
-      case 'redemption':
-        flows.push({ date: t.date, amount: t.amount });
-        break;
-      default:
-        break; // deposit/withdrawal — portfolio-level cash, not an asset flow
-    }
+    const amount = assetFlowAmount(t);
+    if (amount !== null) flows.push({ date: t.date, amount });
   }
   flows.push({ date: terminalDate, amount: terminalValue });
   return flows;

@@ -42,14 +42,7 @@ import {
   trimAmount,
   yieldSinceStart,
 } from './derive';
-import {
-  isPayout,
-  movesPosition,
-  PAYOUT_TYPES,
-  POSITION_MOVING,
-  targetsAsset,
-  unitDelta,
-} from './types';
+import { unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
 const complete2507: Snapshot = {
@@ -633,7 +626,7 @@ describe('basisIsShort — F-3/D80, and the threshold the sheet delegated', () =
   });
 });
 
-describe('movesPosition / unitDelta — the sign rule units depend on', () => {
+describe('unitDelta — the sign rule units depend on', () => {
   const tx = (over: Partial<Transaction>): Transaction => ({
     id: 'x',
     date: '2026-08-12',
@@ -642,32 +635,6 @@ describe('movesPosition / unitDelta — the sign rule units depend on', () => {
     amount: 100,
     source: 'own',
     ...over,
-  });
-
-  it('names exactly the four types W7 lets carry a quantity', () => {
-    expect([...POSITION_MOVING]).toEqual(['buy', 'sell', 'reinvest', 'redemption']);
-    for (const type of POSITION_MOVING) expect(movesPosition(type), type).toBe(true);
-    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout'])
-      expect(movesPosition(type as Transaction['type']), type).toBe(false);
-  });
-
-  it('names exactly the two types that target no asset — EXHAUSTIVELY (D129)', () => {
-    // A `Record<TxType, …>`, not a list, and that is the whole point: this
-    // predicate is written as a negation, so a tenth `TxType` would default into
-    // "targets an asset" and the form would start demanding one for it with
-    // nothing failing. An exhaustive record refuses to COMPILE instead.
-    const expected: Record<Transaction['type'], boolean> = {
-      buy: true,
-      sell: true,
-      deposit: false,
-      withdrawal: false,
-      dividend_accrual: true,
-      interest_payout: true,
-      reinvest: true,
-      redemption: true,
-    };
-    for (const [type, wanted] of Object.entries(expected))
-      expect(targetsAsset(type as Transaction['type']), type).toBe(wanted);
   });
 
   it('ADDS on buy and reinvest, REMOVES on sell and redemption', () => {
@@ -750,24 +717,6 @@ describe('the withholding is a field on the payout it was taken from', () => {
     });
     // The GROSS figure is untouched — it backs the pinned KPI.
     expect(incomeReceived(rows).total).toBeCloseTo(567.46, 2);
-  });
-
-  it('isPayout names exactly the two types that may carry one — EXHAUSTIVELY', () => {
-    // A Record, not a list, for the reason `targetsAsset`'s own pin gives: a
-    // ninth type would default into "carries no withholding" in silence.
-    const expected: Record<Transaction['type'], boolean> = {
-      buy: false,
-      sell: false,
-      deposit: false,
-      withdrawal: false,
-      dividend_accrual: true,
-      interest_payout: true,
-      reinvest: false,
-      redemption: false,
-    };
-    expect([...PAYOUT_TYPES]).toEqual(['dividend_accrual', 'interest_payout']);
-    for (const [type, wanted] of Object.entries(expected))
-      expect(isPayout(type as Transaction['type']), type).toBe(wanted);
   });
 });
 

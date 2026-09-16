@@ -9,6 +9,25 @@ import {
   percentInputSchemaFor,
   transactionSchema,
 } from './schemas';
+import type { TxType } from './types';
+
+// What the store lets each type carry — the W7 CHECKs this schema mirrors,
+// written out rather than read from `isPayout` / `movesPosition` /
+// `targetsAsset`: a test that asks the predicates the schema asked cannot fail
+// when one of them is wrong, because the row it builds flips with them. A
+// `Record<TxType, …>` and not a list — a list is short one member when a ninth
+// type arrives and nothing notices; this refuses to compile.
+const CARRIES: Record<TxType, { asset: boolean; quantity: boolean; withholding: boolean }> = {
+  buy: { asset: true, quantity: true, withholding: false },
+  sell: { asset: true, quantity: true, withholding: false },
+  deposit: { asset: false, quantity: false, withholding: false },
+  withdrawal: { asset: false, quantity: false, withholding: false },
+  dividend_accrual: { asset: true, quantity: false, withholding: true },
+  interest_payout: { asset: true, quantity: false, withholding: true },
+  reinvest: { asset: true, quantity: true, withholding: false },
+  redemption: { asset: true, quantity: true, withholding: false },
+};
+const everyType = Object.keys(CARRIES) as TxType[];
 
 describe('the number grammar follows the language (README §8)', () => {
   const uk = amountInputSchema('uk');
@@ -430,9 +449,14 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
 
   it('refuses a quantity on a row that moves no position', () => {
     // W7's `transaction_quantity_absent_ck`, enforced at the form door too.
-    for (const type of ['deposit', 'withdrawal', 'dividend_accrual', 'interest_payout']) {
-      const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '10' });
-      expect(bad.success, type).toBe(false);
+    for (const type of everyType) {
+      const parsed = transactionSchema('uk').safeParse({
+        ...base,
+        type,
+        assetId: CARRIES[type].asset ? 'reit' : '',
+        quantity: '10',
+      });
+      expect(parsed.success, type).toBe(CARRIES[type].quantity);
     }
   });
 
@@ -443,15 +467,20 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
     // every coupon figure `rate × units`, so a `buy` in the default `total` mode
     // with the field blank produced a bond whose coupon reads «—» everywhere,
     // silently.
-    for (const type of ['buy', 'sell', 'reinvest', 'redemption']) {
-      const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '' });
-      expect(bad.success, type).toBe(false);
-      if (bad.success) continue;
-      expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('quantity');
-      expect(
-        transactionSchema('uk').safeParse({ ...base, type, quantity: '10' }).success,
-        type,
-      ).toBe(true);
+    for (const type of everyType) {
+      const assetId = CARRIES[type].asset ? 'reit' : '';
+      const blank = transactionSchema('uk').safeParse({ ...base, type, assetId, quantity: '' });
+      // A blank count is refused on exactly the types that take one, and
+      // ACCEPTED on the rest — both halves asserted, so a wrong row of `CARRIES`
+      // fails rather than dropping its case.
+      expect(blank.success, type).toBe(!CARRIES[type].quantity);
+      if (!blank.success) {
+        expect(blank.error.issues.map((i) => i.path.join('.'))).toContain('quantity');
+        expect(
+          transactionSchema('uk').safeParse({ ...base, type, assetId, quantity: '10' }).success,
+          type,
+        ).toBe(true);
+      }
     }
   });
 
@@ -477,7 +506,8 @@ describe('D129 — the asset is required only on the types that target one', () 
     // refused it, so a deposit could not be recorded without naming an asset it
     // has nothing to do with — and with no assets yet, could not be recorded at
     // all, which is the first transaction anyone makes.
-    for (const type of ['deposit', 'withdrawal'] as const) {
+    for (const type of everyType) {
+      if (CARRIES[type].asset) continue;
       expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(true);
       expect(transactionSchema('uk').parse({ ...base, type }).assetId).toBe('');
     }
@@ -493,7 +523,8 @@ describe('D129 — the asset is required only on the types that target one', () 
     // NORMALIZED, not rejected, and the asymmetry with the quantity rule above
     // is deliberate — a refusal has to be shown, and this control is not on
     // screen for these types. The schema's own comment carries the rest.
-    for (const type of ['deposit', 'withdrawal'] as const) {
+    for (const type of everyType) {
+      if (CARRIES[type].asset) continue;
       const parsed = transactionSchema('uk').safeParse({ ...base, type, assetId: 'reit' });
       expect(parsed.success, type).toBe(true);
       if (!parsed.success) continue;
@@ -504,15 +535,23 @@ describe('D129 — the asset is required only on the types that target one', () 
     expect(transactionSchema('uk').parse({ ...base, assetId: 'new' }).assetId).toBe('');
   });
 
-  it('still requires one on every type that DOES target an asset', () => {
-    for (const type of ['buy', 'sell', 'reinvest', 'redemption'] as const) {
-      const bad = transactionSchema('uk').safeParse({ ...base, type, quantity: '10' });
-      expect(bad.success, type).toBe(false);
-      if (bad.success) continue;
-      expect(bad.error.issues.map((i) => i.path.join('.'))).toContain('assetId');
-    }
-    for (const type of ['dividend_accrual', 'interest_payout'] as const) {
-      expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(false);
+  it('requires one on every type that DOES target an asset, and on no other', () => {
+    // BOTH HALVES against `CARRIES`, over all eight: the two rows that answer
+    // `false` are the only cells of that table the loops above cannot defend,
+    // because the schema NORMALIZES a portfolio-level assetId rather than
+    // refusing it, so a fixture carrying one parses either way.
+    for (const type of everyType) {
+      const parsed = transactionSchema('uk').safeParse({
+        ...base,
+        type,
+        quantity: CARRIES[type].quantity ? '10' : '',
+      });
+      expect(parsed.success, type).toBe(!CARRIES[type].asset);
+      if (parsed.success) continue;
+      expect(
+        parsed.error.issues.map((i) => i.path.join('.')),
+        type,
+      ).toContain('assetId');
     }
   });
 
@@ -617,22 +656,26 @@ describe('the withholding and the note at the form door', () => {
     }
   });
 
-  it('refuses one on any of the six types that take none', () => {
+  it('refuses one on every type that takes none, and accepts it on the two that do', () => {
     // `transaction_tax_absent_ck`. It REFUSES rather than normalizing, which is
     // `quantity`'s precedent and not `assetId`'s: the panel clears the value on
     // a type change, so the refusal never fires at a control nobody can see.
-    for (const type of ['buy', 'sell', 'deposit', 'withdrawal', 'reinvest', 'redemption']) {
-      const bad = transactionSchema('uk').safeParse({
+    // Every type is PARSED and its outcome asserted, rather than the six being
+    // selected out of eight: a `continue` turns a wrong row of `CARRIES` from a
+    // failing assertion into a missing one, which is the shape of the literal
+    // list this replaced.
+    for (const type of everyType) {
+      const parsed = transactionSchema('uk').safeParse({
         ...base,
         type,
-        assetId: type === 'deposit' || type === 'withdrawal' ? '' : 'a1',
-        quantity: type === 'deposit' || type === 'withdrawal' ? '' : '10',
+        assetId: CARRIES[type].asset ? 'a1' : '',
+        quantity: CARRIES[type].quantity ? '10' : '',
         taxWithheld: '5',
       });
-      expect(bad.success, type).toBe(false);
-      if (bad.success) continue;
+      expect(parsed.success, type).toBe(CARRIES[type].withholding);
+      if (parsed.success) continue;
       expect(
-        bad.error.issues.map((i) => i.path.join('.')),
+        parsed.error.issues.map((i) => i.path.join('.')),
         type,
       ).toContain('taxWithheld');
     }
@@ -656,23 +699,12 @@ describe('the withholding and the note at the form door', () => {
   });
 
   it('takes a note on every one of the eight types', () => {
-    for (const type of [
-      'buy',
-      'sell',
-      'deposit',
-      'withdrawal',
-      'dividend_accrual',
-      'interest_payout',
-      'reinvest',
-      'redemption',
-    ]) {
-      const portfolioLevel = type === 'deposit' || type === 'withdrawal';
-      const moving = ['buy', 'sell', 'reinvest', 'redemption'].includes(type);
+    for (const type of everyType) {
       const ok = transactionSchema('uk').safeParse({
         ...base,
         type,
-        assetId: portfolioLevel ? '' : 'a1',
-        quantity: moving ? '10' : '',
+        assetId: CARRIES[type].asset ? 'a1' : '',
+        quantity: CARRIES[type].quantity ? '10' : '',
         note: 'Звірено з випискою',
       });
       expect(ok.success, type).toBe(true);

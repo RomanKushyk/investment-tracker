@@ -5,6 +5,7 @@ import {
   movesPosition,
   PAYOUT_TYPES,
   unitDelta,
+  unnamedType,
   type Asset,
   type Snapshot,
   type Transaction,
@@ -680,6 +681,38 @@ export function cashYieldPct(
   return base === 0 ? null : payoutsNetAmount / base;
 }
 
+// What one row contributes to the PORTFOLIO's flow series, or `null` when it
+// moves money inside the boundary and is already in `terminalValue`. Signs are
+// the investor's: a deposit goes in, so negative. Exhaustive for the reason the
+// two cash sums are — an `else` here gives an unclassified type the internal
+// treatment, the one that changes no figure and so is never noticed.
+//
+// `null` and not `undefined`, which the arms CAN produce: `t.amount` is typed
+// required, but the rows reaching here are read out of Dexie unvalidated, and a
+// withdrawal missing one would then be skipped as though it were internal
+// rather than reaching `xirr` and turning the whole figure into the «—» that
+// says so. `null` is out of reach of every write path the app has — the form
+// and both backup doors are zod `number().positive()`, `updateTransaction`
+// takes `amount?: number`, the seed is typed — so it is the one spelling of
+// "not a flow" that cannot also be a value.
+function externalFlowAmount(t: Transaction): number | null {
+  switch (t.type) {
+    case 'deposit':
+      return -t.amount;
+    case 'withdrawal':
+      return t.amount;
+    case 'buy':
+    case 'sell':
+    case 'redemption':
+    case 'dividend_accrual':
+    case 'interest_payout':
+    case 'reinvest':
+      return null;
+    default:
+      return unnamedType(t.type, null);
+  }
+}
+
 /**
  * The PORTFOLIO's money-weighted annualized rate (A25) — the annualized
  * counterpart of `globalRoi`, which measures the same thing without regard to
@@ -725,8 +758,8 @@ export function portfolioXirr(
     // true until D129, which stopped the form writing one: a deposit now
     // carries `''`, the shape the seed always used. Reading the type rather
     // than the id is what made this function survive that change unedited.
-    if (t.type === 'deposit') flows.push({ date: t.date, amount: -t.amount });
-    else if (t.type === 'withdrawal') flows.push({ date: t.date, amount: t.amount });
+    const amount = externalFlowAmount(t);
+    if (amount !== null) flows.push({ date: t.date, amount });
   }
   flows.push({ date: terminalDate, amount: terminalValue });
   return xirr(flows);
@@ -734,10 +767,26 @@ export function portfolioXirr(
 
 /** Doc §5.1 NetDeposits = Σ deposits − Σ withdrawals (external capital only). */
 export function netDeposits(txs: Transaction[]): number {
-  return txs.reduce((s, t) => {
-    if (t.type === 'deposit') return s + t.amount;
-    if (t.type === 'withdrawal') return s - t.amount;
-    return s;
+  // The second cash partition, and it answers for every type for the reason the
+  // first one does: an `if` chain ending in `return s` files a type nobody
+  // classified under "contributes no external capital", which is the denominator
+  // of `globalRoi`.
+  return txs.reduce((s, t): number => {
+    switch (t.type) {
+      case 'deposit':
+        return s + t.amount;
+      case 'withdrawal':
+        return s - t.amount;
+      case 'buy':
+      case 'sell':
+      case 'redemption':
+      case 'dividend_accrual':
+      case 'interest_payout':
+      case 'reinvest':
+        return s;
+      default:
+        return unnamedType(t.type, s);
+    }
   }, 0);
 }
 
@@ -817,7 +866,12 @@ export function incomeReceivedNet(txs: Transaction[]): {
  *   trigger #2).
  */
 export function freeCashFromLedger(txs: Transaction[]): number {
-  return txs.reduce((s, t) => {
+  // Every type is named and the `default:` arm takes `never`, so a ninth one
+  // fails to compile at that arm: cash is the figure this partition exists to
+  // draw, and a type that slid past would be a zero nobody chose. The
+  // callback's `: number` states the contract; measured, it is not what raises
+  // the error — the `never` is, with or without it.
+  return txs.reduce((s, t): number => {
     switch (t.type) {
       case 'deposit':
         return s + t.amount;
@@ -828,8 +882,12 @@ export function freeCashFromLedger(txs: Transaction[]): number {
       case 'sell':
       case 'redemption':
         return s + t.amount;
+      case 'dividend_accrual':
+      case 'interest_payout':
+      case 'reinvest':
+        return s; // external to broker cash — the exclusion above, written out
       default:
-        return s; // payout/reinvest rows are external to broker cash
+        return unnamedType(t.type, s);
     }
   }, 0);
 }

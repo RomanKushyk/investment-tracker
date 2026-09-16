@@ -16,6 +16,26 @@ export type TxType =
   | 'reinvest'
   | 'redemption';
 export type TxSource = 'own' | 'accrual' | 'reinvest_reit' | 'reinvest_6475';
+
+/**
+ * The arm a `TxType` cannot reach. `never` accepts no member of the union, so a
+ * ninth type fails to COMPILE at every call — which is what a type-keyed switch
+ * is written without a silent `default:` to buy.
+ *
+ * It answers `fallback` rather than throwing because the arm IS reachable at
+ * runtime, by a row whose type the union no longer names: Dexie reads are
+ * unvalidated (`lib/repository.ts`) and no migration retired `tax`, so a store
+ * written before that retirement still holds those rows. Measured on a bare
+ * exhaustive switch, one such row fell off the end: `freeCashFromLedger` came
+ * back `NaN` — `undefined` only when the row sorts last, and
+ * `listTransactions` sorts by date, so a retired type sorts early — and the
+ * reconciliation chip VANISHED rather than reading wrong, because
+ * `Math.abs(NaN) > ε` is false. `fallback` is what the `default:` arms this
+ * replaced already answered.
+ */
+export function unnamedType<T>(_type: never, fallback: T): T {
+  return fallback;
+}
 export type ColorKey = 'reit' | 'energy' | 'ovdp8976' | 'ovdp6475';
 
 export interface Asset {
@@ -96,12 +116,10 @@ export function movesPosition(type: TxType): boolean {
  * quantity rule beside it. The schema spells the second `dividend_payout`; the
  * migration maps the name and the MEMBERSHIP is the same two.
  *
- * EXPORTED, unlike `PORTFOLIO_LEVEL` below, and the difference is not taste.
- * That one is not exported because `targetsAsset` is written as a NEGATION, so
- * a second name for it would hand a caller a way to ask the question inverted.
- * This is positive membership, and `derive.ts` needs the LIST rather than the
- * question — `sumByAsset` and `sumWhere` take a type array — so the tuple is the
- * same fact spelled once rather than twice.
+ * EXPORTED, and the reason is not taste: `derive.ts` needs the LIST rather than
+ * the question — `sumByAsset` and `sumWhere` take a type array — so the tuple is
+ * the same fact spelled once rather than twice, with `isPayout` below reading
+ * from it.
  */
 export const PAYOUT_TYPES = ['dividend_accrual', 'interest_payout'] as const;
 
@@ -111,23 +129,20 @@ export function isPayout(type: TxType): boolean {
 }
 
 /**
- * The rows that cross the PORTFOLIO's edge rather than an asset's, and so name
- * no asset at all. `Transaction.assetId` below has documented `''` for them
- * since P1, `lib/seed.ts` writes exactly that, `backup/json.ts` skips its
- * referential check for it and the ledger row already labels it «Портфель» —
- * `derive.ts`'s `portfolioXirr` draws the same line, citing doc §5.1.
- *
- * NOT EXPORTED, unlike `POSITION_MOVING`: `targetsAsset` is the whole API, and
- * a second name for the same fact would only give a caller a way to ask the
- * question wrongly. Membership is pinned exhaustively in `derive.test.ts`,
- * which is what stops a tenth `TxType` from defaulting into the other class in
- * silence — this predicate is a negation, so a new type joins the majority
- * without anything failing.
- */
-const PORTFOLIO_LEVEL = ['deposit', 'withdrawal'] as const;
-
-/**
  * Does this row belong to an asset? D129.
+ *
+ * A SWITCH OVER ALL EIGHT TYPES, so a ninth is a compile error rather than an
+ * answer nobody chose. The question cannot be asked as a negation: the
+ * complement of a two-element list answers `true` for a type no one classified,
+ * and the transaction form would demand an asset for a row that names none. The
+ * `default:` arm keeps that same `true` for a row the union does not name — see
+ * `unnamedType`; it is the answer the negation gave, not a new one.
+ *
+ * The two that answer `false` cross the PORTFOLIO's edge rather than an asset's,
+ * and so name no asset at all. `Transaction.assetId` below has documented `''`
+ * for them since P1, `lib/seed.ts` writes exactly that, `backup/json.ts` skips
+ * its referential check for it and the ledger row already labels it «Портфель» —
+ * `derive.ts`'s `portfolioXirr` draws the same line, citing doc §5.1.
  *
  * IT IS NOW THE STORE'S RULE AS WELL AS THE FORM'S, and it did not used to be.
  * `transaction_asset_absent_ck` (`infra/schema/user.ts`) forbids an asset on
@@ -149,7 +164,20 @@ const PORTFOLIO_LEVEL = ['deposit', 'withdrawal'] as const;
  * missing from neither in a way anything could notice.
  */
 export function targetsAsset(type: TxType): boolean {
-  return !(PORTFOLIO_LEVEL as readonly TxType[]).includes(type);
+  switch (type) {
+    case 'deposit':
+    case 'withdrawal':
+      return false;
+    case 'buy':
+    case 'sell':
+    case 'dividend_accrual':
+    case 'interest_payout':
+    case 'reinvest':
+    case 'redemption':
+      return true;
+    default:
+      return unnamedType(type, true);
+  }
 }
 
 /** How many units this row ADDS to the position — `sell`/`redemption` remove. */

@@ -695,8 +695,19 @@ root-cause comment on the issue comes first. The gates are lint, typecheck, test
 which skips Markdown on purpose, plus `tsc --noEmit -p infra` when `infra/` or a shared core file
 changes. Tests are vitest over pure logic with `fake-indexeddb` for the repository's write surface,
 and a nested checkout under `.claude/` stays invisible to git, eslint, vitest and prettier alike.
-The skill frontmatter those three skip keeps one guard in `src/`: a description is a QUOTED YAML
-scalar, because an unquoted one ends at the first ` #` and the harness never receives the rest.
+A site that BRANCHES on a transaction type answers for every type or it does not compile: a `switch`
+names every arm and closes on `unnamedType`, whose first parameter is `never`; a predicate is never
+the complement of a private list; and a suite that iterates the types iterates a `Record<TxType, …>`
+rather than a literal array, asserting each type's outcome rather than selecting some out of eight,
+because a table that picks the cases drops one instead of failing. `unnamedType` returns its
+fallback rather than throwing, because that arm is reachable at runtime by a row an unmigrated store
+still holds. A site that merely LISTS the types is not covered and two remain — the form's
+`TYPE_ORDER` and its zod enum, where a ninth type compiles and goes missing rather than answering
+wrongly; they move with the type that needs them. The one place a ninth MEMBER OF THE UNION is
+written is `src/core/types.test.ts`, under an `@ts-expect-error` — which catches that record's keys
+being widened to `string`, and that alone. The skill frontmatter those three skip keeps
+one guard in `src/`: a description is a QUOTED YAML scalar, because an unquoted one ends at the
+first ` #` and the harness never receives the rest.
 A CloudFormation assertion that depends on an intrinsic reads the tag off the parsed document
 through `intrinsicAt`, which returns the tag and the value apart, never from a regex over the
 template text. A tagged COLLECTION is not a scalar, so `intrinsicAt` refuses it and its tag is
@@ -707,7 +718,18 @@ them are held alike. A policy's `Resource` is reached through the statement gran
 rather than through its index.
 **Why.** These documents carry figures, contracts and instructions no type checker reads — which is
 where the evidence for reviewing them came from. A gate whose verdict moves with whether an agent
-happens to be running is not a gate, and prettier re-pads every table cell it is let near. `toJS()`
+happens to be running is not a gate, and prettier re-pads every table cell it is let near. A ninth
+member injected into `TxType` was measured against the whole program before that rule existed: the
+compiler stopped at the records, the label map keyed by the union and the backup writer handing a
+`Transaction[]` to a zod enum, and at no branch at all — the
+cash partitions returned a zero for the new type, the per-asset XIRR series dropped it, and
+`targetsAsset` answered that it names an asset, so the transaction form would have demanded one for
+a row that names none. A negation is the shape that fails this way, because it answers for a type
+nobody classified and answers it with the majority; a literal array of types in a test fails more
+quietly still, since every assertion it makes passes on the members it happens to list. The review
+of that first attempt is where `unnamedType` came from: a switch closed on nothing is exhaustive to
+the compiler and partial at runtime, and the rows that reach it are exactly the ones no schema has
+ever validated. `toJS()`
 discards an unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are
 one value to a parsed template; a text guard beside it has to be unique to the line it is about,
 and a template writes the same variable on several lines, so the guards meant to catch a dropped
@@ -737,7 +759,20 @@ keep throwing rather than read as a value. · A list of the conditional paths st
 reconciled against nothing: it catches an intrinsic removed and never one added, and a hand-kept
 inventory went stale inside a milestone in this suite already. · One inventory per tag name: it
 scatters a single condition's nested intrinsics across three lists and leaves the next shape of
-intrinsic outside every one of them.
+intrinsic outside every one of them. · A plain `default:` arm returning the neutral value: it trades
+a compile error for a reader noticing, and the neutral value for cash is a zero that reconciles
+against nothing. · No `default:` arm at all, which is what the switches over the issue and warning
+codes do: measured, a row whose type the union no longer names falls off the end, the drift becomes
+`NaN` and the reconciliation chip DISAPPEARS rather than reading wrong — those switches can afford
+it because their input is produced inside the app, and a ledger row is read unvalidated out of
+Dexie. · An
+`assertNever` that throws in that arm: it is a compile error too, but it takes the screen down for a
+store this project keeps readable on purpose. · One central `Record<TxType, …>` every site
+dispatches through: the arms of the cash partition are arithmetic and the arms of the asset series
+are different arithmetic, so a shared table would stand between each formula and its reader while
+proving only what the switch already proves. · An exported tuple of all eight types for the suites
+to iterate: a second name for the union, and a tuple is short one member with nothing to notice —
+the defect being removed, respelt.
 
 ## Dependabot
 **Decision.** Security only — alerts and automated security fixes as repository settings, and

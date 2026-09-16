@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { POSITION_MOVING, type Asset, type Snapshot, type Transaction } from '../types';
+import {
+  POSITION_MOVING,
+  type Asset,
+  type Snapshot,
+  type Transaction,
+  type TxType,
+} from '../types';
 import { buildBackup, type BackupEnvelope } from './json';
 import {
   classifyImportFiles,
@@ -93,6 +99,24 @@ const tables = (over: Partial<PortfolioTables> = {}): PortfolioTables => ({
   transactions: TRANSACTIONS,
   ...over,
 });
+
+// Which types name an asset, and which carry a count — written out rather than
+// read from `targetsAsset` / `movesPosition`, because the door under test asks
+// those predicates and a fixture that asked them too would agree with them
+// however they answered. A `Record<TxType, …>` and not a list: a ninth type has
+// no row here, and a portfolio-level one dropped into a list would be tested as
+// though it named an asset.
+const CARRIES: Record<TxType, { asset: boolean; quantity: boolean }> = {
+  buy: { asset: true, quantity: true },
+  sell: { asset: true, quantity: true },
+  deposit: { asset: false, quantity: false },
+  withdrawal: { asset: false, quantity: false },
+  dividend_accrual: { asset: true, quantity: false },
+  interest_payout: { asset: true, quantity: false },
+  reinvest: { asset: true, quantity: true },
+  redemption: { asset: true, quantity: true },
+};
+const everyType = Object.keys(CARRIES) as TxType[];
 
 const CTX = { dataset: 'demo', today: '2026-08-04', dbVersion: 2 } as const;
 
@@ -333,7 +357,7 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
   // OWN asset — so a payout naming none would carry one past attribution and
   // then fail the CHECK at migration. The envelope gates on `targetsAsset`.
   it('accepts an empty id on the two PORTFOLIO-level types, and only those', () => {
-    const asRow = (type: string) =>
+    const asRow = (type: TxType) =>
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
           id: `tx-${type}`,
@@ -341,14 +365,16 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           type,
           assetId: '',
           amount: 100,
+          // So the only rule an asset-targeting row can break here is the one
+          // this test is about.
+          ...(CARRIES[type].quantity ? { quantity: 1 } : {}),
           source: 'own',
         }),
       );
-    for (const type of ['deposit', 'withdrawal']) {
-      expect(validateImport(asRow(type)).ok, type).toBe(true);
-    }
-    for (const type of ['dividend_accrual', 'interest_payout']) {
-      expect(validateImport(asRow(type)).ok, type).toBe(false);
+    // "And only those" is asserted rather than sampled: all eight, against the
+    // table, so a wrong row fails instead of leaving its type untested.
+    for (const type of everyType) {
+      expect(validateImport(asRow(type)).ok, type).toBe(!CARRIES[type].asset);
     }
   });
 
@@ -359,7 +385,10 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     // (NOT a pre-D129 FILE: the version gate refuses those first.) Refusing them
     // would leave such a store unable to back itself up, for a value W7 discards
     // anyway.
-    for (const type of ['deposit', 'withdrawal']) {
+    // The keeping half is asserted on all eight two tests below; this one is
+    // about the blanking, so it takes the types the table says name no asset.
+    for (const type of everyType) {
+      if (CARRIES[type].asset) continue;
       const result = validateImport(
         mutated((env) =>
           (env.transactions as Record<string, unknown>[]).push({
@@ -380,20 +409,16 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     }
   });
 
-  it('LEAVES the asset alone on every other type, the moving ones included', () => {
+  it('KEEPS the asset on every type that names one and blanks it on the rest', () => {
     // The other side of the predicate, and the one an inverted `!` would break
     // silently. It used to be the half that could go wrong quietly: blanking a
     // payout produced an orphaned portfolio row that no rule refused, because
     // the gate named only the four moving types. It is now caught at the door
     // above — which is why the two halves are one predicate.
-    for (const type of [
-      'buy',
-      'sell',
-      'reinvest',
-      'redemption',
-      'dividend_accrual',
-      'interest_payout',
-    ]) {
+    // BOTH HALVES over all eight, rather than the six selected out: a `continue`
+    // on `CARRIES[type].asset` turns a wrong row from a failing assertion into a
+    // missing one, and this table's asset column is the thing under test.
+    for (const type of everyType) {
       const result = validateImport(
         mutated((env) =>
           (env.transactions as Record<string, unknown>[]).push({
@@ -402,16 +427,19 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
             type,
             assetId: 'reit',
             amount: 100,
-            ...(['buy', 'sell', 'reinvest', 'redemption'].includes(type) ? { quantity: 1 } : {}),
+            ...(CARRIES[type].quantity ? { quantity: 1 } : {}),
             source: 'own',
           }),
         ),
       );
       expect(result.ok, type).toBe(true);
       if (!result.ok) continue;
-      expect(result.envelope.transactions.find((t) => t.id === `tx-keep-${type}`)?.assetId).toBe(
-        'reit',
-      );
+      // A type that names an asset keeps the one it named; a portfolio-level one
+      // is blanked — the two halves of the one predicate, asserted together.
+      expect(
+        result.envelope.transactions.find((t) => t.id === `tx-keep-${type}`)?.assetId,
+        type,
+      ).toBe(CARRIES[type].asset ? 'reit' : '');
     }
   });
 
