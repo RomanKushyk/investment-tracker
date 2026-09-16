@@ -1,9 +1,6 @@
-// The daily capture. Fetches the Inzhur feed and stores the RAW payload — no
-// observation rows, no derived values. Phase 1 exists to accumulate evidence,
-// not to commit to a schema (docs/superpowers/specs/2026-08-04-data-model.md).
-//
-// Every run writes a row, including a failed one: `price_capture` — never the
-// absence of a price row — is what answers "did the job run on day D".
+// The daily capture: fetch, store the RAW payload, derive nothing
+// (docs/superpowers/specs/2026-08-04-data-model.md). EVERY RUN WRITES A ROW, a failed one
+// included: `price_capture` — never the absence of a price row — answers "did the job run on D".
 import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
 
@@ -18,7 +15,7 @@ import type { Client } from 'pg';
 import { addDays, kyivDateIso } from '../../src/core/dates';
 import { backupAgeHours } from './backup-age';
 import { connect } from './dsql';
-// Re-exported so the deploy's bundle smoke test can reach them (D71).
+// Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
@@ -35,24 +32,12 @@ import { readXlsx } from './xlsx';
 import { tallyQuotes, type QuoteTally } from './quotes';
 import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
 
-/** Bumped whenever the parse changes shape. Stored per row so that, if the
- *  parser was ever wrong, the affected rows are identifiable rather than
- *  archaeological. */
+/** Stored per row, so a parser that was wrong leaves identifiable rows. */
 const PARSER_VERSION = '1';
 
-/**
- * Which feed a row came from. Not a lookup table — six values will never
- * justify one.
- *
- * `inzhur` is the provider's own dealer quote (contractually "Базова ціна",
- * cl. 1.4 of their services agreement: the price INZHUR offers to buy/sell at).
- * `nbu_fv` will be the National Bank's official daily fair value for ОВДП.
- *
- * They are NOT substitutes: measured on the same day for the same ISIN they
- * differ by ~0.9%, because one is a dealer quote and the other a model
- * valuation. Storing them without distinguishing the source would silently
- * present one as the other.
- */
+/** `inzhur` is the provider's own DEALER QUOTE; `nbu_fv` is the National Bank's MODEL valuation.
+ *  They are NOT substitutes and are never merged, so storing them without distinguishing the
+ *  source would silently present one as the other. */
 export const SOURCE = {
   inzhur: 'inzhur',
   nbuFairValue: 'nbu_fv',
@@ -61,13 +46,8 @@ export const SOURCE = {
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
 
-/**
- * Server-side there is no CORS, so D19's "send zero headers" rule does not
- * bind — but an explicit User-Agent is mandatory for the opposite reason:
- * Inzhur's CloudFront answers 403 to a request with no UA, and Node's http
- * client sends none by default. Browsers always send one, which is why this
- * never surfaced while the fetch lived in the SPA.
- */
+/** MANDATORY: Inzhur's CloudFront answers 403 to a request with no User-Agent, and Node sends
+ *  none by default. A browser always does, which is why this never surfaced in the SPA. */
 const USER_AGENT = 'quirenote-price-capture/1.0 (+https://quirenote.com)';
 
 interface FetchOutcome {
@@ -77,26 +57,15 @@ interface FetchOutcome {
   error?: string;
 }
 
-/**
- * The NBU's official daily fair value for Ukrainian government bonds, published
- * under Постанова Правління НБУ № 732 (26.10.2015). One file per BUSINESS day on
- * a fully predictable path, archived back to 2016-01-04 (2015-01-05 → 404).
- *
- * This is why the two ОВДП are not perishable the way the two Inzhur funds are:
- * a missed day here is downloadable later, so only the fund NAVs are genuinely
- * the-only-copy-that-will-ever-exist.
- *
- * Note it is a MODEL valuation, not a quote, and not a substitute for the
- * provider's dealer price — they measured ~0.9% apart on the same ISIN the same
- * day. Both are stored, distinguished by `source`.
- */
+/** One file per BUSINESS day on a fully predictable path, archived back to `NBU_ARCHIVE_START`.
+ *  A missed day here is downloadable later, which is why the ОВДП are not perishable the way the
+ *  fund NAVs are. */
 function nbuFairValueUrl(asOf: string): string {
   const d = asOf.replaceAll('-', ''); // yyyy-MM-dd -> yyyyMMdd
   return `https://bank.gov.ua/files/Fair_value/${d.slice(0, 6)}/${d}_fv.txt`;
 }
 
-/** A weekend or public holiday. The file simply does not exist, which is a fact
- *  about the calendar rather than a failure — recorded, never alarmed on. */
+/** A weekend or holiday: the file does not exist, which is the calendar and not a failure. */
 const NOT_PUBLISHED = 'not_published';
 
 async function fetchNbu(asOf: string): Promise<FetchOutcome> {
@@ -113,8 +82,8 @@ async function fetchNbu(asOf: string): Promise<FetchOutcome> {
     if (!response.ok) {
       return { ok: false, httpStatus: response.status, error: `HTTP ${response.status}` };
     }
-    // cp1251, NOT utf-8: the file carries Cyrillic instrument types (ОВДП /
-    // ОВМП) and a utf-8 read turns them into mojibake without erroring.
+    // cp1251, NOT utf-8: the file carries Cyrillic instrument types, and a utf-8 read turns them
+    // into mojibake without erroring.
     const bytes = new Uint8Array(await response.arrayBuffer());
     return {
       ok: true,
@@ -128,27 +97,13 @@ async function fetchNbu(asOf: string): Promise<FetchOutcome> {
   }
 }
 
-/** ISINs the portfolio actually holds. Their absence from a published file is
- *  the signal worth alarming on — a bond matured, was renamed, or the file
- *  changed shape. */
+/** ISINs the portfolio holds. Their absence from a published file is the signal worth alarming
+ *  on — a bond matured, was renamed, or the file changed shape. */
 const TRACKED_ISINS = ['UA4000238976', 'UA4000236475'];
 
-/**
- * The refs the Inzhur feed must still carry, and the SAME idea as
- * `TRACKED_ISINS` one source over: a feed that stops listing something we hold
- * is the shape change worth being told about (A20).
- *
- * Refs, not ISINs, because Inzhur serves both kinds and D30 fixed the rule —
- * `isin` for bonds, `slug` for funds. The bonds repeat `TRACKED_ISINS` rather
- * than importing it: NBU's list is what a national file must contain, this one
- * is what one provider must list, and the day they diverge is the day sharing
- * them would be a bug.
- *
- * The same stopgap caveat applies as above: the real home is `listed_from` /
- * `retired_at` on `instrument`. Until then a delisting shows up here as an
- * alarm and is answered by editing this line, which is the honest cost of not
- * having the table yet.
- */
+/** `TRACKED_ISINS` one source over. Refs, not ISINs, because Inzhur serves both kinds. The bonds
+ *  repeat `TRACKED_ISINS` rather than importing it: NBU's list is what a national file must
+ *  contain, this is what one provider must list, and the day they diverge sharing is a bug. */
 const TRACKED_INZHUR_REFS = ['UA4000238976', 'UA4000236475', 'inzhur-reit', 'inzhur-energy'];
 
 interface ParsedNbu {
@@ -157,31 +112,17 @@ interface ParsedNbu {
   quotesDigest: string;
 }
 
-/**
- * A hash over the PRICE-BEARING FIELDS ONLY — never the whole payload.
- *
- * Measured: two Inzhur captures seconds apart differed by 6 bytes because
- * `availableQuantity` ticks with live sales. So `payload_sha256` is unique on
- * every fetch and cannot detect "the prices did not move". This digest can.
- *
- * Sorted before hashing so that a reordered feed is not mistaken for a changed
- * one — the feed makes no ordering guarantee.
- */
+/** PRICE-BEARING FIELDS ONLY, never the whole payload: `availableQuantity` ticks with live sales,
+ *  so `payload_sha256` is unique on every fetch and cannot detect "the prices did not move".
+ *  Sorted before hashing, because the feed makes no ordering guarantee. */
 function digestOf(parts: string[]): string {
   return createHash('sha256').update(parts.sort().join('\n'), 'utf8').digest('hex');
 }
 
-/**
- * Parse by FIXED INDEX, never by zipping the header against the row.
- *
- * The header is malformed: its 18th semicolon-separated field is literally
- * `g_spread,z_spread,cptype` — three comma-separated names — while the data
- * rows carry only `cptype` there. Zipping header to row therefore mislabels the
- * tail and silently invents two columns that do not exist in the data.
- *
- * Index map, verified against the live file: 0 calc_date · 1 cpcode (ISIN) ·
- * 2 ccy · 3 fair_value · 4 ytm · 5 clean_rate · 7 maturity · 17 cptype.
- */
+/** PARSE BY FIXED INDEX, never by zipping the header against the row: the header is malformed,
+ *  its 18th semicolon-separated field being three comma-separated names where the data rows carry
+ *  one, so zipping mislabels the tail and invents two columns. The map: 0 calc_date · 1 cpcode
+ *  (ISIN) · 2 ccy · 3 fair_value · 4 ytm · 5 clean_rate · 7 maturity · 17 cptype. */
 function parseNbu(body: string): ParsedNbu {
   const lines = body.split(/\r?\n/).filter((l) => l.trim() !== '');
   const data = lines.slice(1); // drop the header row
@@ -204,12 +145,8 @@ function parseNbu(body: string): ParsedNbu {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Retry only what a retry can fix. A 403 or 404 means the endpoint's terms
- * changed, and hammering a public marketing endpoint we have no contract with
- * is the single most likely way to lose access to a resource that has no
- * substitute.
- */
+/** Retry only what a retry can fix: hammering a public endpoint we have no contract with is the
+ *  likeliest way to lose access to a resource that has no substitute. */
 function isRetryable(status: number): boolean {
   return status >= 500 || status === 408 || status === 429;
 }
@@ -229,8 +166,8 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
         last = { ok: false, httpStatus: response.status, error: `HTTP ${response.status}` };
         if (!isRetryable(response.status)) return last;
       } else {
-        // .text(), not .json(): the raw body is what gets hashed and stored, and
-        // a re-parse later must see exactly the bytes we saw.
+        // .text(), not .json(): the raw body is what gets hashed and stored, and a re-parse
+        // must see exactly these bytes.
         return { ok: true, httpStatus: response.status, body: await response.text() };
       }
     } catch (err) {
@@ -238,27 +175,16 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
     } finally {
       clearTimeout(timer);
     }
-    // 30s then 60s — NOT the 300s this used to wait. That value made the third
-    // attempt unreachable: 10 + 30 + 10 + 300 = 350s of a 300s Lambda timeout,
-    // so the function was killed while sleeping and the attempt it was waiting
-    // for never ran. Both sources share one invocation, so the budget is per
-    // run, not per source.
-    //
-    // Short backoff is also the right shape now: these attempts exist for a
-    // blip — a 502 from a load balancer, a reset connection — while a provider
-    // that is genuinely down is answered by the schedule firing again in two
-    // hours (template.yaml), which is a wait no Lambda should be paid to sit
-    // through.
+    // SHORT, because the backoff has to fit inside the Lambda timeout and both sources share one
+    // invocation, so the budget is per run rather than per source. These attempts exist for a
+    // blip; a provider genuinely down is answered by the schedule firing again in two hours.
     if (attempt < MAX_ATTEMPTS) await sleep(attempt === 1 ? 30_000 : 60_000);
   }
   return last;
 }
 
-/**
- * DSQL allows ONE DDL statement per transaction and forbids mixing DDL with
- * DML, so the table and its index are each their own statement and neither may
- * share a transaction with the insert below.
- */
+/** DSQL allows ONE DDL per transaction and forbids mixing DDL with DML, so every statement here
+ *  stands alone and none may share a transaction with an insert. */
 async function ensureSchema(client: Client): Promise<void> {
   await client.query(`
     CREATE TABLE IF NOT EXISTS price_capture (
@@ -269,46 +195,28 @@ async function ensureSchema(client: Client): Promise<void> {
       payload_sha256 TEXT NOT NULL, parser_version TEXT NOT NULL,
       PRIMARY KEY (id))`);
 
-  // Migration for the cluster that already holds rows. Its own statement: DSQL
-  // permits one DDL per transaction and forbids mixing DDL with DML.
   await client.query('ALTER TABLE price_capture ADD COLUMN IF NOT EXISTS source TEXT');
 
-  // Backfill the pre-source rows. Every row written before this column existed
-  // came from the Inzhur feed, because it was the only source. Idempotent, and
-  // a no-op once done.
+  // Every row written before this column existed came from the Inzhur feed, the only source then.
   await client.query(`UPDATE price_capture SET source = $1 WHERE source IS NULL`, [SOURCE.inzhur]);
 
-  // A hash over the price fields alone — see digestOf. Deliberately separate
-  // from payload_sha256, which is unique on every fetch and therefore useless
-  // for detecting a frozen upstream. Not backfillable for rows written before
-  // it existed, which is precisely why it goes in now.
   await client.query('ALTER TABLE price_capture ADD COLUMN IF NOT EXISTS quotes_sha256 TEXT');
-  // No DESC: DSQL rejects a sort direction in index keys outright ("specifying
-  // sort order not supported for index keys"). Immaterial here — the planner
-  // can walk an ascending index backwards, and at ~365 rows/year the direction
-  // never decides a query plan anyway.
+  // NO DESC ANYWHERE: DSQL rejects a sort direction in index keys outright. Immaterial, because
+  // the planner can walk an ascending index backwards.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_capture_as_of
        ON price_capture (as_of, requested_at)`,
   );
 
-  // Leads with `source`, which is what both operational queries actually filter
-  // on — and neither could use the index above, because an index is only usable
-  // from its leading column. Measured 2026-08-11 before adding it: both queries
-  // did a full scan of 6,628 rows to return 3, at ~730 ms each
-  // (`Rows Removed by Filter: 6625`).
-  //
-  // `requested_at` is the third key so the streak query's ORDER BY is served by
-  // the same index. No DESC anywhere: DSQL rejects a sort direction in index
-  // keys outright, and the planner can walk an ascending index backwards.
+  // Leads with `source`, which both operational queries filter on — and neither could use the
+  // index above, an index being usable only from its leading column.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_capture_source_as_of
        ON price_capture (source, as_of, requested_at)`,
   );
 
-  // Phase 2. Contracts pinned in migrations/002_price_observation.sql — read
-  // that file before touching the key here. It is IMMUTABLE: changing it is a
-  // DROP/CREATE of a live archive, not a migration.
+  // THE KEY IS IMMUTABLE: changing it is a DROP/CREATE of a live archive, not a migration.
+  // Contracts pinned in migrations/002_price_observation.sql.
   await client.query(`
     CREATE TABLE IF NOT EXISTS price_observation (
       as_of DATE NOT NULL, instrument_ref TEXT NOT NULL,
@@ -325,10 +233,8 @@ async function ensureSchema(client: Client): Promise<void> {
       maturity DATE, listed_from DATE, last_seen_on DATE,
       PRIMARY KEY (ref))`);
 
-  // W4. The ONLY surviving copy of a bond's schedule once the provider stops
-  // listing it — see migrations/004_bond_terms.sql and `bond-terms.ts`. Same
-  // key shape as `price_observation` for the same reason, and `terms_sha256` is
-  // what makes a revision a scan rather than a JSON diff.
+  // The ONLY surviving copy of a bond's schedule once the provider stops listing it — see
+  // `bond-terms.ts`. Same key shape as `price_observation`, and for the same reason.
   await client.query(`
     CREATE TABLE IF NOT EXISTS bond_terms (
       as_of DATE NOT NULL, ref TEXT NOT NULL,
@@ -337,16 +243,15 @@ async function ensureSchema(client: Client): Promise<void> {
       observed_at TIMESTAMPTZ NOT NULL, parser_version TEXT NOT NULL,
       PRIMARY KEY (as_of, ref))`);
 
-  // The primary key leads with `as_of` because the read contract serves whole
-  // years; "this instrument over time" needs its own leading column (A2/D48).
+  // The primary key leads with `as_of` because the read contract serves whole years, so "this
+  // instrument over time" needs its own leading column.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS price_observation_ref_as_of
        ON price_observation (instrument_ref, as_of)`,
   );
 
-  // "The schedule of THIS bond, latest first" is the read W10/W12 will make on
-  // a delisted instrument, and the key cannot serve it. ASYNC and no
-  // `USING btree`: DSQL rejects both spellings (D99).
+  // "The schedule of THIS bond, latest first" is the read W10/W12 will make on a delisted
+  // instrument, and the key cannot serve it. ASYNC and no `USING btree`: DSQL rejects both.
   await client.query(
     `CREATE INDEX ASYNC IF NOT EXISTS bond_terms_ref_as_of
        ON bond_terms (ref, as_of)`,
@@ -358,50 +263,15 @@ interface CaptureResult {
   asOf: string;
   ok: boolean;
   entries: number;
-  /** How many entries the parser could not read. Published, never alarmed (A20). */
   skipped: number;
-  /** DCF verdicts over the live bonds, Inzhur only. Published, never stored (A6). */
+  /** DCF verdicts over the live bonds, Inzhur only. Published, never stored. */
   quotes?: QuoteTally;
   error: string | null;
 }
 
-/**
- * One source, one date, one row. ALWAYS writes — including a 404 weekend and a
- * hard failure — because the invariant this table exists to hold is that a
- * missing row means "we never looked", never "we looked and there was nothing".
- * That is what makes a gap in the archive diagnosable at all.
- */
-/**
- * `expectTracked` — whether a file that omits TRACKED_ISINS is a problem.
- *
- * True for the daily capture: an instrument vanishing from today's file really
- * does mean it matured, was renamed, or the file changed shape, and that is the
- * signal worth having.
- *
- * False for a backfill, where absence is the calendar rather than a fault —
- * both bonds were issued in 2025-2026, so no file from 2020 can contain them.
- * Applying the check unconditionally marked EVERY historical date as an error
- * (D43), which is what made a working backfill look like a broken one.
- *
- * This is the stopgap. The real home for it is `listed_from` / `retired_at` on
- * `instrument`, which the data model specifies for exactly this distinction:
- * telling "missing" apart from "did not exist yet".
- *
- */
-/**
- * Has this source already produced a usable answer for this date?
- *
- * Keyed on `ok = true`, NEVER on a row existing. That distinction is D43's
- * lesson paid for once already: the NBU backfill's completeness check asked
- * whether a row EXISTED, so ~1,200 dates filled by a defective run were skipped
- * forever by an ordinary re-run. A failed capture writes a row too — treating
- * that as "done" would turn the six firings into one firing with extra steps.
- *
- * `not_published` counts as settled on purpose. NBU publishes nothing on a
- * weekend, and that is the calendar rather than a failure (the scheduled path
- * already excludes it from the alarm). Without this, every Saturday would spend
- * six firings re-asking NBU for a file that will never exist.
- */
+/** KEYED ON `ok = true`, NEVER ON A ROW EXISTING: a failed capture writes a row too, so a range
+ *  filled by a defective run would be skipped forever by an ordinary re-run. `not_published`
+ *  counts as settled, or every weekend spends every firing asking for a file that cannot exist. */
 async function alreadySettled(client: Client, source: string, asOf: string): Promise<boolean> {
   const res = await client.query(
     `SELECT 1 FROM price_capture
@@ -412,6 +282,8 @@ async function alreadySettled(client: Client, source: string, asOf: string): Pro
   return res.rows.length > 0;
 }
 
+/** `expectTracked` false for a BACKFILL, where a tracked ISIN's absence is the calendar and not a
+ *  fault: applied unconditionally it marked every historical date an error. */
 async function captureOne(
   client: Client,
   source: string,
@@ -435,51 +307,32 @@ async function captureOne(
         entryCount = parsed.rows;
         skipped = parsed.missing.join(',');
         digest = parsed.quotesDigest;
-        // A published file that omits a bond we hold is the signal worth having:
-        // it matured, was renamed, or the file changed shape.
         if (expectTracked && parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
         else if (parsed.rows === 0) error = 'file parsed to zero rows';
       } else {
-        // The SAME parser the app uses, imported from src/core rather than
-        // reimplemented — otherwise client and server eventually disagree about
-        // a price. Its result is metadata only; nothing derived is stored.
+        // The SAME parser the app uses, or client and server eventually disagree about a price.
         const feed = parseAssetsFeed(JSON.parse(outcome.body));
         entryCount = feed.entries.length;
-        // `ref:reason` per entry, so the archive records WHY an asset dropped
-        // out and not merely that it did — a renamed field is the likeliest
-        // cause and the only one a bare ref list cannot distinguish.
+        // `ref:reason` per entry, so the archive records WHY an asset dropped out — a renamed
+        // field is the likeliest cause and the one a bare ref list cannot distinguish.
         skipped = feed.skipped.map((s) => `${s.ref}:${s.reason}`).join(',');
-        // Prices only. availableQuantity and the marketing fields are excluded
-        // on purpose — they change constantly and would mask a frozen price.
         digest = digestOf(
           feed.entries.map(
             (e) =>
               `${e.kind}:${e.ref.toLowerCase()}:${e.sellUAH}:${e.buyUAH ?? ''}:${e.navUAH ?? ''}`,
           ),
         );
-        // SHAPE, NEVER VALUES (A20, owner ruling). What the capture asserts is
-        // that the feed still LISTS what it should, never that a number moved:
-        // a price may sit still for maintenance, a weekend, a holiday or a
-        // holiday moved to the Monday after, and alarming on that manufactures
-        // work where there is no fault.
-        //
-        // Measured before choosing this shape: `skipped_refs` has been empty on
-        // every Inzhur capture, and `entry_count` has only ever GROWN (34 → 35
-        // → 36), so a floor under the count would have been a threshold guessed
-        // from one week — and the first delisting would have made it wrong.
-        // Naming the refs needs no threshold at all and says what we actually
-        // care about.
+        // SHAPE, NEVER VALUES: a price may sit still for a weekend or a holiday, so alarming on
+        // one manufactures work. Naming the refs needs no threshold, where a floor under the
+        // entry count is a guess the first delisting makes wrong.
         const present = new Set(feed.entries.map((e) => e.ref.toLowerCase()));
         const absent = TRACKED_INZHUR_REFS.filter((r) => !present.has(r.toLowerCase()));
-        // Zero readable entries means shape drift or an error page. Recorded as
-        // a failure so the alarm fires — but the payload is still stored,
-        // because a payload we cannot parse today is exactly what a future
-        // parser fix needs to read.
+        // Zero readable entries is shape drift, recorded as a failure — but the payload is still
+        // stored, being what a future parser fix needs to read.
         if (entryCount === 0) error = 'feed parsed to zero entries';
         else if (expectTracked && absent.length > 0)
           error = `tracked ref absent: ${absent.join(',')}`;
-        // Diagnostic only — it never sets `error`, because a stale provider
-        // quote is a fact to record, not a failed capture (A6, G5).
+        // Diagnostic only: a stale provider quote is a fact to record, not a failed capture.
         quotes = tallyQuotes(feed, asOf);
       }
     } catch (err) {
@@ -504,9 +357,8 @@ async function captureOne(
       skipped,
       gzipSync(Buffer.from(body, 'utf8')),
       Buffer.byteLength(body, 'utf8'),
-      // Hash the DECODED text, never the wire bytes: the server may negotiate a
-      // different Content-Encoding, which would make every hash unique and
-      // silently disable change detection without any error.
+      // Hash the DECODED text, never the wire bytes: a different negotiated Content-Encoding
+      // would make every hash unique and silently disable change detection.
       createHash('sha256').update(body, 'utf8').digest('hex'),
       digest,
       PARSER_VERSION,
@@ -524,10 +376,7 @@ async function captureOne(
   };
 }
 
-/**
- * One request for a binary body. No retry: the only caller is a manual mode
- * an operator re-runs, and the file behind a hashed name does not change.
- */
+/** No retry: the only caller is a manual mode, and a hashed file name does not change. */
 async function fetchBytes(url: string): Promise<Uint8Array> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -543,46 +392,28 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
   }
 }
 
-/** Business day in the Gregorian sense only — Ukrainian public holidays are not
- *  encoded here deliberately. NBU simply publishes no file on them, which the
- *  404 path already records correctly, and a hardcoded holiday calendar would
- *  be one more thing to maintain and get wrong. */
+/** Gregorian only: Ukrainian public holidays are deliberately not encoded, because NBU publishes
+ *  no file on them and the 404 path already records that correctly. */
 function isWeekend(iso: string): boolean {
   const day = new Date(`${iso}T00:00:00Z`).getUTCDay();
   return day === 0 || day === 6;
 }
 
-/** Earliest NBU fair-value file that exists. Verified: 2016-01-04 → 200,
- *  2015-01-05 → 404. */
+/** The earliest NBU fair-value file that exists; an earlier date answers 404. */
 export const NBU_ARCHIVE_START = '2016-01-04';
 
 interface BackfillRequest {
   from?: string;
   to?: string;
   limit?: number;
-  /**
-   * Re-capture dates that already have a row, instead of skipping them.
-   *
-   * The completeness check asks whether a row EXISTS, never whether it
-   * succeeded — so a range filled by a defective run is skipped forever by an
-   * ordinary re-run, and the defect becomes permanent (D43). This is the way
-   * out, and it is deliberately opt-in: the default must stay "skip what is
-   * done", or an accidental invocation re-fetches a decade of files.
-   *
-   * Append, never overwrite. The table's primary key is `id`, the archive is
-   * meant to be append-only, and every consumer already takes the newest row
-   * per date — so a corrected row simply lands beside the wrong one and wins,
-   * while the original stays visible as the record of what was believed.
-   */
+  /** The way out of a range filled by a defective run, and deliberately OPT-IN, or an accidental
+   *  invocation re-fetches a decade of files. APPEND, NEVER OVERWRITE: the corrected row lands
+   *  beside the wrong one and wins, while the original stays as the record of what was believed. */
   force?: boolean;
 }
 
-/**
- * Walk the NBU archive forward, skipping dates already captured. Bounded per
- * invocation and returns a cursor, so the caller loops rather than fighting the
- * Lambda timeout. Idempotent: re-running re-reads `done` and continues — unless
- * `force` is set, which re-captures regardless and appends a fresh row.
- */
+/** Bounded per invocation and returns a cursor, so the caller loops rather than fighting the
+ *  Lambda timeout. */
 async function backfillNbu(client: Client, req: BackfillRequest) {
   const from = req.from ?? NBU_ARCHIVE_START;
   const to = req.to ?? nbuAsOf(new Date());
@@ -619,39 +450,18 @@ async function backfillNbu(client: Client, req: BackfillRequest) {
   };
 }
 
-/**
- * Report how many delivery channels the alert configuration has.
- *
- * WHY THIS EXISTS. On 2026-08-11 the alerting was dead for hours and every
- * indicator said healthy: zero failed notifications (because nothing was even
- * attempted), "Successfully executed action" in the alarm history, and five
- * alarms sitting in OK. A silence alarm that cannot deliver is worse than no
- * alarm, because it turns an unmonitored system into one everyone believes is
- * monitored (D44).
- *
- * So the channel is checked the way every signal here is: the value is emitted
- * on EVERY run, healthy or not. A signal that appears only on failure cannot
- * tell "fine" from "the check stopped running".
- *
- * The alarm on this metric necessarily notifies through the very channel it is
- * measuring, which no amount of cleverness fixes. It is not meant to. The point
- * is that the NUMBER is visible without any delivery at all — in the log, on a
- * dashboard, and in the run journal the admin surface will read. The alarm is
- * the backup; the visible number is the primary.
- *
- * Never throws: a capture must not fail because a monitoring read did.
- */
+/** A SILENCE ALARM THAT CANNOT DELIVER is worse than no alarm: it turns an unmonitored system
+ *  into one everyone believes is monitored. The alarm here necessarily notifies through the
+ *  channel it measures, which is not the point — the NUMBER is visible without any delivery, on
+ *  EVERY run, or it cannot tell "fine" from "the check stopped running". */
 async function reportAlertChannels(): Promise<void> {
   const name = process.env.ALERT_CONFIG_NAME;
   if (name === undefined || name === '') return;
   try {
-    // us-east-1 is not a choice. The notifications API answers only there and
-    // refuses the call in eu-north-1 by name, which is a confusing failure to
-    // meet at 01:00.
+    // us-east-1 is not a choice: the notifications API answers only there.
     const client = new NotificationsClient({ region: 'us-east-1' });
     const list = await client.send(new ListNotificationConfigurationsCommand({}));
-    // Matched by NAME rather than ARN: an ARN carries the account id and this
-    // repository is public.
+    // Matched by NAME rather than ARN: an ARN carries the account id, and this repo is public.
     const cfg = list.notificationConfigurations?.find((c) => c.name === name);
     if (cfg?.arn === undefined) {
       console.log(
@@ -672,111 +482,48 @@ async function reportAlertChannels(): Promise<void> {
       JSON.stringify({ metric: 'alertChannels', configuration: name, status: cfg.status, value }),
     );
   } catch (err) {
-    // Reported, not thrown, and not silent: a read that fails is not the same
-    // as zero channels, so it must not masquerade as one.
+    // Reported, not thrown, and not silent: a failed read is not zero channels.
     console.warn(`alert-channel check failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
-/** The only `basis` NBU ever writes. The other three of the pinned vocabulary
- *  (`buy`, `sell`, `nav`) are legal from row one so that adding one later does
- *  not split the archive across two key shapes — see migrations/002. */
+/** The only `basis` NBU writes. All four have been legal from row one, so adding one later does
+ *  not split the archive across two key shapes. */
 const BASIS_FAIR = 'fair';
 
 export interface ObserveRequest {
   from?: string;
   to?: string;
-  /**
-   * Which instruments to write observations for. Defaults to the ISINs the
-   * portfolio actually holds.
-   *
-   * SCOPE IS A PARAMETER, AND NARROW IS THE SAFE DIRECTION. A published file
-   * carries ~185 instruments, so the full universe over the archive is roughly
-   * 400,000 rows against the 2-3 that anything reads. Widening later is free —
-   * more rows under the same immutable key, re-derived from payloads that are
-   * already stored locally, with NBU additionally re-fetchable by URL. Starting
-   * wide and narrowing means deleting rows 3,000 at a time. Cost is not the
-   * constraint either way: the whole of August, including two ten-year
-   * backfills, metered 5.86 DPU.
-   */
+  /** SCOPE IS A PARAMETER, AND NARROW IS THE SAFE DIRECTION: widening later is free, more rows
+   *  under the same immutable key re-derived from payloads already stored, while starting wide
+   *  and narrowing means deleting rows 3 000 at a time. */
   refs?: string[];
-  /** Dates per invocation. The caller loops on `nextFrom` rather than fighting
-   *  the Lambda timeout, exactly as the capture backfill does. The window is
-   *  the other bound: one invocation reads at most `OBSERVE_CAP_DAYS` past
-   *  `from`, and `nextFrom` continues from whichever bound bit
-   *  (`observeProgress`). */
+  /** Dates per invocation, and the other bound is the window: one invocation reads at most
+   *  `OBSERVE_CAP_DAYS` past `from`, and `nextFrom` continues from whichever bound bit. */
   limit?: number;
-  /** Which source to derive. Omitted means `nbu_fv`, which is what
-   *  `{observe:{}}` has meant since A4 — see the handler. */
+  /** Omitted means `nbu_fv`, which is what `{observe:{}}` has always meant — see the handler. */
   source?: string;
 }
 
-/**
- * The error prefix a delisting produces, and the ONE defect a derivation may
- * read past. See `NEWEST_CAPTURE_PER_DATE`.
- */
+/** The error prefix a delisting produces, and the ONE defect a derivation may read past. */
 const TRACKED_ABSENT_LIKE = 'tracked ref absent:%';
 
 /**
- * The newest USABLE capture per date, for one source over one date range.
+ * The newest USABLE capture per date. ONE string for both observers and for `diagnose`'s two
+ * `EXPLAIN`s: a plan is only "as it actually runs" if it is the same query.
  *
- * ONE string, used by `observeNbu` and by `diagnose`'s `EXPLAIN`, because
- * "planned as it actually runs" is only true if it is the same query. Two
- * copies drift, and the copy that drifts is the one nobody plans.
- *
- * A50/D91 — BOTH sort clauses name the table, and they had to change together.
- * A bare `as_of` resolves to this SELECT list's `to_char(...) AS as_of` first,
- * so the sort key was the TEXT expression, and a sort on a computed value
- * cannot inherit index order. Postgres also requires the `DISTINCT ON`
- * expressions to match the leading `ORDER BY` ones, so qualifying one alone is
- * a syntax error, not a half-fix. Result-identical either way: lexicographic
- * order over 'YYYY-MM-DD' is chronological, and one text value maps to one
- * date, so the rows, their order and the groups `DISTINCT ON` picks are
- * unchanged. Guarded by `order-by-alias.test.ts`.
- *
- * WHAT QUALIFYING DOES NOT DO, and A50 must not be read as having done it.
- * It does not bound what is READ. There is no SQL `LIMIT` here —
- * `ObserveRequest.limit` is applied in JS after every row is already fetched —
- * and `DISTINCT ON` has to consider every candidate row in the window anyway.
- * Qualifying moved the sort node and not the cost: the mixed-direction order
- * (`as_of` ASC, `requested_at` DESC) plans as an `Incremental Sort` presorted
- * on `as_of` where the aliased form planned a full `Sort` on the text
- * expression, and the two forms metered the same because both read the same
- * rows. So qualifying was a defect removed, not a cost removed — worth doing
- * because the class bit hard once (D91), not because it pays. The measurements
- * are in git history; the decision is `docs/DECISIONS.md` [Cloud target].
- *
- * WHAT REMOVES THE COST IS THE WINDOW. The observers bind `$3` through
- * `observeWindowEnd`, never further than `OBSERVE_CAP_DAYS` past `$2`, so a
- * whole-archive run is a loop of windows rather than one open range with
- * `payload_gzip` projected. The width keeps the statement on
- * `price_capture_as_of`; wider, the plan falls to `Full Scan (btree-table)`,
- * and `observe-window.test.ts` pins the cap under that ceiling. A SQL `LIMIT`
- * was never the remedy: the open-range plan put a `Sort` above the scan, and a
- * `Sort` consumes its whole input before yielding a row. Bounding the range per
- * invocation is what changed how `complete`/`nextFrom` are derived —
- * `observeProgress` names both bounds, the row limit first.
+ * BOTH sort clauses name the table, or the SELECT list's `to_char(…) AS as_of` shadows the sort
+ * key — and `DISTINCT ON` must match the leading `ORDER BY`, so qualifying one alone is a syntax
+ * error. *Cloud target*, `order-by-alias.test.ts`. `$3` is `observeWindowEnd`, never further than
+ * `OBSERVE_CAP_DAYS` past `$2`; `observe-window.ts` says why a SQL `LIMIT` cannot bound the read.
  *
  * $1 source · $2 from · $3 window end · $4 an error pattern to read past, or NULL.
  *
- * NOT `ok = true` ALONE, AND THE REASON IS W10. `ok` is
- * `outcome.ok && error === null`, and a missing TRACKED ref sets `error` — so
- * the day the feed stops listing `UA4000238976` its capture is `ok = false`,
- * and an observer keyed on `ok` alone would derive NOTHING for all ~37
- * instruments that day, and every day after, until someone edits a constant and
- * redeploys. That is unrecoverable: `price_capture` is append-only so the row
- * can never become `ok = true`, and the endpoint is LIVE, so re-capturing files
- * today's feed under a past date rather than restoring the lost one.
- *
- * The instrument whose delisting triggers it is one of the two whose schedule
- * `bond_terms` exists to outlive (W10, W12). The table would stop being written
- * at the exact moment it starts mattering.
- *
- * So `$4` lets ONE defect through — a tracked ref absent, where the payload is
- * intact and only our own expectation failed. NBU passes NULL: its
- * `not_published` weekend rows carry ZERO payload bytes, and parsing an empty
- * body is not a derivation. The shape mirrors `alreadySettled`, which already
- * reads `(ok = true OR error = $3)` for the same kind of reason.
+ * NOT `ok = true` ALONE. A missing tracked ref sets `error`, so keyed on `ok` this derives nothing
+ * for EVERY instrument from the day the feed stops listing one — unrecoverably, since
+ * `price_capture` is append-only and the endpoint is LIVE. The instrument whose delisting triggers
+ * it is one of the two whose schedule `bond_terms` exists to outlive. So `$4` lets ONE defect
+ * through, where the payload is intact and only our own expectation failed.
  */
 const NEWEST_CAPTURE_PER_DATE = `
   SELECT DISTINCT ON (price_capture.as_of)
@@ -787,30 +534,20 @@ const NEWEST_CAPTURE_PER_DATE = `
      AND (ok = true OR ($4::text IS NOT NULL AND error LIKE $4))
    ORDER BY price_capture.as_of, requested_at DESC`;
 
-/**
- * Turn stored raw captures into observations.
- *
- * Reads NOTHING from the network. This is the payoff of storing payloads: the
- * schema can be wrong once and still recover, because the source material never
- * left. A re-run is a no-op by construction — `ON CONFLICT DO NOTHING` on the
- * natural key — which is what makes it safe to run again after fixing a parser.
- *
- * One transaction per date: ~185 rows sits far under the 3,000-row and 10 MiB
- * per-transaction limits, and a date is the natural unit to retry.
- */
+/** Reads NOTHING from the network, which is the payoff of storing payloads: the schema can be
+ *  wrong once and still recover. A re-run is a no-op by construction — `ON CONFLICT DO NOTHING`
+ *  on the natural key — so it is safe to run again after fixing a parser. */
 async function observeNbu(client: Client, req: ObserveRequest) {
   const from = req.from ?? NBU_ARCHIVE_START;
   const to = req.to ?? nbuAsOf(new Date());
   const refs = req.refs ?? TRACKED_ISINS;
   const limit = req.limit ?? 400;
-  // Two bounds, both real: the window bounds what the statement READS, the
-  // limit what the loop consumes. `observeProgress` names both.
+  // Two bounds: the window bounds what the statement READS, the limit what the loop consumes.
   const windowEnd = observeWindowEnd(from, to);
   const wanted = new Set(refs);
 
-  // The NEWEST successful capture per date. `price_capture` is append-only and
-  // a repaired day lands beside the wrong one, so taking the latest
-  // `requested_at` is what makes a correction win without deleting evidence.
+  // `price_capture` is append-only and a repaired day lands beside the wrong one, so taking the
+  // latest `requested_at` is what makes a correction win without deleting evidence.
   const { rows: captures } = await client.query<{
     as_of: string;
     requested_at: Date;
@@ -834,17 +571,13 @@ async function observeNbu(client: Client, req: ObserveRequest) {
 
     for (const row of parsed) {
       if (!wanted.has(row.isin)) continue;
-      // Contract 2: the file's own claim must agree with the day we filed it
-      // under. Counted and skipped, never coerced — a silent coercion here
-      // would be indistinguishable from correct data forever after.
+      // Counted and skipped, never coerced: a silent coercion is indistinguishable from correct
+      // data forever after.
       if (row.calcDate !== cap.as_of) {
         mismatched += 1;
         continue;
       }
-      // rowCount, not a counter of attempts. `ON CONFLICT DO NOTHING` makes the
-      // two differ by exactly the amount that matters: a re-run that inserts
-      // nothing must REPORT nothing, or "re-running is a no-op" is a belief
-      // rather than an observation — the recurring defect of D43/D44/D49.
+      // rowCount, not attempts, so a re-run inserting nothing REPORTS nothing.
       const ins = await client.query(
         `INSERT INTO price_observation
            (as_of, instrument_ref, basis, source, price, observed_at,
@@ -866,9 +599,8 @@ async function observeNbu(client: Client, req: ObserveRequest) {
       written += ins.rowCount ?? 0;
       seen += 1;
 
-      // `listed_from` / `last_seen_on` widen monotonically, so a backfill run
-      // in any order converges on the same bounds. LEAST/GREATEST over the
-      // existing value rather than a blind overwrite is what makes that true.
+      // `listed_from`/`last_seen_on` widen monotonically, so a backfill in any order converges.
+      // LEAST/GREATEST over the existing value rather than a blind overwrite is what does it.
       await client.query(
         `INSERT INTO instrument
            (ref, kind, currency, cp_type, maturity, listed_from, last_seen_on)
@@ -895,15 +627,11 @@ async function observeNbu(client: Client, req: ObserveRequest) {
     mode: 'observe' as const,
     from,
     to,
-    /** The bound the statement read to: `to`, or `OBSERVE_CAP_DAYS` past
-     *  `from`. A `nextFrom` far past few `dates` is this bound moving, not a
-     *  sparse archive. */
+    /** A `nextFrom` far past few `dates` is this bound moving, not a sparse archive. */
     windowEnd,
     refs,
     dates,
-    /** Rows the payloads offered for these refs. */
     seen,
-    /** Rows actually INSERTED. `seen` with `written: 0` is a clean no-op. */
     written,
     mismatched,
     complete,
@@ -911,15 +639,9 @@ async function observeNbu(client: Client, req: ObserveRequest) {
   };
 }
 
-/**
- * Widen an Inzhur instrument's listing bounds. Same monotonic widening as
- * NBU's, so a backfill in any order converges. `kind` comes from the caller:
- * Inzhur serves both classes, where the NBU site can hard-code 'bond' because
- * a fair-value file cannot contain a fund. `currency` is UAH by construction
- * and `cp_type` is an NBU concept with no counterpart. A caller that has no
- * claim on `last_seen_on` passes null: `greatest` ignores it, and a fresh row
- * then says "unknown" rather than naming a day the caller never saw.
- */
+/** `kind` comes from the caller, because Inzhur serves both classes where a fair-value file
+ *  cannot contain a fund. A caller with no claim on `last_seen_on` passes null: `greatest` ignores
+ *  it, and a fresh row says "unknown" rather than naming a day the caller never saw. */
 async function upsertInstrument(
   client: Client,
   ref: string,
@@ -939,58 +661,25 @@ async function upsertInstrument(
   );
 }
 
-/** The first Inzhur capture. D72: the dealer quote for every instrument
- *  "exists nowhere else and begins 2026-08-11" — the stack move forced the
- *  restart, so 08-10's rows are not in this cluster. */
+/** The first Inzhur capture in THIS cluster; a stack move restarted the series. */
 export const INZHUR_ARCHIVE_START = '2026-08-11';
 
 /**
- * Turn stored Inzhur captures into observations. The Inzhur half of W4.
- *
- * MIRRORS `observeNbu` ON PURPOSE — same query, same gunzip, same
- * `ON CONFLICT DO NOTHING`, same `rowCount`-not-attempts accounting. Two
- * observers that drift are two contracts, and the one that drifts is the one
- * nobody re-reads. Four things genuinely differ:
- *
- * 1. `as_of` IS THE RUN DATE, not run − 1 (D71, `inzhurAsOf`). The endpoint is
- *    live: the price current at 01:00 Kyiv on day X is the price struck for X.
- *    NBU still subtracts a day and is still right to — do not "align" them.
- *
- * 2. NO `calc_date` AGREEMENT CHECK EXISTS, because the payload carries no date
- *    of its own. NBU's contract 2 skips a row whose file date disagrees with
- *    the day we filed it under, counted and never coerced; there is nothing
- *    here to compare. Said out loud so a reader meets the absence as a fact
- *    about the feed rather than as a guard someone dropped. The DCF inversion
- *    is NOT a substitute: D31/A6 make its verdict a conclusion, and a
- *    conclusion is never stored.
- *
- * 3. SCOPE IS WIDE, where NBU's is narrow, and D72 is why. NBU's `refs` doc
- *    argues narrow is the safe direction — the archive has no DELETE grant, so
- *    starting wide and regretting it means deleting 3,000 rows at a time — and
- *    for a 185-instrument national file whose readers want 2 of them, that is
- *    right. Here the whole point of the capture is "the Inzhur dealer quote for
- *    EVERY instrument, which exists nowhere else" (D72). The set is also two
- *    orders smaller: 32 bonds and 5 funds on 2026-08-31 (W3), at TWO rows per
- *    bond and two or three per fund — `nav` only where it is published — against
- *    the ~400,000 NBU rows that argument was written to refuse. No exact daily
- *    count is quoted here: it moves with the listing, and the fixture is a
- *    four-entry sample that cannot measure it.
- *
- * 4. ONE ENTRY YIELDS UP TO THREE ROWS, by `basis` — see `observation-rows.ts`.
+ * MIRRORS `observeNbu` ON PURPOSE, because two observers that drift are two contracts. Four things
+ * differ: `as_of` IS THE RUN DATE, not run − 1, the endpoint being live, so do not "align" them;
+ * NO `calc_date` AGREEMENT CHECK EXISTS, the payload carrying no date of its own, and the DCF
+ * inversion is no substitute since its verdict is a conclusion; SCOPE IS WIDE where NBU's is
+ * narrow, the point here being the dealer quote for EVERY instrument over a set two orders
+ * smaller than the national file; and ONE ENTRY YIELDS UP TO THREE ROWS, by `basis`.
  */
 async function observeInzhur(client: Client, req: ObserveRequest) {
   const from = req.from ?? INZHUR_ARCHIVE_START;
   const to = req.to ?? inzhurAsOf(new Date());
   const limit = req.limit ?? 400;
   const windowEnd = observeWindowEnd(from, to);
-  // `undefined` means every instrument the payload served — see 3 above. An
-  // explicit list still narrows, so a repair run can target one ref.
-  // Lowercased on both sides, because every other ref comparison in this file
-  // is: `captureOne` matches TRACKED_INZHUR_REFS with `.toLowerCase()` and
-  // `digestOf` lowercases too. A repair typed as the slug an operator reads in
-  // a doc — `Inzhur-REIT` — would otherwise match nothing and report
-  // `seen: 0, written: 0, complete: true`, which is exactly what "already
-  // derived" looks like.
+  // `undefined` means every instrument the payload served. LOWERCASED ON BOTH SIDES, as every
+  // other ref comparison in this file is: a repair typed as the slug an operator reads in a doc
+  // would otherwise match nothing and report exactly what "already derived" looks like.
   const wanted = req.refs ? new Set(req.refs.map((r) => r.toLowerCase())) : null;
 
   const { rows: captures } = await client.query<{
@@ -1019,14 +708,9 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     const body = gunzipSync(cap.payload_gzip).toString('utf8');
     const feed = parseAssetsFeed(JSON.parse(body));
     const observedAt = cap.requested_at.toISOString();
-    // The parser's own refusals, carried through rather than recomputed. A
-    // payload entry it could not read is not an observation, and counting it
-    // here is what keeps `seen` honest about the difference.
-    // The parser's own refusals over the WHOLE feed, before `refs` narrows.
-    // A single-ref repair therefore reports refusals for instruments the caller
-    // did not ask about — deliberate: a parse failure is a fact about the
-    // payload, and hiding it behind a filter would make a targeted run look
-    // healthier than the capture it read.
+    // The parser's own refusals over the WHOLE feed, before `refs` narrows, so a single-ref
+    // repair reports refusals for instruments the caller did not ask about. Deliberate: hiding a
+    // parse failure behind a filter makes a targeted run look healthier than the capture it read.
     skipped += feed.skipped.length;
 
     for (const quote of feed.entries) {
@@ -1056,24 +740,13 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
         seen += 1;
       }
 
-      // The terms, for a bond that has any. Written beside the observation
-      // because the schedule is what makes the price re-derivable, and an
-      // archive holding one without the other cannot explain itself.
-      //
-      // NOT in one transaction, and the inherited phrasing that said so was
-      // wrong: nothing here opens one, so every statement autocommits and a
-      // failure mid-date genuinely leaves the split. What actually repairs it
-      // is the trailing 7-day window re-deriving the same date tomorrow.
+      // Written beside the observation because the schedule is what makes the price re-derivable.
+      // NOT in one transaction — nothing here opens one, so a failure mid-date leaves the split,
+      // and what repairs it is the trailing window re-deriving the date tomorrow.
       const terms = bondTermsRow(quote);
-      // A BOND WITH NO ARCHIVABLE TERMS IS COUNTED, never silently skipped.
-      // `bondTermsRow` refuses an empty schedule because a false row is worse
-      // than none — but the instrument this table exists to preserve could then
-      // go unarchived with no output changing at all. This is the counter that
-      // makes that visible. It does NOT catch a PARTIALLY parsed schedule:
-      // `pickSchedule` drops unreadable payments silently, so a feed that
-      // renames a field on some rows yields a short schedule with a fresh
-      // digest, which reads as a genuine revision. That gap is real and needs
-      // the parser to report its own refusals — filed, not fixed here.
+      // A BOND WITH NO ARCHIVABLE TERMS IS COUNTED, or the instrument this table exists to
+      // preserve goes unarchived with no output changing. It does NOT catch a PARTIALLY parsed
+      // schedule, which arrives with a fresh digest and reads as a genuine revision.
       if (quote.kind === 'bond' && !terms) termsRefused += 1;
       if (terms) {
         const termsIns = await client.query(
@@ -1092,31 +765,20 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
             cap.parser_version,
           ],
         );
-        // rowCount, not attempts — the same contract `written` keeps eight
-        // lines above, and the earlier "its no-op is proved by that loop"
-        // reasoning was wrong: the two inserts can diverge. A repaired capture
-        // for an already-derived date is picked by NEWEST_CAPTURE_PER_DATE,
-        // and `DO NOTHING` then keeps the OLD schedule while an attempt
-        // counter would report a write. In steady state it would also read
-        // ~224 every night while inserting nothing, which is useless for the
-        // one question it exists to answer.
+        // rowCount, not attempts: a repaired capture for an already-derived date is picked up
+        // and `DO NOTHING` keeps the OLD schedule, where an attempt counter reports a write.
         termsWritten += termsIns.rowCount ?? 0;
       }
 
-      // ONCE PER REF PER INVOCATION, not once per ref per date. `least`/
-      // `greatest` are order-independent, so the converged bounds are identical
-      // either way — but the per-date form ran an unconditional
-      // `DO UPDATE` ~37 times a date over a 7-day window, ~259 row versions a
-      // night where NBU's path produces 14, on a service that bills writes.
-      // The widest date wins by `greatest`, so the LAST date seen is enough.
+      // ONCE PER REF PER INVOCATION, not per ref per date: `least`/`greatest` are
+      // order-independent, so the bounds converge either way, and the per-date form wrote a row
+      // version per ref per date on a service that bills writes.
       const prev = instrumentSeen.get(quote.ref);
       instrumentSeen.set(quote.ref, {
         kind: quote.kind,
         maturity: quote.maturity ?? prev?.maturity ?? null,
-        // BOTH bounds, because collapsing to the last date would set
-        // `listed_from` to it. `least` against an existing row hides that on a
-        // re-run and exposes it on the FIRST run over a range, where there is
-        // no existing value to be least against.
+        // BOTH bounds: collapsing to the last date sets `listed_from` to it, which a `least`
+        // against an existing row hides on a re-run and exposes on the FIRST run over a range.
         first: prev && prev.first < cap.as_of ? prev.first : cap.as_of,
         last: prev && prev.last > cap.as_of ? prev.last : cap.as_of,
       });
@@ -1137,27 +799,17 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     source: SOURCE.inzhur,
     from,
     to,
-    /** As `observeNbu` reports it: the bound the statement read to. */
     windowEnd,
     dates,
-    /** Rows the payloads offered — BASIS ROWS here, where `observeNbu` counts
-     *  matched refs. An Inzhur `seen` is therefore ~2x its instrument count and
-     *  the two are not comparable across sources; the metric line carries
-     *  `source` for exactly that reason. */
+    /** BASIS ROWS here, where `observeNbu` counts matched refs, so the two are not comparable
+     *  across sources — which is why the metric line carries `source`. */
     seen,
-    /** Rows actually INSERTED. `seen` with `written: 0` is a clean no-op. */
+    /** `seen` with `written: 0` is a clean no-op. */
     written,
     /** Feed entries the PARSER refused, not rows we chose to skip. */
     skipped,
-    /** Bonds whose terms could not be archived — an empty schedule. Zero is
-     *  the healthy reading; anything else names an instrument at risk of
-     *  outliving its only surviving schedule. */
+    /** Anything but zero names an instrument at risk of outliving its only schedule. */
     termsRefused,
-    /** `bond_terms` rows INSERTED — `rowCount`, the same contract `written`
-     *  keeps. An earlier version counted attempts and this comment described
-     *  that; both were wrong, because a repaired capture for an already-derived
-     *  date is picked up and `DO NOTHING` then keeps the OLD schedule while an
-     *  attempt counter reports a write. */
     termsWritten,
     complete,
     nextFrom,
@@ -1165,27 +817,14 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
 }
 
 interface ImportFundHistoryRequest {
-  /** Which funds; defaults to every fund with a known offer page. */
   refs?: string[];
 }
 
-/**
- * Import the provider's published fund price history as `nav` observations.
- *
- * Manual, and network-bound where `observe` is not. Each fund's offer page is
- * read for the CURRENT link to its price file — [External sources]: the name
- * carries a content hash, so no file URL is ever polled — the file is parsed
- * by `fundHistoryRows`, and every dated line becomes one row under the natural
- * key the daily observer writes, `ON CONFLICT DO NOTHING`. A re-run writes
- * nothing; a newer cut writes only its new dates. The file itself is not
- * archived: `price_capture` holds the feed, and here the rows are the premise.
- * The FX and USD-equivalent columns are dropped, because the provider's rate
- * is stored nowhere [The price archive].
- *
- * A fund that fails throws the whole invocation. Rows already written stay and
- * re-running is the repair; a partial import reported as a success is the one
- * outcome to avoid.
- */
+/** Manual, and network-bound where `observe` is not. The offer page is read for the CURRENT link,
+ *  because the file name carries a content hash and no URL is ever polled (*External sources*).
+ *  The FX columns are dropped, the provider's rate being stored nowhere (*The price archive*). A
+ *  fund that fails throws the whole invocation: a partial import reported as a success is the one
+ *  outcome to avoid. */
 async function importFundHistory(client: Client, req: ImportFundHistoryRequest) {
   const refs = req.refs ?? Object.keys(FUND_HISTORY_PAGES);
   if (refs.length === 0) throw new Error('importFundHistory: no refs to import');
@@ -1222,9 +861,7 @@ async function importFundHistory(client: Client, req: ImportFundHistoryRequest) 
     }
     const from = rows[0].asOf;
     const to = rows[rows.length - 1].asOf;
-    // The file widens `listed_from` only. Its last date is where publishing
-    // stopped, not where the fund was last seen; `last_seen_on` belongs to
-    // the daily observer.
+    // The file widens `listed_from` only: its last date is where publishing stopped.
     await upsertInstrument(client, ref, { kind: 'fund', maturity: null, first: from, last: null });
     funds.push({ ref, file, rows: rows.length, written, from, to });
   }
@@ -1236,34 +873,16 @@ async function importFundHistory(client: Client, req: ImportFundHistoryRequest) 
   };
 }
 
-/** How far back the scheduled run re-derives observations. A week, so a missed
- *  night repairs itself rather than leaving a permanent hole. */
+/** A week, so a missed night repairs itself rather than leaving a permanent hole. */
 const OBSERVE_WINDOW_DAYS = 7;
 
-/** Published as `observationsWritten` when the derivation threw. Negative
- *  because no successful run can report it, so "broken" and "nothing new
- *  today" can never be read as the same point on the graph. */
+/** Negative because no successful run can report it, so "broken" and "nothing new today" can
+ *  never read as the same point on the graph. */
 const OBSERVE_FAILED = -1;
 
-/**
- * Derive observations for the trailing window and publish what happened.
- *
- * NO ALARM ON THIS METRIC, deliberately. `written: 0` is the normal, healthy
- * reading — on a weekend NBU publishes nothing, and on any ordinary day the
- * window has already been derived, so zero new rows is what success looks like.
- * An alarm on zero would page every Saturday, and an alarm that pages for
- * nothing is how alarms get muted (the D44 lesson, applied before making the
- * mistake rather than after).
- *
- * What the number is for is the graph: `written` should show a small spike on
- * each business day and a flat zero across weekends. A flat zero for a working
- * week means the derivation has stopped, and that is visible without querying
- * the table at all.
- *
- * Never throws: a capture must not fail because a derivation did. The payload
- * is already stored by this point, so anything missed here is recoverable on
- * the next run — which is exactly the property the trailing window buys.
- */
+/** NO ALARM ON THIS METRIC, deliberately: `written: 0` is the normal healthy reading, so an alarm
+ *  on zero pages every weekend and gets muted. The number is for the GRAPH — a flat zero across a
+ *  working week means the derivation has stopped. Never throws; the payload is already stored. */
 async function observeAndReport(
   client: Client,
   source: string,
@@ -1271,9 +890,8 @@ async function observeAndReport(
   to: string,
 ): Promise<void> {
   try {
-    // Each source derives over its OWN date, because they no longer share one
-    // (D71). Passing NBU's window to the Inzhur observer would ask for a day
-    // that source has not captured yet.
+    // Each source derives over its OWN date: passing NBU's window to the Inzhur observer would
+    // ask for a day that source has not captured yet.
     const r =
       source === SOURCE.inzhur
         ? await observeInzhur(client, { from, to })
@@ -1286,21 +904,15 @@ async function observeAndReport(
         dates: r.dates,
         seen: r.seen,
         value: r.written,
-        // Two counters, one per source, and neither is the other's synonym:
-        // NBU's `mismatched` is a row whose file date disagreed with its day,
-        // Inzhur's `skipped` is an entry the PARSER refused. Emitting both
-        // under one name would make a parse failure read as a date mismatch.
+        // Two counters and neither is the other's synonym: `mismatched` is a row whose file date
+        // disagreed, `skipped` an entry the PARSER refused. One name conflates them.
         ...('mismatched' in r ? { mismatched: r.mismatched } : { skipped: r.skipped }),
       }),
     );
   } catch (err) {
-    // EMIT THE METRIC ANYWAY, with a value no healthy run can produce.
-    //
-    // Logging only a warning would drop the datapoint entirely, so a
-    // permanently failing derivation publishes an EMPTY series — not the flat
-    // zero the alarm rationale tells the operator to watch for. Empty and
-    // healthy-at-zero look identical on a graph, which is the exact defect of
-    // D43/D44/D49 reappearing in the check written to prevent it.
+    // EMIT THE METRIC ANYWAY, with a value no healthy run can produce: logging a warning alone
+    // drops the datapoint, so a permanently failing derivation publishes an EMPTY series — and
+    // empty and healthy-at-zero look identical on a graph.
     console.log(
       JSON.stringify({
         metric: 'observationsWritten',
@@ -1313,32 +925,9 @@ async function observeAndReport(
   }
 }
 
-/**
- * Report how old the newest completed backup of the price cluster is, in hours.
- *
- * WHY THIS EXISTS. Three times on 2026-08-11 something was broken while every
- * indicator read healthy: the alert channel delivered nowhere (D44), a backfill
- * filled a range with `ok: false` nobody read (D43), and the archive turned out
- * to have no backup at all while deletion protection made it look protected
- * (D49). Each time the green came from nothing having been ATTEMPTED. A backup
- * plan has exactly that shape — it fails silently, and the moment it is wanted
- * is the worst possible moment to find out.
- *
- * An AGE rather than a healthy/unhealthy flag: a number can be watched drifting
- * toward the threshold, a boolean can only be watched flipping after it is too
- * late.
- *
- * Filtered by the cluster's OWN arn, which matters more than it looks. One vault
- * and one tag-matched selection hold every backed-up cluster, so an unfiltered
- * read would let another cluster's nightly points keep this number fresh while
- * the archive's had stopped — and, across a replacement, filtering by the arn
- * the stack resolves TODAY is what makes the new cluster read as "no recovery
- * point" the same night rather than ageing out of the old one's surviving
- * points. `backup-freshness.ts` says the same of the user cluster; the rule the
- * two share is `backup-age.ts`.
- *
- * Never throws: a capture must not fail because a monitoring read did.
- */
+/** AN AGE RATHER THAN A FLAG: a number can be watched drifting toward the threshold, where a
+ *  boolean is watched flipping too late — and a backup plan fails silently. Filtered by the
+ *  cluster's OWN arn, or another cluster's nightly points keep this fresh. Never throws. */
 async function reportBackupFreshness(): Promise<void> {
   const vault = process.env.BACKUP_VAULT_NAME;
   const clusterArn = process.env.DSQL_CLUSTER_ARN;
@@ -1351,33 +940,19 @@ async function reportBackupFreshness(): Promise<void> {
         ByResourceArn: clusterArn,
       }),
     );
-    // The rule itself lives in `backup-age.ts` — the user stack's own check
-    // reads the same one, against its own cluster's arn.
     const { value, completedAt } = backupAgeHours(page.RecoveryPoints ?? [], new Date());
     console.log(JSON.stringify({ metric: 'backupAgeHours', vault, completedAt, value }));
   } catch (err) {
-    // Reported, not thrown, and not silent: a read that failed is not the same
-    // as "no backup exists", so it must not be emitted as one.
+    // Reported, not thrown, and not silent: a failed read is not "no backup exists".
     console.warn(
       `backup-freshness check failed: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 }
 
-/**
- * Read-only diagnostics: table size, and the plans of the two queries that scan
- * `price_capture` in normal operation.
- *
- * It exists because A2 asks a question nothing else here can answer. DSQL bills
- * bytes SCANNED, and the data model rules that raw payloads live in a separate
- * table because primary keys are index-organized and carry every column — so a
- * wide row inflates every range scan. Whether that is actually costing anything
- * is a measurement, not an opinion, and the honest first step is to look before
- * rewriting a live archive.
- *
- * `EXPLAIN ANALYZE` runs the query for real. Both are SELECTs, so this reads and
- * writes nothing.
- */
+/** DSQL bills bytes SCANNED and a primary key is index-organized, carrying every column, so a
+ *  wide row inflates every range scan — whether that costs anything is a measurement rather than
+ *  an opinion. `EXPLAIN ANALYZE` runs the query for real, and every statement here is a SELECT. */
 async function diagnose(client: Client) {
   const size = await client.query<{ rows: string; payload_bytes: string; total_bytes: string }>(
     `SELECT count(*)::text AS rows,
@@ -1391,21 +966,14 @@ async function diagnose(client: Client) {
        FROM price_capture GROUP BY source ORDER BY source`,
   );
 
-  // The query that runs in normal operation, planned as it actually runs. The
-  // streak query that used to be planned beside it is gone with the check (A20).
   const plans: Record<string, string[]> = {};
 
-  // ONE "today" for every plan below. Computed twice, a `diagnose` call that
-  // straddles the Kyiv date boundary — and the Lambda's own schedule starts at
-  // 01:00 Europe/Kyiv — builds one plan for day D and another for D+1, and the
-  // two are then incomparable with nothing in the output saying why.
+  // ONE "today" for every plan, or a call straddling the Kyiv date boundary builds two nobody
+  // can compare.
   const today = nbuAsOf(new Date());
 
-  // ANALYZE is what yields the per-statement `Statement DPU Estimate` block;
-  // VERBOSE alone does not (measured, D97). Both are here so this plan is
-  // billable like the one below it — a report carrying one plan you can bill
-  // beside one you cannot makes the operator remember which is which. Costs
-  // nothing: this query projects only `as_of`.
+  // ANALYZE is what yields the per-statement `Statement DPU Estimate` block; VERBOSE alone does
+  // not. Costs nothing here, since this query projects only `as_of`.
   const completeness = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (ANALYZE, VERBOSE)
      SELECT DISTINCT to_char(as_of, 'YYYY-MM-DD') AS as_of
@@ -1414,60 +982,26 @@ async function diagnose(client: Client) {
   );
   plans.backfillCompleteness = completeness.rows.map((r) => r['QUERY PLAN']);
 
-  // A50: the query that actually costs money, which this mode did not plan.
-  // The handler doc has always promised "the plans of the two operational
-  // queries"; after A20 removed the streak query, the one left behind was the
-  // cheap one, which is why D91 had to be measured by hand.
-  //
-  // BOTH BRANCHES, because "a query that runs per source is not verified until
-  // every branch is planned" (D48's lesson, restated in infra/README.md) and
-  // this call has two that differ by three orders of magnitude.
-  //
-  // The trailing window the nightly run uses. ANALYZE, so the figure is real
-  // and comparable to the WARM median in D97, 0.256 DPU — not to D91's 0.356,
-  // which D97 records as UNREPRODUCED — 0.26528 warm on D91's own window, cause
-  // unknown. Note it EXECUTES the query,
-  // payloads included, so this belongs in a manual mode and nowhere near a loop.
+  // BOTH BRANCHES, because a query that runs per source is not verified until every branch is
+  // planned. ANALYZE here EXECUTES the query, payloads included, so this is a manual mode only.
   const observeWindow = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (ANALYZE, VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
     [SOURCE.nbuFairValue, addDays(today, -OBSERVE_WINDOW_DAYS), today, null],
   );
   plans.observeNbu = observeWindow.rows.map((r) => r['QUERY PLAN']);
 
-  // The expensive branch — the first window of `{observe:{}}`, from
-  // NBU_ARCHIVE_START and bounded to OBSERVE_CAP_DAYS like every other. What
-  // this plan must keep saying is that the scan is bounded: the open range it
-  // once planned fell to `Full Scan (btree-table)` with `payload_gzip`
-  // projected, and the window is the whole of the remedy.
-  //
-  // NO ANALYZE, deliberately. Planning it is the point; executing it, payloads
-  // included, costs what a full window costs, and a diagnosis must not. DSQL
-  // accepts `EXPLAIN (VERBOSE)` without ANALYZE and prints no `Statement DPU
-  // Estimate` in that form, so this plan says whether the scan is bounded and
-  // never what it costs.
-  //
-  // Trying unproven EXPLAIN syntax here was safe for a reason worth keeping in
-  // the file: `diagnose` is reached ONLY by an explicit `{diagnose:true}` event,
-  // never by the schedule, so a statement this mode cannot run breaks a
-  // diagnostic and not the archive.
+  // The expensive branch, and what this plan must keep saying is that the SCAN IS BOUNDED: the
+  // open range it once planned fell to a full scan. NO ANALYZE — planning it is the point.
   const observeFirstWindow = await client.query<{ 'QUERY PLAN': string }>(
     `EXPLAIN (VERBOSE) ${NEWEST_CAPTURE_PER_DATE}`,
     [SOURCE.nbuFairValue, NBU_ARCHIVE_START, observeWindowEnd(NBU_ARCHIVE_START, today), null],
   );
   plans.observeNbuFirstWindow = observeFirstWindow.rows.map((r) => r['QUERY PLAN']);
 
-  // A4's reconciliation. Per ref: how many observations exist, over what span,
-  // and how many DISTINCT dates they cover — the last one is what catches a
-  // duplicate-per-date bug that a plain count would hide.
-  //
-  // THE SPAN AND THE DATES START AT THE SOURCE'S FIRST CAPTURE DAY. The
-  // fund-history import writes rows from before that day with no capture
-  // behind them, so a span that reached back to them was measured against
-  // capture days that do not exist, read negative forever and hid a real
-  // missing day. Bounded here rather than by which parser wrote a row: an
-  // imported row on a captured day is coverage, and a re-parse under any
-  // version changes nothing. `n` still counts every row; `before_capture`
-  // and `earliest_as_of` say what the archive holds ahead of the bound.
+  // THE SPAN AND THE DATES START AT THE SOURCE'S FIRST CAPTURE DAY, because the fund-history
+  // import writes rows from before it with no capture behind them, so a span reaching back to
+  // those measures against capture days that do not exist. Bounded here rather than by parser
+  // version: an imported row on a captured day is coverage.
   const observations = await client.query(
     `WITH captured AS (
        SELECT source, min(as_of) AS since
@@ -1487,19 +1021,13 @@ async function diagnose(client: Client) {
       ORDER BY o.instrument_ref, o.basis, o.source`,
   );
 
-  // The denominator, computed per ref over ITS OWN span. One shared span would
-  // measure the younger instrument against days that predate its issuance and
-  // report a false gap — which is the same mistake as D43, one level up.
-  //
-  // THE SOURCE COMES FROM THE ROW, and before W4 it was the literal 'nbu_fv'.
-  // That was harmless while the table held one source and silently wrong the
-  // moment it held two: every Inzhur ref would have been measured against NBU's
-  // publication calendar, which is closed at weekends while Inzhur is not, and
-  // reported a two-day gap every week that does not exist.
+  // The denominator, per ref over ITS OWN span, and THE SOURCE COMES FROM THE ROW: a shared span
+  // measures the younger instrument against days predating its issuance, and a literal source
+  // measures every Inzhur ref against NBU's calendar, closed at weekends where Inzhur is not.
   const reconciled = [];
   for (const o of observations.rows) {
-    // A group the observer has never written has NULL bounds; BETWEEN NULL
-    // AND NULL matches nothing, so it reads zero against zero, which is true.
+    // A group never written has NULL bounds, and BETWEEN NULL AND NULL matches nothing, so it
+    // reads zero against zero — which is true.
     const { rows } = await client.query<{ days: string }>(
       `SELECT count(DISTINCT as_of)::text AS days
          FROM price_capture
@@ -1509,26 +1037,17 @@ async function diagnose(client: Client) {
     reconciled.push({
       ...o,
       publishedDays: rows[0].days,
-      // Still capture-days minus observation-days, and still assumes ONE
-      // observation row per published day per ref — which write-every-day
-      // makes true for both sources from their first capture day, where the
-      // span above begins. It is not true across BASES: a bond-day yields a
-      // `sell` and a `buy` row, so this reconciles per (ref, basis, source),
-      // which is what the GROUP BY above already produces. And it is not
-      // true of `nav` on a day the provider publishes it as zero, which
-      // stores no row: that day reads as a gap of one, and is one.
+      // Capture-days minus observation-days, assuming ONE row per published day PER BASIS, which
+      // is why the GROUP BY is per (ref, basis, source). A `nav` day published as zero stores no
+      // row, so it reads as a gap of one — and is one.
       gaps: Number(rows[0].days) - Number(o.dates),
     });
   }
 
-  // Three real rows, prices included, so the archive can be checked against the
-  // provider's own file by hand. A count that reconciles proves the plumbing;
-  // only a value proves the parse.
+  // A count that reconciles proves the plumbing; only a value proves the parse.
   const sample = await client.query(
-    // A50/D91 again: the alias shadowed the sort key here too. No
-    // `payload_gzip` on this table, so the bill was never the 64-DPU kind —
-    // but `price_observation` grows per instrument per day, the PRIMARY KEY
-    // leads with `as_of`, and a text sort cannot walk it backwards.
+    // Qualified for the reason `NEWEST_CAPTURE_PER_DATE` is: the alias shadowed the sort key
+    // here too, and a text sort cannot walk the key backwards.
     `SELECT to_char(as_of, 'YYYY-MM-DD') AS as_of, instrument_ref, basis,
             price::text, ytm::text, clean_rate::text
        FROM price_observation
@@ -1555,16 +1074,13 @@ async function diagnose(client: Client) {
 }
 
 export interface HandlerEvent {
-  /** Absent for the scheduled run: capture today from every source. */
   backfill?: BackfillRequest;
   /** Manual re-capture of one date, e.g. to repair a bad day. */
   asOf?: string;
-  /** Read-only: table size and the plans of the two operational queries. */
   diagnose?: boolean;
   /** Derive observations from payloads already stored. Network-free. */
   observe?: ObserveRequest;
-  /** Manual: read each fund's offer page, fetch its current price file and
-   *  insert its rows as `nav` observations. Network-bound. */
+  /** Manual, and network-bound. */
   importFundHistory?: ImportFundHistoryRequest;
 }
 
@@ -1580,15 +1096,12 @@ export async function handler(event: HandlerEvent = {}) {
     }
 
     if (event.observe !== undefined) {
-      // NBU STAYS THE DEFAULT, deliberately. `{observe:{}}` has meant "derive
-      // the NBU archive" since A4 and an operator has it in muscle memory;
-      // silently repointing it at a different source is how a habitual command
-      // becomes a surprise. Inzhur is asked for by name.
+      // NBU STAYS THE DEFAULT: `{observe:{}}` has always meant "derive the NBU archive", and
+      // silently repointing it is how a habitual command becomes a surprise.
       const src = event.observe.source;
       if (src === SOURCE.inzhur) return await observeInzhur(client, event.observe);
-      // A typo must not derive NBU over an Inzhur-shaped range and call it a
-      // success. Only ABSENT means "the default"; anything else is named and
-      // must be a source we have.
+      // A typo must not derive NBU over an Inzhur-shaped range and call it a success: only
+      // ABSENT means "the default".
       if (src !== undefined && src !== SOURCE.nbuFairValue) {
         throw new Error(`unknown observe source: ${src}`);
       }
@@ -1597,12 +1110,8 @@ export async function handler(event: HandlerEvent = {}) {
 
     if (event.backfill !== undefined) return await backfillNbu(client, event.backfill);
 
-    // ONE automation, two sources — and TWO as-of dates, which is the whole of
-    // D71. Both are captured in a single scheduled run rather than as two
-    // schedules, but they no longer share a date: Inzhur's live endpoint serves
-    // the price struck for the day the run happens on, while NBU's URL asks for
-    // a named file that cannot exist for today yet. One rule had to be wrong for
-    // one of them, and for eight days it was.
+    // ONE automation, two sources, TWO as-of dates: Inzhur's live endpoint serves the price
+    // struck for the run's own day, where NBU's URL asks for a file that cannot exist yet.
     const now = new Date();
     const runDate = kyivDateIso(now);
     const asOfOf = (source: string) =>
@@ -1611,60 +1120,27 @@ export async function handler(event: HandlerEvent = {}) {
     const results: CaptureResult[] = [];
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
       const asOf = asOfOf(source);
-      // The schedule fires six times a day, two hours apart, so that a provider
-      // outage at 01:00 is not the end of the matter (see template.yaml). Every
-      // firing after the first is a no-op for a source already settled, and the
-      // guard runs BEFORE the fetch — so in the ordinary case the providers see
-      // exactly one request a day, as they did when this was a single firing.
+      // The schedule fires several times a day, so a provider outage at 01:00 is not the end of
+      // it. The guard runs BEFORE the fetch, so the providers still see one request a day.
       if (await alreadySettled(client, source, asOf)) continue;
       results.push(await captureOne(client, source, asOf));
     }
-    // Nothing left to do: every source was already settled by an earlier firing.
-    // Reported under the RUN date, which is the one fact both sources share —
-    // each row carries its own as_of, and a single top-level one would be the
-    // conflation D71 exists to end.
+    // Reported under the RUN date, the one fact both sources share: each row carries its own
+    // `as_of`, and a single top-level one would conflate the two.
     if (results.length === 0) return { runDate, results, skipped: 'already settled' };
 
-    // Today's payload becomes today's observation, on the same run that
-    // captured it.
-    //
-    // WHY A TRAILING WINDOW AND NOT JUST `asOf`. Deriving only the current date
-    // means a night the job missed is a hole nobody fills — and holes in this
-    // table are invisible, because the payload is still safely archived and
-    // every indicator stays green. Re-deriving the last week costs almost
-    // nothing (`ON CONFLICT DO NOTHING`, ~2 rows a day, no network at all) and
-    // makes the run self-repairing: whatever was missed comes back on the next
-    // successful night without anyone noticing it had gone.
-    // Bounded at BOTH ends. `to` defaults to today inside `observeNbu`, so
-    // omitting it made a manual `{ asOf: '2020-03-02' }` repair derive six
-    // years forward — hundreds of dates the operator never asked for, reported
-    // as one enormous spike in the metric that is supposed to read "a couple of
-    // rows a night".
-    // W4 GAVE THE TABLE ITS INZHUR HALF, so both sources derive here now — and
-    // each over its OWN date, which is the whole of D71. This comment used to
-    // say the window was NBU's because "the observation table holds NBU rows
-    // only (its Inzhur half is W3/W4)"; that is what just changed.
+    // A TRAILING WINDOW RATHER THAN JUST `asOf`, because a missed night is a hole nobody fills,
+    // and a hole here is invisible. BOUNDED AT BOTH ENDS: `to` defaults to today, so omitting it
+    // made a repair of an old date derive years forward as one enormous spike.
     for (const source of [SOURCE.inzhur, SOURCE.nbuFairValue]) {
       const date = asOfOf(source);
       await observeAndReport(client, source, addDays(date, -OBSERVE_WINDOW_DAYS), date);
     }
 
-    // THE SHAPE OF THE FEED, PUBLISHED AND NEVER ALARMED (A20). Both numbers
-    // say something a graph can show and no threshold can judge: `entryCount`
-    // has only ever grown, so a floor under it would be a guess that the first
-    // delisting makes wrong, and `skippedRefs` is empty on every Inzhur capture
-    // but non-empty on 6,133 of 6,636 NBU rows, where it is the backfill
-    // correctly reporting bonds that did not exist yet (D43). A single rule
-    // over both sources would therefore be wrong for one of them. What DOES
-    // alarm is a named ref going missing — `tracked ISIN absent` for NBU,
-    // `tracked ref absent` for Inzhur — because that needs no threshold and is
-    // the thing actually worth waking up for.
-    //
-    // Emitted HERE rather than inside `captureOne`, which is what retires the
-    // old `trackStreak` flag: a 2,600-date backfill would otherwise scatter
-    // points across ten years of graph. The scheduled path is the only caller
-    // that reaches this line, so the separation is structural instead of a
-    // boolean someone can forget to pass.
+    // THE SHAPE OF THE FEED, PUBLISHED AND NEVER ALARMED: no threshold can judge either number,
+    // and a single rule over both sources would be wrong for one. What DOES alarm is a named ref
+    // going missing. Emitted HERE rather than in `captureOne`, or a long backfill scatters points
+    // across ten years of graph; the scheduled path is the only caller that reaches this line.
     for (const r of results) {
       console.log(
         JSON.stringify({ metric: 'entryCount', source: r.source, asOf: r.asOf, value: r.entries }),
@@ -1674,13 +1150,8 @@ export async function handler(event: HandlerEvent = {}) {
       );
       if (r.quotes === undefined) continue;
 
-      // HOW STALE THE PROVIDER'S OWN QUOTES ARE — graphed, never alarmed, and
-      // the distribution is why. Measured over the eight days in the archive:
-      // 18 `consistent`, 7 `not_applicable`, 3-4 `stale` capped at 6 days, and
-      // 1-2 `revised` — with UA4000236624 revised on EVERY one of the eight.
-      // Staleness here is the steady state of this feed, not an event, so an
-      // alarm on it would fire nightly and be muted inside a month (D44). The
-      // graph is the signal: a step change in the maximum is the thing to see.
+      // GRAPHED, NEVER ALARMED: staleness is the steady state of this feed rather than an event,
+      // so an alarm would fire nightly and be muted. A step change in the maximum is the signal.
       console.log(
         JSON.stringify({
           metric: 'quoteMaxStaleDays',
@@ -1701,16 +1172,8 @@ export async function handler(event: HandlerEvent = {}) {
         }),
       );
 
-      // AND THE ONE VERDICT THAT DOES DESERVE WAKING SOMEONE. `unexplained`
-      // means no yield the model can produce explains the quote at all — a
-      // schedule the parser mangled or a corrupt provider price, which the
-      // type's own documentation calls the loudest thing it can say. It has
-      // never occurred: zero across ~190 evaluations over the same eight days.
-      // That is what makes an alarm on it safe rather than another muted one.
-      //
-      // A log line and a metric filter rather than a throw: a mangled schedule
-      // is not transient, so retrying would write three more rows for the same
-      // day and help nobody.
+      // THE ONE VERDICT THAT DESERVES WAKING SOMEONE: no yield the model can produce explains the
+      // quote at all, and it has never occurred, which is what makes an alarm on it safe.
       if (r.quotes.unexplained.length > 0) {
         console.warn(
           `UNEXPLAINED_QUOTE source=${r.source} asOf=${r.asOf} refs=${r.quotes.unexplained.join(',')}`,
@@ -1718,13 +1181,11 @@ export async function handler(event: HandlerEvent = {}) {
       }
     }
 
-    // Only on the scheduled path. A backfill has nothing to say about whether
-    // today's alerting works, and it would emit the value hundreds of times.
+    // Only on the scheduled path: a backfill would emit the value hundreds of times.
     await reportAlertChannels();
     await reportBackupFreshness();
 
-    // A weekend 404 from NBU is not a failure — it is the calendar. Only real
-    // problems reach the alarm.
+    // A weekend 404 from NBU is the calendar, not a failure.
     const failed = results.filter((r) => !r.ok && r.error !== NOT_PUBLISHED);
     if (failed.length > 0) {
       throw new Error(

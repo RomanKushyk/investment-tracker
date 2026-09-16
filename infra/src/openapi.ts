@@ -1,13 +1,10 @@
 // The API described from the two places that already know: the template, and the handlers.
 //
-// NOT FROM THE DEPLOYED API. `aws apigatewayv2 export-api --specification OAS30` returns a
-// correct route half — routes, the authorizer, the path parameter, which route stands outside
-// it — and no response half at all: every operation gets a single `default`. Adding the
-// responses by hand beside it would be a second source for a contract three test files already
-// assert, which is the drift this repository has now watched twice. So the route half is read
-// from `template-user.yaml` instead, and both halves regenerate with no credentials, no
-// deployed stack and no `apigateway:GET` — which the deploy role does not hold and CI cannot
-// reach. That is what lets `openapi.test.ts` regenerate and diff on every run.
+// NOT FROM THE DEPLOYED API. `aws apigatewayv2 export-api --specification OAS30` returns a correct
+// route half and no response half at all — every operation gets a single `default` — and needs
+// `apigateway:GET`, which the deploy role does not hold. So the route half is read from
+// `template-user.yaml`, and both halves regenerate with no credentials and no deployed stack,
+// which is what lets `openapi.test.ts` diff on every run.
 import { readFileSync } from 'node:fs';
 import { parseDocument } from 'yaml';
 
@@ -22,14 +19,11 @@ import type { ApiResult } from './http';
 /** The one security scheme, named as the template names it. */
 const SCHEME = 'CognitoJwt';
 
-/** The environment this repository deploys to production, as `IsProd` spells it. */
 const PRODUCTION = 'prod';
 
-/**
- * A hostname and nothing else, because an intrinsic arm arrives as its inner text. Case is
- * ignored: DNS ignores it, CloudFormation accepts it, and refusing `Api.Quirenote.com` would
- * stop `pnpm openapi` with a message about intrinsics that misnames what it found.
- */
+/** A hostname and nothing else, because an intrinsic arm arrives as its inner text. Case is
+ *  ignored: refusing `Api.Quirenote.com` would fail `pnpm openapi` with a message about
+ *  intrinsics that misnames what it found. */
 const HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 
 type Event = {
@@ -43,22 +37,15 @@ type Template = {
   Resources: Record<string, Resource>;
 };
 
-/**
- * Which module answers a route, keyed by the `Handler` the template names. The template is
- * the only thing that knows a route reaches `approve.handler`; this is the only thing that
- * knows `approve.handler`'s answers are `approve.ts`'s. A handler with no entry raises
- * rather than producing an operation with no responses.
- */
+/** Which module answers a route: the template knows only that one reaches `approve.handler`, and
+ *  this map is the only thing that knows whose answers those are. */
 export const ANSWERS: Record<string, Record<string, readonly ApiResult[]>> = {
   'applications.handler': APPLICATION_RESPONSES,
   'approve.handler': ADMIN_RESPONSES,
 };
 
-/**
- * The bodies a ROUTE takes, for the one route that takes one. Keyed by route rather than by
- * handler: a second event on the same function would otherwise attach a required JSON body to
- * every operation that handler serves, a GET included.
- */
+/** Keyed by route, not by handler: a second event on one function would otherwise attach a
+ *  required JSON body to every operation it serves, a GET included. */
 const BODIES: Record<string, unknown> = {
   [APPLY_ROUTE]: REQUEST_BODY,
 };
@@ -87,7 +74,6 @@ export type OpenApiDocument = {
   components: { securitySchemes: Record<string, Record<string, unknown>> };
 };
 
-/** Every HttpApi route the template declares, with the handler that answers it. */
 const declaredRoutes = (user: Template) =>
   Object.values(user.Resources)
     .filter((r) => r.Type === 'AWS::Serverless::Function')
@@ -103,27 +89,18 @@ const declaredRoutes = (user: Template) =>
     );
 
 /**
- * THE HOSTS, from the API's own custom domain. Without them the document describes three
- * operations and no base URL, and a client generated from it cannot call anything until a
- * hostname arrives out of band.
+ * THE HOSTS, or a generated client cannot call anything until a hostname arrives out of band.
  *
- * `toJS()` drops an intrinsic's tag and keeps its value, so `!If [IsProd, a, b]` arrives as
- * `['IsProd', a, b]` and the PAIRING survives as an order alone. That pairing is the
- * load-bearing half — a client that takes the wrong arm for production calls production — so
- * it is read back out of the condition rather than assumed: `IsProd` is
- * `!Equals [!Ref Environment, prod]`, which names the true arm's environment, and the false
- * arm's is the other value `Environment` allows.
- *
- * PRODUCTION LAST, by name rather than by arm position — `IsDev` with the arms swapped
- * describes the same API and would otherwise put production first. Tools take `servers[0]` as
- * the default, Redoc's selector opens on it, and the two accidents are not the same size: a dev
- * caller who never chooses writes into production.
+ * `toJS()` drops an intrinsic's tag, so `!If [IsProd, a, b]` arrives as `['IsProd', a, b]` and the
+ * PAIRING survives as an order alone. That pairing is load-bearing — a client taking the wrong arm
+ * for production calls production — so it is read back out of the condition rather than assumed.
+ * Production goes LAST by NAME, not by arm position: tools take `servers[0]` as the default.
  */
 export const servers = (user: Template): OpenApiDocument['servers'] => {
   const domain = (user.Resources.PublicApi?.Properties?.Domain as { DomainName?: unknown })
     ?.DomainName;
-  // THE ARMS ARE READ, NOT JUST COUNTED. The same dropped tag that makes the array readable
-  // makes `!Sub 'api.${Zone}'` arrive as that text, which would ship unresolved inside a URL.
+  // THE ARMS ARE READ, NOT JUST COUNTED: the same dropped tag makes `!Sub 'api.${Zone}'` arrive as
+  // that text, which would ship unresolved inside a URL.
   if (
     !Array.isArray(domain) ||
     domain.length !== 3 ||
@@ -134,9 +111,8 @@ export const servers = (user: Template): OpenApiDocument['servers'] => {
     );
   }
   const [condition, whenTrue, whenFalse] = domain as [string, string, string];
-  // ARRAY-CHECKED BEFORE IT IS DESTRUCTURED. The full function form — `Fn::Equals: [...]` — is
-  // legal in this template and `toJS()` gives it as an OBJECT, which destructures into a
-  // `TypeError` rather than the message below; every other unknown in this module names itself.
+  // Array-checked before it is destructured: the full function form is legal in this template and
+  // `toJS()` gives it as an OBJECT, which destructures into a `TypeError` rather than a message.
   const equals = user.Conditions?.[condition];
   const [parameter, whenTrueIs] = (Array.isArray(equals) ? equals : []) as [string?, string?];
   const rest = (user.Parameters?.[parameter ?? '']?.AllowedValues ?? []).filter(
@@ -149,12 +125,10 @@ export const servers = (user: Template): OpenApiDocument['servers'] => {
     { url: `https://${whenTrue}`, description: whenTrueIs },
     { url: `https://${whenFalse}`, description: rest[0] },
   ];
-  // ONE OF THE TWO MUST BE PRODUCTION, or the ordering below has nothing to order by and would
-  // fall back to arm position without a word — the thing it exists to stop. It is also the only
-  // check that the condition is about ENVIRONMENTS at all: this template carries a second
-  // two-valued parameter and a matching condition, `IsRegistrationOpen` over `[closed, open]`,
-  // and an `!If` copied from it satisfies every check above while naming the two hosts `open`
-  // and `closed` and putting production first.
+  // ONE OF THE TWO MUST BE PRODUCTION, or the ordering falls back to arm position without a word.
+  // It is also the only check that the condition is about ENVIRONMENTS at all: an `!If` copied from
+  // this template's other two-valued condition, `IsRegistrationOpen` over `[closed, open]`,
+  // satisfies every check above while naming the hosts `open` and `closed`.
   if (!named.some((server) => server.description === PRODUCTION)) {
     throw new Error(
       `neither environment ${condition} selects is ${PRODUCTION}: ` +
@@ -166,11 +140,6 @@ export const servers = (user: Template): OpenApiDocument['servers'] => {
   );
 };
 
-/**
- * A readable, unique id per operation, DERIVED from the route rather than named by hand — a
- * hand-written one is a second thing to keep in step, and generators key off this.
- * `POST /admin/users/{id}/approve` becomes `postAdminUsersIdApprove`.
- */
 const operationId = (method: string, path: string): string =>
   method +
   path
@@ -181,19 +150,13 @@ const operationId = (method: string, path: string): string =>
     .join('');
 
 /**
- * WHAT AN OPERATION SAYS ABOUT CREDENTIALS. A route naming THE authorizer requires it; a route
- * naming none gets an EMPTY ARRAY, which the specification defines as removing the document's
- * default. Not `[{}]` — an array holding the empty security requirement `{}`, which says
- * credentials are OPTIONAL: a third thing again.
+ * A route naming THE authorizer requires it; a route naming none gets an EMPTY ARRAY, which the
+ * specification defines as removing the document's default — not `[{}]`, which says credentials
+ * are optional, a third thing again. A route naming anything else raises.
  *
- * "NAMING NONE IS PUBLIC" IS AN ASSUMPTION, and it is this function's fail-open edge. A route
- * whose `Auth` block was forgotten in the template arrives here indistinguishable from the
- * sign-up route and is published as callable by a stranger. Nothing in this module can tell the
- * two apart; what holds the line is `public-api.test.ts`, which fails a route that names no
- * authorizer and is not on its written public list.
- *
- * A ROUTE NAMING SOMETHING ELSE RAISES, because that one IS distinguishable: a second
- * authorizer, or a typo in the first, is a public surface by no reading.
+ * "NAMING NONE IS PUBLIC" IS AN ASSUMPTION, and this function's FAIL-OPEN edge: a route whose
+ * `Auth` block was forgotten is indistinguishable here from the sign-up route and is published as
+ * callable by a stranger. `public-api.test.ts` is what holds that line.
  */
 export const securityOf = (authorizer: string | undefined): Operation['security'] => {
   if (authorizer === SCHEME) {
@@ -205,7 +168,6 @@ export const securityOf = (authorizer: string | undefined): Operation['security'
   throw new Error(`route names authorizer ${authorizer}, and only ${SCHEME} is declared`);
 };
 
-/** `{id}` in a path is a required string parameter, and the only kind this API has. */
 const parameters = (path: string) =>
   [...path.matchAll(/\{([^}]+)\}/g)].map((m) => ({
     name: m[1],
@@ -214,18 +176,12 @@ const parameters = (path: string) =>
     schema: { type: 'string' },
   }));
 
-/**
- * One status may carry SEVERAL BODIES — the gate's four 403s are four different answers, and
- * OpenAPI 3.0 allows one response object per status code. So they become named `examples`
- * under that one status rather than one of them winning an `example` and the rest vanishing.
- * The name is the body's own word, which is what a client branches on.
- */
+/** One status may carry SEVERAL BODIES — the gate's four 403s — and OpenAPI 3.0 allows one
+ *  response object per status, so they become named `examples` rather than one winning. */
 const nameOf = (body: string): string => {
   const parsed = JSON.parse(body) as { error?: string; status?: string };
   const name = parsed.error ?? parsed.status;
-  // RAISED RATHER THAN KEYED BY THE WHOLE BODY. Every other unknown in this module raises, and
-  // a body with neither word is a new answer shape — naming it after its own JSON is a key no
-  // reader or client would recognise.
+  // Raised rather than keyed by the whole body, which would be a key no client would recognise.
   if (name === undefined) {
     throw new Error(`no error or status to name this answer by: ${body}`);
   }
@@ -245,10 +201,8 @@ const responses = (answers: readonly ApiResult[]) => {
       content: { 'application/json': { examples: {} } },
     };
     byStatus[status].content['application/json'].examples[nameOf(answer.body)] = {
-      // THE VALUE, NOT THE TEXT. An Example Object under `application/json` holds the media
-      // type's own value, so the raw string here makes Redoc — which the README tells the
-      // reader to run — render every answer as a quoted, backslash-escaped string, and a
-      // generated client type it `string` where the API sends an object.
+      // THE VALUE, NOT THE TEXT: an Example Object holds the media type's own value, so a raw
+      // string types a generated client `string` where the API sends an object.
       value: JSON.parse(answer.body) as unknown,
     };
   }
@@ -258,10 +212,8 @@ const responses = (answers: readonly ApiResult[]) => {
 export function buildSpec(): OpenApiDocument {
   const source = readFileSync(new URL('../template-user.yaml', import.meta.url), 'utf8');
   const doc = parseDocument(source);
-  // ERRORS, NEVER WARNINGS — the anchor `public-api.test.ts` opens with, for its reason: `yaml`
-  // recovers from a structural error by DROPPING content, so a mangled `Events:` block yields
-  // fewer routes and a smaller document, which reads as a stale artifact rather than a broken
-  // template. Every CloudFormation intrinsic is a warning here and none of them is a problem.
+  // ERRORS, NEVER WARNINGS: `yaml` recovers from a structural error by DROPPING content, so a
+  // mangled `Events:` block yields a smaller document that reads as stale rather than broken.
   if (doc.errors.length > 0) {
     throw new Error(`template-user.yaml does not parse: ${doc.errors[0].message}`);
   }
@@ -284,17 +236,9 @@ export function buildSpec(): OpenApiDocument {
       summary: `${route.method.toUpperCase()} ${route.path}`,
       ...(params.length > 0 ? { parameters: params } : {}),
       ...(BODIES[key] === undefined ? {} : { requestBody: BODIES[key] }),
-      // AN EMPTY ARRAY RATHER THAN AN ABSENT FIELD on the one public route, and the hazard
-      // here is FAIL-CLOSED. An operation that omits `security` inherits the document's
-      // default, so omitting it on `POST /v1/applications` would publish the sign-up route as
-      // needing a bearer token — the one route somebody without a token has to reach in order
-      // to ask for one.
-      //
-      // AND NO OPERATION THIS GENERATOR WRITES CAN OMIT IT: `securityOf` always answers and the
-      // field is required, so the default below governs nothing here and catches no forgotten
-      // route. It earns its place for what it SAYS: the shipped document states the API's
-      // posture once instead of leaving a reader to infer it from three operations, and the
-      // empty array above overrides something rather than standing alone.
+      // AN EMPTY ARRAY RATHER THAN AN ABSENT FIELD, and this hazard is FAIL-CLOSED: an operation
+      // omitting `security` inherits the document default, so omitting it on the sign-up route
+      // would publish it as needing a token — the one route a caller without one must reach.
       security: securityOf(route.authorizer),
       responses: responses(answers),
     };
@@ -313,22 +257,16 @@ export function buildSpec(): OpenApiDocument {
         'admin failure once an access token passes its hour, and 429 from the per-route throttle.',
     },
     servers: servers(user),
-    // THE DEFAULT EVERY OPERATION ABOVE OVERRIDES, beside `servers` rather than after
-    // `components` where the specification's field table lists it. JSON members are unordered,
-    // so the placement costs nothing and a default sitting below every path is one a reader
-    // does not know to look for. It is the scheme the template's own authorizer declares, so
-    // nothing is decided here that is not decided there.
+    // THE DEFAULT EVERY OPERATION ABOVE OVERRIDES. It governs nothing, since `securityOf` always
+    // answers; it earns its place for what it SAYS about the API's posture.
     security: [{ [SCHEME]: [] }],
     paths,
     components: {
       securitySchemes: {
         [SCHEME]: {
-          // WHAT THE CALLER ACTUALLY DOES, which is send a bearer token in `Authorization` —
-          // the template says exactly that two lines from the authorizer
-          // (`IdentitySource: $request.header.Authorization`). `oauth2` with an empty `flows`
-          // gives Redoc an Authorize button with nothing behind it, and
-          // `x-amazon-apigateway-authtype` is the REST (v1) extension, not this API's. The
-          // issuer and audience are per-environment intrinsics, so they are not spelled here.
+          // WHAT THE CALLER ACTUALLY DOES. `oauth2` with an empty `flows` gives Redoc an
+          // Authorize button with nothing behind it, and `x-amazon-apigateway-authtype` is the
+          // REST (v1) extension. Issuer and audience are per-environment intrinsics.
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',

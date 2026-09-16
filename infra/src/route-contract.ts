@@ -1,18 +1,9 @@
-// ONE MECHANISM FOR PROVING A ROUTE'S PUBLISHED CONTRACT, instead of a convention each
-// handler's test file re-implements.
-//
-// The document this API publishes is a chain — the template names the routes, each handler
-// declares what its routes answer, the generator turns those into operations, and the artifact
-// is committed. Every link of that chain was at some point asserted rather than proved, and
-// each one failed the same way when somebody finally mutated it: an answer moved to a route
-// that cannot give it, or vanished from one that can, with the whole suite green. Four
-// instances, at four layers. `docs/reference/openapi.json` is only the last of them.
-//
-// What made it recur is that the proofs were per-file conventions. Two test files each grew
-// their own recorder, and NOTHING REQUIRED A THIRD HANDLER'S FILE TO HAVE ONE — so a new route
-// would be published and proved only "documented somewhere", which is exactly how the second
-// and third instances happened. This module is the proof; `openapi.test.ts` is what requires
-// every handler that owns a route to use it.
+// One mechanism for proving a route's published contract, instead of a convention each handler's
+// test file re-implements. The document is a chain — template, handler declaration, generator,
+// committed artifact — and every link was at some point asserted rather than proved, failing four
+// times at those four layers: an answer published on a route that cannot give it, or missing from
+// one that can. Nothing required a THIRD handler's file to grow its own recorder, which is how the
+// second and third of those happened. `openapi.test.ts` requires every route's handler to use it.
 import { describe, expect, it } from 'vitest';
 
 import type { ApiEvent, ApiResult } from './http';
@@ -22,13 +13,8 @@ export const answerOf = (result: ApiResult): string => `${result.statusCode} ${r
 
 export type Observation = { route: string; answer: string };
 
-/**
- * Records what a handler answered, per ROUTE.
- *
- * Route-aware even for a handler serving one route today: recording the answer alone is how a
- * file first passed while publishing one route's answers on another, and a second route on the
- * same handler inherits that hole silently.
- */
+/** Route-aware even for a handler serving one route today: recording the answer alone is how a
+ *  file first passed while publishing one route's answers on another. */
 export const recorder = (fallbackRoute: string) => {
   const observed: Observation[] = [];
   return {
@@ -40,24 +26,15 @@ export const recorder = (fallbackRoute: string) => {
   };
 };
 
-/**
- * The proof, generated rather than written out in each file.
- *
- * BOTH DIRECTIONS, because each catches a different lie. An answer observed but not declared
- * means the document omits something the route really gives; an answer declared but never
- * observed means the document advertises something the route cannot reach, and a client
- * branches on an answer that never arrives.
- *
- * `minimum` guards the second direction against a filtered `-t` run, which records a handful
- * and would otherwise read as a contract break rather than as a partial run.
- */
+/** BOTH DIRECTIONS, because each catches a different lie: observed but not declared means the
+ *  document omits something the route gives; declared but never observed means a client branches
+ *  on an answer that never arrives. `minimum` separates a contract break from a filtered `-t` run. */
 export const proveRouteContract = (opts: {
   declared: Record<string, readonly ApiResult[]>;
   observed: Observation[];
   minimum: number;
 }): void => {
   describe('the answers these tests observed are the ones the document publishes', () => {
-    // EVERY ROUTE THE HANDLER DECLARES, read from the declaration rather than listed here.
     for (const route of Object.keys(opts.declared)) {
       const declared = () => new Set(opts.declared[route].map(answerOf));
       const seen = () =>

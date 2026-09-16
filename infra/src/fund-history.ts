@@ -1,18 +1,15 @@
-// The provider's published fund price history, workbook to rows. Pure, for the
-// reason `observation-rows.ts` gives: everything decidable from the file alone
-// lives here and is tested; the DB half stays in `capture.ts`.
+// The provider's published fund price history, workbook to rows. Pure: everything decidable from
+// the file alone lives here and is tested, and the DB half stays in `capture.ts`.
 import { addDays } from '../../src/core/dates';
 import type { XlsxCell, XlsxWorkbook } from './xlsx';
 
-/** Stored per row, so a row derived by this parser is never mistaken for one
- *  the feed parser (`PARSER_VERSION`) wrote. */
+/** Stored per row, so a row derived by this parser is never mistaken for one the feed parser
+ *  (`PARSER_VERSION`) wrote. */
 export const FUND_HISTORY_PARSER_VERSION = 'fund-history-1';
 
-/**
- * Where each fund's current price file is linked from. [External sources]:
- * the file name carries a content hash, so the link is re-read from the offer
- * page on every run and no file URL is ever polled.
- */
+/** Where each fund's current price file is linked from. The file name carries a content hash, so
+ *  the link is re-read from the offer page on every run and no file URL is ever polled
+ *  (*External sources*). */
 export const FUND_HISTORY_PAGES: Readonly<Record<string, string>> = {
   'inzhur-reit': 'https://www.inzhur.reit/offer/inzhur-reit',
   'inzhur-energy': 'https://www.inzhur.reit/offer/inzhur-energy',
@@ -30,12 +27,8 @@ function decodeHref(href: string): string {
   );
 }
 
-/**
- * The one price-file link on an offer page. The page also links a dividend
- * file, which is a payment series and not this import's; the price file is
- * the one whose name says `czina`. Anything but exactly one such link is a
- * changed page, and a changed page is refused rather than guessed at.
- */
+/** The page also links a dividend file, which is a payment series and not this import's; the
+ *  price file is the one whose name says `czina`. */
 export function priceFileLink(html: string): string {
   const seen = [...html.matchAll(/href="([^"]+\.xlsx(?:\?[^"]*)?)"/g)].map((m) => decodeHref(m[1]));
   const price = [...new Set(seen.filter((url) => url.split('?')[0].includes('czina')))];
@@ -50,12 +43,8 @@ export function priceFileLink(html: string): string {
   return price[0];
 }
 
-/**
- * Excel counts days from 1899-12-30; a fraction would be a time of day.
- * Serials below 61 are refused: Excel counts a 1900-02-29 that never was, so
- * the epoch is only right from 1900-03-01, and nothing this file holds is
- * older than that anyway.
- */
+/** Excel counts days from 1899-12-30. Serials below 61 are refused: Excel counts a 1900-02-29
+ *  that never was, so the epoch is only right from 1900-03-01. */
 export function excelSerialToIso(serial: number): string {
   if (!Number.isInteger(serial)) {
     throw new Error(`fund-history: date serial ${serial} is not a whole day`);
@@ -64,13 +53,9 @@ export function excelSerialToIso(serial: number): string {
   return addDays('1899-12-30', serial);
 }
 
-/**
- * The provider's text spelling of a price: a comma before the fraction, with
- * the integer part either ungrouped or grouped in threes by a space or a
- * no-break space. Exactly those shapes and nothing else, because a cast that
- * reads `6.234,82` or `6234.82` as some number is a wrong price, not a
- * missing one.
- */
+/** A comma before the fraction, the integer part ungrouped or grouped in threes by a space or a
+ *  no-break space. Exactly those shapes, because a cast that reads `6.234,82` or `6234.82` as
+ *  some number gives a wrong price rather than a missing one. */
 export function parseUkrainianDecimal(text: string, at?: string): number {
   if (!/^(?:\d+|\d{1,3}(?:[ \u00A0]\d{3})+)(?:,\d+)?$/.test(text)) {
     throw new Error(`fund-history: unreadable price "${text}"${at ? ` at ${at}` : ''}`);
@@ -85,18 +70,11 @@ function caption(cell: XlsxCell | undefined): string | undefined {
   return cell?.s?.replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Every dated line of every sheet as a `nav` observation, sorted by date.
- *
- * Columns are found by caption, never by position: the two files caption the
- * price differently and nothing says a future cut keeps the order. A line is
- * skipped only when it has neither date nor price (the styled empty rows a
- * sheet ends with); half a line, a date that is not a serial, a price that is
- * neither a number nor the provider's text spelling, a date outside the year
- * its sheet is named for, and a date seen twice are each refused by address,
- * because `ON CONFLICT DO NOTHING` would hide the last one and a count would
- * then lie.
- */
+/** Columns are found by CAPTION, never by position: the two files caption the price differently
+ *  and nothing says a future cut keeps the order. A line is skipped only when it has NEITHER date
+ *  nor price, which is the styled empty row a sheet ends with; every OTHER anomaly is refused by
+ *  address rather than absorbed, because `ON CONFLICT DO NOTHING` would hide it and a count would
+ *  then lie. */
 export function fundHistoryRows(ref: string, workbook: XlsxWorkbook): FundHistoryRow[] {
   const out: FundHistoryRow[] = [];
   const seen = new Map<string, string>();
