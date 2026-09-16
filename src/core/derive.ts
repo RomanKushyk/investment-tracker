@@ -1,5 +1,5 @@
 // Pure derivations — every displayed figure comes from these. No I/O.
-// Reference-reconciliation rules are pinned in docs/DECISIONS.md D5.
+// *Derived figures and the seed* holds the reconciliation rules.
 import {
   isPayout,
   movesPosition,
@@ -14,41 +14,11 @@ import type { PeriodWindow } from './period';
 import { xirr, type CashFlow } from './xirr';
 
 /**
- * The first day the portfolio existed — DERIVED, never declared (A24).
- *
- * It was `export const PORTFOLIO_START = '2026-02-03'` until 2026-08-18: a
- * literal that every annualized figure divides by. True of the demo seed and
- * false of every other dataset, which made `/yield`'s whole annualized column,
- * `/overview`'s "since 03.02" and `/attributes`' daysHeld wrong for anyone
- * whose portfolio did not start on that Tuesday. The repo's own rule says every
- * portfolio figure derives from stored data, and a date that divides all the
- * others is a portfolio figure.
- *
- * THE EARLIEST OF THREE SIGNALS, not any one of them. The question the value
- * answers is "on what day is there evidence this portfolio existed", and three
- * different rows can carry that evidence: a transaction, a snapshot, or an
- * asset declaring when it was first bought. Any one is sufficient, so the
- * answer is the earliest of them.
- *
- * The direction matters and is the reason this is a `min` rather than a pick.
- * A start that lands too LATE divides a long return by a short span and prints
- * a rate nobody earned; too early only understates. The concrete case is an
- * asset carrying `firstPurchase: '2020-01-01'` that was added without
- * back-filling the ledger — the transactions begin in 2026, and believing them
- * alone would turn six years of holding into six months.
- *
- * `undefined` on an empty dataset: there is no start, and every caller renders
- * "—" rather than dividing by a span it invented. Dates are ISO `yyyy-MM-dd`,
- * so `<` is chronological — the same property `byDate` already relies on.
- *
- * NOT per-asset, deliberately. Callers apply this ONE date to every asset,
- * which is D5#5's pinned v1 simplification ("global PORTFOLIO_START basis")
- * and is why an asset bought in June is still annualized over the portfolio's
- * whole span. That was a question (O23) and is now a ruling: **D85 keeps it**,
- * on the measurement rather than by inheritance. A per-asset basis would have
- * …6475 beating its own contractually fixed 15,2 % coupon by 19,3 pp, `xirr`
- * already IS the per-asset answer and labels itself an extrapolation, and D80's
- * grey now discloses the short-basis rows that were the case for changing.
+ * The first day the portfolio existed — the EARLIEST of a transaction, a
+ * snapshot, or an asset’s own `firstPurchase`. A `min` and not a pick, because
+ * the direction is not symmetric: too LATE divides a long return by a short
+ * span and prints a rate nobody earned, too early only understates. ONE date
+ * for every asset — `xirr` is the per-asset answer. *Derived figures and the seed*
  */
 export function portfolioStart(
   assets: Asset[],
@@ -65,13 +35,6 @@ export function portfolioStart(
   return earliest;
 }
 
-/**
- * The date an asset's own history begins — the per-asset counterpart to
- * `portfolioStart`, and deliberately NOT a replacement for it. `portfolioStart`
- * stays the annualization basis (D5#5); this only says how much of that basis a
- * given asset was actually present for.
- */
-/** Every asset's own start in ONE pass, the shape the other per-asset maps use. */
 export function startDateByAsset(assets: Asset[], txs: Transaction[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const a of assets) if (a.firstPurchase) out[a.id] = a.firstPurchase;
@@ -93,44 +56,15 @@ export function assetStart(asset: Asset, txs: Transaction[]): string | undefined
 }
 
 /**
- * How far short of the basis an asset's own holding falls before `Річна` stops
- * being a rate the holding can support (F-3, D80).
- *
- * THE SHEET SET THE REQUIREMENT AND EXPLICITLY DECLINED THE LINE: "mark a row
- * when its `Річна` is divided by a span the asset MATERIALLY did not live
- * through — …6475's 55 days against 174 is the case, …8976's 172 against 174 is
- * not — [...] Where the line between those two falls is a `core/` question
- * about the metric, not a colour question, and this sheet does not answer it."
- * So it is answered here, and the two cases it named are pinned by test.
- *
- * MEASURED ON THE SHIPPED PRODUCERS, on the seed's own 174-day basis:
- * REIT and Energy fall 0 % short, …8976 falls **1,15 %** short (2 days — it was
- * bought 05.02 against a 03.02 start), …6475 falls **68,39 %** short (bought
- * 02.06). Any threshold between those two satisfies the sheet. 10 % is where it
- * falls, for a reason that is not the gap's width:
- *
- * `annualizedPct` divides by the basis, so an asset present for only `h` of `n`
- * days has its rate UNDERSTATED by exactly `n / h`. At a 10 % shortfall that is
- * 11 %, which on this portfolio's 10–11 % rates moves the figure by ~1,2 pp —
- * and `проти очікуваної` is denominated in percentage points against
- * `expectedPct`, so one point is the smallest error that changes what that
- * column claims. Below 10 % the mark would fire on rounding; above it, on
- * figures already saying the wrong thing.
- *
- * The tolerance is what separates "bought at inception" from "bought partway
- * through", and it is why the predicate the sheet DELETED — "first purchase
- * after the window's `from`" — could not work: it fires on …8976's two days.
+ * How far short of the basis a holding may fall before `Річна` stops being a rate
+ * it can support: present for `h` of `n` days understates by `n / h`, and `проти
+ * очікуваної` is in percentage points, so this is where that reaches one point.
  */
 export const SHORT_BASIS_TOLERANCE = 0.1;
 
 export function basisIsShort(heldDays: number, basisDays: number): boolean {
-  // ONLY the basis short-circuits. A first cut also bailed on `heldDays <= 0`,
-  // which silently exempted the WORST case there is: an asset bought on the
-  // window's last day holds 0 of its 30, gets its one day of return scaled by
-  // 12.17, and was the one row that could never be marked. Zero holding is not
-  // "nothing to measure", it is the maximum shortfall (A41 review). Negative
-  // held days are the same case — `yield.ts` deliberately counts a buy dated
-  // after the last snapshot.
+  // ONLY the basis short-circuits, never `heldDays`: zero or negative holding is
+  // the MAXIMUM shortfall, and exempting it leaves the worst row unmarkable.
   if (basisDays <= 0) return false;
   return heldDays < basisDays * (1 - SHORT_BASIS_TOLERANCE);
 }
@@ -138,26 +72,10 @@ export function basisIsShort(heldDays: number, basisDays: number): boolean {
 const byDate = (snaps: Snapshot[]) => [...snaps].sort((a, b) => a.date.localeCompare(b.date));
 
 /**
- * Quote PER ASSET as of a date — partial snapshots included, and the HEADLINE
- * basis (D5#1) when the bound is omitted.
- *
- * THE BOUND IS WHAT MAKES A PERIOD POSSIBLE (A27). Nothing in this file was
- * date-bounded before Phase 8: every function took the whole array and answered
- * since-inception. Rather than grow a second merge beside the first, the
- * unbounded accessors below now delegate here — one implementation, two names,
- * because a second copy of this arithmetic would be a second answer.
- *
- * A STOCK, in the brief's terms: a level at an instant, so a window gives it
- * the window's END and never its length.
- *
- * WEALTH-MANAGEMENT-ARCHITECTURE §4 ("latest price per asset, strict
- * querying not array manipulation"): resolved by merging sorted snapshots
- * per asset. Deliberately BETTER than the doc's §4.1 note "return 0 when a
- * quote is missing": an asset simply absent from recent snapshots keeps its
- * last known quote (merge semantics), and an asset never quoted stays
- * ABSENT from the result — "pending", rendered as "—" — rather than a fake
- * 0 that would corrupt headlineTotal and every share/net figure built on it
- * (documented improvement, see docs/reference/FORMULA-AUDIT.md §4).
+ * A STOCK, so a window gives it the window’s END. AN ASSET NEVER QUOTED STAYS
+ * ABSENT, never 0 — a deliberate deviation from doc §4.1
+ * (`docs/reference/FORMULA-AUDIT.md` §4). Absent renders "—"; a fake 0 corrupts
+ * `headlineTotal` and every share and net figure built on it.
  */
 export function quotesAsOf(snaps: Snapshot[], asOf?: string): Record<string, number> {
   const out: Record<string, number> = {};
@@ -168,7 +86,6 @@ export function quotesAsOf(snaps: Snapshot[], asOf?: string): Record<string, num
   return out;
 }
 
-/** `quotesAsOf` with no bound — see the note above it for why this delegates. */
 export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
   return quotesAsOf(snaps);
 }
@@ -190,45 +107,14 @@ export function headlineTotal(snaps: Snapshot[]): number {
   return headlineTotalAsOf(snaps);
 }
 
-/**
- * The transactions a window covers — **inclusive at both ends**.
- *
- * A one-line filter with a whole function around it on purpose (Phase 8 brief
- * § G-5): three screens each writing their own boundary test is three chances
- * to disagree about whether the opening day counts. It does, at both ends, and
- * this is the only place that says so.
- *
- * Returns a new array in the caller's order — the order is a display concern
- * everywhere it is used, and a filter that silently sorted would be a second
- * behaviour hiding inside a first.
- */
 export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction[] {
   return txs.filter((t) => t.date >= w.from && t.date <= w.to);
 }
 
 /**
- * Every transaction from a window's opening day onward — the BOTTOM-ONLY clip.
- *
- * The deliberate variant of `transactionsIn`, and it exists as a named function
- * for that function's own reason: four screens had hand-written this filter and
- * four literals are four chances to disagree about the edge (A40 review).
- *
- * WHY NO UPPER BOUND. Every window ends at the latest valuation, so an upper
- * clip can only ever exclude transactions entered SINCE it — which are the most
- * recent reality and which every screen counts. A39 shipped the two-ended clip
- * and a buy dated after the last snapshot vanished from `/yield` while
- * `/portfolio` still showed it.
- */
-/**
- * The same bottom-only clip, taking the WINDOW rather than a date — because the
- * `w === undefined ? txs : transactionsFrom(txs, w.from)` guard had been written
- * out six times by A42, and `transactionsFrom` exists in the first place because
- * "four screens had hand-written this filter and four literals are four chances
- * to disagree about the edge". The undefined-guard had quietly become that same
- * literal one layer up.
- *
- * `/overview` still writes it by hand in three places; converting them is not
- * A42's to do.
+ * NO UPPER BOUND: a window ends at the latest valuation, so an upper clip can
+ * only exclude rows entered SINCE it — which is how a buy dated after the last
+ * snapshot once vanished from `/yield`.
  */
 export function transactionsFromWindow(
   txs: Transaction[],
@@ -271,18 +157,8 @@ export function investedByAsset(txs: Transaction[]): Record<string, number> {
 }
 
 /**
- * ₴ per unit this holder PAID, from the earliest purchase that records it — the
- * price half of a YTM at purchase (D120).
- *
- * `unitPrice` first, `amount / quantity` second: the stored price is what the
- * form recorded, and re-deriving it from a rounded total loses the last kopiyka
- * (`transaction-price.ts` keeps both for exactly this reason). Either way this
- * answers only for a row that carries units — every purchase made before #31
- * records ₴ and nothing else, and no price can be recovered from that.
- *
- * THE EARLIEST such purchase, not an average: "at purchase" names one moment,
- * and the field it derives is dated by `firstPurchase`. Averaging across a
- * ladder of buys would produce a yield no single trade ever had.
+ * ₴ per unit this holder PAID — the stored price before the division, which
+ * loses the last kopiyka. THE EARLIEST purchase, never an average.
  */
 export function purchaseUnitPrice(
   txs: Transaction[],
@@ -293,50 +169,23 @@ export function purchaseUnitPrice(
     .sort((a, b) => a.date.localeCompare(b.date));
   const first = buys[0];
   if (first === undefined) return undefined;
-  // THE DATE COMES BACK WITH THE PRICE, and that is the whole point of the pair.
-  // Returning the price alone left the caller to reach for `asset.firstPurchase`
-  // — a free date field on the form, editable independently of the ledger. An
-  // asset stating 05.02 whose earliest counted buy is 12.08 discounted a
-  // 12.08 price over six extra months of cash flows and counted in coupons paid
-  // before the purchase happened. A price belongs to the day it was paid.
+  // THE DATE COMES BACK WITH THE PRICE: returning it alone sends the caller to
+  // `asset.firstPurchase`, a form field editable independently of the ledger.
   const price =
     first.unitPrice ?? (first.quantity! > 0 ? first.amount / first.quantity! : undefined);
   return price === undefined || price <= 0 ? undefined : { price, date: first.date };
 }
 
 /**
- * Units held per asset, as of `asOf` (inclusive; unbounded when omitted) —
- * `units(a, D) = Σ quantity deltas`, which is W7's model
- * (issue #46 §4) and the answer to #31.
- *
- * ONLY ASSETS WITH AT LEAST ONE RECORDED QUANTITY GET A KEY, and that is the
- * point rather than an optimisation: a position whose ledger carries no
- * quantities must be distinguishable from one that genuinely holds zero units.
- * The first still needs `Asset.inzhur.units` to be valued at all; the second is
- * a closed position. Returning 0 for both would value every un-backfilled
- * holding at nothing — a far louder wrong answer than the one #31 reported.
- *
- * The sum is NOT rounded. Units are not money: a reinvestment buys a fractional
- * count (₴484.36 ÷ 11.1389), and rounding each delta would drift the running
- * total one purchase at a time — the same cumulative error #31 is about.
+ * A LEDGER CARRYING NO QUANTITIES MUST BE DISTINGUISHABLE FROM ONE HOLDING ZERO
+ * UNITS — the first still needs `Asset.inzhur.units` to be valued, the second is
+ * closed. NOT rounded.
  */
 export interface LedgerUnits {
   /** Units held, per asset that the ledger can count completely. */
   units: Record<string, number>;
-  /**
-   * Assets that HOLD position-moving rows but cannot be counted, because at
-   * least one of those rows ON OR BEFORE `asOf` carries no quantity. A row
-   * dated later does not appear here: it cannot make an earlier count any less
-   * known, and treating it as if it could threw away exact sums for every date
-   * before the gap.
-   *
-   * Returned rather than inferred from `units`' missing keys, which cannot tell
-   * "has rows but one is uncounted" from "has no rows at all". The difference is
-   * the whole message: a single un-counted `sell` on an otherwise backfilled
-   * asset drops it back to the stale link total, and without this the fetch
-   * reported that number — both stale and larger than the position — with
-   * nothing to say the ledger had stopped answering.
-   */
+  /** RETURNED, because `units`’ missing keys cannot tell "has rows but one is
+   *  uncounted" from "has no rows at all", and only the first means a stale total. */
   incomplete: string[];
 }
 
@@ -346,34 +195,9 @@ export function unitsByAsset(txs: Transaction[], asOf?: string): Record<string, 
 
 /** `unitsByAsset` plus the assets it declined to count — one walk, both answers. */
 export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
-  // COMPLETENESS FIRST, then the sum. An asset answers only when EVERY
-  // position-moving row it has carries a quantity — one missing count makes the
-  // total wrong, not merely smaller, and the caller cannot tell the difference.
-  //
-  // THIS IS THE WHOLE RULE, and getting it wrong reintroduces #31 larger than it
-  // was. The first cut keyed on "any row has a quantity", which looks equivalent
-  // and is not: the owner's backfill route is BY HAND (D112), so every linked
-  // asset spends days in the half-filled state. A REIT link of 6 164 units whose
-  // ledger has one re-recorded purchase of 1 000 would have reported 1 000 —
-  // an 84% understatement, five times the 16.7% the fix was opened for, and
-  // stamped `unitsFrom: 'ledger'` as if it were correct by construction.
-  //
-  // COMPLETENESS IS A PROPERTY OF THE LEDGER UP TO THE DATE ASKED ABOUT, and
-  // the two sets it takes are bounded differently on purpose:
-  //
-  //   `moving`     THE WHOLE LEDGER. Bounding this one is what inverted time in
-  //                the first cut: an asset whose rows all start 2026-08-15 lost
-  //                its key entirely for 2026-08-10, fell back to the link's
-  //                6 164, and reported a PAST position as larger than the
-  //                present one. Judged over the whole ledger it keys with 0 —
-  //                true, it was not held — and zero is handled as no offer.
-  //   `incomplete` BOUNDED BY `asOf`. A row dated AFTER the date asked about
-  //                cannot make the count before it any less known: an asset
-  //                counted through June, whose July purchase was entered
-  //                without units, is answerable for May exactly. Judging it
-  //                over the whole ledger threw May's exact sum away and took
-  //                the stale link total instead — the same fallback, for a date
-  //                where nothing was actually missing.
+  // COMPLETENESS FIRST: "any row has a quantity" is not equivalent, because
+  // backfill is by hand. `moving` takes THE WHOLE LEDGER while `incomplete` is
+  // bounded by `asOf`; bounding `moving` reports a PAST position as the larger.
   const within = (tx: Transaction) => asOf === undefined || tx.date <= asOf;
   const incomplete = new Set<string>();
   const moving = new Set<string>();
@@ -383,22 +207,14 @@ export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
     if (within(tx) && tx.quantity === undefined) incomplete.add(tx.assetId);
   }
 
-  // `Object.create(null)`, NOT `{}`, because the sum loop below gates on
-  // `assetId in out` — and `in` walks the prototype chain, so `'toString' in {}`
-  // is true even though no key was ever set for it. An asset id of `toString`,
-  // `constructor` or `valueOf` (any non-empty string passes `assetRowSchema`)
-  // would then have `+=` run against an inherited function and produce a
-  // string-concatenated own property, which `positionValue` multiplies.
+  // `Object.create(null)`, NOT `{}`, because the sum loop gates on `assetId in
+  // out` and `in` walks the prototype chain. An asset id of `toString` or
+  // `valueOf` — any non-empty string passes `assetRowSchema` — would `+=` against
+  // an inherited function, which `positionValue` then multiplies.
   const out: Record<string, number> = Object.create(null) as Record<string, number>;
   for (const assetId of moving) {
     if (!incomplete.has(assetId)) out[assetId] = 0;
   }
-  // The incomplete set is RETURNED, not merely used. Without it a single
-  // un-counted `sell` on a fully backfilled asset dropped it back to the stale
-  // link total silently: `matchAssets` found a link, so the row never reached
-  // `uncounted` and the toast never fired — the fetch reported a number both
-  // stale and larger than the position, which is #31 again, after the work to
-  // fix it. The caller can now say WHICH assets stopped answering and why.
 
   for (const tx of txs) {
     if (!within(tx) || !(tx.assetId in out)) continue;
@@ -419,20 +235,8 @@ export function depositedTotal(txs: Transaction[]): number {
   return txs.filter((t) => t.type === 'deposit').reduce((a, t) => a + t.amount, 0);
 }
 
-/**
- * Σvalues + Σsold − Σinvested, cash EXCLUDED → +₴4,452.61 / +3.08% on seed
- * (`sold` is 0 there — nothing has ever been sold or redeemed).
- *
- * The `sold` term is not cosmetic. A closed position has no quote, so it leaves
- * `values` entirely, while its cost basis stays in `invested` — without the
- * proceeds the metric reads the whole position as a total loss. On the seed, a
- * redemption of …8976 (invested 15 390,00) would turn +₴4 452,61 into
- * −₴11 393,69: a sign inversion, on the day the user does the correct thing.
- *
- * This stays inside the capital-gain family (FORMULA-AUDIT / D13): sale and
- * redemption proceeds are returned capital, not income. Payouts belong to
- * `totalNetProfit` and are deliberately still absent here.
- */
+/** `sold` is not cosmetic: a closed position leaves `values` while its basis
+ *  stays in `invested`, so without the proceeds this reads as a total loss. */
 export function netResult(
   values: Record<string, number>,
   invested: Record<string, number>,
@@ -460,35 +264,22 @@ export function allocationDeltaPp(share: number, targetPct: number): number {
   return share - targetPct;
 }
 
-// Overweight sell: linear share of the (unchanged) total → REIT trim ₴9,095.
+// Overweight sell: linear share of the (unchanged) total.
 export function trimAmount(share: number, targetPct: number, total: number): number {
   return ((share - targetPct) / 100) * total;
 }
 
 /**
- * Buy with NEW money — the total grows with the purchase (D5#4):
- * x such that (value + x) / (total + x) = target → …8976 top-up ₴11,429.49.
- *
- * WEALTH-MANAGEMENT-ARCHITECTURE §3.1 (moving-target rebalance): this IS the
- * doc's RequiredTranche = (target×total − value) / (1 − target), which
- * accounts for the injection growing the denominator — the naive
- * `target×total − value` never mathematically reaches the target share.
- * Verified identical on the pinned fixture ₴11,429.49 (docs/reference/FORMULA-AUDIT.md §3).
- *
- * The doc's other branch — `if (TargetShare <= CurrentShare) RequiredTranche
- * = 0` — lives in the CALLERS, not here: this returns a negative tranche for
- * an at/over-target input, and allocation.rebalancePlan / overview.
- * mostUnderweightAsset only invoke it for under-target assets (the ±0.5pp
- * band routes over-target to trimAmount). Callers must keep that guard.
+ * Doc §3.1 RequiredTranche — the injection grows the denominator, so the naive
+ * `target×total − value` never reaches the share. CALLERS MUST GUARD: the doc’s
+ * `if (TargetShare <= CurrentShare) return 0` is not here, so an at-or-over
+ * target returns a NEGATIVE tranche.
  */
 export function topUpAmount(value: number, targetPct: number, total: number): number {
   const t = targetPct / 100;
   return (t * total - value) / (1 - t);
 }
 
-// Headline KPI composition (sidebar capital card): one derivation site so the
-// shell never re-implements the latestQuotes/investedByAsset/netResult chain
-// that Overview's KPI grid is built from.
 export function headlineKpis(
   snaps: Snapshot[],
   txs: Transaction[],
@@ -499,7 +290,7 @@ export function headlineKpis(
   };
 }
 
-// dividend_accrual → dividends; interest_payout → coupons (counted on accrual, §6.5).
+// Counted on ACCRUAL, not on receipt (doc §6.5).
 export function incomeReceived(txs: Transaction[]): {
   dividends: number;
   coupons: number;
@@ -514,28 +305,16 @@ export function incomeReceived(txs: Transaction[]): {
   return { dividends, coupons, total: dividends + coupons };
 }
 
-// ---------------------------------------------------------------------------
-// WEALTH-MANAGEMENT-ARCHITECTURE reconciliation (P1 feat/formula-parity).
-// The doc's §1/§2/§5 formula families, implemented additively next to the v1
-// capital-gain metrics (which stay untouched — they ARE the doc's CapitalGain
-// family, relabeled in P2). Full audit record: docs/reference/FORMULA-AUDIT.md.
-// All *Pct functions return FRACTIONS (0.053 = +5.3%), matching
-// yieldSinceStart; zero denominators return null (rendered "—"), never
-// NaN/Infinity.
-// ---------------------------------------------------------------------------
+// The architecture doc’s §1/§2/§5 families, beside the capital-gain metrics above
+// rather than replacing them. Every *Pct returns a FRACTION and a zero
+// denominator returns null, never NaN. docs/reference/FORMULA-AUDIT.md
 
 const sumWhere = (txs: Transaction[], types: readonly Transaction['type'][]) =>
   txs.reduce((s, t) => (types.includes(t.type) ? s + t.amount : s), 0);
 
 /**
- * Doc §2.1 InvestedOwn per asset — Σ 'buy' amounts ONLY.
- *
- * The doc filters `Type == "Buy" AND Source == "Own Funds"`; in this app
- * reinvestment is its own TxType ('reinvest', counted by reinvestedByAsset),
- * so every 'buy' row IS own-funded capital today. If a future dataset ever
- * records a buy funded from accrual sources, this filter gains the source
- * check (revisit trigger, see docs/reference/FORMULA-AUDIT.md).
- * Contrast investedByAsset (buys + reinvests) — the v1 capital-gain basis.
+ * Doc §2.1 InvestedOwn — the doc also filters `Source == "Own Funds"`, but
+ * reinvestment is its own TxType here, so every 'buy' is own-funded.
  */
 export function investedOwnByAsset(txs: Transaction[]): Record<string, number> {
   return sumByAsset(txs, ['buy']);
@@ -546,29 +325,16 @@ export function payoutsGrossByAsset(txs: Transaction[]): Record<string, number> 
   return sumByAsset(txs, PAYOUT_TYPES);
 }
 
-/** Doc §2.1 PayoutsGross, portfolio total. */
 export function payoutsGross(txs: Transaction[]): number {
   return sumWhere(txs, PAYOUT_TYPES);
 }
 
 /**
- * Doc §2.1 TaxesPaid per asset — Σ the withholding FIELD on each payout.
- *
- * It reads the payout's own asset because there is nowhere else to read one
- * from, which is the improvement: a `tax` row carried an assetId and not which
- * payout it taxed, so it could be filed against a different asset than the row
- * it settled and this map netted the wrong position.
- *
- * `isPayout` GATES IT, AND THE DDL IS NOT A SUBSTITUTE. A first draft leaned on
- * `transaction_tax_absent_ck` and `transaction_asset_present_ck` to argue no
- * withholding could reach this function on a row that carries no asset — but a
- * CHECK is not reachable from `core/`, which is the whole reason
- * `POSITION_MOVING` is mirrored here rather than cited. Ungated, a
- * `{ type: 'deposit', assetId: '', taxWithheld: 10 }` row — hand-edited into a
- * backup, or written by a door that forgets — counts in the portfolio total and
- * files itself under the EMPTY key, where no per-asset consumer reads it. That
- * is the exact failure the widened CHECK exists to prevent, arriving through the
- * one place the CHECK cannot see.
+ * Doc §2.1 TaxesPaid per asset. `isPayout` GATES IT AND THE DDL IS NOT A
+ * SUBSTITUTE: a CHECK is unreachable from `core/`, the same reason
+ * `POSITION_MOVING` is mirrored here. Ungated, a
+ * `{ type: 'deposit', assetId: '', taxWithheld: 10 }` row counts in the total
+ * and files under the EMPTY key, which nothing reads.
  */
 export function taxesPaidByAsset(txs: Transaction[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -595,7 +361,6 @@ export function payoutsNetByAsset(txs: Transaction[]): Record<string, number> {
   return out;
 }
 
-/** Doc §2.1 PayoutsNet, portfolio total (gross − taxes). */
 export function payoutsNet(txs: Transaction[]): number {
   return payoutsGross(txs) - taxesPaid(txs);
 }
@@ -605,25 +370,17 @@ export function soldAmountByAsset(txs: Transaction[]): Record<string, number> {
   return sumByAsset(txs, ['sell', 'redemption']);
 }
 
-/** Doc §2.1 SoldAmount, portfolio total — Σ sell + redemption. */
 export function soldAmount(txs: Transaction[]): number {
   return sumWhere(txs, ['sell', 'redemption']);
 }
 
-/**
- * Doc §2.1 CapitalGain = value − investedOwn − reinvested — the UNREALIZED
- * price move only. Negative right after a payout even when the position is
- * profitable overall (the doc's "illusion of loss": …6475 shows −₴116,88
- * here while totalNetProfit is +₴238,52).
- */
+/** Doc §2.1 CapitalGain — the UNREALIZED move only, so it reads negative right
+ *  after a payout. The doc’s illusion of loss. */
 export function capitalGain(value: number, investedOwn: number, reinvested: number): number {
   return value - investedOwn - reinvested;
 }
 
-/**
- * Doc §2.1 CapitalGainPercentage = capitalGain / (investedOwn + reinvested).
- * Fraction; null when nothing was ever injected (zero denominator).
- */
+/** Doc §2.1 CapitalGainPercentage = capitalGain / (investedOwn + reinvested). */
 export function capitalGainPct(
   value: number,
   investedOwn: number,
@@ -633,11 +390,7 @@ export function capitalGainPct(
   return base === 0 ? null : capitalGain(value, investedOwn, reinvested) / base;
 }
 
-/**
- * Doc §2.1 TotalNetProfit = value + payoutsNet + sold − investedOwn −
- * reinvested — realized cash (net of taxes) + unrealized value, the honest
- * both-families metric.
- */
+/** Doc §2.1 TotalNetProfit = value + payoutsNet + sold − investedOwn − reinvested. */
 export function totalNetProfit(
   value: number,
   payoutsNetAmount: number,
@@ -648,13 +401,8 @@ export function totalNetProfit(
   return value + payoutsNetAmount + sold - investedOwn - reinvested;
 }
 
-/**
- * Doc §2.1 TotalReturnPercentage = totalNetProfit / investedOwn — the
- * denominator is EXTERNAL capital only (investedOwn, NOT + reinvested):
- * reinvested cash is system-generated, and counting it would dilute the
- * return the user's own money earned (same rationale as §5's NetDeposits
- * denominator). Fraction; null when investedOwn is 0.
- */
+/** Doc §2.1 TotalReturnPercentage — EXTERNAL capital only, NOT + reinvested:
+ *  reinvested cash is system-generated and would dilute what the user earned. */
 export function totalReturnPct(
   value: number,
   payoutsNetAmount: number,
@@ -667,11 +415,7 @@ export function totalReturnPct(
     : totalNetProfit(value, payoutsNetAmount, sold, investedOwn, reinvested) / investedOwn;
 }
 
-/**
- * Doc §2.1 CashYieldPercentage = payoutsNet / (investedOwn + reinvested) —
- * realized cash generated per unit of injected capital. Fraction; null on
- * zero denominator.
- */
+/** Doc §2.1 CashYieldPercentage = payoutsNet / (investedOwn + reinvested). */
 export function cashYieldPct(
   payoutsNetAmount: number,
   investedOwn: number,
@@ -681,20 +425,9 @@ export function cashYieldPct(
   return base === 0 ? null : payoutsNetAmount / base;
 }
 
-// What one row contributes to the PORTFOLIO's flow series, or `null` when it
-// moves money inside the boundary and is already in `terminalValue`. Signs are
-// the investor's: a deposit goes in, so negative. Exhaustive for the reason the
-// two cash sums are — an `else` here gives an unclassified type the internal
-// treatment, the one that changes no figure and so is never noticed.
-//
-// `null` and not `undefined`, which the arms CAN produce: `t.amount` is typed
-// required, but the rows reaching here are read out of Dexie unvalidated, and a
-// withdrawal missing one would then be skipped as though it were internal
-// rather than reaching `xirr` and turning the whole figure into the «—» that
-// says so. `null` is out of reach of every write path the app has — the form
-// and both backup doors are zod `number().positive()`, `updateTransaction`
-// takes `amount?: number`, the seed is typed — so it is the one spelling of
-// "not a flow" that cannot also be a value.
+// `null` and NOT `undefined`, which the arms can also produce from an
+// unvalidated Dexie read of a row missing its amount — that must reach `xirr`
+// and become the «—» that says so, not be skipped as internal.
 function externalFlowAmount(t: Transaction): number | null {
   switch (t.type) {
     case 'deposit':
@@ -714,36 +447,9 @@ function externalFlowAmount(t: Transaction): number | null {
 }
 
 /**
- * The PORTFOLIO's money-weighted annualized rate (A25) — the annualized
- * counterpart of `globalRoi`, which measures the same thing without regard to
- * when the money arrived.
- *
- * THE BOUNDARY IS EXTERNAL CAPITAL, and that is the whole design. `deposit`
- * and `withdrawal` are the only rows that cross the portfolio's edge —
- * `netDeposits` below already draws the line there, citing doc §5.1. Buys,
- * sells, reinvests and payouts move money WITHIN the boundary: between
- * the cash pot and the assets, or between assets. Whatever they did is already
- * in `terminalValue`, so feeding them in as flows would count them twice.
- *
- * This is exactly what makes it different from the per-asset XIRR in
- * `screens/yield/yield.ts`, which is the mirror image: it takes the buys,
- * sells and payouts and SKIPS deposits and withdrawals, because at the asset's
- * boundary those are the internal ones. Neither is more correct; they answer
- * about different boundaries.
- *
- * Signs follow `CashFlow`'s convention, from the investor's side: a deposit is
- * money going in, so negative; a withdrawal comes back, so positive; the
- * terminal value is what is still there to come back, so positive.
- *
- * `terminalDate` is `latestSnapshotDate(snapshots)` and `terminalValue` is
- * `headlineTotal(snapshots)` — passed in rather than derived here so the
- * function stays a pure function of its arguments, the same shape
- * `assetCashFlows` uses. Null with no snapshots, and null through `xirr`'s own
- * guards when the flows are degenerate.
- *
- * NOT YET DISPLAYED ANYWHERE, deliberately: where this figure belongs on
- * screen is a design question and belongs to `PLAN-NOW.md` A26's brief (G7).
- * It is tested, not dead.
+ * THE BOUNDARY IS EXTERNAL CAPITAL: only `deposit` and `withdrawal` cross the
+ * portfolio’s edge, and everything else is already in `terminalValue`. The
+ * per-asset XIRR in `screens/yield/yield.ts` is the MIRROR IMAGE.
  */
 export function portfolioXirr(
   txs: Transaction[],
@@ -753,11 +459,6 @@ export function portfolioXirr(
   if (!terminalDate) return null;
   const flows: CashFlow[] = [];
   for (const t of txs) {
-    // ONLY THE TYPE MATTERS HERE, and it always did. This used to read that a
-    // deposit's assetId is noise the form attaches to every row it writes —
-    // true until D129, which stopped the form writing one: a deposit now
-    // carries `''`, the shape the seed always used. Reading the type rather
-    // than the id is what made this function survive that change unedited.
     const amount = externalFlowAmount(t);
     if (amount !== null) flows.push({ date: t.date, amount });
   }
@@ -767,10 +468,6 @@ export function portfolioXirr(
 
 /** Doc §5.1 NetDeposits = Σ deposits − Σ withdrawals (external capital only). */
 export function netDeposits(txs: Transaction[]): number {
-  // The second cash partition, and it answers for every type for the reason the
-  // first one does: an `if` chain ending in `return s` files a type nobody
-  // classified under "contributes no external capital", which is the denominator
-  // of `globalRoi`.
   return txs.reduce((s, t): number => {
     switch (t.type) {
       case 'deposit':
@@ -790,35 +487,16 @@ export function netDeposits(txs: Transaction[]): number {
   }, 0);
 }
 
-/**
- * Doc §5.1 GlobalROI = (totalCapital − netDeposits) / netDeposits — global
- * performance against EXTERNAL user deposits only. Adding reinvests to the
- * denominator is exactly the corruption §5 bans (the v1 headline +3.08%
- * divides by buys+reinvests — it stays as the capital-gain-family KPI,
- * relabeled in P2; this is the additive doc-compliant metric: +4.08% on
- * seed). Fraction; null when netDeposits ≤ 0 (nothing external to measure
- * against — a non-positive denominator would flip the sign into nonsense).
- */
+/** Doc §5.1 GlobalROI — EXTERNAL deposits only; reinvests in the denominator is
+ *  the corruption §5 bans. Null when netDeposits ≤ 0, which would flip the sign. */
 export function globalRoi(totalCapitalAmount: number, netDepositsAmount: number): number | null {
   return netDepositsAmount <= 0
     ? null
     : (totalCapitalAmount - netDepositsAmount) / netDepositsAmount;
 }
 
-/**
- * Net-of-tax variant of incomeReceived (doc §2's Tax Illusion: ignoring taxes
- * inflates gross ROI). EVERY FIGURE HERE IS NET, category included.
- *
- * That is a correction rather than a migration. This used to report dividends
- * and coupons GROSS with only `total` net, because a 'tax' row carried an
- * assetId and not which payout it taxed — so splitting it between the two
- * categories would have been guesswork. The withholding now sits ON the payout,
- * which knows its own category, so the split is exact and the guesswork is gone
- * along with the sentence that described it.
- *
- * The gross `incomeReceived` beside this is untouched: it backs the D5-pinned
- * ₴5,040.94 KPI and answers a different question.
- */
+/** Doc §2’s Tax Illusion. EVERY FIGURE HERE IS NET, category included; the
+ *  gross `incomeReceived` answers a different question. */
 export function incomeReceivedNet(txs: Transaction[]): {
   dividends: number;
   coupons: number;
@@ -839,38 +517,21 @@ export function incomeReceivedNet(txs: Transaction[]): {
 }
 
 /**
- * Ledger-derived free cash — PINNED v1 formulation (deliberate deviation
- * from doc §1.1, see docs/reference/FORMULA-AUDIT.md §1):
+ * Ledger-derived free cash — a DELIBERATE DEVIATION from doc §1.1
+ * (`docs/reference/FORMULA-AUDIT.md` §1), which also adds payouts and subtracts
+ * taxes and reinvestments. Payouts are EXTERNAL unless reinvested — the real
+ * Inzhur configuration sends dividends to a bank account — and a reinvest is
+ * funded by its paired same-date payout, so the pair nets to zero either way.
  *
- *   deposits − withdrawals − buys + sells + redemptions
- *
- * The doc's §1.1 also adds payouts and subtracts taxes/reinvestments. This
- * app EXCLUDES payout and reinvest rows because:
- * - payouts are EXTERNAL unless reinvested — the user's real Inzhur config
- *   sends dividends to a bank account, so a payout row does not credit
- *   broker cash (the seed validates only under this rule: deposits
- *   143 176,37 − buys 143 168,62 = 7,75 ✓; the doc's verbatim formula would
- *   give 3 661,31 ✗);
- * - reinvest rows are funded by their paired same-date payout, so the pair
- *   nets to zero broker-cash effect either way;
- * - a future `destination` field on payout rows will bring broker-credited
- *   payouts into this sum (revisit trigger #1);
- * - THE WITHHOLDING NEEDS NO CLAUSE HERE WHILE THE EXCLUSION STANDS, and will
- *   need exactly one when it goes: a payout's signed amount becomes
- *   `amount − coalesce(taxWithheld, 0)`, two columns of one row rather than an
- *   exclusion returning by another door. `docs/reference/FORMULA-AUDIT.md` §1
- *   dates that to the migration, and `src/lib/seed.test.ts` pins the figure it
- *   would move — 7,75, which becomes 3 661,31 the moment payouts join the sum;
- * - every 'buy' is own-funded today; if a buy funded by accrual sources
- *   ever exists in the data, the buy term needs a source filter (revisit
- *   trigger #2).
+ * TWO REVISIT TRIGGERS, each changing the formula rather than a value: a
+ * `destination` field on payout rows, where a payout’s signed amount then
+ * becomes `amount − coalesce(taxWithheld, 0)` rather than an exclusion returning
+ * by another door; and a buy funded from accrual sources, which gives the buy
+ * term a source filter. `src/lib/seed.test.ts` pins the figure.
  */
 export function freeCashFromLedger(txs: Transaction[]): number {
-  // Every type is named and the `default:` arm takes `never`, so a ninth one
-  // fails to compile at that arm: cash is the figure this partition exists to
-  // draw, and a type that slid past would be a zero nobody chose. The
-  // callback's `: number` states the contract; measured, it is not what raises
-  // the error — the `never` is, with or without it.
+  // The `default:` arm takes `never`, so a ninth type fails to COMPILE here — one
+  // that slid past would be a zero nobody chose.
   return txs.reduce((s, t): number => {
     switch (t.type) {
       case 'deposit':
@@ -892,12 +553,8 @@ export function freeCashFromLedger(txs: Transaction[]): number {
   }, 0);
 }
 
-/**
- * Reconciliation-check primitive (doc §1 SSOT, adapted): Snapshot.cash stays
- * the OBSERVED broker balance the user types; this returns stored − derived
- * so callers can warn when |drift| exceeds a tolerance — surfacing the
- * doc's "leaks" without making the ledger the system of record for cash.
- */
+/** Doc §1 SSOT, adapted: `Snapshot.cash` stays the OBSERVED broker balance, so
+ *  this returns stored − derived rather than making the ledger cash’s record. */
 export function ledgerCashDrift(storedCash: number, txs: Transaction[]): number {
   return storedCash - freeCashFromLedger(txs);
 }

@@ -1,14 +1,11 @@
-// zod schemas for the forms (README §3, NEXT-PHASE-PLAN P2). Inputs arrive as
-// strings from react-hook-form and are read under ONE LANGUAGE'S GRAMMAR (D87,
-// the three rules below) — whitespace groups in both languages, and the comma is
-// the one mark they disagree about.
-// Structured returns (D8): schemas emit no English — the component layer maps
-// issue paths to the pinned per-field messages.
+// zod schemas for the forms. Inputs arrive as strings and are read under ONE
+// LANGUAGE’S GRAMMAR — whitespace groups in both, and the comma is the one mark
+// they disagree about. Schemas emit no English; the component layer maps paths.
 import { z } from 'zod';
 
-// TYPE-ONLY, and it has to stay that way: `money.ts` imports values from here,
-// so a value import would close the cycle and this module's prebuilt records
-// would be read mid-initialization.
+// TYPE-ONLY, and it has to stay that way: `money.ts` imports VALUES from here, so
+// a value import would close the cycle and this module’s prebuilt records would be
+// read mid-initialization.
 import type { Lang } from './money';
 import { isPayout, movesPosition, targetsAsset } from './types';
 
@@ -19,7 +16,7 @@ import { isPayout, movesPosition, targetsAsset } from './types';
  * as a decimal point rejected the very text the English placeholder showed
  * (`10,000.00` → `10.000.00` → NaN).
  *
- * Three rules, and only the last has to know the language (D87):
+ * Three rules, and only the last knows the language (*Language, numbers, fonts*):
  *
  * 1. When BOTH marks appear, the last one is the decimal and the other is
  *    grouping. `1,234.56` and `1.234,56` both read as 1234.56 in either
@@ -42,21 +39,19 @@ import { isPayout, movesPosition, targetsAsset } from './types';
 const GROUPED_INTEGER = /^[+-]?\d{1,3}(,\d{3})+$/;
 
 /**
- * A currency token at either edge of the text — what a bank page or the app's
- * own prose pastes beside a number. Dropped BEFORE whitespace and before the
- * mark rules: `грн.` carries a dot that would otherwise be read as a decimal
- * mark (issue #1). A closed list on purpose — any other letter still makes the
- * value unreadable, so `12abc` is refused rather than read as 12. The `g` flag
- * is what reaches both edges; it also gives the regex a `lastIndex`, so use it
- * only through `replace()`, never `test()`.
+ * A currency token at either edge — what a bank page or the app’s own prose pastes
+ * beside a number. Dropped BEFORE whitespace and before the mark rules: `грн.`
+ * carries a dot that would otherwise be read as a decimal mark. A closed list on
+ * purpose, so `12abc` is refused rather than read as 12. The `g` flag reaches both
+ * edges and gives the regex a `lastIndex`, so use it only through `replace()`.
  */
 const CURRENCY_EDGE = /^\s*(?:₴|\$|грн\.?|uah|usd)\s*|\s*(?:₴|\$|грн\.?|uah|usd)\s*$/giu;
 
 /**
  * `groupsWithComma` picks the grammar, and it only ever settles one shape: three
- * digits after a lone comma. `0,125` is an eighth to a Ukrainian typist and 125
- * to an English one, and both are legal numbers — so the caller says whose text
- * this is rather than the parser guessing. Get it from `groupsWithCommaFor`.
+ * digits after a lone comma. `0,125` is an eighth to a Ukrainian typist and 125 to
+ * an English one, so the caller says whose text this is rather than the parser
+ * guessing. Get it from `groupsWithCommaFor`.
  */
 export function normalizeNumberInput(input: string, groupsWithComma: boolean): string {
   const stripped = input.replace(CURRENCY_EDGE, '');
@@ -77,25 +72,19 @@ export function normalizeNumberInput(input: string, groupsWithComma: boolean): s
   return bare.indexOf(',') === bare.lastIndexOf(',') ? bare.replace(',', '.') : bare;
 }
 /**
- * WHICH FAILURE A SCHEMA REFUSED: text with no reading here arrives as NaN and
- * is `invalid_type`; a number merely out of range is refused by its own bound.
- * Exported so the component maps what the schema said rather than re-deciding —
- * `fieldState.error.type` is a bare `string`, one typo from the wrong message.
+ * WHICH FAILURE A SCHEMA REFUSED: text with no reading is `invalid_type`, a number
+ * merely out of range is refused by its own bound. Exported so the component maps
+ * what the schema said — `error.type` is a bare `string`, one typo from the wrong
+ * message.
  */
 export const UNREADABLE = 'invalid_type';
 
-/**
- * WHAT A FIELD MAY HOLD AS A NUMBER: digits, one dot, an optional sign. Lives
- * here because both readers need it — this file's transform and `money.ts`'s
- * `storedNumber` — and two copies of it is how they came to disagree.
- */
+/** WHAT A FIELD MAY HOLD AS A NUMBER. Both readers need it — this file’s transform
+ *  and `money.ts`’s `storedNumber` — and two copies is how they came to disagree. */
 export const CANONICAL = /^[+-]?(\d+\.?\d*|\.\d+)$/;
 
-/**
- * THE ONE READER of a field's text: the number it means under this language, or
- * nothing. Bare `Number()` also reads `1.2E+09`, `0x10` and `0b101`, which no
- * field here can produce and none should record.
- */
+/** THE ONE READER of a field’s text: bare `Number()` also reads `1.2E+09`, `0x10`
+ *  and `0b101`, which no field here can produce and none should record. */
 export function readNumber(text: string, lang: Lang): number | undefined {
   return readUnder(text, groupsWithCommaFor(lang));
 }
@@ -105,96 +94,66 @@ function readUnder(text: string, groupsWithComma: boolean): number | undefined {
   return CANONICAL.test(normalized) ? Number(normalized) : undefined;
 }
 
-/**
- * Did this refusal mean «not a number here» rather than «out of range»? ONE RULE,
- * two carriers: react-hook-form flattens an issue into `error.type`, which is
- * compared to `UNREADABLE` directly; a raw `safeParse` keeps the array and asks
- * this. Both read the one constant, so the rule has one place to change.
- */
+/** ONE RULE, two carriers: react-hook-form flattens an issue into `error.type`,
+ *  a raw `safeParse` keeps the array. Both read the one constant. */
 export function couldNotRead(issues: readonly { code: string }[]): boolean {
   return issues.some((issue) => issue.code === UNREADABLE);
 }
 
 /**
- * THE ONE PLACE A LANGUAGE BECOMES A GRAMMAR (D87). Written out three times it
- * was three chances to write it once inverted, and the failure is silent — a
- * lone comma read the wrong way is a thousandfold, not an error.
+ * THE ONE PLACE A LANGUAGE BECOMES A GRAMMAR. Written out three times it was three
+ * chances to write it once inverted, and the failure is silent — a lone comma read
+ * the wrong way is a thousandfold, not an error.
  */
 export function groupsWithCommaFor(lang: Lang): boolean {
   return lang !== 'uk';
 }
 
-/** One prebuilt schema per language — the rule is still read from the one place. */
 function byLang<T>(build: (groupsWithComma: boolean) => T): Record<Lang, T> {
   return { uk: build(groupsWithCommaFor('uk')), en: build(groupsWithCommaFor('en')) };
 }
 
 /**
- * A positive number under one language's grammar.
- *
- * EXPORTED FOR THE FIELDS THAT LIVE OUTSIDE A FORM SCHEMA: `CouponDueCard`
- * validates its own amount and writes a `Transaction` with it, the quote drafts
- * are read by the screen rather than by a resolver, and Settings' ₴/$ rate is a
- * `useState` string. On a hard-wired grammar the coupon card and the transaction
- * panel recorded the identical «1,240» 1000x apart into one ledger.
- *
- * Prebuilt per language: these callers sit on the keystroke path — a quote row
- * per asset, the ₴/$ rate — where the const this replaced cost nothing.
+ * EXPORTED FOR THE FIELDS OUTSIDE A FORM SCHEMA — the coupon card and the quote
+ * drafts. On a hard-wired grammar the coupon card and the transaction panel
+ * recorded the identical «1,240» 1000x apart into one ledger.
  */
 export function amountInputSchema(lang: Lang) {
   return AMOUNT_INPUT[lang];
 }
 
-/**
- * The half every numeric field shares: a trimmed, non-empty string read under
- * one grammar. Split out so the schemas below DIFFER only in their range —
- * copied, the shared half was free to drift from the rule it is supposed to be.
- */
+/** The half every numeric field shares, split out so the schemas below DIFFER
+ *  only in their range — copied, it was free to drift. */
 function numberInput(groupsWithComma: boolean) {
   return (
     z
       .string()
       .trim()
       .min(1)
-      // NaN IS THE SIGNAL, and `readUnder` is what decides: a spreadsheet cell
-      // pasted into an amount used to record `1.2E+09` as 1.2 billion, because
-      // bare `Number()` read it while the field showing it would not.
+      // NaN IS THE SIGNAL: a spreadsheet cell pasted into an amount used to record
+      // `1.2E+09` as 1.2 billion, because bare `Number()` read it while the field
+      // showing it would not.
       .transform((s) => readUnder(s, groupsWithComma) ?? NaN)
   );
 }
 
 function positiveNumberInput(groupsWithComma: boolean) {
-  // `.finite()` is a no-op under zod 4 — `z.number()` already refuses NaN and
-  // ±Infinity — and is left alone here rather than swept out on an unrelated branch.
   return numberInput(groupsWithComma).pipe(z.number().finite().positive());
 }
 
-// Same normalization, but 0 is a valid target share (README targets 40/40/17/3
-// admit any 0–100 split). Shared by the AssetForm Target field and the
-// Settings targets editor (screens/allocation/targets.ts) so both accept the
-// exact same grammar.
 /**
- * A 0–100 share — THE one definition of that grammar, in both spellings.
- *
- * TWO ENTRY POINTS AND ONE BODY, because the two callers hold different halves
- * of the same fact: `assetFormObjectFor` already has the boolean, and
- * `/allocation`'s target editor has the language. An earlier cut gave them a
- * factory each and left the chain written out twice in this file — which is the
- * duplication `numberInput` exists to prevent, arriving in the very change that
- * was fixing it.
- *
- * WHY IT TOOK THE LANGUAGE AT ALL: the asset form regained its `lang` and this
- * editor did not, so under Ukrainian `17,500` was 17.5 in one door and 17500 —
- * refused by the cap — in the other, on one stored field whose own comment
- * promised the two editors "can never disagree".
+ * A 0–100 share — THE one definition. TWO ENTRY POINTS AND ONE BODY, because the
+ * callers hold different halves of the same fact. It takes the language because
+ * without it «17,500» was 17.5 at one door and 17500 at the other, on one stored
+ * field the two editors must never disagree about.
  */
 function percentInputSchemaWith(groupsWithComma: boolean) {
   return numberInput(groupsWithComma).pipe(z.number().finite().min(0).max(100));
 }
 
-// BELOW BOTH FACTORIES, not above them: these run at module load, so placing
-// them earlier would work only by function hoisting and would break the moment
-// either factory became a `const` arrow — at import, for every screen.
+// BELOW BOTH FACTORIES, not above them: these run at module load, so placing them
+// earlier would work only by function hoisting and would break the moment either
+// factory became a `const` arrow — at import, for every screen.
 const AMOUNT_INPUT = byLang(positiveNumberInput);
 const PERCENT_INPUT = byLang(percentInputSchemaWith);
 
@@ -211,24 +170,14 @@ const optionalDate = z
   .transform((s) => (s === '' ? undefined : s))
   .pipe(isoDateInput.optional());
 
-// A percentage that may be left blank, bounded (0, 100]. The upper bound is the
-// right one for a coupon rate — the widest measured across the provider's 32 live
-// bonds is 18.50 % (`docs/reference/OVDP-COUPON-STRUCTURE.md`).
-//
-// DELIBERATELY NOT `percentInputSchemaFor(lang).optional()`, which is where a reader will
-// reach first, because it is `[0, 100]` and admits 0: a 0 % TARGET share is a
-// real answer, a 0 % coupon is not a coupon. `couponPerPayment` gates on
-// `rate > 0`, so a stored 0 does not read as a smaller rate — it reads as ABSENT
-// and falls silently back to the legacy `couponAmount`, with no screen able to
-// say which figure it is showing. Refuse it at the door; `core/backup/json.ts`
-// and `asset_coupon_rate_pct_ck` refuse it at the other two.
+// Bounded (0, 100] — DELIBERATELY NOT `percentInputSchemaFor(lang).optional()`,
+// which admits 0: a 0 % TARGET share is a real answer, a 0 % coupon is not a
+// coupon. `couponPerPayment` gates on `rate > 0`, so a stored 0 reads as ABSENT
+// and falls back to the legacy amount with no screen able to say which it shows.
 function optionalPercentFor(groupsWithComma: boolean) {
-  // COMPOSED from `numberInput`, not a second copy of it, and following
-  // `optionalDate`'s shape: empty → `undefined` first, then the shared parse
-  // half, then this schema's own range. `numberInput`'s doc gives the reason —
-  // "copied, the shared half was free to drift from the rule it is supposed to
-  // be" — and this field is the one pinned against `core/backup/json.ts` AND
-  // `asset_coupon_rate_pct_ck`, so a drift here disagrees with two other doors.
+  // COMPOSED from `numberInput`, not a second copy of it: this field is pinned
+  // against `core/backup/json.ts` AND `asset_coupon_rate_pct_ck`, so a drift here
+  // disagrees with two other doors.
   return z
     .string()
     .trim()
@@ -236,31 +185,21 @@ function optionalPercentFor(groupsWithComma: boolean) {
     .pipe(numberInput(groupsWithComma).pipe(z.number().finite().positive().max(100)).optional());
 }
 
-// The AssetForm (NEXT-PHASE-PLAN P2 feat/asset-form, brief S3) — every
-// editable Asset field. The Inzhur group is present only while the
-// "Link to Inzhur" toggle is on (the component sets `inzhur: undefined`
-// when off, mirroring the TransactionPanel newAsset-clearing rule).
-// `units` LEFT this group on 2026-08-31 (D117) — units are `Σ quantity` over the
-// ledger now (D112), and the form no longer asks. What the link still holds is
-// where to look the instrument up.
-//
-// WHY THE SCHEMA STILL TAKES A GRAMMAR now that `units` is gone: it reaches the
-// PERCENT fields. `targetPct` and `couponRatePct` are bounded at 100, so a
-// misread «10,500» is merely REFUSED; `expectedPct` is `positiveNumberInput`
-// with no `max`, so a Ukrainian «16,400» read under the English rule stores
-// 16400 and drives `dailyAccrual`'s fallback, `couponProjection`'s estimate and
-// `/yield` with it. The unbounded field is the one nothing downstream can catch.
-
 const inzhurGroupSchema = z.object({
   kind: z.enum(['fund', 'bond']),
   ref: z.string().trim().min(1), // fund slug / bond ISIN — manual text this phase, live picker in P3
 });
 
+// WHY THIS SCHEMA TAKES A GRAMMAR: it reaches the PERCENT fields. `targetPct` and
+// `couponRatePct` are bounded at 100, so a misread «10,500» is merely REFUSED;
+// `expectedPct` has no `max`, so a Ukrainian «16,400» read under the English rule
+// stores 16400 and drives `dailyAccrual` and `/yield` with it. The unbounded
+// field is the one nothing downstream can catch.
 function assetFormObjectFor(groupsWithComma: boolean) {
   return z.object({
     name: z.string().trim().min(1),
-    // 1–2 letters, shown in the avatar circle — auto-derived from the name
-    // while untouched, editable (uppercased on parse).
+    // 1–2 letters for the avatar circle — auto-derived from the name while
+    // untouched, editable, uppercased on parse.
     code: z
       .string()
       .trim()
@@ -269,25 +208,19 @@ function assetFormObjectFor(groupsWithComma: boolean) {
     yieldType: z.enum(['fixed_coupon', 'dividends', 'capitalization', 'div_cap']),
     expectedPct: positiveNumberInput(groupsWithComma),
     targetPct: percentInputSchemaWith(groupsWithComma),
-    // All 5 domain schedules here; the mode refinement below rejects the
-    // seed-only 'none' on create (edit of a 'none' asset may keep it — S3).
     payoutSchedule: z.enum(['maturity', 'monthly', 'quarterly', 'semiannual', 'none']),
     firstPurchase: isoDateInput,
-    // Fixed-coupon group (revealed when yieldType = fixed_coupon) — each field
-    // stays optional (the Asset type allows their absence; Attributes shows —).
     maturity: optionalDate,
-    // THE RATE, not the amount (D119). A bond's coupon rate is fixed at issuance;
-    // the ₴ it pays scales with the holding, so the amount is derived
-    // (`couponPerPayment`) rather than asked for. `couponAmount` is legacy and the
-    // form no longer writes it — see `Asset`.
+    // THE RATE, not the amount: a bond’s rate is fixed at issuance while the ₴ it
+    // pays scales with the holding, so the amount is derived rather than asked for.
     couponRatePct: optionalPercentFor(groupsWithComma),
     nextCoupon: optionalDate,
     inzhur: inzhurGroupSchema.optional(),
   });
 }
 
-// Create never offers 'none' (README schedules); edit mode of an asset
-// already holding the seed-only 'none' may keep it — brief S3.
+// Create never offers 'none'; edit of an asset already holding the seed-only
+// 'none' may keep it.
 export function assetFormSchema(mode: 'create' | 'edit', lang: Lang) {
   return assetFormObjectFor(groupsWithCommaFor(lang)).superRefine((v, ctx) => {
     if (mode === 'create' && v.payoutSchedule === 'none') {
@@ -296,32 +229,22 @@ export function assetFormSchema(mode: 'create' | 'edit', lang: Lang) {
   });
 }
 
-// FROM THE SCHEMA THE RESOLVER RUNS, for the reason its transaction twin below
-// spells out: an alias on the bare object keeps compiling while the two diverge.
-// `assetFormSchema` carries only a `superRefine` today, so the shapes coincide —
-// which is exactly the state the transaction pair was in until D129 gave it a
-// `.transform`, and the pair that was NOT derived this way is the one that would
-// have gone wrong quietly. Both twins take the treatment, or the comment would
-// have to explain why one is exempt.
+// FROM THE SCHEMA THE RESOLVER RUNS, not the bare object it is built on: an alias
+// on the bare object keeps compiling while the two diverge. Both twins take the
+// treatment, or this would have to explain why one is exempt.
 export type AssetFormInput = z.input<ReturnType<typeof assetFormSchema>>;
 export type AssetFormValues = z.output<ReturnType<typeof assetFormSchema>>;
 
 /**
- * A FACTORY over the language, like `assetFormSchema` is over the mode — and for
- * the same kind of reason: the shape is fixed, one rule inside it is not.
- *
- * The numeric fields all take it. `amount` in per-unit mode and `quantity` are
- * the values a Ukrainian typist writes with three decimals and a comma, which
- * is the one shape `normalizeNumberInput` cannot disambiguate on its own — and
- * a row this form writes goes straight into the ledger.
+ * A FACTORY over the language. `amount` in per-unit mode and `quantity` are what a
+ * Ukrainian typist writes with three decimals and a comma — the one shape
+ * `normalizeNumberInput` cannot disambiguate — and this row goes straight to the
+ * ledger.
  */
 function transactionObjectFor(lang: Lang) {
   const groupsWithComma = groupsWithCommaFor(lang);
   return z.object({
     date: z.string().min(1),
-    // Full TxType incl. 'withdrawal'/'redemption' — the domain accepts them
-    // even though the TransactionPanel select only offers them from P2
-    // feat/metrics-exposure.
     type: z.enum([
       'buy',
       'sell',
@@ -332,58 +255,33 @@ function transactionObjectFor(lang: Lang) {
       'reinvest',
       'redemption',
     ]),
-    // 'new' = quick-create; the panel validates its separate AssetForm instance
-    // (assetFormSchema above) before recording and swaps in the built asset id.
-    //
-    // NO `.min(1)` HERE, because whether an id is required depends on the type
-    // and this object cannot see one — the rule is in the refinement below.
+    // NO `.min(1)` HERE, because whether an id is required depends on the type and
+    // this object cannot see one — the rule is in the refinement below.
     assetId: z.string(),
     amount: positiveNumberInput(groupsWithComma),
     source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
-    // ISSUE #31 — units at the point of entry. Optional, and it has to stay
-    // optional: a payout moves no position, and a `buy` recorded before this
-    // field existed has no count that could be recovered.
-    //
-    // ABSENT and '' both mean "no units". The panel always sends a string, but a
-    // schema that could not parse a transaction without these two fields would
-    // make every other constructor say `priceMode: 'total', quantity: ''` to mean
-    // nothing at all — so the minimal transaction stays valid.
+    // Optional, and it has to stay optional: a payout moves no position, and a `buy`
+    // recorded before this field existed has no count that could be recovered. ABSENT
+    // and '' both mean "no units", so the minimal transaction stays valid.
     quantity: z
       .string()
       .optional()
       .transform((s) => (s === undefined || s.trim() === '' ? undefined : s.trim()))
       .pipe(positiveNumberInput(groupsWithComma).optional()),
-    // WHAT THE AMOUNT FIELD MEANS, not a second amount. `total` is the ₴ the
-    // transaction moved (what the field has always held, and what `amount`
-    // stores either way); `unit` is ₴ per unit, from which the panel computes the
-    // total. It lives in the schema rather than in component state so the
-    // refinement below can see it — in `unit` mode a quantity is not optional,
-    // because without one there is no total to record.
+    // WHAT THE AMOUNT FIELD MEANS, not a second amount. It lives in the schema rather
+    // than in component state so the refinement below can see it — in `unit` mode a
+    // quantity is not optional, because without one there is no total to record.
     priceMode: z.enum(['total', 'unit']).default('total'),
-    // THE WITHHOLDING TAKES `quantity`'s IDIOM EXACTLY, down to treating an
-    // absent field and a blank one as one state. `positiveNumberInput` already
-    // gives the `> 0` half of W7's trio and the `UNREADABLE` code with it; the
-    // other two rules need the type and the amount, so they are in the
-    // refinement below.
+    // TAKES `quantity`’s IDIOM EXACTLY, down to treating an absent field and a blank
+    // one as one state. The other two rules need the type and the amount.
     taxWithheld: z
       .string()
       .optional()
       .transform((s) => (s === undefined || s.trim() === '' ? undefined : s.trim()))
       .pipe(positiveNumberInput(groupsWithComma).optional()),
-    // THE FIRST STRING-LENGTH FIELD IN THIS FILE, and `.max(100)` is written
-    // inline rather than minted as a helper: one caller, one bound, and a
-    // helper for it would be a name holding a number.
-    //
-    // The trim is what makes "blank means absent" true — `transaction_note_ck`
-    // spells none as NULL and nothing else, so a note of spaces must not reach
-    // the store as `''`. The backup envelope REFUSES an empty string instead of
-    // normalizing one, because by that door a blank note is a hand-edited file
-    // rather than a field somebody left alone.
-    // `[...s].length` RATHER THAN `.max(100)`, because the two count different
-    // things: `String.length` counts UTF-16 units and `transaction_note_ck`
-    // counts characters, so a hundred emoji measure 200 here and 100 there. The
-    // spread iterates code points, which is what the store counts — so the word
-    // "characters" is true of all three doors rather than of two.
+    // The trim is what makes "blank means absent" true. `[...s].length` RATHER THAN
+    // `.max(100)`: `String.length` counts UTF-16 units while the CHECK counts
+    // characters, so a hundred emoji measure 200 here and 100 there.
     note: z
       .string()
       .optional()
@@ -400,93 +298,46 @@ function transactionObjectFor(lang: Lang) {
 export function transactionSchema(lang: Lang) {
   return transactionObjectFor(lang)
     .superRefine((v, ctx) => {
-      // BOTH WAYS NOW (D124, owner's ruling). A row that moves no position must
-      // not carry units, and a row that DOES move one must carry them.
-      //
-      // The converse used to be deliberately unenforced, on the ground that every
-      // row recorded before #31 lacks a count and demanding one would make an old
-      // habit unenterable. That reasoning protected the wrong thing: it is about
-      // rows already STORED, and this schema only ever sees a row being typed now.
-      // Meanwhile D119 made every coupon figure `rate × units`, so a buy recorded
-      // in the default `total` mode with the quantity left blank produced a bond
-      // whose coupon reads «—» on `/attributes`, drops out of `/seasonality`'s
-      // coupon season, falls back to an `expectedPct` estimate on `/overview` and
-      // prefills nothing in the due card — with nothing anywhere saying why.
-      //
-      // This subsumes the old `priceMode === 'unit'` check: the panel forces
-      // `total` on any type that takes no units, so `unit` implies a moving row.
-      //
-      // THE OTHER DOORS ENFORCE IT TOO, and that is a later ruling than this
-      // block's first draft. D125 put the same rule on the JSON importer and on
-      // `transaction_quantity_required_ck`; D126 removed the backup half and D127
-      // — the owner's — put it back. `Transaction.quantity` stays optional in the
-      // TYPE, because a row that moves no position has none to state.
-      //
-      // What made all three safe is D128: no door can produce a count-less moving
-      // row any more, so there is no legacy population for them to lock out. This
-      // comment used to say storage was deliberately left permissive; that was
-      // true of the branch that wrote it and is not true of the merge.
+      // BOTH WAYS: a row that moves no position must not carry units, and one that DOES
+      // must. The converse was unenforced because old rows lack a count — but that is
+      // about rows already STORED, and this schema only sees a row being typed now.
+      // A buy with the quantity blank produces a bond whose coupon reads «—».
       if (movesPosition(v.type) && v.quantity === undefined) {
         ctx.addIssue({ code: 'custom', path: ['quantity'] });
       }
       if (v.quantity !== undefined && !movesPosition(v.type)) {
         ctx.addIssue({ code: 'custom', path: ['quantity'] });
       }
-      // THE WITHHOLDING REFUSES RATHER THAN NORMALIZING, which is `quantity`'s
-      // precedent above and NOT `assetId`'s below. The difference is stated
-      // there: an asset is normalized because its control is a Radix `Select`,
-      // which cannot be held empty — a value written into one in the same commit
-      // that mounts it is echoed away again. A number input can be held empty,
-      // and `TransactionPanel` clears this field on a type change exactly as it
-      // already clears the units, so the refusal never fires at a control nobody
-      // can see.
+      // THE WITHHOLDING REFUSES RATHER THAN NORMALIZING, which is `quantity`’s precedent
+      // and NOT `assetId`’s below: a number input CAN be held empty, where a Radix
+      // `Select` cannot, so the refusal never fires at a control nobody can see.
       if (v.taxWithheld !== undefined && !isPayout(v.type)) {
         ctx.addIssue({ code: 'custom', path: ['taxWithheld'], params: { rule: 'type' } });
       }
-      // STRICTLY below, mirroring `transaction_tax_bound_ck`: a withholding that
-      // is the whole payout leaves nothing received.
-      //
-      // `amount` IS THE TOTAL HERE whatever the price mode says, and that is a
-      // fact rather than an assumption: `isPayout` implies `!movesPosition`, and
-      // the panel forces `total` on a type that moves no position — the same
-      // effect that clears the units.
+      // STRICTLY below: a withholding that is the whole payout leaves nothing received.
+      // `amount` IS THE TOTAL here whatever the price mode says — `isPayout` implies
+      // `!movesPosition`, and the panel forces `total` on such a type.
       if (v.taxWithheld !== undefined && v.taxWithheld >= v.amount) {
         ctx.addIssue({ code: 'custom', path: ['taxWithheld'], params: { rule: 'bound' } });
       }
 
-      // THE ASSET, ONLY WHERE THERE IS ONE (D129). This field used to carry a
-      // bare `.min(1)`, which asked one question of all nine types and made the
-      // form the only door that could not write the portfolio-level shape every
-      // other part of the app already reads. So a deposit had to borrow whichever
-      // asset the select happened to be showing — `derive.ts` calls that id noise
-      // and steps around it — and with no assets yet it could not be recorded at
-      // all, which is the first transaction anyone makes.
+      // THE ASSET, ONLY WHERE THERE IS ONE. A bare `.min(1)` asked one question of every
+      // type and made the form the only door that could not write the portfolio-level
+      // shape the rest of the app reads.
       if (targetsAsset(v.type) && v.assetId === '') {
         ctx.addIssue({ code: 'custom', path: ['assetId'] });
       }
     })
     .transform((v) =>
-      // THE CONVERSE NORMALIZES RATHER THAN REFUSING, and that is the difference
-      // between this field and the quantity above it. A refusal has to be shown,
-      // and the panel HIDES this control on exactly these types — so the message
-      // would land on something nobody can see. It also cannot be obeyed: the
-      // control is a Radix `Select`, and a value written into one in the same
-      // commit that mounts it is echoed away again (`TransactionPanel`'s own
-      // note), so "leave it empty" is not a state the UI can be held in.
-      //
-      // Blanking here needs no timing to be right and no cooperation from the
-      // panel: whatever the hidden picker still holds, a row that crosses the
-      // portfolio's edge is stored the way the seed writes one.
+      // THE CONVERSE NORMALIZES RATHER THAN REFUSING: a refusal has to be SHOWN, and the
+      // panel hides this control on exactly these types. Nor could it be obeyed — a
+      // Radix `Select` echoes away a value written in the commit that mounts it.
       targetsAsset(v.type) ? v : { ...v, assetId: '' },
     );
 }
 
-// BOTH SIDES COME FROM THE SCHEMA THE RESOLVER RUNS, not from the bare object it
-// is built on. D129 gave `transactionSchema` a `.transform`, and an alias
-// pointing at the bare object keeps compiling while the two diverge, because
-// the transform happens to return the same shape today. The argument is
-// symmetric — a `z.preprocess` on the input side would part `TransactionFormInput`
-// from what `zodResolver` actually accepts, with `useForm` none the wiser — so
-// the input takes the same treatment rather than a comment explaining why not.
+// BOTH SIDES FROM THE SCHEMA THE RESOLVER RUNS, for the reason its asset twin
+// gives. The argument is symmetric — a `z.preprocess` would part the input type
+// from what `zodResolver` accepts, with `useForm` none the wiser.
 export type TransactionFormInput = z.input<ReturnType<typeof transactionSchema>>;
 export type TransactionFormValues = z.output<ReturnType<typeof transactionSchema>>;

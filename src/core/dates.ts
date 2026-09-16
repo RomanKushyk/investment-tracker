@@ -1,10 +1,8 @@
-// Pure date math (ISO yyyy-MM-dd strings in, ISO strings/numbers out).
-// English date labels ("10 Aug", "10th", month names) live in
-// components/ui/date-labels.ts — core returns tokens only (G1).
+// Pure date math, ISO `yyyy-MM-dd` in and out. English date labels live in
+// `components/ui/date-labels.ts` — core returns tokens only.
 import type { Snapshot } from './types';
 
-// Local-time today (daily quotes are local-day based) — the single source,
-// was triplicated in Overview/DailyQuotes/TransactionPanel.
+// Local-time today: daily quotes are local-day based.
 export function todayIso(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -19,7 +17,6 @@ export function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((to - from) / 86_400_000);
 }
 
-// Max snapshot date across the store — the "now" basis for annualized/weeks-held copy.
 export function latestSnapshotDate(snapshots: Snapshot[]): string | undefined {
   return snapshots.reduce<string | undefined>(
     (max, s) => (!max || s.date > max ? s.date : max),
@@ -28,33 +25,25 @@ export function latestSnapshotDate(snapshots: Snapshot[]): string | undefined {
 }
 
 /**
- * The day before an ISO date — the only date arithmetic a WINDOW needs beyond
- * `addMonths` (A39).
- *
- * A window's opening position is what was held the day BEFORE it opens, not on
+ * A window’s opening position is what was held the day BEFORE it opens, not on
  * its first day: `transactionsIn` includes both ends, so a purchase dated on
- * `from` belongs to the window's flows, and valuing the position on `from`
- * would count it twice. It also makes the full-history window reduce exactly —
- * the day before the portfolio's first transaction has no snapshots, so the
- * opening value is 0 and every column collapses to its unwindowed form.
- *
- * UTC throughout, like `addMonths`, so it never crosses a DST boundary.
+ * `from` belongs to the window’s flows and valuing the position on `from` would
+ * count it twice. It also makes the full-history window reduce exactly.
  */
 export function dayBefore(iso: string): string {
   return addDays(iso, -1);
 }
 
-/** `iso` shifted by `n` days. Pinned to UTC midnight so the shift is plain
- *  integer day arithmetic: no local DST switch can move it, and month and year
- *  rollover belong to the Date implementation rather than to this file. */
+/** Pinned to UTC midnight, so the shift is plain integer day arithmetic and no
+ *  local DST switch can move it. */
 export function addDays(iso: string, n: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
-// Same day-of-month N months later (Next payouts' estimated dividend date),
-// clamped to the target month's last day: 2026-08-31 +6m -> 2027-02-28 (G1).
+// Same day-of-month N months later, CLAMPED to the target month’s last day —
+// which is why it is not invertible. See `accrual.ts`’ coupon grid.
 export function addMonths(iso: string, months: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const lastDay = new Date(Date.UTC(y, m + months, 0)).getUTCDate();
@@ -65,12 +54,11 @@ export function addMonths(iso: string, months: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-// --- Europe/Kyiv (G1's "Kyiv-time helper") ---------------------------------
-// The Inzhur feed lives on Kyiv time (D19): its paymentSchedule stamps
-// midnight-Kyiv instants and its prices refresh ~13:00 Kyiv. Both helpers read
-// the zone offset from Intl at the instant in question — the +2/+3 DST offset
-// is never hardcoded, so they hold on both sides of a switch and on the
-// switch day itself.
+// --- Europe/Kyiv -----------------------------------------------------------
+// The Inzhur feed lives on Kyiv time: its `paymentSchedule` stamps midnight-Kyiv
+// instants and its prices refresh early afternoon Kyiv. Both helpers read the
+// offset from Intl AT THE INSTANT IN QUESTION — the +2/+3 DST offset is never
+// hardcoded, so they hold on both sides of a switch and on the switch day itself.
 const KYIV_PARTS = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Europe/Kyiv',
   hourCycle: 'h23',
@@ -106,41 +94,35 @@ function kyivPartsOf(instant: Date): KyivParts {
   };
 }
 
-// Kyiv's UTC offset (ms) at a given instant, read from Intl.
 function kyivOffsetMs(instant: Date): number {
   const p = kyivPartsOf(instant);
   const wallAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
   return wallAsUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
-// Epoch ms of a Kyiv wall-clock hour. Two passes: guess with the offset at the
-// guessed instant, then correct with the offset that actually applies there —
-// the two differ only across a DST switch, which is exactly the case a
-// hardcoded offset gets wrong.
+// Two passes: guess with the offset at the guessed instant, then correct with the
+// one that actually applies there. They differ only across a DST switch.
 function kyivHourMs(year: number, month: number, day: number, hour: number): number {
   const wall = Date.UTC(year, month - 1, day, hour);
   const guess = wall - kyivOffsetMs(new Date(wall));
   return wall - kyivOffsetMs(new Date(guess));
 }
 
-// An instant's Kyiv calendar date — '2027-03-23T22:00:00Z' -> '2027-03-24'
-// (the feed's schedule dates are midnight Kyiv, so a naive UTC slice would be
-// a day early and would contradict the bond's own maturityDate).
+// An instant’s Kyiv calendar date — a naive UTC slice lands a day early and
+// contradicts the bond’s own `maturityDate`.
 export function kyivDateIso(instant: Date): string {
   const p = kyivPartsOf(instant);
   return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 }
 
-// An instant's Kyiv wall-clock time as 'HH:MM' — the S1/S2 "fetched 13:05"
-// microcopy. The feed's prices are stamped on Kyiv's clock (D19), so the time
-// the app shows beside them is Kyiv's too, whatever the viewer's zone is.
+// The feed’s prices are stamped on Kyiv’s clock, so the time shown beside them is
+// Kyiv’s too, whatever the viewer’s zone.
 export function kyivTimeHm(instant: Date): string {
   const p = kyivPartsOf(instant);
   return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
 }
 
-// Milliseconds from `now` until the next `hour`:00 in Kyiv (strictly future) —
-// the Inzhur query's staleTime: quotes stay fresh until the feed refreshes.
+// The Inzhur query’s staleTime: quotes stay fresh until the feed refreshes.
 export function msUntilNextKyivHour(now: Date, hour: number): number {
   const p = kyivPartsOf(now);
   const today = kyivHourMs(p.year, p.month, p.day, hour);

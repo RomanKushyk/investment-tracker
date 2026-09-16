@@ -1,22 +1,19 @@
-// Number/date formatting per README §8. Pure, unit-tested.
-// (v1 lib/format.ts + screens/shared/format.ts, merged in next-phase Phase 1.)
-
-// The one module this file imports from, and it is the PARSER: `input()` below
-// guarantees its output survives a round trip, and the only way to make that
-// guarantee is to run the parser on the result. `CANONICAL` comes from there
-// too, so the field and the schema hold one shape between them. `schemas.ts`
-// imports only a type from here, so at runtime the direction is one-way.
+// Number and date formatting. Pure, and `lang` is a PARAMETER rather than a
+// module global because core may not read state — and because the language control
+// swaps text instantly with no reload, so a module-level current-language would
+// leave stale figures on screen until something else re-rendered them.
+//
+// The import from `schemas.ts` is the PARSER, and must stay type-only in the other
+// direction so the runtime dependency is one-way: `input()` guarantees its output
+// survives a round trip, and the only way to make that guarantee is to run the
+// parser on the result.
 import { CANONICAL, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
 const SYMBOL = { UAH: '₴', USD: '$' } as const;
 type Currency = keyof typeof SYMBOL;
 
-// THE one signing helper — every signed display string in the app goes through
-// it, so the sign glyph is pinned in exactly one place: U+2212 minus, never
-// ASCII '-'. The design reference's mock copy prints ASCII hyphens, but v1
-// shipped the U+2212 convention and typography agrees — pinned in
-// docs/DECISIONS.md D8. Language-independent, which is why it survived
-// Contract 0 as a bare export rather than moving onto the bound object.
+// THE one signing helper — every signed display string goes through it, so the
+// sign glyph is pinned in exactly one place: U+2212 minus, never ASCII '-'.
 export function signed(n: number, body: string): string {
   return (n < 0 ? '−' : '+') + body;
 }
@@ -25,12 +22,8 @@ export function toUsd(uah: number, rate: number): number {
   return uah / rate;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
- * CONTRACT 0 — formatting follows the language (Phase 5 brief, A10)
- *
- * The old exports below split by CONTEXT: prose was English-shaped
- * (₴68,629.36) and tables Ukrainian-shaped (68 702,10). The owner ruling
- * rejects that mixture — each language owns ONE set, applied everywhere:
+/* ════════════════════════════════════════════════════════════════════════════
+ * FORMATTING FOLLOWS THE LANGUAGE. Each language owns ONE set, applied everywhere:
  *
  *            Ukrainian (default)   English
  *   number   68 702,10             68,702.10
@@ -40,31 +33,22 @@ export function toUsd(uah: number, rate: number): number {
  *   date     12.08.2026            12 Aug 2026
  *   short    12.08                 12 Aug
  *
- * The simplification worth noticing: once the convention follows the language,
- * `prose` and `table` stop being different FORMATS. What still separates them
- * is only whether a currency symbol is shown — a table is headed "Amount, ₴"
- * and repeats no symbol. So this API has `num` and `money`, not four variants.
+ * `prose` and `table` are therefore NOT different formats; what separates them is
+ * only whether a currency symbol is shown, so this API has `num` and `money`
+ * rather than four variants.
  *
  * Three details are decisions, not lookups:
- *  · Ukrainian thousands are U+00A0, never a plain space, or a figure wraps
- *    across lines mid-number. The same NBSP separates a value from its trailing
- *    symbol and from `%`, for the same reason.
+ *  · Ukrainian thousands are U+00A0, never a plain space, or a figure wraps across
+ *    lines mid-number. The same NBSP separates a value from a trailing symbol.
  *  · Ukrainian puts a space before `%` (ДСТУ); English does not.
- *  · English dates are `12 Aug 2026`, never slashed — a slashed form is
- *    ambiguous between British and American reading.
- *
- * PURE, and `lang` is a parameter rather than a module global because `core`
- * may not read state (G1) — and because the language control swaps text
- * INSTANTLY with no reload (brief Surface 2), so every formatted figure has to
- * re-render when it changes. A module-level current-language would leave stale
- * figures on screen until something else happened to re-render them.
+ *  · English dates are `12 Aug 2026`, never slashed — a slashed form is ambiguous
+ *    between British and American reading.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 export type Lang = 'uk' | 'en';
 
 const NBSP = ' ';
 
-/** Month abbreviations for the English date form. Ukrainian never needs them. */
 const EN_MONTHS = [
   'Jan',
   'Feb',
@@ -102,10 +86,9 @@ const nbsp = (s: string) => s.replace(/\s/g, NBSP);
 
 /**
  * The two marks a language parts a number with, taken from the formatter rather
- * than written out again. `formatToParts` TAGS them, and the sample is seven
- * digits wide so a locale whose `minimumGroupingDigits` is 2 still emits a
- * grouping part — read off `1000.5`, such a locale would hand back no mark at
- * all and grouping would quietly become a no-op.
+ * than written out again. The sample is seven digits wide so a locale whose
+ * `minimumGroupingDigits` is 2 still emits a grouping part — read off a shorter
+ * number, such a locale hands back no mark and grouping becomes a no-op.
  */
 const MARKS: Record<Lang, { group: string; decimal: string }> = {
   uk: marksOf('uk'),
@@ -118,27 +101,23 @@ function marksOf(lang: Lang): { group: string; decimal: string } {
   return { group: nbsp(of('group')), decimal: of('decimal') };
 }
 
-/** No exponent, ever: `String(1e-9)` is `1e-9` and `(1e21).toFixed(2)` is `1e+21`,
- * neither of which a field can show or read back. */
+/** No exponent, ever: `String(1e-9)` and `(1e21).toFixed(2)` are forms a field
+ *  can neither show nor read back. */
 const PLAIN = new Intl.NumberFormat('en-US', { maximumFractionDigits: 20, useGrouping: false });
 
 /**
- * The number a field is HOLDING, or `undefined` when it is holding text it could
- * not read. Language-free on purpose: what a field stores is canonical, so its
- * validity cannot depend on which language is on screen — validating it under
- * the live one makes the argument inert on every readable value and wrong on the
- * rest, which is how a box and its store come to disagree.
+ * LANGUAGE-FREE on purpose: what a field stores is canonical, so its validity
+ * cannot depend on which language is on screen — validating under the live one is
+ * how a box and its store come to disagree.
  */
 export function storedNumber(value: string): number | undefined {
   if (!CANONICAL.test(value)) return undefined;
   const held = Number(value);
-  // FINITE, which the schema this replaced enforced and a digit run long enough
-  // to overflow does not: `Infinity` is positive, so it would pass a caller's
-  // own range check, and `persist` writes it out as `null`.
+  // FINITE, which a digit run long enough to overflow is not: `Infinity` is
+  // positive, so it passes a caller’s range check, and `persist` writes it as `null`.
   return Number.isFinite(held) ? held : undefined;
 }
 
-/** A number as a field stores it — the form `valueFromInput` would produce. */
 export function inputValue(n: number, fractionDigits?: number): string {
   // A field shows nothing rather than the word NaN, which it could not read back.
   if (!Number.isFinite(n)) return '';
@@ -151,19 +130,14 @@ export function inputValue(n: number, fractionDigits?: number): string {
 }
 
 /**
- * WHAT A NUMERIC FIELD STORES — one language-free spelling, so a stored value
- * does not change meaning when the language does.
+ * WHAT A NUMERIC FIELD STORES — one language-free spelling, so a stored value does
+ * not change meaning when the language does.
  *
- * THE EDIT IS WHAT IS JUDGED, not the whole box. Only the text that ARRIVED can
- * be read by the grammar: the rest is either this field's own grouping, or —
- * when the stored value is not canonical — text the grammar has already refused
- * and must go on refusing, or a paste is unrefusable after one keystroke.
- *
- * And only an arriving mark can be told apart at all. `1239,456` (a digit typed
- * into `123,456`) and `1234,567` (a European 1234.567) are the same string, so a
- * comma from a KEY is this field's grouping — English has no other use for one
- * (D87) — and one that arrived any other way is read, which is what keeps the
- * European form refused.
+ * THE EDIT IS WHAT IS JUDGED, not the whole box, and only an arriving mark can be
+ * told apart at all: `1239,456` and `1234,567` are the same string, so A COMMA
+ * FROM A KEY IS THIS FIELD’S GROUPING — English has no other use for one — and one
+ * that arrived any other way is READ, which is what keeps the European form
+ * refused.
  */
 export function valueFromInput(typed: string, stored: string, lang: Lang, pasted: boolean): string {
   const { group } = MARKS[lang];
@@ -172,7 +146,7 @@ export function valueFromInput(typed: string, stored: string, lang: Lang, pasted
   const drop = (text: string) => text.split(group).join('');
   // ONE CHARACTER IS THE ONLY THING A KEY CAN BE. Anything longer arrived from
   // somewhere — a paste, an autofill, an IME commit — and is read by the grammar
-  // whatever the caller believed, because a whole number's marks are its own.
+  // whatever the caller believed, because a whole number’s marks are its own.
   const keyed = !pasted && edit.arrived.length <= 1;
   const cleaned =
     (ours ? drop(edit.kept) : edit.kept) +
@@ -203,17 +177,15 @@ function splitEdit(shown: string, typed: string): { kept: string; arrived: strin
 }
 
 /**
- * WHAT THAT FIELD SHOWS — the stored value grouped in this language's own mark,
- * the fraction left alone (this app never groups one). A leading zero is a value
- * mid-typing rather than a figure, so `0007` is left as it is; anything that is
- * not a stored number is shown as it is, because the field cannot format what it
- * could not read.
+ * A leading zero is a value mid-typing rather than a figure, so `0007` is left as
+ * it is; anything not a stored number is shown as it is, because the field cannot
+ * format what it could not read.
  */
 export function groupedForInput(stored: string, lang: Lang): string {
   if (!CANONICAL.test(stored)) return stored;
   const { group, decimal } = MARKS[lang];
-  // No mark to part the halves with would run them together — `1 2345` for
-  // 1234.5, digits the field was never given. Show the stored form instead.
+  // No mark to part the halves would run them together — digits the field was never
+  // given. Show the stored form instead.
   if (decimal === '') return stored;
   const [whole, fraction] = stored.split('.');
   const digits = whole.replace(/^[+-]/, '');
@@ -225,54 +197,37 @@ export function groupedForInput(stored: string, lang: Lang): string {
 }
 
 export interface Format {
-  /** 68 702,10 / 68,702.10 — the number alone, two decimals. */
   num(n: number): string;
-  /** 149 016 / 149,016 — no decimals. */
   numWhole(n: number): string;
-  /** 6 164 / 15,5 — unit counts: no forced decimals, no rounding of what exists. */
+  /** Unit counts: no forced decimals, no rounding of what exists. */
   units(n: number): string;
   /**
-   * The value as it should appear INSIDE AN EDITABLE FIELD — the language's
-   * decimal mark, nothing forced, nothing rounded, and **guaranteed to parse
-   * back to the same number** through `normalizeNumberInput`.
-   *
-   * VERIFIED UNDER THIS FORMATTER'S OWN LANGUAGE, and that is the whole of what
-   * makes it safe — checked against the other grammar, a Ukrainian «6,164» reads
-   * as 6164 and the guarantee certifies a 1000x. So give the field that parses
-   * it the same `language` this was bound to; no signature can enforce that.
-   * The dot form is the last resort, a Contract 0 violation accepted only where
-   * the alternative is a wrong number.
+   * The value as it appears INSIDE AN EDITABLE FIELD, **guaranteed to parse back
+   * to the same number** — but VERIFIED UNDER THIS FORMATTER’S OWN LANGUAGE, and
+   * that is the whole of what makes it safe: checked against the other grammar, a
+   * Ukrainian «6,164» reads as 6164 and the guarantee certifies a 1000x. Give the
+   * field that parses it the same language this was bound to; no signature can
+   * enforce that.
    */
   input(n: number): string;
-  /** 68 629,36 ₴ / ₴68,629.36 — symbol placed by language. */
   money(n: number, currency?: Currency): string;
-  /** 149 016 ₴ / ₴149,016. */
   moneyWhole(n: number, currency?: Currency): string;
-  /** +3,08 % / +3.08% — takes a FRACTION, always signed. */
+  /** Takes a FRACTION, always signed. */
   pct(n: number, fractionDigits?: number): string;
-  /**
-   * 46,1 % / 46.1% — takes a value ALREADY IN PERCENT, never signed.
-   * Separate from `pct` because these two differ in both respects, and the
-   * sites that need this one (a share of a portfolio, a YTM, an implied yield)
-   * were written by hand precisely because `pct` would have forced a `+` onto
-   * a quantity that has no direction.
-   */
+  /** Takes a value ALREADY IN PERCENT, never signed — separate from `pct` because
+   *  these differ in both respects, and `pct` would force a `+` onto a quantity
+   *  that has no direction. */
   pctPlain(n: number, fractionDigits?: number): string;
-  /** +6,1 / −6.4 — a signed percentage-point gap, unit suffix per call site. */
+  /** A signed percentage-point gap, unit suffix per call site. */
   pp(n: number, suffix?: string): string;
-  /** 12.08.2026 / 12 Aug 2026. */
   date(iso: string): string;
-  /** 12.08 / 12 Aug. */
   dateShort(iso: string): string;
-  /** 25.07, 21:14 / 25 Jul, 21:14. */
   savedAt(iso: string): string;
-  /** +4 452,61 ₴ / +₴4,452.61. */
   signedMoney(n: number, currency?: Currency): string;
-  /** +2 902,10 / +2,902.10 — signed, no symbol (table columns). */
   signedNum(n: number): string;
 }
 
-/** Binds every formatter to one language. Call it once per render, not per value. */
+/** Binds every formatter to one language. Call once per render, not per value. */
 export function makeFormat(lang: Lang): Format {
   const f = NUM[lang];
   const uk = lang === 'uk';
@@ -302,18 +257,14 @@ export function makeFormat(lang: Lang): Format {
     },
     money: (n, currency = 'UAH') => withSymbol(num(n), currency),
     moneyWhole: (n, currency = 'UAH') => withSymbol(nbsp(f.whole.format(n)), currency),
-    // The percent sign is glued with NBSP in Ukrainian so a figure never wraps
-    // away from its unit; English has no space to protect.
-    // `toFixed` then a decimal swap, NOT Intl: a percentage is never grouped
-    // (there is no `1 234,56 %` in this app), so the only locale difference is
-    // the decimal mark, and toFixed is exact about digit count where a
-    // formatter's rounding options are one more thing to keep in step.
+    // `toFixed` then a decimal swap, NOT Intl: a percentage is never grouped here, so
+    // the only locale difference is the decimal mark, and `toFixed` is exact about
+    // digit count where a formatter’s rounding options are one more thing to keep in
+    // step.
     pct: (n, fractionDigits = 2) => signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
     pctPlain: (n, fractionDigits = 1) => pctBody(n, fractionDigits, uk),
-    // A raw suffix would bypass the language rule, and did: Overview passes
-    // '%' and rendered "−6,4%" beside a "17 %" produced by pctPlain, one space
-    // apart in the same sentence. The percent sign is therefore spaced here
-    // like everywhere else; any other suffix (' pp') is appended as given.
+    // A raw suffix would bypass the language rule, and did: one screen passed '%' and
+    // rendered "−6,4%" beside a "17 %" one space away in the same sentence.
     pp: (n, suffix = '') =>
       signed(n, decimal(Math.abs(n).toFixed(1), uk) + (suffix === '%' && uk ? `${NBSP}%` : suffix)),
     date,

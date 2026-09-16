@@ -1,8 +1,5 @@
-// Chart paint colors as CSS var() strings — resolved by the --color-chart-*
-// aliases in src/index.css @theme (SVG fill/stroke presentation attributes
-// resolve var() in all engines), so charts re-theme with the tokens instead
-// of mirroring hex. No chart computes with a color value in JS, so no hex
-// constants remain here.
+// Chart paint as CSS var() strings, not hex: SVG fill/stroke presentation
+// attributes resolve var(), so charts re-theme with the tokens.
 import type { ColorKey } from './types';
 
 export const SERIES: Record<ColorKey, { main: string; tint: string; tintText: string }> = {
@@ -28,15 +25,12 @@ export const SERIES: Record<ColorKey, { main: string; tint: string; tintText: st
   },
 };
 
-// New assets cycle through the palette: COLOR_KEYS[existingAssetCount % 4]
+// New assets cycle: COLOR_KEYS[existingAssetCount % COLOR_KEYS.length]
 export const COLOR_KEYS: ColorKey[] = ['reit', 'energy', 'ovdp8976', 'ovdp6475'];
 
 export const CHART = {
-  // Gain and loss belong to DELTAS (*Interaction rules*), and total capital
-  // over time has no direction to report, so the capital line reads the accent
-  // instead. The same rule gives the accent the chart CURSOR, which is still
-  // `hairline` below: one object serves four charts, so #112 carries it.
-  // `neg` has no consumer and did not gain one here.
+  // Gain and loss belong to DELTAS (*Interaction rules*), and total capital over
+  // time has no direction to report, so the capital line reads the accent instead.
   accent: 'var(--color-chart-accent)',
   accentTint: 'var(--color-chart-accent-tint)',
   neg: 'var(--color-chart-neg)',
@@ -46,31 +40,11 @@ export const CHART = {
   ink: 'var(--color-chart-ink)',
 };
 
-// One tooltip surface for every chart. It lived as four byte-identical inline
-// objects, which is four places to forget when the value moves.
-// NOT a pure extraction: the radius goes 12 -> 16, because a tooltip is a
-// floating surface and 16 is the surface value (D56), the same as the
-// DatePicker popover. The Select popover is deliberately NOT the comparison —
-// it ships 14, since its items hug its corners and make it the concentric
-// case; a tooltip holds text, so nothing pulls it off the surface value.
-// The surface, border and text are declared rather than left to recharts,
+// One tooltip surface for every chart, declared rather than left to recharts,
 // which paints its own #ffffff and would leave a white slab over a dark chart.
-// `panel`, NOT `card`, and that is the reference's own choice (Phase 5 S4): in
-// dark `panel` is the highest plane, so the tooltip lifts off the card it
-// covers instead of merging with it. In light it is a recess instead, which is
-// the asymmetry the palette carries on purpose.
-// These are the plain palette tokens, not the `chart-*` aliases: the tooltip is
-// HTML, and only SVG props need the aliases. There is deliberately no
-// `chart-panel`.
-// This DOES move the light theme, off recharts' own white and onto `panel`,
-// and that is deliberate rather than overlooked: the app never specified a
-// tooltip background at all, so the white was a library default and not a
-// designed value. Adopting the token in both themes puts the tooltip inside the
-// app's surface vocabulary instead of adding a theme-conditional colour.
-// This tooltip carries no shadow in EITHER theme and renders inside a `bg-card`
-// Card at all four of its consumers, so its stroke was always the whole
-// boundary and `panel-border` was never enough of one. #98 moved it to the
-// palette's control-boundary rank; `floating-edges.test.ts` holds the ratios.
+// `panel`, not `card`: in dark it is the highest plane, so the tooltip lifts off
+// the card it covers. Plain palette tokens — the tooltip is HTML, and only SVG
+// props need the `chart-*` aliases.
 export const CHART_TOOLTIP = {
   borderRadius: 16,
   background: 'var(--color-panel)',
@@ -80,11 +54,8 @@ export const CHART_TOOLTIP = {
 };
 
 // The hover indicator recharts draws BEHIND the tooltip. Left alone it is a
-// hard-coded rgba(204,204,204,.5), which is a pale wash over a dark chart —
-// the one piece of chart paint the token sweep could not reach, because it
-// lives in the library's defaults rather than in any prop we set.
-// `hairline` is the same one-step separation it has in light, in both themes.
-// Two shapes, because recharts fills the cursor on a categorical chart and
+// hard-coded rgba wash, the one piece of chart paint the token sweep could not
+// reach. Two shapes: recharts fills the cursor on a categorical chart and
 // strokes it on a continuous one.
 export const CHART_CURSOR_FILL = { fill: CHART.hairline };
 export const CHART_CURSOR_LINE = { stroke: CHART.hairline, strokeWidth: 1 };

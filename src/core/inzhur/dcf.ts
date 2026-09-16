@@ -1,38 +1,19 @@
-// The bond pricing model, PURE — no fetch, no clock, no storage (G1).
+// The bond pricing model, PURE — no fetch, no clock, no storage.
 //
-// The provider's bond price is NOT a market quote. It is a discounted cash flow
-// over the published `paymentSchedule` whose only free parameter is the
-// published yield:
+// The provider’s bond price is NOT a market quote but a discounted cash flow over
+// the published `paymentSchedule`, on an ACT/365 day count, whose only free
+// parameter is the published yield:
 //
 //     P(D) = Σ CFᵢ × (1 + y) ^ (−ACT_days(D, dᵢ) / 365)
 //
-// Verified independently against the live feed on 2026-08-12 for UA4000238976
-// (y = 15.55%, quoted 1063.97):
-//
-//   | valuation date | derived   | residual |
-//   |---|---|---|
-//   | 2026-08-10 | 1063.1303 | −0.8397 |
-//   | 2026-08-11 | 1063.5513 | −0.4187 |
-//   | 2026-08-12 | 1063.9726 | **+0.0026** |
-//
-// Two things follow, and they are the whole reason this file exists:
-//
-//   * **The inverse dates a quote.** A day costs ~0.42 ₴ here, so the residual
-//     identifies the valuation date sharply. A price alone can never tell you
-//     it is stale; this can.
-//   * **A silent yield revision becomes visible.** If the provider re-prices
-//     without the schedule changing, the stored price stops fitting the stored
-//     yield — and nothing else in the payload says so.
-//
-// NOTHING HERE IS EVER STORED. The premises (schedule, yield) are captured
-// forever; the conclusion never is. A stale provider value is recorded as the
-// observed fact, and substituting a computed value into it is rejected
-// outright — see the data-model spec and D31.
+// THE INVERSE DATES A QUOTE, which a price alone can never do, and A SILENT YIELD
+// REVISION BECOMES VISIBLE: a re-price with no schedule change leaves the stored
+// price no longer fitting the stored yield. NOTHING HERE IS EVER STORED — the
+// premises are captured forever, the conclusion never is.
 import type { InzhurPayment } from './parse';
 
-/** A cash flow must be strictly in the future to be discounted. Same-day flows
- *  are excluded: the provider's own price behaves that way, and it is what the
- *  0.0026 ₴ fit above depends on. */
+/** STRICTLY in the future: same-day flows are excluded because the provider’s own
+ *  price behaves that way, and the fit depends on it. */
 function futureFlows(schedule: readonly InzhurPayment[], onIso: string): InzhurPayment[] {
   return schedule.filter((p) => p.date > onIso);
 }
@@ -44,19 +25,16 @@ function actDays(fromIso: string, toIso: string): number {
 export type DerivedPrice =
   | { kind: 'priced'; price: number }
   /**
-   * The model is UNDEFINED here, not wrong. A `completed` bond's schedule lies
-   * entirely in the past, so the sum is legitimately zero — reporting that as a
-   * price of 0 would manufacture an anomaly out of a matured instrument. Seven
-   * of the feed's 31 bonds were in this state on 2026-08-11 (D31).
+   * The model is UNDEFINED here, not wrong: a completed bond’s schedule lies
+   * entirely in the past, so the sum is legitimately zero, and reporting that as a
+   * price of 0 would manufacture an anomaly out of a matured instrument.
    */
   | { kind: 'not_applicable'; reason: 'no_future_flows' };
 
 /**
- * Present value of the remaining schedule at `onIso`.
- *
- * `yieldPct` is the published annual rate as a PERCENT (15.55), matching
- * `returnRates.sell` verbatim — converting at the call site is how a factor of
- * 100 goes missing.
+ * Present value of the remaining schedule at `onIso`. `yieldPct` is the published
+ * annual rate as a PERCENT, matching `returnRates.sell` verbatim — converting at
+ * the call site is how a factor of 100 goes missing.
  */
 export function derivePrice(
   schedule: readonly InzhurPayment[],
@@ -74,25 +52,20 @@ export function derivePrice(
 export type ImpliedYield =
   | { kind: 'solved'; yieldPct: number }
   | { kind: 'not_applicable'; reason: 'no_future_flows' }
-  /** The quote lies outside any yield the model can produce — itself a finding,
-   *  and not the same as "the yield moved a little". */
+  /** The quote lies outside any yield the model can produce — itself a finding, and
+   *  not the same as "the yield moved a little". */
   | { kind: 'unbracketed' };
 
-/** Bounds for the bisection, in percent. Wide enough that a real revision is
- *  never clipped, finite so an impossible quote reports `unbracketed` instead
- *  of iterating forever. */
+/** Finite, so an impossible quote reports `unbracketed` instead of iterating. */
 const YIELD_MIN_PCT = -99;
 const YIELD_MAX_PCT = 1000;
 const BISECTION_STEPS = 200;
 
 /**
- * The yield that reproduces `price` from the schedule at `onIso`.
- *
- * Bisection rather than Newton: present value is strictly DECREASING in the
- * yield for a schedule of positive cash flows, so a bracket is guaranteed to
- * converge and there is no derivative to get wrong. 200 halvings take the
- * bracket far below floating-point resolution, so the loop is bounded by
- * construction rather than by a tolerance that could stall.
+ * BISECTION RATHER THAN NEWTON: present value is strictly DECREASING in the yield
+ * for positive cash flows, so a bracket converges and there is no derivative to
+ * get wrong. The halvings take it below floating-point resolution, so the loop is
+ * bounded by construction rather than by a tolerance that could stall.
  */
 export function impliedYield(
   price: number,
@@ -108,7 +81,7 @@ export function impliedYield(
   };
   let lo = YIELD_MIN_PCT;
   let hi = YIELD_MAX_PCT;
-  // Decreasing in yield: price(lo) is the highest reachable, price(hi) lowest.
+  // Decreasing in yield: price(lo) is the highest reachable, price(hi) the lowest.
   if (price > at(lo) || price < at(hi)) return { kind: 'unbracketed' };
   for (let i = 0; i < BISECTION_STEPS; i += 1) {
     const mid = (lo + hi) / 2;
@@ -119,31 +92,19 @@ export function impliedYield(
 }
 
 export interface ValuationDateFit {
-  /** The date whose derived price best explains the quote. */
   date: string;
-  /** `derived − quoted` at that date, in ₴. */
   residual: number;
-  /** Whole days between `date` and the date the quote was read on. 0 = fresh. */
   daysStale: number;
-  /**
-   * The fit landed on the OLDEST date searched, so the true date may be older
-   * still and the residual is a lower bound rather than an answer. A caller
-   * that reports a date without checking this will state a stale-by-N figure
-   * that is really "at least N".
-   */
+  /** The fit landed on the OLDEST date searched, so the true date may be older
+   *  still: a caller that reports a date without checking this states a
+   *  stale-by-N figure that is really "at least N". */
   atWindowEdge: boolean;
 }
 
 /**
- * Search backwards for the valuation date that best explains `quoted`.
- *
- * This is the staleness diagnostic, and it is the one thing a price alone can
- * never provide: on 2026-08-11 it dated seven live bonds to 1–6 days stale.
- *
- * EXPECT residuals around 0.1 ₴ on some bonds even at their best date. The
- * published yield is rounded to two decimals, so the model cannot do better
- * than that rounding — it is a caveat on the residual, never on the date, which
- * stays sharp because a day moves the price by an order of magnitude more.
+ * EXPECT a residual even at the best date, since the published yield is rounded —
+ * a caveat on the residual, not on the date. The noise floor below is what keeps
+ * THAT honest: rounding outweighs a day of carry and would drag the argmin back.
  */
 export function bestValuationDate(
   quoted: number,
@@ -153,13 +114,12 @@ export function bestValuationDate(
   lookbackDays = 14,
 ): ValuationDateFit | undefined {
   // A bond with nothing left to pay is MATURED, and that is the answer. Walking
-  // backwards from here would find the days before its final flow, price those
-  // almost exactly, and report a completed bond as "4 days stale" for a
-  // fortnight after maturity — a fact about the calendar dressed as a fault.
+  // backwards would price the days before its final flow almost exactly and report
+  // a completed bond as stale — a fact about the calendar dressed as a fault.
   if (derivePrice(schedule, yieldPct, onIso).kind !== 'priced') return undefined;
 
-  // The noise floor at the read date. Any date inside it is equally consistent
-  // with the quote, so "which one" is not something the residual can answer.
+  // The noise floor at the read date: any date inside it is equally consistent with
+  // the quote, so "which one" is not something the residual can answer.
   const floor = Math.max(PRICE_TOLERANCE_UAH, yieldSensitivityUah(schedule, yieldPct, onIso) ?? 0);
 
   let best: ValuationDateFit | undefined;
@@ -172,50 +132,29 @@ export function bestValuationDate(
     const residual = derived.price - quoted;
     const fit = { date, residual, daysStale: back, atWindowEdge: back === lookbackDays };
 
-    // PREFER THE MOST RECENT EXPLANATION, not the smallest residual.
-    //
-    // The published yield is rounded to ~0.05pp, which on a long bond is worth
-    // more than two days of carry — so the plain argmin is dragged backwards by
-    // rounding alone, and only backwards, because the search never looks
-    // forward. That manufactured staleness out of fresh quotes. Once a date
-    // explains the quote within the floor, an older date explaining it slightly
-    // "better" is noise, and "not stale" is the claim that needs no evidence.
+    // PREFER THE MOST RECENT EXPLANATION, not the smallest residual: yield rounding
+    // outweighs a day of carry on a long bond, so the plain argmin is dragged
+    // BACKWARDS by rounding alone, manufacturing staleness out of fresh quotes.
     if (Math.abs(residual) <= floor) return fit;
     if (best === undefined || Math.abs(residual) < Math.abs(best.residual)) best = fit;
   }
   return best;
 }
 
-/** A kopeck. Below this the model and the quote agree as far as the feed's own
- *  two-decimal rounding allows. */
 export const PRICE_TOLERANCE_UAH = 0.01;
 
 /**
- * The rounding slack in a published yield, in percentage points.
- *
- * The feed publishes rates like `14.6` and `15` — one decimal, sometimes none —
- * so the true rate can sit ±0.05pp from what is printed.
+ * The rounding slack in a published yield, in percentage points — the feed
+ * publishes one decimal and sometimes none, so the true rate can sit ±0.05pp from
+ * what is printed.
  */
 export const YIELD_ROUNDING_PCT = 0.05;
 
 /**
- * How much a `YIELD_ROUNDING_PCT` change moves this bond's price, in ₴.
- *
- * This is the noise floor for the revision check, and it is NOT a constant.
- * Measured across the live feed on 2026-08-12 it spans two orders of magnitude,
- * tracking time to maturity exactly:
- *
- *   | ISIN | matures | ΔP per 0.05pp |
- *   |---|---|---|
- *   | UA4000235378 | 2026-08-19 (7 days) | **0.0090 ₴** |
- *   | UA4000236624 | 2026-10-14 | 0.0795 ₴ |
- *   | UA4000238976 | 2027-03-24 | 0.2658 ₴ |
- *   | UA4000235782 | 2028-11-29 | **0.8842 ₴** |
- *
- * A fixed residual threshold would therefore be wrong at both ends: it would
- * cry "revision" over pure rounding on a long bond, and it would claim the
- * yield is confirmed on a bond about to mature, where the price cannot resolve
- * the yield at all.
+ * The noise floor for the revision check, and NOT a constant — it tracks time to
+ * maturity across two orders of magnitude. A fixed threshold is wrong at both
+ * ends: crying "revision" over rounding on a long bond, and claiming the yield
+ * confirmed on one about to mature, where price cannot resolve yield at all.
  */
 export function yieldSensitivityUah(
   schedule: readonly InzhurPayment[],
@@ -229,29 +168,20 @@ export function yieldSensitivityUah(
 }
 
 export type QuoteVerdict =
-  /** The quote fits the published yield, on the date it is dated to. */
   | { state: 'consistent'; fit: ValuationDateFit }
-  /** It fits, but on an EARLIER date — the quote has not been refreshed. */
   | { state: 'stale'; fit: ValuationDateFit }
   /**
-   * NO DATE in the search window explains the quote at the published yield.
-   *
-   * `impliedPct` is what the yield would have to be for the quote to be right
-   * TODAY — an alternative reading, not a claim. The other reading is a quote
-   * staler than the window, and one price cannot choose between them (see the
-   * note on `checkQuote`). The rendering must therefore offer the number
-   * without asserting that the provider re-priced.
+   * NO DATE in the window explains the quote at the published yield. `impliedPct`
+   * is what the yield would have to be for the quote to be right TODAY — an
+   * alternative reading, not a claim: the other is a quote staler than the window,
+   * and one price cannot choose between them.
    */
   | { state: 'revised'; fit: ValuationDateFit; impliedPct: number; publishedPct: number }
   /**
-   * No verdict is available, and the reason decides how loud it should be:
-   *
-   *   * `insensitive` — near maturity the price barely moves with the yield, so
-   *     the residual cannot decide anything. Benign.
-   *   * `unexplained` — the quote lies outside EVERY yield the model can
-   *     produce. That is the loudest thing this model can say: a schedule the
-   *     parser mangled, or a corrupt provider price. It must never share a
-   *     rendering with the benign case.
+   * `insensitive` — near maturity the price barely moves with the yield, so the
+   * residual cannot decide anything. Benign. `unexplained` — the quote lies
+   * outside EVERY yield the model can produce, which is the loudest thing this
+   * model can say: a mangled schedule or a corrupt price. Never one rendering.
    */
   | {
       state: 'inconclusive';
@@ -259,29 +189,13 @@ export type QuoteVerdict =
       reason: 'insensitive' | 'unexplained';
       sensitivityUah: number;
     }
-  /** Matured or completed: the schedule is spent and the model is undefined. */
   | { state: 'not_applicable' };
 
 /**
- * The whole diagnostic for one bond quote: is it fresh, stale, or re-priced?
- *
- * ONE PRICE CANNOT SEPARATE DATE FROM YIELD, and pretending otherwise is the
- * trap this function is shaped around. Measured on UA4000238976: a day back is
- * worth −0.42 ₴, and +0.08pp of yield is worth −0.42 ₴ as well. So a small
- * revision is **indistinguishable** from a quote that is a day stale, and the
- * date search silently absorbs it.
- *
- * What follows, and what this deliberately does NOT claim:
- *
- *   * the DATE is the reliable output. It is what D31 used to date seven live
- *     bonds to 1–6 days stale, and it is reported first;
- *   * `revised` fires only for a revision too large for the lookback window to
- *     absorb. A revision smaller than `lookbackDays × ~0.4 ₴` will read as
- *     staleness instead. That is a limit of one observation, not a bug — the
- *     sharp check needs a KNOWN date, which is what `impliedYield` is for once
- *     the archive supplies `as_of`;
- *   * `inconclusive` is a real answer. Near maturity the price barely responds
- *     to the yield at all, so no verdict is available.
+ * ONE PRICE CANNOT SEPARATE DATE FROM YIELD, and this is shaped around that trap:
+ * a day of staleness and a small revision move the price alike, so the date
+ * search absorbs a revision. The DATE is the reliable output, and `revised` fires
+ * only for a revision too large for the window to absorb.
  */
 export function checkQuote(
   quoted: number,
@@ -296,20 +210,19 @@ export function checkQuote(
   const sensitivity = yieldSensitivityUah(schedule, publishedPct, fit.date);
   if (sensitivity === undefined) return { state: 'not_applicable' };
 
-  // Explained within the feed's own rounding: nothing to report about the rate.
+  // Explained within the feed’s own rounding: nothing to report about the rate.
   if (Math.abs(fit.residual) <= Math.max(PRICE_TOLERANCE_UAH, sensitivity)) {
     return fit.daysStale === 0 ? { state: 'consistent', fit } : { state: 'stale', fit };
   }
 
-  // The residual is larger than rounding — but on a nearly-matured bond a
-  // kopeck of price cannot pin the yield down, so no verdict is available.
+  // Larger than rounding — but on a nearly-matured bond a kopeck of price cannot
+  // pin the yield down, so no verdict is available.
   if (sensitivity < PRICE_TOLERANCE_UAH) {
     return { state: 'inconclusive', fit, reason: 'insensitive', sensitivityUah: sensitivity };
   }
 
-  // Solved at `onIso`, NOT at `fit.date`. The best-fit date was chosen on the
-  // assumption that the published yield still held — an assumption this branch
-  // has just rejected, so continuing to use its output would be circular.
+  // Solved at `onIso`, NOT at `fit.date`: the best-fit date was chosen assuming the
+  // published yield still held, which this branch has just rejected.
   const implied = impliedYield(quoted, schedule, onIso);
   return implied.kind === 'solved'
     ? { state: 'revised', fit, impliedPct: implied.yieldPct, publishedPct }

@@ -1,28 +1,16 @@
-// Import validation + preview diff (P4 `feat/backup-import`, DECISIONS D24).
-// PURE (G1): no DOM, no File, no repository — the caller reads the file and
-// hands over its text plus the tables currently in the DB.
+// Import validation and preview diff. PURE: no DOM, no File, no repository, and it
+// EXTENDS the envelope contract in `./json.ts` rather than forking it — the format
+// gate, the row schemas and the integrity pass are that module’s, unchanged.
 //
-// This module EXTENDS the D12 envelope contract in ./json.ts, never forks it:
-// the format/version gate (`readEnvelopeHead`), the row schemas
-// (`backupEnvelopeSchema`) and the referential-integrity pass
-// (`integrityIssues`) are that module's, unchanged. What lands here is what
-// the S3/S4 surfaces need on top: zod issues mapped onto the same structured
-// `RowIssue` shape (D8 — codes + params, every sentence lives in
-// screens/settings/import-labels.ts) and the per-table diff the preview shows.
+// SAFETY-FIRST DOCTRINE: validate fully → show a diff → the user confirms → ONE rw
+// transaction. NOTHING here writes, and nothing downstream may write from a parse
+// or a preview.
 //
-// SAFETY-FIRST DOCTRINE (the phase's binding rule): validate fully → show a
-// diff → the user confirms → ONE rw transaction. Nothing in this module
-// writes, and nothing downstream may write from a parse or a preview.
-//
-// ROW ADDRESSING (matches the S4 reference + brief items verbatim):
-//   snapshots → their `date`, transactions → their `id` (the keys the
-//   integrity pass already speaks in and the keys the DB stores them under),
-//   assets → their ARRAY INDEX. An asset id is the referential anchor every
-//   other table's error quotes, so addressing a malformed asset ROW by index
-//   keeps "this row is broken" distinguishable from "something points at this
-//   id" — and the index is the only address a file with a broken id still
-//   has. A row whose own key field is the invalid one always falls back to the
-//   index for the same reason.
+// ROW ADDRESSING: snapshots by `date`, transactions by `id`, assets by ARRAY
+// INDEX. An asset id is the referential anchor every other table’s error quotes,
+// so addressing a malformed asset ROW by index keeps "this row is broken" apart
+// from "something points at this id" — and the index is the only address a file
+// with a broken id still has.
 import { daysBetween } from '../dates';
 import type { Asset, Snapshot, Transaction } from '../types';
 import {
@@ -39,7 +27,6 @@ import {
   type RowIssue,
 } from './json';
 
-/** The three tables, as `repo.exportAll()` returns them. */
 export interface PortfolioTables {
   assets: Asset[];
   snapshots: Snapshot[];
@@ -53,11 +40,9 @@ export interface PortfolioTables {
 /** A Quirenote export is ~300 KB at seed scale; 25 MB is not one. */
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
-/**
- * Extensions the import row accepts — JSON alone, permanently. CSV import was
- * cancelled with the cloud move (D29): reading a spreadsheet back was a restore
- * path for a database living in the browser. CSV EXPORT still ships.
- */
+/** JSON alone, permanently: CSV import was cancelled with the cloud move, because
+ *  reading a spreadsheet back was a restore path for a browser database. CSV
+ *  EXPORT still ships. */
 export const IMPORT_EXTENSIONS = ['.json'] as const;
 
 export type ImportFileKind = 'json';
@@ -68,8 +53,8 @@ export type FileClassification =
   | { ok: false; code: FileRejectionCode };
 
 export function classifyImportFiles(files: { name: string; size: number }[]): FileClassification {
-  // A drag that carried no file at all (a text selection, a link) reads as the
-  // same mistake as a wrong type: there is nothing importable in it.
+  // A drag carrying no file at all — a text selection, a link — reads as the same
+  // mistake as a wrong type: there is nothing importable in it.
   if (files.length !== 1) return { ok: false, code: files.length > 1 ? 'count' : 'type' };
   const [file] = files;
   const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
@@ -83,27 +68,24 @@ export function classifyImportFiles(files: { name: string; size: number }[]): Fi
 
 // --- Validation (S3 entry / S4 report) -------------------------------------
 
-/** The S4 report caps the visible list and states the exact total. */
+/** The report caps the visible list and states the exact total. */
 export const ISSUE_LIST_CAP = 10;
 
 export type FormatRejectionCode =
   'not-json' | 'not-a-backup' | 'newer-format' | 'older-format' | 'unsupported-format';
 
-/** A format-level rejection is ONE sentence + one mono detail, never a list. */
+/** A format-level rejection is ONE sentence plus one mono detail, never a list. */
 export interface FormatRejection {
   kind: 'format';
   code: FormatRejectionCode;
-  /** The `formatVersion` found in the file (the two format-version codes). */
   version?: number;
-  /** The D12 parser's own sentence, verbatim — the mono technical detail. */
+  /** The parser’s own sentence, verbatim — the mono technical detail. */
   detail: string;
 }
 
 export interface RowsRejection {
   kind: 'rows';
-  /** Capped at ISSUE_LIST_CAP — the report shows these. */
   issues: RowIssue[];
-  /** Exact number found, however many are shown. */
   total: number;
 }
 
@@ -113,9 +95,8 @@ export type ImportValidation =
   { ok: true; envelope: BackupEnvelope } | { ok: false; rejection: ImportRejection };
 
 /**
- * Full validation of a JSON backup: format marker → version → row schemas →
- * referential integrity. Nothing partial ever passes — one bad row stops the
- * whole import (that is the contract the S4 closing hint states).
+ * Format marker → version → row schemas → referential integrity. NOTHING PARTIAL
+ * EVER PASSES: one bad row stops the whole import.
  */
 export function validateImport(text: string): ImportValidation {
   const head = readEnvelopeHead(text);
@@ -128,9 +109,9 @@ export function validateImport(text: string): ImportValidation {
   }
   const integrity = integrityIssues(parsed.data);
   if (integrity.length > 0) return { ok: false, rejection: rowsRejection(integrity) };
-  // D129 — validate as written, then normalize what gets stored. The blanking
-  // must not run before `integrityIssues`, or a deposit naming an asset the file
-  // does not carry is tidied away instead of reported (`blankPortfolioAssetIds`).
+  // Validate as written, THEN normalize what gets stored. The blanking must not run
+  // before `integrityIssues`, or a deposit naming an asset the file does not carry
+  // is tidied away instead of reported.
   return { ok: true, envelope: blankPortfolioAssetIds(parsed.data) };
 }
 
@@ -143,17 +124,10 @@ function formatRejection(
     const found = typeof version === 'number' ? version : undefined;
     return {
       kind: 'format',
-      // THREE CASES, NOT TWO. A file from a FUTURE app is the case the copy was
-      // written for; a file from an OLDER one became reachable when
-      // `BACKUP_FORMAT_VERSION` went to 2 (#31), and it is a real backup the
-      // owner may hold — telling them it is simply "unsupported", the same
-      // sentence a hand-edited `0` gets, hides which of the two it is. The break
-      // itself is accepted (see the version's own doc); being unable to name it
-      // is not part of that acceptance. Anything else — a string, a 0, a
-      // negative, a 1.5 — keeps the honest catch-all. INTEGER, because a
-      // version is a count of format revisions: `1.5` is below the current
-      // version and at least 1, so a bare `>= 1` named it a real older backup
-      // and told the owner it was "version 1.5".
+      // THREE CASES, NOT TWO: a file from a FUTURE app is what the copy was written
+      // for, while one from an OLDER app is a real backup the owner may hold, and
+      // "unsupported" hides which it is. INTEGER, because a version counts format
+      // revisions — a bare `>= 1` named `1.5` a real older backup.
       code:
         found === undefined
           ? 'unsupported-format'
@@ -166,15 +140,8 @@ function formatRejection(
       detail,
     };
   }
-  // 'not-an-object' and 'not-a-backup' are the same thing to a reader: the
-  // file carries no `quirenote-backup` marker.
-  //
-  // The marker WAS `kubushka-backup` and this comment kept saying so after the
-  // rename. D42's table row still reads "it stays — renaming it makes every
-  // backup ever exported unreadable", and is reversed 47 lines below it by the
-  // amendment the owner made during E1: there is one user and no real data, so
-  // dual-marker acceptance was flexibility nobody asked for. A pre-rename file
-  // is rejected on purpose.
+  // A pre-rename file is rejected on purpose: there is one user and no real data, so
+  // dual-marker acceptance was flexibility nobody asked for.
   return { kind: 'format', code: code === 'not-json' ? 'not-json' : 'not-a-backup', detail };
 }
 
@@ -191,13 +158,9 @@ interface ZodIssueLike {
   path: PropertyKey[];
   message: string;
   keys?: unknown;
-  /**
-   * The one thing a `custom` issue may carry besides its path. Two OPPOSITE
-   * rules now land on `[i, 'quantity']` — a count on a row that takes none
-   * (D112) and no count on a row that requires one (D125) — and they need
-   * different words. `params` discriminates them without putting English in
-   * `core/`, which is the rule `transactionRowsSchema`'s own comment states.
-   */
+  /** Two OPPOSITE rules land on `[i, 'quantity']` — a count on a row that takes
+   *  none, and no count on a row that requires one — and they need different
+   *  words. `params` discriminates them without putting English in `core/`. */
   params?: { rule?: string };
 }
 
@@ -237,27 +200,24 @@ function codeFor(issue: ZodIssueLike, field: string | undefined): IssueCode {
   if (field !== undefined && DATETIME_FIELDS.has(field)) return 'expected-datetime';
   if (field !== undefined && DATE_FIELDS.has(field)) return 'expected-date';
   if (field === 'amount') return 'expected-positive-amount';
-  // The one-way units rule (#31, D112). `custom` with no message is the shape
+  // The one-way units rule. `custom` with no message is the shape
   // `transactionRowsSchema` emits for it — this is where it gets its words.
   if (issue.code === 'custom' && (field === 'quantity' || field === 'unitPrice')) {
     return issue.params?.rule === 'missing'
       ? 'units-missing-on-position-row'
       : 'units-on-non-position-row';
   }
-  // The withholding's two type-and-amount rules, told apart by the `rule` param
-  // `transactionRowsSchema` stamps on them. Gated on `custom` so a hand-edited
-  // value that is not a number at all falls through to `invalid` with the
-  // validator's own words, rather than being reported as a rule it never
-  // reached.
+  // Gated on `custom` so a hand-edited value that is not a number at all falls
+  // through to `invalid` with the validator’s own words, rather than being reported
+  // as a rule it never reached.
   if (issue.code === 'custom' && field === 'taxWithheld') {
     return issue.params?.rule === 'bound'
       ? 'withholding-above-amount'
       : 'withholding-on-non-payout-row';
   }
-  // ONE code because the note has ONE rule — a single refinement covering both
-  // ends, so there is one issue to name whatever went wrong. Left to fall
-  // through it would reach `invalid`, which prints the VALIDATOR's own English
-  // verbatim into a report the rest of which is in the reader's language.
+  // ONE code because the note has ONE rule — a single refinement covering both ends.
+  // Left to fall through it would print the VALIDATOR’s English verbatim into a
+  // report the rest of which is in the reader’s language.
   if (field === 'note' && issue.code === 'custom') {
     return 'note-length';
   }
@@ -270,9 +230,9 @@ function valueOf(issue: ZodIssueLike): { value?: string } {
     : {};
 }
 
-// A row is addressed by its own primary key when the file supplies a usable
-// one AND that key is not itself the invalid field; assets always fall back to
-// their index (see the header rule).
+// A row is addressed by its own primary key when the file supplies a usable one
+// AND that key is not itself the invalid field; assets always fall back to their
+// index (see the header rule).
 function rowAddress(
   table: IssueTable,
   raw: Record<string, unknown>,
@@ -290,19 +250,14 @@ function rowAddress(
   return typeof key === 'string' && key !== '' ? key : index;
 }
 
-// --- Diff preview (S3) -----------------------------------------------------
-
 export interface TableDiff {
   added: number;
   replaced: number;
   removed: number;
 }
 
-/**
- * Non-blocking cautions the S3 dialog lists. Tokens only — the sentences (and
- * the target dataset's name, which the component reads from the store) live in
- * screens/settings/import-labels.ts.
- */
+/** Non-blocking cautions the dialog lists. Tokens only — the sentences live in
+ *  `screens/settings/import-labels.ts`. */
 export type DiffWarning =
   | { code: 'rows-removed'; assets: number; snapshots: number; transactions: number }
   | { code: 'no-assets' }
@@ -315,9 +270,7 @@ export interface BackupDiff {
   assets: TableDiff;
   snapshots: TableDiff;
   transactions: TableDiff;
-  /** Row counts after a confirmed import = added + replaced, per table. */
   after: { assets: number; snapshots: number; transactions: number };
-  /** Does the file carry a settings block? Drives the S3 opt-in vs its line. */
   hasSettings: boolean;
   warnings: DiffWarning[];
 }
@@ -325,13 +278,8 @@ export interface BackupDiff {
 /** A backup older than this is worth a word before it overwrites today. */
 export const STALE_BACKUP_DAYS = 7;
 
-/**
- * Exactly the numbers the S3 dialog shows. Matching keys: assets by id,
- * snapshots by date, transactions by id (the reference pins this) — an
- * incoming key already present is `replaced`, a new one is `added`, and a
- * current key the file lacks is `removed`, because an import REPLACES the
- * dataset rather than merging into it.
- */
+/** An incoming key already present is `replaced`, a new one `added`, and a current
+ *  key the file lacks is `removed`: an import REPLACES the dataset. */
 export function diffBackup(
   current: PortfolioTables,
   incoming: BackupEnvelope,
@@ -351,8 +299,8 @@ export function diffBackup(
   );
 
   const warnings: DiffWarning[] = [];
-  // Wholesale loss first — each of these supersedes the partial-removal line
-  // for its own table (a table the file empties is stated once, not twice).
+  // Wholesale loss first — each of these supersedes the partial-removal line for its
+  // own table, so a table the file empties is stated once, not twice.
   if (incoming.assets.length === 0) warnings.push({ code: 'no-assets' });
   if (incoming.snapshots.length === 0 && current.snapshots.length > 0) {
     warnings.push({ code: 'no-snapshots', current: current.snapshots.length });
