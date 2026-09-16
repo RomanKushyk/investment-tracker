@@ -350,8 +350,27 @@ one invitation. So the application row is written BEFORE the identity that owns 
 holds the Cognito `sub` — which does not exist yet. The endpoint writes a PLACEHOLDER and approval
 replaces the row with the real `sub`: a pending row owns nothing, so no foreign key is disturbed
 and the applied schema is left exactly as it is on both clusters. Identity lives in the provider;
-status and role live in the application row, which the API checks on every request. The
-application endpoint's own defences are three, all free and all structural: ROUTE-LEVEL THROTTLING
+status and role live in the application row, which the API checks on every request.
+THE REFRESH TOKEN IS BOUNDED AND ROTATES: twenty-four hours absolute, rotation enabled with a
+sixty-second retry window, revocation stated rather than inherited, and no `REFRESH_TOKEN_AUTH`
+flow, which rotation forbids outright. That answers the three refresh requirements the browser
+BCP singles out — two of them alternatives rather than items on a list, the third a flat MUST NOT.
+Rotation, where the other permitted answer is a sender-constrained token Cognito does not offer; a
+maximum lifetime, where the other answer is an inactivity expiry, so twenty-four hours satisfies it
+whole; and the prohibition on a rotated token outliving the original, which Cognito keeps by
+construction — a rotated token is valid for the remaining duration of the first, and that is
+compliance rather than a shortfall. THE SECTION INCORPORATES MORE THAN THOSE THREE, and the claim
+stops where the checking did: it also binds the conforming server to RFC 9700's refresh-token
+recommendations, of which what an authorization server does on a detected replay is exactly the
+question `docs/reference/COGNITO-POOL-PARAMS.md` still records as open against this pool. Cognito
+has no inactivity expiry to give at all, so the idle timeout that general practice pairs with an
+absolute cap is the session cookie's `Max-Age` and is a UX bound rather than a security boundary,
+since a stolen cookie is not bound by it. A short lifetime falls on the active user as much as the
+idle one, and what makes that cheap here is passkey-first onboarding: re-authentication is a touch.
+The grace window is sixty seconds and not zero because the access token lives in memory, so every
+page load refreshes and two tabs opening together submit the same token; at zero the second is
+signed out. The application endpoint's own defences are three, all free and all structural:
+ROUTE-LEVEL THROTTLING
 beneath the stage's, because an unauthenticated route left on the stage default drains the
 account's token bucket and takes every other route down with it; a unique index on the address, so
 one mailbox submitted a thousand times is one row; and NO MAIL ON SUBMISSION, because mailing on
@@ -565,8 +584,9 @@ exists an unauthenticated caller reads it and writes nothing.
 Three surfaces stand outside the authorizer and check no application row: the archive's reads, the
 demo's, and the sign-up application, which exists to create the very row the others are checked
 against. Everything else is behind it.
-**Why.** Nothing decided at token-issue time can revoke anything — the refresh token lasts years —
-so authorization belongs to the API. An application costs a row where a sign-up costs a monthly
+**Why.** Nothing decided at token-issue time can revoke anything — a claim is stamped once and is
+never current afterwards, at any lifetime — so authorization belongs to the API. An application
+costs a row where a sign-up costs a monthly
 active user; and the built-in mail path suppresses bounced addresses with no way to clear them. The
 demo lives under its own identity because the super-admin is the owner's own account: rows held
 there would put a real portfolio behind a public route, and a flag distinguishing them would have to
@@ -602,9 +622,13 @@ One pool serving both clusters: it would spend a production monthly active user 
 sign-in and put dev identities in the table a real portfolio is keyed by. ·
 A post-confirmation trigger creating the application row: AWS does not invoke it for an
 admin-created or a federated user, so the two routes into the pool that matter are exactly the
-two it cannot see. · Cognito groups as the role: a token is stamped at issue time and this
-client's refresh token lasts 3650 days, so a demotion would take effect whenever the holder
-happened to refresh. · Letting an open-registration sign-in approve its own earlier application:
+two it cannot see. · Cognito groups as the role: status and role are application state, decided by
+an approval this system performs and stored on the row that approval writes, so a group would be a
+second place for them to live and the two could disagree — and the `demo` role has no group
+analogue at all. Freshness is the lesser argument: a group rides on the ID and access tokens,
+which last an hour, so a demotion takes effect within that hour and never waits on the refresh
+token, which carries no group. · Letting an open-registration sign-in approve its own earlier
+application:
 it reads as convenience and is a way to overturn a rejection by signing up again.
 
 ## User schema and deletes

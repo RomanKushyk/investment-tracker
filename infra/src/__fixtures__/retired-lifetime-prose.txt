@@ -1,0 +1,23 @@
+The sentences this repository used to explain things by, before the refresh token was
+bounded at twenty-four hours. Every line below is a contiguous extract of a real line on
+`dev`, with the file it came from beside it — the positive control for the prose guard in
+`cognito-pool.test.ts`: a needle that no longer matches this text has been mistyped, and
+the guard would otherwise report a clean tree while seeing nothing.
+
+A `.txt` on purpose. The guard walks `.ts`, `.tsx`, `.md`, `.yaml`, `.yml` and `.sql`, so
+holding the old spellings in a `.ts` file would make the guard's own fixture its first
+offender — and exempting that file would blind it to itself, which is the miss this
+control exists to catch.
+
+Extracts, each copied from the named file rather than recalled. Two earlier lines here
+were neither — they were plausible paraphrases nobody had written — which is the exact
+circularity a control like this exists to avoid, so the provenance is now on every line.
+
+infra/src/authorize.ts:6        this pool's refresh token lasts 3650 days against a 60-minute access
+infra/src/authorize.test.ts:109 at issue time and this pool's refresh token lasts 3650 days, so removing somebody from a
+infra/template-user.yaml:355    "Refresh token measured in years" resolves to 3650 DAYS: TokenValidityUnits has
+infra/template-user.yaml:360    RefreshTokenValidity: 3650
+infra/template-user.yaml:564    the token was issued, and the client's refresh token lasts 3650 days against a
+infra/README.md:20              which is stamped at issue time against a refresh token that lasts years
+docs/DECISIONS.md:568           Nothing decided at token-issue time can revoke anything — the refresh token lasts years
+docs/reference/COGNITO-POOL-PARAMS.md:77  --refresh-token-validity 3650

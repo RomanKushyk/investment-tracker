@@ -1,6 +1,8 @@
 # Cognito — the parameters a pool cannot change, and what it refuses
 
-Rehearsed on a throwaway pool created and deleted the same day, because a wrong answer here is not an edit — it is recreating the pool with users already in it. The shape being checked is pinned under "Auth model" in [`../DECISIONS.md`](../DECISIONS.md): Essentials, one account per email, refresh token in years.
+Rehearsed on a throwaway pool created and deleted the same day, because a wrong answer here is not an edit — it is recreating the pool with users already in it. The shape being checked is pinned under "Auth model" in [`../DECISIONS.md`](../DECISIONS.md): Essentials, one account per email, and a bounded refresh token that rotates.
+
+**This file is the one place the retired ten-year spelling still appears, and deliberately so** — the rehearsal's own CLI call and Cognito's documented ceiling are measured facts about the product, not reasons for anything here. The guard in `infra/src/cognito-pool.test.ts` that keeps that spelling out of the rest of the tree exempts this file by name for exactly that reason.
 
 **Three parameters are create-time only, not one.** `UsernameAttributes` is the one the decision names. `UsernameConfiguration` is the one it does not, and leaving it out is what breaks "one account per email". `Schema`'s required flags are the third.
 
@@ -78,9 +80,20 @@ aws cognito-idp create-user-pool-client --region eu-north-1 \
   --token-validity-units AccessToken=minutes,IdToken=minutes,RefreshToken=days
 ```
 
-**There is no `years` unit.** `TokenValidityUnits` accepts `seconds`, `minutes`, `hours` and `days` only, and the refresh maximum is 315360000 seconds — so **3650 days is the ceiling**, and "refresh token in years" is spelled that way or not at all. Access and ID cap at 86400 seconds; 60 minutes is well inside.
+**There is no `years` unit.** `TokenValidityUnits` accepts `seconds`, `minutes`, `hours` and `days` only, and the refresh maximum is 315360000 seconds — so **3650 days is the ceiling**, and a refresh lifetime asked for in years has to be spelled in days. Access and ID cap at 86400 seconds; 60 minutes is well inside.
 
-This client is not a template for the real one: its `--explicit-auth-flows` carries no `ALLOW_USER_AUTH`, which is the flow choice-based sign-in — passkeys included — is selected through.
+This client is not a template for the real one: its `--explicit-auth-flows` carries no `ALLOW_USER_AUTH`, which is the flow choice-based sign-in — passkeys included — is selected through. Nor is its refresh validity: the shipped client is **24 hours with rotation**, and the ceiling above is a fact about the product rather than a setting anything here uses.
+
+### Two things rotation raises that no document answers
+
+Both need a deployed pool, and this repository has no local credentials — so they are written down as open rather than guessed at. Neither is relied on by anything yet: nothing calls refresh.
+
+- **What a replayed, already-rotated token does.** AWS documents the retry grace period and that the rotated-out token stops working after it, but never says whether a replay *outside* the window revokes the whole token family the way some providers do. The answer decides whether an unexpected refusal is treated as a forced sign-out or as an alert worth raising, so it has to be established before the refresh endpoint chooses one.
+- **Which refresh path rotation actually requires.** AWS says it two ways. The API reference for `RefreshTokenRotationType` is flat — "Refresh token rotation must be completed with `GetTokensFromRefreshToken`" — while the developer guide's OAuth section says "Requests to the token endpoint are available in app clients with refresh token rotation active… When refresh token rotation is active, the token endpoint returns a new refresh token." This client is OAuth code flow behind managed login, so the token endpoint is the one it would naturally use — but the guide points at `GetTokensFromRefreshToken` in its own "things to know" and SDK sections, and only its OAuth section says otherwise, so the weight is not obviously on either side. The field description for `RetryGracePeriodSeconds` describes the window in terms of `GetTokensFromRefreshToken` too, which matters: the two-tab race that window is chosen for is reasoned on the path this client would take. Establish which before the refresh endpoint is written.
+
+- **Whether the managed-login session cookie undoes the bound.** AWS's own pages disagree: one says such sessions "are set in a browser cookie and are valid for one hour", another that they "don't expire automatically, your user can re-authenticate with a session cookie, with no additional prompt for credentials". On the managed-login path that decides whether a twenty-four-hour refresh token actually forces a credential prompt or merely a silent redirect. It is the difference between a bound and a formality.
+
+*(A third question was raised and then withdrawn: whether the `origin_jti` and `jti` claims rotation adds push a token past the header limit. Token revocation adds those same claims and is on by default for a new client, so they predate rotation and this branch — the tokens are the same size before and after, and the margin question is not new.)*
 
 ## Four deviations this pool made, which a real one must not copy
 

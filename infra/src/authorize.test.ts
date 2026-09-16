@@ -106,9 +106,9 @@ describe('the row is what authorizes, on every request', () => {
   });
 
   // `cognito:groups` IS NOT THE AUTHORIZATION SOURCE. Group membership is stamped into a token
-  // at issue time and this pool's refresh token lasts 3650 days, so removing somebody from a
-  // group would not take effect until the token refreshed. The claim is present and says
-  // super-admin; the row says `user`; the row wins.
+  // at issue time, so removing somebody from a group would not take effect until the token
+  // refreshed — at any lifetime, since a shorter one shortens the wait without removing it. The
+  // claim is present and says super-admin; the row says `user`; the row wins.
   it('ignores a cognito:groups claim that disagrees with the row', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'user'));
     const gate = await authorize(db, token({ 'cognito:groups': ['super_admin'] }));

@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
+import { REPO, skipped } from '../../src/repo-root';
 import { PROVIDERS } from './pre-signup';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
@@ -230,27 +232,67 @@ describe('three sign-in methods reach the pool', () => {
     expect(factors).toContain('PASSWORD');
   });
 
-  it('lets the client select a factor rather than declaring one', () => {
-    expect(props('UserPoolClient').ExplicitAuthFlows).toContain('ALLOW_USER_AUTH');
-  });
-
   // A PUBLIC CLIENT. The SPA cannot hold a secret, and a client with one makes every
   // browser-side call fail on a missing SECRET_HASH rather than on anything that names itself.
   it('generates no client secret', () => {
     expect(props('UserPoolClient').GenerateSecret).toBe(false);
   });
 
-  // "Refresh token measured in years" resolves to 3650 DAYS: `TokenValidityUnits` has no
-  // `years` unit and 315360000 seconds is the documented ceiling. Access and ID stay at 60
-  // minutes — nothing decided at token-issue time can revoke anything, so the API checks
-  // `status` and `role` on every request instead.
-  it('holds a refresh token for years and access tokens for an hour', () => {
-    expect(props('UserPoolClient')).toMatchObject({
-      RefreshTokenValidity: 3650,
-      AccessTokenValidity: 60,
-      IdTokenValidity: 60,
-      TokenValidityUnits: { RefreshToken: 'days', AccessToken: 'minutes', IdToken: 'minutes' },
+  // ONE DAY ABSOLUTE, which answers the three refresh requirements the browser BCP singles out —
+  // two of them alternatives, the third a flat MUST NOT. "MUST either set a maximum lifetime on
+  // refresh tokens OR expire if the refresh token has not been used within some amount of time"
+  // is answered by the bound, so Cognito having no inactivity expiry is not a gap; the idle
+  // timeout general practice pairs with a cap is the session cookie's and belongs to #162. The
+  // section incorporates RFC 9700's refresh-token recommendations besides, and what a server
+  // does on a detected replay is open against this pool — `COGNITO-POOL-PARAMS.md` holds it.
+  //
+  // Access and ID stay at 60 minutes. An access token's life governs authentication freshness
+  // only and never what the holder may do — `authorize.ts` reads `status` and `role` from
+  // `app_user` on every request — so shortening it would buy nothing.
+  //
+  // FIELD BY FIELD RATHER THAN `toMatchObject`, which passed while every one of these could go
+  // missing. `TokenValidityUnits` is compared whole for the same reason: a dropped unit silently
+  // re-defaults, and the default for a refresh token is DAYS, which would read 24 days.
+  it('holds a refresh token for a day and access tokens for an hour', () => {
+    const client = props('UserPoolClient');
+    expect(client.RefreshTokenValidity).toBe(24);
+    expect(client.AccessTokenValidity).toBe(60);
+    expect(client.IdTokenValidity).toBe(60);
+    expect(client.TokenValidityUnits).toEqual({
+      RefreshToken: 'hours',
+      AccessToken: 'minutes',
+      IdToken: 'minutes',
     });
+  });
+
+  // THE GRACE PERIOD IS 60 SECONDS AND NOT 0, for a reason the SPA creates: the access token is
+  // held in memory, so every page load refreshes, and two tabs opening together race. AWS
+  // provides the window for exactly that — at 0 "a successful request immediately invalidates
+  // the submitted refresh token", which would sign one of the two tabs out.
+  it('rotates the refresh token, with a window for the second tab', () => {
+    expect(props('UserPoolClient').RefreshTokenRotation).toEqual({
+      Feature: 'ENABLED',
+      RetryGracePeriodSeconds: 60,
+    });
+  });
+
+  // STATED, NOT INHERITED. Revocation defaults on for a new client, so this line changes
+  // nothing today and asserts that nobody turns it off later — the difference between a
+  // property that is true and a property that happens to be true.
+  it('states that a token can be revoked', () => {
+    expect(props('UserPoolClient').EnableTokenRevocation).toBe(true);
+  });
+
+  // THE WHOLE LIST, because a `toContain` on one entry let the other two move unwatched.
+  // `ALLOW_REFRESH_TOKEN_AUTH` is ABSENT and that is rotation's doing, not an oversight: AWS
+  // refuses the pair — "you must disable this authentication flow in your app client". Which
+  // path replaces it is recorded as unsettled in `docs/reference/COGNITO-POOL-PARAMS.md`, since
+  // AWS says it two ways. Nothing calls refresh yet, so removing the flow breaks no caller.
+  it('offers selection-based sign-in and SRP, and no refresh flow', () => {
+    expect(props('UserPoolClient').ExplicitAuthFlows).toEqual([
+      'ALLOW_USER_AUTH',
+      'ALLOW_USER_SRP_AUTH',
+    ]);
   });
 
   // Google's client id and secret are NOT in this repository — it is public. They arrive as
@@ -475,5 +517,127 @@ describe('the stack still takes its environment the way it did', () => {
   it('leaves the backup tag to the resource backups can take', () => {
     expect(props('UserPool').UserPoolTags).toBeUndefined();
     expect(props('UserPool').Tags).toBeUndefined();
+  });
+});
+
+// The lifetime was load-bearing for two decisions and it is not any more, so the prose that
+// leaned on it has to go with it — this repository reviews prose as factual claims, and a
+// shortened token otherwise leaves every one of them false. Both conclusions survive on
+// arguments that hold at ANY lifetime: authorization belongs to the API because a claim stamped
+// at issue time is never current, and that is the same reason a group in a token cannot carry
+// the role.
+//
+// THE NEEDLES ARE BUILT FROM PARTS so this file does not match itself. Spelling either one out
+// here would make the guard pass by describing its own text, which is the failure mode a
+// grep-shaped test has.
+describe('nothing explains itself by a lifetime that is gone', () => {
+  // CASE-FOLDED, and the miss that taught it was this file's own retired comment, which spelled
+  // the unit in caps — so a lower-cased needle was blind to the guard's own file. The bare
+  // number is a needle by itself because the spellings a revert actually produces are a
+  // property and a CLI flag, neither of which carries a word to match on.
+  const NEEDLES = ['36' + '50', 'refresh token ' + 'lasts years', 'token that ' + 'lasts years'];
+
+  // The retired sentences, verbatim, as the positive control for EVERY needle — the text that
+  // used to be in the tree, so a needle that no longer matches it has been mistyped. It lives in
+  // a `.txt` the walk does not read: held inline it would make this file the guard's own first
+  // offender, and exempting this file would blind the guard to itself, which is the miss the
+  // control exists to catch.
+  const RETIRED = readFileSync(
+    new URL('./__fixtures__/retired-lifetime-prose.txt', import.meta.url),
+    'utf8',
+  ).toLowerCase();
+
+  // `docs/reference/COGNITO-POOL-PARAMS.md` is EXEMPT and that is not a loophole. It records
+  // what Cognito permits — the ceiling, and the exact CLI call the rehearsal made — which is a
+  // measured fact about the product rather than a reason for our own number. Deleting it would
+  // lose the measurement that told us the ceiling exists.
+  const EXEMPT = 'docs/reference/COGNITO-POOL-PARAMS.md';
+
+  // `skipped` rather than a local list, so this walk cannot start reading a nested checkout
+  // under `.claude/worktrees/` and reporting its copies as offenders.
+  const walk = (dir: string): string[] =>
+    readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return skipped(e.name) ? [] : walk(rel);
+      // `.tsx` is most of `src/` and `\.ts$` does not match it — the trailing x defeats the
+      // anchor. `.sql` because `infra/migrations/**` carries the same comment-heavy prose.
+      return /\.(tsx?|md|ya?ml|sql)$/.test(e.name) ? [rel] : [];
+    });
+
+  const searched = ['docs', 'infra', 'src'].flatMap(walk);
+  const hits = (file: string) => {
+    const text = readFileSync(join(REPO, file), 'utf8').toLowerCase();
+    return NEEDLES.filter((n) => text.includes(n));
+  };
+
+  // THE TWO WAYS THE GUARD BELOW PASSES WITHOUT CHECKING ANYTHING, closed before it runs: a
+  // walk that returned nothing, and a needle that matches nothing because its concatenation was
+  // mistyped. Without these the guard's own blindness is indistinguishable from a clean tree.
+  it('is actually looking, and every needle actually matches', () => {
+    expect(searched.length).toBeGreaterThan(200);
+    expect(searched.some((f) => f.endsWith('.tsx'))).toBe(true);
+    expect(searched).toContain(EXEMPT);
+    // Every needle, against the text that used to be here — one anchor per needle rather than
+    // one anchor standing in for three.
+    expect(NEEDLES.filter((n) => !RETIRED.includes(n))).toEqual([]);
+  });
+
+  it('carries no sentence anywhere that reasons from the old lifetime', () => {
+    const offenders = searched.filter((f) => f !== EXEMPT && hits(f).length > 0);
+    expect(offenders).toEqual([]);
+  });
+
+  it('still rejects a group in the token as the role, and on the durable argument', () => {
+    const decisions = readFileSync(join(REPO, 'docs/DECISIONS.md'), 'utf8');
+    // The topic spells it "Cognito groups", in prose, where the code spells it `cognito:groups`.
+    const entry = /Cognito groups as the role[^·]*/.exec(decisions)?.[0] ?? '';
+    expect(entry).not.toBe('');
+    // The verdict rests on status and role being APPLICATION state — one place, which a group
+    // would duplicate — and not on how long a token lives. Freshness is the secondary point and
+    // belongs to the ID and access tokens, which last an hour; the entry once put it on the
+    // refresh token, which never carried a group at all.
+    expect(entry).toMatch(/application state/);
+    expect(entry).toMatch(/hour/);
+  });
+
+  // THE ROOT CAUSE OF THREE REVIEW ROUNDS, closed structurally rather than by editing a third
+  // copy. One compliance claim lives in three files in three phrasings — a decision topic, a
+  // template comment and a comment here — and nothing bound them, so each round narrowed one
+  // copy and left the others asserting what had just been corrected. The claim is bounded: the
+  // BCP's §6.3.2.3 singles three requirements out and incorporates RFC 9700 besides, so a
+  // statement of unqualified compliance is wrong wherever it appears.
+  it('claims only what was checked about the BCP, in every file that mentions it', () => {
+    // Concatenated for the reason NEEDLES is: spelled out, this list would be the first thing
+    // the guard found, in the guard.
+    const OVERCLAIM = ['bcp ' + 'whole', 'bcp ' + 'outright', 'meets the ' + 'bcp'];
+    // READ AS SENTENCES, NOT LINES, and two things break that. Every one of these files is
+    // hand-wrapped and `.md` is prettier-ignored, so `DECISIONS.md` wraps this very claim
+    // between "browser" and "BCP"; and in the template and here the wrap carries a comment
+    // marker, so collapsing whitespace alone leaves "singles # out". Strip the marker, then
+    // collapse — a phrase guard over commented prose needs both or it reports a clean file.
+    const prose = (f: string) =>
+      readFileSync(join(REPO, f), 'utf8')
+        .toLowerCase()
+        .replace(/^[ \t]*(#|\/\/)[ \t]?/gm, '')
+        .replace(/\s+/g, ' ');
+    const mentions = searched.filter((f) => /browser-based-apps|browser bcp/.test(prose(f)));
+    // A floor, because "no file mentions it" would otherwise pass every assertion below.
+    expect(mentions.length).toBeGreaterThanOrEqual(3);
+    for (const f of mentions) {
+      const text = prose(f);
+      expect([f, OVERCLAIM.filter((p) => text.includes(p))]).toEqual([f, []]);
+      // Every site says which three it answers, and that the section binds more than three.
+      expect([f, text.includes('singles out')]).toEqual([f, true]);
+      expect([f, /rfc 9700/.test(text)]).toEqual([f, true]);
+    }
+  });
+
+  it('records that the idle half of the practice is not Cognito to give', () => {
+    // Scoped to the Auth model topic rather than the whole file, which any future use of the
+    // word anywhere would have satisfied.
+    const auth = /## Auth model[\s\S]*?\n## /.exec(
+      readFileSync(join(REPO, 'docs/DECISIONS.md'), 'utf8'),
+    )?.[0];
+    expect(auth).toMatch(/no inactivity expiry/i);
   });
 });

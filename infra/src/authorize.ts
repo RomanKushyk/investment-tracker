@@ -3,9 +3,9 @@
 // THE AUTHORIZER IN FRONT OF THIS IS NATIVE AND HAS NO LAMBDA IN IT — `docs/DECISIONS.md`,
 // **Auth model**. API Gateway proves the token: the signature against the pool's `jwks_uri`, the
 // issuer, the audience and the expiry. What it cannot prove is anything that has happened since
-// the token was issued, and this pool's refresh token lasts 3650 days against a 60-minute access
-// token. So AUTHENTICATION is the authorizer's and AUTHORIZATION is this file's, read from the
-// `app_user` row on every request.
+// the token was issued — true of any token at any lifetime, because a claim is stamped once and
+// never revisited. So AUTHENTICATION is the authorizer's and AUTHORIZATION is this file's, read
+// from the `app_user` row on every request.
 //
 // WHICH IS ALSO WHY `cognito:groups` IS NEVER THE SOURCE. Group membership is stamped into a
 // token at issue time, so removing somebody from a super-admin group would change nothing until

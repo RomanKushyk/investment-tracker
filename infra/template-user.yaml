@@ -349,21 +349,71 @@ Resources:
       # names itself.
       GenerateSecret: false
       # ALLOW_USER_AUTH is choice-based sign-in — the flow a passkey is selected
-      # through, and the half the rehearsal's client did not have. SRP covers the
-      # password; REFRESH_TOKEN covers everything after the first hour.
-      ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
-      # "Refresh token measured in years" resolves to 3650 DAYS: TokenValidityUnits has
-      # no `years`, and 315360000 seconds is the documented ceiling. Access and ID stay
-      # at an hour — nothing decided at token-issue time can revoke anything, so the API
-      # reads `status` and `role` from `app_user` on every request instead, and never
-      # `cognito:groups`.
-      RefreshTokenValidity: 3650
+      # through, and the half the rehearsal's client did not have. It also covers the
+      # password on its own: AWS says a user "can complete an SRP challenge through
+      # USER_AUTH without the flow USER_SRP_AUTH being active". ALLOW_USER_SRP_AUTH is
+      # kept as the explicit spelling of a path that must keep working, not because
+      # anything would lose SRP without it.
+      #
+      # NO ALLOW_REFRESH_TOKEN_AUTH, AND ROTATION IS WHY. AWS refuses the pair —
+      # "Refresh token rotation isn't compatible with the authentication flow
+      # REFRESH_TOKEN_AUTH. To implement refresh token rotation, you must disable this
+      # authentication flow in your app client". WHICH PATH REPLACES IT IS NOT SETTLED AND
+      # is written down as open rather than picked here: AWS says it two ways, the API
+      # reference flatly ("refresh token rotation must be completed with
+      # GetTokensFromRefreshToken") and the developer guide's OAuth section the other way
+      # ("requests to the token endpoint are available in app clients with refresh token
+      # rotation active") — while the same guide's other sections point back at the API
+      # operation. This client is OAuth code flow behind managed login, so the token
+      # endpoint is the one it would naturally use — see
+      # `docs/reference/COGNITO-POOL-PARAMS.md`. Nothing calls refresh yet, which is what
+      # made removing the flow affordable now rather than after the endpoints that use it.
+      ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH]
+      # ONE DAY, AND IT ANSWERS THE THREE REFRESH REQUIREMENTS THE BROWSER BCP SINGLES
+      # OUT — two of them alternatives rather than items on a list, the third a flat
+      # MUST NOT (draft-ietf-oauth-browser-based-apps §6.3.2.3): rotate on each use OR
+      # use a sender-constrained token, which Cognito does not offer; set a maximum
+      # lifetime OR expire on inactivity, which twenty-four hours answers whole; and the
+      # prohibition on a rotated token outliving the original, which Cognito keeps by
+      # construction — "valid for the remaining duration of the original refresh token".
+      # That last one is compliance and not a limitation, the easy thing to get backwards.
+      #
+      # THE SECTION INCORPORATES MORE THAN THOSE THREE, and the claim stops where the
+      # checking did: it also binds a conforming server to RFC 9700's refresh-token
+      # recommendations, of which what a server does on a detected replay is the question
+      # `docs/reference/COGNITO-POOL-PARAMS.md` records as open against this pool.
+      #
+      # Cognito has no inactivity expiry to give at all, so the idle timeout that general
+      # practice pairs with an absolute cap is the session cookie's Max-Age and belongs to
+      # #162. It is a UX bound, not a security boundary: a stolen cookie is not bound by it.
+      #
+      # WHAT MAKES A SHORT LIFETIME CHEAP HERE is passkey-first onboarding: a
+      # re-authentication is a touch rather than a typed password, so the usual reason to
+      # hold a refresh token for months does not apply.
+      #
+      # Access and ID stay at an hour. An access token's life governs authentication
+      # freshness only and never what its holder may do — the API reads `status` and
+      # `role` from `app_user` on every request, and never `cognito:groups` — so
+      # shortening it would buy nothing.
+      RefreshTokenValidity: 24
       AccessTokenValidity: 60
       IdTokenValidity: 60
       TokenValidityUnits:
-        RefreshToken: days
+        RefreshToken: hours
         AccessToken: minutes
         IdToken: minutes
+      # THE GRACE PERIOD IS 60 SECONDS RATHER THAN 0, for a race the SPA creates: the
+      # access token is held in memory, so every page load refreshes, and two tabs
+      # opening together submit the same refresh token. At 0 "a successful request
+      # immediately invalidates the submitted refresh token" and the second tab is
+      # signed out. 60 is the documented maximum.
+      RefreshTokenRotation:
+        Feature: ENABLED
+        RetryGracePeriodSeconds: 60
+      # STATED RATHER THAN INHERITED. Revocation is already on for a new client, so this
+      # line changes nothing today — it exists so that turning it off is an edit somebody
+      # has to make against a test, rather than a default drifting under us.
+      EnableTokenRevocation: true
       # `!Ref` ON THE PROVIDER, NOT THE LITERAL STRING `Google`, AND THAT IS THE ORDERING.
       # A `Ref` to this resource type returns its `ProviderName` — the same six characters
       # — but a literal is not a reference, so CloudFormation would derive no edge from it
@@ -561,9 +611,10 @@ Resources:
       # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER, and the split is the whole design.
       # This authorizer proves the token — signature against the pool's `jwks_uri`, issuer,
       # audience, expiry — and NOTHING ELSE. It cannot prove anything that has happened since
-      # the token was issued, and the client's refresh token lasts 3650 days against a
-      # 60-minute access token, so `status` and `role` are read from the `app_user` row on
-      # every request and `cognito:groups` is never the source. `docs/DECISIONS.md`,
+      # the token was issued, whatever that token's lifetime, so `status` and `role` are read
+      # from the `app_user` row on every request and `cognito:groups` is never the source.
+      # Shortening the refresh token narrows the window; it does not close it, because the
+      # window is the access token's hour and not the refresh token's life. `docs/DECISIONS.md`,
       # **Auth model**.
       #
       # NATIVE, WITH NO LAMBDA IN THE PATH. A request token authorizer would be a second
