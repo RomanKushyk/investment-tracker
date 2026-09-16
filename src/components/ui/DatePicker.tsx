@@ -1,10 +1,7 @@
 import { Dialog as RadixDialog, Popover } from 'radix-ui';
 import { useRef, useState } from 'react';
-// Locales come from react-day-picker's OWN subpath, not from a direct
-// date-fns dependency: the calendar already depends on date-fns and
-// re-exports these, so a second declared range on the same package is a
-// second constraint that can drift out of overlap — and two installed copies
-// mean the calendar and the app read different locale objects.
+// Locales come from react-day-picker's OWN subpath, not a direct date-fns dependency:
+// two installed copies mean the calendar and the app read different locale objects.
 import { enUS, uk } from 'react-day-picker/locale';
 import { Chevron, DayPicker } from 'react-day-picker';
 
@@ -16,15 +13,9 @@ import { Scroller } from './Scroller';
 import { TAP_44 } from './tap-target';
 import { useSettings } from '../../state/settings';
 
-// The calendar's own words — the WEEKDAY names, and every month name rdp itself
-// formats — come from date-fns rather than the app dictionary: they are a
-// locale's data, not this app's copy, and react-day-picker already speaks that
-// format. The caption is the exception and says why at `captionButtons`: it is
-// the app's own control now, not rdp's.
-//
-// `weekStartsOn` is the part that is NOT cosmetic. The locale carries it (uk
-// starts Monday, en-US Sunday) and getting it wrong shifts every column by one
-// — a calendar that looks fine and is read wrong.
+// The WEEKDAY names come from date-fns, not the app dictionary: they are a locale's
+// data. `weekStartsOn` is the part that is NOT cosmetic — the locale carries it and
+// getting it wrong shifts every column by one, for a calendar that reads wrong.
 const LOCALE = { uk, en: enUS } as const;
 
 // ISO 'yyyy-MM-dd' <-> local Date, avoiding UTC-shift surprises.
@@ -40,34 +31,20 @@ function dateToIso(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-// Below the breakpoint every cell stops being 32px wide and takes an equal
-// share of the sheet instead, so the seven columns fill it and each day is a
-// 44px-tall target. `flex-1` on the cell and `w-full` on the button, because the
-// pressable thing is the BUTTON — a wide cell holding a narrow button is a wide
-// column of dead space with a small target in the middle of it.
-// ONE BASE FOR EVERY CELL IN THIS CONTROL. The month and year cells replace the
-// day cells in the same box, so `day_button` composes this string with a width
-// and the grids take it as it is — three copied strings could drift, and the
-// comment claiming they were identical could not stop them.
-//
-// The hover is NOT in the base, and that is a bug fix rather than a preference:
-// `hover:bg-page` and `bg-ink` are both one class deep, `:hover` wins the tie,
-// and the emphasised cell painted page-on-page under the pointer — its own label
-// vanishing. States that cannot both apply are composed as alternatives instead.
+// `w-full` on the button, because the pressable thing is the BUTTON. ONE BASE FOR
+// EVERY CELL, because the month and year cells replace the day cells in the same box.
+// The hover is NOT in it: the hover and the emphasis fill are both one class deep,
+// `:hover` wins the tie, and the emphasised cell paints page-on-page under the pointer.
 const CELL_BASE =
   'grid h-8 place-items-center rounded-[8px] text-[13px] transition active:scale-[.97] max-md:h-11';
 const CELL_IDLE = 'hover:bg-page';
-// Filled emphasis for the month or year the calendar is SHOWING — the same
-// treatment `selected` gives the chosen day, for the same reason.
 const CELL_SHOWN = 'bg-ink text-page';
 
 const calendarClassNames = {
   months: 'flex flex-col',
   month: 'flex flex-col gap-2',
-  // HIDDEN, because the caption is rendered outside this tree — see `caption`
-  // for why it is not a `components.MonthCaption` override. `Nav` is a sibling
-  // of the month, not a child of the caption (DayPicker.js:247), so hiding this
-  // keeps both chevrons.
+  // HIDDEN, because the caption is rendered outside this tree. `Nav` is a sibling of
+  // the month rather than a child of the caption, so hiding this keeps both chevrons.
   month_caption: 'hidden',
   nav: 'flex items-center justify-between',
   button_previous:
@@ -76,49 +53,32 @@ const calendarClassNames = {
     'absolute right-1 top-1 grid size-7 place-items-center rounded-[7px] transition hover:bg-page active:scale-[.97] max-md:size-11',
   month_grid: 'w-full border-collapse',
   weekdays: 'flex',
-  // 36, NOT 32: a day column is `w-8` plus `day`'s `p-0.5` either side, so a
-  // 32px header cell drifts 4px per column and the last weekday sat 26px left of
-  // the days it names. Pre-existing, and corrected here because this task's own
-  // arithmetic (7 x 36 = 252) is the number that exposes it.
+  // Matches the day column INCLUDING its gutter, or it drifts per column and the last
+  // weekday sits left of the days it names.
   weekday:
     'w-9 text-center text-[10px] tracking-[.08em] text-muted uppercase max-md:w-auto max-md:flex-1',
   week: 'flex',
-  // `p-px` below the breakpoint, not `p-0.5`: the cell's own padding is dead
-  // space between two day targets, and halving it to the 2px gutter the
-  // reference draws hands the difference back to the button. Measured at 360 the
-  // day is 41.3 x 44 — the figure here read 42.3 and was stale, from before the
-  // sheet's scroll box took its own inset — under the 44 x 44 guidance on the short
-  // axis and well over WCAG 2.5.8's 24, and the only way to reach 44 wide is to
-  // remove the gutter entirely, which puts two tap targets flush against each
-  // other on the one control where hitting the neighbour saves the wrong date.
-  // `w-9` IS LOAD-BEARING ABOVE THE BREAKPOINT, and its absence was a wrong
-  // calendar rather than an untidy one. `week` is a flex row, and rdp renders the
-  // days before the 1st as EMPTY <td>s — with no button inside, `p-0.5` alone
-  // made them 4px, so the whole first week slid left and 1 серпня 2026, a
-  // Saturday, was drawn under «вт». Measured before the fix: day 1 at x=214.6
-  // where its column starts at 374.6. Below the breakpoint `flex-1` already gave
-  // every cell, empty ones included, an equal share.
+  // The cell's padding cannot go to zero: that puts two tap targets flush on the one
+  // control where hitting the neighbour saves the wrong date.
+  //
+  // `w-9` IS LOAD-BEARING ABOVE THE BREAKPOINT: `week` is a flex row and rdp renders
+  // the days before the 1st as EMPTY <td>s, so with no button inside them the padding
+  // alone sized those cells and the first week slid left, drawing every day under the
+  // wrong weekday. Below the breakpoint `flex-1` gives every cell an equal share.
   day: 'w-9 p-0.5 text-center max-md:w-auto max-md:flex-1 max-md:p-px',
   day_button: `${CELL_BASE} ${CELL_IDLE} w-8 max-md:w-full`,
-  // Filled emphasis, so the fill stays `ink` and the text becomes `page` —
-  // see the note in button-variants.ts (FINDING 3). The `:hover` guard is the
-  // same specificity fix as `CELL_IDLE`: rdp puts the emphasis on the CELL and
-  // the hover on the button inside it, so `.selected > button:hover` is the only
-  // selector that outranks `hover:bg-page` and keeps the chosen day readable.
+  // The `:hover` guard is the same specificity fix as `CELL_IDLE`: rdp puts the
+  // emphasis on the CELL and the hover on the button inside it.
   selected: '[&>button]:bg-ink [&>button]:text-page [&>button:hover]:bg-ink',
   today: '[&>button]:font-bold',
   outside: 'text-faint',
-  // rdp's chevron is a bare <svg><polygon> with no fill, and this app never
-  // loads rdp's stylesheet — so unstyled it is BLACK, which is invisible on the
-  // dark card. Every chevron in the control takes this, the year nav's included.
+  // rdp's chevron is a bare polygon with no fill and this app never loads rdp's
+  // stylesheet, so unstyled it is BLACK. Every chevron in the control takes this.
   chevron: 'fill-current',
 };
 
-// 28 tall like the nav buttons it sits between, 44 below the breakpoint like
-// every other target in the sheet. The radius stays 7 at both, which is what
-// `button_previous` and `button_next` beside it already do — A45's row records
-// that as a declined D56 deviation, and `CELL_BASE` inherits the same one from
-// `day_button` on purpose: a cell that replaces the day cell has to match it.
+// The radius stays constant across both heights, matching the nav buttons beside it: a
+// declared exception, which `CELL_BASE` inherits on purpose. *Shape system*
 const CAPTION_BUTTON =
   'grid h-7 place-items-center rounded-[7px] px-2 font-display text-[13px] font-semibold transition hover:bg-page active:scale-[.97] max-md:h-11 max-md:px-2.5 max-md:text-base';
 const CAPTION_BUTTON_OPEN = 'bg-page';
@@ -144,12 +104,11 @@ export function DatePicker({
   const t = useT();
   const language = useSettings((st) => st.language);
   const desktop = useIsDesktop();
-  // THE SPAN IS DERIVED HERE, not frozen at import, and it WIDENS to hold the
-  // field's own year. Two defects met at this line: a module constant keeps last
-  // year's window in a tab left open across New Year, and a value outside the
-  // span was clamped by rdp itself — silently, without calling `onMonthChange` —
-  // so a `firstPurchase` of 1998 read «червень 1998» in the caption above a grid
-  // showing January 2006, and a click there saved 2006.
+  // THE SPAN IS DERIVED HERE and WIDENS to hold the field's own year. Two defects meet
+  // at this line: a module constant keeps last year's window in a tab left open across
+  // New Year, and rdp CLAMPS a value outside the span WITHOUT calling `onMonthChange`,
+  // so the caption names one year over a grid showing another and a click saves the
+  // grid's.
   const { first: firstYear, last: lastYear } = yearBounds(
     new Date().getFullYear(),
     value ? isoToDate(value).getFullYear() : undefined,
@@ -158,22 +117,18 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'days' | 'months' | 'years'>('days');
   const [shown, setShown] = useState(() => (value ? isoToDate(value) : new Date()));
-  // The year grid's page anchor, and deliberately NOT `shown`: paging must not
-  // move the calendar. While it wrote `shown`, one press of "next years" carried
-  // the day grid twelve years forward and drew the browsed year as if it were
-  // chosen — someone who only looked could save a date in 2038.
+  // Deliberately NOT `shown`: paging must not move the calendar, or one press carries
+  // the day grid a page forward and draws the browsed year as if it were chosen.
   const [pageYear, setPageYear] = useState(() =>
     value ? isoToDate(value).getFullYear() : new Date().getFullYear(),
   );
-  // A pressed cell unmounts under the pointer, and the desktop popover is NOT
-  // modal: Radix restores focus only where it traps it, so without these the
-  // next Tab starts from the top of the page instead of inside the calendar.
+  // A pressed cell unmounts under the pointer and the desktop popover is NOT modal, so
+  // Radix restores no focus and the next Tab starts from the top of the page.
   const monthButton = useRef<HTMLButtonElement>(null);
   const yearButton = useRef<HTMLButtonElement>(null);
 
-  // Opening resets all three. The month is CONTROLLED — the grids have to move
-  // it — so `defaultMonth`'s "open on the month the field holds" happens here
-  // instead, and neither a view nor a page left open at close survives.
+  // The month is CONTROLLED, because the grids move it, so `defaultMonth` is unavailable
+  // and opening resets all three here — view, month and year page.
   const openChange = (next: boolean) => {
     setOpen(next);
     if (!next) return;
@@ -189,32 +144,21 @@ export function DatePicker({
       id={id}
       aria-label={value ? t.dates.selected(f.date(value)) : (placeholder ?? t.dates.pick)}
       aria-invalid={invalid || undefined}
-      // 16px below the breakpoint for the same reason as `Select` — it shows
-      // a value, and the drawing sets every value-bearing control on the
-      // phone at 16.
       className={`${invalid ? 'border-neg' : 'border-field-border hover:border-ink'} ${bg === 'page' ? 'bg-page' : 'bg-card'} h-9 rounded-[9px] border px-3 font-body text-[13px] text-ink transition active:scale-[.97] max-md:text-base ${TAP_44} ${className}`}
     >
       {value ? f.date(value) : <span className="text-muted">{placeholder ?? t.dates.pick}</span>}
     </button>
   );
 
-  // THE CAPTION IS THE NAVIGATION, in every view: the month word swaps the days
-  // for a grid of months, the year swaps them for a grid of years, and pressing
-  // the open one again goes back. A45 first shipped the library's own
-  // `captionLayout="dropdown"`, and the owner refused it on looks the same day —
-  // so the SHAPE is ours. The span it navigates is not, and did not change.
+  // THE CAPTION IS THE NAVIGATION: the month word swaps the days for a grid of months,
+  // the year for a grid of years, and pressing the open one again goes back.
   //
-  // IT IS RENDERED HERE, and rdp's own caption is hidden, rather than passed
-  // through `components.MonthCaption`. That override was a fresh object holding
-  // a fresh inline component on every render, and rdp lists `components` in the
-  // memo that builds its `DateLib` — so a keystroke anywhere else in the form
-  // rebuilt the whole month and remounted the caption, discarding focus inside
-  // it. Rendering it outside also keeps both buttons MOUNTED across a view
-  // change, which is what stops focus falling to <body> on the desktop.
-  //
-  // The month words come from the app dictionary while the weekdays stay the
-  // locale's, and the split is deliberate: this caption is the app's own control
-  // now, and `t.dates.monthFull` is the list every chart axis already reads.
+  // IT IS RENDERED HERE, with rdp's own caption hidden, rather than passed through
+  // `components.MonthCaption`. That override is a fresh inline component on every
+  // render, and rdp lists `components` in the memo that builds its `DateLib`, so a
+  // keystroke anywhere else in the form remounts the caption and discards focus inside
+  // it. Rendering it outside also keeps both buttons MOUNTED across a view change,
+  // which is what stops focus falling to <body>.
   const monthName = t.dates.monthFull[shown.getMonth()];
   const toggle = (next: 'months' | 'years') => {
     if (next === 'years') setPageYear(shown.getFullYear());
@@ -225,9 +169,8 @@ export function DatePicker({
       <button
         ref={monthButton}
         type="button"
-        // The label CARRIES the visible word instead of replacing it: an
-        // `aria-label` of «Виберіть місяць» alone took the month the calendar is
-        // showing out of the accessible name entirely.
+        // The label CARRIES the visible word rather than replacing it, or the month
+        // shown leaves the accessible name entirely.
         aria-label={`${t.dates.pickMonth}: ${monthName}`}
         aria-expanded={view === 'months'}
         onClick={() => toggle('months')}
@@ -245,8 +188,8 @@ export function DatePicker({
       >
         {shown.getFullYear()}
       </button>
-      {/* rdp's own caption carried `role="status" aria-live="polite"`, and
-          hiding it took the announcement of every month step with it. */}
+      {/* Hiding rdp's own caption took its `aria-live` announcement of every month
+          step with it. */}
       <span className="sr-only" role="status" aria-live="polite">
         {monthName} {shown.getFullYear()}
       </span>
@@ -276,15 +219,12 @@ export function DatePicker({
   );
 
   const years = yearPage(pageYear, firstYear, lastYear);
-  // A step is one PAGE, and the page size comes from the module that pages.
-  // Repeating 12 here let the two disagree the moment either changed, and a
-  // press would then land mid-page.
+  // The page size comes from the module that pages, or a press lands mid-page.
   const stepPage = (pages: number) =>
     setPageYear(Math.min(Math.max(pageYear + pages * YEARS_PER_PAGE, firstYear), lastYear));
   const yearGrid = (
-    // Four columns, not the months' three: a year is four glyphs and a month
-    // name is up to nine, so the same twelve cells want a different split. The
-    // emphasis marks the year the CALENDAR is on, never the page being browsed.
+    // Four columns, not the months' three: a year is four glyphs, a month name nine.
+    // The emphasis marks the year the CALENDAR is on, never the page being browsed.
     <div className="grid grid-cols-4 gap-1">
       {years.map((y) => (
         <button
@@ -304,9 +244,8 @@ export function DatePicker({
     </div>
   );
 
-  // The page's own nav, in rdp's two absolute positions, so a chevron never moves
-  // when the view does. At either end the button is DISABLED rather than removed,
-  // because a chevron that vanishes drags the caption under the pointer.
+  // In rdp's two absolute positions, so a chevron never moves when the view does, and
+  // DISABLED rather than removed at either end: a vanishing one drags the caption.
   const yearNav = (
     <>
       <button
@@ -330,12 +269,8 @@ export function DatePicker({
     </>
   );
 
-  // ONE BOX FOR ALL THREE VIEWS, at the day grid's own width above the
-  // breakpoint and the sheet's full width below it, so the popover never resizes
-  // when the view changes. THE NUMBER IS 252, NOT 224: a day cell is 32 wide plus
-  // the `p-0.5` gutter `day` carries either side, so the seven columns measure
-  // 7 x 36. At 224 the popover was measured jumping 269.1 -> 241.1 on the first
-  // press.
+  // ONE BOX FOR ALL THREE VIEWS, at the day grid's width, so the popover never resizes
+  // when the view changes — seven columns INCLUDING each cell's gutter, or it jumps.
   const calendar = (
     <div className="flex flex-col gap-2">
       {caption}
@@ -366,53 +301,30 @@ export function DatePicker({
     </div>
   );
 
-  // DECISION D-c — THE PICKER STOPS ANCHORING BELOW THE BREAKPOINT and becomes a
-  // centred sheet. A seven-column month grid anchored to a right-aligned field
-  // cannot stay inside 360px, and collision handling that only flips or shifts
-  // is answering a question the width has already lost.
-  //
-  // A Dialog rather than a Popover, because a sheet anchored to the VIEWPORT is
-  // what a dialog is: it brings the scrim, the focus trap and the scroll lock
-  // that a floating popover over a scrollable page does not have. Its overlay is
-  // the app Dialog's, which is `--color-scrim` since #92 — the two used to
-  // differ because one veiled a plane that was dark in both themes and the other
-  // did not, and re-planing the wall collapsed that distinction.
-  //
-  // WIDTH IS 328, NOT THE DRAWING'S 312, and the arithmetic is why. 312 is
-  // 360 − 2×24, and 312 ÷ 7 = 44.6 is where the drawing gets its ">44px cells" —
-  // but the sheet also carries 8px of padding a side, so the real cell is
-  // (312 − 18) ÷ 7 = 42.0 and the target the note claims is missed. At the app's
-  // standard overlay margin — `calc(100vw − 32px)`, the same one `Dialog` uses —
-  // a 360px viewport gives 328, and (328 − 18) ÷ 7 = 44.3. Same intent, and this
-  // time it holds.
+  // THE PICKER STOPS ANCHORING BELOW THE BREAKPOINT and becomes a centred sheet: a
+  // seven-column grid anchored to a right-aligned field cannot stay inside the phone.
+  // A Dialog rather than a Popover, because a sheet anchored to the VIEWPORT is what a
+  // dialog is — it brings the scrim, the focus trap and the scroll lock a floating
+  // popover does not. Its width is the app's standard overlay margin and not the
+  // drawing's, which does not account for the sheet's own padding.
   if (!desktop) {
     return (
       <RadixDialog.Root open={open} onOpenChange={openChange}>
         <RadixDialog.Trigger asChild>{trigger}</RadixDialog.Trigger>
         <RadixDialog.Portal>
           <RadixDialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-in data-[state=open]:duration-200 data-[state=open]:fade-in" />
-          {/* BOUNDED AND SCROLLABLE, because the sheet is taller than a
-              landscape phone. 44px day cells make a six-week month 343.6px
-              tall; measured at 568 x 320 (landscape iPhone SE) the sheet was
-              clipped 11.8px at each end and DAY 31 WAS UNREACHABLE — it is
-              `fixed`, so the page scroll cannot bring it back. The bound and the
-              band are the app's own answer to that (D65, and `Dialog`'s three
-              bands): a grid row rather than a flex child, because a percentage
-              height under a `max-h`-clamped parent resolves to `auto`.
-              `Scroller` WITHOUT a `radius`, on purpose — the 28px gutter is then
-              reserved only while a rail is actually up, so a month that fits
-              keeps its full 44.3px columns and only a clipped one narrows.
-              `sr-only` is absolutely positioned, so the title takes no row.
-              `border-field-border` repairs this sheet INWARD only, exactly as it
-              does the `Dialog` panel — the two are identical in fill, backdrop
-              and both readings, which is why no exemption could be written for
-              one and not the other. The overlay adjacency is #99's. */}
+          {/* BOUNDED AND SCROLLABLE, because a six-week month is taller than a
+              landscape phone and the sheet is `fixed`, so the page scroll cannot
+              bring a clipped last row back. A grid row rather than a flex child,
+              because a percentage height under a `max-h`-clamped parent resolves to
+              `auto` — and the `sr-only` title beside it is absolutely positioned, so
+              it takes no row of that one-row template. `Scroller` WITHOUT a `radius`:
+              the gutter is then reserved only while a rail is up. *Scrolling* */}
           <RadixDialog.Content
             aria-describedby={undefined}
             className="fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[328px] -translate-x-1/2 -translate-y-1/2 animate-in grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl border border-field-border bg-card p-2 shadow-(--shadow-popover) duration-200 zoom-in-95 fade-in"
           >
-            {/* The sheet shows a month caption, not a title, so the accessible
-                name is given to screen readers only rather than drawn twice. */}
+            {/* The sheet draws a month caption, so the title is screen-reader only. */}
             <RadixDialog.Title className="sr-only">{placeholder ?? t.dates.pick}</RadixDialog.Title>
             <div className="min-h-0 min-w-0">
               <Scroller>{calendar}</Scroller>

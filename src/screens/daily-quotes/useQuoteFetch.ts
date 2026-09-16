@@ -1,11 +1,6 @@
-// The Daily-quotes fetch ritual (S1–S3): one press fills the DRAFT store for
-// every Inzhur-linked row with units × sellUAH. Pure decisions live in
-// ./fetch-quotes.ts; this hook only wires them to the query, the draft store
-// and the toast.
-//
-// G5, restated where it is enforced: nothing here touches the repository. A
-// fetch writes draft text and provenance — the user's "Save snapshot" press is
-// still the only path into IndexedDB.
+// The Daily-quotes fetch ritual; pure decisions live in ./fetch-quotes.ts. NOTHING
+// HERE TOUCHES THE REPOSITORY — a fetch writes draft text and provenance, and the
+// save press is still the only way in.
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -32,7 +27,7 @@ import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
 
-/** The success flash reverts to the idle label after this long (S1). */
+/** The success flash reverts to the idle label after this long. */
 const FLASH_MS = 2500;
 
 export interface QuoteOffer {
@@ -49,19 +44,11 @@ export interface QuoteFetch {
   freshness: FeedFreshness | undefined;
   /** Instant to render in the transient "Fetched 13:05" label. */
   flashAt: string | undefined;
-  /**
-   * Whatever feed is in hand (live payload, else the last-good cache) — the S5
-   * coupon card reads its `paymentSchedule` for a linked bond's amount forecast.
-   * Undefined until something has been fetched; always undefined in demo.
-   */
+  /** Whatever feed is in hand, live or the last-good cache; always undefined in demo. */
   feed: ParsedFeed | undefined;
-  /**
-   * The instant `feed` was actually fetched — which is NOT "now" when the
-   * payload came from the last-good cache, and is never the date the user has
-   * selected in the picker. Anything reasoning about how old the provider's
-   * prices are has to date them from here, or it ends up blaming the provider
-   * for the app's own cache age.
-   */
+  /** The instant `feed` was actually fetched — NOT "now" on a cache hit, and never the
+   *  date in the picker. Anything reasoning about how old the provider's prices are
+   *  dates them from here, or it blames the provider for the cache's own age. */
   feedFetchedAt: string | undefined;
   fetchQuotes: () => void;
   chipFor: (asset: Asset) => ProvenanceChip | undefined;
@@ -72,18 +59,11 @@ export interface QuoteFetch {
 
 export function useQuoteFetch(
   assets: Asset[],
-  /**
-   * Units held per asset, from the ledger (`derive.ts` `unitsByAsset`), as of
-   * the drafted date — issue #31. An asset absent from this record is valued
-   * from its stored link total instead; see `matchAssets`.
-   */
+  /** An asset absent from this record is valued from its stored link total instead. */
   unitsHeld: Record<string, number>,
-  /**
-   * Assets whose ledger holds position-moving rows but cannot be counted — one
-   * of them carries no quantity. They fall back to the link's stale hand-typed
-   * total, so the fetch reports a number that is both old and, after any sale,
-   * too large. That is #31 again, and the ONLY way it becomes visible.
-   */
+  /** Assets whose ledger holds position-moving rows but cannot be counted. They fall
+   *  back to the link's hand-typed total, so the fetch reports a number that is old
+   *  and, after a sale, too large — the only way that becomes visible. */
   incompleteLedgers: readonly string[],
 ): QuoteFetch {
   const t = useT();
@@ -101,8 +81,7 @@ export function useQuoteFetch(
     return () => clearTimeout(timer);
   }, [flashAt]);
 
-  // Applies a feed to the DRAFT only. Reads the draft through getState() so a
-  // second press always reconciles against what is on screen right now.
+  // Reads the draft through getState(), so a second press reconciles against the screen.
   const apply = useCallback(
     (feed: InzhurFeed, source: QuoteSource) => {
       const { linked } = matchAssets(assets, feed.feed, unitsHeld);
@@ -116,8 +95,7 @@ export function useQuoteFetch(
       for (const fill of fills) {
         draft.fillQuote(fill.assetId, inputValue(fill.value, 2), { source, at: feed.fetchedAt });
       }
-      // Wholesale replace: every resolve re-decides all rows, which is also
-      // what un-hides an offer the user dismissed after the previous fetch.
+      // Wholesale: every resolve re-decides all rows, which un-hides a dismissed offer.
       setOffers(
         Object.fromEntries(
           pending.map((offer) => [
@@ -126,33 +104,17 @@ export function useQuoteFetch(
           ]),
         ),
       );
-      // The success flash belongs to a fetch that succeeded (a re-served fresh
-      // payload counts, S1); applying the CACHE after a failure must not claim
-      // it — that press ends in state 5, with the button back to idle.
+      // THE SUCCESS FLASH BELONGS TO A FETCH THAT SUCCEEDED; applying the CACHE after
+      // a failure must not claim it.
       if (source === 'fetch') setFlashAt(feed.fetchedAt);
-      // NAMED, NOT COUNTED (owner's ruling, 2026-09-01). A count told the owner
-      // that something among their assets was stale and left them to find which
-      // — and `ledgerUnits` already knows, so the count was throwing the answer
-      // away. Naming them also removes the plural problem the count had in both
-      // languages.
+      // NAMED, NOT COUNTED: a count leaves the owner to find which, when this knows.
       const nameOf = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
-      // SAID OUT LOUD, once per fetch. The row is filled — from the link's old
-      // total — so nothing on screen looks wrong, which is exactly why it needs
-      // a sentence. Only on a live fetch, and NOT because a red toast is
-      // already up — measured, it is not: the cache path runs only from that
-      // toast's action button, and sonner dismisses a toast when its action
-      // fires. The reason is what the two sentences CLAIM. This one says a row
-      // was valued from an old count, which on the cache path competes with the
-      // cache's own account of the same value; `noUnitsRecorded` below says a
-      // row was not valued at all, which nothing else on the screen explains, so
-      // that one is ungated.
-      // MINUS THE ROWS THAT WERE NOT VALUED AT ALL. This toast says a row was
-      // "valued from an old stored unit count", and for a `no-count` row that is
-      // simply false — nothing was offered for it. The two states overlap more
-      // easily than they look: link a pre-#31 asset for the FIRST time and it has
-      // position-moving rows without quantities (so it is in `incompleteLedgers`)
-      // AND a link with no legacy total (so it is `no-count`). An earlier comment
-      // on the `noUnitsRecorded` toast below asserted the pairing was impossible.
+      // SAID OUT LOUD, because the row is FILLED from the link's old total and nothing
+      // on screen looks wrong. GATED ON A LIVE FETCH — ONE RULE SERVES ALL THREE
+      // TOASTS: this claims a row WAS valued, so on the cache path it would compete
+      // with the cache's own account of that value, while the two below are claims
+      // about the LEDGER and are ungated. Minus the rows not valued at all, for which
+      // it is simply false; a first-time link can be in both sets.
       const stale = incompleteLedgers.filter(
         (id) => linked.some((m) => m.asset.id === id) && !noCount.includes(id),
       );
@@ -161,44 +123,20 @@ export function useQuoteFetch(
           id: 'stale-ledger',
         });
       }
-      // A HOLDING CANNOT BE NEGATIVE. `error`, not `message`: the one above
-      // describes a value that is merely old, this one says the ledger contains
-      // something impossible.
-      //
-      // NOT GATED ON `source`, and that is the difference between the two. A
-      // stale valuation is a claim about THIS fetch's output, so it steps aside
-      // for the cache path's own red toast. A negative holding is a claim about
-      // the LEDGER — the prices it was noticed alongside are irrelevant, this is
-      // the only place the app ever reports it, and the cache path is the one
-      // the owner takes for days at a stretch while the network is down.
+      // A HOLDING CANNOT BE NEGATIVE. `error`, not `message`: the one above describes
+      // a value that is merely old, this an impossible ledger. The prices it was
+      // noticed alongside are irrelevant, and the cache path is the one the owner
+      // takes for days while the network is down.
       if (negative.length > 0) {
         toast.error(t.dailyQuotes.negativeUnits(negative.map(nameOf).join(', ')), {
           id: 'negative-units',
         });
       }
 
-      // NO COUNT AT ALL — D117's third state, and the only one nothing else on
-      // the screen can explain. The row is linked, the feed HAS it, and the fetch
-      // still leaves it empty because no usable quantity exists for it. Before
-      // D117 the state was unreachable, so the silence was correct then and is
-      // not now. It takes precedence over `staleLedgerRows` above, which claims
-      // the row WAS valued.
-      //
-      // `message`, not `error`: nothing is wrong: the app is saying what it
-      // needs in order to value the row.
-      //
-      // UNGATED, like `negativeUnits` and unlike `staleLedgerRows`. The gate was
-      // added on the reasoning that the cache path already carries a red toast
-      // and a second sentence under it reads as two failures — measured, that
-      // toast is GONE by then: the cache path runs only from its action button,
-      // and sonner dismisses a toast when its action fires. Nothing is stacked
-      // under anything.
-      //
-      // And the two messages are not the same kind of claim. `staleLedgerRows`
-      // describes a row that WAS valued, so on the cache path it competes with
-      // the cache's own account of the same value. This one describes a row that
-      // was NOT — an empty cell with no explanation anywhere else on the screen,
-      // which is the silence D117 made reachable and this toast exists to end.
+      // NO COUNT AT ALL, the one state nothing else on the screen explains: the row is
+      // linked, the feed HAS it, and the fetch still leaves it empty. It takes
+      // precedence over the stale toast, which claims the row WAS valued. `message`,
+      // not `error` — nothing is wrong, the app is saying what it needs.
       if (noCount.length > 0) {
         toast(t.dailyQuotes.noUnitsRecorded(noCount.map(nameOf).join(', ')), {
           id: 'no-units-recorded',
@@ -210,7 +148,7 @@ export function useQuoteFetch(
 
   const fetchQuotes = useCallback(() => {
     void (async () => {
-      // Still fresh (same feed day) → re-serve it; no second roundtrip (S1).
+      // Still fresh on the same feed day: re-serve it, no second roundtrip.
       if (
         data !== undefined &&
         payloadStillFresh(data.fetchedAt, new Date(), INZHUR_REFRESH_HOUR)
@@ -224,8 +162,7 @@ export function useQuoteFetch(
         return;
       }
       if (disabled) return; // demo: no request left the app, so no failure
-      // Never a silent no-op and never a thrown boundary: a toast, plus the
-      // last-good cache offered explicitly (never applied by itself).
+      // Never silent, never a thrown boundary: the cache is offered, never applied.
       toast.error(t.dailyQuotes.fetchFailed, {
         ...(lastGood === undefined
           ? {}
@@ -243,8 +180,7 @@ export function useQuoteFetch(
 
   const chipFor = useCallback(
     (asset: Asset) =>
-      // Chips describe fetch provenance — in demo there is no fetch, so a
-      // `manual` chip on every row would be noise (S2 demo row).
+      // A chip describes fetch provenance, and in demo there is no fetch.
       disabled
         ? undefined
         : provenanceChip(asset.inzhur !== undefined, {

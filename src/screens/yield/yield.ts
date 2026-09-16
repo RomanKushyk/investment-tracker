@@ -1,6 +1,4 @@
-// Pure data-shaping for the Yield screen (cumulative-% chart + summary table)
-// — not in src/lib, that layer stays untouched per this task's scope. Covered
-// by yield.test.ts.
+// Pure data-shaping for the Yield screen, covered by yield.test.ts.
 import {
   annualizedPct,
   basisIsShort,
@@ -23,40 +21,23 @@ import { xirr, type CashFlow } from '../../core/xirr';
 export interface YieldTableRow {
   asset: Asset;
   invested: number;
-  // undefined = no quote saved yet (fields below are undefined too — an
-  // unquoted asset would otherwise read yieldSinceStart(0, invested) = -100%,
-  // then get scaled into a huge bogus annualized % against the global
-  // daysHeld basis; render "—" instead, same guard as Attributes' actualAnnualizedPct).
+  // undefined = no quote yet, and every field below too: an unquoted asset would
+  // otherwise read -100% and scale into a huge annualized figure.
   value: number | undefined;
   deltaTotal: number | undefined; // fraction, e.g. 0.0441 -> "+4.41%"
-  // fraction. THE BASIS IS THE WINDOW'S SPAN, not the portfolio's — and that is
-  // now settled rather than contested: D80 (owner's ruling on O24) supersedes
-  // the v1 contract that pinned the PORTFOLIO_START basis "regardless of
-  // window". A39 changed the code and left this line claiming the opposite for
-  // three days. `shortBasis` below is the treatment D80 requires with it.
-  annualized: number | undefined;
+  annualized: number | undefined; // fraction, on the WINDOW's span, not the portfolio's
   vsExpectedPp: number | undefined; // annualized(%) - expectedPct, in percentage points
-  /**
-   * true = `annualized` and `vsExpectedPp` are divided by a span this asset did
-   * not materially live through, so `/yield` renders both in `muted` (F-3/D80).
-   * Not a suppression: the figure stays byte-identical and every D5-pinned
-   * number is still reproducible — the mark says trust it less, the same signal
-   * the XIRR column already uses for null.
-   */
+  /** The two fields above are divided by a span this asset did not materially live
+   *  through, so `/yield` mutes them. Not a suppression — the figure is unchanged. */
   shortBasis: boolean;
-  // S9b total-return family (D13, additive — the columns may DISAGREE with
-  // deltaTotal by design: the audit's illusion-of-loss triple). undefined =
-  // no quote (same guard as above); null = core zero-denominator guard /
-  // non-converged xirr. Both render "—".
+  // May DISAGREE with deltaTotal by design. *Metric families and windows*
   totalReturn: number | null | undefined; // fraction (totalReturnPct, ÷ investedOwn)
   xirr: number | null | undefined; // fraction, money-weighted annualized
 }
 
-// What one row contributes to its asset's series, or `null` when it is not an
-// asset flow at all. A VALUE-RETURNING switch, because the statement switch this
-// replaced had no return type to fail against: a ninth `TxType` reached its
-// `default: break` and left the series short by however much the row carried,
-// with nothing to notice.
+// A VALUE-RETURNING switch, because a statement switch has no return type to fail
+// against: a ninth `TxType` reaches `default: break` and leaves the series short by
+// whatever that row carried, with nothing to notice.
 function assetFlowAmount(t: Transaction): number | null {
   switch (t.type) {
     case 'buy':
@@ -64,8 +45,7 @@ function assetFlowAmount(t: Transaction): number | null {
       return -t.amount;
     case 'dividend_accrual':
     case 'interest_payout':
-      // Net at the payout's OWN date, which is where the retired `tax` row used
-      // to put it. `taxWithheld < amount` is a CHECK, so this never flips sign.
+      // `taxWithheld < amount` is a CHECK, so this never flips sign.
       return t.amount - (t.taxWithheld ?? 0);
     case 'sell':
     case 'redemption':
@@ -78,24 +58,9 @@ function assetFlowAmount(t: Transaction): number | null {
   }
 }
 
-// Per-asset dated flows for xirr (S9b): buys/reinvests out (−), sells and
-// redemptions in (+), a payout in at `amount − taxWithheld`, plus the
-// carried-forward latest quote as the terminal value on the latest snapshot
-// date. deposit/withdrawal rows are portfolio cash moves, never asset flows —
-// skipped even when they carry an assetId (the transaction form always
-// attaches the selected asset).
-//
-// THE NETTING IS WHAT MAKES THE SERIES NET-OF-TAX, and it used to be a `tax`
-// row pushed as its own negative flow. Dropping that case without netting the
-// payout would turn every per-asset XIRR from net to gross — no type error, no
-// failing test, no visible break — so the two halves land together and
-// `yield.test.ts` pins a payout carrying a withholding against the same payout
-// without one.
-// `openValue` is the position the window INHERITED — money already committed
-// before the first flow inside it, so it enters as an outflow on the opening
-// date exactly as a purchase would. It is 0 for the full history (nothing was
-// held the day before the first transaction), which is what makes the windowed
-// rate reduce to the unwindowed one.
+// A deposit or withdrawal is portfolio cash and never an asset flow, so it is skipped
+// even when it carries an assetId. `openValue` is the position the window INHERITED,
+// entering as an outflow on the opening date; 0 for the full history.
 function assetCashFlows(
   assetId: string,
   transactions: Transaction[],
@@ -115,14 +80,8 @@ function assetCashFlows(
   return flows;
 }
 
-/**
- * The table, unwindowed — every figure since the portfolio began (D5).
- *
- * DELEGATES, exactly as `latestQuotes` delegates to `quotesAsOf` (A27): the
- * full history IS a window, so keeping two implementations would be keeping two
- * chances to disagree. `Від початку` is not a special case in the code, it is
- * the widest value of the one parameter.
- */
+/** The table, unwindowed. It DELEGATES because the full history IS a window, and two
+ *  implementations would be two chances to disagree. */
 export function yieldTableRows(
   assets: Asset[],
   snapshots: Snapshot[],
@@ -137,36 +96,12 @@ export function yieldTableRows(
 }
 
 /**
- * The table over a WINDOW (A39, extension § S2).
- *
- * EVERY COLUMN REDUCES TO ITS UNWINDOWED FORM when the window is the full
- * history, and that is the property the whole design hangs on — it is what lets
- * `yieldTableRows` delegate, and it is pinned by a test that compares the two
- * row-for-row on the seed. The reduction works because of one choice:
- *
- * THE OPENING POSITION IS VALUED THE DAY BEFORE THE WINDOW OPENS. `transactionsIn`
- * includes both ends, so a purchase dated on `from` is one of the window's own
- * flows; valuing the position ON `from` would count it twice. The day before the
- * portfolio's first transaction has no snapshots, so the full-history opening
- * value is 0 and every term below collapses.
- *
- * WHAT A WINDOW CHANGES, COLUMN BY COLUMN, and none of it is a new formula —
- * each is the shipped one with a windowed basis:
- *
- * · the BASIS stops being "everything ever bought" and becomes what the window
- *   inherited plus what it bought: `open + investedInside`. F-6 is right that
- *   `Вкладено, ₴` then means something else, and the header is A39's to change.
- * · DISPOSALS COUNT. `close + soldInside` against that basis, because without
- *   the sold term a sale inside the window reads as a loss — the sheet's F-7
- *   named it and the seed cannot show it, having no sells.
- * · `Річна` divides by the WINDOW's days, not the portfolio's. F-2 measured
- *   what that does: `annualizedPct` is linear, so a 30-day window multiplies by
- *   12,17 and the column triples while Δ barely moves.
- * · XIRR takes the opening position as an outflow dated at `from`.
- *
- * `undefined` for the window means there is no window at all — no start or no
- * end — and every row comes back in its no-quote shape, which is what the
- * screens already render as an empty state.
+ * The table over a WINDOW. EVERY COLUMN REDUCES TO ITS UNWINDOWED FORM at the full
+ * history, which is what lets the delegation above work, and the reduction turns on
+ * one choice: THE OPENING POSITION IS VALUED THE DAY BEFORE THE WINDOW OPENS. Both
+ * ends are inclusive, so valuing it ON `from` counts a purchase dated there twice, and
+ * the day before the first transaction has no snapshots. Disposals have to count, or
+ * a sale inside the window reads as a loss. `undefined` means no window at all.
  */
 export function yieldTableRowsIn(
   assets: Asset[],
@@ -174,18 +109,11 @@ export function yieldTableRowsIn(
   transactions: Transaction[],
   w: PeriodWindow | undefined,
 ): YieldTableRow[] {
-  // FLOWS ARE CLIPPED AT THE BOTTOM ONLY, and that is not a shortcut (A39
-  // review). Every window ends at `to` = the latest snapshot, so an upper clip
-  // can never exclude anything but transactions entered SINCE the last
-  // valuation — which are the most recent reality, and which `/portfolio`,
-  // `/overview` and `/attributes` all count. A first draft used
-  // `transactionsIn`, and a buy dated after the last snapshot vanished from
-  // this screen while every other screen showed it: measured, 65 800 here
-  // against 115 800 there, on the DEFAULT window. Reproduced and pinned below.
-  //
-  // No window means no valuation date, not no ledger: the flows are still every
-  // transaction, which is what the old code reported and what a user who has
-  // entered buys but not yet saved a snapshot must see.
+  // FLOWS ARE CLIPPED AT THE BOTTOM ONLY, and that is not a shortcut. Every window ends
+  // at the latest snapshot, so an upper clip excludes nothing but transactions entered
+  // SINCE the last valuation — which every other screen counts, so clipping both ends
+  // made a buy dated after the last snapshot vanish from this screen alone. No window
+  // means no valuation date, not no ledger.
   const flows = w === undefined ? transactions : transactions.filter((t) => t.date >= w.from);
   const open = w === undefined ? {} : quotesAsOf(snapshots, dayBefore(w.from));
   const values = w === undefined ? {} : quotesAsOf(snapshots, w.to);
@@ -195,24 +123,13 @@ export function yieldTableRowsIn(
   const payoutsNet = payoutsNetByAsset(flows);
   const sold = soldAmountByAsset(flows);
   const now = w?.to;
-  // 0 keeps `annualizedPct`'s existing no-basis branch (A24) — and a window can
-  // now REACH it with data present, which the empty-dataset case never could:
-  // `ytd` on 1 January resolves `from === to`. `annualizedPct` would then return
-  // a fabricated 0 that renders as a measurement, and `проти очікуваної` would
-  // read as the full expected rate missed. `undefined` is the honest answer, so
-  // a zero-length window is treated as no basis at all (A39 review).
+  // A ZERO-LENGTH span is reachable with data present — `ytd` on 1 January. Annualizing
+  // it returns a fabricated 0 that renders as a measurement, so it counts as no basis.
   const daysHeld = w === undefined ? 0 : daysBetween(w.from, w.to);
   const annualizable = daysHeld > 0;
 
-  // F-3/D80 — WHICH ROWS CANNOT SUPPORT THEIR OWN BASIS. `daysHeld` above is one
-  // span for every row (D5#5, and **D85 kept it that way** — O23 asked whether to
-  // make it per-asset and the answer was no), so an asset bought partway through
-  // is annualized over time it did not exist for. This says which ones, per row, against the
-  // very basis the row is divided by — including at `Від початку`, where the
-  // distortion has always been present and invisible.
-  // Built as one pass beside `investedByAsset` and its siblings rather than
-  // rescanned per row: `assetStart` walks the whole ledger, and calling it from
-  // inside `assets.map` made this O(assets x transactions) on every render.
+  // `daysHeld` is one span for every row by decision, so an asset bought partway through
+  // is annualized over time it did not exist for. One pass, or it is quadratic.
   const startByAsset = startDateByAsset(assets, transactions);
   const shortBasisOf = (asset: Asset): boolean => {
     if (w === undefined) return false;
@@ -239,8 +156,7 @@ export function yieldTableRowsIn(
         shortBasis: false,
       };
     }
-    // `+ sold` is the disposal term F-7 asked for. It is 0 on the seed, so the
-    // full-history reduction is exact and every D5 figure is untouched.
+
     const closed = value + (sold[asset.id] ?? 0);
     const deltaTotal = yieldSinceStart(closed, inv);
     const annualized = annualizable ? annualizedPct(closed, inv, daysHeld) : undefined;
@@ -252,17 +168,12 @@ export function yieldTableRowsIn(
       annualized,
       shortBasis: annualized === undefined ? false : shortBasisOf(asset),
       vsExpectedPp: annualized === undefined ? undefined : annualized * 100 - asset.expectedPct,
-      // THE DENOMINATOR CHANGES MEANING UNDER A WINDOW, and saying so is the
-      // point (A39 review). `totalReturnPct`'s contract is "external capital
-      // only — reinvested cash is system-generated and counting it dilutes the
-      // return the user's own money earned". `openValue` is a MARKET value: it
-      // embeds every prior reinvestment and every prior unrealized gain. Under
-      // a window the question is necessarily different — "what did the capital
-      // AT RISK when this window opened return over it" — and there is no way
-      // to ask it without valuing the inherited position. The full history is
-      // unaffected, because there `openValue` is 0 and the contract holds
-      // exactly. Under any shorter window this column answers the windowed
-      // question, and F-6's header problem is its sibling.
+      // THE DENOMINATOR CHANGES MEANING UNDER A WINDOW. `totalReturnPct` counts
+      // external capital only, but `openValue` is a MARKET value and embeds every
+      // prior reinvestment and unrealized gain — so a window necessarily asks the
+      // other question, what the capital AT RISK when it opened returned, and that
+      // cannot be asked without valuing the inherited position. The full history is
+      // unaffected, because there `openValue` is 0.
       totalReturn: totalReturnPct(
         value,
         payoutsNet[asset.id] ?? 0,
@@ -275,25 +186,9 @@ export function yieldTableRowsIn(
   });
 }
 
-// S9b "(ann.)" clarity suffix token: true while the portfolio history is
-// under a full year (daysHeld from the derived portfolio start to the latest
-// snapshot < 365) — with less than a year of flows the money-weighted rate is
-// an extrapolation, so the header carries the clarity label. The component owns
-// the "(ann.)" copy (D8); no snapshots → true (nothing to relativize yet).
-//
-// Takes all three tables since A24, matching `yieldTableRows` — the start is
-// derived from every one of them, so asking for snapshots alone would answer a
-// different question than the one the header asks.
-/**
- * Whether the money-weighted rate is an extrapolation — TRUE while the span it
- * is annualized from is under a year.
- *
- * IT MEASURES THE WINDOW, not the portfolio (A39 review). The suffix exists to
- * mark a rate inferred from too little time, and once the portfolio passes 365
- * days the portfolio-span version would drop the mark while a user on
- * `1 місяць` reads a column extrapolated from thirty. The full history is the
- * widest window, so this stays correct for the case it was written for.
- */
+/** Whether the money-weighted rate is an extrapolation. IT MEASURES THE WINDOW, not
+ *  the portfolio: the portfolio-span version drops the mark after a year while a user
+ *  on the shortest window reads a column extrapolated from thirty days. */
 export function xirrIsExtrapolatedIn(w: PeriodWindow | undefined): boolean {
   return w === undefined || daysBetween(w.from, w.to) < 365;
 }
@@ -313,12 +208,8 @@ export interface YieldSeriesPoint {
   [assetId: string]: string | number | undefined;
 }
 
-// One point per snapshot date; each asset's value is its cumulative %% return
-// (fraction*100) using invested-to-date (buys+reinvests dated <= that day).
-// Missing before an asset's first purchase — recharts draws a natural gap.
-/**
- * The curve, unwindowed — delegates for the same reason the table does.
- */
+/** The curve, unwindowed — delegates for the same reason the table does. A point is
+ *  missing before an asset's first purchase, and recharts draws a natural gap. */
 export function cumulativeYieldSeries(
   snapshots: Snapshot[],
   transactions: Transaction[],
@@ -327,19 +218,9 @@ export function cumulativeYieldSeries(
   return cumulativeYieldSeriesIn(snapshots, transactions, assets, undefined);
 }
 
-/**
- * The curve over a WINDOW (A39, extension § S2).
- *
- * IT HAD TO BE WINDOWED TOO, and not merely clipped. Restricting the x-range
- * while every y stayed measured from inception would put a table that answers
- * "since 27.04" beside a curve that answers "since 03.02" — the same
- * incoherence A38's review caught one level up, where a header asserted a
- * window the figures below it contradicted.
- *
- * So the basis is rebased exactly as the table's is: what the window inherited,
- * plus what it bought up to each point. `undefined` means the whole history,
- * where the opening value is 0 and the expression collapses to the original.
- */
+/** The curve over a WINDOW — windowed, not merely clipped: restricting the x-range
+ *  while every y stayed measured from inception puts a table answering one question
+ *  beside a curve answering another. The basis is rebased as the table's is. */
 export function cumulativeYieldSeriesIn(
   snapshots: Snapshot[],
   transactions: Transaction[],
@@ -364,10 +245,8 @@ export function cumulativeYieldSeriesIn(
       const boughtToDate = transactions
         .filter((t) => upTo(t) && (t.type === 'buy' || t.type === 'reinvest'))
         .reduce((sum, t) => sum + t.amount, 0);
-      // THE SAME DISPOSAL TERM THE TABLE TAKES. Without it the curve drew the
-      // "~17 % loss on a position that merely returned cash" directly above a
-      // table that had just stopped drawing it — the fix for F-7 applied in one
-      // of the two places (A39 review). 0 on the seed, so the reduction holds.
+      // THE SAME DISPOSAL TERM THE TABLE TAKES, or the curve draws a loss on a
+      // position that merely returned cash, directly above a table that does not.
       const soldToDate = transactions
         .filter((t) => upTo(t) && (t.type === 'sell' || t.type === 'redemption'))
         .reduce((sum, t) => sum + t.amount, 0);

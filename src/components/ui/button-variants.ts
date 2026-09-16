@@ -2,102 +2,58 @@ import { cva } from 'class-variance-authority';
 
 import { TAP_44 } from './tap-target';
 
-// Buttons per README §4 — the D56 radius rule, not the old 999px pill + D7
-// tactile press on every button.
-// Split into its own module (not Button.tsx) so link-styled-as-button spots
-// (e.g. "Yield chart →") can reuse the classes on an <a>/<Link> while keeping
-// Button.tsx a component-only export for react-refresh.
+// Split out of Button.tsx so a link can reuse the classes on an <a>, while Button.tsx
+// stays a component-only export for react-refresh.
 export const buttonVariants = cva(
-  // The border lives in the BASE, not in the outline variants. A button's
-  // height is automatic, so a border only some variants carry is 2px of height
-  // only some variants have — which is why "Copy yesterday" (outline, 42.3px)
-  // stood taller than "Save snapshot" (primary, 40.3px) beside it. Every
-  // variant now reserves the same ring and the filled ones paint it
-  // transparent, so all variants of a size are isometric by construction.
-  // `TAP_44` gives every size a 44 x 44 pressable region below the breakpoint
-  // without touching a drawn box; on `md`, which is already 44 there, it is
-  // inert because the overlay never shrinks below the control it sits in.
+  // THE BORDER LIVES IN THE BASE, not in the outline variants: a button's height is
+  // automatic, so a border only some variants carry is height only some variants have.
+  // Every variant reserves the same ring and the filled ones paint it transparent, so
+  // all variants of a size are isometric by construction.
   `inline-flex items-center justify-center gap-2 whitespace-nowrap border-[1.5px] font-display transition active:scale-[.97] disabled:pointer-events-none ${TAP_44}`,
   {
     variants: {
       variant: {
-        // FILLED ACCENT EMPHASIS, rationed to one CTA per screen by the
-        // 60/30/10 in *Interaction rules*. It is still `defaultVariants`, so a
-        // bare `<Button>` spends that one fill without naming it — #115 is
-        // whether the ration should be opt-in. Hover and pressed are steps
-        // along the accent scale, never the fill mixed with white or black.
-        // Its disabled tone is weaker than the `ink` fill's was: #113.
+        // FILLED ACCENT EMPHASIS, rationed to one CTA per screen and still the default,
+        // so a bare button spends that fill without naming it. Hover and pressed step
+        // along the accent scale, never the fill mixed with white. *Interaction rules*
         primary:
           'border-transparent bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-pressed',
-        // The hover fill was a RAIL token borrowed onto a light surface, from
-        // the family #92 retired. Here `text-ink` is right and must invert — so in dark the
-        // label and the hover fill went to the same near-white together, and
-        // the button emptied on hover. `panel` is the surface-step token this
-        // always wanted, and it moves with the theme where a rail token does
-        // not.
+        // `panel` and not a rail token: `text-ink` inverts with the theme and a rail
+        // token does not, so in dark both met at near-white and the button emptied.
         outline: 'border-ink bg-transparent text-ink hover:bg-panel',
         ghost: 'border-transparent bg-transparent text-ink hover:opacity-85',
-        // Destructive pair (design/extensions/settings.dc.html S6): the
-        // outline trigger opens a confirm; the full neg fill is reserved for
-        // the dialog's armed action.
+        // The outline trigger opens a confirm; the fill is the dialog's armed action.
         outlineDanger: 'border-neg bg-transparent text-neg hover:bg-neg/8',
         danger: 'border-transparent bg-neg text-card hover:opacity-90',
-        // Inert done-state outline (S6 "Backup downloaded ✓": panel-border +
-        // muted at FULL opacity per the reference — a whole-variant swap, not
-        // a className override, so no two color utilities ever fight).
         outlineMuted: 'pointer-events-none border-panel-border bg-transparent text-muted',
       },
-      // Explicit variant (not a className override) so callers needing bold
-      // text don't end up with two font-weight utilities fighting over
-      // generated-CSS order.
+      // EVERY AXIS IS A VARIANT, NEVER A className: two utilities of one kind fight
+      // over generated-CSS order, and the winner is whichever Tailwind emitted last.
       weight: {
         semibold: 'font-semibold',
         bold: 'font-bold',
       },
-      // Same rationale as `weight`: sizing as an explicit variant, never a
-      // padding/font-size className collision. `md` = the former base classes
-      // (every pre-existing button is byte-identical); `sm` is the compact
-      // pill for tight shells (sidebar Backup button).
-      // `header` = the P3 "Fetch quotes" control (daily-quotes-live.dc.html
-      // S1): padding 8/18, 13px — one notch below `md` so it reads as a header
-      // control beside the 36px Date field instead of a primary action.
       size: {
-        // Height is EXPLICIT, not a padding sum. With `box-sizing: border-box`
-        // the base ring is then absorbed rather than added, so a filled and an
-        // outline button of the same size are identical at every device-pixel
-        // ratio. Compensating with padding cannot do that: Chrome lays a
-        // 1.5px border out as 1px at DPR 1 and 1.5px at DPR 2, so no single
-        // padding restores the height on both. `header` is 36 on purpose — it
-        // sits beside the 36px Date field (README §4).
-        // `md` IS ONE OF THE TWO DELIBERATE G-2 EXCEPTIONS, and it is the size
-        // variant rather than two call sites: `md` is the primary-action size,
-        // there is no instance of it for which 44 is wrong below the
-        // breakpoint, and giving two individual buttons their own height would
-        // mean a third size that exists on two screens.
-        // The radius is RECOMPUTED, not inherited: round(44 × 0.26) = 11.
+        // Height is EXPLICIT, not a padding sum: the base ring is then absorbed rather
+        // than added. Padding cannot do the same job, because Chrome lays a 1.5px
+        // border out as 1px at DPR 1 and 1.5px at DPR 2, so no single value restores
+        // the height on both.
+        // `md` IS A DECLARED EXCEPTION to the hit-area rule, taken on the size variant
+        // because it is the primary-action size and there is no instance of it for
+        // which the grown box is wrong. Its radius is RECOMPUTED from the new short
+        // side, never inherited. *Shape system*
         md: 'rounded-[10px] max-md:rounded-[11px] h-10 max-md:h-11 pr-5 text-[13.5px]',
-        // `header` and `sm` do NOT change, and `header` is the clearer case: it
-        // is 36 precisely so it sits beside the 36px Date field (README §4), so
-        // moving one without the other breaks the pairing. Both reach 44 by hit
-        // area instead — see `TAP_44` in the base class above.
+        // `header` and `sm` do NOT: `header` is sized to sit beside the Date field, so
+        // moving one breaks the pairing. Both reach the hit area through `TAP_44`.
         header: 'rounded-[10px] h-9 pr-[18px] text-[13px]',
         sm: 'rounded-[8px] h-[30px] pr-3.5 text-xs',
       },
-      // Two disabled tiers, per the S1 drawings
-      // (design/extensions/daily-quotes-live.dc.html: loading at opacity .7,
-      // line 358; gated — nothing to fetch / demo — at .5, lines 385 + 396).
       // A control that is BUSY must not read like one you may never press.
-      // Expressed as a variant rather than a className override for the same
-      // reason as `weight`/`size`: two opacity utilities on one element would
-      // fight over generated-CSS order.
       disabledTone: {
         gated: 'disabled:opacity-50',
         busy: 'disabled:opacity-70',
       },
-      // Left padding as its own variant so ghost links flush against a card
-      // edge (e.g. "Open Allocation →", design line 198 `padding-left:0`) can
-      // drop it without a className px collision. The size-matched value
-      // comes from the compound variants below.
+      // So a ghost link flush against a card edge can drop its left padding.
       inset: {
         normal: '',
         flushLeft: 'border-l-0 pl-0',

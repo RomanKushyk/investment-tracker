@@ -1,7 +1,5 @@
-// Non-component companions of AssetForm.tsx — split out (button-variants.ts
-// rationale) so the .tsx file only exports components for react-refresh.
-// core/schemas emits paths; the pinned S3 message vocabulary now lives in the
-// dictionary (t.asset.message), because the words follow the language.
+// Non-component companions of AssetForm.tsx, split out so the .tsx file exports only
+// components for react-refresh. The message vocabulary is the dictionary's.
 import { sameInstrument } from '../../core/inzhur/ref';
 import { todayIso } from '../../core/dates';
 import type { InzhurQuote } from '../../core/inzhur/parse';
@@ -11,17 +9,14 @@ import type { AssetFormInput } from '../../core/schemas';
 import type { Asset, PayoutSchedule, YieldType } from '../../core/types';
 import type { SelectOption } from '../ui/Select';
 
-// ORDER here, labels in the dictionary — the split every option list in the
-// app now uses.
+// ORDER here, labels in the dictionary — the split every option list uses.
 const YIELD_TYPE_ORDER: YieldType[] = ['fixed_coupon', 'dividends', 'capitalization', 'div_cap'];
 
 export function yieldTypeOptions(t: Dict) {
   return YIELD_TYPE_ORDER.map((value) => ({ value, label: t.asset.yieldOption[value] }));
 }
 
-// The 4 create options; edit mode of an asset ALREADY holding the seed-only
-// 'none' additionally shows "None (price only)" (brief S3 — create never
-// offers it, and neither does editing a non-'none' asset).
+// Create never offers 'none', nor does editing an asset not already holding it.
 const CREATE_SCHEDULES: PayoutSchedule[] = ['maturity', 'monthly', 'quarterly', 'semiannual'];
 
 export function scheduleOptions(allowNone: boolean, t: Dict) {
@@ -29,16 +24,10 @@ export function scheduleOptions(allowNone: boolean, t: Dict) {
   return values.map((value) => ({ value, label: t.asset.schedule[value] }));
 }
 
-/**
- * Option rows for the active kind: funds read "Inzhur REIT · inzhur-reit"
- * (feed title + slug), bonds "UA4000238976 · matures 24.03.2027". The stored
- * value is EXACTLY the string the manual field would hold (slug / ISIN), so
- * schema and patch mappers stay untouched.
- *
- * `currentRef` keeps an already-linked ref selectable even when the feed does
- * not carry it (an offline session, a delisted bond, a hand-typed slug) — the
- * trigger must never fall back to the placeholder over a value that is set.
- */
+/** The stored value is EXACTLY the string the manual field would hold, so schema and
+ *  patch mappers stay untouched. `currentRef` keeps an already-linked ref selectable
+ *  when the feed does not carry it: the trigger must never fall back to the
+ *  placeholder over a value that is set. */
 export function inzhurRefOptions(
   entries: InzhurQuote[],
   kind: 'fund' | 'bond',
@@ -64,34 +53,25 @@ export function inzhurRefOptions(
           },
     );
   const ref = currentRef.trim();
-  // `sameInstrument`, not `===`. A manually typed ref is legal in any case the
-  // user likes, so a stored `ua4000238976` against a published `UA4000238976`
-  // appended a synthetic row and showed one bond twice, differing only in case —
-  // while `matchAssets` treated the two as the same instrument all along.
+  // `sameInstrument`, not `===`: a hand-typed ref is legal in any case, so an exact
+  // compare shows one bond twice while `matchAssets` treats the two as one.
   return ref !== '' && !options.some((o) => sameInstrument(o.value, ref))
     ? [...options, { value: ref, label: ref }]
     : options;
 }
 
-// Code auto-derivation while untouched — same rule as core buildNewAsset.
 export function deriveCode(name: string): string {
   return name.trim().slice(0, 2).toUpperCase();
 }
 
-// Fresh defaultValues per mode. Numbers/dates are the raw string inputs of
-// AssetFormInput; edit prefills from the stored asset. EVERY numeric prefill goes
-// through the bound formatter's `input` — not `num`, not `units`, not `pctPlain`;
-// the block on `expectedPct` below measures why each of the other three is wrong
-// here. The two fields that once used `num` / `units` are gone: Coupon amount to
-// D119's rate and Units to D117's ledger derivation.
+// EVERY NUMERIC PREFILL GOES THROUGH THE BOUND FORMATTER'S `input` — not `num`, not
+// `units`, not `pctPlain`; the block on `expectedPct` below measures why each of the
+// other three is wrong here.
 //
-// THE CALLER OWES ONE LANGUAGE TO BOTH SIDES: `input` verifies its round trip
-// under the formatter's own grammar, so a prefill only survives an untouched
-// Save if `assetFormSchema(mode, lang)` reads it back under that same lang. No
-// signature enforces it, and the percent fields are where it costs a 1000x.
-// Percent fields joined them in A36 through `f.input`; they were plain
-// dot-decimal strings until then, which is what the edit fragment's `16.4`
-// pinned and why the Ukrainian UI showed a dot in two fields.
+// THE CALLER OWES ONE LANGUAGE TO BOTH SIDES: `input` verifies its round trip under
+// the formatter's own grammar, so a prefill only survives an untouched Save if the
+// schema reads it back under that same language. No signature enforces it, and the
+// percent fields are where it costs a 1000x.
 export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
   if (!asset) {
     return {
@@ -100,19 +80,11 @@ export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
       yieldType: 'fixed_coupon',
       expectedPct: '',
       targetPct: '',
-      // `semiannual`, not `maturity` (D121), and it PAIRS WITH THE YIELD TYPE
-      // ABOVE rather than standing on its own. The form opens on `fixed_coupon`,
-      // and the old pairing said a new bond pays once at the end — a zero-coupon
-      // instrument — while ALL 32 bonds the provider lists and both seed bonds
-      // pay twice a year (`docs/reference/OVDP-COUPON-STRUCTURE.md`). It is the
-      // divisor in `couponPerPayment`, so the default was wrong in the one place
-      // a default is most likely to survive unread. Linking a bond overwrites it
-      // from the feed's own gaps anyway; this is what an UNLINKED one opens on.
-      //
-      // SWITCHING THE YIELD TYPE DOES NOT MOVE IT, and that is unchanged rather
-      // than introduced here: the old default left `maturity` on a dividends
-      // asset, which is no better. A schedule that followed the yield type would
-      // be a new behaviour, not a fix to this one.
+      // `semiannual`, not `maturity`, and it PAIRS WITH THE YIELD TYPE ABOVE: the form
+      // opens on `fixed_coupon`, where `maturity` means a zero-coupon bond and no bond
+      // the provider lists is one (docs/reference/OVDP-COUPON-STRUCTURE.md). It is the
+      // divisor in `couponPerPayment`, so the default was wrong where a default is
+      // likeliest to survive unread. Switching the yield type does not move it.
       payoutSchedule: 'semiannual',
       firstPurchase: todayIso(),
       maturity: '',
@@ -125,17 +97,15 @@ export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
     name: asset.name,
     code: asset.code,
     yieldType: asset.yieldType,
-    // `f.input`, NOT `String` — Contract 0 (D58) separates formatting per
-    // language with no exceptions, and these two reached the field as raw JS: a
-    // 17,5 % target rendered "17.5" in the Ukrainian UI, next to fields that
-    // were already localized.
+    // `f.input`, NOT `String` — Contract 0 separates formatting per language with no
+    // exceptions, and raw JS renders a Ukrainian 17,5 as "17.5" beside fields that are
+    // already localized.
     //
-    // `input` and not `num` or `pctPlain`, measured: `num` forces two decimals
-    // ("40,00" for a whole target), and `pctPlain` ROUNDS to one (7,25 → "7,3",
-    // silently editing the user's own value) and appends a " %" the label
-    // already carries. A first cut used `units`, whose shape is right, and
-    // argued the round trip held; it does not — uk 6,164 parses back as 6164.
-    // `input` is `units` that checks (see `money.ts`).
+    // `input` and not `num` or `pctPlain`, measured: `num` forces two decimals,
+    // `pctPlain` ROUNDS to one (7,25 → "7,3", silently editing the user's own value)
+    // and appends a " %" the label already carries. `units` has the right shape but
+    // fails its round trip — uk 6,164 parses back as 6164. `input` is `units` that
+    // checks. *Language, numbers, fonts*
     expectedPct: f.input(asset.expectedPct),
     targetPct: f.input(asset.targetPct),
     payoutSchedule: asset.payoutSchedule,
@@ -143,9 +113,8 @@ export function assetFormDefaults(f: Format, asset?: Asset): AssetFormInput {
     maturity: asset.maturity ?? '',
     couponRatePct: asset.couponRatePct !== undefined ? f.input(asset.couponRatePct) : '',
     nextCoupon: asset.nextCoupon ?? '',
-    // No `units` since D117 — the group stopped asking, and a legacy value is
-    // deliberately NOT round-tripped through the form: it survives untouched in
-    // the store precisely because nothing here writes it back.
+    // No `units`: a legacy value is deliberately NOT round-tripped through the form,
+    // and survives untouched in the store because nothing here writes it back.
     inzhur: asset.inzhur ? { kind: asset.inzhur.kind, ref: asset.inzhur.ref } : undefined,
   };
 }
