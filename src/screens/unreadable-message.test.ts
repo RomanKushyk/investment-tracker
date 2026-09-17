@@ -6,10 +6,55 @@ import { describe, expect, it } from 'vitest';
 import { en, uk } from '../i18n/messages';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const read = (...parts: string[]) =>
-  readFileSync(join(here, ...parts), 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^[ \t]*\/\/.*$/gm, '');
+/** TS comments out before a picker is read. Not cosmetic: the prose here and in
+ *  the pickers names the very message keys asserted below, so an unstripped read
+ *  lets a comment answer for the sentence a field actually shows.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// withholdingMissing` inside the
+ *  withholding span leaves this green and turns the reader it replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+const read = (...parts: string[]) => stripTs(readFileSync(join(here, ...parts), 'utf8'));
 
 // A numeric field can now fail for a reason it could not before: the text is not
 // a number UNDER THIS LANGUAGE'S GRAMMAR. Every site below answered that with the

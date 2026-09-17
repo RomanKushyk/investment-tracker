@@ -48,8 +48,52 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 /** TS comments out before the markup half reads a source. Not cosmetic: every
  *  file read here is one whose comments discuss the utilities being asserted on —
  *  `ImportRow.tsx` names its own ruling, `Settings.tsx` annotates the row — so a
- *  comment could satisfy an assertion the code fails, or fail one it passes. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
+ *  comment could satisfy an assertion the code fails, or fail one it passes.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// border-dashed` in
+ *  `ImportRow.tsx` leaves this green and turns the reader it replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 /** CSS comments out, quote-aware. The readers below take the FIRST match in a
  *  block and this stylesheet quotes token declarations inside its comments
@@ -125,7 +169,7 @@ function resolve(theme: 'light' | 'dark', name: string, seen: string[] = []): st
   expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
     name,
   );
-  // Lazily, the way `switch-border.test.ts:131` and `floating-edges.test.ts:196`
+  // Lazily, the way `switch-border.test.ts:175` and `floating-edges.test.ts:196`
   // do it: evaluating the light-block fallback unconditionally rescans the whole
   // `@theme` body a second time for a result already in hand.
   const decl = (block: string) => block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
@@ -303,7 +347,7 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
 // whole file inert. Solidity IS pinned below, because "never dashed" is a claim
 // about the boundary this ruling owns.
 describe('the markup points at the rank', () => {
-  const source = () => strip(read('screens/settings/ImportRow.tsx'));
+  const source = () => stripTs(read('screens/settings/ImportRow.tsx'));
 
   /** The two arms of the state conditional, as the ternary writes them. Both
    *  live on ONE line, so a line filter selects the same string for each and
@@ -371,7 +415,7 @@ describe('the markup points at the rank', () => {
   // interposed wrapper, or a `<Card>` opened in another component, so it catches
   // the row being rehoused wholesale and nothing subtler.
   it('still renders the row inside a `Card` — a tripwire on the outward plane', () => {
-    const settings = strip(read('screens/Settings.tsx'));
+    const settings = stripTs(read('screens/Settings.tsx'));
     const at = settings.indexOf('<ImportRow');
     expect(at, 'Settings no longer renders the import row').toBeGreaterThan(-1);
     const before = settings.slice(0, at);
@@ -382,7 +426,7 @@ describe('the markup points at the rank', () => {
       opened - selfClosed - closed,
       'the import row left its `Card` — every outward figure describes `card`',
     ).toBeGreaterThan(0);
-    expect(strip(read('components/ui/Card.tsx')), '`Card` no longer paints `bg-card`').toMatch(
+    expect(stripTs(read('components/ui/Card.tsx')), '`Card` no longer paints `bg-card`').toMatch(
       /\bbg-card\b/,
     );
   });

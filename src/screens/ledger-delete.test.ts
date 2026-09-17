@@ -19,7 +19,57 @@ import { describe, expect, it } from 'vitest';
 // 36 rows, toast «Транзакцію видалено»); this keeps the shape.
 const here = dirname(fileURLToPath(import.meta.url));
 const RAW = readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8');
-const CODE = RAW.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+
+/** COMMENTS STRIPPED BEFORE MATCHING — the lesson A47 taught this file: the
+ *  prose above names `mutate` and the confirm button, so an unstripped read lets
+ *  a comment answer for the wiring.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// removeTransaction(` in the panel
+ *  leaves this green and turns the reader it replaces red on the caller
+ *  count.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+const CODE = stripTs(RAW);
 
 describe('deleting a ledger row', () => {
   it('gives a confirmed coupon its occurrence back', () => {

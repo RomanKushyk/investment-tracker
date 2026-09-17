@@ -44,10 +44,56 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const RAW = readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8');
 
-/** The file with `//` and block comments removed, so prose cannot pass or fail a test. */
-const strip = (text: string) =>
-  text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
-const CODE = strip(RAW);
+/** The file with `//` and block comments removed, so prose cannot pass or fail a
+ *  test.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// register('amount'` in the panel
+ *  leaves this green and turns the reader it replaces red. Rule 2 above
+ *  already held for prose written on its own line, which is how rationale
+ *  is written; the hole this closes is the comment that trails code.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+const CODE = stripTs(RAW);
 
 /** The amount field's own JSX: from its `name="amount"` to the end of that Controller. */
 function amountField(): string {
@@ -88,7 +134,7 @@ describe('the transaction form survives its own reset', () => {
 
     // Comment-stripped like every other read here (rule 2 at the head of this
     // file): `// ref(el)` in a comment is not a ref.
-    const shared = strip(
+    const shared = stripTs(
       readFileSync(join(here, '..', 'components', 'ui', 'NumberField.tsx'), 'utf8'),
     );
     expect(shared, 'NumberField declares no ref prop').toMatch(/ref\?: Ref<HTMLInputElement>/);

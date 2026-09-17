@@ -13,13 +13,58 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-// Trailing comments too, not only whole lines: `x = 1; // setLanguage(…)` would
-// otherwise read as a caller and redden the suite over a comment.
-const strip = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+/** Trailing comments too, not only whole lines: `x = 1; // setLanguage(…)` would
+ *  otherwise read as a caller and redden the suite over a comment.
+ *
+ *  QUOTE-EXACT, which the regex this replaces was not: `//` inside a STRING is
+ *  not a comment, and a bare `/\/\/.*$/` truncates its own line at the first
+ *  URL. Copied from `floating-edges.test.ts` SIGNATURE AND ALL rather than
+ *  imported — the house idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED, AND THE OTHER WAY ROUND: a real `setLanguage(`
+ *  call written after a `'https://x'` on the same line is CAUGHT here and
+ *  MISSED by the reader this replaces, which took the URL for a comment
+ *  and truncated the line before the call.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 const CODE = sourceFiles(here).map((path) => ({
   name: path.slice(here.length + 1).replace(/\\/g, '/'),
-  text: strip(readFileSync(path, 'utf8')),
+  text: stripTs(readFileSync(path, 'utf8')),
 }));
 
 // The store is where the language is DEFINED and written; every other file is

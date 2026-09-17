@@ -45,8 +45,8 @@ export const ANALYTICS = [
 // THE BOX IS THE SHEET'S OWN and deliberately not cropped to the ink: a box measured
 // off the geometry clips the caps, so re-cropping is the one edit here to think twice
 // about. KEEP THIS THE ONLY INLINE SVG IN THE FILE — mark.test.ts reads this source
-// raw and collects the mark's attributes as whole-file ordered lists, so a second
-// one fails the pin rather than the drawing. *Brand*
+// with its comments stripped and collects the mark's attributes as whole-file ordered
+// lists, so a second one fails the pin rather than the drawing. *Brand*
 export function Mark({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 120" className={className} aria-hidden="true">

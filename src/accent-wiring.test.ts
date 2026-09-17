@@ -22,15 +22,60 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
-/** Line comments out. The comments these files carry name every token asserted
- *  below — the primary variant's argues its fill by name, and `index.css` keeps
- *  the accent's record beside it — so an unstripped match would be satisfied by
- *  prose about a token instead of the token. `filled-track.test.ts:50` is the
- *  same guard against the same trap. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
+/** Line comments out, QUOTE-EXACT and line by line. The comments these files
+ *  carry name every token asserted below — the primary variant's argues its fill
+ *  by name, and `index.css` keeps the accent's record beside it — so an
+ *  unstripped match would be satisfied by prose about a token instead of the
+ *  token. `filled-track.test.ts` is the same guard against the same trap.
+ *
+ *  A regex reader that drops only whole-line `//` comments leaves the trailing
+ *  ones, and `CouponDueCard.tsx` below carries one — `// the coupon's own date`
+ *  — whose apostrophe then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported, which is the
+ *  house idiom: a guard stands alone and can be read without opening another.
+ *
+ *  INJECTION-VERIFIED: a trailing `// pos:` on a line inside
+ *  `colors.ts`'s CHART map leaves this green and turns the reader it
+ *  replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 describe('the primary button is the accent', () => {
-  const variants = strip(read('components/ui/button-variants.ts'));
+  const variants = stripTs(read('components/ui/button-variants.ts'));
 
   /** The `primary:` arm's class string, and an anchor rather than a whole-file
    *  match: `bg-accent` appearing ANYWHERE in this file would satisfy a bare
@@ -86,7 +131,7 @@ describe("the coupon card does not spend the screen's one accent fill", () => {
   // would hold the rule everywhere, and while `primary` stays the Button's
   // default variant a bare `<Button>` can spend a screen's fill without naming
   // it — #115 carries both halves.
-  const card = strip(read('screens/daily-quotes/CouponDueCard.tsx'));
+  const card = stripTs(read('screens/daily-quotes/CouponDueCard.tsx'));
 
   it('leaves the coupon card the outline, not the fill', () => {
     const confirm = card.match(/<Button[^>]*onClick=\{handleConfirm\}[^>]*>/);
@@ -108,8 +153,8 @@ describe("the coupon card does not spend the screen's one accent fill", () => {
 });
 
 describe('the capital area chart is the accent', () => {
-  const colors = strip(read('core/colors.ts'));
-  const area = strip(read('components/charts/BalancesArea.tsx'));
+  const colors = stripTs(read('core/colors.ts'));
+  const area = stripTs(read('components/charts/BalancesArea.tsx'));
 
   /** The `CHART` object's own body. Scoped, because `colors.ts` also holds
    *  `SERIES` and the tooltip objects: a whole-file `not.toMatch(/pos:/)` would

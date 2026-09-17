@@ -390,7 +390,7 @@ describe('the recorded readings still read as recorded', () => {
 // ring also lands on the WALL, where the rail's currency toggle lives, and
 // `Sidebar.tsx` makes a claim in prose about exactly that pair.
 //
-// BOTH HALVES, for the reason `filled-track.test.ts:170-179` gives about its own
+// BOTH HALVES, for the reason `filled-track.test.ts:216-225` gives about its own
 // attribute: a token is inert without the rule that reads it. Nothing else in
 // this repo would notice `--color-focus` being deleted, so the CSS half is what
 // stops the arithmetic below guarding a value no ring resolves.

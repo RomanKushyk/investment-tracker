@@ -47,8 +47,53 @@ function sourceFiles(dir: string): string[] {
  *  `RecordCard.tsx`. (It is NOT the rail that needs this: the rail's track has
  *  never been the fill pair — `sb-field` until #107 and the active route's own
  *  12% tint since — and its comment sits between elements rather than inside a
- *  tag.) */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
+ *  tag.)
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing comment drawing a `bg-ink`/`border-ink`
+ *  tag in `Switch.tsx` leaves this green and turns the reader it replaces
+ *  red — the comment reads as an unguarded track.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 /**
  * OPENING TAGS, BRACE-AWARE — and a regex cannot do this.
@@ -139,14 +184,14 @@ describe('a filled segmented track carries data-filled-track', () => {
     // A FLOOR, not an equality, and deliberately: a seventh filled control must
     // pass this and be caught by the pairing test below instead. Only a vanished
     // one fails here.
-    const all = files.flatMap((f) => filledTracks(strip(readFileSync(f, 'utf8'))));
+    const all = files.flatMap((f) => filledTracks(stripTs(readFileSync(f, 'utf8'))));
     expect(all.length).toBeGreaterThanOrEqual(6);
   });
 
   it('pairs every one of them with the attribute', () => {
     const missing: string[] = [];
     for (const file of files) {
-      for (const track of filledTracks(strip(readFileSync(file, 'utf8')))) {
+      for (const track of filledTracks(stripTs(readFileSync(file, 'utf8')))) {
         if (!track.includes('data-filled-track')) {
           missing.push(
             `${file.slice(here.length + 1)}: ${track.replace(/\s+/g, ' ').slice(0, 90)}`,
@@ -160,7 +205,7 @@ describe('a filled segmented track carries data-filled-track', () => {
   it('exercises the exception, so it cannot rot into a rule nobody re-checks', () => {
     // The Switch must still LOOK like a track — same class pair — or the
     // exception above describes something that no longer exists.
-    const src = strip(readFileSync(join(here, 'components/ui/Switch.tsx'), 'utf8'));
+    const src = stripTs(readFileSync(join(here, 'components/ui/Switch.tsx'), 'utf8'));
     const looksLikeTrack = openingTags(src).filter(
       (tag) => /\bbg-ink\b/.test(tag) && /\bborder-ink\b/.test(tag),
     );

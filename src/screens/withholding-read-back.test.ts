@@ -18,12 +18,56 @@ import { describe, expect, it } from 'vitest';
 // way to mount either screen here. The browser verified the behaviour; this
 // keeps the shape.
 const here = dirname(fileURLToPath(import.meta.url));
-// COMMENTS STRIPPED BEFORE MATCHING — the lesson `transactions-layout.test.ts`
-// and `ledger-delete.test.ts` both record: rationale prose naming a class must
-// not be able to pass or fail a test.
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
-const PANEL = strip(readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8'));
-const PAYOUTS = strip(readFileSync(join(here, 'Payouts.tsx'), 'utf8'));
+/** COMMENTS STRIPPED BEFORE MATCHING — the lesson `transactions-layout.test.ts`
+ *  and `ledger-delete.test.ts` both record: rationale prose naming a class must
+ *  not be able to pass or fail a test.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// tx.taxWithheld ||` in the panel
+ *  leaves this green and turns the reader it replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+const PANEL = stripTs(readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8'));
+const PAYOUTS = stripTs(readFileSync(join(here, 'Payouts.tsx'), 'utf8'));
 
 describe('the withholding on the ledger row', () => {
   it('draws a line when there is one, and NOTHING when there is none', () => {

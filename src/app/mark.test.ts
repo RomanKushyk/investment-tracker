@@ -36,9 +36,64 @@ import { describe, expect, it } from 'vitest';
 // takes the whole suite down with ENOENT the moment vitest is run from a
 // subdirectory or given a different root.
 const here = dirname(fileURLToPath(import.meta.url));
-const SIDEBAR = readFileSync(join(here, 'Sidebar.tsx'), 'utf8');
+/** Comments out of the two copies that are code — the JSX component and the
+ *  generator script, which is plain ESM. Not cosmetic: `Sidebar.tsx`
+ *  annotates the mark it draws and the script's head transcribes the geometry in
+ *  prose, so an unstripped read lets a comment answer for a drawing.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  THE FAVICON IS READ RAW, and must stay that way: it is XML, not TS, and the
+ *  well-formedness arm below reads its `<!-- -->` comments as its subject.
+ *
+ *  INJECTION-VERIFIED: a trailing `// d="M0 0"` in `Sidebar.tsx` leaves this
+ *  green and turned it red while the copy was read unstripped — a comment
+ *  drew a fourth path.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+const SIDEBAR = stripTs(readFileSync(join(here, 'Sidebar.tsx'), 'utf8'));
 const FAVICON = readFileSync(join(here, '..', '..', 'public', 'favicon.svg'), 'utf8');
-const SCRIPT = readFileSync(join(here, '..', '..', 'scripts', 'build-touch-icon.mjs'), 'utf8');
+const SCRIPT = stripTs(
+  readFileSync(join(here, '..', '..', 'scripts', 'build-touch-icon.mjs'), 'utf8'),
+);
 const ICON = readFileSync(join(here, '..', '..', 'public', 'apple-touch-icon.png'));
 
 /** CSS comments out, quote-aware. `index.css` line 5 holds a literal comment

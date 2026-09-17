@@ -29,8 +29,52 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
 /** TS comments out before the import half reads a line — `switch-border.test.ts`
  *  applies the same one for the same reason. Not cosmetic: a comment naming a
- *  weight would otherwise satisfy an assertion the imports fail. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
+ *  weight would otherwise satisfy an assertion the imports fail.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// normal-nums` in `Switch.tsx` leaves
+ *  this green and turns the reader it replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 /** CSS comments out, quote-aware. Not cosmetic: the readers below take the
  *  FIRST match in a block and this stylesheet quotes token declarations in its
@@ -105,7 +149,7 @@ describe('the UI face', () => {
   });
 
   it('loads exactly the three weights the tokens use, and nothing else', () => {
-    const imported = [...strip(read('main.tsx')).matchAll(/@fontsource\/manrope\/([^'"]+)\.css/g)]
+    const imported = [...stripTs(read('main.tsx')).matchAll(/@fontsource\/manrope\/([^'"]+)\.css/g)]
       .map((m) => m[1])
       .sort();
     expect(imported).toEqual([...WEIGHTS]);
@@ -148,7 +192,7 @@ describe('tabular figures', () => {
         const full = join(dir, entry);
         if (statSync(full).isDirectory()) walk(full);
         else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-          strip(readFileSync(full, 'utf8'))
+          stripTs(readFileSync(full, 'utf8'))
             .split('\n')
             .forEach((line, i) => {
               if (RESETS.test(line)) hits.push(`${entry}:${i + 1}`);

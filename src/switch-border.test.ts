@@ -33,8 +33,52 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
  *  applies the same one for the same reason. Not cosmetic: this branch's own
  *  `Switch.tsx` comment records the token it replaced, and a comment naming a
  *  utility would otherwise fail an assertion the code passes, or satisfy one it
- *  fails. */
-const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[\t ]*\/\/.*$/gm, '');
+ *  fails.
+ *
+ *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
+ *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
+ *  the prose then desynchronises every quote pair after it. Copied from
+ *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
+ *  idiom is that a guard stands alone.
+ *
+ *  INJECTION-VERIFIED: a trailing `// border-panel-border` in `Switch.tsx`
+ *  leaves this green and turns the reader it replaces red.
+ */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
 
 /** CSS comments out, quote-aware. Not cosmetic: the readers below take the
  *  FIRST match in a block and this stylesheet quotes token declarations in its
@@ -249,7 +293,7 @@ describe('the markup points at the token', () => {
   // ON THE ARM, not merely in the file: a whole-file match would stay green with
   // the token on any sibling of the track.
   it('`Switch.tsx` wears `switch-border` on the unchecked arm and nothing else', () => {
-    const src = strip(read('components/ui/Switch.tsx'));
+    const src = stripTs(read('components/ui/Switch.tsx'));
     const arm = src.split('\n').filter((l) => /\bbg-switch-track\b/.test(l));
     expect(arm.length, 'the switch track line vanished').toBeGreaterThan(0);
     for (const line of arm) expect(line).toMatch(/\bborder-switch-border\b/);
@@ -260,7 +304,7 @@ describe('the markup points at the token', () => {
   // decorative edge, which *Design pipeline* puts outside the 3 : 1 bar, so a
   // later pass cannot "finish the job" without a ruling of its own.
   it('leaves the `Scroller` rail on `panel-border`', () => {
-    const rail = strip(read('components/ui/Scroller.tsx'))
+    const rail = stripTs(read('components/ui/Scroller.tsx'))
       .split('\n')
       .filter((l) => /touch-none select-none/.test(l));
     expect(rail.length, 'the rail line vanished').toBeGreaterThan(0);

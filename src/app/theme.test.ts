@@ -22,7 +22,11 @@ const INDEX_HTML = readFileSync(join(here, '..', '..', 'index.html'), 'utf8');
 /** TS comments out, LINE BY LINE, and the line boundary is the point: a regex
  *  literal may hold a quote, and one desync would switch stripping off for the
  *  rest of the file. Copied from `sidebar-structure.test.ts` SIGNATURE AND ALL,
- *  which is the house idiom — the guards here each carry their own copy. */
+ *  which is the house idiom — the guards here each carry their own copy.
+ *
+ *  INJECTION-VERIFIED: a trailing `// data-theme` in `BalancesArea.tsx`
+ *  leaves this green and turned it red while these reads went unstripped.
+ */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -206,7 +210,7 @@ describe('the charts are kept out of the theme flip', () => {
     const files = readdirSync(CHART_DIR).filter((f) => f.endsWith('.tsx'));
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
-      const source = readFileSync(join(CHART_DIR, file), 'utf8');
+      const source = stripTs(readFileSync(join(CHART_DIR, file), 'utf8'));
       expect(source, `${file} must not depend on the theme`).not.toMatch(
         /useTheme|resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
       );
@@ -223,7 +227,7 @@ describe('the theme survives the persist contract', () => {
     // Doctrine #1 in state/settings.ts. Checked against the source rather than
     // by round-tripping a store, because the failure it guards is a MISSING
     // line, and a store test would pass by hydrating the default.
-    const source = readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8');
+    const source = stripTs(readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8'));
     const partialize = /partialize: \(s\) => \(\{([\s\S]*?)\}\)/.exec(source)?.[1] ?? '';
     expect(partialize).toContain('theme: s.theme');
   });
@@ -244,7 +248,7 @@ describe('the theme survives the persist contract', () => {
 // `price-mode-segment.test.ts` read files. What it can pin is the wiring; that
 // the store then holds the value is `state/settings.test.ts`'s arm.
 describe('the sidebar and the Appearance card write the one stored preference', () => {
-  const read = (...rel: string[]) => readFileSync(join(here, '..', ...rel), 'utf8');
+  const read = (...rel: string[]) => stripTs(readFileSync(join(here, '..', ...rel), 'utf8'));
   const SIDEBAR = read('app', 'Sidebar.tsx');
   const SETTINGS = read('screens', 'Settings.tsx');
   const STORE = read('state', 'settings.ts');
@@ -284,13 +288,14 @@ describe('the sidebar and the Appearance card write the one stored preference', 
   // two writers would be one too many — so the control must not resolve, stamp
   // or listen on its own.
   it('leaves the resolving and the stamping to this directory', () => {
-    // COMMENTS OUT, because the file argues the split in prose and would
-    // otherwise fail on its own explanation of it. `stripTs` and not a line
-    // filter: `Sidebar.tsx` is mostly `{/* … */}`, whose opener starts with `{`
-    // and whose continuation lines start with plain words, so a filter keeps
-    // the whole block and the first JSX comment to name the attribute breaks
-    // the guard against the very sentence it wants written.
-    expect(stripTs(SIDEBAR), 'the sidebar took over the theme mechanism').not.toMatch(
+    // COMMENTS ARE ALREADY OUT — `read` strips every source this block takes —
+    // because the file argues the split in prose and would otherwise fail on its
+    // own explanation of it. `stripTs` and not a line filter: `Sidebar.tsx` is
+    // mostly `{/* … */}`, whose opener starts with `{` and whose continuation
+    // lines start with plain words, so a filter keeps the whole block and the
+    // first JSX comment to name the attribute breaks the guard against the very
+    // sentence it wants written.
+    expect(SIDEBAR, 'the sidebar took over the theme mechanism').not.toMatch(
       /resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
     );
   });
