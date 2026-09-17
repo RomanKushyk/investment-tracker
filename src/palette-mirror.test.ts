@@ -3,27 +3,24 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE PALETTE HAS THREE COPIES OF ONE VALUE, AND TWO OF THEM ARE NOT CSS.
+// THE PALETTE HAS THREE COPIES OF ONE VALUE, AND TWO OF THEM ARE NOT CSS. `--color-page` is
+// duplicated in `src/app/theme.ts`'s `CHROME` map, which writes the `theme-color` meta, and
+// in `index.html`'s seed that the map overwrites. NEITHER CAN BE REACHED FROM A STYLESHEET —
+// the browser chrome does not follow a custom property — so the duplication is necessary and
+// was guarded by nothing at all: a palette could move underneath them and the only symptom
+// would be a seam where the app meets the browser, in one theme, on one device.
 //
-// `--color-page` is duplicated in `src/app/theme.ts` (the `CHROME` map, which
-// writes the `theme-color` meta on every resolve) and in `index.html` (the seed
-// that value overwrites). Neither can be reached from a stylesheet — the browser
-// chrome does not follow a CSS custom property — so the duplication is necessary
-// and was, until this file, guarded by nothing at all. A palette could move
-// underneath them and the only symptom would be a seam where the app meets the
-// browser, in one theme, on one device.
+// So the assertion is not "CHROME holds these hexes" but "CHROME holds whatever `index.css`
+// holds", which survives the next re-valuing without an edit here.
 //
-// So the assertion is not "CHROME holds these hexes" but "CHROME holds whatever
-// `index.css` holds": the stylesheet is the source and these two are mirrors.
-// That survives the next re-valuing without an edit here.
+// The second half is a MIGRATION GUARD AND ITS LIST IS CLOSED — a record of one migration,
+// not a register to append to. The way a re-valuing goes wrong is not a missing name, which
+// `floating-edges.test.ts` catches, but a value left behind in a declaration or in a
+// sentence about one.
 //
-// The second half is a MIGRATION GUARD and its list is closed. `parchment-5h`
-// re-valued every token in both blocks, and the way that goes wrong is not a
-// missing name — `floating-edges.test.ts` catches those — but a value left behind,
-// in a declaration or in a sentence about one.
-//
-// SELF-CONTAINED ON PURPOSE, the house idiom — `field-border.test.ts:72` gives
-// the reason there is no shared colour helper to import.
+// SELF-CONTAINED ON PURPOSE, the house idiom — a guard stands alone. `core/colors.ts` owns
+// the chart SERIES and nothing else: no contrast maths lives there, so there is no shared
+// helper to import even though `core/` is not colour-free.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
@@ -112,12 +109,9 @@ describe('the browser chrome mirrors `--color-page`, in both themes', () => {
   });
 });
 
-// EVERY VALUE THE PARCHMENT PALETTE REPLACED, and the list is CLOSED — a record
-// of one migration, not a register to append to. Only `#d8b494` (then
-// `brand-sand`, since #93 the dark `accent` and `logo-outline`)
-// and `#eceae7` (dark `ink`) came through unchanged, so this is the whole of the
-// previous palette as it was declared, plus the two chrome mirrors of the old
-// `page`.
+// EVERY VALUE THE PARCHMENT PALETTE REPLACED: the whole of the previous palette as it was
+// declared, plus the two chrome mirrors of the old `page`. Two hexes came through unchanged
+// and are therefore absent.
 const RETIRED = [
   '#0f0f11',
   '#141416',
@@ -186,21 +180,15 @@ const RETIRED = [
 ] as const;
 
 describe('the palette and its two mirrors carry no retired value', () => {
-  // COMMENTS INCLUDED, deliberately. `index.css` argues from its own hexes on
-  // nearly every token, so a comment left behind states something false about
-  // the file it sits in — and that is the form this migration was always going
-  // to rot in.
+  // COMMENTS INCLUDED, DELIBERATELY: `index.css` argues from its own hexes beside nearly
+  // every token, so a comment left behind states something false about the file it sits in —
+  // the form this migration was always going to rot in.
   //
-  // THE THREE FILES ARE THE WHOLE SCOPE, and the title says so rather than
-  // claiming the repo. `public/favicon.svg`, `scripts/build-touch-icon.mjs` and
-  // `src/app/mark.test.ts` held `#26262a` / `#e9e8e6` while the Q-arrow did,
-  // and #93 redrew the mark, so they carry no retired value any more and the
-  // exemption they had is spent. Widening the sweep onto them is deliberately
-  // NOT done here — the owner ruled it its own issue, since it guards a
-  // different thing from the palette's two mirrors and would arrive with no
-  // failing case behind it. `mark.test.ts` is what keeps those three files
-  // honest meanwhile, and it reads their colours out of `index.css` rather
-  // than freezing them.
+  // THE THREE FILES ARE THE WHOLE SCOPE, and the title says so rather than claiming the
+  // repo. Widening the sweep onto the mark's own files is deliberately NOT done here: the
+  // owner ruled it its own issue, since it guards a different thing from the palette's two
+  // mirrors. `mark.test.ts` keeps those honest meanwhile, reading their colours out of
+  // `index.css` rather than freezing them.
   it.each(Object.keys(FILES) as (keyof typeof FILES)[])('%s holds none of them', (file) => {
     const source = FILES[file].toLowerCase();
     const found = RETIRED.filter((hex) => source.includes(hex));
@@ -210,9 +198,7 @@ describe('the palette and its two mirrors carry no retired value', () => {
 
 /* ─────────── the figures `index.css` records beside its values ─────────── */
 
-/** sRGB → relative luminance, WCAG 2.x. Triplicated across the guards on
- *  purpose — `field-border.test.ts:72`: "There is no colour helper to reuse:
- *  `core/` is pure money maths and owns no colour." */
+/** sRGB → relative luminance, WCAG 2.x. */
 function luminance(hex: string): number {
   const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   const lin = ch.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
@@ -229,9 +215,8 @@ function ratio(a: string, b: string): number {
  *  does — a name the dark block does not override resolves against `@theme`. */
 function resolve(block: keyof typeof BLOCKS, name: string, seen: string[] = []): string {
   expect(seen, `--color-${name} resolves in a cycle`).not.toContain(name);
-  // Sliced rather than matched: a name interpolated into a `RegExp` is one
-  // stray escape away from a pattern that matches the wrong thing and still
-  // passes, which this line did on its first draft. The `:` in the needle is
+  // Sliced rather than matched: a name interpolated into a `RegExp` is one stray escape
+  // from a pattern that matches the wrong thing and still passes. The `:` in the needle is
   // what keeps `--color-info` off `--color-info-tint`.
   const needle = `--color-${name}:`;
   const decl = (b: string) => {
@@ -245,20 +230,17 @@ function resolve(block: keyof typeof BLOCKS, name: string, seen: string[] = []):
   return value!.toLowerCase();
 }
 
-// A FIGURE LIVES IN A TEST OR NOT AT ALL (CLAUDE.md). *Design pipeline* pulls
-// the other way for one class of figure — "anything still under it carries its
-// reason or its open issue WHERE THE VALUE IS DECLARED" — so `index.css` keeps
-// the recorded shortfalls in prose beside the tokens. This block is what stops
-// that prose rotting: every number the stylesheet states about a pair is
-// recomputed here from the values it actually declares.
+// A FIGURE LIVES IN A TEST OR NOT AT ALL, and *Design pipeline* pulls the other way for one
+// class of figure — anything still under the bar carries "its reason or its open issue where
+// the value is declared" — so `index.css` keeps the recorded shortfalls in prose beside the
+// tokens. This block is what stops that prose rotting: every number the stylesheet states
+// about a pair is recomputed here from the values it declares.
 //
-// These are DESCRIPTIVE, not floors. Each one is a reading the owner ruled on
-// in #90 or a margin the sheet flagged; a change to any of them is a palette
-// decision, and the point of the assertion is that it cannot happen quietly.
+// These are DESCRIPTIVE, not floors. Each is a reading the owner ruled on or a margin the
+// sheet flagged, so a change to any of them is a palette decision that cannot happen quietly.
 describe('the recorded readings still read as recorded', () => {
   const RECORDED: [string, keyof typeof BLOCKS, string, string, number][] = [
-    // The four the owner ruled on in #90: the values stand, the figures are
-    // recorded, and these are the assertions that keep the record honest.
+    // The four the owner ruled on: the values stand and the figures are recorded.
     [
       'accent on panel, under 4.5 — rule 2 makes it every link in light',
       'light',
@@ -275,13 +257,9 @@ describe('the recorded readings still read as recorded', () => {
       3.091,
     ],
     ['sb-label on its wall, dark', 'dark', 'sb-label', 'sb-bg', 4.325],
-    // THE SAME TOKEN, TWO PLANES FURTHER DOWN, and #107 put consumers on both.
-    // The capital strip's caption sits on the `sb-field` recess, where the light
-    // reading gains 0.39 and the dark one loses 0.28 and neither crosses 4.5.
-    // The version badge sits on the footer band and is the worst text in the
-    // panel at 2.87 — worse than the 3.09 it read on the wall, which is exactly
-    // what moving it into the band costs. Both are recorded and neither is
-    // repaired: `sb-label` is the caption rank throughout this panel, and a
+    // THE SAME TOKEN, TWO PLANES FURTHER DOWN, with a consumer on each: the capital strip's
+    // caption on the `sb-field` recess, the version badge on the footer band. Both recorded
+    // and neither repaired — `sb-label` is the caption rank throughout this panel, and a
     // second grey for one caption is the re-mint the palette forbids.
     ['sb-label on the capital strip, light', 'light', 'sb-label', 'sb-field', 3.476],
     ['sb-label on the capital strip, dark', 'dark', 'sb-label', 'sb-field', 4.053],
@@ -293,12 +271,10 @@ describe('the recorded readings still read as recorded', () => {
       2.867,
     ],
     ['sb-label on the footer band — the version, dark', 'dark', 'sb-label', 'sb-footer-bg', 4.139],
-    // THE SUCCESSOR OF THE `brand-sand` ROW, and the improvement is most of the
-    // way rather than all of it. That sand read 1.487 on the light wall because
-    // it was drawn for a plate dark in both themes; the mark takes the three
-    // per-theme `logo-*` names now, and five of its six readings clear — 4.49
-    // and 7.74 in light, 10.07 / 15.06 / 5.33 in dark. The lighter pill in
-    // light does not, and it is the same `reit` hue as the row below.
+    // THE SUCCESSOR OF THE `brand-sand` ROW, and the improvement is most of the way rather
+    // than all of it: that sand was drawn for a plate dark in both themes, and the mark
+    // takes the three per-theme `logo-*` names now. Five of its six readings clear; the
+    // lighter pill in light does not, and it is the same `reit` hue as the row below.
     ['logo-pill-a on the wall, light', 'light', 'logo-pill-a', 'sb-bg', 2.812],
     // Two more the sheet records at their values.
     [
@@ -317,39 +293,32 @@ describe('the recorded readings still read as recorded', () => {
     ],
   ];
 
-  // TO TWO DECIMALS, against the reading rather than against the rounded figure
-  // the prose prints. One decimal was tried and is wrong for at least one row:
-  // a contrast ratio floors at 1.0, so `toBeCloseTo(1.01, 1)` accepts anything
-  // under 1.06 and cannot fail for ANY pair — the warn/accent collision would
-  // have been guarded by nothing. Two decimals costs an exact expected value
-  // here and buys an assertion that bites on every row.
+  // TO TWO DECIMALS, against the reading rather than the rounded figure the prose prints.
+  // ONE DECIMAL CANNOT FAIL FOR ANY PAIR: a contrast ratio floors at 1.0, so
+  // `toBeCloseTo(1.01, 1)` accepts anything under 1.06 and the warn/accent collision would
+  // have been guarded by nothing.
   it.each(RECORDED)('%s', (_label, block, a, b, expected) => {
     expect(ratio(resolve(block, a), resolve(block, b))).toBeCloseTo(expected, 2);
   });
 
-  // The DEMO badge is on `page` as well as on the wall, since the header
-  // carries one wherever it is mounted. Neither the sheet's table (which reads
-  // it on `sb-bg`) nor the arm below (which reads `panel`) covers that plane,
-  // and the badge's edge is what makes it a chip rather than floating text —
-  // 1.4.11 binds that at 3.
+  // The DEMO badge is on `page` as well as on the wall, since the header carries one
+  // wherever it is mounted, and neither the sheet's table nor the arm below covers that
+  // plane. Its edge is what makes it a chip rather than floating text, so 1.4.11 binds at 3.
   it.each(['light', 'dark'] as const)('%s: the DEMO edge identifies itself on `page`', (block) => {
     expect(ratio(resolve(block, 'warn'), resolve(block, 'page'))).toBeGreaterThanOrEqual(3);
   });
 
-  // NOT a shortfall — the opposite, and that is why it needs pinning. `warn`
-  // clears 1.4.3 on the binding plane by 0.003, so a nudge to EITHER token in
-  // EITHER direction puts the Σ≠100 pill, the DEMO badge, the drift chip and
-  // every stale chip under the bar. Asserted as a floor, not a reading.
+  // NOT a shortfall — the opposite, and that is why it needs pinning: `warn` clears 1.4.3 on
+  // the binding plane by a hair, so a nudge to EITHER token in EITHER direction puts the
+  // Σ≠100 pill, the DEMO badge and every stale chip under the bar.
   it('keeps `warn` above 4.5 on `panel`, where it has 0.003 to spare', () => {
     expect(ratio(resolve('light', 'warn'), resolve('light', 'panel'))).toBeGreaterThanOrEqual(4.5);
   });
 
-  // THE OTHER FIVE PARTS OF THE MARK, and a floor rather than five readings —
-  // `index.css` says they clear, and one recorded shortfall is the whole of
-  // what the mark is allowed. Without this the stylesheet's sentence is the
-  // only thing holding it, and a re-valued `sb-bg` could put a second part
-  // under 1.4.11 with every gate green. `logo-pill-a` in light is the
-  // exception, recorded above at its value.
+  // THE OTHER FIVE PARTS OF THE MARK, a floor rather than five readings: one recorded
+  // shortfall is the whole of what the mark is allowed, and without this the stylesheet's
+  // sentence is the only thing holding it. `logo-pill-a` in light is that exception,
+  // recorded above at its value.
   it.each([
     ['logo-outline', 'light'],
     ['logo-pill-b', 'light'],
@@ -380,42 +349,36 @@ describe('the recorded readings still read as recorded', () => {
   });
 });
 
-// THE FOCUS RING, AND THE TOKEN IS HALF OF IT. #95 moved `:focus-visible` off
-// `ink` onto `focus`, an alias of the accent in both blocks — the sheet's own
-// `--qn-focus`, whose value IS the accent per its usage rule 1.
+// THE FOCUS RING, AND THE TOKEN IS HALF OF IT: `:focus-visible` reads `focus`, an alias of
+// the accent in both blocks. A focus indicator is bound by WCAG 1.4.11 at 3 : 1 against what
+// it is drawn on, and the base rule is unqualified, so that is every plane the app has —
+// including the WALL, where the rail's currency toggle lives.
 //
-// A focus indicator is bound by WCAG 1.4.11 at 3 : 1 against what it is drawn
-// on, and the base rule is unqualified, so what it is drawn on is every plane
-// the app has. Five are asserted rather than the three the issue names: the
-// ring also lands on the WALL, where the rail's currency toggle lives, and
-// `Sidebar.tsx` makes a claim in prose about exactly that pair.
-//
-// BOTH HALVES, for the reason `filled-track.test.ts:216-225` gives about its own
-// attribute: a token is inert without the rule that reads it. Nothing else in
-// this repo would notice `--color-focus` being deleted, so the CSS half is what
-// stops the arithmetic below guarding a value no ring resolves.
+// BOTH HALVES, the reason `filled-track.test.ts` gives about its own attribute: a token is
+// inert without the rule that reads it. Nothing else here would notice `--color-focus` being
+// deleted, so the CSS half is what stops the arithmetic guarding a value no ring resolves.
 describe('the focus ring is the accent, and clears 1.4.11 on every plane', () => {
   it.each(['light', 'dark'] as const)('`focus` is declared in the %s block', (block) => {
-    // DECLARED, not merely resolvable: `resolve()` falls back to `@theme` for a
-    // name the dark block omits, so without this a light-only mint would pass
-    // every reading below. `floating-edges.test.ts`'s parity test would catch
-    // it too — this says which token and why it matters.
-    expect(BLOCKS[block]).toContain('--color-focus:');
+    expect(
+      BLOCKS[block],
+      'the block declares no `focus` of its own. DECLARED, not merely resolvable: ' +
+        '`resolve()` falls back to `@theme` for a name the dark block omits, so a light-only ' +
+        'mint would pass every reading below',
+    ).toContain('--color-focus:');
   });
 
   it.each(['light', 'dark'] as const)('`focus` is the accent in %s', (block) => {
-    // The alias IS the decision (#95). Separating them is a palette move and
-    // should cost a deleted line here plus a sentence, not pass quietly.
-    expect(resolve(block, 'focus')).toBe(resolve(block, 'accent'));
+    expect(
+      resolve(block, 'focus'),
+      'the focus ring has been separated from the accent. The alias IS the decision, so ' +
+        'that is a palette move and should cost a deleted line here plus a sentence',
+    ).toBe(resolve(block, 'accent'));
   });
 
-  // `page`, `card`, `panel` are the issue's three. `sb-bg` and `sb-field` are
-  // the wall and its field rank: neither of the footer band's two tracks takes
-  // `data-filled-track` — their ground is the active route's 12% tint and not
-  // the plane's foreground — so their segments are served by the BASE rule, and
-  // the ring at `outline-offset: 2px` lands on the track's own 2px padding.
-  // `Sidebar.tsx` says so in prose; this is the half that keeps the sentence
-  // true after a re-valuing.
+  // `sb-bg` and `sb-field` are the wall and its field rank: `Sidebar.tsx` states that the
+  // footer band's two tracks take NO `data-filled-track`, because their ground is the active
+  // route's tint rather than the plane's foreground, so their segments are served by the
+  // BASE rule. This is the half that keeps that sentence true after a re-valuing.
   it.each([
     ['page', 'light'],
     ['card', 'light'],
@@ -433,33 +396,32 @@ describe('the focus ring is the accent, and clears 1.4.11 on every plane', () =>
 
   it('declares the two `chart-` aliases the capital chart resolves through', () => {
     // ONCE, in `@theme`, following the base tokens by `var()` — which is why
-    // `floating-edges.test.ts`'s one-for-one parity test filters `chart-` out,
-    // and so nothing else asserts these two exist.
+    // `floating-edges.test.ts`'s parity test filters `chart-` out, so nothing else asserts
+    // these two exist.
     //
-    // ON THE STRIPPED TEXT, which is the point of asserting it here rather than
-    // in `accent-wiring.test.ts`: this stylesheet argues from its own token
-    // text on nearly every line, so a raw `toContain` is satisfied by a comment
+    // ON THE STRIPPED TEXT, the point of asserting it here: this stylesheet argues from its
+    // own token text on nearly every line, so a raw `toContain` is satisfied by a comment
     // quoting the declaration while the declaration itself is gone.
     expect(CSS).toContain('--color-chart-accent: var(--color-accent);');
     expect(CSS).toContain('--color-chart-accent-tint: var(--color-accent-tint);');
-    // And the gain pair they replaced is gone, so the retired names cannot come
-    // back beside the new ones and leave two answers for one line.
-    expect(CSS).not.toContain('--color-chart-pos');
+    expect(
+      CSS,
+      'the gain pair is back beside the aliases that replaced it, leaving two answers for ' +
+        'one line',
+    ).not.toContain('--color-chart-pos');
   });
 
   it('keeps the rule that reads the token', () => {
-    // NOT the filled-track override, which stays on `page` and is pinned by
-    // `filled-track.test.ts`. This is the base rule, and it must name the token
-    // rather than the accent directly, or the alias is one the app declares and
-    // nothing consumes.
+    // NOT the filled-track override, which `filled-track.test.ts` pins. This is the base
+    // rule, and it must name the TOKEN rather than the accent directly, or the alias is one
+    // the app declares and nothing consumes.
     expect(ruleBody(CSS, ':focus-visible')).toMatch(/outline:\s*2px solid var\(--color-focus\)/);
   });
 
   it('leaves the filled track its own ring, which the accent cannot give it', () => {
-    // The pairing's REASON, computed rather than asserted in prose: a segmented
-    // track is `bg-ink`, and the accent on ink is under 3 : 1 in light and
-    // barely above 1 in dark. So the override is load-bearing after #95, not a
-    // leftover from when the base ring was ink.
+    // The pairing's REASON, computed rather than asserted in prose: a segmented track is
+    // `bg-ink` and the accent on ink is under 3 : 1, so the override is load-bearing rather
+    // than a leftover from when the base ring was ink.
     for (const block of ['light', 'dark'] as const) {
       expect(ratio(resolve(block, 'focus'), resolve(block, 'ink'))).toBeLessThan(3);
     }

@@ -3,62 +3,40 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE IMPORT DROPZONE'S EDGE, PINNED AT THE SAME BAR AS THE FIELD EDGE, THE
-// SWITCH AND THE FLOATING SURFACES.
+// THE IMPORT DROPZONE'S EDGE, at the same bar as the field edge, the switch and the
+// floating surfaces (`design/extensions/dropzone-edge.dc.html`, #88): the box that says
+// WHERE a file may be dropped used to be the faintest thing on the screen.
 //
-// `design/extensions/dropzone-edge.dc.html` (#88) moves the drop target's rest
-// off `panel-border` and onto the control-boundary rank. Before it the rest read
-// 1.44 inward / 1.74 outward in light and 1.40 / 1.51 in dark — the box that
-// says WHERE a file may be dropped was the faintest thing on the screen.
+// TWO ADJACENCIES, NOT THREE. This box is `bg-panel` inside the Settings Data `card`, so it
+// is scored INWARD against its own fill and OUTWARD against the card behind it. `page` is
+// not one of its planes, which is the difference from `field-border.test.ts`'s
+// three-surface sweep: a field is drawn on all three, this box on one.
 //
-// TWO ADJACENCIES, NOT THREE. This box is `bg-panel` inside the Settings Data
-// `card`, so it is scored INWARD against its own fill and OUTWARD against the
-// card behind it. `page` is not one of its planes and is deliberately absent
-// here, which is the difference from `field-border.test.ts`'s three-surface
-// sweep: a field is drawn on all three, this box on one.
+// NO TOKEN IS MINTED — the rest reads `field-border` directly, holding no shortfall and no
+// per-theme difference, so a name would be the rank's own value drawn twice.
 //
-// NO TOKEN IS MINTED. The rest reads `field-border` directly, as #98's seven
-// consumers do — it holds no shortfall and no per-theme difference, so a name
-// would be the rank's own value drawn twice.
+// SELF-CONTAINED ON PURPOSE, and folding this into `field-border.test.ts` would put the
+// dropzone inside the FIELD guard — being a non-field is exactly what let this box go
+// unowned through four sheets.
 //
-// SELF-CONTAINED ON PURPOSE — the house idiom, not an oversight.
-// `field-border.test.ts`, `switch-border.test.ts` and `floating-edges.test.ts`
-// each carry their own reader, so a guard can be read without opening another.
-// Folding these into `field-border.test.ts` would put the dropzone inside the
-// FIELD guard, and being a non-field is exactly what let this box go unowned
-// through four sheets.
-//
-// THE UNSATISFIABLE HALF OF THIS TRAP IS CLOSED, and the note stays because the
-// pair still has to be read together. `field-border.test.ts` used to forbid
-// `hover:border-muted` anywhere in a FIELD_FILE, reading the WHOLE source, while
-// this file requires it in `ImportRow.tsx` — so the two coexisted only while
-// that file carried no `rounded-[9px] h-9` line, and #84's shared recipe would
-// have made them contradict each other. #100 scoped that ban to the field SITE,
-// and the dropzone is not a field, so no field landing here can trip it.
-// WHAT A FIELD HERE STILL COSTS: this file's WHOLE-FILE assertions. The fill
-// census counts the two fills this box declares and a field carries a third; the
-// `border-dashed` ban would read a dashed field as the drop target going dashed.
-// Both answer a real change rather than contradicting the sibling — but a field
-// landing here means reading them, not only the ban that #100 scoped away. Still
-// do not resolve a collision here by weakening an assertion: the scope belongs
-// to whichever guard owns the subject.
+// READ THIS FILE WITH `field-border.test.ts`: its `hover:border-muted` ban is scoped per
+// field SITE and a dropzone is no field, so the two cannot collide — but a field landing in
+// `ImportRow.tsx` still answers this file's WHOLE-FILE assertions, the fill census and the
+// `border-dashed` ban. Never resolve such a collision by weakening an assertion: the scope
+// belongs to whichever guard owns the subject.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
-/** TS comments out before the markup half reads a source. Not cosmetic: every
- *  file read here is one whose comments discuss the utilities being asserted on —
- *  `ImportRow.tsx` names its own ruling, `Settings.tsx` annotates the row — so a
- *  comment could satisfy an assertion the code fails, or fail one it passes.
+/** Not cosmetic: every file read here is one whose comments discuss the utilities being
+ *  asserted on, so a comment could satisfy an assertion the code fails or fail one it
+ *  passes. QUOTE-EXACT AND LINE BY LINE, the half a regex cannot do — dropping only
+ *  whole-line `//` comments leaves the trailing ones, and one apostrophe in prose then
+ *  desynchronises every quote pair after it.
  *
- *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
- *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
- *  the prose then desynchronises every quote pair after it. Copied from
- *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
- *  idiom is that a guard stands alone.
- *
- *  INJECTION-VERIFIED: a trailing `// border-dashed` in
- *  `ImportRow.tsx` leaves this green and turns the reader it replaces red.
- */
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// border-dashed` in `ImportRow.tsx` leaves this green and
+ *  turns the reader it replaces red. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -95,12 +73,9 @@ function stripTs(source: string): string {
   return out.join('\n');
 }
 
-/** CSS comments out, quote-aware. The readers below take the FIRST match in a
- *  block and this stylesheet quotes token declarations inside its comments
- *  constantly — including retired values it tells you not to re-mint. Quote-aware
- *  because `index.css` line 5 holds a literal comment opener inside a string,
- *  and a naive strip swallows from there to the first real terminator, taking
- *  `@theme` with it. */
+/** The readers below take the FIRST match in a block and this stylesheet quotes token
+ *  declarations inside its comments constantly. Quote-aware, because `index.css` line 5
+ *  holds a comment opener inside a string and a naive strip takes `@theme` with it. */
 function stripCss(source: string, what: string): string {
   let out = '';
   let quote = '';
@@ -161,17 +136,15 @@ const BLOCKS = {
   dark: ruleBody(CSS, "[data-theme='dark']"),
 };
 
-/** Follows a `var(--color-x)` chain to the hex at the end of it, THE WAY THE
- *  CASCADE DOES — a name the dark block does not override resolves against
- *  `@theme`. Copied from `switch-border.test.ts`; a literal-hex reader would see
- *  nothing through an alias, and the rank has aliases pointed at it. */
+/** Follows a `var(--color-x)` chain THE WAY THE CASCADE DOES — a name the dark block does
+ *  not override resolves against `@theme`. A literal-hex reader sees nothing through an
+ *  alias, and the rank has aliases pointed at it. */
 function resolve(theme: 'light' | 'dark', name: string, seen: string[] = []): string {
   expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
     name,
   );
-  // Lazily, the way `switch-border.test.ts:175` and `floating-edges.test.ts:196`
-  // do it: evaluating the light-block fallback unconditionally rescans the whole
-  // `@theme` body a second time for a result already in hand.
+  // Lazily: evaluating the light-block fallback unconditionally rescans the whole `@theme`
+  // body a second time for a result already in hand.
   const decl = (block: string) => block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
   const found = decl(BLOCKS[theme]) ?? decl(BLOCKS.light);
   expect(found, `--color-${name} is declared in neither block`).not.toBeNull();
@@ -188,16 +161,13 @@ function resolve(theme: 'light' | 'dark', name: string, seen: string[] = []): st
 }
 
 const THEMES = ['light', 'dark'] as const;
-/** INWARD is the box's own fill, OUTWARD the `Card` it sits in
- *  (`Settings.tsx:487`). A stroke has two adjacencies and judging it on one is a
- *  judgement about half the object — #98 learned that on the Dialog panel. */
+/** INWARD is the box's own fill, OUTWARD the `Card` it sits in. A stroke has two adjacencies
+ *  and judging it on one is a judgement about half the object. */
 const PLANES = { inward: 'panel', outward: 'card' } as const;
-/** rest → hover → drag-over, weakest first, EACH WITH THE FILL ITS OWN STATE
- *  PAINTS. The drag arm swaps the fill to `hairline`, so reading its edge
- *  against `panel` would score it on a surface that state never shows — the
- *  measured inward reading is 11.91 light and 12.16 dark, not the 13.23 / 13.66
- *  a common-plane comparison gives. This drives both the ORDER assertions and
- *  the twelve recorded readings below. */
+/** rest → hover → drag-over, weakest first, EACH WITH THE FILL ITS OWN STATE PAINTS. The
+ *  drag arm swaps the fill to `hairline`, so reading its edge against `panel` would score it
+ *  on a surface that state never shows. This drives both the ORDER assertions and the
+ *  recorded readings below. */
 const RUNGS = [
   ['field-border', 'panel'],
   ['muted', 'panel'],
@@ -218,20 +188,16 @@ describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes',
     });
   }
 
-  // THE RECORDED READINGS, so a re-value of `panel`, `card` or the rank cannot
-  // move the dropzone's figures without saying so here.
+  // THE RECORDED READINGS, so a re-value of `panel`, `card` or the rank cannot move the
+  // dropzone's figures without saying so here.
   //
-  // ROUNDED EQUALITY, NOT `toBeCloseTo`. The matcher's tolerance at 2 digits is
-  // 0.005, which is wider than the figure it would pin: dark outward is really
-  // 3.935514 and would pass against 3.94 with 0.0045 to spare, so a re-value
-  // that changed the recorded 2-dp figure could still slip through. What the
-  // ruling records is the printed number, so that is what is compared.
+  // ROUNDED EQUALITY, NOT `toBeCloseTo`: the matcher's tolerance at 2 digits is 0.005, wider
+  // than the figure it would pin, so a re-value that changed the recorded 2-dp number could
+  // still slip through. What the ruling records is the PRINTED number, so that is compared.
   //
-  // ALL THREE STATES, not just the rest. This branch published the hover and
-  // drag-over figures in `design/extensions/README.md` and in the sheet's T3, and
-  // CLAUDE.md is flat about it: "A figure lives in a test or not at all." Pinning
-  // the rest alone would have let a re-value of `muted` drop the hover from 5.28
-  // to anything above the rest while every table went on printing 5.28.
+  // ALL THREE STATES, not just the rest, because the sheet publishes all three and a figure
+  // lives in a test or not at all. Pinning the rest alone would let a re-value of `muted`
+  // move the hover anywhere above it while every table went on printing the old number.
   it.each([
     ['light', 'rest', 'inward', 3.06],
     ['light', 'rest', 'outward', 3.69],
@@ -247,35 +213,25 @@ describe('the dropzone edge clears 3 : 1 on both of its planes, in both themes',
     ['dark', 'drag', 'outward', 14.74],
   ] as const)('%s %s reads %s at %s : 1, as the ruling records', (theme, state, side, expected) => {
     const [edge, fill] = RUNGS[{ rest: 0, hover: 1, drag: 2 }[state]];
-    // INWARD is each state's own fill — the drag arm paints `hairline`, not
-    // `panel`. OUTWARD is the `card` behind the box, the same for all three.
     const against = side === 'inward' ? fill : PLANES.outward;
     const r = ratio(resolve(theme, edge), resolve(theme, against));
-    expect(Number(r.toFixed(2))).toBe(expected);
+    expect(
+      Number(r.toFixed(2)),
+      'this reading moved off the figure the ruling records, and nothing else records it',
+    ).toBe(expected);
   });
 
-  // THE ASYMMETRY THIS RECORDED HAS NO SCOPE LEFT TO RECORD IT IN. `index.css`
-  // used to carry a `[data-dark-surface]` block overriding `muted`, `faint` and
-  // `panel-border` but NOT `field-border`, so the dropzone's rest and its hover
-  // would have moved apart on such a surface — and an assertion here kept that
-  // visible rather than latent. #92 retired the block along with the plane that
-  // needed it: the sidebar was the only dark surface inside a light theme, and
-  // the wall follows the theme now. There is no scope to assert about, and a
-  // guard that the block stays absent already lives in `sidebar-plane.test.ts`,
-  // where the retirement was ruled. The box is still drawn on `panel` inside a
-  // `card` and nowhere else, which the two adjacencies above cover.
+  // The box is drawn on `panel` inside a `card` and nowhere else, which the two adjacencies
+  // above cover. A scope re-valuing `muted`, `faint` or `panel-border` but NOT the rank
+  // would move the rest and the hover apart, and nothing guards that in general —
+  // `sidebar-plane.test.ts` holds only that the one scope it retired stays absent.
 });
 
 describe('hover leaves the rest behind, and drag-over leaves hover behind', () => {
-  // THE DEFECT THIS REPLACES, stated as an ordering rather than a figure. Before
-  // #88 the hover was `faint`, which from a `field-border` rest lies on the
-  // WRONG SIDE of the edge — 1.75 lighter in light, 1.19 in dark — so the box
-  // went quieter under the pointer. `field-border.dc.html` T4-3 refused `muted`
-  // on the fields over exactly that shape.
-  //
-  // An ordering and not three pinned numbers because the property worth holding
-  // is that the three states stay TOLD APART. A figure would go stale at the
-  // next re-value and say nothing about the state machine.
+  // THE DEFECT THIS REPLACES, stated as an ordering rather than a figure: the hover used to
+  // lie on the WRONG SIDE of the rest edge, so the box went QUIETER under the pointer. An
+  // ordering, because the property worth holding is that the three states stay TOLD APART —
+  // a figure goes stale at the next re-value and says nothing about the state machine.
   for (const theme of THEMES) {
     it(`${theme}: the three states are strictly ordered inward, each on its own fill`, () => {
       const rungs = RUNGS.map(([edge, fill]) => ratio(resolve(theme, edge), resolve(theme, fill)));
@@ -287,8 +243,8 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
       }
     });
 
-    // OUTWARD is fill-independent — every state is drawn over the same `card` —
-    // so the edges alone have to keep the order there.
+    // OUTWARD is fill-independent — every state is drawn over the same `card` — so the
+    // edges alone have to keep the order there.
     it(`${theme}: the three states are strictly ordered outward on the card`, () => {
       const card = resolve(theme, PLANES.outward);
       const rungs = RUNGS.map(([edge]) => ratio(resolve(theme, edge), card));
@@ -316,50 +272,41 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
 
 /* ────────────────────────── the markup half ────────────────────────── */
 
-// REDESIGNED AFTER THE REVIEW CAP, AND THE SHAPE IS THE POINT. Three rounds all
-// broke the same joint: every earlier version tried to LOCATE the drop target in
-// the source — by line, by the first template that mentions `dragOver`, by the
-// template that also carries the radius — and each anchor was a guess about how
-// the JSX would be written. Round three's was circular besides: it selected the
-// box BY `rounded-2xl` and then asserted `rounded-2xl` was there. There are more
-// ways to write the markup than a guard can enumerate, so this one stops trying.
+// KEYED ON BEHAVIOUR, NEVER ON STYLING, and the shape is the point. Every earlier version
+// tried to LOCATE the drop target in the source — by line, by the first template mentioning
+// `dragOver`, by the template carrying the radius — and each anchor was a guess about how
+// the JSX would be written. One was circular besides: it selected the box BY `rounded-2xl`
+// and then asserted `rounded-2xl` was there, so it could never fail for the reason its
+// message gave. There are more ways to write the markup than a guard can enumerate.
 //
-// What it keeps is the one structure keyed on BEHAVIOUR rather than on styling:
-// the `dragOver ? … : …` conditional, which exists because the component has two
-// states and not because of how either is painted. Positives are read off its
-// two arms. NEGATIVES ARE READ OVER THE WHOLE FILE, which is where they belong
-// — round one narrowed them to the rest arm and round three found the hole that
-// opened, because `hover:border-faint` written into the static half applies at
-// rest and passed. `ImportRow.tsx` draws one bordered box, so a whole-file
-// negative has nothing to collide with; if it ever grows a second, the collision
-// is a real question about this ruling and should stop the suite.
+// So the anchor is the `dragOver ? … : …` conditional, which exists because the component
+// has two states and not because of how either is painted, and positives are read off its
+// two arms. NEGATIVES ARE READ OVER THE WHOLE FILE: narrowed to the rest arm, a
+// `hover:border-faint` written into the static half applies at rest and passed.
+// `ImportRow.tsx` draws one bordered box, so a whole-file negative has nothing to collide
+// with; if it grows a second, that collision is a real question about this ruling.
 //
-// NOTHING HERE RUNS AT COLLECTION TIME. A parse that throws while the module is
-// evaluated takes the file to "no tests" — with `pnpm test` red, but with the
-// twelve pinned ratios above never run, and the failure naming the markup rather
-// than the palette. Each test does its own reading.
+// NOTHING HERE RUNS AT COLLECTION TIME. A parse that throws during module evaluation takes
+// the file to "no tests" — `pnpm test` red, the pinned ratios above never run, and the
+// failure naming the markup rather than the palette. Each test does its own reading.
 //
-// GEOMETRY IS NOT THIS GUARD'S SUBJECT and the radius is deliberately unpinned.
-// This ruling moves two colours; the box's 16 is `navigation-map.md`'s and
-// `data-portability.dc.html`'s. An earlier draft asserted `rounded-2xl` while
-// also USING it to find the box, so it could never fail for the reason its
-// message gave — and respelling it as the identical `rounded-[16px]` took the
-// whole file inert. Solidity IS pinned below, because "never dashed" is a claim
-// about the boundary this ruling owns.
+// GEOMETRY IS NOT THIS GUARD'S SUBJECT: the radius is deliberately unpinned, and respelling
+// it as the identical `rounded-[16px]` once took the whole file inert. Solidity IS pinned
+// below, because "never dashed" is a claim about the boundary this ruling owns.
 describe('the markup points at the rank', () => {
   const source = () => stripTs(read('screens/settings/ImportRow.tsx'));
 
-  /** The two arms of the state conditional, as the ternary writes them. Both
-   *  live on ONE line, so a line filter selects the same string for each and
-   *  cannot tell them apart — transposing them would ship the rest at `ink`. */
+  /** The two arms of the state conditional. Both live on ONE line, so a line filter selects
+   *  the same string for each and cannot tell them apart — transposing them would ship the
+   *  rest at `ink`. */
   const arms = (src: string) => {
     const m = src.match(/dragOver\s*\?\s*'([^']*)'\s*:\s*'([^']*)'/);
     expect(m, 'the `dragOver ? … : …` arms are no longer two string literals').not.toBeNull();
     return { drag: m![1].split(/\s+/), rest: m![2].split(/\s+/) };
   };
 
-  // EXACT MEMBERSHIP, never a regex: `\bbg-panel\b` also matches inside
-  // `bg-panel-border` and `\bborder-ink\b` inside `border-ink-hover`.
+  // EXACT MEMBERSHIP, never a regex: `\bbg-panel\b` also matches inside `bg-panel-border`,
+  // and `\bborder-ink\b` inside `border-ink-hover`.
   it('the rest arm wears the rank, hovers to `muted`, and keeps the `panel` fill', () => {
     const { rest } = arms(source());
     expect(rest, 'the rest edge left the control-boundary rank').toContain('border-field-border');
@@ -369,23 +316,23 @@ describe('the markup points at the rank', () => {
     );
   });
 
-  // ASSERTING THE RANK IS ABSENT HERE is what fails on a transposition, and it
-  // is why `ink` was left to this state alone: two states sharing a border are
-  // one state.
   it('keeps the drag-over arm on `ink` over a `hairline` fill', () => {
     const { drag } = arms(source());
     expect(drag).toContain('border-ink');
     expect(drag, 'the drag fill moved off `hairline`, which its inward figure assumes').toContain(
       'bg-hairline',
     );
-    expect(drag, 'the arms are transposed — the rest edge is now the drag cue').not.toContain(
-      'border-field-border',
-    );
+    expect(
+      drag,
+      'the arms are transposed — the rest edge is now the drag cue. Asserting the rank is ' +
+        'ABSENT here is what catches that, and why `ink` is left to this state alone: two ' +
+        'states sharing a border are one state',
+    ).not.toContain('border-field-border');
   });
 
-  // WHOLE FILE, AND BY SUFFIX so a variant prefix cannot slip past: the box
-  // already carries `max-sm:p-4`, so `max-sm:border-dashed` is a live spelling
-  // and exact-string membership would have accepted it.
+  // WHOLE FILE, AND BY SUFFIX so a variant prefix cannot slip past: the box already carries
+  // `max-sm:p-4`, so `max-sm:border-dashed` is a live spelling that exact-string membership
+  // would have accepted.
   it.each([
     ['border-panel-border', 'the token the rest edge left is back'],
     ['border-faint', 'the inverting hover is back — it lies on the wrong side of the new rest'],
@@ -397,23 +344,21 @@ describe('the markup points at the rank', () => {
     expect(named, why).toEqual([]);
   });
 
-  // THE FILLS ARE PINNED AS THE ONLY ONES. Every inward figure is read against
-  // the fill its own state paints, so a `hover:bg-*` would leave the four
-  // recorded hover readings describing a plane the hovered box no longer shows —
-  // the same defect the drag arm's `hairline` fill already caused once.
   it('gives the box no fill beyond the two its states declare', () => {
     const fills = source()
       .match(/[\w:[\]/.%-]+/g)!
       .filter((t) => /(^|:)bg-/.test(t));
-    expect(new Set(fills), 'a third fill arrived — the recorded readings assume two').toEqual(
-      new Set(['bg-panel', 'bg-hairline']),
-    );
+    expect(
+      new Set(fills),
+      'a third fill arrived — every inward figure is read against the fill its own state ' +
+        'paints, so a `hover:bg-*` leaves the recorded hover readings describing a plane ' +
+        'the hovered box no longer shows',
+    ).toEqual(new Set(['bg-panel', 'bg-hairline']));
   });
 
-  // A TRIPWIRE, NOT A PROOF, and named as one. The outward figures were
-  // established in the browser against the rendered `card`; this cannot see an
-  // interposed wrapper, or a `<Card>` opened in another component, so it catches
-  // the row being rehoused wholesale and nothing subtler.
+  // A TRIPWIRE, NOT A PROOF, and named as one: this cannot see an interposed wrapper or a
+  // `<Card>` opened in another component, so it catches the row being rehoused wholesale
+  // and nothing subtler.
   it('still renders the row inside a `Card` — a tripwire on the outward plane', () => {
     const settings = stripTs(read('screens/Settings.tsx'));
     const at = settings.indexOf('<ImportRow');

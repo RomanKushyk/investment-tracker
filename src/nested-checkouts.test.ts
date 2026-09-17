@@ -9,37 +9,19 @@ import vitestConfig from '../vitest.config';
 import { PARITY, probesFor } from './scratch-dirs';
 
 // A background agent's worktree is a SECOND CHECKOUT of this repository, nested at
-// `.claude/worktrees/<name>/`. Every tool that walks the tree found it, and each
-// failed differently — which is why they are guarded together rather than one per
-// config file: it is ONE bug with four surfaces, and fixing three reads as fixed.
+// `.claude/worktrees/<name>/`. Every tool that walks the tree found it and each failed
+// differently, which is why they are guarded together rather than one per config file: it is
+// ONE BUG WITH FOUR SURFACES, and fixing three reads as fixed. The sharp edge is not the
+// waste — it is that `pnpm lint` and `pnpm test` answered a different question depending on
+// whether an agent happened to be running, and a gate whose verdict moves with background
+// state is not a gate.
 //
-// Measured with two worktrees open, before the fix:
-//   git        `git add -A` staged two EMBEDDED REPOSITORIES into the index
-//   eslint     456 files linted of 685 — two thirds of the run
-//   vitest     225 test files collected against a real suite of 75
-//   prettier   `format:check` RED on a fixture it is told to ignore in the real tree
-//
-// The sharp edge is not the waste, it is that `pnpm lint` and `pnpm test` answered a
-// different question depending on whether an agent happened to be running. A gate
-// whose verdict depends on background state is not a gate — and every green run
-// recorded while a worktree was open proved less than it appeared to.
-//
-// `src/repo-root.ts` is the one that got it right: its SKIP set has held
-// `.claude` all along, with a comment about this exact double-count. The TS walk
-// knew; the four config-driven tools did not.
-
-// The SHARED half of a Claude Code config — `settings.json`, `commands/`, `agents/`,
-// `skills/` — is committed, and GIT must not hide it. `**/.claude/*` WITHOUT the four
-// negations hid all of it: `/update-config` would write a permission allowlist and
-// `git add -A` would skip it in silence.
-//
-// The tools are asymmetric on purpose, and both directions are asserted below. Git
-// commits these; eslint and vitest exclude `.claude` WHOLE, because a vendored skill
-// or agent is configuration rather than this repository's source — measured, a
-// `*.test.ts` under `.claude/skills/` was collected into this very suite. Prettier
-// follows git, so `.claude/settings.json` carries a `.prettierignore` line of its
-// own: `/update-config` writes it with `JSON.stringify(obj, null, 2)`, no trailing
-// newline, and `format:check` went RED on a file nobody edited.
+// THE TOOLS ARE ASYMMETRIC ON PURPOSE and both directions are asserted below. Git commits
+// the SHARED half of a Claude Code config — `settings.json`, `commands/`, `agents/`,
+// `skills/` — while eslint and vitest exclude `.claude` WHOLE, because a vendored skill is
+// configuration rather than this repository's source. Prettier follows git, and those four
+// are the entries git does NOT ignore, so prettier is the one tool that reads them and they
+// need a `.prettierignore` line of their own.
 const SHARED = [
   '.claude/settings.json',
   '.claude/agents/helper.ts',
@@ -51,72 +33,60 @@ const PERSONAL = '.claude/settings.local.json';
 describe('a nested checkout is invisible to every tool that walks the repo', () => {
   const ignoredByGit = (path: string) => {
     try {
-      // `-c core.excludesFile=` because `check-ignore` merges the user's GLOBAL
-      // excludes with the repo's own, and this machine's `~/.config/git/ignore`
-      // already carries a `.claude` rule — measured: with the repo rule deleted, git
-      // still answered "ignored", citing that file. Unpinned, a developer whose
-      // global ignore holds these could delete a rule here and keep both a green
-      // suite AND a green local `/code-review`. D109's own thesis is that a verdict
-      // which moves with background state is not a verdict; that applies here first.
+      // `-c core.excludesFile=` because `check-ignore` merges the user's GLOBAL excludes
+      // with the repo's own, and this machine's already carries a `.claude` rule. Unpinned,
+      // a developer whose global ignore holds these could delete a rule here and keep both a
+      // green suite AND a green local `/code-review`.
       execFileSync('git', ['-c', 'core.excludesFile=', 'check-ignore', '-q', '--no-index', path], {
         cwd: REPO,
       });
       return true;
     } catch (error) {
-      // Exit 1 is "not ignored"; 128 is a real failure — git missing, dubious
-      // ownership, or not a checkout at all (a tarball export, a Docker build
-      // context). Reporting 128 as "not ignored" would fail this test pointing at
-      // `.gitignore` for an environment problem, while the negative anchors below
-      // passed for the wrong reason.
+      // Exit 1 is "not ignored"; 128 is a real failure — git missing, dubious ownership, or
+      // not a checkout at all. Reporting 128 as "not ignored" would fail this test pointing
+      // at `.gitignore` for an environment problem, while the anchors below passed.
       if ((error as { status?: unknown }).status === 1) return false;
       throw error;
     }
   };
 
-  // A TIMEOUT OF ITS OWN, because this case's cost is a process count rather
-  // than any work in the assertion: `ignoredByGit` spawns one `git check-ignore`
-  // per probe, and `PARITY.flatMap(probesFor)` is two probes for each entry.
-  // Measured on this machine — 2.97s of test time when the suite was smaller,
-  // 4.37s now, against vitest's 5s default — so it began failing roughly every
-  // other full run while passing every time in isolation. Nothing about the
-  // guard changed; the suite grew around it and process spawning does not get
-  // faster under load. 20s is not a fix for a slow test, it is the right cap for
-  // a test whose duration is the OS's to decide: if this ever genuinely hangs,
-  // 20s still catches it, and a machine four times slower than this one still
-  // passes.
+  // A TIMEOUT OF ITS OWN, because this case's cost is a process count rather than work in
+  // the assertion: one `git check-ignore` per probe, two probes per entry. Against vitest's
+  // 5s default it began failing roughly every other full run while passing in isolation —
+  // nothing about the guard changed, the suite grew around it, and process spawning does not
+  // get faster under load. 20s is the right cap for a test whose duration is the OS's to
+  // decide, and it still catches a genuine hang.
   it('git hides every scratch directory, at the root and nested', () => {
     expect(PARITY.flatMap(probesFor).filter((p) => !ignoredByGit(p))).toEqual([]);
-    // The anchor: a guard that only asserts "ignored" passes just as well when git
-    // is answering about the wrong repository, or ignoring everything.
-    expect(ignoredByGit('package.json')).toBe(false);
+    expect(
+      ignoredByGit('package.json'),
+      'git calls a real tracked file ignored, so it is answering about the wrong repository ' +
+        'or ignoring everything — the anchor a one-sided "ignored" check cannot provide',
+    ).toBe(false);
   }, 20_000);
 
   it('git keeps the SHARED Claude config committable, and hides the rest', () => {
-    expect(SHARED.filter(ignoredByGit)).toEqual([]);
+    expect(
+      SHARED.filter(ignoredByGit),
+      '`**/.claude/*` without its four negations hides the committed half — `/update-config` ' +
+        'writes a permission allowlist and `git add -A` skips it in silence',
+    ).toEqual([]);
     expect(ignoredByGit(PERSONAL)).toBe(true);
-    // Not just the personal file: everything else Claude Code writes there —
-    // `todos/`, `/loop` and `/schedule` state — stays hidden, because anything left
-    // untracked AND unignored also reaches prettier.
+    // Not just the personal file: everything else Claude Code writes there — `todos/`,
+    // `/loop` and `/schedule` state — stays hidden, because anything left untracked AND
+    // unignored also reaches prettier.
     expect(ignoredByGit('.claude/todos/t.json')).toBe(true);
-    // FOURTH TEST IN THIS REPO TO CARRY ONE, and they all have one cause: a test
-    // that spawns child processes loses the CPU race in a 79-file parallel run
-    // and blows vitest's 5000ms default, intermittently, on an unchanged repo.
-    // The others are the sibling above (`git check-ignore` through the same
-    // helper), the eslint one below, and `infra/src/schema-generated.test.ts`
-    // (`drizzle-kit generate`). This one spawns six children and had no timeout —
-    // the same failure mode at a third the process count, waiting for a slower
-    // machine. If a FIFTH appears, the answer stops being a number here: give the
-    // spawning tests their own vitest project or keep them off the contended
-    // pool, rather than tuning them one at a time.
+    // FOURTH TEST IN THIS REPO TO CARRY A TIMEOUT, all with one cause: a test that spawns
+    // child processes loses the CPU race in a parallel run and blows the 5000ms default on
+    // an unchanged repo. If a FIFTH appears, the answer stops being a number here — give the
+    // spawning tests their own vitest project, or keep them off the contended pool.
   }, 20_000);
 
   it('prettier skips the shared half too — it is committed, not ours to format', async () => {
-    // The four negated entries are NOT gitignored, so prettier reads them, and with
-    // eslint and vitest excluding `.claude` whole it is the only gate that does —
-    // failing on files nobody edited. Narrowing `.prettierignore` to `settings.json`
-    // was tried and covered one file of four: `/update-config` writes that one
-    // without a trailing newline, and a skill ships `scripts/*.js`,
-    // `references/*.json` and `*.yaml` beside its Markdown. Measured, four RED.
+    // The four negated entries are NOT gitignored, so prettier reads them, and with eslint
+    // and vitest excluding `.claude` whole it is the only gate that does. Narrowing
+    // `.prettierignore` to `settings.json` was tried and covered one file of four: a skill
+    // ships `scripts/*.js`, `references/*.json` and `*.yaml` beside its Markdown.
     const ignored = async (path: string) =>
       (
         await getFileInfo(join(REPO, path), {
@@ -129,22 +99,20 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
       '.claude/skills/s/config.yaml',
       '.claude/agents/helper.ts',
     ]) {
-      expect(await ignored(path)).toBe(true);
+      expect(await ignored(path), `${path} reaches prettier, which does not own it`).toBe(true);
     }
   });
 
   it('prettier hides them too, by riding on .gitignore rather than a second rule', async () => {
-    // `ignorePath` REPRODUCES prettier's CLI default rather than observing it —
-    // `getFileInfo` with no `ignorePath` ignores nothing at all (measured), so there
-    // is no way to ask the library what its CLI would do. If a prettier major drops
-    // `.gitignore` from that default, `format:check` goes red on scratch while this
-    // test stays green. Exercised anyway, because "prettier honours .gitignore" is
-    // the load-bearing reason `.prettierignore` gains no entry, and a reason that is
-    // only ever asserted in prose is the one that turns out wrong.
+    // `ignorePath` REPRODUCES prettier's CLI default rather than observing it: `getFileInfo`
+    // with no `ignorePath` ignores nothing at all, so there is no way to ask the library what
+    // its CLI would do. If a prettier major drops `.gitignore` from that default,
+    // `format:check` goes red on scratch while this test stays green. Exercised anyway,
+    // because "prettier honours .gitignore" is the load-bearing reason `.prettierignore`
+    // gains no entry, and a reason only ever asserted in prose is the one that turns out wrong.
     //
-    // Absolute paths, because `getFileInfo` resolves the probe path and the
-    // `ignorePath` entries against `process.cwd()` and takes no cwd of its own —
-    // unlike the git and eslint probes, which pin `cwd: REPO`.
+    // Absolute paths, because `getFileInfo` resolves the probe and the `ignorePath` entries
+    // against `process.cwd()` and takes no cwd of its own — unlike the git and eslint probes.
     const ignored = async (path: string) =>
       (
         await getFileInfo(join(REPO, path), {
@@ -152,58 +120,50 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
         })
       ).ignored;
     for (const path of PARITY.flatMap(probesFor)) expect(await ignored(path)).toBe(true);
-    expect(await ignored('package.json')).toBe(false);
+    expect(await ignored('package.json'), 'prettier now ignores the whole repo').toBe(false);
   });
 
   it('eslint hides them — flat config does NOT read .gitignore', async () => {
-    // Asked of ESLint itself, like the git check above: `isPathIgnored` resolves the
-    // real flat config, so this survives the ignore moving between config objects or
-    // changing spelling. Importing `eslint.config.js` to read its `ignores` array was
-    // the first attempt and does not typecheck — that file is outside the root
-    // tsconfig program, so TS7016 fires on the import before any assertion runs.
+    // Asked of ESLint itself: `isPathIgnored` resolves the real flat config, so this survives
+    // the ignore moving between config objects or changing spelling. Importing
+    // `eslint.config.js` to read its `ignores` array does not typecheck — that file is
+    // outside the root tsconfig program.
     //
-    // The probes end in `.ts`, and THE EXTENSION IS LOAD-BEARING: `isPathIgnored`
-    // returns true for any path no config's `files` pattern claims, and the only one
-    // here is `**/*.{ts,tsx}` — so a `.json` probe reported "ignored" with no ignore
-    // rule at all, and this whole suite stayed green while the rules were narrowed.
-    // The anchor is `src/main.tsx` for the same reason: `package.json` reports
-    // "ignored" under any config, so it would anchor nothing.
+    // The probes end in `.ts`, and THE EXTENSION IS LOAD-BEARING: `isPathIgnored` returns
+    // true for any path no config's `files` pattern claims, and the only one here is
+    // `**/*.{ts,tsx}` — so a `.json` probe reports "ignored" with no ignore rule at all. The
+    // anchor is `src/main.tsx` for the same reason: `package.json` would anchor nothing.
     const eslint = new ESLint({ cwd: REPO });
     for (const path of PARITY.flatMap(probesFor))
       expect(await eslint.isPathIgnored(path)).toBe(true);
-    expect(await eslint.isPathIgnored('src/main.tsx')).toBe(false);
-    // The shared half is ignored HERE and committed by git — the asymmetry is the
-    // decision, so it is pinned rather than left to be rediscovered.
+    expect(await eslint.isPathIgnored('src/main.tsx'), 'eslint now ignores real source').toBe(
+      false,
+    );
+    // The shared half is ignored HERE and committed by git — the asymmetry is the decision,
+    // so it is pinned rather than left to be rediscovered.
     for (const path of SHARED) expect(await eslint.isPathIgnored(path)).toBe(true);
-    // Same reason its sibling three tests up carries 20_000: resolving the real
-    // flat config is expensive, and under a full parallel run it misses the
-    // 5000 ms default often enough to redden the gate on an unchanged repo.
+    // Carries 20_000 for the reason its sibling above does: resolving the real flat config is
+    // expensive, and under a full parallel run it misses the default often enough to redden
+    // the gate on an unchanged repo.
   }, 20_000);
 
   it('vitest hides them — nor does vitest read .gitignore', () => {
-    // Its default exclude is only `**/node_modules/**` and `**/.git/**`; everything
-    // else a repo wants hidden it has to say. That the defaults are SPREAD rather
-    // than replaced is `vitest-scope.test.ts`'s assertion, not repeated here.
+    // Its default exclude is only `**/node_modules/**` and `**/.git/**`; everything else a
+    // repo wants hidden it has to say. That the defaults are SPREAD rather than replaced is
+    // `vitest-scope.test.ts`'s assertion, not repeated here.
     const exclude = vitestConfig.test?.exclude ?? [];
     expect(PARITY.filter((dir) => !exclude.includes(`**/${dir}/**`))).toEqual([]);
   });
 
   it('the rules live in the COMMITTED .gitignore, not in a local excludes file', () => {
     // `check-ignore` above pins `core.excludesFile`, but it still consults
-    // `.git/info/exclude` — the conventional place for a machine-local ignore, and
-    // one no flag can switch off. So the behavioural probe is paired with a textual
-    // one: whatever hides these, the repository's own file names them.
+    // `.git/info/exclude` — the conventional machine-local ignore, and one no flag switches
+    // off. So the behavioural probe is paired with a textual one.
     //
-    // COMMENTS STRIPPED FIRST, and that is what makes the pairing real. A raw
-    // substring match over the file could not fail for `.claude`: it appears there
-    // many times over, nearly all inside the comment block explaining the rule.
-    // Measured — delete the rule, keep its comment, put `.claude/` in
-    // `.git/info/exclude`, and both this check and the behavioural one stayed green.
-    // WHOLE RULES, not substrings. `includes('dist')` was satisfied by the unrelated
-    // `infra/dist/` line, so deleting the root `dist/` rule left this green — and
-    // paired with the `.git/info/exclude` hole this test exists to cover, a developer
-    // whose local exclude named `dist` would have kept both halves green with the
-    // repo rule gone. Each rule is normalised to the directory it names.
+    // COMMENTS STRIPPED FIRST, and that is what makes the pairing real: a raw substring match
+    // could not fail for `.claude`, which appears many times over inside the comment block
+    // explaining the rule. WHOLE RULES, not substrings — `includes('dist')` was satisfied by
+    // the unrelated `infra/dist/` line, so deleting the root `dist/` rule left this green.
     const rules = readFileSync(join(REPO, '.gitignore'), 'utf8')
       .split('\n')
       .map((line) => line.trim())
@@ -214,18 +174,19 @@ describe('a nested checkout is invisible to every tool that walks the repo', () 
           .replace(/\/\*$/, '')
           .replace(/\/$/, ''),
       );
-    // First segment: `.claude/worktrees` is covered by the `**/.claude/*` rule and
-    // its negations, which is the whole point of that form. The personal file is
-    // covered behaviourally above; it has no rule of its own any more.
-    expect(PARITY.filter((dir) => !rules.includes(dir.split('/')[0]))).toEqual([]);
+    // First segment: `.claude/worktrees` is covered by the `**/.claude/*` rule and its
+    // negations, which is the whole point of that form.
+    expect(
+      PARITY.filter((dir) => !rules.includes(dir.split('/')[0])),
+      'a scratch directory is hidden by something other than the repository’s own file',
+    ).toEqual([]);
   });
 
   it('nothing hidden from the tools is measured either — the one direction that holds', () => {
-    // Every directory the tools hide is also outside the Markdown/claim/distillation
-    // walks. The converse is NOT asserted, and must not be — see the note on PARITY.
-    // Asked through `skipped()` rather than `SKIP` directly, because `SKIP` holds
-    // exact names and `.tmp-*` is a pattern; the predicate is what the walk itself
-    // calls, so this cannot pass against a rule the walk does not actually apply.
+    // The converse is NOT asserted, and must not be — see the note on PARITY. Asked through
+    // `skipped()` rather than `SKIP` directly, because `SKIP` holds exact names and `.tmp-*`
+    // is a pattern; the predicate is what the walk itself calls, so this cannot pass against
+    // a rule the walk does not apply.
     expect(PARITY.filter((dir) => !skipped(dir.replace('*', 'x').split('/')[0]))).toEqual([]);
   });
 });

@@ -13,19 +13,16 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/** Trailing comments too, not only whole lines: `x = 1; // setLanguage(…)` would
- *  otherwise read as a caller and redden the suite over a comment.
+/** Trailing comments too, not only whole lines: `x = 1; // setLanguage(…)` would otherwise
+ *  read as a caller and redden the suite over a comment. QUOTE-EXACT, because `//` inside a
+ *  STRING is not a comment and a bare `/\/\/.*$/` truncates its own line at the first URL —
+ *  which also MISSES a real `setLanguage(` call written after one.
  *
- *  QUOTE-EXACT, which the regex this replaces was not: `//` inside a STRING is
- *  not a comment, and a bare `/\/\/.*$/` truncates its own line at the first
- *  URL. Copied from `floating-edges.test.ts` SIGNATURE AND ALL rather than
- *  imported — the house idiom is that a guard stands alone.
- *
- *  INJECTION-VERIFIED, AND THE OTHER WAY ROUND: a real `setLanguage(`
- *  call written after a `'https://x'` on the same line is CAUGHT here and
- *  MISSED by the reader this replaces, which took the URL for a comment
- *  and truncated the line before the call.
- */
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: AND THE OTHER WAY ROUND: a real `setLanguage(` call written after a
+ *  `'https://x'` on the same line is CAUGHT here and MISSED by the reader this replaces, which
+ *  took the URL for a comment and truncated the line before the call. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -67,8 +64,7 @@ const CODE = sourceFiles(here).map((path) => ({
   text: stripTs(readFileSync(path, 'utf8')),
 }));
 
-// The store is where the language is DEFINED and written; every other file is
-// what this guards.
+// The store is where the language is DEFINED; every other file is what this guards.
 const CALLERS = CODE.filter(({ name }) => name !== 'state/settings.ts');
 
 // WHY A TEST AND NOT A COMMENT. A language switch rewrites nothing: a field
@@ -88,8 +84,8 @@ const CALLERS = CODE.filter(({ name }) => name !== 'state/settings.ts');
 // `couponProjection` and `/yield` with it.
 describe('only one control can change the language', () => {
   it('calls setLanguage from exactly one place', () => {
-    // CALL SITES, not files: a second radiogroup added inside Settings.tsx is
-    // the same hazard as one added elsewhere, and counting files would miss it.
+    // CALL SITES, not files: a second radiogroup inside `Settings.tsx` is the same hazard as
+    // one added elsewhere, and counting files would miss it.
     const sites = CALLERS.flatMap(({ name, text }) =>
       (text.match(/\bsetLanguage\s*\(/g) ?? []).map(() => name),
     ).sort();
@@ -101,9 +97,8 @@ describe('only one control can change the language', () => {
   });
 
   it('has no second way to write the language either', () => {
-    // `setLanguage(` is not the only spelling a writer could take — the store is
-    // exported, so `setState` reaches the field without ever naming the action,
-    // in an object OR an updater, and a plain assignment reaches it too.
+    // The store is exported, so `setState` reaches the field without ever naming the action —
+    // in an object OR an updater — and a plain assignment reaches it too.
     const around = CALLERS.filter(
       ({ text }) =>
         /setState\([\s\S]{0,200}?\blanguage\s*[,:}]/.test(text) || /\.language\s*=[^=]/.test(text),
@@ -114,13 +109,12 @@ describe('only one control can change the language', () => {
   });
 
   it('leaves the fields that DERIVE their display free of that constraint', () => {
-    // `NumberField` holds a language-free value and formats it per render, so a
-    // switch is a re-render for every site on it — which is why the five
-    // groupable inputs and the rate box are absent from the warning above.
+    // `NumberField` holds a language-free value and formats it per render, so a switch is a
+    // re-render for every site on it — which is why those inputs are absent from the four.
     const field = CODE.find(({ name }) => name.endsWith('NumberField.tsx'));
     expect(field?.text).toMatch(/groupedForInput\(value, language\)/);
-    // BOUNDED: no other tag may open between the two, or this passes on any
-    // NumberField anywhere above a plain `<input id="usd-rate">`.
+    // BOUNDED: no other tag may open between the two, or this passes on any `NumberField`
+    // anywhere above a plain `<input id="usd-rate">`.
     const settings = CODE.find(({ name }) => name === 'screens/Settings.tsx');
     expect(settings?.text, 'the rate box went back to holding its own writing').toMatch(
       /<NumberField[^<>]*\sid="usd-rate"/,

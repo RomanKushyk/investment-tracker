@@ -3,39 +3,29 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// `/transactions` and `/` are composed like `/payouts` — the owner's instruction
-// of 2026-08-25, which superseded both the flex row A35 shipped and the centred
-// 944 the screen-density sheet drew for `/`. His reason outranks a drawing: the
-// two screens read as a different product from the rest of the app.
+// `/transactions` and `/` are composed like `/payouts`, on the owner's instruction: the two
+// screens read as a different product from the rest of the app.
 //
-// SO THIS FILE'S JOB CHANGED. It used to pin an arithmetic identity — the flex
-// bases plus the gap had to equal the container query, or a wrapped form was
-// stranded beside 590 px of nothing. There is no arithmetic left to pin: an `fr`
-// track has no basis and the collapse is a media query. What has to be pinned
-// instead is that the three screens use ONE expression rather than three that
-// merely look alike, because "like the other pages" is now the requirement and a
-// second idiom is the defect it exists to remove.
+// WHAT IS PINNED IS THAT THE THREE SCREENS USE ONE EXPRESSION rather than three that merely
+// look alike — "like the other pages" is the requirement, and a second idiom is the defect
+// this exists to remove. There is no arithmetic left to pin: an `fr` track has no basis and
+// the collapse is a media query.
 //
-// Read from `/payouts` rather than restated here, so the day someone retunes it
-// there, this fails instead of drifting.
+// Read from `/payouts` rather than restated here, so the day someone retunes it there, this
+// fails instead of drifting.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (f: string) => readFileSync(join(here, f), 'utf8');
 /**
- * COMMENTS STRIPPED BEFORE MATCHING, and the review that asked for it was right:
- * the first cut banned the strings `@container` and `@min-[Npx]` from the RAW
- * text of three files, so writing D88's own rationale into any of them — the
- * natural place for it — would have turned this suite red with no behaviour
- * change. `ledger-delete.test.ts` learned the same lesson from A47.
+ * COMMENTS STRIPPED BEFORE MATCHING: this bans the strings `@container` and `@min-[Npx]`
+ * from three files, so writing the layout's own rationale into any of them — the natural
+ * place for it — would turn the suite red with no behaviour change. QUOTE-EXACT AND LINE BY
+ * LINE, because dropping only whole-line `//` comments leaves the trailing ones and one
+ * apostrophe in prose then desynchronises every quote pair after it.
  *
- * QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
- * only whole-line `//` comments leaves the trailing ones, and one apostrophe in
- * the prose then desynchronises every quote pair after it. Copied from
- * `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
- * idiom is that a guard stands alone.
- *
- * INJECTION-VERIFIED: a trailing `// @container` in `Transactions.tsx`
- * leaves this green and turns the reader it replaces red.
- */
+ * Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ * alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ * INJECTION-VERIFIED: a trailing `// @container` in `Transactions.tsx` leaves this green and
+ *  turns the reader it replaces red. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -90,31 +80,22 @@ function ledgerCard(): string {
   return m[1];
 }
 
-/** The form card's own class string, anchored by `<Card>` AND its `bg-panel`
- *  surface. The token must stand alone — `hover:bg-panel`, `bg-panel/50` or
- *  `bg-panel-muted` must not retarget the anchor.
+/** Anchored by `<Card>` AND its `bg-panel` surface, with the token standing alone so
+ *  `hover:bg-panel` or `bg-panel/50` cannot retarget it.
  *
- *  `<Card` IS PART OF THE ANCHOR, and it was added after a standalone
- *  `bg-panel` on a plain `<div>` earlier in the file — the price-mode segment
- *  of #31 — captured the match and reported the segment's classes as the
- *  card's. That segment no longer takes `bg-panel`: the filled idiom of
- *  2026-09-01 moved every segmented track to `bg-ink`, so the collision this
- *  anchor was hardened against cannot happen today. The anchor STAYS, because
- *  what it pins is that the subject is the CARD rather than whatever else
- *  happens to share a surface token — and the next control to reach for
- *  `bg-panel` would recreate it.
- *  Anchoring on the element, the way `ledgerCard` anchors on its ref, is what
- *  makes this specific; matching a bare class string means any later element
- *  that legitimately shares the surface silently becomes the subject. */
+ *  `<Card` IS PART OF THE ANCHOR because a standalone `bg-panel` on a plain `<div>` earlier
+ *  in the file once captured the match and reported that element's classes as the card's.
+ *  Nothing collides today, and the anchor STAYS: what it pins is that the subject is the
+ *  CARD rather than whatever else shares a surface token, and the next control to reach for
+ *  `bg-panel` would recreate it. */
 function formCard(): string {
   const m = PANEL.match(/<Card\b[^>]*className="([^"]*(?<![-:/\w])bg-panel(?![-/\w])[^"]*)"/);
   if (m === null) throw new Error('no form Card (bg-panel) in TransactionPanel');
   return m[1];
 }
 
-/** The collapse variant, read from `/payouts`' own row (`max-lg`) — the file's
- *  charter applied to the breakpoint too: if the collapse is ever retuned, the
- *  width and height pins below fail instead of drifting. */
+/** Read from `/payouts`' own row, the file's charter applied to the breakpoint too: if the
+ *  collapse is retuned there, the pins below fail instead of drifting. */
 function collapsePrefix(): string {
   const m = gridRow(PAYOUTS).match(/(max-[a-z0-9]+):grid-cols-1/);
   if (m === null) throw new Error('no collapse variant on `/payouts`’ grid row');
@@ -147,71 +128,84 @@ describe('the three screens are composed by one expression', () => {
   });
 
   it('leaves nothing of the flex row behind on either screen', () => {
-    // A leftover basis or container query does not error — it silently stops
-    // applying, which is how the ledger's tall scroll box was found sitting at
-    // the phone's 420 on a desktop after this change.
+    // A leftover basis or container query DOES NOT ERROR, it silently stops applying — which
+    // is how the ledger's tall scroll box was found at its phone height on a desktop.
     for (const source of [TRANSACTIONS, QUOTES, PANEL]) {
-      expect(source).not.toMatch(/flex-\[1_1_\d+px\]/);
-      expect(source).not.toMatch(/@min-\[\d+px\]/);
-      expect(source).not.toMatch(/@container/);
+      expect(
+        source,
+        'a flex basis is left on a grid child, where it is inert rather than wrong',
+      ).not.toMatch(/flex-\[1_1_\d+px\]/);
+      expect(
+        source,
+        'a container query is left behind, and it has no container to resolve against',
+      ).not.toMatch(/@min-\[\d+px\]/);
+      expect(
+        source,
+        'the containment CONTEXT is left declared for a query that is gone',
+      ).not.toMatch(/@container/);
     }
   });
 
   it('floors both `fr` children, which `/payouts` does not have to', () => {
-    // An `fr` track floors at its content, and every child here carries an input
-    // or a scroll box with a width of its own — unlike a chart, which shrinks.
-    // Anchored to the two cards themselves: the old prefix count
-    // (`className="min-w-0` >= 2) was satisfied by two truncating spans inside
-    // ledger rows and never matched EITHER card, so removing the class from a
-    // card kept the suite green while the fr track floored at its content.
-    expect(ledgerCard()).toContain('min-w-0');
-    expect(formCard()).toContain('min-w-0');
+    // An `fr` track FLOORS AT ITS CONTENT, and every child here carries an input or a scroll
+    // box with a width of its own — unlike a chart, which shrinks. Anchored to the two cards
+    // themselves: a prefix count was satisfied by truncating spans inside ledger rows and
+    // never matched EITHER card.
+    expect(
+      ledgerCard(),
+      'the ledger lost `min-w-0`, so the `fr` track floors at its scroll box',
+    ).toContain('min-w-0');
+    expect(formCard(), 'the form lost `min-w-0`, so the `fr` track floors at its inputs').toContain(
+      'min-w-0',
+    );
   });
 
   it('renders the form FIRST and places the ledger left, so both orders agree', () => {
-    // Collapsed, the column IS the sequence, so the DOM owes it the form — the
-    // first cut had the ledger first with `max-lg:order-first` on the form, which
-    // sent a keyboard through 18 ledger rows and 18 delete buttons before the
-    // field the user could see at the top (WCAG 2.4.3, 1.3.2).
-    // ANCHORED THROUGH `formCard()`, not `indexOf('bg-panel')`. The bare index
-    // is the idiom `formCard`'s own docblock calls out — and it was in fact
-    // resolving to the price-mode segment rather than the Card, so this
-    // assertion passed for years without ever looking at the form. D114 moved
-    // that segment to `bg-ink`, which fixed the match by accident; using the
-    // hardened anchor makes it deliberate.
+    // Collapsed, THE COLUMN IS THE SEQUENCE, so the DOM owes it the form: ordering the form
+    // visually while leaving the ledger first sends a keyboard through every row and delete
+    // button before the field the user can see at the top (WCAG 2.4.3, 1.3.2).
+    //
+    // ANCHORED THROUGH `formCard()`, never `indexOf('bg-panel')` — the bare index is the
+    // idiom that docblock calls out, and it resolved to a different element entirely, so this
+    // assertion passed for years without ever looking at the form.
     const formAt = PANEL.indexOf(formCard());
     const ledgerAt = PANEL.indexOf('ref={ledgerRef}');
-    expect(formAt).toBeGreaterThan(-1);
-    expect(ledgerAt).toBeGreaterThan(formAt);
-    // Beside each other the visual order is still ledger-left, placed rather than
-    // ordered — `order` on a grid item moves it without moving its track.
+    expect(formAt, 'the form card is gone from the panel').toBeGreaterThan(-1);
+    expect(
+      ledgerAt,
+      'the ledger comes first in the DOM, so collapsed a keyboard walks every row and ' +
+        'delete button before the field the user can see at the top',
+    ).toBeGreaterThan(formAt);
+    // Beside each other the visual order is still ledger-left, PLACED rather than ORDERED:
+    // `order` on a grid item moves it without moving its track.
     expect(PANEL).toMatch(/ref=\{ledgerRef\}[\s\S]*?lg:col-start-1/);
     expect(formCard()).toContain('lg:col-start-2');
     expect(PANEL).not.toContain('order-first');
   });
 
-  it('keeps the ledger uncapped (D93) and the form cap stacked-only (D94)', () => {
-    // D93 took the ledger's `max-w-[884px]` off: inside D88's `1.6fr` track the
-    // TRACK is the bound, and a cap narrower than it opened a dead strip between
-    // the columns — the wide-monitor row stretch is priced there. D94 made the
-    // same call for the form: the 560 guards only the stacked column.
-    //
-    // A width token is anything that keeps a card from filling its track — a
-    // cap, a fixed `w-[…]`, a `basis-[…]`, under any variant; `min-w-*` floors
-    // stay legal (a floor cannot un-fill a track). Token-list equality, so a
-    // failure prints exactly which tokens appeared; scoped to each card's OWN
-    // class string, so a future row-level content max-width inside a card (the
-    // fix D93 itself sanctions) cannot false-fail it.
+  it('keeps the ledger uncapped, and the form cap stacked-only', () => {
+    // INSIDE AN `fr` TRACK THE TRACK IS THE BOUND, so a cap narrower than it opens a dead
+    // strip between the columns — the wide-monitor row stretch is priced there. A width token
+    // is anything keeping a card from filling its track: a cap, a fixed `w-[…]`, a
+    // `basis-[…]`, under any variant. `min-w-*` floors stay legal, a floor being unable to
+    // un-fill a track. Scoped to each card's OWN class string, so a future row-level content
+    // max-width inside a card cannot false-fail it. *Forms and layout*
     const widthTokens = (card: string) =>
       card.split(/\s+/).filter((c) => /(^|:)(max-w|w|basis)-\[/.test(c));
-    expect(widthTokens(ledgerCard())).toEqual([]);
-    expect(widthTokens(formCard())).toEqual([`${collapsePrefix()}:max-w-[560px]`]);
+    expect(
+      widthTokens(ledgerCard()),
+      'the ledger takes a width token, which opens a dead strip between the columns',
+    ).toEqual([]);
+    expect(
+      widthTokens(formCard()),
+      'the form cap is no longer stacked-only, so it bounds the card inside its own track too',
+    ).toEqual([`${collapsePrefix()}:max-w-[560px]`]);
   });
 
   it('leaves no trailing margin on a grid that is the last element', () => {
-    // `/payouts` needs its `mb-3.5` — its log table follows. On both of these the
-    // grid is last, and on `/transactions` those 14 px are not in the ledger's
-    // height formula, so the page scrolled at a full ledger.
+    // `/payouts` needs its bottom margin because its log table follows. On both of these the
+    // grid is LAST, and on `/transactions` that margin is not in the ledger's height formula,
+    // so the page scrolled at a full ledger.
     for (const source of [TRANSACTIONS, QUOTES]) {
       expect(source).not.toMatch(/mb-3\.5 grid grid-cols-/);
     }
@@ -219,9 +213,8 @@ describe('the three screens are composed by one expression', () => {
   });
 
   it('floors the ledger height so a short viewport cannot collapse it to zero', () => {
-    // A `max-height` calc that resolves negative is clamped to 0, not ignored.
-    // Keyed to the collapse breakpoint (read from `/payouts`, not restated):
-    // the container query it used to ask has no container.
+    // A `max-height` calc that resolves negative is CLAMPED TO 0, not ignored. Keyed to the
+    // collapse breakpoint, because the container query it used to ask has no container.
     const above = collapsePrefix().replace(/^max-/, '');
     expect(PANEL).toMatch(
       new RegExp(`(?<![-\\w])${above}:max-h-\\[max\\(200px,calc\\(100dvh-var\\(--ledger-top`),

@@ -3,29 +3,22 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE PAIRING D114 LEAVES UNGUARDED, made to fail instead.
+// THE PAIRING *Interaction rules* LEAVES UNGUARDED, made to fail instead. A filled segmented
+// track is `bg-ink` and the focus ring resolves to `var(--color-ink)`, so a track without
+// `data-filled-track` paints the ring on its own colour and keyboard focus disappears —
+// which is what shipped on every one of these controls until the rule was added.
 //
-// A filled segmented track is `bg-ink`, and the focus ring resolves to
-// `var(--color-ink)` — so a filled track without `data-filled-track` paints the
-// ring on its own colour at 1.00:1 and keyboard focus disappears. That is not a
-// hypothetical: it is what shipped on all seven controls until the rule was
-// added, and in the rail it was the SECOND time the same bug landed there.
+// THE ATTRIBUTE IS INVISIBLE IN A WAY THE FILL IS NOT. Someone adding a control copies the
+// part they can see, `border border-ink bg-ink`, and nothing else fails: lint, typecheck,
+// the suite and format:check all pass while the control has no visible focus.
 //
-// The attribute is invisible in a way the fill is not. Someone adding a control
-// copies the part they can see — `border border-ink bg-ink` — and nothing else
-// fails: lint, typecheck, the suite and format:check all pass while the control
-// has no visible focus. So the pairing needs a test rather than a count in a
-// decision file.
+// BOTH HALVES ARE PINNED HERE — the markup half is the attribute, the CSS half is the rule
+// it selects. Nothing else in this repo reads a stylesheet, so deleting `[data-filled-track]`
+// as apparently-unused markup would leave the whole suite green and put every one of these
+// controls back to ink on ink.
 //
-// BOTH HALVES ARE PINNED HERE, and the second was missing at first. The markup
-// half is the attribute; the CSS half is the rule the attribute selects. Nothing
-// else in this repo reads a stylesheet, so deleting `[data-filled-track]` from
-// `index.css` as apparently-unused markup would leave all 1346 tests green and
-// put every one of these controls back to ink-on-ink at 1.00:1.
-//
-// SOURCE TEXT, not a render: this repo runs vitest with `environment: 'node'`
-// and carries no render-testing library, which is the same reason
-// `price-mode-segment.test.ts` and `transactions-layout.test.ts` read files.
+// SOURCE TEXT, not a render: this repo runs vitest with `environment: 'node'` and carries no
+// render-testing library.
 const here = dirname(fileURLToPath(import.meta.url));
 
 function sourceFiles(dir: string): string[] {
@@ -41,24 +34,17 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
-/** Comments stripped, so example markup written in prose cannot satisfy or break
- *  the pairing — measured, that removes one `<div>` mention each from
- *  `AssetForm.tsx`, `Select.tsx` and `TransactionPanel.tsx` and two from
- *  `RecordCard.tsx`. (It is NOT the rail that needs this: the rail's track has
- *  never been the fill pair — `sb-field` until #107 and the active route's own
- *  12% tint since — and its comment sits between elements rather than inside a
- *  tag.)
+/** Comments stripped, so example markup written in prose cannot satisfy or break the
+ *  pairing — a comment drawing a `bg-ink`/`border-ink` tag reads as an unguarded track.
+ *  QUOTE-EXACT AND LINE BY LINE, the half a regex cannot do: dropping only whole-line `//`
+ *  comments leaves the trailing ones, and one apostrophe in prose then desynchronises every
+ *  quote pair after it.
  *
- *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
- *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
- *  the prose then desynchronises every quote pair after it. Copied from
- *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
- *  idiom is that a guard stands alone.
- *
- *  INJECTION-VERIFIED: a trailing comment drawing a `bg-ink`/`border-ink`
- *  tag in `Switch.tsx` leaves this green and turns the reader it replaces
- *  red — the comment reads as an unguarded track.
- */
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing comment drawing a `bg-ink`/`border-ink` tag in `Switch.tsx`
+ *  leaves this green and turns the reader it replaces red — the comment reads as an unguarded
+ *  track. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -96,19 +82,14 @@ function stripTs(source: string): string {
 }
 
 /**
- * OPENING TAGS, BRACE-AWARE — and a regex cannot do this.
+ * OPENING TAGS, BRACE-AWARE — AND A REGEX CANNOT DO THIS. A JSX opening tag does not end at
+ * the first `>`: `onKeyDown={(e) => …}` and `className={n > 2 ? a : b}` both put one inside
+ * the braces, so a `[^>]*?>` scan truncates such an element and drops it from BOTH
+ * assertions — failing in the one direction a guard must not, since a new filled track with
+ * a roving-focus handler would ship with no ring while the floor still passed on the rest.
  *
- * A JSX opening tag does not end at the first `>`: `onKeyDown={(e) => …}` and
- * `className={n > 2 ? a : b}` both put one inside the braces. The first version
- * of this file scanned `<(?:div|label)\b[^>]*?>` and so truncated any such
- * element to `<div onKeyDown={(e) =>`, dropping it from BOTH assertions. That
- * failed in the one direction a guard must not: a new filled track with a
- * roving-focus handler would ship with no visible ring, the pairing test would
- * report nothing, and the floor below would still pass on the untouched six.
- *
- * ANY element name, not `div|label`. A track authored as `<fieldset>` — natural
- * for a radiogroup — or `<span>`, or a wrapper component, is a filled track too;
- * the signature is the class pair, not the tag.
+ * ANY element name: a track authored as `<fieldset>`, `<span>` or a wrapper component is a
+ * filled track too. The signature is the class pair, not the tag.
  */
 function openingTags(source: string): string[] {
   const tags: string[] = [];
@@ -136,12 +117,10 @@ function openingTags(source: string): string[] {
 }
 
 /**
- * A FILLED TRACK, by the signature D114 actually gives it: `bg-ink` AND
- * `border-ink` on the same element. The border draws nothing on a fill of its
- * own colour — it is a 1px geometric spacer, part of D56's concentric gap — so
- * the PAIR is what separates a track from any other use of the fill token.
- * Matching on `bg-ink` alone reported `Allocation.tsx`'s 2px target marker as an
- * unguarded control.
+ * A FILLED TRACK IS THE `bg-ink` + `border-ink` PAIR on one element. The border draws nothing
+ * on a fill of its own colour — it is a 1px geometric spacer, part of *Shape system*'s
+ * concentric gap — so the PAIR is what separates a track from any other use of the fill
+ * token: matching on `bg-ink` alone reported a 2px target marker as an unguarded control.
  */
 function filledTracks(source: string): string[] {
   return openingTags(source).filter(
@@ -150,21 +129,15 @@ function filledTracks(source: string): string[] {
 }
 
 /**
- * THE ONE EXCEPTION, and it is a real distinction rather than a suppression.
+ * THE ONE EXCEPTION, AND A REAL DISTINCTION RATHER THAN A SUPPRESSION. `Switch.tsx` takes
+ * `border-ink bg-ink` when checked, so it carries a track's signature — but a track's ring
+ * lands on the FILL because the focused thing is a CHILD sitting on it, and `index.css`
+ * SELECTS WITH A DESCENDANT COMBINATOR. The Switch has no focusable child, it IS the
+ * control, so the same offset draws its ring OUTSIDE the element where ink reads at full
+ * contrast, and adding the attribute here would change nothing.
  *
- * `Switch.tsx` takes `border-ink bg-ink` when checked, so it carries a track's
- * signature — but it is not a track, and D114's rule would do nothing for it.
- * A track's ring lands on the FILL because the focused thing is a CHILD sitting
- * on it: `index.css` selects with a DESCENDANT combinator, and its own comment
- * measures the base `outline-offset: 2px` as reaching 2→4px INTO a track whose
- * padding is 4 (`p-1`) or even 2 (`p-[2px]`). The Switch has no focusable child
- * — it IS the control — so the same offset draws its ring 2px OUTSIDE the
- * element, on the surrounding `card`/`panel`, where ink reads at full contrast.
- *
- * So adding `data-filled-track` here would change nothing: the selector needs a
- * descendant and there is none. Named rather than silently dropped, and the test
- * below fails if the Switch ever stops matching — an exception nobody re-checks
- * is how a guard quietly narrows.
+ * Named rather than silently dropped, and the test below fails if the Switch ever stops
+ * matching — an exception nobody re-checks is how a guard quietly narrows.
  */
 const isControlItself = (tag: string) => /<RadixSwitch\.Root\b/.test(tag);
 
@@ -172,20 +145,16 @@ describe('a filled segmented track carries data-filled-track', () => {
   const files = sourceFiles(here).filter((f) => !/\.test\.tsx?$/.test(f));
 
   it('finds the tracks at all, so an empty pass cannot look like a green one', () => {
-    // The anchor. If the fill token is ever renamed, this fails loudly rather
-    // than letting the real assertion below pass over zero elements.
-    //
-    // SIX, where D114 counted seven. The seventh was `KindSegment`, the asset
-    // form's Fund/Bond control, and D116 DELETED it: an Inzhur bond is an OVDP
-    // and everything else the provider lists is a fund, so the control could
-    // only agree with the yield type or contradict it. The floor moved because a
-    // control went away, not because the rule weakened.
-    //
-    // A FLOOR, not an equality, and deliberately: a seventh filled control must
-    // pass this and be caught by the pairing test below instead. Only a vanished
-    // one fails here.
+    // A FLOOR, not an equality, and deliberately: another filled control must pass this and
+    // be caught by the pairing test below instead. Only a vanished one fails here. THE
+    // NUMBER MOVES WHEN A CONTROL GOES, never when the rule weakens — it was one higher
+    // until the asset form's Fund/Bond segment was deleted outright.
     const all = files.flatMap((f) => filledTracks(stripTs(readFileSync(f, 'utf8'))));
-    expect(all.length).toBeGreaterThanOrEqual(6);
+    expect(
+      all.length,
+      'the filled tracks are disappearing from the walk — at zero every assertion below ' +
+        'passes over nothing, which is what this floor exists to catch',
+    ).toBeGreaterThanOrEqual(6);
   });
 
   it('pairs every one of them with the attribute', () => {
@@ -199,27 +168,37 @@ describe('a filled segmented track carries data-filled-track', () => {
         }
       }
     }
-    expect(missing).toEqual([]);
+    expect(
+      missing,
+      'a filled track carries no `data-filled-track`, so its focus ring paints ink on ink',
+    ).toEqual([]);
   });
 
   it('exercises the exception, so it cannot rot into a rule nobody re-checks', () => {
-    // The Switch must still LOOK like a track — same class pair — or the
-    // exception above describes something that no longer exists.
     const src = stripTs(readFileSync(join(here, 'components/ui/Switch.tsx'), 'utf8'));
     const looksLikeTrack = openingTags(src).filter(
       (tag) => /\bbg-ink\b/.test(tag) && /\bborder-ink\b/.test(tag),
     );
-    expect(looksLikeTrack).toHaveLength(1);
-    expect(looksLikeTrack.every(isControlItself)).toBe(true);
+    expect(
+      looksLikeTrack,
+      'the Switch is no longer the one element wearing a track\u2019s class pair, so the ' +
+        'exception above describes something that is not there — or is there twice',
+    ).toHaveLength(1);
+    expect(
+      looksLikeTrack.every(isControlItself),
+      'the class pair has moved off `RadixSwitch.Root` onto an inner element, which is the ' +
+        'shape the exception does not cover',
+    ).toBe(true);
   });
 
   it('keeps the CSS half the attribute exists to select', () => {
-    // The attribute is inert on its own. This is the rule it selects, and
-    // without this assertion the markup half above can stay green while the
-    // behaviour it guards is gone.
     const css = readFileSync(join(here, 'index.css'), 'utf8');
-    expect(css).toContain('[data-filled-track] :focus-visible');
-    expect(css).toMatch(
+    expect(
+      css,
+      'the attribute is inert on its own — without this rule the markup half above stays ' +
+        'green while the behaviour it guards is gone',
+    ).toContain('[data-filled-track] :focus-visible');
+    expect(css, 'the override no longer moves the ring off the fill').toMatch(
       /\[data-filled-track\] :focus-visible \{[^}]*outline-color:\s*var\(--color-page\)/,
     );
   });

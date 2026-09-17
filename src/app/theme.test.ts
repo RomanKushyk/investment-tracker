@@ -6,27 +6,23 @@ import { describe, expect, it } from 'vitest';
 import { migrateSettings } from '../state/settings';
 import { resolveTheme } from './theme';
 
-// The FOUC-free boot in index.html has to duplicate two things it cannot
-// import — the storage key and the light/dark/system validity rule — because
-// importing anything would make it a module, and a module is deferred, which is
-// the very property that would put the white flash back.
+// The FOUC-free boot in index.html duplicates two things it cannot import — the storage key
+// and the validity rule — because IMPORTING ANYTHING WOULD MAKE IT A MODULE, and a module is
+// deferred, which is the property that puts the white flash back.
 //
-// So this pins the duplication BY BEHAVIOUR rather than by matching its text:
-// the script is extracted and actually run against a table of stored payloads,
-// and its answer is compared with what the app itself would decide via
-// migrateSettings + resolveTheme. A regex would pass while the two disagreed;
-// this cannot.
+// So the duplication is pinned BY BEHAVIOUR rather than by matching text: the script is
+// extracted and run against a table of stored payloads, and its answer compared with what
+// the app itself decides. A regex would pass while the two disagreed.
 const here = dirname(fileURLToPath(import.meta.url));
 const INDEX_HTML = readFileSync(join(here, '..', '..', 'index.html'), 'utf8');
 
-/** TS comments out, LINE BY LINE, and the line boundary is the point: a regex
- *  literal may hold a quote, and one desync would switch stripping off for the
- *  rest of the file. Copied from `sidebar-structure.test.ts` SIGNATURE AND ALL,
- *  which is the house idiom — the guards here each carry their own copy.
+/** LINE BY LINE, and the line boundary is the point: a regex literal may hold a quote, and
+ *  one desync would switch stripping off for the rest of the file.
  *
- *  INJECTION-VERIFIED: a trailing `// data-theme` in `BalancesArea.tsx`
- *  leaves this green and turned it red while these reads went unstripped.
- */
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// data-theme` in `BalancesArea.tsx` leaves this green and
+ *  turned it red while these reads went unstripped. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -136,8 +132,8 @@ describe('the boot script and the app resolve the theme identically', () => {
   });
 
   it('falls back to light when localStorage itself throws', () => {
-    // Private mode and locked-down browsers throw on access rather than
-    // returning null. The script must not take the boot down with it.
+    // Private mode and locked-down browsers THROW on access rather than returning null, and
+    // the script must not take the boot down with it.
     const root = { dataset: {} as { theme?: string } };
     const fn = new Function('localStorage', 'matchMedia', 'document', bootScript()) as (
       ls: unknown,
@@ -157,9 +153,11 @@ describe('the boot script and the app resolve the theme identically', () => {
   });
 
   it('reads the same localStorage key the app writes', () => {
-    // Not a style check: a drifted key would make the script silently resolve
-    // every user to `system` while their real choice sat unread.
-    expect(bootScript()).toContain("'quirenote-settings'");
+    expect(
+      bootScript(),
+      'the key drifted, so the boot script silently resolves every user to `system` while ' +
+        'their real choice sits unread',
+    ).toContain("'quirenote-settings'");
   });
 
   it('reads state.theme top-level, which persist doctrine #2 pins for it', () => {
@@ -198,12 +196,10 @@ describe('resolveTheme', () => {
 });
 
 describe('the charts are kept out of the theme flip', () => {
-  // The Phase 5 reference is explicit: the cross-fade animates colour only, so
-  // the ONLY way a theme change could replay a chart's grow-in animation is a
-  // remount — and the only way to cause one is to put the theme in a React key
-  // or make a chart read it. True today by construction, which is exactly when
-  // it is cheap to pin: nothing here reads the theme, so nothing announces it
-  // when something starts to.
+  // The cross-fade animates COLOUR only, so the one way a theme change could replay a
+  // chart's grow-in animation is a remount — and the one way to cause that is to put the
+  // theme in a React key or make a chart read it. True today by construction, which is
+  // exactly when it is cheap to pin.
   const CHART_DIR = join(here, '..', 'components', 'charts');
 
   it('no chart component reads the theme or the data-theme attribute', () => {
@@ -224,29 +220,23 @@ describe('the theme survives the persist contract', () => {
   });
 
   it('is listed in partialize, or it would silently reset on every reload', () => {
-    // Doctrine #1 in state/settings.ts. Checked against the source rather than
-    // by round-tripping a store, because the failure it guards is a MISSING
-    // line, and a store test would pass by hydrating the default.
+    // Doctrine #1 in `state/settings.ts`, which is where the `partialize` rule is written
+    // down. Checked against the SOURCE rather than by round-tripping a store, because the
+    // failure it guards is a MISSING line and a store test would pass by hydrating the default.
     const source = stripTs(readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8'));
     const partialize = /partialize: \(s\) => \(\{([\s\S]*?)\}\)/.exec(source)?.[1] ?? '';
     expect(partialize).toContain('theme: s.theme');
   });
 });
 
-// TWO CONTROLS, ONE FIELD — #85's third acceptance criterion.
+// TWO CONTROLS, ONE FIELD. The sidebar's track and the Appearance card's radiogroup are the
+// same preference seen twice: flip one and the other has already moved. That holds only
+// while both write `setTheme` and neither keeps a copy, and the way it breaks is SILENT — a
+// control that resolved `system` at write time, or stamped `data-theme` itself, or walked
+// its own order, would look right in a screenshot and be a second source of truth.
 //
-// The sidebar's track and the Appearance card's radiogroup are drawn on
-// different planes at different sizes, and the whole point of the pair is that
-// they are the same preference seen twice: flip one and the other has already
-// moved. That holds only while both write `setTheme` and neither keeps a copy,
-// and the way it would break is silent — a sidebar control that resolved
-// `system` at write time, or stamped `data-theme` itself, or walked its own
-// order, would look right in a screenshot and be a second source of truth.
-//
-// SOURCE TEXT, because the suite runs `environment: 'node'` with no jsdom and
-// no testing-library, the same reason `sidebar-structure.test.ts` and
-// `price-mode-segment.test.ts` read files. What it can pin is the wiring; that
-// the store then holds the value is `state/settings.test.ts`'s arm.
+// SOURCE TEXT, because the suite runs `environment: 'node'` with no jsdom. What it pins is
+// the wiring; that the store holds the value is `state/settings.test.ts`'s arm.
 describe('the sidebar and the Appearance card write the one stored preference', () => {
   const read = (...rel: string[]) => stripTs(readFileSync(join(here, '..', ...rel), 'utf8'));
   const SIDEBAR = read('app', 'Sidebar.tsx');
@@ -263,9 +253,8 @@ describe('the sidebar and the Appearance card write the one stored preference', 
     expect(source, 'the control does not read the store').toMatch(/useSettings\(/);
   });
 
-  // The WRITE, not the name: `setTheme:` appears twice in the store, once in
-  // the interface and once in the implementation, and counting both would pass
-  // a second implementation that shadowed the first.
+  // The WRITE, not the name: `setTheme:` appears twice in the store, in the interface and in
+  // the implementation, so counting both would pass a second implementation shadowing the first.
   it('leaves exactly one writer in the store', () => {
     expect(
       (STORE.match(/set\(\{ theme \}\)/g) ?? []).length,
@@ -283,18 +272,13 @@ describe('the sidebar and the Appearance card write the one stored preference', 
     }
   });
 
-  // The sidebar is a PREFERENCE writer and nothing else. `useTheme` in this
-  // directory owns `data-theme`, the crossfade and the `theme-color` meta, and
-  // two writers would be one too many — so the control must not resolve, stamp
-  // or listen on its own.
+  // The sidebar is a PREFERENCE writer and nothing else: `useTheme` owns `data-theme`, the
+  // crossfade and the `theme-color` meta, and two writers would be one too many.
   it('leaves the resolving and the stamping to this directory', () => {
-    // COMMENTS ARE ALREADY OUT — `read` strips every source this block takes —
-    // because the file argues the split in prose and would otherwise fail on its
-    // own explanation of it. `stripTs` and not a line filter: `Sidebar.tsx` is
-    // mostly `{/* … */}`, whose opener starts with `{` and whose continuation
-    // lines start with plain words, so a filter keeps the whole block and the
-    // first JSX comment to name the attribute breaks the guard against the very
-    // sentence it wants written.
+    // COMMENTS ARE ALREADY OUT, because the file argues this split in prose and would
+    // otherwise fail on its own explanation. `stripTs` AND NOT A LINE FILTER: `Sidebar.tsx`
+    // is mostly `{/* … */}`, whose opener starts with `{` and whose continuation lines start
+    // with plain words, so a filter keeps the whole block.
     expect(SIDEBAR, 'the sidebar took over the theme mechanism').not.toMatch(
       /resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
     );

@@ -3,26 +3,23 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE PANEL IS FOUR BANDS AND TWO OF ITS TOKENS HAD NO CONSUMER UNTIL NOW.
+// THE PANEL IS FOUR BANDS, transcribed from `design/extensions/parchment-sidebar.dc.html`
+// rather than derived, the way every guard in this directory transcribes its drawing.
 //
-// `design/extensions/parchment-sidebar.dc.html` is #106's drawing and `:1201` is
-// its work order for this issue: an 11 px sentence-case header, one `sb-divider`
-// rule between the groups, Settings out of the scrolling band and into a
-// `sb-footer-bg` band bled to the shell's edge at radius 29 with the version
-// under it, the capital card re-planed as a bled 56 px `sb-field` strip, and
-// `SidebarDecor` deleted. This transcribes those values rather than deriving
-// them, the way every guard in this directory transcribes its drawing.
+// WHICH RECIPE THE ROW PAINTS, where `sidebar-plane.test.ts` reads what the grounds MEASURE
+// — neither catches the other, since the tokens can be perfect while the track is still one
+// segment short or the thumb still travels half a track.
 //
-// Paths resolve from THIS file, not from `process.cwd()`: a cwd-relative read
-// takes the suite down with ENOENT the moment vitest is given a different root.
+// Paths resolve from THIS file, not from `process.cwd()`.
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** TS comments out, LINE BY LINE, and the line boundary is the point: a regex
- *  literal may hold a quote, and one desync would switch stripping off for the
- *  rest of the file. Copied from `sidebar-plane.test.ts` SIGNATURE AND ALL,
- *  which is the house idiom — the guards here each carry their own copy. Not
- *  cosmetic here either: `Sidebar.tsx` argues the band and the deleted blob in
- *  prose, so an unstripped read would let a comment answer for the markup. */
+/** LINE BY LINE, and the line boundary is the point: a regex literal may hold a quote, and
+ *  one desync would switch stripping off for the rest of the file. Not cosmetic —
+ *  `Sidebar.tsx` argues the band in prose, so an unstripped read lets a comment answer for
+ *  the markup.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -66,10 +63,9 @@ const SIDEBAR = stripTs(readFileSync(join(here, 'app', 'Sidebar.tsx'), 'utf8'));
 const linesWith = (re: RegExp) => SIDEBAR.split('\n').filter((l) => re.test(l));
 
 describe('the wall carries a footer band, and the tokens for it stop being idle', () => {
-  // `sb-footer-bg` is one band, not a plane — `:1123` reads its fill step at
-  // 1.08 / 1.05 against the wall, which identifies nothing on its own, so the
-  // `sb-divider` rule along its top edge is what says a band begins. Both go on
-  // one element, and asserting them together is what keeps the pair honest.
+  // THE BAND IS IDENTIFIED BY ITS TOP RULE, NOT ITS FILL: the fill step off the wall
+  // identifies nothing on its own, so the `sb-divider` along its top edge is what says a
+  // band begins. Both go on one element, and asserting them together keeps the pair honest.
   it('paints one band on `sb-footer-bg`, ruled on `sb-divider` along its top', () => {
     const band = linesWith(/\bbg-sb-footer-bg\b/);
     expect(band.length, 'the footer band is not one element').toBe(1);
@@ -77,16 +73,13 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
     expect(band[0], "the band's top edge is not `sb-divider`").toMatch(/\bborder-sb-divider\b/);
   });
 
-  // Bled to the SHELL's edges, not the panel's padding box, and concentric with
-  // the shell's own 30 minus its 1 px border — `:913`, bottom-right only,
-  // because that is the only corner the band meets.
+  // Bled to the SHELL's edges, not the panel's padding box, and concentric with the shell's
+  // own radius minus its border — bottom-right only, the one corner the band meets.
   //
-  // THE BLEED MUST CANCEL THE PADDING IT ACTUALLY HAS, and that padding is not a
-  // flat 16: both shells write `max(16px, env(safe-area-inset-*))` on the sides a
-  // notch can reach. A `-mx-4` here is right only while the inset is 0, and on a
-  // notched phone in landscape it left a stripe of wall down the band's edge. The
-  // two sides that can grow take the same expression; the right is 16 in both
-  // shells and stays `-mr-4`.
+  // THE BLEED MUST CANCEL THE PADDING IT ACTUALLY HAS, AND THAT IS NOT A FLAT 16: both
+  // shells write `max(16px, env(safe-area-inset-*))` on the sides a notch can reach, so a
+  // `-mx-4` is right only while the inset is 0 and a notched phone in landscape leaves a
+  // stripe of wall down the band's edge. The right side is 16 in both shells and stays `-mr-4`.
   it('bleeds the band by the padding it cancels, at the drawn radius 29', () => {
     const band = linesWith(/\bbg-sb-footer-bg\b/)[0] ?? '';
     expect(band, 'the band does not cancel the left inset').toMatch(
@@ -99,38 +92,33 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
     expect(band, 'the band is not concentric with the shell at 29').toMatch(/rounded-br-\[29px\]/);
   });
 
-  // SPENT TWICE AND NO MORE — T10: "`sb-divider` — spent — between groups, and
-  // along the band's top edge." One rule separates the two nav groups; the
-  // second is the band's. A third would mean a rule appeared somewhere the
-  // drawing does not put one.
+  // SPENT TWICE AND NO MORE: one rule between the two nav groups, one along the band's top
+  // edge. A third means a rule appeared somewhere the drawing does not put one.
   it('spends `sb-divider` exactly twice — one group rule and the band', () => {
     expect(linesWith(/\bborder-sb-divider\b/).length, '`sb-divider` moved off its two sites').toBe(
       2,
     );
   });
 
-  // A rule, not a drawing. `mark.test.ts` reads this file RAW and asserts the
-  // mark's `d=`, `stroke*=` and `fill=` attributes as whole-file ordered lists,
-  // so an SVG line here would fail the mark's pin rather than this one.
+  // A rule, not a drawing: `mark.test.ts` reads this file RAW and asserts the mark's `d=`,
+  // `stroke*=` and `fill=` attributes as whole-file ORDERED LISTS, so an SVG line here would
+  // fail the mark's pin rather than this one.
   it('draws the rule as a border, leaving the mark the only inline SVG', () => {
     expect((SIDEBAR.match(/<svg\b/g) ?? []).length, 'a second inline SVG entered the file').toBe(1);
   });
 
-  // THE ROW'S REGIONS MUST TILE WITH THE PILL'S BELOW THE BREAKPOINT, and this
-  // is the one line that makes them. A 22px segment's `TAP_44` overlay reaches
-  // 11px past its box and the pill's reaches 3.85, so the pair needs 14.85 of
-  // clearance; the drawn 8 plus the track's 2 of padding gives 10, and measured
-  // in the drawer the segment's region crossed a pixel into the pill's DRAWN box
-  // and won the tap at `z-10`. A thumb aimed at the top of Settings flipped the
-  // currency. 16 below `md` puts the clearance at 18. Above it `TAP_44` does not
-  // apply and the drawn 8 stands, which is why the utility is `max-md:`.
+  // THE ROW'S REGIONS MUST TILE WITH THE PILL'S BELOW THE BREAKPOINT, and this is the one
+  // line that makes them: the drawn gap does not clear the two `TAP_44` overlays, so the
+  // segment's region crossed into the pill's DRAWN box and won the tap at `z-10` — a thumb
+  // aimed at the top of Settings flipped the currency. Above the breakpoint `TAP_44` does not
+  // apply and the drawn gap stands, which is why the utility is `max-md:`.
   //
-  // ON THE ROW, NOT ON A TRACK, since #85: the two tracks sit side by side and
-  // the margin belongs to what holds them. Asserted as "no track carries one" as
-  // well, or the pair could drift back to a margin each and read the same.
+  // ON THE ROW, NOT ON A TRACK: the two tracks sit side by side and the margin belongs to
+  // what holds them. Asserted as "no track carries one" as well, or the pair drifts back to
+  // a margin each and reads the same.
   it('clears the two tracks of the Settings pill below the breakpoint', () => {
-    // The tint names three things now — the active pill's arm inside
-    // `pillClass` and both tracks — so a track is identified by its radius too.
+    // The tint names three things — the active pill's arm and both tracks — so a track is
+    // identified by its radius too.
     const tracks = linesWith(/\bbg-sb-item-active-bg\b/).filter((l) => /rounded-\[8px\]/.test(l));
     expect(tracks.length, 'the footer band is not carrying two tracks').toBe(2);
     for (const track of tracks) {
@@ -144,15 +132,8 @@ describe('the wall carries a footer band, and the tokens for it stop being idle'
   });
 });
 
-// #85's control, and the drawing is `parchment-sidebar.dc.html` T5 (`:754-892`)
-// with its work order at `:1203`: three 22px glyph segments at radius 6 on a
-// track at radius 8, no edge, on the active route's own tint, beside the
-// currency track at `flex:1` each — "one object at two widths".
-//
-// MARKUP, NOT COLOUR. `sidebar-plane.test.ts` reads what the two grounds
-// measure; this reads which recipe the row actually paints, and neither catches
-// the other — the tokens can be perfect while the track is still one segment
-// short or the thumb still travels half a track.
+// Three glyph segments on a track with no edge, on the active route's own tint, beside the
+// currency track at `flex:1` each — one object at two widths.
 describe('the footer band carries two tracks on one row, and the theme one is a radiogroup', () => {
   it('draws the theme track as three radios inside a radiogroup', () => {
     expect(SIDEBAR, 'the theme track is not a radiogroup').toMatch(/role="radiogroup"/);
@@ -160,38 +141,29 @@ describe('the footer band carries two tracks on one row, and the theme one is a 
       (SIDEBAR.match(/role="radio"/g) ?? []).length,
       'the theme track is not three segments',
     ).toBe(1);
-    // One `role="radio"` in the source, three at run time: the segments are
-    // mapped off `THEME_ORDER`, which is the store's own list and the same one
-    // the Appearance card walks. `theme.test.ts` holds that half.
+    // One `role="radio"` in the source, three at run time: the segments are mapped off
+    // `THEME_ORDER`, and `theme.test.ts` holds that half.
     expect(SIDEBAR, 'the segments are not mapped off the store\u2019s order').toMatch(
       /THEME_ORDER\.map\(/,
     );
     expect(SIDEBAR, 'a segment does not announce its stored value').toMatch(/aria-checked=/);
   });
 
-  // The refusal `index.css` argues at its `[data-filled-track]` rule: that
-  // attribute repaints the ring for a track painted in the plane's FOREGROUND,
-  // and a 12% tint is not one. Both tracks are served by the base accent ring.
+  // The refusal `index.css` argues at its `[data-filled-track]` rule: that attribute repaints
+  // the ring for a track painted in the plane's FOREGROUND, and a tint is not one.
   it('gives neither track `data-filled-track`', () => {
     expect(SIDEBAR, 'a tinted track took the filled track\u2019s ring').not.toMatch(
       /data-filled-track/,
     );
   });
 
-  // T5 hands the tap arithmetic to this issue (its F-2) and the sheet's own
-  // widths are the 244px panel's, where `TAP_44` is inert. Below the breakpoint
-  // the shell is the 280px drawer and the band gives the row 240 — the sheet
-  // reads 248, which is the PANEL's content width before the band cancels its
-  // 16 of padding and pays 20 of its own. There the three theme segments would
-  // be ~36.7 wide and two `TAP_44` overlays that both reach 3.65 past a 1px gap
-  // hand each other taps. 44 drawn is the fix `tap-target.ts` names when a gap
-  // cannot be made: 3 x 44 + 2 + 4 = 138 and 2 x 44 + 1 + 4 = 93, plus the drawn
-  // 8, is 239 against the 239 the band measures there — flex cannot shrink under
-  // its content minimum, so it fits, and exactly.
-  // TIED TO THE RECIPE, NOT COUNTED: the theme track's three segments are one
-  // mapped line, so a count of lines is three where the row draws five. What has
-  // to hold is that nothing wearing the segment's drawn height is missing the
-  // width — the height is the signature of the thing `TAP_44` overlays here.
+  // The sheet's widths are the panel's, where `TAP_44` is inert. In the DRAWER the segments
+  // shrink until two overlays hand each other taps, and a real 44 box is the fix
+  // `tap-target.ts` names when a gap cannot be made.
+  //
+  // TIED TO THE DRAWN HEIGHT, NOT COUNTED: the theme track's three segments are ONE MAPPED
+  // LINE, so counting lines gives three where the row draws five. What has to hold is that
+  // nothing wearing the segment's drawn height is missing the width.
   it('gives every segment 44 of width below the breakpoint', () => {
     const segments = linesWith(/\bh-\[22px\]/);
     expect(segments.length, 'the 22px segment recipe is gone from the row').toBe(3);
@@ -203,11 +175,11 @@ describe('the footer band carries two tracks on one row, and the theme one is a 
     }
   });
 
-  // An EXACT fit is not a fit with room: a left safe-area inset takes the band's
-  // 239 down, which is reachable in landscape below the breakpoint, and a row
-  // that overflowed would be CLIPPED by the drawer's `overflow-hidden`. It wraps
-  // instead — measured at a 250px drawer, two full-width lines and no clipping —
-  // and 22 is what two stacked 22px tracks need between them.
+  // THE FIT IS EXACT, NOT ROOMY — the drawn 44 boxes plus their gaps come to the width the
+  // band measures, with nothing spare. A left safe-area inset takes that width down, which
+  // is reachable in landscape below the breakpoint, and a row that overflowed would be
+  // CLIPPED by the drawer's `overflow-hidden`. It wraps instead, and the gap below is what
+  // two stacked tracks need between them.
   it('wraps rather than clipping where the band gives less than 239', () => {
     const row = linesWith(/max-md:mb-4\b/)[0] ?? '';
     expect(row, 'the row cannot wrap, so a narrower band clips it').toMatch(/max-md:flex-wrap\b/);
@@ -216,11 +188,9 @@ describe('the footer band carries two tracks on one row, and the theme one is a 
     );
   });
 
-  // THE THUMB'S GEOMETRY IS THE TRACK'S OWN, re-derived for three rather than
-  // copied from two. A thumb is absolutely positioned, so its percentages
-  // resolve against the track's PADDING box: with p-0.5 (2) and gap-px (1) a
-  // segment is (T - 4 - 2) / 3, i.e. 33.333% - 2px, and one step is that width
-  // plus the gap. The two-segment track's 50% - 2.5px is the same derivation.
+  // THE THUMB'S GEOMETRY IS THE TRACK'S OWN, re-derived for three rather than copied from
+  // two: a thumb is absolutely positioned, so its percentages resolve against the track's
+  // PADDING box and the padding and gap come out of every segment.
   it('re-derives the sliding thumb for three segments', () => {
     expect(SIDEBAR, 'the three-segment thumb is not a third of its track').toMatch(
       /w-\[calc\(\(100%-6px\)\/3\)\]/,
@@ -244,15 +214,15 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
     expect(settings, 'Settings is still inside the scrolling band').toBeGreaterThan(close);
   });
 
-  // `:259-262`: "Settings leaves the scrolling band, so the third group header
-  // goes with it: one item needs no caption." Two groups, so two headers.
+  // Settings leaves the scrolling band, so the third group header goes with it: one item
+  // needs no caption.
   it('leaves two nav groups, so two captions', () => {
     expect(linesWith(/<NavGroup\b/).length, 'the nav no longer has exactly two groups').toBe(2);
     expect(SIDEBAR, 'the Settings group caption survived its group').not.toMatch(/groupSettings/);
   });
 
-  // The version sits INSIDE the band, under Settings — `.ver` at `:77`. Outside
-  // it, it would read on the wall and the band would end at a link.
+  // The version sits INSIDE the band, under Settings: outside it, it would read on the wall
+  // and the band would end at a link.
   it('keeps the version inside the band, under Settings', () => {
     const band = SIDEBAR.indexOf('bg-sb-footer-bg');
     expect(band, 'the footer band is gone').toBeGreaterThan(-1);
@@ -261,9 +231,8 @@ describe('Settings leaves the scrolling band, and its caption goes with it', () 
 });
 
 describe('the group caption is the sheet its own size, and no longer shouts', () => {
-  // 11 px sentence case at `.02em` (`.grp`, `:63`), against the shipped 10 px
-  // uppercase at `.12em`. `:1081` records that eleven pixels is still small
-  // text, so `sb-label`'s 3.09 / 4.33 shortfall stands and is not repaired here.
+  // Sentence case, against the uppercase it replaces. Still small text, so `sb-label`'s
+  // recorded shortfall stands and is not repaired here.
   it('sets the caption at 11px on the drawn tracking', () => {
     const header = linesWith(/\btext-sb-label\b/).filter((l) => /h-\[18px\]/.test(l));
     expect(header.length, 'the group caption row is gone').toBe(1);
@@ -274,10 +243,9 @@ describe('the group caption is the sheet its own size, and no longer shouts', ()
 });
 
 describe('the head carries the capital as a strip, and the blob is gone', () => {
-  // `.capband` `:55` — 56 tall, bled, `sb-field`, NO radius and NO edge. `:634`
-  // reads the fill step at 1.12 / 1.07 and refuses the edge on the instruction
-  // that this is a strip; `Shape system` licenses it — "a full-bleed bar takes
-  // square corners".
+  // Bled, `sb-field`, NO radius and NO edge: the sheet refuses the edge on the instruction
+  // that this is a strip, and *Shape system* licenses the corners — a full-bleed band takes
+  // square ones.
   it('re-planes the capital as a bled 56px `sb-field` strip with no corner', () => {
     const band = linesWith(/\bbg-sb-field\b/);
     expect(band.length, 'the capital strip is not the file one `sb-field` box').toBe(1);
@@ -290,11 +258,9 @@ describe('the head carries the capital as a strip, and the blob is gone', () => 
     expect(band[0], 'the strip took an edge the drawing refuses').not.toMatch(/\bborder\b/);
   });
 
-  // `:743-751` — the 200px blob reads 1.09 / 1.04 against the wall, identifies
-  // nothing, and now sits under the band anyway. #107 deletes it outright
-  // rather than redrawing it, so neither the component nor its two call sites
-  // survive. `CLAUDE.md`'s shape invariant loses it as an exception in the same
-  // commit.
+  // The decor blob identified nothing against the wall and sat under the band anyway, so it
+  // was deleted outright rather than redrawn — neither the component nor its two call sites
+  // survive, and the shape invariant lost it as an exception.
   it('deletes `SidebarDecor` and both call sites', () => {
     expect(SIDEBAR, '`SidebarDecor` is still in the file').not.toMatch(/SidebarDecor/);
   });

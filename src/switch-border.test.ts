@@ -3,47 +3,30 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// THE SWITCH'S BOUNDARY, PINNED AT THE SAME BAR AS THE FIELD EDGE AND THE
-// FLOATING SURFACES'.
+// THE SWITCH'S BOUNDARY, at the same bar as the field edge and the floating surfaces'.
+// `design/extensions/switch-border.dc.html` mints `--color-switch-border` so the OFF state
+// has a boundary clearing 3 : 1 (WCAG 1.4.11) in both themes, where the edge it replaced
+// left the whole control a rumour.
 //
-// `design/extensions/switch-border.dc.html` (#83) mints `--color-switch-border`
-// so the OFF state has a boundary that clears 3 : 1 (WCAG 1.4.11) in both
-// themes. Before it the edge was `panel-border` and read 1.26 / 1.37 / 1.14 on
-// page / card / panel in light and 1.47 / 1.36 / 1.25 in dark, with the dark
-// knob's ring on the same value at 1.36 — the whole control was a rumour.
+// IT IS A NAME, NOT A VALUE — `var(--color-field-border)` in both blocks, so no fourth grey
+// enters the palette and the edge cannot drift from the rank it was measured as. THE RATIO
+// ASSERTIONS BELOW THEREFORE CANNOT FAIL WHILE THE ALIAS HOLDS, and are kept deliberately:
+// the entire argument for minting a name is that it can take its own hex later, and on that
+// day these are the only assertions between a re-valued token and a boundary under the bar.
 //
-// IT IS A NAME, NOT A VALUE: `var(--color-field-border)` in both blocks, so no
-// fourth grey enters the palette and the edge cannot drift from the rank it was
-// measured as. The ratio assertions below therefore duplicate
-// `field-border.test.ts` while the alias holds and CANNOT fail before it does.
-// They are kept deliberately: the entire argument for minting a name is that it
-// can take its own hex later, and on that day these are the only assertions
-// standing between a re-valued token and a boundary under the bar.
-//
-// SELF-CONTAINED ON PURPOSE — the house idiom, not an oversight.
-// `field-border.test.ts`, `floating-edges.test.ts` and `filled-track.test.ts` each
-// carry their own reader, so a guard can be read without opening another one.
-// `resolve()` is copied from `floating-edges.test.ts` because a literal-hex
-// reader sees nothing through a `var()`. Folding these into
-// `field-border.test.ts` instead would put the switch inside the FIELD guard,
-// which is the single distinction this whole ruling rests on.
+// SELF-CONTAINED ON PURPOSE. Folding this into `field-border.test.ts` would put the switch
+// inside the FIELD guard, which is the single distinction this whole ruling rests on.
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
-/** TS comments out before the markup half reads a line — `field-border.test.ts`
- *  applies the same one for the same reason. Not cosmetic: this branch's own
- *  `Switch.tsx` comment records the token it replaced, and a comment naming a
- *  utility would otherwise fail an assertion the code passes, or satisfy one it
- *  fails.
+/** Not cosmetic: `Switch.tsx`'s own comment records the token it replaced, so a comment
+ *  naming a utility would fail an assertion the code passes. QUOTE-EXACT AND LINE BY LINE,
+ *  the half a regex cannot do — dropping only whole-line `//` comments leaves the trailing
+ *  ones, and one apostrophe in prose then desynchronises every quote pair after it.
  *
- *  QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping
- *  only whole-line `//` comments leaves the trailing ones, and one apostrophe in
- *  the prose then desynchronises every quote pair after it. Copied from
- *  `floating-edges.test.ts` SIGNATURE AND ALL rather than imported — the house
- *  idiom is that a guard stands alone.
- *
- *  INJECTION-VERIFIED: a trailing `// border-panel-border` in `Switch.tsx`
- *  leaves this green and turns the reader it replaces red.
- */
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// border-panel-border` in `Switch.tsx` leaves this green and
+ *  turns the reader it replaces red. */
 function stripTs(source: string): string {
   const out: string[] = [];
   let inBlock = false;
@@ -80,13 +63,9 @@ function stripTs(source: string): string {
   return out.join('\n');
 }
 
-/** CSS comments out, quote-aware. Not cosmetic: the readers below take the
- *  FIRST match in a block and this stylesheet quotes token declarations in its
- *  comments constantly — including retired values it tells you not to re-mint —
- *  so a comment could satisfy an assertion the CSS fails. Quote-aware because a
- *  regex is not enough: `index.css` line 5 holds a literal comment opener inside
- *  a string, and a naive strip swallows from there to the first real terminator,
- *  taking `@theme` with it. */
+/** The readers below take the FIRST match in a block and this stylesheet quotes token
+ *  declarations in its comments constantly. Quote-aware, because `index.css` line 5 holds a
+ *  comment opener inside a string and a naive strip takes `@theme` with it. */
 function stripCss(source: string, what: string): string {
   let out = '';
   let quote = '';
@@ -101,8 +80,7 @@ function stripCss(source: string, what: string): string {
       out += c;
     } else if (c === '/' && source[i + 1] === '*') {
       const end = source.indexOf('*/', i + 2);
-      // Loudly, not silently: truncating would let every assertion pass over a
-      // partial file. `ruleBody` throws for the same reason.
+      // Loudly, not silently: truncating would let every assertion pass over a partial file.
       if (end === -1) throw new Error(`${what} has an unterminated /* comment`);
       i = end + 1;
     } else {
@@ -129,9 +107,8 @@ function ratio(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** The span of a `selector { … }` rule, matched on its own braces. BOTH sides
- *  are bounded: an unbounded slice would let "declared in both blocks" pass on a
- *  token declared in a later, unrelated rule. */
+/** BOTH sides bounded: an unbounded slice let "declared in both blocks" pass on a token
+ *  declared in a later, unrelated rule. */
 function ruleBody(source: string, opener: string): string {
   const at = source.indexOf(opener + ' {');
   expect(at, `${opener} must be findable — index.css's shape changed`).toBeGreaterThan(-1);
@@ -148,9 +125,8 @@ const BLOCKS = {
   dark: ruleBody(CSS, "[data-theme='dark']"),
 };
 
-/** The declaration as written — a hex or a `var()`. `undefined` when the block
- *  does not declare it, which is not an error on its own: the cascade falls back
- *  to `@theme` for anything the dark block does not override. */
+/** `undefined` is not an error on its own: the cascade falls back to `@theme` for anything
+ *  the dark block does not override. */
 function declaredIn(block: string, name: string): string | undefined {
   const m = block.match(new RegExp(`--color-${name}:\\s*([^;]+);`));
   return m ? m[1].trim() : undefined;
@@ -162,11 +138,8 @@ function declared(block: string, name: string): string {
   return value!;
 }
 
-/** Follows a `var(--color-x)` chain to the hex at the end of it, THE WAY THE
- *  CASCADE DOES — a name the dark block does not override resolves against
- *  `@theme`. Copied from `floating-edges.test.ts`'s `resolve()`; `field-border.test.ts`'s
- *  hex-matching `token()` would see nothing here, because every declaration this
- *  file cares about is an alias. */
+/** Follows a `var(--color-x)` chain THE WAY THE CASCADE DOES. A hex-matching reader would
+ *  see nothing here, because every declaration this file cares about is an ALIAS. */
 function resolve(block: string, name: string, seen: string[] = []): string {
   expect(seen, `--color-${name} resolves in a cycle: ${[...seen, name].join(' → ')}`).not.toContain(
     name,
@@ -181,8 +154,8 @@ function resolve(block: string, name: string, seen: string[] = []): string {
   return hex;
 }
 
-/** The same reader for the shadow family — the dark knob's boundary is a shadow
- *  and not a border, so the colour half of this ruling lives in both. */
+/** The dark knob's boundary is a SHADOW and not a border, so the colour half of this ruling
+ *  lives in both families. */
 function shadowIn(block: string, name: string): string {
   const m = block.match(new RegExp(`--shadow-${name}:\\s*([^;]+);`));
   expect(m, `--shadow-${name} is not declared in this block`).not.toBeNull();
@@ -193,9 +166,8 @@ const SURFACES = ['page', 'card', 'panel'] as const;
 const THEMES = ['light', 'dark'] as const;
 
 describe('the switch edge clears 3 : 1 on every surface, in both themes', () => {
-  // All three bind: the Settings rows sit on `card`, the asset form's "Link to
-  // Inzhur" row inside a `panel`, and neither is the whole census — a switch is
-  // a component wherever it is drawn, which is what 1.4.11 measures.
+  // All three bind, and neither known site is the whole census: a switch is a component
+  // wherever it is drawn, which is what 1.4.11 measures.
   for (const theme of THEMES) {
     it(`${theme} \`switch-border\` is at or above 3 : 1 on page, card and panel`, () => {
       const block = BLOCKS[theme];
@@ -209,11 +181,9 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
     });
   }
 
-  // A NAME, NOT A VALUE. Inlining the control-boundary rank's hex would still
-  // pass the ratios above and then stop tracking it the next time it moves —
-  // the thing the ruling refused, and #91 is the move that proved it right.
-  // What is pinned is that the value is READ, not the spelling of the chain,
-  // which `resolve()` is relaxed about.
+  // A NAME, NOT A VALUE: inlining the rank's hex would still pass the ratios above and then
+  // stop tracking it the next time it moves. What is pinned is that the value is READ, not
+  // the spelling of the chain, which `resolve()` is relaxed about.
   for (const theme of THEMES) {
     it(`${theme} reads the edge through a token, never as a copy of its hex`, () => {
       expect(
@@ -224,9 +194,8 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
     });
   }
 
-  // Declared in BOTH blocks. `floating-edges.test.ts`'s palette-parity test derives the names
-  // of each block and asserts set equality, so this is belt and braces for the
-  // token this file owns — and it names which block is missing it.
+  // Belt and braces over `floating-edges.test.ts`'s palette parity, for the token this file
+  // owns — and this one names which block is missing it.
   it('declares `switch-border` in `@theme` AND in the dark block', () => {
     expect(declaredIn(BLOCKS.light, 'switch-border'), 'missing from @theme').toBeDefined();
     expect(declaredIn(BLOCKS.dark, 'switch-border'), 'missing from the dark block').toBeDefined();
@@ -234,10 +203,9 @@ describe('the switch edge clears 3 : 1 on every surface, in both themes', () => 
 });
 
 describe('the track is frozen, and the state gap is what freezes it', () => {
-  // THE RULING REFUSED TO REPAIR THE OFF STATE BY DARKENING THE TRACK, and this
-  // is the assertion that holds it. Both values are exact because the arithmetic
-  // is the argument: OFF must stay clearly distinct from ON (`ink`), and a track
-  // moved far enough to clear 3 : 1 against the card behind it spends that gap.
+  // THE RULING REFUSED TO REPAIR THE OFF STATE BY DARKENING THE TRACK, and the two values
+  // are frozen because the OFF/ON GAP IS THE ARGUMENT AGAINST DARKENING IT: a track moved
+  // far enough to clear 3 : 1 against the card behind it spends that gap.
   it('keeps `switch-track` on the two values the ruling froze', () => {
     expect(resolve(BLOCKS.light, 'switch-track')).toBe('#efeae2');
     expect(resolve(BLOCKS.dark, 'switch-track')).toBe('#4a4650');
@@ -250,20 +218,17 @@ describe('the track is frozen, and the state gap is what freezes it', () => {
 });
 
 describe("the dark knob's ring is the same boundary", () => {
-  // Dark zeroes its shadows bar this one, so the ring IS the knob's boundary — a
-  // spread-only shadow used as a 1px edge. Through the token, never a copy of
-  // the hex, so it cannot drift from the value above it.
+  // Dark zeroes its shadows bar this one, so the ring IS the knob's boundary — a spread-only
+  // shadow used as a 1px edge, read through the token so it cannot drift from the value above.
   it('points dark `--shadow-thumb` at `switch-border`', () => {
     expect(shadowIn(BLOCKS.dark, 'thumb')).toBe('0 0 0 1px var(--color-switch-border)');
   });
 
-  // THE RING HAS TWO BACKDROPS, because it is applied in BOTH states: the `card`
-  // knob it rings and the track it sits over, `ink` when checked. The second is
-  // the one that must not live only in a comment: `field-border` is the shared
-  // control-boundary rank, and a later session re-valuing it lighter for its own
-  // reasons would take the ON knob's halo under the bar with every other
-  // assertion in this file still green. The OFF track is the recorded shortfall
-  // and is deliberately absent from here — its reason is at the value.
+  // THE RING HAS TWO BACKDROPS, because it is applied in BOTH states: the `card` knob it
+  // rings and the track it sits over, `ink` when checked. The second must not live only in a
+  // comment — re-valuing the shared rank lighter would take the ON knob's halo under the bar
+  // with every other assertion here still green. The OFF track is the recorded shortfall and
+  // is deliberately absent: its reason is at the value.
   it('clears 3 : 1 on the knob it rings and on the ON track it sits over', () => {
     const ring = resolve(BLOCKS.dark, 'switch-border');
     expect(ratio(ring, resolve(BLOCKS.dark, 'card')), 'ring on the knob').toBeGreaterThanOrEqual(3);
@@ -272,16 +237,12 @@ describe("the dark knob's ring is the same boundary", () => {
     );
   });
 
-  // Light's is a drop shadow and not an edge. Named here because the two halves
-  // of this one token are easy to "unify" by accident.
+  // Light's is a drop shadow and not an edge, named here because the two halves of this one
+  // token are easy to "unify" by accident.
   //
-  // AGAINST `--shadow-card`, NOT AGAINST A COPY OF ITS SPELLING — the same
-  // correction the `switch-border` assertions above make. The invariant
-  // `index.css` states beside the value is byte-identity with the card shadow
-  // ("Identical to --shadow-card in light, so nothing there moves"), so a
-  // session that re-values only `--shadow-card` must fail here; a hard-coded
-  // string would stay green while the knob kept the old drop and every card
-  // took the new one.
+  // COMPARED AGAINST `--shadow-card`, NEVER AGAINST A COPY OF ITS SPELLING: the invariant is
+  // byte-identity with the card shadow, so a session re-valuing only `--shadow-card` must
+  // fail here, where a hard-coded string would stay green while the knob kept the old drop.
   it('leaves light `--shadow-thumb` the card shadow, not a ring', () => {
     expect(shadowIn(BLOCKS.light, 'thumb')).toBe(shadowIn(BLOCKS.light, 'card'));
   });
@@ -290,8 +251,8 @@ describe("the dark knob's ring is the same boundary", () => {
 /* ────────────────────────── the markup half ────────────────────────── */
 
 describe('the markup points at the token', () => {
-  // ON THE ARM, not merely in the file: a whole-file match would stay green with
-  // the token on any sibling of the track.
+  // ON THE ARM, not merely in the file: a whole-file match stays green with the token on any
+  // sibling of the track.
   it('`Switch.tsx` wears `switch-border` on the unchecked arm and nothing else', () => {
     const src = stripTs(read('components/ui/Switch.tsx'));
     const arm = src.split('\n').filter((l) => /\bbg-switch-track\b/.test(l));
@@ -300,9 +261,8 @@ describe('the markup points at the token', () => {
     expect(src, 'the switch is back on `panel-border`').not.toMatch(/\bborder-panel-border\b/);
   });
 
-  // THE RAIL DOES NOT MOVE, and this says so out loud: it is a region's
-  // decorative edge, which *Design pipeline* puts outside the 3 : 1 bar, so a
-  // later pass cannot "finish the job" without a ruling of its own.
+  // THE RAIL DOES NOT MOVE: it is a region's decorative edge, which *Design pipeline* puts
+  // outside the 3 : 1 bar, so a later pass cannot "finish the job" without its own ruling.
   it('leaves the `Scroller` rail on `panel-border`', () => {
     const rail = stripTs(read('components/ui/Scroller.tsx'))
       .split('\n')
