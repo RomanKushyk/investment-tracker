@@ -1,38 +1,18 @@
 /**
- * The message dictionary. English is CANONICAL — its shape is the type, and
- * Ukrainian must match it exactly:
+ * English is CANONICAL: `Dict = typeof en` is the type `uk` must satisfy exactly, so a
+ * missing or extra key is a compile error. `en` therefore carries no `as const` — with
+ * it every value would become a literal type and `uk` could only satisfy `Dict` by
+ * repeating the English strings. Widening is the point.
  *
- *   const en = { … }          // the source of both keys and structure
- *   type Dict = typeof en     // values widen to string / to a function type
- *   const uk: Dict = { … }    // a missing or extra key is a compile error
+ * Strings that take values are FUNCTIONS rather than templates with placeholders, so the
+ * parameter list is part of the type.
  *
- * That is why `en` carries no `as const`: with it, every value would become a
- * literal type and `uk` could only satisfy `Dict` by repeating the English
- * strings. Widening is the point.
- *
- * Namespace is `screen.section.item` (G-plan A10). Strings that take values are
- * FUNCTIONS rather than templates with placeholders — the parameter list is
- * then part of the type, so a translation cannot silently drop an interpolation
- * or take it in the wrong order.
- *
- * Ukrainian is the default language (Phase 5 owner ruling), so `uk` is not a
- * fallback: `en` is the one that has to keep up.
- *
- * PROVENANCE. Strings marked ✎ below are the drafts the phase-5 design session
- * left in `design/extensions/appearance-language.dc.html`, which its own
- * handover note says are "drafts for A10's table, not pins" — A10 owns the
- * final wording. Everything unmarked is written here and has not been reviewed
- * by the owner yet.
+ * PROVENANCE. Strings marked ✎ are the drafts the design session left in
+ * `design/extensions/appearance-language.dc.html`, which its own handover note calls
+ * drafts rather than pins. Everything unmarked is written here and unreviewed.
  */
 
-/**
- * The Ukrainian plural rule, which has three forms where English has two:
- *   1, 21, 31 …            -> one   (1 день)
- *   2-4, 22-24 …           -> few   (2 дні)
- *   0, 5-20, 25-30 …       -> many  (5 днів)
- * The 11-14 band is the exception every naive implementation gets wrong: it
- * takes `many` despite ending in 1-4.
- */
+/** The Ukrainian plural rule — three forms; `messages.test.ts` pins every band. */
 function plural(n: number, one: string, few: string, many: string): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -56,10 +36,9 @@ export const en = {
     portfolio: 'Portfolio',
     allocation: 'Allocation',
     settings: 'Settings',
-    // Phase 6 (S1). `navigation` is the drawer's accessible NAME, never drawn:
-    // the wordmark is already on screen, so a visible second title would say the
-    // same thing twice while a screen reader would still have nothing to
-    // announce the dialog by.
+    // `navigation` is the drawer's accessible NAME, never drawn: the wordmark is
+    // already on screen, so a visible second title would say the same thing twice
+    // while a screen reader would still have nothing to announce the dialog by.
     navigation: 'Navigation',
     openNav: 'Open navigation',
     closeNav: 'Close navigation',
@@ -69,7 +48,7 @@ export const en = {
     // name has to say which one is shown — «₴» alone tells a screen reader
     // nothing. It is not a toggle: the choice lives on the expanded track.
     currencyShown: (code: string) => `Currency: ${code}`,
-    // A33 — read by assistive tech only; the visible label is the group's own.
+    // Read by assistive tech only; the visible label is the group's own.
     collapseGroup: (group: string) => `Collapse ${group}`,
     expandGroup: (group: string) => `Expand ${group}`,
   },
@@ -82,8 +61,8 @@ export const en = {
     title: 'Spreadsheet export (CSV)',
     helper:
       'One file per table, ready for a spreadsheet. Snapshots export wide — one row per date, one column per asset; an empty cell means no quote was saved that day, never zero.',
-    // Still true under Contract 0, and worth saying twice: the FILE format is
-    // machine-fixed and does not follow the language. Only the display does.
+    // Contract 0 reaches the DISPLAY only: the file format is machine-fixed and
+    // does not follow the language.
     formatNote:
       "Machine format: dot decimals, comma separators, UTF-8, CRLF. The app's own display formatting never goes into a file.",
     columnNote:
@@ -171,9 +150,7 @@ export const en = {
       pending: 'Replacing…',
       waiting: 'Waiting for another tab…',
     },
-    // Counted nouns. English needs one plural form, Ukrainian three — so the
-    // COUNT PHRASES are built per language rather than shared with a noun
-    // spliced in, and every sentence that quotes one takes the finished phrase.
+    // Counted nouns: every sentence that quotes one takes the finished phrase.
     count: {
       assets: (n: number) => `${n} asset${n === 1 ? '' : 's'}`,
       snapshots: (n: number) => `${n} snapshot${n === 1 ? '' : 's'}`,
@@ -281,10 +258,10 @@ export const en = {
       refBond: 'Enter the bond ISIN.',
       summary: 'Check the highlighted fields and try again.',
     },
-    // A placeholder MODELS the input convention, so it follows the language
-    // like any other figure (Contract 0) — and since D87 it also models what the
-    // field will ACCEPT: the Ukrainian `16,5` is unreadable here, so swapping
-    // these for the Ukrainian forms would make the field refuse its own example.
+    // A placeholder MODELS the input convention, so it follows the language like any
+    // other figure (Contract 0) and models what the field will ACCEPT: the Ukrainian
+    // `16,5` is unreadable under English, so swapping these for the Ukrainian forms
+    // would make the field refuse its own example (*Language, numbers, fonts*).
     placeholder: {
       name: 'OVDP UA4000241234',
       expectedPct: '16.5',
@@ -310,7 +287,7 @@ export const en = {
       matures: (date: string) => `matures ${date}`,
     },
   },
-  // A7 — the last Inzhur parse, said out loud (components/ui/ParseSkips).
+  // The last Inzhur parse, said out loud (components/ui/ParseSkips).
   parse: {
     reason: {
       not_an_array: 'the response was not a list of assets',
@@ -333,8 +310,6 @@ export const en = {
       `${asset} coupon was due ${date} — record it on Daily quotes.`,
     maturesToday: (asset: string, date: string) => `${asset} matures today (${date}).`,
     matures: (asset: string, when: string, date: string) => `${asset} matures ${when} (${date}).`,
-    // English has TWO plural forms; Ukrainian has three, which is why this is a
-    // function per language rather than a string with a count spliced in.
     inDays: (days: number) => (days === 1 ? 'in 1 day' : `in ${days} days`),
     moreReminders: (hidden: number) => `+${hidden} more reminder${hidden === 1 ? '' : 's'}`,
     enterQuotes: 'Enter quotes →',
@@ -343,8 +318,10 @@ export const en = {
     andMore: (rest: number) => ` · +${rest} more`,
   },
   dates: {
-    // Chart axes and month labels. The formatter owns full DATES (Contract 0);
-    // these are the month WORDS a chart axis and a sentence need on their own.
+    // Chart axes and month labels. The formatter owns full DATES (Contract 0); these
+    // are the month WORDS a chart axis and a sentence need on their own, written out
+    // rather than taken from `Intl`: they follow the language the USER chose, where
+    // `toLocaleString` would answer with the one the platform reports.
     monthShort: [
       'Jan',
       'Feb',
@@ -419,30 +396,22 @@ export const en = {
     },
   },
   /**
-   * The period control (A38, brief § S1 § 2 — the brief owns copy, D14).
+   * UKRAINIAN PLURALS ARE THE RULE, NOT THE ENGLISH PATTERN — `1 місяць`, `3 місяці`,
+   * `12 місяців` are three forms. Written out rather than generated because there are
+   * exactly six and the set is closed; the generated form is what `assets.deleteBody`
+   * needs and this does not.
    *
-   * UKRAINIAN PLURALS ARE THE RULE, NOT THE ENGLISH PATTERN — `1 місяць`,
-   * `3 місяці`, `12 місяців` are three forms, and the brief calls a fixed
-   * `місяців` on every option a defect. They are written out rather than
-   * generated because there are exactly six and the set is closed; the
-   * generated form is what `deleteCascade` needs and this does not.
-   *
-   * The option HINT is not here. It is the resolved start date, formatted at
-   * render through `f.dateShort(window.from)` — derived, so it needs no string
-   * and stays correct as the history grows (extension F-1 is drawn BY it:
-   * three rows all reading the same date is "four labels, one window" seen
-   * rather than explained).
+   * The option HINT is not here: it is the resolved start date, formatted at render
+   * through `f.dateShort(window.from)` — derived, so it needs no string and stays
+   * correct as the history grows.
    */
   period: {
     ariaLabel: 'Period',
     /**
-     * The portfolio XIRR's own label, pinned by the brief's S5 inventory.
-     *
-     * TWO FORMS, because the mark means "extrapolated from under a year" and
-     * not "annualized" — that is what `/yield`'s header has always meant by it,
-     * and a first cut hardcoded it here (A40 review). Three characters meaning
-     * opposite things on two adjacent screens is worse than no mark: `/yield`
-     * drops it once a window reaches 365 days, so this must too.
+     * TWO FORMS, because the mark means "extrapolated from under a year" and not
+     * "annualized" — that is what `/yield`'s header means by it. Three characters
+     * meaning opposite things on two adjacent screens is worse than no mark:
+     * `/yield` drops it once a window reaches 365 days, so this must too.
      */
     portfolioXirr: (rate: string) => `Portfolio XIRR ${rate}`,
     /** Same figure, marked as an extrapolation — the `/yield` header's rule. */
@@ -453,13 +422,12 @@ export const en = {
     '6m': '6 months',
     '12m': '12 months',
     ytd: 'Year to date',
-    /** G-3: shown after the dates when `resolveWindow` reports `clamped`. */
+    /** Shown after the dates when `resolveWindow` reports `clamped`. */
     clamped: 'Full history — shorter than the period you picked.',
     /**
-     * The same mark, in the OPTION ROW, where the choice is actually made. The
-     * brief pins it as "absent, or present with the mark — never silently
-     * short", and a mark that only appears after the press marks nothing.
-     * Short because it shares a 222 px row with a label and a date.
+     * The same mark, in the OPTION ROW, where the choice is actually made: a mark
+     * that only appears after the press marks nothing. Short because it shares its
+     * row with a label and a date.
      */
     clampedHint: 'all of it',
   },
@@ -536,12 +504,6 @@ export const en = {
       incomeAnchor: 'Income anchor',
       couponSeason: 'Coupon season',
       quietStretch: 'Quiet stretch',
-      /**
-       * Month names for the month-of-year axis (A41). Written out rather than
-       * taken from `Intl`: every other figure and label in this app is
-       * formatted by the language the USER chose, not the one the platform
-       * reports, and `toLocaleString` would answer the second question.
-       */
       axisByDay: 'By day',
       axisByMonth: 'By month',
       axisAriaLabel: 'Chart axis',
@@ -553,10 +515,8 @@ export const en = {
       anchorEmpty: 'No recurring income yet.',
       couponMonths: (months: string, day: number) => `${months} (day ${day})`,
       /**
-       * AGREES WITH THE SUBJECT, which used to be safe to assume. The months
-       * list was always two on the seed, so a fixed plural verb worked — until
-       * A42 windowed the historical half and `3 місяці` left exactly one month,
-       * rendering «Серпень … несуть». The window can produce a list of one.
+       * AGREES WITH THE SUBJECT: a window can leave the months list with exactly one
+       * entry, and «Серпень … несуть» is what a fixed plural verb renders then.
        */
       couponRest: (asset: string, count: number) =>
         `${count === 1 ? ' carries' : ' carry'} the big ${asset} coupons`,
@@ -588,8 +548,7 @@ export const en = {
     },
     yield: {
       xirr: 'XIRR',
-      // "(ann.)" only while history < 365 days (S9b) — an extrapolation, said
-      // as one.
+      // "(ann.)" only while history < 365 days — an extrapolation, said as one.
       xirrAnn: 'XIRR (ann.)',
     },
     balances: {
@@ -641,32 +600,20 @@ export const en = {
         `Showing last ${shown} snapshots · ${total} total since ${since}`,
       netOfTax: (amount: string) => `net of tax ${amount}`,
       seasonalityNote:
-        // WINDOW-AGNOSTIC (A42 review), the correction A39 already made to
-        // `yieldNote`. "Days with no income" was true when the chart always
-        // showed the whole ledger; under a window a day can carry income and
-        // still draw a grey stub because the income fell outside — seed day 25
-        // holds 1 183,50 ₴ from 25.02 and is a stub under `3 місяці`. The
-        // footnote has to name the period, or it misreads a windowed-out day as
-        // a quiet one.
+        // WINDOW-AGNOSTIC: under a window a day can carry income and still draw a
+        // grey stub because the income fell outside, so the footnote has to name the
+        // period or it misreads a windowed-out day as a quiet one.
         "* expected — projected from the asset's next coupon date. Gray stubs = days with no income IN THE SELECTED PERIOD.",
       /**
-       * WINDOW-AGNOSTIC SINCE A39. It used to say "from first purchase", which is
-       * false under any window other than the widest — the date it names is the
-       * window's start, and at `Від початку` that IS the first purchase. One
-       * sentence, true in both cases, rather than two strings to keep in step.
+       * WINDOW-AGNOSTIC: the date it names is the window's start, which at
+       * `Від початку` IS the first purchase — so one sentence serves the widest
+       * window and every narrower one.
        */
       yieldNote: (start: string) =>
         `Annualized = total Δ scaled to 365 days from ${start}. Coupons count toward Δ on accrual. Total return is net of taxes and includes payouts. XIRR is money-weighted and annualized — with under a year of history, treat it as an extrapolation.`,
       /**
-       * The legend the grey owes (F-3/D80). NOT the sheet's drafted clause
-       * «Сірим — активи, придбані після початку періоду.»: that describes the
-       * predicate the sheet DELETED, which fires on …8976's two-day shortfall
-       * and would explain a mark that row does not carry. It names the
-       * MATERIALITY too, and for the same reason: "longer than the asset was
-       * held" is literally true of …8976 (172 of 174) and …8976 is not grey, so
-       * a reader checking the legend against the table would find a row it
-       * describes and does not mark (A41 review). 90 % is `SHORT_BASIS_TOLERANCE`
-       * read aloud; the two move together.
+       * The legend the grey owes. 90 % is `1 - SHORT_BASIS_TOLERANCE` read aloud;
+       * the two move together.
        */
       shortBasisNote:
         'Grey = annualized over a basis this asset was held for less than 90 % of, so the rate reads low.',
@@ -686,9 +633,9 @@ export const en = {
   assets: {
     edit: 'Edit',
     delete: 'Delete',
-    // A31 review: four rows of identical "Edit / Delete" told a screen reader
-    // nothing about WHICH asset, on a pair where one choice is destructive.
-    // Same shape as `targets.fieldAria`, which A30 got right one commit earlier.
+    // Four rows of identical "Edit / Delete" tell a screen reader nothing about
+    // WHICH asset, on a pair where one choice is destructive. Same shape as
+    // `targets.fieldAria`.
     editAria: (asset: string) => `Edit ${asset}`,
     deleteAria: (asset: string) => `Delete ${asset}`,
     actionsHeader: 'Actions',
@@ -696,11 +643,8 @@ export const en = {
     add: 'Add asset',
     empty: 'No assets yet — add your first asset to start tracking.',
     deleteTitle: (name: string) => `Delete ${name}?`,
-    // The cascade the confirm is really asking about. Built as ONE sentence per
-    // language rather than a template with nouns spliced in: English needs one
-    // plural form and Ukrainian three, which is the same call `import.count`
-    // makes. Two counts, so it is also the one sentence in this dictionary
-    // where a naive shared template would have to get two of them right.
+    // The cascade the confirm is really asking about, and the one sentence here with
+    // TWO counts — a shared template would have to get both right.
     deleteBody: (transactions: number, quoteDays: number) =>
       `This removes the asset and everything recorded for it — ${transactions} transaction${transactions === 1 ? '' : 's'} and quotes on ${quoteDays} day${quoteDays === 1 ? '' : 's'}. This cannot be undone.`,
     deleteAction: 'Delete asset',
@@ -713,9 +657,8 @@ export const en = {
     saveFailed: 'Could not save the asset — please try again.',
     deleteFailed: 'Could not complete — nothing was deleted.',
   },
-  // A30 moved this editor from Settings to /allocation. `save` and `now` went
-  // with it: the card's own Save button is gone (the header's does the write)
-  // and the row shows a bare share instead of a "now …" label.
+  // No `save` or `now` key: the header's button does the write, and the row shows a
+  // bare share.
   targets: {
     title: 'Targets',
     savedToast: 'Targets saved',
@@ -794,9 +737,9 @@ export const en = {
       title: 'Language',
       helper: 'Changes text, number and date formats.',
       ariaLabel: 'Interface language',
-      // Each language NAMES ITSELF in its own script, in both dictionaries. A
-      // switch that labels a language in a language you cannot read is the one
-      // place where translating the label defeats its purpose (brief S2).
+      // Each language NAMES ITSELF in its own script, in both dictionaries. A switch
+      // that labels a language in a language you cannot read is the one place where
+      // translating the label defeats its purpose.
       uk: 'Українська',
       en: 'English',
     },
@@ -811,9 +754,6 @@ export const en = {
         'Full JSON backup of the active dataset — quirenote-backup-<date>.json. Restore it with Import below.',
       button: 'Download backup',
       failedToast: 'Could not build the backup — please try again.',
-      // THE EXPORT VALIDATES ITS OWN OUTPUT (D125's consequence): a backup the
-      // app cannot read back is worse than none, because the owner discovers it
-      // at the one moment it mattered.
       unreadableToast: (issue: string) =>
         `Backup not saved: this build cannot read the file it just built (${issue}).`,
     },
@@ -862,9 +802,6 @@ export const en = {
     newAssetOption: '+ New asset…',
     newAssetDetails: 'New asset details',
     amount: 'Amount, ₴',
-    // A placeholder MODELS the input convention, so it follows the language
-    // like any other figure (Contract 0) — the parity test caught this one
-    // sharing the Ukrainian form with English.
     amountPlaceholder: '10,000.00',
     // ISSUE #31. The amount field holds one of two things, and its label says
     // which — a toggle that silently changed what a number meant would be a
@@ -874,20 +811,16 @@ export const en = {
     priceUnit: 'Price per unit',
     quantity: 'Units',
     quantityPlaceholder: '6,164',
-    // On ANY position-moving row since D124, not just per-unit mode — there the
-    // count is what a total is derived FROM, here it is required outright.
+    // On any `movesPosition` row, not just per-unit mode — there the count is what a
+    // total is derived FROM, here it is required outright.
     quantityMissing: 'Enter the number of units.',
     quantityNotPositive: 'Units have to be a positive number.',
-    // THE THIRD FAILURE, and it is not the other two: the text is not a number
-    // under THIS language's grammar (D87), so «positive» is not what is wrong
-    // with a pasted «16,5» — it is positive.
+    // THE THIRD FAILURE, and it is not the other two: the text is not a number under
+    // THIS language's grammar (*Language, numbers, fonts*), so «positive» is not what
+    // is wrong with a pasted «16,5» — it is positive.
     quantityUnreadable: 'Enter a number.',
     source: 'Source of funds',
     submit: 'Record transaction',
-    // The amount's own errors, under the field. The form-level `invalid` line
-    // reports THAT something is wrong; these say what, and there are two
-    // because the amount schema refuses four things — a blank field, and a
-    // value that is zero, negative or not a number at all.
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',
     amountUnreadable: 'Enter a number.',
@@ -900,13 +833,10 @@ export const en = {
     withholdingNotPositive: 'The withholding has to be a positive number.',
     withholdingUnreadable: 'Enter a number.',
     withholdingAboveAmount: 'The withholding has to be smaller than the amount.',
-    // THE LEDGER ROW'S OWN LINE (#138). The withheld half arrives already
-    // signed, through `signedMoney`, so this template carries no glyph of its
-    // own; the net half reuses the wording `analytics.prose.netOfTax` settled.
-    // The word «утримано» is deliberately NOT here: measured, spelling it out
-    // clears the row's 280 by 9,39 on a three-figure payout and overruns it at
-    // 290,41 on a four-figure dividend, so it fits the demo and not the data —
-    // design/extensions/withholding-read-back.dc.html T1.
+    // THE LEDGER ROW'S OWN LINE (#138). The withheld half arrives already signed,
+    // through `signedMoney`, so this template carries no glyph of its own; the net
+    // half reuses the wording `analytics.prose.netOfTax` settled. «Утримано» is
+    // deliberately absent — spelled out, the row overruns on a four-figure payout.
     withheldAndNet: (withheld: string, net: string) => `${withheld} · net of tax ${net}`,
     note: 'Note',
     notePlaceholder: 'What this row was',
@@ -956,9 +886,8 @@ export const en = {
       reinvest_6475: 'Reinvest (…6475)',
     },
   },
-  // Phase 7 (A29). The screen-level edit control and the one dialog that guards
-  // it. Deliberately NOT a per-page vocabulary: two screens use these words and
-  // a third would too.
+  // The screen-level edit control and the one dialog that guards it. Deliberately
+  // NOT a per-page vocabulary: two screens use these words and a third would too.
   edit: {
     edit: 'Edit',
     cancel: 'Cancel',
@@ -1004,14 +933,12 @@ export const en = {
     unreadable: 'Enter a number.',
     unreadableToast: (names: string) => `Not saved — check ${names}.`,
     nothingToSave: 'Nothing to save — enter at least one quote.',
-    // A HEADING NOW, not an inline prefix — so the trailing colon it shipped
-    // with had to go (A44, sheet S2).
+    // A HEADING, not an inline prefix — so no trailing colon.
     yieldSinceStart: 'Yield since start',
     yieldChartLink: 'Yield chart →',
-    // The rail's pending-change block (sheet D-4). The design session's DRAFT
-    // copy (brief G-2). It names the CHANGE, never the total: the sidebar
-    // already carries the saved capital, and one quantity with two values on
-    // one screen is what this block exists to avoid.
+    // Names the CHANGE, never the total: the sidebar already carries the saved
+    // capital, and one quantity with two values on one screen is what this block
+    // exists to avoid.
     pendingChange: {
       label: 'This snapshot changes',
       none: 'Nothing entered yet',
@@ -1021,7 +948,7 @@ export const en = {
     },
     keepMyValue: 'Keep my value',
     dismissSuggestion: 'Dismiss suggestion',
-    // A6 — what the pricing model makes of the provider's own quote.
+    // What the pricing model makes of the provider's own quote.
     model: {
       stale: (days: number, atLeast: boolean, date: string) =>
         `Provider price is ${atLeast ? 'at least ' : ''}${days === 1 ? 'a day' : `${days} days`} old — it still prices to ${date}.`,
@@ -1041,9 +968,8 @@ export const en = {
       `No units recorded yet: ${names} — record a purchase with its Units to value these.`,
     useValuesFrom: (date: string) => `Use values from ${date}`,
     quoteAria: (asset: string) => `${asset} quote`,
-    // S5 — the coupon-due card. `Amount, ₴` and the failure toast are the
-    // transaction section's (same field, same failure), so they are not
-    // repeated here.
+    // The coupon-due card. `Amount, ₴` and the failure toast are the transaction
+    // section's (same field, same failure), so they are not repeated here.
     coupon: {
       badge: 'Coupon due',
       heading: (name: string, amount: string) => `${name} — coupon ${amount}`,
@@ -1115,7 +1041,6 @@ export const en = {
   },
 };
 
-/** The shape both languages share. Derived, never written by hand. */
 export type Dict = typeof en;
 
 export const uk: Dict = {
@@ -1148,8 +1073,6 @@ export const uk: Dict = {
   },
   sidebar: {
     totalCapital: 'Загальний капітал', // ✎
-    // A dataset marker, not prose: it stays readable as the same token in both
-    // languages, the way the ₴/$ segment labels do.
     demoBadge: 'DEMO',
     demoTitle: 'Демонстраційні дані — еталонний набір. Перемкнути: Налаштування → Дані.',
   },
@@ -1218,10 +1141,6 @@ export const uk: Dict = {
       // withheld tax has a dividend accrual" all the way to «виплата», the one
       // feminine nominative that forces the reader back. Number cannot
       // disambiguate here the way it does for «одиниці», so order must.
-      //
-      // «утриманий податок» rather than «утримання» stands on its own account:
-      // it was a THIRD word for the sum the form's label calls «утримано
-      // податку» and its refusals call «утриманий податок».
       withholdingOnNonPayoutRow:
         'лише нарахування дивідендів або виплата відсотків має утриманий податок',
       withholdingAboveAmount: 'утриманий податок має бути меншим за виплату, з якої його стягнули',
@@ -1408,9 +1327,8 @@ export const uk: Dict = {
     maturesToday: (asset: string, date: string) => `${asset} погашається сьогодні (${date}).`,
     matures: (asset: string, when: string, date: string) =>
       `${asset} погашається ${when} (${date}).`,
-    // Ukrainian has THREE plural forms and English two, so a shared template
-    // with a count spliced in would be wrong for 2, 3 and 4 — "2 днів" instead
-    // of "2 дні". Each language owns its own rule.
+    // Three forms, and 2-4 take «дні»: a count spliced into one shared string gives
+    // «2 днів».
     inDays: (days: number) => `через ${days} ${plural(days, 'день', 'дні', 'днів')}`,
     moreReminders: (hidden: number) =>
       `+${hidden} ${plural(hidden, 'нагадування', 'нагадування', 'нагадувань')}`,
@@ -1903,8 +1821,7 @@ export const uk: Dict = {
       `Ціна не відповідає ${published} у жоден день останніх двох тижнів — за сьогоднішнього розрахунку вона означала б ${implied}.`,
     filled: (n: number, total: number) => `${n} з ${total} заповнено`,
     dateLabel: 'Дата',
-    // `зріз` for snapshot — the term the design session drafted in
-    // "Зберегти зріз", and the one the Balances subtitle already uses.
+    // `зріз` for snapshot — the term the Balances subtitle already uses.
     saveSnapshot: 'Зберегти зріз', // ✎
     copyYesterday: 'Скопіювати вчорашні',
     lastSaved: (when: string) => `Збережено ${when}`,

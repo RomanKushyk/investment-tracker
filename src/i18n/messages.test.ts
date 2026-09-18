@@ -5,7 +5,7 @@ import { en, uk } from './messages';
 // `Dict = typeof en` already makes a missing or extra key a COMPILE error, so
 // these tests deliberately cover what the type cannot see:
 //  · a key present in both but left in English in `uk` — type-correct, wrong
-//  · an interpolation dropped or reordered inside a translated function
+//  · an interpolation dropped inside a translated function
 //  · a shape that drifted through an `as` cast someone added later
 // A test that only re-asserted key equality would pass by construction.
 
@@ -31,16 +31,15 @@ const UK = leaves(uk as unknown as Node);
 const SHARED = new Set([
   // A dataset marker, not prose — the same token in both, like the ₴/$ labels.
   'sidebar.demoBadge',
-  // Each language names ITSELF in its own script, in both dictionaries — the
-  // brief's S2 rule. Identical values here are the requirement, not a miss.
+  // Each language names ITSELF in its own script, in both dictionaries —
+  // identical values here are the requirement, not a miss.
   'settings.language.uk',
   'settings.language.en',
   // A financial acronym, spelled the same in both — the "(ann.)" variant beside
   // it is what carries the translated word.
   'analytics.yield.xirr',
   // A whole-number placeholder: no thousands mark and no decimals, so there is
-  // nothing for a convention to change. Its neighbours (16.5 / 16,5) carry the
-  // difference this field is teaching.
+  // nothing for a convention to change.
   'asset.placeholder.targetPct',
 ]);
 
@@ -56,8 +55,6 @@ describe('the dictionaries', () => {
   });
 
   it('leave nothing untranslated', () => {
-    // The failure this catches is a key copied across and never translated,
-    // which is type-correct and invisible until it is on screen.
     const untranslated = [...EN]
       .filter(
         ([key, value]) =>
@@ -73,9 +70,7 @@ describe('the dictionaries', () => {
   });
 
   it('keep every interpolation a translated function takes', () => {
-    // A function string is where a translation can silently drop a value: the
-    // arity is typed, but nothing stops a body from ignoring an argument.
-    // Feeding distinctive markers in and demanding they come out catches it.
+    // A translated body can take an argument and never emit it.
     for (const [key, value] of EN) {
       if (typeof value !== 'function') continue;
       const ukFn = UK.get(key);
@@ -99,12 +94,11 @@ describe('the dictionaries', () => {
       }
       const ukOut = call(ukFn, wrap);
       for (let i = 0; i < value.length; i++) {
-        // The rule is "the translation must not drop what the original keeps",
-        // NOT "every argument must appear". Some of these strings branch —
-        // `problemCount` only mentions its second argument when fewer rows are
-        // shown than found — and with marker arguments the comparison that
-        // picks the branch is false. Demanding both markers unconditionally
-        // would fail a correct pair.
+        // The rule is "the translation must not drop what the original keeps", NOT
+        // "every argument must appear". Some of these strings branch — `problemCount`
+        // mentions its second argument only when fewer rows are shown than found — and
+        // marker arguments make the comparison that picks the branch false, so demanding
+        // both markers unconditionally would fail a correct pair.
         if (!enOut.includes(`«${i}»`)) continue;
         expect(ukOut, `${key} — Ukrainian drops «${i}» that English keeps`).toContain(`«${i}»`);
       }
@@ -112,11 +106,9 @@ describe('the dictionaries', () => {
   });
 
   it('write Ukrainian in Cyrillic, so a stray English string cannot hide', () => {
-    // The test hunts for stray ENGLISH, so the precondition is Latin letters:
-    // a leaf with none of them cannot be English, whatever else it contains.
-    // That exempts pure figures like the amount placeholder `10 000,00`
-    // without needing a hand-maintained list. Short tokens are not evidence
-    // either way, and SHARED covers the ones that are deliberately identical.
+    // The test hunts for stray ENGLISH, so the precondition is Latin letters: a leaf
+    // with none cannot be English. That exempts pure figures like `10 000,00` without
+    // a hand-maintained list; short tokens are not evidence either way.
     for (const [key, value] of UK) {
       if (typeof value !== 'string' || SHARED.has(key) || value.length < 8) continue;
       if (!/[A-Za-z]/.test(value)) continue;
@@ -125,10 +117,8 @@ describe('the dictionaries', () => {
   });
 });
 
-// Ported from the deleted date-labels.test.ts. `fmtPayoutDate` and MONTH_SHORT
-// went with their module — the formatter's `dateShort` IS the Contract 0 form
-// of the first, and the months are dictionary data now. The ordinal edge cases
-// are the part that had real logic and no other guard.
+// The ordinal edge cases are the part of the deleted date-labels.test.ts that had real
+// logic and no other guard; the months are dictionary data now.
 describe('day-of-month', () => {
   it('formats English ordinal suffixes, including the 11-13 exception', () => {
     const d = en.dates.dayOfMonth;
@@ -157,11 +147,9 @@ describe('day-of-month', () => {
   });
 });
 
-// The Ukrainian plural rule had no guard, though its own comment calls the
-// 11-14 band "the exception every naive implementation gets wrong" — the
-// English ordinal above was tested and its Cyrillic counterpart was not. The
-// helper is private, so the delete-cascade sentence tests it: two counts in one
-// string, which is where a form is most likely to be picked for the wrong one.
+// `plural` is private, so the delete-cascade sentence is what tests it: two counts in
+// one string, which is where a form is most likely to be picked for the wrong count.
+// The 11-14 band is the exception a naive implementation gets wrong.
 describe('the delete-cascade sentence', () => {
   const body = (tx: number, days: number) => uk.assets.deleteBody(tx, days);
 
