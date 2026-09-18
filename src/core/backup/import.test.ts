@@ -17,8 +17,8 @@ import {
   type PortfolioTables,
 } from './import';
 
-// Hand-built portfolio (the 4/174/18 seed round-trip runs through the real DB
-// in src/lib/repository.test.ts — core tests must not import src/lib, G1).
+// Hand-built portfolio; the full seed round-trip runs through the real DB in
+// src/lib/repository.test.ts — core tests must not import src/lib. *Core is pure*
 const ASSETS: Asset[] = [
   {
     id: 'reit',
@@ -58,7 +58,7 @@ const SNAPSHOTS: Snapshot[] = [
 
 const TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
-  // A COUNT, because D125 requires one on a position-moving row at this door too.
+  // A COUNT, because a position-moving row requires one at this door too.
   {
     id: 'b1',
     date: '2026-02-03',
@@ -100,12 +100,11 @@ const tables = (over: Partial<PortfolioTables> = {}): PortfolioTables => ({
   ...over,
 });
 
-// Which types name an asset, and which carry a count — written out rather than
-// read from `targetsAsset` / `movesPosition`, because the door under test asks
-// those predicates and a fixture that asked them too would agree with them
-// however they answered. A `Record<TxType, …>` and not a list: a ninth type has
-// no row here, and a portfolio-level one dropped into a list would be tested as
-// though it named an asset.
+// Which types name an asset, and which carry a count — written out rather than read
+// from `targetsAsset` / `movesPosition`, because the door under test asks those
+// predicates and a fixture that asked them too would agree with them however they
+// answered. A `Record<TxType, …>` and not a list: a ninth type has no row here, and
+// a portfolio-level one dropped into a list would be tested as though it named an asset.
 const CARRIES: Record<TxType, { asset: boolean; quantity: boolean }> = {
   buy: { asset: true, quantity: true },
   sell: { asset: true, quantity: true },
@@ -161,7 +160,7 @@ describe('classifyImportFiles (S2 file gate)', () => {
     expect(classifyImportFiles([])).toEqual({ ok: false, code: 'type' });
   });
 
-  it('does not accept .csv — export-only by decision (D29), not a gap', () => {
+  it('does not accept .csv — export-only by decision, not a gap', () => {
     expect(classifyImportFiles([{ name: 'snapshots.csv', size: 500 }])).toEqual({
       ok: false,
       code: 'type',
@@ -188,7 +187,7 @@ describe('validateImport — accepted', () => {
 });
 
 describe('validateImport — format-level rejections (S4 single reason)', () => {
-  it('rejects non-JSON text with the D12 sentence as its mono detail', () => {
+  it('rejects non-JSON text with the envelope sentence as its mono detail', () => {
     const result = validateImport('{ nope');
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -307,8 +306,7 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           type: 'buy',
           assetId: 'a-9',
           amount: 100,
-          // A COUNT, so the ONE reason under test is the unknown asset id — a
-          // moving row without it now fails for a second reason (D125).
+          // A COUNT, so the ONE reason under test is the unknown asset id.
           quantity: 1,
           source: 'own',
         }),
@@ -321,11 +319,11 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     ]);
   });
 
-  it('rejects a position-moving row that names no asset (D129)', () => {
-    // `assetId !== ''` used to skip the WHOLE check for an empty id, so this
-    // shape sailed through: legitimate on a deposit, meaningless on a buy, and
-    // the exact row `transaction_asset_present_ck` rejects at migration. It
-    // rendered in the ledger as «Купівля · Портфель».
+  it('rejects a position-moving row that names no asset', () => {
+    // `assetId !== ''` used to skip the WHOLE check for an empty id, so this shape
+    // sailed through: legitimate on a deposit, meaningless on a buy, and the exact row
+    // `transaction_asset_present_ck` rejects at migration. It rendered in the ledger as
+    // «Купівля · Портфель».
     const result = validateImport(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
@@ -346,16 +344,11 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
     ]);
   });
 
-  // THE RULE MOVED, AND ITS OLD RATIONALE IS SPENT. This door used to gate on
-  // `movesPosition` — four types — so an imported payout with no asset reached
-  // the store. The reason was D126's deadlock: the form asked for an asset on a
-  // `tax` and both payout types while the CHECK required one on neither, and an
-  // envelope stricter than the store could not be written at all, because the
-  // export re-reads its own output. All three legs of that are gone. The `tax`
-  // type is retired, `transaction_asset_present_ck` widens to six so the store
-  // and the form finally agree, and the withholding is attributed by the row's
-  // OWN asset — so a payout naming none would carry one past attribution and
-  // then fail the CHECK at migration. The envelope gates on `targetsAsset`.
+  // THE RULE MOVED. This door used to gate on `movesPosition` — four types — so an
+  // imported payout with no asset reached the store. `transaction_asset_present_ck`
+  // widens to six so the store and the form agree, and the withholding is attributed
+  // by the row's OWN asset — so a payout naming none would carry one past attribution
+  // and then fail the CHECK at migration. The envelope gates on `targetsAsset`.
   it('accepts an empty id on the two PORTFOLIO-level types, and only those', () => {
     const asRow = (type: TxType) =>
       mutated((env) =>
@@ -365,28 +358,27 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           type,
           assetId: '',
           amount: 100,
-          // So the only rule an asset-targeting row can break here is the one
-          // this test is about.
+          // So the only rule an asset-targeting row can break here is the one this test is
+          // about.
           ...(CARRIES[type].quantity ? { quantity: 1 } : {}),
           source: 'own',
         }),
       );
-    // "And only those" is asserted rather than sampled: all eight, against the
-    // table, so a wrong row fails instead of leaving its type untested.
+    // "And only those" is asserted rather than sampled: all eight, against the table,
+    // so a wrong row fails instead of leaving its type untested.
     for (const type of everyType) {
       expect(validateImport(asRow(type)).ok, type).toBe(!CARRIES[type].asset);
     }
   });
 
   it('BLANKS an asset a portfolio-level row names, rather than refusing the file', () => {
-    // The population is a v5 file exported from a store whose deposits predate
-    // D129 — the form filled `assetId` for all nine types, so a deposit carried
-    // whichever asset the picker showed, and those rows are still in the store.
-    // (NOT a pre-D129 FILE: the version gate refuses those first.) Refusing them
-    // would leave such a store unable to back itself up, for a value W7 discards
-    // anyway.
-    // The keeping half is asserted on all eight two tests below; this one is
-    // about the blanking, so it takes the types the table says name no asset.
+    // The population is a v5 file exported from a store whose deposits predate the rule:
+    // the form filled `assetId` for all nine types, so a deposit carried whichever asset
+    // the picker showed, and those rows are still in the store. (NOT a pre-rule FILE:
+    // the version gate refuses those first.) Refusing them would leave such a store
+    // unable to back itself up, for a value W7 discards anyway. The keeping half is
+    // asserted on all eight in the next test; this one is about the blanking, so it
+    // takes the types the table says name no asset.
     for (const type of everyType) {
       if (CARRIES[type].asset) continue;
       const result = validateImport(
@@ -410,14 +402,12 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
   });
 
   it('KEEPS the asset on every type that names one and blanks it on the rest', () => {
-    // The other side of the predicate, and the one an inverted `!` would break
-    // silently. It used to be the half that could go wrong quietly: blanking a
-    // payout produced an orphaned portfolio row that no rule refused, because
-    // the gate named only the four moving types. It is now caught at the door
-    // above — which is why the two halves are one predicate.
-    // BOTH HALVES over all eight, rather than the six selected out: a `continue`
-    // on `CARRIES[type].asset` turns a wrong row from a failing assertion into a
-    // missing one, and this table's asset column is the thing under test.
+    // The other side of the predicate, and the one an inverted `!` would break silently:
+    // blanking a payout produced an orphaned portfolio row that no rule refused, because
+    // the gate named only the four moving types. It is now caught at the door above,
+    // which is why the two halves are one predicate. BOTH HALVES over all eight rather
+    // than the six selected out — a `continue` turns a wrong row from a failing
+    // assertion into a missing one.
     for (const type of everyType) {
       const result = validateImport(
         mutated((env) =>
@@ -434,8 +424,8 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
       );
       expect(result.ok, type).toBe(true);
       if (!result.ok) continue;
-      // A type that names an asset keeps the one it named; a portfolio-level one
-      // is blanked — the two halves of the one predicate, asserted together.
+      // A type that names an asset keeps the one it named; a portfolio-level one is
+      // blanked — the two halves of the one predicate, asserted together.
       expect(
         result.envelope.transactions.find((t) => t.id === `tx-keep-${type}`)?.assetId,
         type,
@@ -445,10 +435,9 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
 
   it('REPORTS a dangling asset id on a portfolio-level row instead of tidying it', () => {
     // The blanking runs AFTER `integrityIssues`, never as a row transform. As a
-    // transform it ran first, so this file imported clean: the `unknown-asset-id`
+    // transform it ran first, so this file imported clean and the `unknown-asset-id`
     // branch was never reached. A dangling id is not a value to discard — it is
-    // evidence the file lost an asset row, which is the whole job of the
-    // referential pass.
+    // evidence the file lost an asset row.
     const result = validateImport(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
@@ -606,8 +595,8 @@ describe('diffBackup', () => {
     expect(diff.warnings).toEqual([]);
   });
 
-  // The S3 worked illustration: yesterday's backup over today's data silently
-  // drops today's snapshot and today's transaction.
+  // The S3 worked illustration: yesterday's backup over today's data silently drops
+  // today's snapshot and today's transaction.
   it("reports yesterday's backup over today's data as replaced + removed", () => {
     const current = tables({
       snapshots: [...SNAPSHOTS, { date: '2026-07-26', quotes: { reit: 1 }, cash: 0 }],
@@ -652,8 +641,8 @@ describe('diffBackup', () => {
     const diff = diffBackup(tables(), env, CTX);
     expect(diff.warnings).toContainEqual({ code: 'no-assets' });
     expect(diff.warnings).toContainEqual({ code: 'no-snapshots', current: 2 });
-    // Transactions have no wholesale-loss sentence of their own, so their
-    // removal is stated by the partial-removal line.
+    // Transactions have no wholesale-loss sentence of their own, so their removal is
+    // stated by the partial-removal line.
     expect(diff.warnings).toContainEqual({
       code: 'rows-removed',
       assets: 0,
@@ -726,11 +715,11 @@ describe('diffBackup', () => {
   });
 });
 
-describe('the units rule reaches the reader in their own language (D8)', () => {
-  // The schema emits a PATH and no message; `codeFor` turns it into an
-  // `IssueCode` and `import-labels.ts` owns the words. A message on the schema
-  // is carried through as `issue.detail` and printed verbatim, which put an
-  // English sentence in the middle of a Ukrainian report.
+describe('the units rule reaches the reader in their own language', () => {
+  // The schema emits a PATH and no message; `codeFor` turns it into an `IssueCode`
+  // and `import-labels.ts` owns the words. A message on the schema is carried through
+  // as `issue.detail` and printed verbatim, which put an English sentence in the
+  // middle of a Ukrainian report.
   const withUnitsOnAPayout = (field: 'quantity' | 'unitPrice') =>
     mutated((env) => {
       const rows = env.transactions as Record<string, unknown>[];
@@ -752,11 +741,11 @@ describe('the units rule reaches the reader in their own language (D8)', () => {
   }
 });
 
-describe('an OLDER backup is named as older, not as broken (D113)', () => {
+describe('an OLDER backup is named as older, not as broken', () => {
   it('maps formatVersion 1 to `older-format`, with the version', () => {
-    // Every backup on disk today is a v1 file. Before D113 it shared a code —
-    // and therefore a sentence — with a hand-edited `0`, telling the owner their
-    // real backup was unreadable rather than superseded.
+    // Every backup on disk today is a v1 file. It used to share a code — and therefore
+    // a sentence — with a hand-edited `0`, telling the owner their real backup was
+    // unreadable rather than superseded.
     const result = validateImport(mutated((env) => void (env.formatVersion = 1)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
@@ -764,11 +753,11 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
     expect(result.rejection.version).toBe(1);
   });
 
-  it('maps formatVersion 2 to `older-format` too (D122)', () => {
-    // 2 was current for days, not months, and it was never promoted to
-    // production — but `dev` deploys on every push, so files written by a v2
-    // build exist. The rule is the same one D113 wrote for v1: a real backup
-    // from an older build must not share a sentence with a hand-edited `0`.
+  it('maps formatVersion 2 to `older-format` too', () => {
+    // 2 was current for days, not months, and was never promoted to production — but
+    // `dev` deploys on every push, so files written by a v2 build exist. The rule is the
+    // same one v1 got: a real backup from an older build must not share a sentence with
+    // a hand-edited `0`.
     const result = validateImport(mutated((env) => void (env.formatVersion = 2)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
@@ -777,9 +766,9 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
   });
 
   it('does not call a fractional version an older backup', () => {
-    // `1.5` is below the current version and at least 1, so the bare `>= 1`
-    // read it as a real backup from an older app and reported "version 1.5".
-    // A version counts format revisions; a non-integer is a corrupt file.
+    // `1.5` is below the current version and at least 1, so the bare `>= 1` read it as a
+    // real backup from an older app and reported "version 1.5". A version counts format
+    // revisions; a non-integer is a corrupt file.
     const result = validateImport(mutated((env) => void (env.formatVersion = 1.5)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
@@ -796,8 +785,8 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
   });
 
   it('carries the detail line naming BOTH versions', () => {
-    // The code picks the sentence; the detail is the parser's own line, and it
-    // has to say what this app reads or "no longer importable" is unactionable.
+    // The code picks the sentence; the detail is the parser's own line, and it has to
+    // say what this app reads or "no longer importable" is unactionable.
     const result = validateImport(mutated((env) => void (env.formatVersion = 1)));
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
@@ -807,16 +796,14 @@ describe('an OLDER backup is named as older, not as broken (D113)', () => {
 });
 
 describe('every way a note can be wrong reports ONE localised code', () => {
-  // THE DOOR THAT OWNS THE WORDS. `parseBackup` renders English for its own
-  // string contract; THIS path emits codes that `import-labels.ts` turns into
-  // the reader's language, so a code falling through to `invalid` prints the
-  // VALIDATOR's own English verbatim into a Ukrainian report — the one thing
-  // `json.ts`'s rule about this layer forbids.
+  // THE DOOR THAT OWNS THE WORDS. `parseBackup` renders English for its own string
+  // contract; THIS path emits codes that `import-labels.ts` turns into the reader's
+  // language, so a code falling through to `invalid` prints the VALIDATOR's own
+  // English verbatim into a Ukrainian report — the one thing this layer forbids.
   //
-  // Both halves of this were wrong when first written: `.min(1)` beside the
-  // whitespace refinement reported an empty note TWICE for one fact, and the
-  // refinement emits `custom`, which the mapping — written for `too_big` and
-  // `too_small` — did not name.
+  // Both halves of this were wrong when first written: `.min(1)` beside the whitespace
+  // refinement reported an empty note TWICE for one fact, and the refinement emits
+  // `custom`, which the mapping did not name.
   const withNote = (note: string) =>
     validateImport(
       mutated((env) =>
@@ -837,9 +824,9 @@ describe('every way a note can be wrong reports ONE localised code', () => {
     ['one space', ' '],
     ['whitespace only', '   '],
     ['one over the cap', 'я'.repeat(101)],
-    // LONG AND BLANK AT ONCE — the shape that still doubled after the first
-    // repair, because `.max(100)` and the trim check both fired on it. One
-    // predicate cannot report one row twice.
+    // LONG AND BLANK AT ONCE — the shape that still doubled after the first repair,
+    // because `.max(100)` and the trim check both fired on it. One predicate cannot
+    // report one row twice.
     ['a hundred and one spaces', ' '.repeat(101)],
   ] as const) {
     it(`${label} → exactly one \`note-length\``, () => {

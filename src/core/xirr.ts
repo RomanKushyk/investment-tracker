@@ -1,7 +1,7 @@
-// XIRR — money-weighted annualized return (WEALTH-MANAGEMENT-ARCHITECTURE
-// §6.1), pure and dependency-free per NEXT-PHASE-PLAN P1. Surfaced ALONGSIDE
-// the v1 simple annualizedPct (D5#5 pins its PORTFOLIO_START basis), never
-// replacing it. Day count: ACT/365 (docs/reference/FORMULA-AUDIT.md, fintech rulings).
+// XIRR — money-weighted annualized return (WEALTH-MANAGEMENT-ARCHITECTURE §6.1),
+// pure and dependency-free. Surfaced ALONGSIDE the v1 simple annualizedPct, whose
+// basis is a different one, never replacing it. Day count: ACT/365
+// (docs/reference/FORMULA-AUDIT.md, fintech rulings).
 import { daysBetween } from './dates';
 
 export interface CashFlow {
@@ -9,8 +9,8 @@ export interface CashFlow {
   amount: number; // negative = outflow (buy), positive = inflow (payout/sell/terminal value)
 }
 
-// Rate domain (−99.9%, +1000%): outside it an "annual rate" is numerical
-// noise, not a portfolio statistic — such solutions return null.
+// Rate domain (−99.9%, +1000%): outside it an "annual rate" is numerical noise,
+// not a portfolio statistic — such solutions return null.
 const RATE_MIN = -0.999;
 const RATE_MAX = 10;
 const NEWTON_MAX_ITER = 50;
@@ -19,18 +19,16 @@ const SCAN_STEPS = 256;
 const NPV_EPS = 1e-9;
 
 /**
- * Annualized money-weighted rate of return, or null when the input is
- * degenerate or no root exists in (RATE_MIN, RATE_MAX).
+ * Annualized money-weighted rate of return, or null when the input is degenerate
+ * or no root exists in (RATE_MIN, RATE_MAX).
  *
- * NPV(r) = Σ amountᵢ / (1+r)^(daysᵢ/365), days from the earliest flow
- * (ACT/365). Newton–Raphson from r₀ = 0.1 with a sign-change-scan +
- * bisection fallback (doc §6.1 names exactly this method).
+ * NPV(r) = Σ amountᵢ / (1+r)^(daysᵢ/365), days from the earliest flow (ACT/365).
+ * Newton–Raphson from r₀ = 0.1 with a sign-change scan + bisection fallback
+ * (doc §6.1 names exactly this method).
  *
- * Guards (null, never NaN/Infinity):
- * - fewer than 2 flows, or missing a negative or a positive amount;
- * - unparseable dates;
- * - zero time span (all flows on one date — no time to annualize over);
- * - no convergence / no sign change inside the rate domain.
+ * Null, never NaN/Infinity, for: fewer than 2 flows, or missing a negative or a
+ * positive amount; unparseable dates; zero time span (all flows on one date — no
+ * time to annualize over); no convergence or no sign change inside the domain.
  */
 export function xirr(flows: CashFlow[]): number | null {
   if (flows.length < 2) return null;
@@ -70,10 +68,9 @@ function inDomain(r: number): number | null {
 // (sign-alternating flows) resolve to the first bracketed root.
 function bisect(npv: (r: number) => number): number | null {
   const step = (RATE_MAX - RATE_MIN) / SCAN_STEPS;
-  // Scan from RATE_MIN exactly: NPV is finite there (the asymptote is at −1,
-  // not −0.999), and starting any higher would leave deep-loss roots in
-  // (RATE_MIN, RATE_MIN + offset) unbracketed. Endpoint roots at RATE_MIN/
-  // RATE_MAX themselves are rejected by inDomain (open interval).
+  // Scan from RATE_MIN exactly: NPV is finite there (the asymptote is at −1, not
+  // −0.999), and starting any higher would leave deep-loss roots unbracketed.
+  // Endpoint roots at RATE_MIN/RATE_MAX are rejected by inDomain (open interval).
   let lo = RATE_MIN;
   let fLo = npv(lo);
   let hi = lo;

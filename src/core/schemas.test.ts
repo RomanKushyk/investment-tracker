@@ -11,12 +11,11 @@ import {
 } from './schemas';
 import type { TxType } from './types';
 
-// What the store lets each type carry — the W7 CHECKs this schema mirrors,
-// written out rather than read from `isPayout` / `movesPosition` /
-// `targetsAsset`: a test that asks the predicates the schema asked cannot fail
-// when one of them is wrong, because the row it builds flips with them. A
-// `Record<TxType, …>` and not a list — a list is short one member when a ninth
-// type arrives and nothing notices; this refuses to compile.
+// What the store lets each type carry — the W7 CHECKs this schema mirrors, written
+// out rather than read from `isPayout` / `movesPosition` / `targetsAsset`: a test that
+// asks the predicates the schema asked cannot fail when one is wrong, because the row
+// it builds flips with them. A `Record<TxType, …>` and not a list — a list is short one
+// member when a ninth type arrives and nothing notices; this refuses to compile.
 const CARRIES: Record<TxType, { asset: boolean; quantity: boolean; withholding: boolean }> = {
   buy: { asset: true, quantity: true, withholding: false },
   sell: { asset: true, quantity: true, withholding: false },
@@ -34,9 +33,8 @@ describe('the number grammar follows the language (README §8)', () => {
   const en = amountInputSchema('en');
 
   it('reads a lone comma as the decimal in Ukrainian and refuses it in English', () => {
-    // English is given the dot alone: a comma that does not group threes leaves
-    // the value UNREADABLE rather than guessed at, because a guess here is a
-    // thousandfold and the result is a legal number nothing downstream refuses.
+    // English is given the dot alone: a comma that does not group threes leaves the value
+    // UNREADABLE rather than guessed at, and the guess is a thousandfold legal number.
     expect(uk.parse('16,5')).toBeCloseTo(16.5, 2);
     expect(en.safeParse('16,5').success).toBe(false);
     expect(uk.parse('68 702,10')).toBeCloseTo(68702.1, 2);
@@ -52,17 +50,15 @@ describe('the number grammar follows the language (README §8)', () => {
   });
 
   it('parses the English convention the English placeholder shows', () => {
-    // The field offers `10,000.00` in English. Reading its comma as a decimal
-    // point produced `10.000.00` → NaN, so the form rejected its own example.
+    // The field offers `10,000.00` in English, and the form used to reject its own example.
     expect(en.parse('10,000.00')).toBeCloseTo(10000, 2);
     expect(en.parse('1,240.00')).toBeCloseTo(1240, 2);
     expect(en.parse('1,000,000.50')).toBeCloseTo(1000000.5, 2);
   });
 
   it('reads a comma-grouped INTEGER as grouping in English, as a fraction in Ukrainian', () => {
-    // The English regression this exists for: the form prefills a count with
-    // `f.units(6164)` = "6,164", so reading that comma as a decimal point stored
-    // 6.164 for an asset the user had only opened and saved.
+    // The form prefills a count with `f.units(6164)` = "6,164", so reading that comma as a
+    // decimal point stored 6.164 for an asset the user had only opened and saved.
     expect(en.parse('6,164')).toBe(6164);
     expect(en.parse('1,000,000')).toBe(1000000);
     // And the same text from a Ukrainian typist is the fraction they wrote.
@@ -71,25 +67,23 @@ describe('the number grammar follows the language (README §8)', () => {
   });
 
   it('refuses a SECOND comma under Ukrainian rather than dropping one silently', () => {
-    // There is no lone comma left to be the decimal, and «1,000,000» is English
-    // writing — so it is unreadable here, not read as one of the three numbers a
-    // first-match replace could produce.
+    // No lone comma is left to be the decimal and «1,000,000» is English writing, so it is
+    // unreadable here rather than one of the three numbers a first-match replace produces.
     expect(uk.safeParse('1,000,000').success).toBe(false);
     expect(uk.safeParse('1,234,567.89').success).toBe(true); // both marks — rule 1 still settles it
     expect(en.parse('1,000,000')).toBe(1000000);
   });
 
   it('pins the Ukrainian cost of that rule: «10,000» is ten', () => {
-    // Accepted, not overlooked. A lone comma is ALWAYS the decimal in
-    // Ukrainian, and the alternative — deciding by digit count — is the 1000x
-    // the language rule exists to remove.
+    // Accepted, not overlooked: a lone comma is ALWAYS the decimal in Ukrainian, and
+    // deciding by digit count instead is the 1000x the language rule exists to remove.
     expect(uk.parse('10,000')).toBe(10);
     expect(en.parse('10,000')).toBe(10000);
   });
 
   it('reads the LAST mark as the decimal in both, whichever it is', () => {
-    // Positional, not a locale switch, so a pasted value lands on the right
-    // number in either language instead of on NaN.
+    // Positional, not a locale switch, so a pasted value lands on the right number in
+    // either language instead of on NaN.
     for (const schema of [uk, en]) {
       expect(schema.parse('1.234,56')).toBeCloseTo(1234.56, 2);
       expect(schema.parse('1,234.56')).toBeCloseTo(1234.56, 2);
@@ -105,8 +99,7 @@ describe('the number grammar follows the language (README §8)', () => {
     }
   });
 
-  // Issue #1's bytes: `4`, U+00A0, `214,24`, a space, `грн.`, a space. The
-  // letters were the rejection, not the NBSP — `\s` already strips that.
+  // The letters were the rejection, not the NBSP — `\s` already strips that.
   it('drops a currency token beside the number — the shape a bank page pastes', () => {
     expect(uk.parse('4 214,24 грн. ')).toBe(4214.24);
     expect(uk.parse('1 234,56 грн')).toBe(1234.56);
@@ -124,8 +117,8 @@ describe('the number grammar follows the language (README §8)', () => {
       expect(schema.safeParse('грн').success).toBe(false);
       expect(schema.safeParse('₴').success).toBe(false);
     }
-    // A token alone must stay NaN, not become `''` → 0: a field whose floor is 0
-    // (a target share) would otherwise accept `$` as a value.
+    // A token alone must stay NaN, not become `''` → 0: a field whose floor is 0 would
+    // otherwise accept `$` as a value.
     expect(percentInputSchemaFor('uk').safeParse('$').success).toBe(false);
     expect(percentInputSchemaFor('en').safeParse('грн.').success).toBe(false);
   });
@@ -137,8 +130,8 @@ describe('transactionSchema', () => {
     type: 'buy',
     assetId: 'reit',
     amount: '1,000.00',
-    // REQUIRED on a position-moving row since D124 — a `buy` without one no
-    // longer parses, which is what the four rules below are about.
+    // REQUIRED on a position-moving row — a `buy` without one no longer parses, which is
+    // what the four rules below are about.
     quantity: '10',
     source: 'own',
   };
@@ -159,8 +152,8 @@ describe('transactionSchema', () => {
 
   it("accepts the P1 domain types 'withdrawal' and 'redemption'", () => {
     expect(
-      // `quantity: ''` — a withdrawal moves no position, so it must NOT carry
-      // one; `assetId: ''` — it targets no asset, so it must not name one (D129).
+      // `quantity: ''` — a withdrawal moves no position, so it must NOT carry one;
+      // `assetId: ''` — it targets no asset, the portfolio-level shape. *Forms and layout*
       transactionSchema('en').safeParse({ ...base, type: 'withdrawal', assetId: '', quantity: '' })
         .success,
     ).toBe(true);
@@ -213,42 +206,36 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
 
   it('reads a Ukrainian comma as a DECIMAL point, in every percent field', () => {
     // WHY EVERY PERCENT FIELD AND NOT JUST THE BOUNDED ONES: `targetPct` and
-    // `couponRatePct` are capped at 100, so a misread «10,500» is refused.
-    // `expectedPct` is `positiveNumberInput` with NO max, so «16,400» — 16.4 %
-    // as a Ukrainian writes it — stores 16400 and drives `dailyAccrual`'s
-    // fallback, `couponProjection`'s estimate and `/yield`'s «проти очікуваної»
-    // with it. A lone comma read the wrong way is a thousandfold, not an error.
+    // `couponRatePct` are capped at 100, so a misread «10,500» is refused. `expectedPct`
+    // has NO max, so «16,400» stores 16400 and drives `dailyAccrual`’s fallback,
+    // `couponProjection`’s estimate and /yield’s «проти очікуваної» with it.
     const uk = { ...base, expectedPct: '16,400', targetPct: '10,500' };
     const parsedUk = assetFormSchema('create', 'uk').parse(uk);
     expect(parsedUk.expectedPct).toBeCloseTo(16.4, 4);
     expect(parsedUk.targetPct).toBeCloseTo(10.5, 4);
-    // The same text under the English grammar means thousands — and the bounded
-    // field refuses it while the unbounded one cannot, which is exactly why the
-    // language has to reach the schema rather than being caught downstream.
+    // The same text under the English grammar means thousands — the bounded field refuses
+    // it and the unbounded one cannot, which is why the language has to reach the schema.
     expect(
       assetFormSchema('create', 'en').parse({ ...base, expectedPct: '16,400' }).expectedPct,
     ).toBe(16400);
     expect(
       assetFormSchema('create', 'en').safeParse({ ...base, targetPct: '10,500' }).success,
     ).toBe(false);
-    // A three-decimal coupon rate now parses instead of being refused for a
-    // reason the user could not have guessed.
+    // A three-decimal coupon rate parses instead of being refused for a reason the user
+    // could not have guessed.
     const bond = { ...base, yieldType: 'fixed_coupon', payoutSchedule: 'semiannual' };
     expect(
       assetFormSchema('create', 'uk').parse({ ...bond, couponRatePct: '15,680' }).couponRatePct,
     ).toBeCloseTo(15.68, 4);
   });
 
-  it('refuses a coupon rate of 0, a negative and one over 100 (D119)', () => {
-    // THE DOOR THE USER ACTUALLY TYPES THROUGH, and it was the one door without
-    // these cases: `core/backup/json.ts` and `asset_coupon_rate_pct_ck` both pin
-    // the same three, so widening this schema — say by "simplifying" it back to
-    // `percentInputSchemaFor(lang).optional()`, which admits 0 — would leave the whole
-    // suite green while the backup and the DDL kept refusing what the form stores.
-    //
-    // 0 is the one worth naming: it is not a smaller rate but an INERT one.
-    // `couponPerPayment` gates on `rate > 0`, so a stored 0 falls back to the
-    // legacy `couponAmount` and no screen can say which figure it is showing.
+  it('refuses a coupon rate of 0, a negative and one over 100', () => {
+    // THE DOOR THE USER ACTUALLY TYPES THROUGH, and it was the one door without these
+    // cases: `core/backup/json.ts` and `asset_coupon_rate_pct_ck` both pin the same three,
+    // so widening this schema would leave the whole suite green while the backup and the
+    // DDL kept refusing what the form stores. 0 is the one worth naming — it is not a
+    // smaller rate but an INERT one: `couponPerPayment` gates on `rate > 0`, so a stored 0
+    // falls back to the legacy `couponAmount` and no screen can say which figure it shows.
     const bond = { ...base, yieldType: 'fixed_coupon', payoutSchedule: 'semiannual' };
     for (const bad of ['0', '0,00', '-5', '-0,01', '100,01', '250']) {
       expect(
@@ -264,8 +251,8 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
   });
 
   it('parses the Inzhur group — fund slug and bond ISIN variants', () => {
-    // NO UNITS since D117: the group says where to look the instrument up, and
-    // nothing else. Counts are `Σ transaction.quantity` (D112).
+    // NO UNITS: the group says where to look the instrument up and nothing else — counts
+    // are `Σ transaction.quantity`. *Metric families and windows*
     const fund = assetFormSchema('create', 'en').parse({
       ...base,
       inzhur: { kind: 'fund', ref: 'inzhur-reit' },
@@ -291,11 +278,10 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
     ).toBe(false);
   });
 
-  it('DROPS a units key the caller still sends (D117)', () => {
-    // A stale backup, or a caller written against the old shape. `z.object` is
-    // not strict, so the key is ignored rather than rejected — and the parsed
-    // value must not carry it through, or the count would ride back into the
-    // store on the next save without any field ever showing it.
+  it('DROPS a units key the caller still sends', () => {
+    // A stale backup, or a caller written against the old shape. `z.object` is not strict,
+    // so the key is ignored rather than rejected — and the parsed value must not carry it
+    // through, or the count would ride back into the store without any field showing it.
     const parsed = assetFormSchema('create', 'en').parse({
       ...base,
       inzhur: { kind: 'fund', ref: 'inzhur-reit', units: '6 164' },
@@ -339,18 +325,16 @@ describe('assetFormSchema (P2 feat/asset-form, brief S3)', () => {
 });
 
 describe('the comma is a decimal mark in Ukrainian and a thousands mark in English', () => {
-  // THE ONE AMBIGUOUS SHAPE: three decimals, a comma, no dot. Measured —
-  // `0,125` → 125, `43,478` → 43478, `11,138` → 11138 under the grouping rule.
-  // #31 makes it reachable: a reinvestment buys a fractional count, and the
-  // amount field now holds a per-unit price. Every one of those is a legal
-  // positive number, so nothing downstream refuses it.
+  // THE ONE AMBIGUOUS SHAPE: three decimals, a comma, no dot. #31 makes it reachable —
+  // a reinvestment buys a fractional count and the amount field now holds a per-unit
+  // price. Every reading is a legal positive number, so nothing downstream refuses it.
   const base = {
     date: '2026-08-12',
     type: 'reinvest' as const,
     assetId: 'reit',
     amount: '484.36',
-    // A `reinvest` moves a position, so D124 requires this — every case below
-    // overrides it with the shape under test.
+    // A `reinvest` moves a position, so it needs this — every case below overrides it
+    // with the shape under test.
     quantity: '1',
     source: 'reinvest_reit' as const,
   };
@@ -363,15 +347,13 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
   });
 
   it('still reads an English grouped count as a thousand', () => {
-    // `f.units(6164)` prefills English as `6,164`, and the asset form's Units
-    // field round-trips through the same normalizer — so this direction must
-    // keep working, and it is why the rule cannot simply be deleted.
+    // `f.units(6164)` prefills English as `6,164` and the asset form round-trips through
+    // the same normalizer, which is why this rule cannot simply be deleted.
     expect(transactionSchema('en').parse({ ...base, quantity: '6,164' }).quantity).toBe(6164);
   });
 
   it('protects the per-unit AMOUNT the same way — it is money that reaches the ledger', () => {
-    // 11,138 ₴ per unit × 5 000 units is ₴55 690. Read as a grouping it is
-    // ₴55 690 000, and `priceParts` would store that as the transaction total.
+    // Read as a grouping, a per-unit price becomes the transaction total a thousandfold up.
     const uk = transactionSchema('uk').parse({
       ...base,
       amount: '11,138',
@@ -383,24 +365,23 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
 
   it('gives the coupon card the SAME reading as the panel — both write a Transaction', () => {
     // `CouponDueCard` validates its own amount rather than going through
-    // `transactionSchema`, and it records an `interest_payout` with the result.
-    // On the module-level grouping schema «1,240» was ₴1 240 there and ₴1.24
-    // here, in one ledger, feeding one `netDeposits`.
+    // `transactionSchema`, and records an `interest_payout` with the result. On the
+    // module-level grouping schema «1,240» was ₴1 240 there and ₴1.24 here, in one ledger.
     for (const lang of ['uk', 'en'] as const) {
       const viaCard = amountInputSchema(lang).parse('1,240');
       const viaPanel = transactionSchema(lang).parse({ ...base, amount: '1,240' }).amount;
       expect(viaCard, `${lang}: the two doors disagree`).toBeCloseTo(viaPanel, 6);
     }
-    // And the readings really are different per language — otherwise the
-    // assertion above would hold for the wrong reason.
+    // The readings really do differ per language, or the assertion above would hold for
+    // the wrong reason.
     expect(amountInputSchema('uk').parse('1,240')).toBeCloseTo(1.24, 6);
     expect(amountInputSchema('en').parse('1,240')).toBe(1240);
   });
 
   it('leaves the unambiguous shapes alone in both languages', () => {
     for (const lang of ['uk', 'en'] as const) {
-      // A dot decimal and a both-marks paste read the same either way — a LONE
-      // comma is the only shape whose meaning the language has to settle.
+      // A dot decimal and a both-marks paste read the same either way — a LONE comma is
+      // the only shape whose meaning the language has to settle.
       expect(transactionSchema(lang).parse({ ...base, amount: '1240.00' }).amount).toBeCloseTo(
         1240,
         2,
@@ -430,7 +411,7 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
   });
 });
 
-describe('the transaction refinements #31 adds, and D124 completes', () => {
+describe('the transaction refinements #31 adds, and the count rule completes', () => {
   const base = {
     date: '2026-08-12',
     type: 'buy' as const,
@@ -460,19 +441,18 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
     }
   });
 
-  it('REFUSES a position-moving row that lacks one (D124)', () => {
-    // REVERSED by the owner's ruling. It used to accept these, on the ground
-    // that every pre-#31 row lacks a count — but that is a fact about rows
-    // already STORED, and this schema only sees a row being typed now. D119 made
-    // every coupon figure `rate × units`, so a `buy` in the default `total` mode
-    // with the field blank produced a bond whose coupon reads «—» everywhere,
-    // silently.
+  it('REFUSES a position-moving row that lacks one', () => {
+    // REVERSED by the owner's ruling. Accepting a blank count was grounded on every
+    // pre-#31 row lacking one — a fact about rows already STORED, where this schema only
+    // sees a row being typed now. Every coupon figure is `rate × units`, so a `buy` in
+    // the default `total` mode with the field blank produced a bond whose coupon reads
+    // «—» everywhere, silently.
     for (const type of everyType) {
       const assetId = CARRIES[type].asset ? 'reit' : '';
       const blank = transactionSchema('uk').safeParse({ ...base, type, assetId, quantity: '' });
-      // A blank count is refused on exactly the types that take one, and
-      // ACCEPTED on the rest — both halves asserted, so a wrong row of `CARRIES`
-      // fails rather than dropping its case.
+      // A blank count is refused on exactly the types that take one and ACCEPTED on the
+      // rest — both halves asserted, so a wrong row of `CARRIES` fails rather than
+      // dropping its case.
       expect(blank.success, type).toBe(!CARRIES[type].quantity);
       if (!blank.success) {
         expect(blank.error.issues.map((i) => i.path.join('.'))).toContain('quantity');
@@ -489,7 +469,7 @@ describe('the transaction refinements #31 adds, and D124 completes', () => {
   });
 });
 
-describe('D129 — the asset is required only on the types that target one', () => {
+describe('the asset is required only on the types that target one', () => {
   const base = {
     date: '2026-09-02',
     type: 'deposit' as const,
@@ -500,12 +480,10 @@ describe('D129 — the asset is required only on the types that target one', () 
   };
 
   it('accepts a portfolio-level row with NO asset — the shape the seed writes', () => {
-    // `lib/seed.ts` records its three deposits as `assetId: ''`, `types.ts`
-    // documents that as the portfolio-level shape and `backup/json.ts` skips
-    // the referential check for it. The form's schema was the one door that
-    // refused it, so a deposit could not be recorded without naming an asset it
-    // has nothing to do with — and with no assets yet, could not be recorded at
-    // all, which is the first transaction anyone makes.
+    // `lib/seed.ts` records its three deposits as `assetId: ''`, `types.ts` documents that
+    // as the portfolio-level shape and `backup/json.ts` skips the referential check for
+    // it. The form's schema was the one door that refused it — and with no assets yet, the
+    // first transaction anyone makes could not be recorded at all.
     for (const type of everyType) {
       if (CARRIES[type].asset) continue;
       expect(transactionSchema('uk').safeParse({ ...base, type }).success, type).toBe(true);
@@ -514,15 +492,11 @@ describe('D129 — the asset is required only on the types that target one', () 
   });
 
   it('BLANKS an asset on a portfolio-level row rather than refusing it', () => {
-    // The converse, and it is what makes the panel's hiding load-bearing rather
-    // than cosmetic: the hidden picker still holds the last pick, and without
-    // this the row would be stored against an asset nobody chose. `derive.ts`
-    // calls that assetId noise and steps around it; this is the door where the
-    // noise stops being written.
-    //
-    // NORMALIZED, not rejected, and the asymmetry with the quantity rule above
-    // is deliberate — a refusal has to be shown, and this control is not on
-    // screen for these types. The schema's own comment carries the rest.
+    // The converse, and what makes the panel's hiding load-bearing rather than cosmetic:
+    // the hidden picker still holds the last pick, so without this the row would be stored
+    // against an asset nobody chose. NORMALIZED rather than rejected, and the asymmetry
+    // with the quantity rule above is deliberate — a refusal has to be shown, and this
+    // control is not on screen for these types.
     for (const type of everyType) {
       if (CARRIES[type].asset) continue;
       const parsed = transactionSchema('uk').safeParse({ ...base, type, assetId: 'reit' });
@@ -530,16 +504,15 @@ describe('D129 — the asset is required only on the types that target one', () 
       if (!parsed.success) continue;
       expect(parsed.data.assetId, type).toBe('');
     }
-    // The quick-create sentinel is blanked with everything else: a row that
-    // targets no asset cannot bring one into existence either.
+    // The quick-create sentinel is blanked with everything else: a row that targets no
+    // asset cannot bring one into existence either.
     expect(transactionSchema('uk').parse({ ...base, assetId: 'new' }).assetId).toBe('');
   });
 
   it('requires one on every type that DOES target an asset, and on no other', () => {
-    // BOTH HALVES against `CARRIES`, over all eight: the two rows that answer
-    // `false` are the only cells of that table the loops above cannot defend,
-    // because the schema NORMALIZES a portfolio-level assetId rather than
-    // refusing it, so a fixture carrying one parses either way.
+    // BOTH HALVES against `CARRIES`, over all eight: the two rows that answer `false` are
+    // the only cells the loops above cannot defend, because the schema NORMALIZES a
+    // portfolio-level assetId rather than refusing it, so a fixture carrying one parses.
     for (const type of everyType) {
       const parsed = transactionSchema('uk').safeParse({
         ...base,
@@ -564,10 +537,10 @@ describe('D129 — the asset is required only on the types that target one', () 
 });
 
 describe('a value that cannot be READ is a different failure from one that is not positive', () => {
-  // The bug: every non-empty failure was reported as a sign problem, so a pasted
-  // `16,5` under English — positive, and refused only because English has no
-  // lone-comma decimal (D87) — was answered with "has to be a positive number".
-  // The schemas already part the two; nothing had read the difference.
+  // Every non-empty failure used to be reported as a sign problem, so a pasted `16,5`
+  // under English — positive, and refused only because English has no lone-comma
+  // decimal — was answered with "has to be a positive number". The schemas already part
+  // the two; nothing had read the difference. *Language, numbers, fonts*
   const unreadable = (r: { success: boolean; error?: { issues: { code: string }[] } }) =>
     !r.success && couldNotRead(r.error?.issues ?? []);
 
@@ -579,9 +552,9 @@ describe('a value that cannot be READ is a different failure from one that is no
   });
 
   it('refuses what only `Number()` would call a number', () => {
-    // A spreadsheet cell pasted into an amount: `Number('1.2E+09')` is 1.2
-    // billion, and the schema recorded it with no error while the field showing
-    // it refused to canonicalise the same text — two readers of one string.
+    // A spreadsheet cell pasted into an amount: `Number('1.2E+09')` is 1.2 billion, and
+    // the schema recorded it while the field showing it refused to canonicalise the same
+    // text — two readers of one string.
     for (const text of ['1.2E+09', '1e3', '0x10', '0b101', '0o17', 'Infinity']) {
       expect(amountInputSchema('en').safeParse(text).success, text).toBe(false);
       expect(unreadable(amountInputSchema('en').safeParse(text)), text).toBe(true);
@@ -591,8 +564,8 @@ describe('a value that cannot be READ is a different failure from one that is no
   });
 
   it('says too_small for a number that is merely not positive', () => {
-    // POSITIVELY, not just "and not invalid_type": a third code would otherwise
-    // leave this green while the UI's last arm quietly became a catch-all again.
+    // POSITIVELY, not just "and not invalid_type": a third code would otherwise leave this
+    // green while the UI's last arm quietly became a catch-all again.
     const codes = (text: string) => {
       const parsed = amountInputSchema('en').safeParse(text);
       return parsed.success ? ['ok'] : parsed.error.issues.map((i) => i.code);
@@ -600,8 +573,8 @@ describe('a value that cannot be READ is a different failure from one that is no
     for (const text of ['0', '-5', '-0.01']) {
       expect(codes(text), `en: ${text}`).toEqual(['too_small']);
     }
-    // And an empty field is `too_small` too — from the string's own `min(1)` —
-    // which is why the component keeps splitting that case on the value itself.
+    // An empty field is `too_small` too — from the string's own `min(1)` — which is why
+    // the component keeps splitting that case on the value itself.
     expect(codes('')).toEqual(['too_small']);
   });
 
@@ -646,8 +619,8 @@ describe('the withholding and the note at the form door', () => {
   });
 
   it('refuses one that reaches its own amount, and one above it', () => {
-    // `transaction_tax_bound_ck` is `tax_withheld < amount`, STRICTLY — a
-    // withholding that is the whole payout leaves nothing received.
+    // `transaction_tax_bound_ck` is `tax_withheld < amount`, STRICTLY — a withholding
+    // that is the whole payout leaves nothing received.
     for (const value of ['100', '120,00']) {
       const bad = transactionSchema('uk').safeParse({ ...base, taxWithheld: value });
       expect(bad.success, value).toBe(false);
@@ -658,12 +631,10 @@ describe('the withholding and the note at the form door', () => {
 
   it('refuses one on every type that takes none, and accepts it on the two that do', () => {
     // `transaction_tax_absent_ck`. It REFUSES rather than normalizing, which is
-    // `quantity`'s precedent and not `assetId`'s: the panel clears the value on
-    // a type change, so the refusal never fires at a control nobody can see.
-    // Every type is PARSED and its outcome asserted, rather than the six being
-    // selected out of eight: a `continue` turns a wrong row of `CARRIES` from a
-    // failing assertion into a missing one, which is the shape of the literal
-    // list this replaced.
+    // `quantity`'s precedent and not `assetId`'s: the panel clears the value on a type
+    // change, so the refusal never fires at a control nobody can see. Every type is PARSED
+    // and its outcome asserted rather than six selected out of eight — a `continue` turns
+    // a wrong row of `CARRIES` from a failing assertion into a missing one.
     for (const type of everyType) {
       const parsed = transactionSchema('uk').safeParse({
         ...base,
@@ -728,10 +699,10 @@ describe('the withholding and the note at the form door', () => {
   });
 
   it('counts the cap in CHARACTERS, the way the store counts it', () => {
-    // `String.length` counts UTF-16 units, so a hundred astral characters
-    // measure 200 there and 100 to `transaction_note_ck`. Counting code points
-    // makes the word "characters" true of every door rather than of two — and
-    // keeps the form from refusing a note the store would have taken.
+    // `String.length` counts UTF-16 units, so a hundred astral characters measure 200
+    // there and 100 to `transaction_note_ck`. Counting code points makes the word
+    // "characters" true of every door, and keeps the form from refusing a note the store
+    // would have taken.
     const astral = '😀'.repeat(100);
     expect(astral.length).toBe(200);
     expect([...astral]).toHaveLength(100);
@@ -742,9 +713,8 @@ describe('the withholding and the note at the form door', () => {
   });
 
   it('stores an empty note as ABSENT, never as an empty string', () => {
-    // `transaction_note_ck` spells "none" as NULL and nothing else, so a blank
-    // field must not reach the store as ''. Trimmed, too: a note of spaces is
-    // a note nobody typed.
+    // `transaction_note_ck` spells "none" as NULL and nothing else, so a blank field must
+    // not reach the store as ''. Trimmed, too: a note of spaces is a note nobody typed.
     for (const note of [undefined, '', '   ']) {
       const parsed = transactionSchema('uk').parse({ ...base, note });
       expect(parsed.note, String(note)).toBeUndefined();

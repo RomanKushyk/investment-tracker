@@ -80,8 +80,8 @@ describe('quote-missing', () => {
     ]);
   });
 
-  // The plan's explicit Verify item: an asset with no quote key is PENDING, not
-  // 0 (D5#1) — so a partial day is still an unfinished ritual.
+  // The plan's explicit Verify item: an asset with no quote key is PENDING, not 0 —
+  // so a partial day is still an unfinished ritual.
   it('fires on a PARTIAL snapshot missing some assets', () => {
     const assets = [fund(), fund({ id: 'energy', name: 'Inzhur Energy', code: 'EN' })];
     const partial = [snapshot(TODAY, { reit: 68702.1 })];
@@ -133,8 +133,8 @@ describe('coupon lead-day boundaries', () => {
     expect(computeReminders([bond({ nextCoupon: '2026-08-12' })], quoted, [], TODAY)).toEqual([]);
   });
 
-  // The S8 field re-windows the banners immediately (no reload) — the seed's
-  // real 25.08 coupon is 21 days out, so it appears only from leadDays 21 on.
+  // The S8 field re-windows the banners immediately (no reload) — the seed’s real
+  // 25.08 coupon is 21 days out, so it appears only from leadDays 21 on.
   it('re-windows with a wider lead time', () => {
     expect(computeReminders([bond()], quoted, [], TODAY, { leadDays: 20 })).toEqual([]);
     expect(computeReminders([bond()], quoted, [], TODAY, { leadDays: 21 })).toHaveLength(1);
@@ -202,9 +202,9 @@ describe('coupon dedupe against recorded payouts (S5 rule, ±7 days)', () => {
     expect(computeReminders([asset], quoted, other, TODAY)).toHaveLength(1);
   });
 
-  // Regression: the dedupe used to read `asset.nextCoupon` alone, and that field
-  // only moves through the S5 confirm — so a coupon recorded by hand (or skipped)
-  // silenced every LATER occurrence of that bond too, forever.
+  // The dedupe used to read `asset.nextCoupon` alone, and that field only moves
+  // through the S5 confirm — so a coupon recorded by hand silenced every LATER
+  // occurrence of that bond too, forever.
   it('announces the next occurrence once the pointer one is settled', () => {
     const asset = bond({ nextCoupon: '2026-07-25' }); // recorded by hand on the day
     const recorded = [payout({ date: '2026-07-25' })];
@@ -313,7 +313,7 @@ describe('dismissal filtering', () => {
     expect(computeReminders(assets, [], [], '2026-08-05', { dismissed })).toHaveLength(1);
   });
 
-  it('lets an S5 card skip silence its own overdue banner (D21 shared id)', () => {
+  it('lets an S5 card skip silence its own overdue banner (shared id)', () => {
     const assets = [bond({ nextCoupon: '2026-07-25' })];
     const skipped = [couponReminderId('ovdp8976', '2026-07-25')];
     expect(computeReminders(assets, quoted, [], TODAY, { dismissed: skipped })).toEqual([]);
@@ -337,8 +337,8 @@ describe('dismissal filtering', () => {
 });
 
 describe('derived-id stability', () => {
-  // The dismissal contract: the SAME occurrence keeps its id on every later
-  // day (so a dismissal holds), and only the day count moves.
+  // The dismissal contract: the SAME occurrence keeps its id on every later day, so
+  // a dismissal holds and only the day count moves.
   it('keeps a coupon id stable across days while the occurrence stands', () => {
     const asset = bond({ nextCoupon: '2026-08-06' });
     const quotedOn = (d: string) => [snapshot(d, { ovdp8976: 15846.3 })];
@@ -386,9 +386,9 @@ describe('ordering', () => {
 });
 
 describe('the demo seed on 04.08.2026', () => {
-  // navigation-map checkpoint: the seed's newest snapshot is the partial 27.07,
-  // so today has none → exactly one warn banner; both coupons (25.08 / 03.12)
-  // and both maturities (25.02.2027 / 27.05.2027) are far outside their windows.
+  // navigation-map checkpoint: the seed's newest snapshot is the partial 27.07, so
+  // today has none → one warn banner; both coupons and both maturities are outside
+  // their windows.
   it('produces exactly the quote-missing banner', () => {
     const assets = [
       fund(),

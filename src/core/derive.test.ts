@@ -115,11 +115,9 @@ describe('yield (reference teaser strip + Yield table)', () => {
   });
 
   it('annualized uses the GLOBAL portfolio start (03.02 → 27.07 = 174 days) for every asset', () => {
-    // The `expect(PORTFOLIO_START).toBe('2026-02-03')` that stood here was a
-    // literal asserting a literal, and A24 deleted the literal. That the SEED
-    // derives that same date — the assertion that actually protects the 174
-    // below — lives in `lib/seed.test.ts`, because core may not import the seed
-    // (G1) and the claim is about the seed's rows, not about core.
+    // That the SEED derives the same start date — the assertion that actually protects
+    // the 174 below — lives in `lib/seed.test.ts`, because core may not import the seed
+    // and the claim is about the seed's rows, not about core. *Core is pure*
     expect(annualizedPct(68702.1, 65800, 174)).toBeCloseTo(0.093, 3); // REIT +9.3%
     expect(annualizedPct(60086.09, 59208, 174)).toBeCloseTo(0.031, 3); // Energy +3.1%
     expect(annualizedPct(15846.3, 15390, 174)).toBeCloseTo(0.062, 3); // …8976 +6.2%
@@ -137,7 +135,7 @@ describe('allocation & rebalance', () => {
     expect(trimAmount(sharePct(68702.1, 149016.36), 40, 149016.36)).toBeCloseTo(9095.56, 0);
   });
 
-  it('top-up compounds the total: …8976 → ₴11,429 (reference prints 11,413 — D5#4)', () => {
+  it('top-up compounds the total: …8976 → ₴11,429 (reference prints 11,413)', () => {
     expect(topUpAmount(15846.3, 17, 149016.36)).toBeCloseTo(11429.49, 0);
   });
 });
@@ -195,8 +193,7 @@ const tx = (
 ): Transaction => ({ id, date, type, assetId, amount, source: 'own' });
 
 describe('§2.1 metric family: capital gain vs total return', () => {
-  // The user's real …6475 position (plan's illusion-of-loss fixture):
-  // invested own 4 496,40, value 4 379,52, coupons received 355,40, taxes 0.
+  // The user's real …6475 position, the plan's illusion-of-loss fixture.
   it('illusion of loss: capitalGain −₴116,88 but totalNetProfit +₴238,52', () => {
     expect(capitalGain(4379.52, 4496.4, 0)).toBeCloseTo(-116.88, 2);
     expect(totalNetProfit(4379.52, 355.4, 0, 4496.4, 0)).toBeCloseTo(238.52, 2);
@@ -228,17 +225,17 @@ describe('§2.1 metric family: capital gain vs total return', () => {
   });
 
   it('a withholding with no payout under it is unrepresentable', () => {
-    // A `tax` row could stand alone and drive an asset's net payouts NEGATIVE
-    // — `{ a9: -10 }` with no gross above it. A field cannot exist without the
-    // row it sits on, so the shape stops existing rather than being handled.
+    // A `tax` row could stand alone and drive an asset's net payouts NEGATIVE — `{ a9:
+    // -10 }` with no gross above it. A field cannot exist without the row it sits on,
+    // so the shape stops existing rather than being handled.
     const rows = [{ ...tx('p', 'interest_payout', 10, 'a9'), taxWithheld: 4 }];
     expect(payoutsGrossByAsset(rows)).toEqual({ a9: 10 });
     expect(payoutsNetByAsset(rows)).toEqual({ a9: 6 });
   });
 
   it('incomeReceivedNet nets EVERY figure; the gross variant beside it does not', () => {
-    // It used to report the two categories gross with only `total` net, because
-    // a `tax` row knew its asset and not its category. Both are net now.
+    // It used to report the two categories gross with only `total` net, because a `tax`
+    // row knew its asset and not its category. Both are net now.
     const rows = [
       { ...tx('d', 'dividend_accrual', 467.46), taxWithheld: 65.44 },
       tx('c', 'interest_payout', 100),
@@ -286,9 +283,8 @@ describe('§1 free cash from ledger (pinned v1 formulation)', () => {
   });
 
   it('a withholding rides its payout, and the payout is excluded', () => {
-    // While the payout exclusion stands, nothing about the withholding reaches
-    // this sum — there is no separate row to skip any more. The clause it will
-    // need lives in `freeCashFromLedger`'s own comment, dated to the migration.
+    // While the payout exclusion stands, nothing about the withholding reaches this sum
+    // — there is no separate row to skip any more.
     const base = [tx('d', 'deposit', 100, '')];
     const taxed = { ...tx('p', 'interest_payout', 50, ''), taxWithheld: 12 };
     expect(freeCashFromLedger([...base, taxed])).toBe(100);
@@ -326,7 +322,7 @@ describe('netResult with closed positions (sold term)', () => {
   const withoutRedeemed = (v: Record<string, number>) =>
     Object.fromEntries(Object.entries(v).filter(([id]) => id !== 'ovdp8976'));
 
-  it('is unchanged when nothing was ever sold — the D5-pinned figure', () => {
+  it('is unchanged when nothing was ever sold — the seed-pinned figure', () => {
     expect(netResult(values, invested).uah).toBeCloseTo(4452.61, 2);
     expect(netResult(values, invested, 0).uah).toBeCloseTo(4452.61, 2);
   });
@@ -335,8 +331,7 @@ describe('netResult with closed positions (sold term)', () => {
     const rest = withoutRedeemed(values);
     // Without the sold term this reads as a total loss of the position.
     expect(netResult(rest, invested).uah).toBeCloseTo(-11393.69, 2);
-    // With the proceeds counted, only the real capital difference remains:
-    // 15 390,00 invested returned at 15 390,00 → the other assets' gain stands.
+    // With the proceeds counted, only the real capital difference remains.
     expect(netResult(rest, invested, 15390).uah).toBeCloseTo(3996.31, 2);
   });
 
@@ -348,8 +343,6 @@ describe('netResult with closed positions (sold term)', () => {
   });
 });
 
-// A24 — the portfolio start is derived, not declared. Written before the
-// implementation: every case below failed until `portfolioStart` existed.
 describe('portfolioStart', () => {
   const asset = (id: string, firstPurchase: string): Asset => ({
     id,
@@ -387,9 +380,9 @@ describe('portfolioStart', () => {
   });
 
   it('trusts a firstPurchase that predates the whole ledger', () => {
-    // The case the min() exists for: an asset added without back-filling. The
-    // ledger says six months; the user says six years. Believing the ledger
-    // would divide a six-year return by six months and print a fantasy.
+    // The case the min() exists for: an asset added without back-filling. The ledger
+    // says six months; the user says six years. Believing the ledger would divide a
+    // six-year return by six months and print a fantasy.
     expect(
       portfolioStart([asset('a', '2020-01-01')], [snap('2026-02-03')], [tx('2026-02-03')]),
     ).toBe('2020-01-01');
@@ -406,7 +399,6 @@ describe('portfolioStart', () => {
   });
 });
 
-// A25 — the portfolio's money-weighted rate. Written before the implementation.
 describe('portfolioXirr', () => {
   let n = 0;
   const tx = (
@@ -417,8 +409,8 @@ describe('portfolioXirr', () => {
   ): Transaction => ({ id: `t${(n += 1)}`, date, type, amount, assetId, source: 'own' });
 
   it('solves a plain one-year 10%', () => {
-    // 100 in, 110 out, 365 days apart. If this ever stops being 0.1 the day
-    // count changed, not the portfolio.
+    // 100 in, 110 out, 365 days apart. If this ever stops being 0.1 the day count
+    // changed, not the portfolio.
     expect(portfolioXirr([tx('2026-01-01', 'deposit', 100)], 110, '2027-01-01')).toBeCloseTo(
       0.1,
       6,
@@ -426,10 +418,10 @@ describe('portfolioXirr', () => {
   });
 
   it('measures EXTERNAL capital only — internal flows never move it', () => {
-    // The assertion that pins the definition. Buys, sells, reinvests and
-    // payouts move money inside the portfolio's boundary; only deposits and
-    // withdrawals cross it. Whatever the assets did is already in the terminal
-    // value, so counting those rows again would double-count them.
+    // The assertion that pins the definition. Buys, sells, reinvests and payouts move
+    // money inside the portfolio's boundary; only deposits and withdrawals cross it.
+    // Whatever the assets did is already in the terminal value, so counting those rows
+    // again would double-count them.
     const external = [tx('2026-01-01', 'deposit', 100)];
     const alsoInternal = [
       ...external,
@@ -446,8 +438,8 @@ describe('portfolioXirr', () => {
   });
 
   it('a withdrawal is an inflow to the investor, a deposit an outflow', () => {
-    // Take 50 back at six months and still hold 60: the same 100 in, so the
-    // early return has to beat the 10% of the first test.
+    // Take 50 back at six months and still hold 60: the same 100 in, so the early
+    // return has to beat the 10% of the first test.
     const rate = portfolioXirr(
       [tx('2026-01-01', 'deposit', 100), tx('2026-07-02', 'withdrawal', 50)],
       60,
@@ -463,17 +455,16 @@ describe('portfolioXirr', () => {
   });
 
   it("ignores a deposit's assetId — the form always attaches one", () => {
-    // `assetCashFlows` documents the same trap from the other side: the
-    // transaction form attaches the selected asset to every row, so a deposit
-    // carries an assetId it has no business having.
+    // `assetCashFlows` documents the same trap from the other side: the transaction
+    // form attaches the selected asset to every row, so a deposit carries an assetId it
+    // has no business having.
     expect(
       portfolioXirr([tx('2026-01-01', 'deposit', 100, 'reit')], 110, '2027-01-01'),
     ).toBeCloseTo(0.1, 6);
   });
 });
 
-// A27 — the bounded twins of the headline accessors (Phase 8 brief § G-5).
-// Written before the implementation.
+// The bounded twins of the headline accessors (Phase 8 brief § G-5).
 describe('windowed accessors', () => {
   const tx = (date: string, amount: number): Transaction => ({
     id: date,
@@ -485,10 +476,9 @@ describe('windowed accessors', () => {
   });
 
   it('quotesAsOf merges only the snapshots up to and including the date', () => {
-    // The partial 27.07 carries REIT alone. Bounded at 25.07 it must not be
-    // seen at all — the merge is what makes this subtle, since a bound that
-    // leaked would show 68 702,10 with the other three assets from 25.07 and
-    // look entirely plausible.
+    // The partial 27.07 carries REIT alone. Bounded at 25.07 it must not be seen at all
+    // — the merge is what makes this subtle, since a bound that leaked would show the
+    // other three assets from 25.07 and look entirely plausible.
     expect(quotesAsOf(snaps, '2026-07-25')).toEqual({
       reit: 68629.36,
       energy: 60086.09,
@@ -505,8 +495,8 @@ describe('windowed accessors', () => {
   });
 
   it('the unbounded accessors are the same function with no bound', () => {
-    // One implementation of the merge, two names. A second copy of this
-    // arithmetic would be a second answer.
+    // One implementation of the merge, two names. A second copy of this arithmetic
+    // would be a second answer.
     expect(quotesAsOf(snaps)).toEqual(latestQuotes(snaps));
     expect(cashAsOf(snaps)).toBe(latestCash(snaps));
     expect(headlineTotalAsOf(snaps)).toBeCloseTo(headlineTotal(snaps), 10);
@@ -527,8 +517,8 @@ describe('windowed accessors', () => {
   });
 
   it('transactionsIn is INCLUSIVE at both ends, and that is the whole point of it existing', () => {
-    // G-5: three screens each writing their own boundary test is three chances
-    // to disagree about whether the opening day counts. It does, at both ends.
+    // G-5: three screens each writing their own boundary test is three chances to
+    // disagree about whether the opening day counts. It does, at both ends.
     const txs = [tx('2026-02-03', 1), tx('2026-04-27', 2), tx('2026-07-27', 3)];
     const w = { from: '2026-02-03', to: '2026-07-27', clamped: false };
     expect(transactionsIn(txs, w).map((t) => t.amount)).toEqual([1, 2, 3]);
@@ -548,8 +538,8 @@ describe('windowed accessors', () => {
 });
 
 describe('startDateByAsset', () => {
-  // Self-contained rather than seeded: this is a core test and the only fields
-  // it exercises are `id` and `firstPurchase`.
+  // Self-contained rather than seeded: this is a core test and the only fields it
+  // exercises are `id` and `firstPurchase`.
   const a = (over: Partial<Asset>): Asset =>
     ({
       id: 'x',
@@ -570,8 +560,8 @@ describe('startDateByAsset', () => {
       { id: 't1', date: '2026-03-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
       { id: 't2', date: '2026-06-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
     ] as Transaction[];
-    // A row earlier than the attribute wins — the same min direction
-    // `portfolioStart` uses, and the reason this is derived rather than read.
+    // A row earlier than the attribute wins — the same min direction `portfolioStart`
+    // uses, and the reason this is derived rather than read.
     expect(startDateByAsset([asset], txs)['x']).toBe('2026-03-02');
   });
 
@@ -599,7 +589,7 @@ describe('startDateByAsset', () => {
   });
 });
 
-describe('basisIsShort — F-3/D80, and the threshold the sheet delegated', () => {
+describe('basisIsShort — F-3, and the threshold the sheet delegated', () => {
   it('tolerates a tenth of the basis and no more', () => {
     expect(basisIsShort(90, 100)).toBe(false); // exactly the tolerance
     expect(basisIsShort(89, 100)).toBe(true);
@@ -612,10 +602,10 @@ describe('basisIsShort — F-3/D80, and the threshold the sheet delegated', () =
   });
 
   it('MARKS the maximally short holding rather than exempting it', () => {
-    // Bought on the window's last day: 0 of 30, one day of return scaled by
-    // 12.17. A `heldDays <= 0` guard made this the one row that could never be
-    // marked — the opposite of the rule (A41 review). Negative is the same
-    // case: `yield.ts` counts a buy dated after the last snapshot.
+    // Bought on the window's last day: one day of return scaled up. A `heldDays <= 0`
+    // guard made this the one row that could never be marked — the opposite of the
+    // rule. Negative is the same case: `yield.ts` counts a buy dated after the last
+    // snapshot.
     expect(basisIsShort(0, 30)).toBe(true);
     expect(basisIsShort(-3, 30)).toBe(true);
   });
@@ -641,9 +631,9 @@ describe('unitDelta — the sign rule units depend on', () => {
     expect(unitDelta(tx({ type: 'buy', quantity: 10 }))).toBe(10);
     expect(unitDelta(tx({ type: 'reinvest', quantity: 10 }))).toBe(10);
     expect(unitDelta(tx({ type: 'sell', quantity: 10 }))).toBe(-10);
-    // `redemption` is the bond's principal coming back at maturity — the
-    // position closes, so it removes. Getting this sign wrong would make a
-    // matured bond count double.
+    // `redemption` is the bond's principal coming back at maturity — the position
+    // closes, so it removes. Getting this sign wrong would make a matured bond count
+    // double.
     expect(unitDelta(tx({ type: 'redemption', quantity: 10 }))).toBe(-10);
   });
 
@@ -654,9 +644,9 @@ describe('unitDelta — the sign rule units depend on', () => {
 });
 
 describe('the withholding is a field on the payout it was taken from', () => {
-  // The audit's own fixture, re-shaped: 467,46 gross and 65,44 withheld used to
-  // be two rows and are now two columns of one. The FIGURES do not move — that
-  // is the point of re-using them — only where they are read from.
+  // The audit's own fixture, re-shaped: gross and withheld used to be two rows and
+  // are now two columns of one. The FIGURES do not move — that is the point of
+  // re-using them — only where they are read from.
   const payout = (
     id: string,
     type: 'dividend_accrual' | 'interest_payout',
@@ -702,9 +692,9 @@ describe('the withholding is a field on the payout it was taken from', () => {
   });
 
   it('incomeReceivedNet splits the withholding by CATEGORY, exactly', () => {
-    // The old comment called this guesswork, and it was: a `tax` row carried an
-    // asset and not which payout it taxed, so dividends and coupons could only
-    // be reported gross with one net total beneath them. The field knows.
+    // A `tax` row carried an asset and not which payout it taxed, so dividends and
+    // coupons could only be reported gross with one net total beneath them. The field
+    // knows which payout it came from.
     const rows = [
       payout('d', 'dividend_accrual', 467.46, 65.44),
       payout('c', 'interest_payout', 100, 18),
@@ -722,11 +712,11 @@ describe('the withholding is a field on the payout it was taken from', () => {
 
 describe('the withholding totals do not trust a CHECK core cannot reach', () => {
   // A DDL CHECK is not reachable from `core/`, which is why `POSITION_MOVING` is
-  // mirrored here rather than cited. An ungated sum would let a row the store
-  // forbids — hand-edited into a backup, or written by a door that forgets —
-  // count in the portfolio total while filing itself under the EMPTY key, read
-  // by no per-asset consumer. That is the failure the widened CHECK exists to
-  // prevent, arriving through the one place the CHECK cannot see.
+  // mirrored here rather than cited. An ungated sum would let a row the store forbids
+  // — hand-edited into a backup, or written by a door that forgets — count in the
+  // portfolio total while filing itself under the EMPTY key, read by no per-asset
+  // consumer. That is the failure the widened CHECK exists to prevent, arriving
+  // through the one place the CHECK cannot see.
   const rogue: Transaction = {
     id: 'r',
     date: '2026-03-01',
@@ -741,9 +731,9 @@ describe('the withholding totals do not trust a CHECK core cannot reach', () => 
     expect(taxesPaid([rogue])).toBe(0);
     expect(taxesPaidByAsset([rogue])).toEqual({});
     expect(payoutsNetByAsset([rogue])).toEqual({});
-    // The THIRD gate, on the same fixture: three functions read this field and
-    // they have to agree about which rows carry it, or the portfolio total and
-    // the per-category split drift apart on a row neither should have counted.
+    // The THIRD gate, on the same fixture: three functions read this field and they
+    // have to agree about which rows carry it, or the portfolio total and the
+    // per-category split drift apart on a row neither should have counted.
     expect(incomeReceivedNet([rogue])).toEqual({
       dividends: 0,
       coupons: 0,

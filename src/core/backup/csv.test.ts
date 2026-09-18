@@ -41,8 +41,8 @@ const ENERGY: Asset = {
 
 const ASSETS = [REIT, ENERGY];
 
-// The 25.07 complete day + the PARTIAL 27.07 one (D5#1: Energy is pending
-// there, and pending is never zero).
+// The 25.07 complete day + the PARTIAL 27.07 one, where Energy is pending and
+// pending is never zero.
 const SNAPSHOTS: Snapshot[] = [
   { date: '2026-07-25', quotes: { reit: 68629.36, energy: 60086.09 }, cash: 7.75 },
   { date: '2026-07-27', quotes: { reit: 68702.1 }, cash: 7.75, savedAt: '2026-07-27T21:14:00' },
@@ -182,20 +182,19 @@ describe('column orders (pinned contract)', () => {
       '',
       '',
       '',
-      // `couponRatePct`, APPENDED after `inzhurUnits` (D119) — the legacy
-      // `couponAmount` column keeps its place further up so an existing
-      // spreadsheet's formulas hold.
+      // `couponRatePct`, APPENDED after `inzhurUnits` — the legacy `couponAmount` column
+      // keeps its place further up so an existing spreadsheet's formulas hold.
       '',
     ]);
   });
 
-  it('carries the coupon RATE, appended after the legacy columns (D119)', () => {
+  it('carries the coupon RATE, appended after the legacy columns', () => {
     const [, row] = readCsv(
       serializeAssetsCsv([{ ...ASSETS[0], yieldType: 'fixed_coupon', couponRatePct: 15.68 }]),
     );
     expect(row.at(-1)).toBe('15.68');
-    // `plain`, not `money`: a rate is a percentage, and padding 15.68 to two
-    // decimals is right by luck here and wrong for 16.
+    // `plain`, not `money`: a rate is a percentage, and padding 15.68 to two decimals
+    // is right by luck here and wrong for 16.
     expect(readCsv(serializeAssetsCsv([{ ...ASSETS[0], couponRatePct: 16 }]))[1].at(-1)).toBe('16');
   });
 
@@ -210,8 +209,8 @@ describe('column orders (pinned contract)', () => {
     };
     const rows = readCsv(serializeTransactionsCsv([tx]));
     expect(rows[0]).toEqual([...TRANSACTION_CSV_COLUMNS]);
-    // A deposit moves no position, so both #31 columns are EMPTY — never 0,
-    // which would read as "zero units bought" rather than "not applicable".
+    // A deposit moves no position, so both #31 columns are EMPTY — never 0, which
+    // would read as "zero units bought" rather than "not applicable".
     expect(rows[1]).toEqual([
       'tx-0001',
       '2026-02-03',
@@ -239,8 +238,8 @@ describe('column orders (pinned contract)', () => {
     };
     const [, row] = readCsv(serializeTransactionsCsv([tx]));
     // `money()` on the amount, `plain()` on both counts: a reinvestment buys a
-    // fractional number of units, and padding that to two decimals in the one
-    // column whose purpose is exactness is how a unit total drifts.
+    // fractional number of units, and padding that in the one column whose purpose is
+    // exactness is how a unit total drifts.
     expect(row).toEqual([
       'tx-0002',
       '2026-08-10',
@@ -283,9 +282,9 @@ describe('empty cell = pending, never 0', () => {
 
 describe('the withholding and the note ride the export, APPENDED', () => {
   it('names both columns last, after the two #31 ones', () => {
-    // A column order is what a spreadsheet someone already built formulas
-    // against depends on, and there is no CSV importer to keep in step — so
-    // these are appended and never inserted, exactly as `quantity` was.
+    // A column order is what a spreadsheet someone already built formulas against
+    // depends on, and there is no CSV importer to keep in step — so these are appended
+    // and never inserted, exactly as `quantity` was.
     expect([...TRANSACTION_CSV_COLUMNS]).toEqual([
       'id',
       'date',
@@ -323,9 +322,8 @@ describe('the withholding and the note ride the export, APPENDED', () => {
     ];
     const [, taxed, plainRow] = readCsv(serializeTransactionsCsv(rows));
     expect(taxed.slice(-2)).toEqual(['65.44', 'Звірено з випискою']);
-    // Empty, never 0 and never the word "none" — the same rule the two #31
-    // columns take, for the same reason: a zero here would read as a
-    // withholding of nothing rather than as no withholding.
+    // Empty, never 0 and never the word "none" — the same rule the two #31 columns
+    // take: a zero here would read as a withholding of nothing rather than as none.
     expect(plainRow.slice(-2)).toEqual(['', '']);
   });
 

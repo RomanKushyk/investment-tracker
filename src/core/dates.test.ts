@@ -62,7 +62,7 @@ describe('addMonths', () => {
     expect(addMonths('2026-12-03', 1)).toBe('2027-01-03');
   });
 
-  it("clamps to the target month's last day instead of overflowing (G1)", () => {
+  it("clamps to the target month's last day instead of overflowing", () => {
     expect(addMonths('2026-08-31', 6)).toBe('2027-02-28');
     expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
     expect(addMonths('2024-01-31', 1)).toBe('2024-02-29'); // leap year keeps the 29th
@@ -131,7 +131,7 @@ describe('msUntilNextKyivHour (the Inzhur ~13:00 staleTime)', () => {
   });
 });
 
-describe('dayBefore (A39 — a window opens the day after its opening position)', () => {
+describe('dayBefore (a window opens the day after its opening position)', () => {
   it('steps back one day, across months and years', () => {
     expect(dayBefore('2026-07-27')).toBe('2026-07-26');
     expect(dayBefore('2026-03-01')).toBe('2026-02-28');

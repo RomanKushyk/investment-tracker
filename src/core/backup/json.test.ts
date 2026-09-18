@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { Asset, Snapshot, Transaction, TxType } from '../types';
 import { buildBackup, parseBackup, type BackupEnvelope } from './json';
 
-// Minimal hand-built portfolio (the full 4/174/18 seed round-trip lives in
-// src/lib/seed.test.ts — core tests must not import src/lib, G1).
+// Minimal hand-built portfolio; the full seed round-trip lives in
+// src/lib/seed.test.ts — core tests must not import src/lib. *Core is pure*
 const ASSETS: Asset[] = [
   {
     id: 'reit',
@@ -61,9 +61,8 @@ const TRANSACTIONS: Transaction[] = [
     type: 'buy',
     assetId: 'reit',
     amount: 64628.62,
-    // D125 requires a count on a position-moving row at this door too. No
-    // `unitPrice`: that one keeps only the one-way rule, since it is derivable
-    // from `amount / quantity`.
+    // A count is required on a position-moving row at this door too. No `unitPrice`:
+    // that one keeps only the one-way rule, being derivable from `amount / quantity`.
     quantity: 6164,
     source: 'own',
   },
@@ -102,8 +101,8 @@ describe('buildBackup', () => {
   });
 
   it('normalizes full-ISO datetimes to the timezone-less convention', () => {
-    // v1 buildNewAsset stamps toISOString() ('Z' + millis) — the app's own
-    // backup must still validate.
+    // v1 buildNewAsset stamps toISOString() ('Z' + millis) — the app's own backup
+    // must still validate.
     const created: Asset = {
       ...ASSETS[0],
       id: 'x',
@@ -149,12 +148,12 @@ describe('parseBackup round-trip', () => {
     expect(result.data.settings).toEqual(SETTINGS);
   });
 
-  it('round-trips units and the per-unit price; a NON-MOVING row still takes neither (#31, D125)', () => {
-    // THE BREAK THIS GUARDS: `buildBackup` passes transactions through
-    // unchanged and the row schema is a `strictObject`, so before `quantity`
-    // and `unitPrice` were declared the app could write a backup its own
-    // parser refused. A round trip is the only test that catches that — a
-    // serializer test alone stays green while the reader rejects the file.
+  it('round-trips units and the per-unit price; a NON-MOVING row still takes neither (#31)', () => {
+    // THE BREAK THIS GUARDS: `buildBackup` passes transactions through unchanged and
+    // the row schema is a `strictObject`, so before `quantity` and `unitPrice` were
+    // declared the app could write a backup its own parser refused. A round trip is the
+    // only test that catches that — a serializer test alone stays green while the
+    // reader rejects the file.
     const withUnits: Transaction = {
       id: 'tx-units',
       date: '2026-08-10',
@@ -168,9 +167,8 @@ describe('parseBackup round-trip', () => {
     const env = buildBackup(
       ASSETS,
       SNAPSHOTS,
-      // Mixed on purpose: the deposit carries neither field and must stay valid
-      // — a row that moves no position never had units to state. Since D125 the
-      // MOVING rows must carry a count, so `b1` does.
+      // Mixed on purpose: the deposit carries neither field and must stay valid — a row
+      // that moves no position never had units to state. The MOVING rows must carry a count.
       [...TRANSACTIONS, withUnits],
       SETTINGS,
       'demo',
@@ -181,8 +179,8 @@ describe('parseBackup round-trip', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.data.transactions.at(-1)).toEqual(withUnits);
-    // Absent, not `undefined`: a key present with an undefined value would
-    // survive zod and then serialize back as `"quantity": null`.
+    // Absent, not `undefined`: a key present with an undefined value would survive zod
+    // and then serialize back as `"quantity": null`.
     expect(result.data.transactions[0]).not.toHaveProperty('quantity');
   });
 
@@ -256,9 +254,9 @@ describe('parseBackup rejections', () => {
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
-    // This is what the bump buys. A v5 file may carry `{ type: 'tax' }` rows,
-    // and without the version moving they would each fail the type enum — one
-    // fact reported once per row, naming the row rather than the reason.
+    // This is what the bump buys. A v5 file may carry `{ type: 'tax' }` rows, and
+    // without the version moving they would each fail the type enum — one fact reported
+    // once per row, naming the row rather than the reason.
     const result = parseBackup(
       mutated((env) => {
         env.formatVersion = 5;
@@ -302,23 +300,15 @@ describe('parseBackup rejections', () => {
   });
 
   it('CAN BUILD an envelope it cannot parse — which is why the export re-reads its own output', () => {
-    // THE HOLE D125 OPENED, pinned rather than described. `buildBackup` passes
-    // transactions through unchanged and validates nothing, so a store created
-    // before this branch — pre-#31 rows with no `quantity`, which nothing can
-    // backfill because those counts are unrecoverable — exports a
-    // `formatVersion: 5` file that passes the version gate and then fails row by
-    // row. The owner's only restore path (D12), unusable, discovered at the one
-    // moment it mattered.
-    //
-    // `useBackupDownload` closes it by parsing what it just built and refusing
-    // to offer a file that comes back rejected. This test is what makes that
-    // guard necessary rather than defensive — delete the guard and this
-    // asymmetry is what ships.
-    //
-    // The hole widened with the type retirement and the guard did not have to
-    // move: a live store holding `{ type: 'tax' }` rows exports a file this
-    // build refuses too. That store is ruled EXPENDABLE rather than migrated,
-    // which is what keeps the widening from being D126's deadlock again.
+    // THE HOLE, pinned rather than described. `buildBackup` passes transactions through
+    // unchanged and validates nothing, so a store created before this branch — pre-#31
+    // rows whose counts are unrecoverable — exports a `formatVersion: 5` file that
+    // passes the version gate and then fails row by row, leaving the only restore path
+    // unusable at the one moment it mattered. `useBackupDownload` closes it by parsing
+    // what it just built and refusing to offer a file that comes back rejected; delete
+    // that guard and this asymmetry is what ships. A live store holding a retired row
+    // shape exports a file this build refuses too, and is ruled expendable rather than
+    // migrated. *Persistence today*
     const legacy: Transaction = {
       id: 'legacy-buy',
       date: '2026-02-03',
@@ -342,11 +332,11 @@ describe('parseBackup rejections', () => {
     expect(readBack.ok).toBe(false);
   });
 
-  it('refuses a position-moving row with NO count, naming the row and the field (D125)', () => {
-    // BOTH WAYS AT THIS DOOR NOW. The form was the only one enforcing it
-    // (D124), and the form is not the app's only writer — `CouponDueCard` hands
-    // a `reinvest` straight to `recordTransaction`. A backup that accepted what
-    // the form refuses would let the gap back in through the file.
+  it('refuses a position-moving row with NO count, naming the row and the field', () => {
+    // BOTH WAYS AT THIS DOOR NOW. The form was the only one enforcing it, and the form
+    // is not the app's only writer — `CouponDueCard` hands a `reinvest` straight to
+    // `recordTransaction`. A backup that accepted what the form refuses would let the
+    // gap back in through the file.
     const result = parseBackup(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
@@ -364,12 +354,11 @@ describe('parseBackup rejections', () => {
     expect(result.issues.join(' ')).toMatch(/quantity/);
   });
 
-  it('BLANKS the asset a portfolio-level row names, on the way out of parseBackup (D129)', () => {
-    // `parseBackup` is the OTHER funnel, and it was unpinned: the rule used to
-    // live in the row schema, so both doors got it by construction; splitting it
-    // into `blankPortfolioAssetIds` made them two code paths. Verified by
-    // mutation — dropping the call from `parseBackup` left the whole suite
-    // green, and `useBackupDownload`'s export guard is its only other consumer.
+  it('BLANKS the asset a portfolio-level row names, on the way out of parseBackup', () => {
+    // `parseBackup` is the OTHER funnel, and it was unpinned: the rule used to live in
+    // the row schema, so both doors got it by construction; splitting it into
+    // `blankPortfolioAssetIds` made them two code paths. Verified by mutation —
+    // dropping the call from `parseBackup` left the whole suite green.
     const result = parseBackup(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
@@ -390,9 +379,9 @@ describe('parseBackup rejections', () => {
   });
 
   it('REPORTS a dangling id on a portfolio-level row rather than blanking it away', () => {
-    // The order the split exists to protect: `integrityIssues` first, blanking
-    // after. As a row transform the blanking ran first and this file parsed
-    // clean, losing the one signal that says an asset row went missing.
+    // The order the split exists to protect: `integrityIssues` first, blanking after.
+    // As a row transform the blanking ran first and this file parsed clean, losing the
+    // one signal that says an asset row went missing.
     const result = parseBackup(
       mutated((env) =>
         (env.transactions as Record<string, unknown>[]).push({
@@ -463,8 +452,7 @@ describe('parseBackup rejections', () => {
   });
 
   it("accepts the portfolio-level assetId '' (deposits)", () => {
-    // d1 above is a deposit with assetId '' — the round-trip already passes,
-    // so this documents the ∪ {''} rule explicitly.
+    // d1 above is a deposit with assetId '' — this documents the ∪ {''} rule explicitly.
     const result = parseBackup(JSON.stringify(envelope()));
     expect(result.ok).toBe(true);
   });
@@ -554,9 +542,8 @@ describe('parseBackup rejections', () => {
 
 describe('the import boundary enforces W7’s quantity CHECKs (#31)', () => {
   // `transactionRowsSchema.superRefine`. `transactionSchema` (the form) and
-  // `unitDelta` (the derivation) apply the same rule; a hand-edited backup is
-  // the third door, and it is the only one an attacker of the app’s own data
-  // — a text editor — can reach directly.
+  // `unitDelta` (the derivation) apply the same rule; a hand-edited backup is the
+  // third door, and the only one a text editor can reach directly.
   const rowAt = (i: number, patch: Record<string, unknown>) =>
     mutated((env) => {
       const rows = env.transactions as Record<string, unknown>[];
@@ -569,26 +556,24 @@ describe('the import boundary enforces W7’s quantity CHECKs (#31)', () => {
       const result = parseBackup(rowAt(2, { [field]: 12 }));
       expect(result.ok).toBe(false);
       if (result.ok) return;
-      // THE PATH, not the words. This layer emits paths and lets
-      // `import-labels.ts` own the sentence (D8), so asserting English here
-      // would pin the rule this module exists to keep.
+      // THE PATH, not the words: this layer emits paths and `import-labels.ts` owns the
+      // sentence, so asserting English here would pin the rule this module exists to
+      // keep. *Core is pure*
       expect(result.issues.join(' | ')).toMatch(new RegExp(`transactions[.]2[.]${field}`));
     });
   }
 
   it('accepts both on a row that does move one', () => {
-    // Index 1 is the `buy`. The rule is one-way on purpose (D112): a
-    // position-moving row MAY lack them, because every row recorded before #31
-    // does.
+    // Index 1 is the `buy`. The rule is one-way on purpose: a position-moving row MAY
+    // lack them, because every row recorded before #31 does.
     const withUnits = parseBackup(rowAt(1, { quantity: 5800, unitPrice: 11.142866 }));
     expect(withUnits.ok).toBe(true);
     expect(parseBackup(rowAt(1, {})).ok).toBe(true);
   });
 
   it('names the row and the field, not just the array', () => {
-    // The importer maps zod paths to a per-row message, so the path has to
-    // carry the index — an issue on the array alone tells the owner the whole
-    // ledger is bad and nothing more.
+    // The importer maps zod paths to a per-row message, so the path has to carry the
+    // index — an issue on the array alone tells the owner the whole ledger is bad.
     const result = parseBackup(rowAt(2, { quantity: 1 }));
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -596,7 +581,7 @@ describe('the import boundary enforces W7’s quantity CHECKs (#31)', () => {
   });
 });
 
-describe('the envelope marker (D42)', () => {
+describe('the envelope marker', () => {
   it('writes quirenote-backup on export', () => {
     expect(envelope().format).toBe('quirenote-backup');
   });
@@ -645,16 +630,15 @@ describe('the withholding and the note at the envelope door', () => {
 
   it('refuses a withholding on every type that takes none, and accepts the two that do', () => {
     // What the reader lets each type carry, written out rather than read from
-    // `isPayout` / `targetsAsset` / `movesPosition` — it asks those predicates,
-    // so a fixture that asked them too would flip with them. A
-    // `Record<TxType, …>` and not a list of six: a ninth type has no row here
-    // and the build stops before this loop under-tests it.
+    // `isPayout` / `targetsAsset` / `movesPosition` — it asks those predicates, so a
+    // fixture that asked them too would flip with them. A `Record<TxType, …>` and not a
+    // list of six: a ninth type has no row here and the build stops before this loop
+    // under-tests it.
     //
-    // ONLY THE `withholding` COLUMN IS ASSERTED — every type is parsed and its
-    // outcome compared against it, so a wrong cell there fails. The other two
-    // shape the row, and a wrong cell in them still leaves the row refused for
-    // the withholding reason this test names: `asset` and `quantity` are pinned
-    // exhaustively by `schemas.test.ts` and `import.test.ts` instead.
+    // ONLY THE `withholding` COLUMN IS ASSERTED — every type is parsed and compared
+    // against it, so a wrong cell there fails. A wrong cell in the other two still
+    // leaves the row refused for the withholding reason this test names; they are
+    // pinned exhaustively by `schemas.test.ts` and `import.test.ts` instead.
     const CARRIES: Record<TxType, { asset: boolean; quantity: boolean; withholding: boolean }> = {
       buy: { asset: true, quantity: true, withholding: false },
       sell: { asset: true, quantity: true, withholding: false },
@@ -699,10 +683,10 @@ describe('the withholding and the note at the envelope door', () => {
   });
 
   it('refuses an EMPTY note rather than normalizing it away', () => {
-    // The form is where "blank means absent" lives. By the time a row reaches
-    // this door, `''` is a file someone hand-edited into a state the store's
-    // `transaction_note_ck` would refuse — so the envelope refuses it too
-    // rather than quietly repairing a file it is meant to validate.
+    // The form is where "blank means absent" lives. By the time a row reaches this door,
+    // `''` is a file someone hand-edited into a state the store's `transaction_note_ck`
+    // would refuse — so the envelope refuses it too rather than quietly repairing a
+    // file it is meant to validate.
     const result = parseBackup(withRow(payout({ note: '' })));
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -720,11 +704,10 @@ describe('the withholding and the note at the envelope door', () => {
 });
 
 describe('the sentences `parseBackup` prints are a contract', () => {
-  // `useBackupDownload` puts `issues[0]` in front of the user when the export
-  // guard refuses a file, so these are user-visible English in a Ukrainian app —
-  // a pre-existing wart for every code, and one this branch must not WIDEN by
-  // adding rules that say only "Invalid input". Nothing pinned them, so deleting
-  // a message left every test green and the sentence gone.
+  // `useBackupDownload` puts `issues[0]` in front of the user when the export guard
+  // refuses a file, so these are user-visible English in a Ukrainian app — a
+  // pre-existing wart this branch must not WIDEN. Nothing pinned them, so deleting a
+  // message left every test green and the sentence gone.
   const rowIssue = (row: Record<string, unknown>) => {
     const result = parseBackup(
       mutated((env) => (env.transactions as Record<string, unknown>[]).push(row)),
@@ -767,9 +750,9 @@ describe('the sentences `parseBackup` prints are a contract', () => {
 
 describe('a note of whitespace is a note nobody typed', () => {
   it('refuses one, rather than storing a row that renders an empty line', () => {
-    // `.min(1)` accepts a single space and so does `transaction_note_ck`'s
-    // `length > 0`. The ledger draws a second line for any note that is not
-    // absent, so such a row would render a blank one — for nobody.
+    // `.min(1)` accepts a single space and so does `transaction_note_ck`'s `length > 0`.
+    // The ledger draws a second line for any note that is not absent, so such a row
+    // would render a blank one — for nobody.
     for (const note of [' ', '   ', '\t']) {
       const result = parseBackup(
         mutated((env) =>

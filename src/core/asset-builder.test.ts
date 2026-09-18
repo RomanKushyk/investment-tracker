@@ -112,9 +112,9 @@ describe('assetPatchFromForm (P2 edit mode)', () => {
       nextCoupon: '2026-08-25',
       inzhur: { kind: 'bond', ref: 'UA4000238976' },
     });
-    // `reinvestPolicy` was a fourth key here until D118 removed the control.
-    // It is absent from the patch NOW IN BOTH BRANCHES, which is the whole
-    // point: nothing writes the stored value, so nothing can destroy it.
+    // `reinvestPolicy` was a fourth key here until the control was removed. It is
+    // absent from the patch NOW IN BOTH BRANCHES, which is the whole point: nothing
+    // writes the stored value, so nothing can destroy it.
     expect('reinvestPolicy' in patch).toBe(false);
   });
 
@@ -130,7 +130,7 @@ describe('assetPatchFromForm (P2 edit mode)', () => {
     expect('maturity' in patch).toBe(false);
     expect('couponRatePct' in patch).toBe(false);
     expect('nextCoupon' in patch).toBe(false);
-    expect('reinvestPolicy' in patch).toBe(false); // REIT's seeded policy survives edits (D118)
+    expect('reinvestPolicy' in patch).toBe(false); // REIT's seeded policy survives edits
   });
 
   it('clears the inzhur link when the toggle is off (explicit undefined in the patch)', () => {
@@ -140,11 +140,11 @@ describe('assetPatchFromForm (P2 edit mode)', () => {
   });
 });
 
-describe('assetPatchFromForm carries a LEGACY inzhur.units across (D117)', () => {
-  // `inzhur` is patched wholesale, so dropping the Units field from the form
-  // turned every edit of a linked asset into a silent deletion of the one unit
-  // count it had — the same failure the `fixedCouponFields` comment guards
-  // against for the fixed-coupon group, arriving through a different door.
+describe('assetPatchFromForm carries a LEGACY inzhur.units across', () => {
+  // `inzhur` is patched wholesale, so dropping the Units field from the form turned
+  // every edit of a linked asset into a silent deletion of the one unit count it
+  // had — the same failure the `fixedCouponFields` comment guards against, arriving
+  // through a different door.
   const stored = (units: number | undefined): Asset => ({
     id: 'reit',
     name: 'Inzhur REIT',
@@ -173,8 +173,8 @@ describe('assetPatchFromForm carries a LEGACY inzhur.units across (D117)', () =>
   });
 
   it('DROPS it when the link is re-pointed at another instrument', () => {
-    // A count was counted for one instrument. Carrying it to another would
-    // value the new holding at the old one's size — a bigger version of #31.
+    // A count was counted for one instrument. Carrying it to another would value the
+    // new holding at the old one's size — a bigger version of #31.
     const patch = assetPatchFromForm(
       { ...formValues, inzhur: { kind: 'bond', ref: 'UA4000236475' } },
       stored(15),
@@ -183,15 +183,13 @@ describe('assetPatchFromForm carries a LEGACY inzhur.units across (D117)', () =>
   });
 
   it('KEEPS it when only the kind changes on the same ref string', () => {
-    // REVERSED, and the old assertion pinned a real bug. A count was counted for
-    // an INSTRUMENT; the kind is metadata about where to look it up. A `dev`-era
-    // asset could store a kind that disagrees with its yield type — the retired
-    // segment was a free choice — and the ONLY control that can repair it is
-    // re-picking the same instrument, which writes the derived kind alongside the
-    // ref. Dropping the count there read a repair as a re-point and deleted the
-    // one number the asset had, which is precisely the loss that made
-    // mount-clearing unacceptable. The namespaces cannot collide: an ISIN is
-    // twelve upper-case alphanumerics, a slug is lower-case kebab.
+    // REVERSED, and the old assertion pinned a real bug. A count was counted for an
+    // INSTRUMENT; the kind is metadata about where to look it up. An asset can store a
+    // kind that disagrees with its yield type, and the ONLY control that repairs it is
+    // re-picking the same instrument, which writes the derived kind alongside the ref.
+    // Dropping the count there read a repair as a re-point and deleted the one number
+    // the asset had. The namespaces cannot collide: an ISIN is twelve upper-case
+    // alphanumerics, a slug is lower-case kebab.
     const patch = assetPatchFromForm(
       { ...formValues, inzhur: { kind: 'fund', ref: 'UA4000238976' } },
       stored(15),

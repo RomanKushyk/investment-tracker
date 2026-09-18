@@ -1,8 +1,6 @@
-// `src/core/types.ts` is INDEPENDENT of the schema until W7. This test covers
-// the seam that independence leaves: names, nullability and enum values. The
-// leading primary-key column is checked more strongly elsewhere —
-// `infra/src/user-schema.test.ts` asserts it for all five tables, from
-// `information_schema` — so it is not repeated here.
+// `src/core/types.ts` is INDEPENDENT of the schema until W7. This test covers the
+// seam that independence leaves: names, nullability and enum values. The leading
+// primary-key column is checked more strongly in `infra/src/user-schema.test.ts`.
 import { readFileSync } from 'node:fs';
 import { getTableColumns } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
@@ -20,11 +18,9 @@ function checkValues(constraint: string): string[] {
 }
 
 // Every TxType must name its spec counterpart. `Record<TxType, …>` is the point:
-// adding a ninth type to core/types.ts fails the BUILD here, before this test
-// can quietly compare two sets that both forgot it. REMOVING one fails here too
-// and that is what coupled the retirement of `tax` to the DDL: this file reads
-// the generated SQL, so the app's union and `transaction_type_ck` cannot move
-// apart by one commit.
+// adding a ninth type to core/types.ts fails the BUILD here, before this test can
+// quietly compare two sets that both forgot it. REMOVING one fails here too, which
+// is what coupled the retirement of `tax` to the DDL.
 const SPEC_NAME = {
   buy: 'buy',
   sell: 'sell',
@@ -36,17 +32,16 @@ const SPEC_NAME = {
   redemption: 'redemption',
 } satisfies Record<TxType, string>;
 
-// The keys of T that are NOT optional — TS includes `undefined` in `T[K]` for
-// an optional K, so this is the same trick `SPEC_NAME` above plays with
-// `TxType`, applied to `Asset`'s own required/optional split.
+// The keys of T that are NOT optional — TS includes `undefined` in `T[K]` for an
+// optional K, so this is the trick `SPEC_NAME` plays with `TxType`, applied to
+// `Asset`'s own required/optional split.
 type RequiredKeys<T> = { [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T];
 
-// `Asset`'s ten required fields, mapped to the schema property that stores
-// each one. `satisfies Record<RequiredKeys<Asset>, …>` means a new required
-// `Asset` field fails the BUILD here, before this test can quietly go on
-// checking only the fields it already knew about. `colorKey` is the one
-// non-trivial mapping: the app's enum becomes the schema's palette index,
-// `colorSlot`.
+// `Asset`'s ten required fields, mapped to the schema property that stores each
+// one. `satisfies Record<RequiredKeys<Asset>, …>` means a new required `Asset`
+// field fails the BUILD here, before this test can quietly go on checking only the
+// fields it already knew about. `colorKey` is the one non-trivial mapping: the app's
+// enum becomes the schema's palette index, `colorSlot`.
 const REQUIRED_ASSET_COLUMNS = {
   id: 'id',
   name: 'name',
@@ -75,8 +70,8 @@ describe('the schema agrees with the app model', () => {
   });
 
   it('bounds color_slot by the real palette', () => {
-    // COLOR_KEYS has four entries and new assets cycle `% 4`. A bound above that
-    // admits an unpainted chart series, silently.
+    // COLOR_KEYS has four entries and new assets cycle `% 4`. A bound above that admits
+    // an unpainted chart series, silently.
     expect(SQL).toContain(`color_slot" < ${COLOR_KEYS.length}`);
   });
 });

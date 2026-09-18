@@ -10,10 +10,10 @@ import {
 } from './dcf';
 import type { InzhurPayment } from './parse';
 
-// UA4000238976, read from the live feed on 2026-08-12: y = 15.55%, quoted
-// 1063.97. The schedule is the Kyiv-dated form the parser produces, and the
-// 2026-03-25 coupon is deliberately included so the "past flows are excluded"
-// rule is exercised by real data rather than a contrived row.
+// UA4000238976, read from the live feed on 2026-08-12: y = 15.55%, quoted 1063.97.
+// The schedule is the Kyiv-dated form the parser produces, and the 2026-03-25
+// coupon is deliberately included so the "past flows are excluded" rule is
+// exercised by real data rather than a contrived row.
 const SCHEDULE: InzhurPayment[] = [
   { date: '2026-03-25', amount: 78.4 },
   { date: '2026-09-23', amount: 78.4 },
@@ -30,13 +30,13 @@ function priceOn(onIso: string): number {
 }
 
 describe('derivePrice', () => {
-  // The measurement this whole model rests on.
   it('reproduces the live quote on its own valuation date to under a kopeck', () => {
     expect(Math.abs(priceOn('2026-08-12') - QUOTED)).toBeLessThan(PRICE_TOLERANCE_UAH);
   });
 
-  // A day is worth ~0.42 ₴ here, which is what makes the date identifiable at
-  // all. If this ever collapses, the staleness diagnostic is meaningless.
+  // The valuation date is identifiable only while a day of carry clears the floor
+  // asserted below; if that step ever collapses, the staleness diagnostic is
+  // meaningless.
   it('moves enough per day that the valuation date is identifiable', () => {
     const step = priceOn('2026-08-12') - priceOn('2026-08-11');
     expect(step).toBeGreaterThan(0.3);
@@ -51,7 +51,7 @@ describe('derivePrice', () => {
   });
 
   // A matured bond's schedule lies entirely in the past. The sum is legitimately
-  // zero, and reporting zero as a PRICE would manufacture an anomaly (D31).
+  // zero, and reporting zero as a PRICE would manufacture an anomaly.
   it('reports not_applicable rather than a price of zero once nothing is left', () => {
     expect(derivePrice(SCHEDULE, YIELD_PCT, '2027-03-24')).toEqual({
       kind: 'not_applicable',
@@ -70,16 +70,15 @@ describe('derivePrice', () => {
     expect(high.price).toBeLessThan(low.price);
   });
 
-  // The rate arrives from the feed as a percent. Halving the model's units here
-  // is how a factor of 100 goes missing, so it is pinned.
+  // The rate arrives from the feed as a percent. Halving the model’s units here is
+  // how a factor of 100 goes missing, so it is pinned.
   it('takes the yield as a percent, not a fraction', () => {
     const asPercent = derivePrice(SCHEDULE, 15.55, '2026-08-12');
     const asFraction = derivePrice(SCHEDULE, 0.1555, '2026-08-12');
     if (asPercent.kind !== 'priced' || asFraction.kind !== 'priced') throw new Error('priced');
     expect(Math.abs(asPercent.price - QUOTED)).toBeLessThan(PRICE_TOLERANCE_UAH);
-    // 0.1555 read as a percent is 0.1555% a year — almost no discounting, so
-    // the sum collapses towards the undiscounted 1156.80 and lands ~92 ₴ above
-    // the real price. Wrong by an amount no rounding could explain.
+    // 0.1555 read as a percent is almost no discounting, so the sum collapses towards
+    // the undiscounted total — wrong by an amount no rounding could explain.
     const undiscounted = SCHEDULE.filter((p) => p.date > '2026-08-12').reduce(
       (s, p) => s + p.amount,
       0,
@@ -110,8 +109,8 @@ describe('impliedYield', () => {
     expect(impliedYield(1000, SCHEDULE, '2027-03-24').kind).toBe('not_applicable');
   });
 
-  // An impossible quote is a finding in itself, and must not be silently
-  // clamped to the edge of the search bracket.
+  // An impossible quote is a finding in itself, and must not be silently clamped to
+  // the edge of the search bracket.
   it('reports unbracketed rather than clamping an impossible quote', () => {
     expect(impliedYield(1e9, SCHEDULE, '2026-08-12').kind).toBe('unbracketed');
     expect(impliedYield(1e-9, SCHEDULE, '2026-08-12').kind).toBe('unbracketed');
@@ -126,8 +125,8 @@ describe('bestValuationDate', () => {
     expect(Math.abs(fit?.residual ?? 1)).toBeLessThan(PRICE_TOLERANCE_UAH);
   });
 
-  // The diagnostic that matters: the same quote read four days later is not a
-  // price change, it is a stale price — and only this can say so.
+  // The diagnostic that matters: the same quote read four days later is not a price
+  // change, it is a stale price — and only this can say so.
   it('dates a stale quote to the day it was actually struck', () => {
     const fit = bestValuationDate(QUOTED, SCHEDULE, YIELD_PCT, '2026-08-16');
     expect(fit?.date).toBe('2026-08-12');
@@ -145,8 +144,8 @@ describe('bestValuationDate', () => {
 });
 
 describe('yieldSensitivityUah', () => {
-  // The measurement the revision check rests on: sensitivity is a property of
-  // the bond, not a constant. A bond seven days from maturity barely responds.
+  // Sensitivity is a property of the bond, not a constant: a bond seven days from
+  // maturity barely responds.
   it('is far smaller for a nearly-matured bond than for a long one', () => {
     const short: InzhurPayment[] = [
       { date: '2026-08-19', amount: 78.4 },
@@ -168,9 +167,8 @@ describe('checkQuote', () => {
     expect(v.state).toBe('consistent');
   });
 
-  // The easy mistake this ordering exists to prevent: a day is worth ~0.42 ₴,
-  // far more than most revisions, so an unrefreshed quote must never be
-  // reported as a re-priced one.
+  // The easy mistake this ordering exists to prevent: a day of carry is worth far
+  // more than most revisions, so an unrefreshed quote must never read as re-priced.
   it('calls an unrefreshed quote stale, not revised', () => {
     const v = checkQuote(QUOTED, SCHEDULE, YIELD_PCT, '2026-08-16');
     expect(v.state).toBe('stale');
@@ -196,13 +194,11 @@ describe('checkQuote', () => {
     expect(v.state).not.toBe('revised');
   });
 
-  // THE CONFOUND, pinned deliberately rather than hidden by a tolerance.
-  //
-  // A day back is worth −0.42 ₴ on this bond and +0.08pp of yield is worth
-  // −0.42 ₴ too, so a small revision is indistinguishable from a one-day-stale
-  // quote and the date search absorbs it. This test exists so that anyone who
-  // later "fixes" the module into claiming otherwise has to delete an explicit
-  // statement of why it cannot.
+  // THE CONFOUND, pinned deliberately rather than hidden by a tolerance. On this
+  // bond a day of carry and the 0.08pp revision below move the price by the same
+  // amount, so the two are indistinguishable from one quote and the date search
+  // absorbs it. This test exists so that anyone who later "fixes" the module into
+  // claiming otherwise has to delete an explicit statement of why it cannot.
   it('reads a small revision as staleness, because one price cannot tell them apart', () => {
     const nudged = derivePrice(SCHEDULE, YIELD_PCT + 0.08, '2026-08-12');
     if (nudged.kind !== 'priced') throw new Error('expected a price');
@@ -233,10 +229,9 @@ describe('checkQuote', () => {
 // --- regressions from the 2026-08-12 review -------------------------------
 
 describe('bestValuationDate — review regressions', () => {
-  // Print rounding is worth ~2 days of carry on a long bond, and the search
-  // only ever looked backwards, so a FRESH quote at a rate rounded down was
-  // reported stale. "Not stale" is the claim that needs no evidence: once a
-  // date explains the quote within the noise floor, stop there.
+  // Print rounding is worth about two days of carry on a long bond, and the search
+  // only ever looked backwards, so a FRESH quote at a rate rounded down was reported
+  // stale. Once a date explains the quote within the noise floor, stop there.
   it('does not invent staleness out of the published rate being rounded', () => {
     const long: InzhurPayment[] = [
       { date: '2026-12-02', amount: 83.25 },
@@ -254,9 +249,9 @@ describe('bestValuationDate — review regressions', () => {
     expect(checkQuote(truth.price, long, 15.55, '2026-08-12').state).toBe('consistent');
   });
 
-  // A matured bond still quotes its last value and still publishes a yield.
-  // Walking back past its final flow priced those days almost exactly and
-  // reported "4 days stale" about an instrument that is simply finished.
+  // A matured bond still quotes its last value and still publishes a yield. Walking
+  // back past its final flow priced those days almost exactly and reported staleness
+  // about an instrument that is simply finished.
   it('reports a matured bond as not applicable instead of walking back past maturity', () => {
     const matured: InzhurPayment[] = [
       { date: '2026-08-09', amount: 78.4 },
@@ -273,9 +268,9 @@ describe('bestValuationDate — review regressions', () => {
 });
 
 describe('checkQuote — review regressions', () => {
-  // `unbracketed` means no yield at all reproduces the price — a mangled
-  // schedule or a corrupt quote. It used to render as the benign
-  // "too close to maturity" line, hiding the loudest signal the model has.
+  // `unbracketed` means no yield at all reproduces the price — a mangled schedule or
+  // a corrupt quote. It used to render as the benign "too close to maturity" line,
+  // hiding the loudest signal the model has.
   it('separates an unexplainable price from a near-maturity one', () => {
     const v = checkQuote(140, SCHEDULE, YIELD_PCT, '2026-08-12');
     expect(v.state).toBe('inconclusive');
@@ -296,8 +291,8 @@ describe('checkQuote — review regressions', () => {
     expect(v.reason).toBe('insensitive');
   });
 
-  // A revision far too large for the window to absorb must stay loud rather
-  // than being downgraded because the search hit its own edge.
+  // A revision far too large for the window to absorb must stay loud rather than
+  // being downgraded because the search hit its own edge.
   it('keeps a large mismatch loud instead of blaming the search window', () => {
     const repriced = derivePrice(SCHEDULE, 17.25, '2026-08-12');
     if (repriced.kind !== 'priced') throw new Error('expected a price');

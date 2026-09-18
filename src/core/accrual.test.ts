@@ -54,14 +54,13 @@ function tx(over: Partial<Transaction> = {}): Transaction {
 describe('dailyAccrual', () => {
   it('spreads the stated coupon over its period (ACT/365)', () => {
     expect(dailyAccrual(1240, 'semiannual')).toBeCloseTo((1240 * 2) / 365, 10);
-    expect(dailyAccrual(216, 'semiannual')).toBeCloseTo(1.1835616, 5); // ₴1,18/day
+    expect(dailyAccrual(216, 'semiannual')).toBeCloseTo(1.1835616, 5);
     expect(dailyAccrual(1240, 'monthly')).toBeCloseTo((1240 * 12) / 365, 10);
     expect(dailyAccrual(1240, 'quarterly')).toBeCloseTo((1240 * 4) / 365, 10);
     expect(dailyAccrual(1240, 'maturity')).toBeCloseTo(1240 / 365, 10);
   });
 
   it('falls back to expectedPct × invested / 365 without a stated coupon', () => {
-    // 16.4 % of 15 390,00 a year — the plan's pinned fallback basis.
     expect(
       dailyAccrual(undefined, 'semiannual', { expectedPct: 16.4, invested: 15390 }),
     ).toBeCloseTo(((16.4 / 100) * 15390) / 365, 10);
@@ -90,11 +89,9 @@ describe('dailyAccrual', () => {
 
 describe('couponsInGap', () => {
   it('hands the GRID branch each computed date, not the anchor', () => {
-    // The schedule branch is covered above; this is the half that derives its
-    // dates by arithmetic, and a regression that passed `anchor` — or
-    // `fromExclusive` — to the resolver would return the same constant every
-    // other grid test asserts and sail through the suite. Only a resolver that
-    // VARIES by date can catch it.
+    // A regression that passed `anchor` — or `fromExclusive` — to the resolver would
+    // return the same constant every other grid test asserts and sail through the
+    // suite. Only a resolver that VARIES by date can catch it.
     const b = bond({ nextCoupon: '2026-08-25', payoutSchedule: 'quarterly' });
     const seen: string[] = [];
     couponsInGap(
@@ -106,37 +103,22 @@ describe('couponsInGap', () => {
       '2026-01-01',
       '2026-08-31',
     );
-    // ONLY the counted dates reach the resolver — no probe of its own. The
-    // pairing guard moved to `accrualSuggestion`, which is the only place that
-    // holds both this figure and the one `dailyAccrual` was built from; asking
-    // here read the ledger on a shifted date and answered a different question.
-    // The quarterly grid back from 25.08: 25.02 and 25.05 fall in the window
-    // alongside the anchor itself, each with its OWN date.
+    // ONLY the counted dates reach the resolver — it makes no probe of its own.
     expect(seen).toEqual(['2026-02-25', '2026-05-25', '2026-08-25']);
   });
 
   it('sizes EACH coupon on its own date, not all of them on the drafted one', () => {
-    // THE DEFECT THIS CLOSES arrived with D119: the caller derives one figure
-    // from the units held on the DRAFTED date, and this function multiplied it
-    // by every coupon in the gap — coupons the position was a different size
-    // for. Hold 10 units through a coupon, double the position days later, draft
-    // after that, and the gap subtracted 20 units' worth of a payment that paid
-    // on 10.
     const b = bond({ nextCoupon: '2026-08-25', payoutSchedule: 'semiannual' });
     const schedule = ['2026-02-25', '2026-08-25'];
-    // 78,40 per unit per coupon: 10 units on 25.02, 20 on 25.08.
     const perDate = (d: string) => (d === '2026-02-25' ? 784 : 1568);
     expect(couponsInGap(b, perDate, '2026-01-01', '2026-12-31', schedule)).toBe(784 + 1568);
-    // A single figure would have answered 1568 × 2 — the number the old
-    // signature could not avoid.
+    // A single figure for every date is the answer the old signature could not avoid.
     expect(couponsInGap(b, () => 1568, '2026-01-01', '2026-12-31', schedule)).toBe(3136);
-    // A date the ledger cannot count contributes nothing rather than NaN — and
-    // this now exercises the `?? 0` fallback itself, since nothing short-circuits
-    // ahead of the reduce any more.
+    // A date the ledger cannot count contributes nothing rather than NaN. Nothing
+    // short-circuits ahead of the reduce any more, so this exercises the `?? 0` itself.
     expect(couponsInGap(b, () => undefined, '2026-01-01', '2026-12-31', schedule)).toBe(0);
-    // THE ORDINARY MIXED CASE, which had no coverage while a guard swallowed it:
-    // a bond bought AFTER the February coupon answers for August and not for
-    // February, so exactly one of the two is subtracted.
+    // THE ORDINARY MIXED CASE, uncovered while a guard swallowed it: a bond bought
+    // after the February coupon answers for August and not February, so exactly one is subtracted.
     expect(
       couponsInGap(
         b,
@@ -187,30 +169,25 @@ describe('couponsInGap', () => {
     ).toBe(0);
   });
 
-  // Regression: the grid used to be rebuilt by stepping BACK with addMonths and
-  // then forward again, which is not an inverse once the month-end clamp fires
-  // (2026-08-31 −1m → 07-31 −1m → 06-30, then +1m → 07-30 ≠ 07-31). A month-end
-  // anchor therefore drifted onto dates the asset never pays on and counted a
-  // phantom coupon — money the S4 ghost subtracts.
+  // Stepping BACK with addMonths and forward again is not an inverse once the
+  // month-end clamp fires, so the grid drifted onto dates the asset never pays on
+  // and counted a phantom coupon.
   describe('a month-end anchor stays on the asset own grid (clamp regression)', () => {
     const eom = (over: Partial<Asset> = {}) => bond({ nextCoupon: '2026-08-31', ...over });
 
     it('counts the real monthly dates, not the drifted ones', () => {
-      // Real grid around the gap: 06-30, 07-31 (08-31 is past `to`).
       expect(
         couponsInGap(eom({ payoutSchedule: 'monthly' }), () => 1240, '2026-06-15', '2026-08-30'),
       ).toBe(2 * 1240);
     });
 
     it('counts the real quarterly date', () => {
-      // Real grid: 2026-02-28, 05-31, 08-31 → only 05-31 is inside the gap.
       expect(
         couponsInGap(eom({ payoutSchedule: 'quarterly' }), () => 1240, '2026-04-01', '2026-08-30'),
       ).toBe(1240);
     });
 
     it('counts the real semiannual date', () => {
-      // Real grid: 2026-02-28, 08-31 → only 02-28 is inside the gap.
       expect(couponsInGap(eom(), () => 1240, '2025-12-01', '2026-08-30')).toBe(1240);
     });
 
@@ -227,8 +204,8 @@ describe('suggestedQuote', () => {
   const daily8976 = dailyAccrual(1240, 'semiannual');
 
   it('carries the last quote forward by the daily accrual', () => {
-    // The design reference's own S4 row: 4 374,12 + 2 days × 1,18 = 4 376,49
-    // (daily-quotes-live.dc.html, ROW 4).
+    // Both expected figures are the design reference's own
+    // (design/extensions/daily-quotes-live.dc.html).
     expect(
       suggestedQuote({
         lastQuote: 4374.12,
@@ -239,7 +216,6 @@ describe('suggestedQuote', () => {
         maturity: '2027-05-27',
       }),
     ).toBe(4376.49);
-    // …8976 nine days on from 25.07 = the strip's 15 907,45.
     expect(
       suggestedQuote({
         lastQuote: 15846.3,
@@ -266,7 +242,6 @@ describe('suggestedQuote', () => {
   });
 
   it('clamps the accrual at maturity', () => {
-    // 20.02 → 10.03 with maturity 25.02: only 5 days accrue.
     expect(
       suggestedQuote({
         lastQuote: 15900,
@@ -354,14 +329,11 @@ describe('dueCoupons', () => {
     ).toEqual([]);
   });
 
-  // Regression: `nextCoupon` only ever moves through the S5 confirm, so a coupon
-  // recorded in the Transaction panel used to freeze the pointer AND silence the
-  // card for good. The walk hands the floor to the next occurrence instead.
+  // `nextCoupon` only ever moves through the S5 confirm, so a coupon recorded in the
+  // Transaction panel used to freeze the pointer AND silence the card for good.
   it('advances to the next occurrence when the pointer sits on a settled one', () => {
     const recorded = [tx()]; // the 25.08 coupon, entered by hand
-    // Nothing is due yet — the February coupon is still ahead.
     expect(dueCoupons([bond()], recorded, '2026-09-04')).toEqual([]);
-    // …and once IT arrives, the card offers it, pointer untouched.
     expect(dueCoupons([bond()], recorded, '2027-02-25')).toEqual([
       { assetId: 'ovdp8976', date: '2027-02-25', overdueDays: 0, amount: 1240 },
     ]);
@@ -485,8 +457,7 @@ describe('rollNextCoupon', () => {
   });
 
   it('rolls off an explicit occurrence date when the pointer lags behind it', () => {
-    // The confirm records the occurrence the CARD offered (2027-02-25 here) while
-    // the stored pointer still sits on a settled 2026-08-25.
+    // The card offers one occurrence while the stored pointer still sits on a settled one.
     expect(rollNextCoupon(bond(), '2026-02-25')).toEqual({
       kind: 'rolled',
       nextCoupon: '2026-08-25',
@@ -512,7 +483,6 @@ describe('couponProjection', () => {
 
   it('estimates the amount from expectedPct × invested when no coupon is stated', () => {
     const user = bond({ couponAmount: undefined });
-    // 16.4 % of 15 390,00, half-yearly = 1 261,98 — close to the real 1 240,00.
     expect(couponProjection(user, 15390, undefined)).toEqual({
       amount: 1261.98,
       date: '2026-08-25',
@@ -557,8 +527,8 @@ describe('couponReminderId', () => {
 });
 
 describe('dailyAccrual over a real coupon period', () => {
-  // The user's UA4000238976: 78.40 per unit every 182 days, verified against the
-  // live feed (always a Wednesday, never "six calendar months").
+  // UA4000238976 as the live feed publishes it: 78.40 per unit every 182 days,
+  // always a Wednesday, never "six calendar months".
   const schedule = ['2026-03-25', '2026-09-23', '2027-03-24'];
 
   it('lands exactly on the coupon when the period is known', () => {
@@ -568,8 +538,8 @@ describe('dailyAccrual over a real coupon period', () => {
   });
 
   it('the annualised approximation does NOT land on the coupon', () => {
-    // This is the defect the periodDays argument exists to fix: ₴3,40 short
-    // over a 182-day period on a ₴1 240 coupon, and ₴10,19 over on a 184-day one.
+    // The defect `periodDays` exists to fix: an annualised rate misses the coupon
+    // in both directions, short over a 182-day period and over on a 184-day one.
     expect(dailyAccrual(1240, 'semiannual') * 182).toBeCloseTo(1236.6, 1);
     expect(dailyAccrual(1240, 'semiannual') * 184).toBeCloseTo(1250.19, 1);
     expect(dailyAccrual(1240, 'semiannual', undefined, 182) * 182).toBeCloseTo(1240, 10);
@@ -590,16 +560,16 @@ describe('dailyAccrual over a real coupon period', () => {
   });
 });
 
-describe('the published schedule beats the month grid (A1)', () => {
-  // UA4000238976 as the feed actually publishes it: every 182 days, always a
-  // Wednesday. `addMonths(anchor, 6)` from the same anchor lands on the 25th.
+describe('the published schedule beats the month grid', () => {
+  // The feed's published dates, against the month grid this bond carries —
+  // `nextCoupon` on the 25th where the feed pays on the 23rd.
   const REAL = ['2026-03-24', '2026-09-23', '2027-03-24'];
   const linked = () =>
     bond({ nextCoupon: '2026-09-25', couponAmount: 1240, maturity: '2027-03-24' });
 
   it('counts the coupon on the real date, not the grid date', () => {
     const a = linked();
-    // A gap that contains the REAL date but ends before the grid's 25th.
+    // A gap that contains the REAL date but ends before the grid’s 25th.
     expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24', REAL)).toBe(1240);
     // Without the schedule the same gap sees nothing — the defect, pinned.
     expect(couponsInGap(a, () => 1240, '2026-09-20', '2026-09-24')).toBe(0);
@@ -622,7 +592,7 @@ describe('the published schedule beats the month grid (A1)', () => {
       kind: 'rolled',
       nextCoupon: '2026-09-23',
     });
-    // Same call without the schedule drifts to the 24th of the grid month.
+    // Without the schedule the same call drifts to the 24th of the grid month.
     expect(rollNextCoupon(linked(), '2026-03-24')).toEqual({
       kind: 'rolled',
       nextCoupon: '2026-09-24',
@@ -643,7 +613,7 @@ describe('the published schedule beats the month grid (A1)', () => {
   });
 });
 
-describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
+describe('scheduledCouponMonths — D-5, answered forward', () => {
   const bond = (over: Partial<Asset> = {}): Asset =>
     ({
       id: 'b',
@@ -661,23 +631,19 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
     }) as Asset;
 
   it('names every scheduled month to maturity, not the one the pointer holds', () => {
-    // …8976's shape: August now, February at maturity.
     expect(scheduledCouponMonths(bond(), [])).toEqual([2, 8]);
   });
 
   it('DOES NOT DEGENERATE once the next coupon is paid — the whole of D-5', () => {
-    // The failure both of the sheet's formulations had. A set difference
-    // against `bondCouponInfo` returns nothing here; the schedule still names
-    // February, because February is still a month this bond pays in.
+    // A set difference against `bondCouponInfo` returns nothing here; the schedule
+    // still names February, because February is still a month this bond pays in.
     expect(scheduledCouponMonths(bond({ nextCoupon: '2027-02-25' }), [])).toEqual([2]);
   });
 
   it('KEEPS THE FINAL COUPON WHEN THE GRID OVERSHOOTS MATURITY (review F1)', () => {
-    // …6475's real shape, and the normal case rather than the edge: 03.12.2026
-    // + 6 months is 03.06.2027, which is PAST the 27.05.2027 maturity. Breaking
-    // there dropped травень, and `rollNextCoupon` does not break — it CLAMPS to
-    // maturity and pays a final, short coupon. Two readings of one schedule is
-    // the thing that must never happen, so the walk is delegated to it.
+    // A grid step past maturity must not end the walk: `rollNextCoupon` does not
+    // break there, it CLAMPS to maturity and pays a final, short coupon. Two readings
+    // of one schedule is the thing that must never happen, so the walk is delegated to it.
     const b6475 = bond({ maturity: '2027-05-27', nextCoupon: '2026-12-03', couponAmount: 216 });
     expect(rollNextCoupon(b6475, '2026-12-03')).toEqual({
       kind: 'rolled',
@@ -687,20 +653,15 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
   });
 
   it('KEEPS A COUPON WHOSE DATE HAS PASSED AND WHICH NOBODY CONFIRMED (review F8)', () => {
-    // `nextCoupon` only ever moves through the S5 confirm, so the day after a
-    // coupon falls due it still points at a date in the past. Gating on today
-    // dropped серпень for a coupon the app was still actively reminding about —
-    // and the DAY axis kept drawing it, because `couponProjection` takes no
-    // date at all. `nextUnsettledCoupon` is what the reminders read, so it is
-    // what this reads.
+    // `nextCoupon` only moves through the S5 confirm, so the day after a coupon falls
+    // due it still points at a date in the past. Gating on today dropped a month the
+    // app was still reminding about; `nextUnsettledCoupon` is what the reminders read.
     expect(scheduledCouponMonths(bond(), [])).toContain(8);
   });
 
   it('goes empty once every scheduled coupon has actually been recorded', () => {
-    // The genuine "nothing left to expect". It is settlement that ends the
-    // schedule, NOT the calendar: the confirm leaves `nextCoupon` sitting on
-    // the final date forever, so a today-based cutoff either kept a phantom
-    // February bar or dropped a real one, depending on the day it ran.
+    // Settlement ends the schedule, NOT the calendar: the confirm leaves `nextCoupon`
+    // on the final date forever, so a today-based cutoff answered differently by the day.
     const settled: Transaction[] = [
       tx({ id: 'c1', date: '2026-08-25', assetId: 'b', amount: 1240 }),
       tx({ id: 'c2', date: '2027-02-25', assetId: 'b', amount: 1240 }),
@@ -709,9 +670,9 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
   });
 
   it('answers for a bond with a maturity and NO nextCoupon (F-18)', () => {
-    // `couponProjection` falls back to the maturity date and still projects;
-    // `bondCouponInfo` does not, which is why the two axes could disagree about
-    // one bond. This matches the projection.
+    // `couponProjection` falls back to the maturity date and still projects where
+    // `bondCouponInfo` does not, which is why the two axes could disagree about one
+    // bond. This matches the projection.
     expect(scheduledCouponMonths(bond({ nextCoupon: undefined }), [])).toEqual([2]);
   });
 
@@ -725,18 +686,17 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
   });
 
   it('terminates for a periodic bond with NO maturity date (review F9)', () => {
-    // `maturity` is optional, so `rollNextCoupon` never reports 'matured' here
-    // and a semiannual payer only ever collects two distinct months — the
-    // twelve-months exit can never fire. The step bound is what ends it.
+    // `maturity` is optional, so `rollNextCoupon` never reports 'matured' here and a
+    // semiannual payer collects two months — the twelve-month exit cannot fire. The
+    // step bound is what ends it.
     const endless = bond({ maturity: undefined, payoutSchedule: 'semiannual' });
     expect(scheduledCouponMonths(endless, [])).toEqual([2, 8]);
   });
 
   it('follows rollNextCoupon for a one-payment schedule rather than inventing a rule', () => {
-    // With no period, `rollNextCoupon` says the next payment IS maturity. A
-    // pointer set on top of that is a payment too, so both months are named —
-    // the walk states what the rest of the app already believes, and does not
-    // get a second opinion of its own.
+    // With no period, `rollNextCoupon` says the next payment IS maturity, and a pointer
+    // set on top of that is a payment too. The walk states what the rest of the app
+    // already believes rather than getting a second opinion of its own.
     expect(scheduledCouponMonths(bond({ payoutSchedule: 'maturity' }), [])).toEqual([2, 8]);
     expect(
       scheduledCouponMonths(bond({ payoutSchedule: 'maturity', nextCoupon: undefined }), []),
@@ -748,8 +708,7 @@ describe('scheduledCouponMonths (A41) — D-5, answered forward', () => {
 });
 
 describe('rollbackNextCoupon — deleting a confirmed coupon gives its occurrence back', () => {
-  // The confirm's own effect, reproduced: the payout is written on the COUPON's
-  // date and the pointer rolls to the next occurrence.
+  // The confirm's own effect: the payout sits on the COUPON's date, pointer already rolled.
   const confirmed = bond({ nextCoupon: '2027-02-25' });
   const payout = tx({ date: '2026-08-25' });
 
@@ -779,21 +738,19 @@ describe('rollbackNextCoupon — deleting a confirmed coupon gives its occurrenc
     expect(rollbackNextCoupon(fund, payout, [])).toBeUndefined();
   });
 
-  // THE PROPERTY THAT MAKES ROLLING BACK SAFE, and the reason no backward stepper
-  // is needed: the pointer may land on an occurrence older than the immediate
-  // predecessor, because the forward walk steps over everything still settled.
+  // THE PROPERTY THAT MAKES ROLLING BACK SAFE, and the reason no backward stepper is
+  // needed: the pointer may land on an occurrence older than the immediate predecessor,
+  // because the forward walk steps over everything still settled.
   it('hands the walk an older occurrence without stranding the newer ones', () => {
     const twoAhead = bond({ nextCoupon: '2027-02-25' });
     const restored = rollbackNextCoupon(twoAhead, payout, [])!;
     const reopened = bond({ nextCoupon: restored });
-    // Nothing settles 25.08 any more, so that is what the walk offers.
     expect(nextUnsettledCoupon(reopened, [])).toEqual({ date: '2026-08-25', amount: 1240 });
-    // Record it again and the walk returns to where the pointer had been.
     expect(nextUnsettledCoupon(reopened, [payout])).toEqual({ date: '2027-02-25', amount: 1240 });
   });
 });
 
-describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () => {
+describe('couponPerPayment — the rate is fixed, the amount is not', () => {
   const bond = (over: Partial<Asset> = {}): Asset => ({
     id: 'b',
     name: 'OVDP UA4000238976',
@@ -808,34 +765,30 @@ describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () 
     ...over,
   });
 
-  it("falls back to the LINK's legacy total when the ledger cannot count (D117)", () => {
-    // The two-source rule `matchAssets` and `couponPrefill` both apply, and this
-    // was the one consumer that read only the ledger. A pre-D117 linked bond has
-    // `inzhur.units` and no quantities, so reading the ledger alone fell past a
-    // rate the asset HAS to the stale whole-position amount — while the coupon
-    // card one screen over scaled the feed's per-unit figure by this very count.
+  it("falls back to the LINK's legacy total when the ledger cannot count", () => {
+    // A linked bond can carry `inzhur.units` and no ledger quantities, so reading the
+    // ledger alone fell past a rate the asset HAS to the stale whole-position amount —
+    // while the coupon card one screen over scaled the per-unit figure by this very
+    // count. Units are the ledger’s, and a coupon derives from its rate.
+    // *Metric families and windows*
     const linked = bond({
       couponRatePct: 15.68,
       couponAmount: 1240,
       inzhur: { kind: 'bond', ref: 'UA4000238976', units: 15 },
     });
-    expect(couponPerPayment(linked, undefined)).toBe(1176); // 15,68 % × 1000 × 15 / 2
-    // THE LEDGER WINS WHENEVER IT CAN SPEAK — it is the newer truth, and a
-    // closed position is something it can say.
+    expect(couponPerPayment(linked, undefined)).toBe(1176);
+    // THE LEDGER WINS WHENEVER IT CAN SPEAK, and a closed position is something it can say.
     expect(couponPerPayment(linked, 20)).toBe(1568);
     expect(couponPerPayment(linked, 0)).toBeUndefined();
-    // Neither source knows → the legacy amount, unscaled. That is D117's third
-    // state and the reason the fallback still exists.
+    // Neither source knows → the legacy amount, unscaled, which is why the fallback exists.
     expect(couponPerPayment(bond({ couponRatePct: 15.68, couponAmount: 1240 }), undefined)).toBe(
       1240,
     );
   });
 
   it('answers nothing for a non-bond, even one carrying a legacy amount', () => {
-    // `couponProjection` gates on the yield type and this did not, so a
-    // `div_cap` asset one stray `couponAmount` away — the seed's REIT — would
-    // report a coupon to any caller that forgot its own filter. Four call sites
-    // filter today; the gate belongs here rather than in each of them.
+    // A `div_cap` asset one stray `couponAmount` away would report a coupon to any
+    // caller that forgot its own filter, so the gate belongs here and not in each of them.
     expect(
       couponPerPayment(bond({ yieldType: 'div_cap', couponAmount: 1240 }), 15),
     ).toBeUndefined();
@@ -845,10 +798,9 @@ describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () 
   });
 
   it('agrees with the provider schedule BY CONSTRUCTION, not by luck', () => {
-    // UA4000238976 publishes ₴78.40 per unit per coupon on a ₴1000 nominal, so
-    // its rate is 78.40 / 5 = 15.68 % (docs/reference/OVDP-COUPON-STRUCTURE.md).
-    // Going back the other way must land exactly on the published figure, or the
-    // rate and the feed would be two bases for one coupon.
+    // The rate is derived from the published per-unit coupon
+    // (docs/reference/OVDP-COUPON-STRUCTURE.md); going back the other way must land on
+    // it exactly, or the rate and the feed would be two bases for one coupon.
     expect(couponPerPayment(bond({ couponRatePct: 15.68 }), 1)).toBe(78.4);
     expect(OVDP_FACE_UAH).toBe(1000);
   });
@@ -862,16 +814,15 @@ describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () 
   });
 
   it('honours the payout schedule rather than assuming semiannual', () => {
-    // Every OVDP measured pays twice a year, but the field admits five schedules
-    // and the divisor must follow it — a quarterly bond at the same rate pays
-    // half as much per coupon, four times a year.
+    // Every OVDP measured pays twice a year, but the field admits five schedules and
+    // the divisor must follow it.
     expect(couponPerPayment(bond({ couponRatePct: 16, payoutSchedule: 'quarterly' }), 1)).toBe(40);
     expect(couponPerPayment(bond({ couponRatePct: 16, payoutSchedule: 'semiannual' }), 1)).toBe(80);
   });
 
   it('falls back to the LEGACY stored amount, unscaled', () => {
-    // The seed's two bonds are why this path still has to work: they carry a
-    // hand-typed whole-position figure and no quantities to scale a rate by.
+    // The seed's two bonds are why this path must work: a hand-typed whole-position
+    // figure and no quantities to scale a rate by.
     const legacy = bond({ couponAmount: 1240 });
     expect(couponPerPayment(legacy, undefined)).toBe(1240);
     expect(couponPerPayment(legacy, 999)).toBe(1240); // unscaled, deliberately
@@ -882,29 +833,26 @@ describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () 
   });
 
   it('a CLOSED position reports nothing, not the stale legacy amount', () => {
-    // Units are KNOWN and the holding is gone. Reporting the old whole-position
-    // figure would print "₴1 240 twice a year" for a position that no longer
-    // exists, and prefill a transaction for a coupon nobody will receive.
+    // Units are KNOWN and the holding is gone: the old whole-position figure would
+    // advertise a coupon nobody will receive, and prefill a transaction for it.
     const both = bond({ couponRatePct: 15.68, couponAmount: 1240 });
     expect(couponPerPayment(both, 0)).toBeUndefined();
     expect(couponPerPayment(both, 100)).toBe(7840);
   });
 
   it('an UNCOUNTABLE ledger keeps the legacy amount — the rate cannot answer', () => {
-    // The other half, and collapsing the two broke this one: when the ledger
-    // cannot count the asset at all, the rate has nothing to scale, so the
-    // legacy figure is the only number the asset has. Suppressing it emptied the
-    // coupon out of /attributes, the due card, the ghost accrual and the
-    // projection at once — for exactly the pre-#31 bonds the fallback protects.
+    // The other half, and collapsing the two broke this one: when the ledger cannot
+    // count the asset at all, the rate has nothing to scale and the legacy figure is
+    // the only number the asset has. Suppressing it emptied the coupon out of
+    // /attributes, the due card, the ghost accrual and the projection at once — for
+    // exactly the pre-#31 bonds the fallback protects.
     const both = bond({ couponRatePct: 15.68, couponAmount: 1240 });
     expect(couponPerPayment(both, undefined)).toBe(1240);
-    // With no legacy figure either, there is genuinely nothing to report.
     expect(couponPerPayment(bond({ couponRatePct: 15.68 }), undefined)).toBeUndefined();
   });
 
   it('cannot answer from a rate alone — units are required', () => {
-    // A rate with no holding is not a coupon. Returning 0 would read as "this
-    // bond pays nothing", which is a different and wrong claim.
+    // Returning 0 would read as "this bond pays nothing", a different and wrong claim.
     expect(couponPerPayment(bond({ couponRatePct: 15.68 }), undefined)).toBeUndefined();
     expect(couponPerPayment(bond({ couponRatePct: 15.68 }), 0)).toBeUndefined();
   });
@@ -915,9 +863,8 @@ describe('couponPerPayment — the rate is fixed, the amount is not (D119)', () 
 });
 
 describe('a closed position pays no coupon, whichever figure would have answered', () => {
-  // The rule used to live INSIDE the rate branch, so a legacy bond — both of the
-  // seed's — fell past it and reported its whole stated `couponAmount` for a
-  // holding that is gone.
+  // The rule must sit OUTSIDE the rate branch: inside it, a legacy bond fell past and
+  // reported its whole stated `couponAmount` for a holding that is gone.
   const legacy: Asset = {
     id: 'ovdp',
     name: 'OVDP UA4000238976',
@@ -938,8 +885,8 @@ describe('a closed position pays no coupon, whichever figure would have answered
   });
 
   it('still returns the legacy amount when the count is UNKNOWN', () => {
-    // `undefined` is a different question from 0: the ledger cannot count this
-    // asset, and the stated figure is the only one it has.
+    // `undefined` is a different question from 0 — the ledger cannot count this asset,
+    // and the stated figure is the only one it has.
     expect(couponPerPayment(legacy, undefined)).toBe(1240);
   });
 

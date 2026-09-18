@@ -11,11 +11,6 @@ import {
 } from './money';
 import { amountInputSchema, groupsWithCommaFor, normalizeNumberInput } from './schemas';
 
-// The legacy exports these covered are gone: each language now owns one
-// coherent set, so "prose vs table" is not a distinction the code can make.
-// What did NOT survive automatically is the behaviour of `signedPp`, which the
-// old block tested and the Contract 0 block did not — ported here onto `pp`
-// rather than deleted with its function.
 describe('pp — a signed percentage-point gap', () => {
   const uk = makeFormat('uk');
   const en = makeFormat('en');
@@ -33,8 +28,8 @@ describe('pp — a signed percentage-point gap', () => {
   });
 
   it('spaces a % suffix like every other percentage', () => {
-    // Overview puts a pp gap and a plain percentage in one sentence; without
-    // this they read "−6,4% ... 17 %" — two conventions, four words apart.
+    // Overview puts a pp gap and a plain percentage in one sentence; without this
+    // they read "−6,4% ... 17 %" — two conventions, four words apart.
     expect(uk.pp(-6.4, '%')).toBe(`−6,4${NBSP}%`);
     expect(en.pp(-6.4, '%')).toBe('−6.4%');
     // any other suffix is the caller's, appended as given
@@ -56,9 +51,8 @@ describe('pp — a signed percentage-point gap', () => {
 });
 
 // ── Contract 0 ─────────────────────────────────────────────────────────────
-// The phase-5 brief's table, asserted rather than described. Every expectation
-// below is the brief's own example where it gives one, so a disagreement here
-// is a disagreement with the binding document, not with a preference.
+// The phase-5 brief's table, asserted rather than described — every expectation
+// below is the brief's own example, so a disagreement here is with the document.
 describe('makeFormat — Contract 0', () => {
   const uk = makeFormat('uk');
   const en = makeFormat('en');
@@ -85,15 +79,12 @@ describe('makeFormat — Contract 0', () => {
   });
 
   it('uses U+00A0 for every gap inside a figure, in either language', () => {
-    // A plain space would let a number wrap across lines mid-value, and the
-    // trailing symbol and the % sign would wrap away from their number for the
-    // same reason.
-    //
-    // Asserted POSITIVELY, and that is the point: Node's ICU already emits
-    // U+00A0 for uk-UA grouping, so "contains no ASCII space" passes whether or
-    // not the normaliser runs — a guard that cannot fail. Naming the exact
-    // codepoint instead catches the case the normaliser exists for: an ICU
-    // build that emits the NARROW no-break space U+202F.
+    // A plain space would let a number wrap across lines mid-value, and the trailing
+    // symbol and the % sign would wrap away from their number for the same reason.
+    // Asserted POSITIVELY, and that is the point: Node's ICU already emits U+00A0 for
+    // uk-UA grouping, so "contains no ASCII space" passes whether or not the normaliser
+    // runs — a guard that cannot fail. Naming the exact codepoint catches the case the
+    // normaliser exists for: an ICU build that emits the NARROW no-break space U+202F.
     const samples = [
       uk.num(1234567.89),
       uk.numWhole(1234567),
@@ -116,7 +107,7 @@ describe('makeFormat — Contract 0', () => {
     }
   });
 
-  it('keeps U+2212 as the minus in both languages (D8)', () => {
+  it('keeps U+2212 as the minus in both languages', () => {
     for (const f of [uk, en]) {
       expect(f.pct(-0.0308).startsWith('−')).toBe(true);
       expect(f.pp(-6.4).startsWith('−')).toBe(true);
@@ -139,8 +130,8 @@ describe('makeFormat — Contract 0', () => {
   });
 
   it('writes an unsigned percentage without inventing a direction', () => {
-    // pctPlain takes a value ALREADY in percent and never signs it — a 46.1%
-    // share is not "+46.1%". The Ukrainian space before % applies to both.
+    // pctPlain takes a value ALREADY in percent and never signs it — a 46.1% share
+    // is not "+46.1%". The Ukrainian space before % applies to both.
     expect(uk.pctPlain(46.1)).toBe(`46,1${NBSP}%`);
     expect(en.pctPlain(46.1)).toBe('46.1%');
     expect(uk.pctPlain(17, 0)).toBe(`17${NBSP}%`);
@@ -162,8 +153,8 @@ describe('makeFormat — Contract 0', () => {
   });
 
   it('says the same NUMBER in both languages — only the writing differs', () => {
-    // The ruling that matters most: language changes how a figure is written,
-    // never which figure it is. Strip the writing and the two must agree.
+    // The ruling that matters most: language changes how a figure is written, never
+    // which figure it is. Strip the writing and the two must agree.
     const bare = (s: string) => s.replace(/[^\d]/g, '');
     for (const n of [0, 7.75, 68702.1, 149016.36, 1234567.89]) {
       expect(bare(uk.num(n))).toBe(bare(en.num(n)));
@@ -173,7 +164,7 @@ describe('makeFormat — Contract 0', () => {
 });
 
 describe('the two exports Contract 0 left bare', () => {
-  it('signed pins U+2212 and is language-independent (D8)', () => {
+  it('signed pins U+2212 and is language-independent', () => {
     expect(signed(-1, 'x')).toBe('−x');
     expect(signed(1, 'x')).toBe('+x');
     expect(signed(-1, 'x')).not.toContain('-');
@@ -186,9 +177,7 @@ describe('the two exports Contract 0 left bare', () => {
 
 describe('input — the editable form, and the round trip it guarantees', () => {
   // THE PROPERTY, not a list of examples: whatever `input` prints, the app's own
-  // parser must read back as the same number, in every language. The first cut
-  // of A36 used `units` and pinned 16,4 / 17,5 / 7,25 — none of which is the
-  // class that fails, so 754 green tests certified a contract that did not hold.
+  // parser must read back as the same number, in every language.
   const VALUES = [
     0, 3, 17, 40, 100, 0.1, 7.25, 16.4, 17.5, 44.83, 44.6988,
     // exactly three decimals: in Ukrainian these collide with the parser's
@@ -196,10 +185,9 @@ describe('input — the editable form, and the round trip it guarantees', () => 
     1.234, 6.164, 0.125, 99.999,
     // and the neighbours that must keep working
     1234.567, 1500, 12.3456,
-    // BELOW WHAT `f.free` CAN PRINT (20 fraction digits), so the formatted form
-    // rounds to "0" and the round trip fails — this is the one value in the list
-    // that leaves through `input`'s `String(n)` last resort, and the assertion
-    // below is what keeps that branch honest rather than merely unreachable.
+    // BELOW WHAT `f.free` CAN PRINT, so the formatted form rounds to "0" and the round
+    // trip fails — the one value in the list that leaves through `input`'s `String(n)`
+    // last resort.
     1e-25,
   ];
 
@@ -208,10 +196,9 @@ describe('input — the editable form, and the round trip it guarantees', () => 
       const f = makeFormat(lang);
       for (const v of VALUES) {
         const shown = f.input(v);
-        // UNDER ITS OWN LANGUAGE, which is the whole guarantee: `input` prints
-        // in one grammar, so the parser it is checked against has to be that
-        // grammar's. Checked against the other one, a Ukrainian «6,164» reads
-        // as 6164 and the round trip certifies a 1000x.
+        // UNDER ITS OWN LANGUAGE, which is the whole guarantee: `input` prints in one
+        // grammar, so the parser it is checked against has to be that grammar's. Checked
+        // against the other one, a Ukrainian «6,164» reads as 6164 and certifies a 1000x.
         expect(
           Number(normalizeNumberInput(shown, groupsWithCommaFor(lang))),
           `${v} rendered "${shown}"`,
@@ -231,17 +218,15 @@ describe('input — the editable form, and the round trip it guarantees', () => 
   });
 
   it('falls back to the dot form only when the language cannot print the value', () => {
-    // The `String(n)` last resort, asserted directly: the round-trip check above
-    // would still pass if `f.free` ever started printing 1e-25, leaving the
-    // branch unreachable with the suite green.
+    // The `String(n)` last resort, asserted directly: the round-trip check above would
+    // still pass if `f.free` ever started printing 1e-25, leaving the branch unreachable.
     expect(makeFormat('uk').input(1e-25)).toBe('1e-25');
     expect(makeFormat('en').input(1e-25)).toBe('1e-25');
   });
 
   it('prints a three-decimal fraction plainly, with nothing added to disambiguate it', () => {
-    // «6,1640» was a pad against a parser that read the Ukrainian text under the
-    // English rule. The rule follows the language now, so the value is shown as
-    // it is written — and still reads back as itself.
+    // «6,1640» was a pad against a parser that read the Ukrainian text under the English
+    // rule. The rule follows the language now, so the value is shown as it is written.
     expect(makeFormat('uk').input(6.164)).toBe('6,164');
     expect(makeFormat('en').input(6.164)).toBe('6.164');
   });
@@ -265,9 +250,9 @@ describe('what a numeric field stores, and what it shows', () => {
     valueFromInput(groupedForInput(stored, lang) + text, stored, lang, true);
 
   it('stores ONE language-free spelling, whichever language typed it', () => {
-    // The defect that forced this shape: stored as it was shown, an English
-    // `1,234` reads as 1.234 the moment the language changes. Both languages now
-    // store the same text, so the value cannot change meaning underneath it.
+    // The defect that forced this shape: stored as it was shown, an English `1,234`
+    // reads as 1.234 the moment the language changes. Both languages now store the same
+    // text, so the value cannot change meaning underneath it.
     expect(typed('1,234', 'en')).toBe('1234');
     expect(typed(`1${NBSP}234`, 'uk')).toBe('1234');
     expect(typed('1 234,56', 'uk')).toBe('1234.56');
@@ -295,8 +280,8 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('reads back its own display, keystroke by keystroke', () => {
-    // What the browser walks: whatever is on screen is what the next keystroke
-    // lands in, so every state a typist passes through has to survive the trip.
+    // What the browser walks: whatever is on screen is what the next keystroke lands
+    // in, so every state a typist passes through has to survive the trip.
     for (const [lang, mark, want] of [
       ['uk', ',', `1${NBSP}234${NBSP}567,89`],
       ['en', '.', '1,234,567.89'],
@@ -318,12 +303,11 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('REFUSES a pasted European decimal under English, as it always did', () => {
-    // `1234,567` is 1234.567 to half of Europe and a grouped 1234567 to the
-    // other half, and English has no lone-comma reading (D87) — so it stays
-    // unreadable rather than being stored a thousandfold too large. It cannot be
-    // told from `1239,456`, the state a digit typed into `123,456` passes
-    // through, which is why a PASTE is judged by the grammar and a KEYSTROKE is
-    // not.
+    // `1234,567` is 1234.567 to half of Europe and a grouped 1234567 to the other half,
+    // and English has no lone-comma reading — so it stays unreadable rather than being
+    // stored a thousandfold too large. It cannot be told from `1239,456`, the state a
+    // digit typed into `123,456` passes through, which is why a PASTE is judged by the
+    // grammar and a KEYSTROKE is not. *Language, numbers, fonts*
     expect(pasted('1234,567', 'en')).toBe('1234,567');
     expect(amountInputSchema('en').safeParse(pasted('1234,567', 'en')).success).toBe(false);
     expect(key('123456', '9', 'en', 3)).toBe('1239456');
@@ -332,19 +316,17 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('pastes digits INTO a field that is already grouped', () => {
-    // The whole box used to be handed to the grammar on a paste, so the field's
-    // own comma came back at it: `1,234` + `567` read as `1,234567`, which
-    // English refuses, and the row went red on the user's own figure.
+    // The whole box used to be handed to the grammar on a paste, so the field's own
+    // comma came back at it: `1,234` + `567` read as `1,234567`, which English refuses.
     expect(pasteInto('1234', '567', 'en')).toBe('1234567');
     expect(pasteInto('1234', '567', 'uk')).toBe('1234567');
     expect(pasteInto('1234567', '.5', 'en')).toBe('1234567.5');
   });
 
   it('goes on refusing a pasted European decimal after the next keystroke', () => {
-    // A refusal one keystroke deep is no refusal: a Backspace used to take the
-    // comma as this field's grouping and store 123456 for a value that had just
-    // been rejected. While the stored value is not a number, the marks in the
-    // box are the typist's and stay theirs.
+    // A refusal one keystroke deep is no refusal: a Backspace used to take the comma as
+    // this field's grouping and store 123456 for a value that had just been rejected.
+    // While the stored value is not a number, the marks in the box are the typist's.
     const refused = pasted('1234,567', 'en');
     expect(refused).toBe('1234,567');
     expect(typed('1234,56', 'en', refused)).toBe('1234,56');
@@ -362,9 +344,8 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('never writes a stored value in exponent form', () => {
-    // `String(1e-9)` is `1e-9`, which is not canonical — the field would drop
-    // its grouping and show the exponent. The Σ/1 toggle reaches it with a big
-    // enough count.
+    // `String(1e-9)` is `1e-9`, which is not canonical — the field would drop its
+    // grouping and show the exponent. The Σ/1 toggle reaches it with a big enough count.
     expect(inputValue(1e-9)).toBe('0.000000001');
     expect(groupedForInput(inputValue(1e-9), 'uk')).toBe('0,000000001');
     expect(inputValue(1e21)).toBe('1000000000000000000000');
@@ -372,10 +353,9 @@ describe('what a numeric field stores, and what it shows', () => {
 
   it('reads a whole number that ARRIVED, however it got there', () => {
     // Autofill and an IME commit are not keystrokes and do not come in under
-    // `insertFromPaste` either, so judging them as typed de-grouped `1.234,56`
-    // into 1.23456 — a silent 1000x, and a legal number nothing refuses. Length
-    // settles it regardless of what the caller believed: one character is the
-    // only thing a key can be.
+    // `insertFromPaste` either, so judging them as typed de-grouped `1.234,56` into
+    // 1.23456 — a silent 1000x. Length settles it regardless of what the caller
+    // believed: one character is the only thing a key can be.
     expect(valueFromInput('1.234,56', '', 'en', false)).toBe('1234.56');
     expect(valueFromInput('1234,56', '', 'en', false)).toBe('1234,56');
     expect(valueFromInput('1.234,56', '', 'uk', false)).toBe('1234.56');
@@ -384,9 +364,8 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('takes a typed comma in English as the grouping it is, not a decimal', () => {
-    // English groups with the comma and the field inserts its own, so one the
-    // typist adds is redundant — and it disappears as they type, which is the
-    // field saying so. Pasted, the same text is refused instead.
+    // English groups with the comma and the field inserts its own, so one the typist
+    // adds is redundant and disappears as they type. Pasted, the same text is refused.
     expect(key('16', ',', 'en')).toBe('16');
     expect(key(key('16', ',', 'en'), '5', 'en')).toBe('165');
     expect(pasted('16,5', 'en')).toBe('16,5');
@@ -402,8 +381,8 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('refuses to dress up something only `Number` calls a number', () => {
-    // `Number('0x1000')` is 4096, so a guard on finiteness alone let the field
-    // render `0x1 000` — digits it was never given.
+    // `Number('0x1000')` is 4096, so a guard on finiteness alone let the field render
+    // `0x1 000` — digits it was never given.
     expect(typed('0x1000', 'uk')).toBe('0x1000');
     expect(groupedForInput('0x1000', 'uk')).toBe('0x1000');
     expect(typed('1e5', 'en')).toBe('1e5');
@@ -421,8 +400,8 @@ describe('what a numeric field stores, and what it shows', () => {
   });
 
   it('round-trips what `inputValue` writes into the same fields', () => {
-    // The prefill writers store through `inputValue`; the field shows that and
-    // stores it back unchanged if nobody edits it.
+    // The prefill writers store through `inputValue`; the field shows that and stores
+    // it back unchanged if nobody edits it.
     for (const lang of ['uk', 'en'] as const) {
       for (const v of [0.1, 17.5, 1234.567, 6.164, 1500, 68702.1]) {
         const stored = inputValue(v);
@@ -438,14 +417,14 @@ describe('what a held value does when the language moves under it', () => {
   const typed = (raw: string, lang: 'uk' | 'en', stored = '') =>
     valueFromInput(raw, stored, lang, false);
 
-  // The round trip and the two writings are already pinned by the block above —
-  // what is only true of a SWITCH is that nothing migrates, so the two states a
-  // migration would have had to handle are the ones worth their own cases.
+  // The round trip and the two writings are already pinned by the block above — what
+  // is only true of a SWITCH is that nothing migrates, so the two states a migration
+  // would have had to handle are the ones worth their own cases.
 
   it('carries a HALF-TYPED decimal across the switch, readable in both', () => {
-    // Parked as text, `6,` is Ukrainian writing that English refuses, and the
-    // next keystroke would be refused with it. Held as `6.` it is shown as each
-    // language writes it and stays typable — which is why nothing re-prints.
+    // Parked as text, `6,` is Ukrainian writing that English refuses, and the next
+    // keystroke would be refused with it. Held as `6.` it is shown as each language
+    // writes it and stays typable — which is why nothing re-prints.
     const held = typed('6,', 'uk', '6');
     expect(held).toBe('6.');
     expect(groupedForInput(held, 'uk')).toBe('6,');
@@ -464,17 +443,17 @@ describe('what a held value does when the language moves under it', () => {
   });
 
   it('tells a stored number from text a field could not read', () => {
-    // What the rate box's validity rests on, and the reason it needs no
-    // language: the stored form is canonical or it is not a number at all.
+    // What the rate box's validity rests on, and the reason it needs no language: the
+    // stored form is canonical or it is not a number at all.
     expect(storedNumber('44.83')).toBe(44.83);
     expect(storedNumber('0.5')).toBe(0.5);
     expect(storedNumber('6.')).toBe(6);
-    // Signed forms READ — a caller's own range check is what refuses them, and
-    // pinning that here is what stops a later edit moving the line silently.
+    // Signed forms READ — a caller's own range check is what refuses them, and pinning
+    // that here is what stops a later edit moving the line silently.
     expect(storedNumber('+44.83')).toBe(44.83);
     expect(storedNumber('-1')).toBe(-1);
-    // Overflow does not: `Infinity` is positive, so it would pass that same
-    // range check and `persist` would write it out as `null`.
+    // Overflow does not: `Infinity` is positive, so it would pass that same range check
+    // and `persist` would write it out as `null`.
     expect(storedNumber('9'.repeat(400))).toBeUndefined();
     for (const text of ['16,5', '1234,567', '', '-', 'abc', '0x1000', '1e5']) {
       expect(storedNumber(text), text).toBeUndefined();

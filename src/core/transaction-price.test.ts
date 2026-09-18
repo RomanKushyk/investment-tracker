@@ -18,8 +18,8 @@ describe('priceParts', () => {
   });
 
   it('rounds the derived total, and only the total', () => {
-    // 11.1389 × 4 321 = 48 131.1869 — the amount takes kopiykas, the price is
-    // kept exactly as typed rather than back-computed from the rounded total.
+    // The amount takes kopiykas; the price is kept exactly as typed rather than
+    // back-computed from the rounded total.
     const parts = priceParts({ amount: 11.1389, quantity: 4_321, priceMode: 'unit' });
     const { amount, unitPrice } = parts ?? {};
     expect(amount).toBe(48_131.19);
@@ -27,15 +27,13 @@ describe('priceParts', () => {
   });
 
   it('leaves the price absent when there is no quantity to divide by', () => {
-    // A payout, a deposit — or a purchase whose units were not recorded,
-    // which is every row entered before #31. A price is never invented from a
-    // total alone.
+    // A payout, a deposit — or a purchase whose units were not recorded, which is
+    // every row entered before #31. A price is never invented from a total alone.
     expect(priceParts({ amount: 700.36, priceMode: 'total' })).toEqual({ amount: 700.36 });
   });
 
   it('cuts binary-float noise out of a derived price', () => {
-    // 64 628.62 ÷ 5 800 = 11.142865517241379... in exact arithmetic and carries
-    // a longer tail in binary. Six decimals is the stored precision.
+    // Six decimals is the stored precision; the exact quotient carries a longer tail.
     expect(priceParts({ amount: 64_628.62, quantity: 5_800, priceMode: 'total' })).toEqual({
       amount: 64_628.62,
       unitPrice: 11.142866,
@@ -43,33 +41,30 @@ describe('priceParts', () => {
   });
 
   it('keeps more precision than the feed publishes', () => {
-    // The feed's four decimals must not be the rounding target: a price that did
-    // NOT come out to a published figure has to stay visibly different from one
-    // that did. 1 ÷ 3 is the clearest case.
+    // The feed's four decimals must not be the rounding target: a price that did NOT
+    // come out to a published figure has to stay visibly different from one that did.
     expect(priceParts({ amount: 1, quantity: 3, priceMode: 'total' })?.unitPrice).toBe(0.333333);
   });
 
   it('has no row to record in per-unit mode without a quantity', () => {
-    // The form cannot reach this — `transactionSchema` rejects it — but a pure
-    // module must not multiply by undefined and hand back NaN.
+    // The form cannot reach this — `transactionSchema` rejects it — but a pure module
+    // must not multiply by undefined and hand back NaN.
     expect(priceParts({ amount: 11.1389, priceMode: 'unit' })).toBeUndefined();
   });
 
   it('records the total even when the PRICE rounds away, and stores no price', () => {
-    // `0,0000001` is a legal positive number to the form's schema. `round6`
-    // collapses it to 0 — and `json.ts` declares `unitPrice` positive, so
-    // storing that zero writes a row this app's own backup parser refuses. The
-    // ₴10 product is a perfectly good transaction, so it is recorded with no
-    // price, exactly as `total` mode does and as every row recorded before the
-    // count existed already is.
+    // `0,0000001` is a legal positive number to the form’s schema. `round6` collapses
+    // it to 0 — and `json.ts` declares `unitPrice` positive, so storing that zero writes
+    // a row this app’s own backup parser refuses. The ₴10 product is a perfectly good
+    // transaction, so it is recorded with no price, exactly as `total` mode does.
     expect(priceParts({ amount: 1e-7, quantity: 100_000_000, priceMode: 'unit' })).toEqual({
       amount: 10,
     });
   });
 
   it('has no row when the TOTAL itself rounds away', () => {
-    // This is the only real failure in per-unit mode, and the only case the
-    // caller must refuse: ₴0,001 per unit for 0,001 units is under a kopiyka.
+    // This is the only real failure in per-unit mode, and the only case the caller
+    // must refuse: ₴0,001 per unit for 0,001 units is under a kopiyka.
     expect(priceParts({ amount: 0.001, quantity: 0.001, priceMode: 'unit' })).toBeUndefined();
   });
 
@@ -87,15 +82,15 @@ describe('convertTypedAmount — the toggle moves the number, not just the label
   });
 
   it('reads the two strings under the language the form parses with', () => {
-    // `43,478` is 43.478 units to a Ukrainian typist and 43 478 under the
-    // grouping rule (D87), and the amount divides by whichever it is.
+    // `43,478` is 43.478 units to a Ukrainian typist and 43 478 under the grouping
+    // rule, and the amount divides by whichever it is. *Language, numbers, fonts*
     expect(convertTypedAmount('100', '43,478', 'unit', 'uk')).toBeCloseTo(2.3000138, 6);
     expect(convertTypedAmount('100', '43,478', 'unit', 'en')).toBeCloseTo(0.0023, 6);
   });
 
   it('has nothing to convert to without a usable count', () => {
-    // The caller empties the field on `undefined`. Reinterpreting what is in it
-    // is the defect; an empty field asks for the value the new label describes.
+    // The caller empties the field on `undefined`. Reinterpreting what is in it is the
+    // defect; an empty field asks for the value the new label describes.
     for (const count of ['', '0', '-5', 'abc']) {
       expect(convertTypedAmount('55 694,50', count, 'unit', 'uk')).toBeUndefined();
     }

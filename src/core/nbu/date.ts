@@ -1,10 +1,7 @@
-// The one place that reads the National Bank's date format.
-//
-// Both NBU endpoints this project touches — the fair-value file and the
-// exchange-rate directory — write dates as `dd.MM.yyyy`. Two copies of this
-// parse would eventually disagree, and the disagreement would be silent: read
-// as ISO, `10.08.2026` becomes a valid-looking date in a different month, and
-// only for the first twelve days of each month.
+// The one place that reads the National Bank's date format. Both NBU endpoints
+// this project touches — the fair-value file and the exchange-rate directory —
+// write dates as `dd.MM.yyyy`, and two copies of this parse would disagree
+// silently: read as ISO, `10.08.2026` is a valid-looking date in a different month.
 
 /**
  * `dd.MM.yyyy` -> `yyyy-MM-dd`, or `undefined` if the value is not a real date.

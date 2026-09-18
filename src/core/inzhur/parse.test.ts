@@ -1,6 +1,5 @@
 // Fixture-driven: every figure below comes from the trimmed live capture
-// (__fixtures__/assets-sample.json, 2026-07-28) or the user's real dashboard —
-// see docs/plans/NEXT-PHASE-PLAN.md Phase 3 Verify.
+// (__fixtures__/assets-sample.json, 2026-07-28) or the user's real dashboard.
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -87,8 +86,8 @@ describe('parseAssetsFeed on the live fixture', () => {
   });
 
   it('converts the schedule to ₴ on Kyiv dates (7840 → ₴78.40, 100000 → ₴1,000)', () => {
-    // The feed stamps midnight-Kyiv instants ('2027-03-23T22:00:00.000Z'), so
-    // the last coupon + principal land on the maturity date itself.
+    // The feed stamps midnight-Kyiv instants ('2027-03-23T22:00:00.000Z'), so the last
+    // coupon + principal land on the maturity date itself.
     expect(entry('UA4000238976').paymentSchedule).toEqual<InzhurPayment[]>([
       { date: '2026-03-25', amount: 78.4 },
       { date: '2026-09-23', amount: 78.4 },
@@ -108,10 +107,10 @@ describe('parseAssetsFeed on the live fixture', () => {
     expect(entry('inzhur-energy').returnRates).toBeUndefined();
   });
 
-  it('picks the lifecycle status verbatim, without filtering on it (D19)', () => {
-    // Every fixture entry is active; the point is that the value survives the
-    // parse. A 'completed' bond must still appear as an entry, because the user
-    // may hold one — matching never consults this field.
+  it('picks the lifecycle status verbatim, without filtering on it', () => {
+    // Every fixture entry is active; the point is that the value survives the parse. A
+    // 'completed' bond must still appear as an entry, because the user may hold one —
+    // matching never consults this field.
     expect(feed.entries.map((e) => e.status)).toEqual(['active', 'active', 'active', 'active']);
   });
 
@@ -243,8 +242,8 @@ describe('tolerance — a bad entry never kills the parse', () => {
     const parsed = parseAssetsFeed(payload);
     expect(parsed.entries.map((e) => e.ref)).toEqual(feed.entries.map((e) => e.ref));
     expect(parsed.skipped.map((s) => s.ref)).toEqual(['UA0000000000', '#5', '#6', '#7', '#8']);
-    // The last one validated but carries neither ISIN nor slug, so nothing
-    // could key it — a different fault from a shape failure, and named as one.
+    // The last one validated but carries neither ISIN nor slug, so nothing could key
+    // it — a different fault from a shape failure, and named as one.
     expect(parsed.skipped.at(-1)?.reason).toBe('no_ref');
     expect(parsed.skipped[0].reason).toBe('shape');
   });
@@ -278,10 +277,9 @@ describe('tolerance — a bad entry never kills the parse', () => {
     expect(parseAssetsFeed(undefined)).toEqual(notAnArray);
   });
 
-  // A7: the whole point of carrying a reason. A renamed price field used to
-  // make an asset vanish from the fetch with nothing to say why; the skip now
-  // names the exact path, which is the difference between a five-minute fix and
-  // an afternoon.
+  // The whole point of carrying a reason. A renamed price field used to make an
+  // asset vanish from the fetch with nothing to say why; the skip now names the
+  // exact path, which is the difference between a five-minute fix and an afternoon.
   it('names the field that a rename broke, and keeps every other entry', () => {
     const good = {
       slug: 'inzhur-reit',
@@ -340,7 +338,7 @@ describe('matchAssets', () => {
   });
 });
 
-describe('scheduleFacts — the three dates the provider already knows (D121)', () => {
+describe('scheduleFacts — the three dates the provider already knows', () => {
   const bond = entry('UA4000238976');
 
   it('reads maturity, the next coupon and the cadence off one entry', () => {
@@ -350,8 +348,8 @@ describe('scheduleFacts — the three dates the provider already knows (D121)', 
       maturity: '2027-03-24',
       nextCoupon: '2026-09-23',
       payoutSchedule: 'semiannual',
-      // 78.40 × 2 / 1000 × 100 — the measured derivation, and it must land on
-      // the published two decimals exactly (OVDP-COUPON-STRUCTURE.md).
+      // It must land on the published two decimals exactly
+      // (docs/reference/OVDP-COUPON-STRUCTURE.md).
       couponRatePct: 15.68,
     });
   });
@@ -359,14 +357,14 @@ describe('scheduleFacts — the three dates the provider already knows (D121)', 
   it('moves the next coupon forward as the date does, and runs out at the end', () => {
     expect(scheduleFacts(bond, '2026-09-24').nextCoupon).toBe('2027-03-24');
     expect(scheduleFacts(bond, '2027-03-25').nextCoupon).toBeUndefined();
-    // Maturity and cadence are facts about the instrument, not about today, so
-    // they survive a schedule that is entirely spent.
+    // Maturity and cadence are facts about the instrument, not about today, so they
+    // survive a schedule that is entirely spent.
     expect(scheduleFacts(bond, '2027-03-25').maturity).toBe('2027-03-24');
   });
 
   it('reads the cadence in BANDS, so one shifted date cannot change it', () => {
-    // Measured: UA4000235782 carries a 183-day gap followed by a 181-day one
-    // around a payment moved by a day. Matching 182 exactly would misread it.
+    // UA4000235782 carries a 183-day gap followed by a 181-day one around a payment
+    // moved by a day. Matching 182 exactly would misread it.
     const shifted: InzhurQuote = {
       ...bond,
       paymentSchedule: [
@@ -404,9 +402,8 @@ describe('scheduleFacts — the three dates the provider already knows (D121)', 
 describe('a derived rate the form would refuse is not offered', () => {
   // The picker's effect writes this straight into `couponRatePct`, and
   // `optionalPercent` bounds it to (0, 100]. A bond whose principal row is not
-  // exactly ₴1000 — a non-UAH nominal, or a final row paying coupon and
-  // principal together as its only payment — derived a rate above 100 and left
-  // the field red with an error the user did not cause.
+  // exactly ₴1000 derived a rate above 100 and left the field red with an error the
+  // user did not cause.
   it('offers nothing when the derivation lands outside (0, 100]', () => {
     const bond = entry('UA4000238976');
     const combined = {
@@ -416,12 +413,11 @@ describe('a derived rate the form would refuse is not offered', () => {
         { date: '2027-02-25', amount: 1078.4 },
       ],
     };
-    // 1078.4 × 2 / 1000 × 100 = 215.68 — a rate the form refuses.
     expect(scheduleFacts(combined, '2026-08-12').couponRatePct).toBeUndefined();
   });
 });
 
-describe('scheduleFacts — the coupon RATE, from the same schedule (D119/D121)', () => {
+describe('scheduleFacts — the coupon RATE, from the same schedule', () => {
   const bond = entry('UA4000238976');
 
   it('takes the SMALLEST payment as the coupon, never the principal', () => {
@@ -444,8 +440,8 @@ describe('scheduleFacts — the coupon RATE, from the same schedule (D119/D121)'
   });
 
   it('says NOTHING when the cadence is unreadable — no divisor, no rate', () => {
-    // An annual bond: `cadenceOf` refuses to guess, and deriving the rate
-    // against an assumed 2 would be exactly that guess, one field over.
+    // An annual bond: `cadenceOf` refuses to guess, and deriving the rate against an
+    // assumed 2 would be exactly that guess, one field over.
     const annual: InzhurQuote = {
       ...bond,
       paymentSchedule: [
@@ -468,8 +464,8 @@ describe('scheduleFacts — a stub first coupon must not set the rate', () => {
 
   it('takes the RECURRING coupon, not the smallest payment', () => {
     // A bond issued mid-period pays a short part-period stub first. Reading the
-    // minimum halved every coupon figure the asset produces; the value that
-    // REPEATS is the contract.
+    // minimum halved every coupon figure the asset produces; the value that REPEATS
+    // is the contract.
     const stubbed: InzhurQuote = {
       ...bond,
       paymentSchedule: [
@@ -501,7 +497,7 @@ describe('scheduleFacts — a stub first coupon must not set the rate', () => {
         { date: '2027-03-24', amount: 1000 },
       ],
     };
-    // One payment date → `maturity` cadence → divisor 1, so 78.40 / 1000 × 100.
+    // One payment date → `maturity` cadence → divisor 1.
     expect(scheduleFacts(one, '2026-01-01').couponRatePct).toBe(7.84);
   });
 });

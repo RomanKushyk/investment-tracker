@@ -16,10 +16,9 @@ describe('parseNbuRate', () => {
     expect(parseNbuRate(OK)).toEqual({ rate: 44.866, date: '2026-08-12', currency: 'USD' });
   });
 
-  // NBU carries the previous banking day forward and stamps it with the date
-  // that was requested. Measured: 07 (Fri), 08 (Sat) and 09 (Sun) all 44.7626.
-  // The value is reported as-is — the official Sunday rate genuinely is
-  // Friday's, so there is nothing to correct and nothing to claim.
+  // NBU carries the previous banking day forward and stamps it with the date that
+  // was requested. The value is reported as-is — the official Sunday rate genuinely
+  // is Friday's, so there is nothing to correct and nothing to claim.
   it('reports a weekend rate under the requested date, without pretending it is fresh', () => {
     expect(parseNbuRate(WEEKEND)).toEqual({ rate: 44.7626, date: '2026-08-09', currency: 'USD' });
   });
@@ -71,8 +70,8 @@ describe('parseNbuRate', () => {
 });
 
 describe('nbuRateUrl', () => {
-  // Omitting date= returns tomorrow's rate once it is published in the
-  // afternoon, so the date is never optional.
+  // Omitting date= returns tomorrow's rate once it is published in the afternoon,
+  // so the date is never optional.
   it('always carries an explicit compact date', () => {
     expect(nbuRateUrl('2026-08-12')).toBe(
       'https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?valcode=usd&date=20260812&json',
