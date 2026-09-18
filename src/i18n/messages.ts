@@ -350,9 +350,6 @@ export const en = {
       'November',
       'December',
     ],
-    // The month AFTER a preposition of time ("pays in early June"). English
-    // repeats monthFull; Ukrainian needs the genitive — "на початку червня",
-    // never "червень" — so the two lists cannot be one.
     // Joins the two coupon months in the Seasonality card.
     listAnd: ' & ',
     pick: 'Pick a date',
@@ -364,6 +361,9 @@ export const en = {
     pickYear: 'Pick a year',
     prevYears: 'Previous years',
     nextYears: 'Next years',
+    // The month AFTER a preposition of time ("pays in early June"). English repeats
+    // monthFull; Ukrainian needs the genitive — "на початку червня", never "червень" —
+    // so the two lists cannot be one.
     monthIn: [
       'January',
       'February',

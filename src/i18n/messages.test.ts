@@ -5,7 +5,8 @@ import { en, uk } from './messages';
 // `Dict = typeof en` already makes a missing or extra key a COMPILE error, so
 // these tests deliberately cover what the type cannot see:
 //  · a key present in both but left in English in `uk` — type-correct, wrong
-//  · an interpolation dropped inside a translated function
+//  · an interpolation the English probe emits, dropped in the translation
+//  · a trailing value a `uk` entry quietly stops taking
 //  · a shape that drifted through an `as` cast someone added later
 // A test that only re-asserted key equality would pass by construction.
 
@@ -54,6 +55,19 @@ describe('the dictionaries', () => {
     }
   });
 
+  it('agree on how many values each function takes', () => {
+    // A `uk` entry declaring FEWER parameters than `en` still satisfies `Dict`:
+    // assignability matches positionally, so dropping the TRAILING one is no compile
+    // error. The interpolation test below misses it whenever the probe's own English
+    // output lacks that marker, as `problemCount`'s does.
+    for (const [key, value] of EN) {
+      if (typeof value !== 'function') continue;
+      const ukFn = UK.get(key) as (...args: never[]) => string;
+      const detail = `${key} — Ukrainian takes ${ukFn.length}, English ${value.length}`;
+      expect(ukFn.length, detail).toBe(value.length);
+    }
+  });
+
   it('leave nothing untranslated', () => {
     const untranslated = [...EN]
       .filter(
@@ -69,7 +83,7 @@ describe('the dictionaries', () => {
     expect(untranslated).toEqual([]);
   });
 
-  it('keep every interpolation a translated function takes', () => {
+  it('keep every interpolation the English probe emits', () => {
     // A translated body can take an argument and never emit it.
     for (const [key, value] of EN) {
       if (typeof value !== 'function') continue;
