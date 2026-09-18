@@ -16,8 +16,8 @@ import type { YieldSeriesPoint } from '../../screens/yield/yield';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 
-// The index of an asset's last defined (non-undefined) point — each line gets
-// its OWN end dot, since assets purchased later (…6475) have shorter series.
+// Each line gets its OWN end dot: an asset purchased later has a shorter series,
+// so the chart's last index is not that line's last point.
 function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
   let idx = -1;
   data.forEach((p, i) => {
@@ -26,9 +26,7 @@ function lastDefinedIndex(data: YieldSeriesPoint[], assetId: string): number {
   return idx;
 }
 
-// Design lines 314-322: 4 cumulative-% lines in asset colors, a dot at each
-// line's own last point. Motion (D7): sweeps in on mount, redraws animated on
-// data updates (recharts default — never a cold redraw).
+// Drawn at `design/Investment Tracker.dc.html:314-322`.
 export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets: Asset[] }) {
   const f = useFormat();
   const trigger = useTooltipTrigger();
@@ -45,10 +43,9 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           minTickGap={48}
         />
         <YAxis
-          // Already IN percent and signed by hand, so it is pctPlain (which
-          // never signs) wrapped in signed() — not pct(), which takes a
-          // fraction. 0 dp: this axis is 40px wide and recharts picks whole
-          // numbers for it.
+          // Already IN percent, so `pctPlain` wrapped in `signed()` and never
+          // `pct()`, which takes a fraction. No decimals: the axis is too narrow
+          // for them and recharts picks whole numbers for it anyway.
           tickFormatter={(v: number) =>
             v === 0 ? f.pctPlain(0, 0) : signed(v, f.pctPlain(Math.abs(v), 0))
           }
@@ -57,7 +54,8 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
           tickLine={false}
           width={40}
         />
-        {/* S6 / D-b — per-asset cumulative yield exists only here. */}
+        {/* Per-asset cumulative yield exists ONLY here, so the tooltip has to
+            be reachable by tap as well as by hover. */}
         <Tooltip
           trigger={trigger}
           labelFormatter={(label) => f.dateShort(String(label))}

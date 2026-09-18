@@ -15,13 +15,12 @@ import {
 } from './reminder-labels';
 import { useT } from '../../i18n/useT';
 
-// S6 (design/extensions/reminders.dc.html) — the banner strip above the screen
-// content on `/` and `/overview`. Severity IS the container: a tint background
-// with its -tint-text carrying icon, text and ✕; no border, no shadow.
-// `neg-tint` is minted for the overdue severity and used nowhere else.
-// `info` reads the INFO family, not the gain one (#91): gain and loss belong to
-// deltas, and a reminder is not a delta. It borrowed `pos-tint` only because the
-// palette had no informational rank until the parchment session minted one.
+// The banner strip above the screen content on `/` and `/overview`
+// (`design/extensions/reminders.dc.html`). SEVERITY IS THE CONTAINER: a tint
+// background with its -tint-text carrying icon, text and ✕, no border and no
+// shadow. `neg-tint` is minted for the overdue severity and used nowhere else,
+// and `info` reads the INFO family rather than the gain one — gain and loss
+// belong to deltas, and a reminder is not a delta (*Interaction rules*).
 const SEVERITY_PAINT: Record<ReminderSeverity, string> = {
   info: 'bg-info-tint text-info-tint-text',
   warn: 'bg-warn-tint text-warn-tint-text',
@@ -34,9 +33,8 @@ const SEVERITY_ICON: Record<ReminderSeverity, typeof Info> = {
   overdue: Clock,
 };
 
-// Banner mount: fade + slide-from-top-1, staggered down the stack — the
-// reference's ~60ms cadence expressed in the app's existing Tailwind delay
-// ladder (same one Overview's asset rows use).
+// The drawing's cadence expressed in Tailwind's delay ladder, which is why the
+// steps are uneven — the ladder has no rung at every multiple.
 const STAGGER = ['', 'delay-75', 'delay-150', 'delay-200', 'delay-300'];
 
 function ReminderBanner({
@@ -71,20 +69,17 @@ function ReminderBanner({
       <div className="min-w-0 flex-1 text-[13px] leading-[1.5]">
         {reminderText(reminder, assetName, f, t)}{' '}
         {action !== undefined && (
-          // Both actions lead to the daily ritual (the quotes screen). The
-          // design's `white-space:nowrap` holds from `sm` up; at the 360px rail
-          // layout the content column is ~200px, so the link must be allowed to
-          // wrap or the row would push the page into horizontal scroll.
+          // The drawing's `nowrap` holds from `sm` up only: at 360 the content
+          // column is too narrow for it, and an unwrappable link there pushes
+          // the page into horizontal scroll.
           <Link
             to="/"
-            // NO tap-target class, and that is deliberate. This link is inline
-            // inside a sentence: an absolutely positioned pseudo-element
-            // resolves against an inline element's FIRST line box, so on a
-            // wrapped link the overlay lands somewhere nobody chose — and WCAG
-            // 2.5.8 exempts a target "inline in a sentence" for exactly that
-            // reason, because the line height belongs to the prose, not to the
-            // control. Measured here it added 3px and reached toward the body
-            // copy above; both are the wrong outcome.
+            // NO tap-target class, deliberately. This link is inline inside a
+            // sentence, and an absolutely positioned pseudo-element resolves
+            // against an inline element's FIRST line box — so on a wrapped link
+            // the overlay lands somewhere nobody chose, and it reaches into the
+            // body copy above. WCAG 2.5.8 exempts a target inline in a sentence
+            // for that reason: the line height belongs to the prose.
             className="font-bold underline decoration-transparent transition hover:decoration-current active:scale-[.97] sm:whitespace-nowrap"
           >
             {action}
@@ -95,9 +90,9 @@ function ReminderBanner({
         type="button"
         aria-label={t.reminders.dismiss}
         onClick={onDismiss}
-        // A real box (no fill, no border, so nothing is redrawn): the overlay
-        // version reached 9px into the text column beside it, which put a
-        // dismiss under a tap on plain prose.
+        // A real box and not the overlay, which reached into the text column
+        // beside it and put a dismiss under a tap on plain prose. Nothing is
+        // redrawn: the control has no fill and no border.
         className={`${TAP_44_BOX} flex-none cursor-pointer py-[2px] pr-[2px] pl-1.5 opacity-85 transition hover:opacity-100 active:scale-[.97]`}
       >
         <X size={13} strokeWidth={2.5} />
@@ -106,11 +101,9 @@ function ReminderBanner({
   );
 }
 
-// Dismiss exit: the banner fades/slides out first and the store records the id
-// when the motion is over. The commit rides a TIMEOUT, never `animationend` — a
-// throttled or occluded tab never fires that event, and a dismissal must be
-// recorded whatever the compositor is doing. Reduced motion skips straight to
-// the write.
+// The commit rides a TIMEOUT, never `animationend`: a throttled or occluded tab
+// never fires that event, and a dismissal must be recorded whatever the
+// compositor is doing (*Interaction rules*).
 const DISMISS_EXIT_MS = 220;
 
 export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' }) {
@@ -137,8 +130,8 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
   // Action links are an `/overview` affair for the same reason.
   const shown =
     place === 'overview' ? reminders : reminders.filter((r) => r.kind !== 'quote-missing');
-  // Empty and all-dismissed are the same state: nothing renders, zero height,
-  // no placeholder — the screen is byte-identical to its pre-P3 self.
+  // Empty and all-dismissed are one state: nothing renders, zero height, no
+  // placeholder — the screen is byte-identical to one that never had a strip.
   if (shown.length === 0) return null;
 
   const visible = expanded ? shown : shown.slice(0, REMINDER_STRIP_CAP);
@@ -162,8 +155,8 @@ export function ReminderStrip({ place }: { place: 'daily-quotes' | 'overview' })
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          // Text, not an icon, so it keeps its own width and only grows to 44
-          // in height — again a real box, because this control draws no fill.
+          // Text, not an icon, so it keeps its own width and grows only in
+          // height — again a real box, this control drawing no fill.
           className="animate-in cursor-pointer self-start px-1 py-[2px] text-xs text-muted transition fade-in hover:opacity-85 active:scale-[.97] max-md:min-h-11"
         >
           {moreRemindersLabel(hidden, t)}

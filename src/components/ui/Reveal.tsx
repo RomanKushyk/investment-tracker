@@ -1,12 +1,9 @@
 import { useState, type ReactNode } from 'react';
 
-// The app's one conditional-group reveal (P2 asset-form.dc.html S3 groups,
-// reused by the P3 Settings→Automation reminder sub-rows, automation.dc.html
-// S8): reveal = fade + slide-from-top 300ms; hide = SYMMETRIC fade/slide-out
-// 300ms — the group stays mounted until its exit animation ends (a bare
-// `{flag && …}` unmount would skip it). fill-mode-forwards holds the exited
-// frame until React removes the node; reduced-motion collapses both to ~0 via
-// the global kill-switch.
+// The app's one conditional-group reveal, and the hide is SYMMETRIC with the
+// show: the group stays mounted until its exit animation ends, where a bare
+// `{flag && …}` unmount would skip it, and `fill-mode-forwards` holds the exited
+// frame until React removes the node.
 export function Reveal({
   show,
   className,
@@ -15,7 +12,8 @@ export function Reveal({
 }: {
   show: boolean;
   className: string;
-  /** Tailwind slide distance — the S8 sub-rows travel 1, the form groups 2. */
+  /** Tailwind slide distance — `slide-in-from-top-{n}` and its symmetric exit,
+   *  so 1 is half the travel of 2. */
   distance?: 1 | 2;
   children: ReactNode;
 }) {

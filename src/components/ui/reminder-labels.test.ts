@@ -11,13 +11,10 @@ import {
   reminderToastText,
 } from './reminder-labels';
 
-// The formatter is a parameter now (Contract 0), so these fixtures bind it
-// to Ukrainian — the language whose forms these expectations were written in
-// and still are: dd.MM.yyyy dates, comma decimals.
-// English is the language these sentences were pinned in, so the English
-// rendering is asserted verbatim — WITH English dates, which Contract 0 now
-// makes "25 Aug 2026" rather than "25 Aug 2026". A Ukrainian block follows,
-// because that is where the plural rule can go wrong.
+// The formatter is a parameter (Contract 0), so a fixture has to bind one. These
+// bind ENGLISH and assert the sentences verbatim, dates included, because
+// English is the language they were pinned in. A Ukrainian block follows on its
+// own formatter, that being where the plural rule can go wrong.
 const f = makeFormat('en');
 const t = en;
 const fUk = makeFormat('uk');
@@ -60,7 +57,6 @@ const maturity: Reminder = {
 };
 
 describe('reminderText', () => {
-  // Verbatim from the reference's copy inventory.
   it('renders the four kinds exactly as the design pins them', () => {
     expect(reminderText(quoteMissing, '', f, t)).toBe('No quotes saved today yet.');
     expect(reminderText(upcoming, NAMES.ovdp8976, f, t)).toBe(
@@ -116,9 +112,9 @@ describe('moreRemindersLabel', () => {
   });
 });
 
-// The Ukrainian side, and specifically the plural rule: three forms where
-// English has two, with the 11-14 band taking `many` despite ending in 1-4.
-// A shared template with a count spliced in would read "2 днів" here.
+// The plural rule: three forms where English has two, and the 11-14 band takes
+// `many` despite ending in 1-4. A shared template with a count spliced in would
+// read "2 днів" here.
 describe('reminderText — Ukrainian plural forms', () => {
   const say = (days: number) => reminderText({ ...upcoming, days }, NAMES.ovdp8976, fUk, uk);
 

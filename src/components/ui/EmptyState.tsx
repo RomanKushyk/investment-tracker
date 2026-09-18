@@ -1,6 +1,5 @@
-// Friendly placeholder swapped in for a chart/table with no data yet
-// (README §10.7 empty states) — keeps the card's shape instead of collapsing
-// to nothing, so the screen doesn't look broken.
+// It holds the card's shape rather than collapsing to nothing, so a chart with
+// no data yet does not read as broken.
 export function EmptyState({ message, height = 220 }: { message: string; height?: number }) {
   return (
     <div

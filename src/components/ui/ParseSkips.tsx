@@ -1,12 +1,11 @@
-// A7 — the last parse, said out loud.
-//
-// `parse.ts` has always returned `{entries, skipped}` and every caller threw
-// `skipped` away, so a renamed provider field silently dropped an asset from
-// the fetch and the only symptom was an unlinked row nobody could explain.
+// The last parse, said out loud. `parse.ts` returns `{entries, skipped}`, and
+// while every caller threw `skipped` away a renamed provider field silently
+// dropped an asset from the fetch, the only symptom being an unlinked row
+// nobody could explain.
 //
 // NON-BLOCKING by construction: this reports, it never gates a fetch or a save.
-// The tolerant-parse contract (D19) is that one bad entry costs that entry and
-// nothing else — this is the part that makes the cost visible.
+// The tolerant-parse contract is that one bad entry costs that entry and
+// nothing else, and this is the part that makes the cost visible.
 import { useState } from 'react';
 
 import type { SkippedEntry } from '../../core/inzhur/parse';
@@ -14,7 +13,7 @@ import { useLastParse } from '../../hooks/useInzhurAssets';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 
-// Tokens live in core; the words live in the dictionary (D8).
+// Tokens live in core; the words live in the dictionary. *Core is pure*
 function SkipLine({ skip }: { skip: SkippedEntry }) {
   const t = useT();
   return (
@@ -41,9 +40,9 @@ export function ParseSkips({ className = '' }: { className?: string }) {
 
   const count = parse.skipped.length;
 
-  // The healthy state is REPORTED, not silent. "Nothing wrong as of 13:05" and
+  // The healthy state is REPORTED, not silent: "nothing wrong as of 13:05" and
   // "nobody has looked" are different facts, and only one of them is evidence
-  // that the feed still parses (D53).
+  // that the feed still parses.
   if (count === 0) {
     return (
       <p className={`text-[11px] text-faint ${className}`}>
@@ -58,10 +57,9 @@ export function ParseSkips({ className = '' }: { className?: string }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        // `opacity`, not `-tint-text`: the parchment palette gives `warn` and
-        // `warn-tint-text` one value, so the old hover animated between two
-        // identical colours. `hover:opacity-85` is what the ghost button and
-        // the nav pills already use for a text-only hover.
+        // `opacity`, not `-tint-text`: the palette gives `warn` and
+        // `warn-tint-text` one value, so a colour hover animates between two
+        // identical colours.
         className="text-[11px] text-warn underline underline-offset-2 transition duration-200 hover:opacity-85"
       >
         {t.parse.failed(count)}

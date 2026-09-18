@@ -4,37 +4,26 @@ import type { EditMode } from '../../hooks/useEditMode';
 import { useT } from '../../i18n/useT';
 
 /**
- * The screen-level edit control, in its two variants, plus the discard dialog
- * that guards it (brief § G-2, § G-4; extension § S1).
+ * The screen-level edit control and the discard dialog that guards it.
  *
- * TWO VARIANTS, AND THE PAGE DECLARES WHICH:
+ * TWO VARIANTS, AND THE PAGE DECLARES WHICH: **batch** (`Cancel` + `Save`) for a
+ * set that only means something whole, which on `/allocation` is Σ = 100, and
+ * **entity** (`Done` alone) for a page whose actions already commit through
+ * their own dialogs, which on `/portfolio` is asset create / edit / delete.
  *
- * - **batch** — `Cancel` + `Save`. For a set that only means something whole,
- *   which on `/allocation` is Σ = 100.
- * - **entity** — `Done` alone. For a page whose actions already commit through
- *   their own dialogs, which on `/portfolio` is asset create / edit / delete.
+ * AN ENTITY PAGE MUST NOT SHOW A SAVE, and that is why this is a variant rather
+ * than a `hideSave` flag: every change is already written by the time the user
+ * reaches it, so a Save would have nothing to write and a Cancel could not undo
+ * the deletion behind it.
  *
- * **An entity page must NOT show a Save**, and that is the whole reason the
- * variant exists rather than a `hideSave` flag: by the time the user reaches
- * it every change is already written, so a Save would have nothing to write and
- * a Cancel could not undo the deletion behind it. A Save that saves nothing is
- * a lie; a Cancel that cannot undo is a worse one.
+ * A DISCRIMINATED UNION, not a flag bag. With `onSave` merely optional,
+ * `<EditActions mode variant="batch" />` typechecked and rendered an enabled
+ * Save wired to `undefined` — a button that silently does nothing while the page
+ * stays dirty and the blocker fires on every navigation.
  *
- * WHAT THE TWO SHARE IS THE PAGE-LEVEL SIGNAL: exactly one filled button while
- * editing, and none at rest. That is the entire "this page is in edit mode"
- * treatment — no wash, no border, no banner (brief § G-5). The extension chose
- * a fill over a tint because a fill survives inversion, and the fill is the
- * accent's: one per screen, which is what makes it read as a page state rather
- * than as one more button. A tint would need re-deriving per theme and would
- * land among `pos` / `neg` / `warn` — and the accent already shares `warn`'s
- * luminance in light (#111), which a tint would only make harder to tell.
- *
- * A DISCRIMINATED UNION, not a flag bag (A30 review). With `onSave` merely
- * optional, `<EditActions mode variant="batch" />` typechecked and rendered an
- * enabled Save wired to `undefined` — a button that silently does nothing while
- * the page stays dirty and the blocker fires on every navigation. The invariant
- * this component's own doc comment asserts is now the compiler's, which matters
- * because A31 is about to add the second caller.
+ * The page-level signal is exactly one filled button while editing and none at
+ * rest — no wash, no border, no banner — and the fill is the accent's, which
+ * *Interaction rules* rations.
  */
 type EditActionsProps = { mode: EditMode; busy?: boolean } & (
   | { variant: 'batch'; onSave: () => void; saveDisabled?: boolean }
@@ -84,9 +73,9 @@ export function EditActions(props: EditActionsProps) {
         </Button>
       )}
 
-      {/* `Dialog`, never the D17 typed-name `AlertDialog`: nothing is being
-          destroyed here, only abandoned, and reserving the typed confirm for
-          destruction is what keeps it meaning something. */}
+      {/* `Dialog`, never the typed-name `AlertDialog`: nothing is destroyed
+          here, only abandoned, and reserving the typed confirm for destruction
+          is what keeps it meaning something. */}
       <Dialog open={mode.asking} onOpenChange={(open) => !open && mode.keepEditing()}>
         <DialogHeader>
           <DialogTitle className="text-[19px]">{t.edit.discardTitle}</DialogTitle>
@@ -95,9 +84,9 @@ export function EditActions(props: EditActionsProps) {
           {t.edit.discardBody}
         </DialogBody>
         <DialogFooter>
-          {/* The band pads itself; the row lives inside it — `DialogFooter`
-              takes children only, which is what keeps its 28px gutter from
-              being overridden per caller. */}
+          {/* The band pads itself and the row lives inside it: `DialogFooter`
+              takes children only, so its gutter cannot be overridden per
+              caller. */}
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" size="md" weight="semibold" onClick={mode.keepEditing}>
               {t.edit.keepEditing}

@@ -1,4 +1,4 @@
-// The S7 picker's option rows, derived from the trimmed live fixture
+// The picker's option rows, derived from the trimmed live fixture
 // (core/inzhur/__fixtures__/assets-sample.json): funds inzhur-reit /
 // inzhur-energy, bonds UA4000238976 (24.03.2027) / UA4000236475 (27.09.2028).
 import { describe, expect, it } from 'vitest';
@@ -22,7 +22,7 @@ const t = uk;
 
 const entries = parseAssetsFeed(fixture).entries;
 
-describe('inzhurRefOptions (S7)', () => {
+describe('inzhurRefOptions', () => {
   it('lists funds as title + slug hint, valued by slug', () => {
     expect(inzhurRefOptions(entries, 'fund', '', f, t)).toEqual([
       { value: 'inzhur-reit', label: 'Inzhur REIT', hint: 'inzhur-reit' },
@@ -31,16 +31,12 @@ describe('inzhurRefOptions (S7)', () => {
   });
 
   it('appends NO synthetic row for a ref that differs only in case', () => {
-    // The picker used to compare with `===`, so a stored `inzhur-reit` against a
-    // published `Inzhur-REIT` showed one fund TWICE, differing only in case,
-    // while `matchAssets` treated the two as one instrument all along.
+    // Comparing with `===` showed one fund TWICE, differing only in case, while
+    // `matchAssets` treated the two as one instrument all along.
     //
-    // The other half of the fix lives in `AssetForm`: `RadixSelect.Value` matches
-    // the root value against each item's value as an EXACT string, so removing
-    // the synthetic row alone would render the PLACEHOLDER over a value that is
-    // set — a linked asset reading as unlinked. The form canonicalises the stored
-    // ref to the provider's spelling once the feed can supply it, so there is one
-    // row and it is selected.
+    // The other half of the fix lives in `AssetForm`, and removing the synthetic
+    // row without it renders the PLACEHOLDER over a value that is set: see the
+    // canonicalising effect there for why.
     expect(inzhurRefOptions(entries, 'fund', 'INZHUR-REIT', f, t)).toHaveLength(2);
     expect(inzhurRefOptions(entries, 'fund', '  inzhur-reit  ', f, t)).toHaveLength(2);
     // A ref the feed genuinely does not carry still gets its row.
@@ -76,22 +72,14 @@ describe('inzhurRefOptions (S7)', () => {
 });
 
 describe('assetFormDefaults round-trips through the schema in BOTH languages', () => {
-  // The prefill is FORMATTED (Contract 0) and the schema parses that same
-  // string back, so the two have to agree in every language.
+  // The prefill is FORMATTED (Contract 0) and the schema parses that same string
+  // back, so the two have to agree in every language.
   //
-  // THIS BLOCK USED TO GUARD THE UNITS ROUND TRIP, and the bug it was written
-  // for is worth keeping on the record: English formats 6164 units as "6,164",
-  // the parser read the comma as a decimal point, and saving an untouched
-  // linked asset stored 6.164 units — its value collapsing by three orders of
-  // magnitude. D117 removed the Units field, so that trip no longer happens
-  // here; the comma rule itself is `amountInputSchema`'s and is tested in
-  // `core/schemas.test.ts`, which is where the transaction form's own units
-  // field now depends on it.
-  //
-  // What replaces it is the guarantee D117 actually rests on: the legacy count
-  // must NOT reach the form. It survives in the store only because nothing
-  // writes it back, so the moment it round-trips it is one bad parse from being
-  // destroyed.
+  // What this guards is that THE LEGACY UNIT COUNT DOES NOT REACH THE FORM. It
+  // survives in the store only because nothing writes it back, so the moment it
+  // round-trips it is one bad parse from being destroyed — English formats 6164
+  // as "6,164", and a parser reading that comma as a decimal point stores 6.164,
+  // collapsing the value by three orders of magnitude.
   const linked = {
     id: 'reit',
     name: 'Inzhur REIT',
@@ -117,9 +105,9 @@ describe('assetFormDefaults round-trips through the schema in BOTH languages', (
       });
     });
 
-    // A36 put the two percent fields on this same formatted path, so they join
-    // the test that exists because of it. A fractional target is the case the
-    // 40/40/17/3 seed cannot show.
+    // The two percent fields ride the same formatted path, so they join the test
+    // that exists because of it. A fractional target is the case the seed cannot
+    // show.
     it(`keeps a fractional percent in ${lang}`, () => {
       // `fmt`, not `f`: the module binds `f` to Ukrainian for the whole file, and
       // shadowing it here made the `en` iteration one deletion away from

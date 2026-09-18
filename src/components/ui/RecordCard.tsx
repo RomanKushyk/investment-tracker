@@ -2,11 +2,9 @@ import type { ReactNode } from 'react';
 
 import { Card } from './Card';
 
-// A <div>-wrapped dt/dd pair is valid dl content (HTML5's content model allows
-// grouping dt+dd in a <div> child of <dl>) — keeps each fact as one grid cell
-// (README §6.6's "2-col <dl>") while giving dt/dd their proper semantics.
-// `m-0` neutralizes the default UA margin-inline-start on <dd> (Tailwind's
-// preflight already zeroes it, but this keeps the layout explicit/robust).
+// The <div> wrapper is valid <dl> content — HTML5 allows grouping a dt+dd pair
+// in a <div> child — and it is what makes each fact ONE grid cell while dt and
+// dd keep their semantics.
 export function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -17,26 +15,17 @@ export function Fact({ label, children }: { label: string; children: ReactNode }
 }
 
 /**
- * S3 — THE RECORD CARD, and it invents nothing. This is the `/attributes` asset
- * card, lifted out of that screen unchanged so the four tables can become the
- * same thing rather than four near-copies of it: `Card radius={24}`, `p-[22px]`,
- * a header row of avatar + 17 px title + tag, then a two-column `<dl>` of
- * `Fact` pairs.
+ * A table row as a card: the HEADER is the row's identity, the BODY a `dl` of
+ * the remaining columns.
  *
- * A table row becomes a card whose HEADER is the row's identity and whose BODY
- * is a `dl` of the remaining columns. Every column header becomes a `dt`
- * VERBATIM — no re-wording, no abbreviation, units where the table puts them —
- * because the two forms are one screen seen at two widths, and a reader who
- * learns a column name on a laptop must find it again on a phone.
+ * EVERY COLUMN HEADER BECOMES A `dt` VERBATIM — no re-wording, no abbreviation,
+ * units where the table puts them. The two forms are one screen seen at two
+ * widths, and a reader who learns a column name on a laptop must find it again
+ * on a phone.
  *
- * WHY CARDS AND NOT A SCROLLING TABLE: Balances is `3 + N assets` columns wide,
- * so it GROWS with the portfolio — a horizontal scroll fixed at 684 px today is
- * a different number next year. A card grows in HEIGHT instead, which the page
- * already scrolls.
- *
- * A3/E3 CLOSE HERE. `/attributes` overflowed 360 px by 27 px because an
- * `ml-auto` tag shared a row with a long asset name and neither would give. The
- * title now takes `min-w-0 flex-1` and truncates; the tag keeps its width.
+ * CARDS AND NOT A SCROLLING TABLE because Balances is `3 + N assets` columns
+ * wide, so it GROWS with the portfolio and any fixed scroll width is a different
+ * number next year. A card grows in HEIGHT, which the page already scrolls.
  */
 export function RecordCard({
   index = 0,
@@ -58,11 +47,9 @@ export function RecordCard({
   className?: string;
   children: ReactNode;
   /**
-   * A band BELOW the facts, separated by a hairline (A31, extension § S3).
-   *
-   * Not the header row: that is where A17/D66 closed a 360 px overflow, and
-   * hanging two buttons off it would re-open it. The rule and the 14 px above
-   * and below are the drawing's.
+   * A band BELOW the facts, separated by a hairline — never the header row,
+   * which is where a 360 px overflow was closed and where hanging two buttons
+   * would re-open it.
    */
   footer?: ReactNode;
 }) {
@@ -70,18 +57,16 @@ export function RecordCard({
     <Card
       radius={24}
       className={`animate-in p-[22px] duration-300 fade-in ${className}`}
-      // The stagger `/attributes` already uses, reused rather than a second
-      // cadence minted beside it.
       style={{ animationDelay: `${(index % 4) * 60}ms` }}
     >
       <div className="mb-3.5 flex items-center gap-3">
         {avatar}
         <div className="min-w-0 flex-1">
           {eyebrow !== undefined && <div className="text-[10.5px] text-muted">{eyebrow}</div>}
-          {/* `max-md:truncate`, not `truncate`. A3/E3 is a 360px overflow, so
-              the ellipsis belongs at 360; unconditional `white-space: nowrap`
-              would also cut a long name on a 430px-wide desktop card where it
-              used to wrap onto a second line, with nothing to recover it. */}
+          {/* `max-md:truncate`, not `truncate`: the overflow it answers is at
+              360, and unconditional `nowrap` would also cut a long name on a
+              wide desktop card where it used to wrap, with nothing to recover
+              it. */}
           <h3 className="m-0 text-[17px] max-md:truncate">{title}</h3>
         </div>
         {tag !== undefined && <span className="flex-none">{tag}</span>}
@@ -90,14 +75,11 @@ export function RecordCard({
       {footer !== undefined && (
         <>
           <div className="mt-3.5 h-px bg-hairline" />
-          {/* `gap-2.5` is the drawing's, and the arithmetic first written here
-              was WRONG (A31 review): `TAP_44` reaches (44 − 30) / 2 = 7 px past
-              each edge, so two neighbours need ≥ 14 px to guarantee no overlap,
-              not 10. What actually saves it is WIDTH — the overlay is
-              `min-w-full`, and both labels render wider than 44 px, so the
-              regions never meet horizontally. An icon-only `sm` action here
-              would need the gap re-derived. Stated so the next caller copies a
-              true rule instead of a comfortable one. */}
+          {/* `gap-2.5` does NOT separate the tap targets: `TAP_44` reaches
+              (44 − 30) / 2 = 7 px past each edge, so two neighbours would need
+              ≥ 14. What saves it is WIDTH — the overlay is `min-w-full` and both
+              labels render wider than 44, so the regions never meet. An
+              icon-only action here would need the gap re-derived. */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5">{footer}</div>
         </>
       )}

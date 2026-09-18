@@ -1,24 +1,19 @@
 // The year list's span, and the arithmetic that pages it.
 //
-// THE SPAN IS A45's AND UNCHANGED: ±20 years around the current one carries a
-// first purchase well behind the archive's 2016 floor and the longest OVDP on
-// offer. What changed is the SHAPE — the native `captionLayout="dropdown"` was
-// refused on looks the day it shipped, so the years are a grid of twelve now.
-// The bound itself is not cosmetic: react-day-picker's own year list defaults to
-// the LAST 100 YEARS, which has no 2028 in it, so a bond maturity would be
-// unreachable through the very control added to reach it.
+// THE SPAN IS NOT COSMETIC: react-day-picker's own year list defaults to the
+// LAST 100 YEARS, which reaches no future year at all, so a bond maturity would
+// be unreachable through the very control added to reach it.
 //
-// The page is anchored to the span's START, never to the year on screen, and
-// that is the whole reason this is a function rather than two lines inline:
-// paging must be stable. Anchored on the shown year, 2020 pages forward to
-// 2020–2031, back to 2008–2019, and forward again to 2008–2019 — it never
-// returns to where it was.
+// The page is anchored to the span's START, never to the year on screen, which
+// is the whole reason this is a function rather than two lines inline. Anchored
+// on the shown year, 2020 pages forward to 2020–2031, back to 2008–2019, and
+// forward again to 2008–2019 — it never returns to where it was.
 export const YEAR_SPAN = 20;
 export const YEARS_PER_PAGE = 12;
 
-// NBU's archive is backfilled to 2016-01-04, so 2016 is a fact about the DATA
-// and not about today. As a relative bound it silently stops holding: from 2037
-// a ±20 window starts at 2017 and the floor the comment above cites becomes
+// NBU's archive is backfilled to 2016-01-04, so this is a fact about the DATA
+// and not about today. As a relative bound it would silently stop holding: from
+// 2037 a ±20 window starts at 2017 and the archive's own floor becomes
 // unreachable through the picker, with no test failing anywhere.
 export const ARCHIVE_FLOOR_YEAR = 2016;
 

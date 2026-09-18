@@ -8,12 +8,10 @@ export interface DonutSlice {
   value: number;
 }
 
-// Design lines 502-511: 30px ring (innerRadius 55 / outerRadius 85 of a 220px
-// box), starting at 12 o'clock going clockwise, with a two-line center label.
-// Motion (D7): the ring sweeps in on mount (recharts default Pie animation).
-// Wrapped in an aspect-square/max-w box (not a fixed pixel ResponsiveContainer)
-// so it shrinks below 220px on narrow viewports instead of forcing horizontal
-// overflow — the one fixed-width chart in the app (360px shell fix, item 1).
+// Drawn at `design/Investment Tracker.dc.html:502-511`. Wrapped in an
+// aspect-square box rather than a fixed-pixel ResponsiveContainer, because this
+// is the one chart with a natural width: fixed, it forces horizontal overflow on
+// a narrow viewport instead of shrinking.
 export function AllocationDonut({
   slices,
   centerTop,
@@ -48,9 +46,9 @@ export function AllocationDonut({
               value={centerTop}
               position="center"
               dy={-6}
-              // The token, not a literal family name. Recharts takes a string,
-              // which is how a hard-coded font survived here — and it silently
-              // became a system fallback the moment the display face changed.
+              // The token, never a literal family name: recharts takes a string,
+              // which is how a hard-coded font survived here and silently became
+              // a system fallback the moment the display face changed.
               style={{
                 fontFamily: 'var(--font-display)',
                 fontSize: 20,

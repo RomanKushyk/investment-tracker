@@ -15,17 +15,14 @@ import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
 
-// Design lines 216-222: an area over total capital per complete snapshot, with
-// a dot marking the most recent point. The line and its fill are the accent —
-// the sheet's 60/30/10 gives it the chart's line, and the gain green it used to
-// wear claimed a direction the total does not have. Motion (D7): sweeps in on
-// mount, animates from the previous shape on data updates (recharts default).
+// Drawn at `design/Investment Tracker.dc.html:216-222`. The line and its fill
+// are the ACCENT, not the gain green: a total has no direction, and gain and
+// loss belong to deltas. *Interaction rules*
 export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
   const f = useFormat();
   const t = useT();
-  // S6 — hover on a pointer, tap-to-pin on a touch screen. This line is the
-  // whole of D-b for this chart: every value on the line is inside the tooltip
-  // and nowhere else.
+  // Hover on a pointer, tap-to-pin on a touch screen: every value on the line
+  // is inside the tooltip and nowhere else.
   const trigger = useTooltipTrigger();
   return (
     <ResponsiveContainer width="100%" height={260}>
@@ -60,10 +57,10 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           stroke={CHART.accent}
           strokeWidth={2.5}
           fill={CHART.accentTint}
-          // 1, because `accent-tint` IS an alpha — declared that way since it
-          // lies over more than one plane, where the gain tint it replaced was
-          // an opaque hex whose only alpha was this attribute. At 0.7 the two
-          // multiply and the area lands near 8 %, which reads as no fill.
+          // 1, because `accent-tint` IS ALREADY an alpha — it lies over more
+          // than one plane. This attribute multiplies with it, so the 0.7 the
+          // opaque tint here used to want would land the area near 8 % in light
+          // and just under 10 % in dark, which reads as no fill.
           fillOpacity={1}
           isAnimationActive
           animationDuration={900}
@@ -76,9 +73,8 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
             )
           }
           // `strokeWidth: 0` because recharts seeds this dot `stroke: '#fff'`
-          // and spreads the caller's props after `r` and `fill` only — a pure
-          // white ring on a card that moves with the theme. The static dot
-          // above carries no ring either.
+          // and spreads the caller's props after `r` and `fill` only — leaving a
+          // pure white ring on a card that moves with the theme.
           activeDot={{ r: 4, fill: CHART.accent, strokeWidth: 0 }}
         />
       </AreaChart>

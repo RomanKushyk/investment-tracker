@@ -1,7 +1,6 @@
 import type { ComponentPropsWithRef } from 'react';
 
-// White rounded card, README §4 shape rule (radius 20-24, card shadow).
-// `radius` is an explicit variant (not a className override) so callers can't
+// `radius` is an explicit variant, not a className override, so a caller cannot
 // end up with two border-radius utilities fighting over generated-CSS order.
 export function Card({
   className = '',

@@ -1,6 +1,5 @@
 import type { ColorKey } from '../../core/types';
 
-// Tint bg/text per asset colorKey (README §4 asset series colors).
 const TINT: Record<ColorKey, string> = {
   reit: 'bg-reit-tint text-reit-tint-text',
   energy: 'bg-energy-tint text-energy-tint-text',
@@ -9,9 +8,7 @@ const TINT: Record<ColorKey, string> = {
 };
 
 // `size` is a variant, not a free number, for the same reason `Card.radius` is:
-// two call sites need two sizes and nothing needs a third. 48 is the quote-row
-// value — it makes the circle 63% of that row's height, inside the 60-70% the
-// block rule asks for (48 / (48 + 28px of padding) = 0.632).
+// two call sites need two sizes and nothing needs a third.
 const SIZE = {
   34: 'size-[34px] text-xs',
   48: 'size-[48px] text-sm',

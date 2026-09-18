@@ -1,19 +1,15 @@
-// English copy for the S6 reminder banners and the app-open toast — the
-// component layer owns the words (D8: core/reminders returns tokens only).
-// Every sentence is verbatim from design/extensions/reminders.dc.html's copy
-// inventory; i18n lands in Phase 5.
+// The reminder banners' and the app-open toast's sentences. The component layer
+// owns the words, `core/reminders` returning tokens only. *Core is pure*
 import type { Reminder, ReminderKind } from '../../core/reminders';
 import type { Format } from '../../core/money';
 import type { Dict } from '../../i18n/messages';
 
-/** "in 5 days" / "in 1 day" — the reference copy is plural; 1 must not read "1 days". */
 /**
- * One banner's sentence. `assetName` is the reminder's asset (empty for the
- * portfolio-wide quote-missing kind).
+ * One banner's sentence. `assetName` is the reminder's asset, empty for the
+ * portfolio-wide quote-missing kind.
  *
- * The maturity/coupon day counts and the "matures today" wording are the only
- * copy not literal in the reference: the brief pins the "in N days" pattern and
- * these are its unavoidable edges (a same-day maturity, a single day).
+ * A same-day maturity takes its own wording: the drawing pins an "in N days"
+ * pattern, and "in 0 days" is not a sentence.
  */
 export function reminderText(reminder: Reminder, assetName: string, f: Format, t: Dict): string {
   const r = t.reminders;
@@ -32,8 +28,8 @@ export function reminderText(reminder: Reminder, assetName: string, f: Format, t
 }
 
 /**
- * The banner's action link — rendered on `/overview` only (on `/` the ritual UI
- * and the S5 card are right there). Both links navigate to `/`.
+ * The banner's action link, rendered on `/overview` only — on `/` the ritual UI
+ * and the coupon-due card are already on screen. Both links navigate to `/`.
  */
 export function reminderAction(t: Dict): Partial<Record<ReminderKind, string>> {
   return {

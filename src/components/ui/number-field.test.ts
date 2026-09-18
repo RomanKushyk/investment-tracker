@@ -4,11 +4,9 @@ import { caretAfterDigits, digitsBefore, withoutDigit } from './number-field';
 
 const NBSP = ' ';
 
-// The caret rule, apart from the DOM. The component's own wiring — that it holds
-// the element AND passes the ref on — is browser behaviour and is walked there;
-// what is arithmetic is pinned here, because "counted in digits, never in
-// characters" is the whole reason the component exists and an offset drifts
-// silently.
+// The caret rule apart from the DOM: "counted in digits, never in characters" is
+// the whole reason the component exists, and an offset drifts SILENTLY. The
+// component's own wiring is browser behaviour and is walked there.
 describe('caretAfterDigits', () => {
   it('lands just past the nth digit, however many marks moved', () => {
     expect(caretAfterDigits(`1${NBSP}234`, 1, 0)).toBe(1);
@@ -61,12 +59,12 @@ describe('deleting through a grouping mark', () => {
   });
 
   it('puts the caret where the deleted digit WAS, not where it counted from', () => {
-    // A Backspace over a mark removes the digit behind it, so one fewer digit
-    // sits behind the caret than the pressed text said — counted from the old
+    // A Backspace over a mark removes the digit BEHIND it, so one fewer digit
+    // sits behind the caret than the pressed text said; counted from the old
     // text the caret jumped forward over a mark and a digit, and the next
-    // Backspace ate the wrong one.
-    // Backspace at `1 |234 567` leaves the DOM holding `1234 567` with the caret
-    // at 1; the `1` is then taken, so no digit is behind the caret at all.
+    // Backspace ate the wrong one. At `1 |234 567` the DOM is left holding
+    // `1234 567` with the caret at 1, the `1` is taken, and no digit is behind
+    // the caret at all.
     const digits = digitsBefore(`1234${NBSP}567`, 1) - 1;
     expect(digits).toBe(0);
     expect(caretAfterDigits(`234${NBSP}567`, digits, 0)).toBe(0);

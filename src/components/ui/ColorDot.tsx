@@ -1,6 +1,5 @@
 import type { ColorKey } from '../../core/types';
 
-// 10px round swatch per asset colorKey — Overview Assets card rows (design line 176-180).
 const BG: Record<ColorKey, string> = {
   reit: 'bg-reit',
   energy: 'bg-energy',

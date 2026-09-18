@@ -12,11 +12,12 @@ import { groupedForInput, valueFromInput } from '../../core/money';
 import { caretAfterDigits, digitsBefore, withoutDigit } from './number-field';
 import { useSettings } from '../../state/settings';
 
-// BEHAVIOUR, NOT GEOMETRY: each of the six sites draws its own field, so
-// `className` is the caller's and this sets no visual property — nor a font size,
-// which `index.css` gives every input below 48rem.
-// `value` is LANGUAGE-FREE and the display is derived from it (D87), so the
-// language can change under a filled field without changing what it means.
+// BEHAVIOUR, NOT GEOMETRY: every site draws its own field, so `className` is the
+// caller's and this sets no visual property — nor a font size, which `index.css`
+// gives every input below 48rem.
+// `value` is LANGUAGE-FREE and the display is derived from it, so the language
+// can change under a filled field without changing what it means. *Language,
+// numbers, fonts*
 export function NumberField({
   value,
   onChange,
@@ -83,8 +84,8 @@ export function NumberField({
         : caretAfterDigits(groupedForInput(next, language), digits, back ? 0 : at);
     if (next === value) rerender();
     // NOT ON A NO-OP: in `QuoteRow` this lands on `setQuote`, which drops the
-    // row's fetch provenance (G5) — a comma absorbed under English would have
-    // taken the chip with it and made the row read as the user's own.
+    // row's fetch provenance — a comma absorbed under English would have taken
+    // the chip with it and made the row read as the user's own.
     if (next !== value) onChange(next);
   }
 
