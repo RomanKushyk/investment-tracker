@@ -60,9 +60,8 @@ describe('bondAbbrev', () => {
 });
 
 describe('pendingChange — what the rail names', () => {
-  // 25.07 is the complete snapshot above; 27.07 is the day the seed's own
-  // README example works from, and there is no 26.07, so «учора» on the 27th is
-  // the 25th. Every case below drafts against that.
+  // There is no 26.07 snapshot, so «учора» on the 27th is the 25th. Every case
+  // below drafts against that.
   const snapshots = [complete2507];
   const assets = SEED_ASSETS;
   const on = '2026-07-27';
@@ -72,8 +71,8 @@ describe('pendingChange — what the rail names', () => {
   });
 
   it('counts a row that is FILLED but unchanged as no change at all', () => {
-    // 68 629,36 is exactly what 25.07 holds for REIT — the row is filled, the
-    // portfolio moves by nothing, and `filled(n, m)` would still say 1.
+    // Exactly what the baseline holds for REIT — the row is filled, the portfolio
+    // moves by nothing, and `filled(n, m)` would still count it.
     expect(pendingChange(assets, { reit: '68629.36' }, snapshots, on, 'uk')).toEqual({
       sum: 0,
       changed: 0,
@@ -88,7 +87,6 @@ describe('pendingChange — what the rail names', () => {
       on,
       'uk',
     );
-    // REIT +72,74 · Energy unchanged · …8976 +53,70
     expect(got.changed).toBe(2);
     expect(got.sum).toBeCloseTo(126.44, 2);
   });
@@ -108,10 +106,8 @@ describe('pendingChange — what the rail names', () => {
     }
   });
 
-  // THE TRAP THE SHEET NAMES. With the picker off today, an unbounded baseline
-  // (`latestQuotes`) would measure against a LATER snapshot than the sublines
-  // beside it. Drafting for 26.07 must compare against 25.07 and NOT against the
-  // 28.07 row that exists in the store.
+  // THE TRAP. With the picker off today, an unbounded baseline would measure
+  // against a LATER snapshot than the sublines beside it.
   it('reads the baseline strictly BEFORE the picked date, never the latest', () => {
     const later: Snapshot = { date: '2026-07-28', cash: 0, quotes: { reit: 70000 } };
     const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26', 'uk');
@@ -120,8 +116,8 @@ describe('pendingChange — what the rail names', () => {
   });
 
   it('does not count an asset that has no baseline yet', () => {
-    // Its row shows no «учора», so there is nothing to be less than — and a
-    // first quote is not a change of anything.
+    // Its row shows no «учора», so there is nothing to be less than — and a first
+    // quote is not a change of anything.
     const fresh: Snapshot = { date: '2026-07-25', cash: 0, quotes: { reit: 68629.36 } };
     const got = pendingChange(assets, { energy: '60000' }, [fresh], on, 'uk');
     expect(got).toEqual({ sum: 0, changed: 0 });
@@ -150,7 +146,7 @@ describe('collectQuotes — what Save reads, and what it refuses', () => {
     expect(out.quotes).toEqual({ energy: 60086.09 });
   });
 
-  // Issue #1's bytes, read through the screen's own path rather than the schema alone.
+  // Read through the screen's own path rather than the schema alone.
   it("reads the reported paste through the screen's own path", () => {
     expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets, 'uk').quotes.energy).toBe(4214.24);
   });
@@ -163,12 +159,10 @@ describe('collectQuotes — what Save reads, and what it refuses', () => {
   });
 
   it('reads the draft under the user language, not one hard-wired grammar', () => {
-    // The saved day stores whichever reading the screen was showing: «6,164» is
-    // ₴6.164 to a Ukrainian typist and ₴6 164 to an English one, and a quote is
+    // The saved day stores whichever reading the screen was showing, and a quote is
     // what every valuation on every other screen is derived from.
     expect(collectQuotes({ reit: '6,164' }, assets, 'uk').quotes.reit).toBeCloseTo(6.164, 6);
     expect(collectQuotes({ reit: '6,164' }, assets, 'en').quotes.reit).toBe(6164);
-    // And the Ukrainian paste #1 reported is not English writing at all.
     expect(collectQuotes({ energy: '4 214,24 грн. ' }, assets, 'en').unreadable).toEqual([
       'energy',
     ]);

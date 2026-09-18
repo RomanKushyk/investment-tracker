@@ -190,4 +190,12 @@ describe('tabular figures', () => {
       expect(/ibm.?plex/i.test(read(rel)), `${rel} still names the previous face`).toBe(false);
     }
   });
+
+  // IS THE NEEDLE ACTUALLY A NEEDLE? The absence above holds on a tree where the name is
+  // already gone from all three files, so the record below is what proves the regex still
+  // matches the thing it names. Held in a `.txt`, outside every corpus this repo walks.
+  it('is actually looking — the needle still matches the record', () => {
+    const record = read('__fixtures__/retired-face-prose.txt');
+    expect(/ibm.?plex/i.test(record), 'the record no longer names the previous face').toBe(true);
+  });
 });

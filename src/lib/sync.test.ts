@@ -1,5 +1,4 @@
-// Cross-tab write serialization (P4 feat/backup-import, D24). Pure logic over
-// a stubbed LockManager — no IndexedDB, no browser.
+// Pure logic over a stubbed LockManager — no IndexedDB, no browser.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DB_LOCK, withDbLock } from './sync';
@@ -51,8 +50,8 @@ describe('withDbLock', () => {
     const write = vi.fn(() => Promise.resolve('written'));
 
     await expect(withDbLock(write, onBlocked)).resolves.toBe('written');
-    // Two-phase: the ifAvailable probe is what makes "another tab holds it"
-    // knowable at all; a plain request cannot tell instant from queued.
+    // Two-phase: the ifAvailable probe is what makes "another tab holds it" knowable
+    // at all; a plain request cannot tell instant from queued.
     expect(calls).toEqual([
       { name: DB_LOCK, ifAvailable: true },
       { name: DB_LOCK, ifAvailable: false },

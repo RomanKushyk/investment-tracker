@@ -92,7 +92,7 @@ describe('seed snapshots (design Balances table, D5#2)', () => {
   });
 });
 
-describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
+describe('seed aggregates reproduce renderVals (D5)', () => {
   it('headline total ₴149,016.36', () => {
     expect(headlineTotal(snaps)).toBeCloseTo(149016.36, 2);
   });
@@ -113,44 +113,30 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
     expect(r.pct).toBeCloseTo(0.0308, 4);
   });
 
-  // ONE SEEDED PAYOUT CARRIES A WITHHOLDING, so the first run demonstrates the
-  // feature on a row rather than on an empty column. Three constraints narrow
-  // it: a DIVIDEND (ОВДП coupons are exempt, which is why the bond half is
-  // permanently untaxed); INSIDE the three-month window, so the period control
-  // is exercised and not only the full-history column; and a paired reinvest
-  // payable out of the NET — `p8` fails that one, 700,36 less the rate being
-  // 602,31 against `r3`'s 687,02, which would reinvest more than arrived.
-  //
-  // `p5` clears all three as well, its reinvest constraint being vacuous. `p7`
-  // is chosen over it because `p5` is already the D5#3 deviation row — the
-  // 12.05/648,13 dividend reseated at 10.05/472,13 — and one row should not
-  // carry two annotations; and because `p7` HAS a paired reinvest, so it is the
-  // row that exercises net-against-reinvest rather than leaving it untested.
+  // `p7` CARRIES THE ONE SEEDED WITHHOLDING, and `p5` clears the same three
+  // constraints. `p7` is chosen because `p5` already carries the 12.05/648,13 →
+  // 10.05/472,13 deviation and one row should not hold two annotations, and
+  // because `p7` has a paired reinvest, so it exercises net-against-reinvest.
   it('p7 is the one seeded payout carrying a withholding', () => {
     const taxed = SEED_TRANSACTIONS.filter((t) => t.taxWithheld !== undefined);
     expect(taxed).toHaveLength(1);
     expect(taxed[0].id).toBe('p7');
     expect(taxed[0].type).toBe('dividend_accrual');
     expect(taxed[0].taxWithheld).toBeCloseTo(95.28, 2);
-    // Strictly below its own amount — `transaction_tax_bound_ck`'s rule, and
-    // the seed may not be the fixture that violates it.
+    // Strictly below its own amount — `transaction_tax_bound_ck`'s rule, which the seed may not violate.
     expect(taxed[0].taxWithheld!).toBeLessThan(taxed[0].amount);
-    // Its reinvest is payable out of the net, not merely out of the gross.
     const r2 = SEED_TRANSACTIONS.find((t) => t.id === 'r2')!;
     expect(r2.amount).toBeLessThanOrEqual(taxed[0].amount - taxed[0].taxWithheld!);
   });
 
-  // THE FIGURE THE WITHHOLDING PUTS ON SCREEN, pinned where the rest of the
-  // seed's published aggregates are. `/overview`'s income card reads this total
-  // under its gross one, and before this it lived only in `navigation-map.md` —
-  // a figure lives in a test or not at all. Gross is asserted separately below
-  // and deliberately does NOT move: the two are different bases.
+  // A FIGURE LIVES IN A TEST OR NOT AT ALL: this total lived only in
+  // `navigation-map.md` before. Gross is asserted separately and does not move —
+  // the two are different bases.
   it('income net of tax ₴4,945.66 — gross less the one withholding', () => {
     const net = incomeReceivedNet(SEED_TRANSACTIONS);
     expect(net.taxes).toBeCloseTo(95.28, 2);
     expect(net.total).toBeCloseTo(4945.66, 2);
     expect(incomeReceived(SEED_TRANSACTIONS).total - net.total).toBeCloseTo(95.28, 2);
-    // The withholding sits on a dividend, so it nets the dividend half alone.
     expect(net.dividends).toBeCloseTo(3546.16, 2);
     expect(net.coupons).toBeCloseTo(1399.5, 2);
   });
@@ -174,14 +160,11 @@ describe('seed aggregates reproduce README §7 / renderVals (D5)', () => {
   });
 });
 
-// The WEALTH-MANAGEMENT reconciliation fixtures pinned on the seed
-// (docs/reference/FORMULA-AUDIT.md §1/§5). These live here rather than next to
-// core/derive.ts because core tests must not import src/lib (G1 lint zone).
+// The WEALTH-MANAGEMENT reconciliation fixtures pinned on the seed (`docs/reference/FORMULA-AUDIT.md`).
 describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
   it('freeCashFromLedger(seed) = ₴7,75 — the stored cash, exactly', () => {
-    // deposits 143 176,37 − own-funded buys 143 168,62; payout/reinvest rows
-    // are external to broker cash (the doc-verbatim formula would give
-    // 3 661,31 and break against every seeded snapshot).
+    // Payout and reinvest rows are external to broker cash: the doc-verbatim formula
+    // gives 3 661,31 and breaks against every seeded snapshot.
     expect(freeCashFromLedger(SEED_TRANSACTIONS)).toBe(7.75);
   });
 
@@ -200,9 +183,7 @@ describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
   });
 });
 
-// Backup envelope round-trip on the seed builders (NEXT-PHASE-PLAN P1) —
-// lives here rather than next to core/backup/json.ts because core tests must
-// not import src/lib (G1 lint zone); lib importing core is the allowed way.
+// Here rather than beside core/backup/json.ts because core tests may not import src/lib.
 describe('backup envelope round-trip on the seed (D12)', () => {
   it('buildBackup(seed) → stringify → parseBackup returns deep-equal tables (4/174/18)', () => {
     const env = buildBackup(
@@ -219,7 +200,7 @@ describe('backup envelope round-trip on the seed (D12)', () => {
     if (!result.ok) return;
     expect(result.data.assets).toHaveLength(4);
     expect(result.data.snapshots).toHaveLength(174);
-    expect(result.data.transactions).toHaveLength(18); // D10: "19" was a miscount
+    expect(result.data.transactions).toHaveLength(18); // *Review, gates, tests*: "19" was a miscount
     expect(result.data.assets).toEqual(SEED_ASSETS);
     expect(result.data.snapshots).toEqual(snaps);
     expect(result.data.transactions).toEqual(SEED_TRANSACTIONS);
@@ -246,11 +227,8 @@ describe('seed transaction invariants (D5#3)', () => {
   });
 });
 
-// A24 — the portfolio start stopped being a constant and became a derivation.
-// This is the assertion that protects every D5-pinned annualized figure: they
-// all divide by a 174-day span measured from 2026-02-03, and that date is now
-// an output rather than an input. It lives here and not in `core/derive.test.ts`
-// because the claim is about the SEED's rows, and core may not import them (G1).
+// The portfolio start is a DERIVATION now, not a constant, and every annualized
+// figure divides by the span it measures.
 describe('the derived portfolio start (A24)', () => {
   it('the seed derives 2026-02-03, so no D5-pinned figure moves', () => {
     expect(portfolioStart(SEED_ASSETS, buildSeedSnapshots(), SEED_TRANSACTIONS)).toBe('2026-02-03');
@@ -258,9 +236,8 @@ describe('the derived portfolio start (A24)', () => {
 
   it('all three of the seed signals agree on that date', () => {
     // Why the choice of source could not have broken the seed: its earliest
-    // transaction, its earliest snapshot and its earliest firstPurchase are the
-    // same day. A change of rule would have shown up here rather than as a
-    // drifting percentage three screens away.
+    // transaction, snapshot and firstPurchase are the same day. A change of rule
+    // shows up here rather than as a drifting percentage three screens away.
     const earliestTx = [...SEED_TRANSACTIONS].sort((a, b) => a.date.localeCompare(b.date))[0].date;
     const earliestSnap = buildSeedSnapshots()[0].date;
     const earliestPurchase = [...SEED_ASSETS]
@@ -274,9 +251,6 @@ describe('the derived portfolio start (A24)', () => {
   });
 });
 
-// A25 — the portfolio's money-weighted rate on the real seed flows. Lives here
-// for the same reason as the A24 block above: the claim is about the seed's
-// rows, and core may not import them (G1).
 describe('portfolioXirr on the seed (A25)', () => {
   const snaps = buildSeedSnapshots();
   const terminalDate = snaps.reduce((max, s) => (s.date > max ? s.date : max), snaps[0].date);
@@ -287,9 +261,6 @@ describe('portfolioXirr on the seed (A25)', () => {
   });
 
   it('sits just above the naive annualization of globalRoi, which is the check that it means anything', () => {
-    // globalRoi is the same measurement WITHOUT regard to timing: +4.08% of
-    // net deposits, the figure /overview already shows as "Total return (net)".
-    // Stretched linearly over the 174-day span it reads ~8.56%.
     const roi = globalRoi(headlineTotal(snaps), netDeposits(SEED_TRANSACTIONS))!;
     const start = portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS)!;
     const days = daysBetween(start, terminalDate);
@@ -299,22 +270,17 @@ describe('portfolioXirr on the seed (A25)', () => {
     expect(days).toBe(174);
     expect(naive).toBeCloseTo(0.0856, 4);
 
-    // ABOVE the naive figure, and that direction is the point. XIRR compounds
-    // where the naive stretch is linear, and it weights the February money —
-    // which had the whole span to work — more than the June deposit that had
-    // eight weeks. Both effects push the same way, so a portfolio XIRR that
-    // ever came out BELOW the linear stretch on a purely-growing seed would
-    // mean the flows are being signed or dated wrong.
+    // ABOVE the naive figure, and the DIRECTION is the point: XIRR compounds where
+    // the stretch is linear, and it weights the February money above the June
+    // deposit. A portfolio XIRR below the linear stretch on a purely-growing seed
+    // would mean the flows are signed or dated wrong.
     expect(rate).toBeGreaterThan(naive);
-    // And not wildly above it: same measurement, different weighting.
     expect(rate - naive).toBeLessThan(0.01);
   });
 
   it("ignores the seed's internal flows entirely", () => {
-    // The seed carries 15 rows that are NOT deposits or withdrawals — buys,
-    // accruals, payouts and reinvests. Dropping them changes nothing, which is
-    // what "the boundary is external capital" means on real data rather than
-    // in a fixture.
+    // Fifteen seeded rows are neither deposit nor withdrawal. Dropping them changes
+    // nothing, which is what "the boundary is external capital" means on real data.
     const externalOnly = SEED_TRANSACTIONS.filter(
       (t) => t.type === 'deposit' || t.type === 'withdrawal',
     );

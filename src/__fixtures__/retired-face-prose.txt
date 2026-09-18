@@ -1,0 +1,25 @@
+THE PREVIOUS UI FACE'S POSITIVE CONTROL — the record `ui-face.test.ts` proves its
+needle against.
+
+A `.txt` on purpose, for the reason
+`infra/src/__fixtures__/retired-lifetime-prose.txt` gives: the guard reads
+`src/index.css`, `src/main.tsx` and `package.json` RAW and refuses any trace of
+the face, so the same spellings in a file it scans would make this record the
+first offender, and exempting the record would blind the guard to itself.
+
+Each line is quoted from `d91509b~1` — the commit before "put the UI on Manrope,
+and ask for its tabular figures once". The declaration and the three imports are
+what a half-revert puts back; the sentence is the argument that came with them,
+and it is the shape the absence guard exists to catch, because a comment still
+making the old case is a comment that will be believed.
+
+  src/index.css:47      sidebar width moves. IBM Plex Sans is the display face because its figures
+  src/index.css:51   --font-display: 'IBM Plex Sans', sans-serif;
+  src/main.tsx:7     import '@fontsource/ibm-plex-sans/500.css';
+  src/main.tsx:8     import '@fontsource/ibm-plex-sans/600.css';
+  src/main.tsx:9     import '@fontsource/ibm-plex-sans/700.css';
+  package.json:19        "@fontsource/ibm-plex-sans": "^5.3.0",
+
+The argument itself does not survive here: `design/extensions/parchment-5h.dc.html`
+still carries it, and a merged drawing is immutable. That file is in no corpus
+this repo walks, which is why the needle needs this record and not that one.

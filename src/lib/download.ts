@@ -1,19 +1,10 @@
-// Handing a generated file to the user (DECISIONS D29). Infra, not domain:
-// `showSaveFilePicker`, Blob and the anchor click are browser APIs and
-// therefore live in src/lib, never in src/core (G1) — alongside `sync.ts`, the
-// other browser-API module.
+// Handing a generated file to the user (*Persistence today*). Browser APIs, so
+// src/lib and never src/core.
 //
-// SAVE-PICKER PARITY (S5, pinned): where `showSaveFilePicker` exists (Chromium)
-// an export opens the browser's Save-as dialog; everywhere else the file lands
-// in Downloads through `<a download>`. The two paths produce the SAME bytes and
-// the same suggested name, the UI never mentions which one ran, and
-// **cancelling the Save-as dialog is not an error** — `AbortError` resolves as
-// `'cancelled'`: no toast, no message, nothing written.
-//
-// The ONE exception, and it is a hard rule (D24): the pre-import safety backup
-// always passes `via: 'anchor'`. A modal Save-as dialog in front of a safety
-// guarantee is a dialog the user can cancel, and that guarantee must not be
-// cancellable.
+// Two paths, same bytes and same suggested name: `showSaveFilePicker` where it
+// exists, `<a download>` everywhere else. Cancelling the Save-as dialog is not an
+// error. THE PRE-IMPORT SAFETY BACKUP ALWAYS PASSES `via: 'anchor'` — a guarantee
+// behind a dialog the user can cancel is not a guarantee.
 
 /** `'cancelled'` = the user dismissed the picker. A real failure THROWS. */
 export type SaveOutcome = 'saved' | 'cancelled';
@@ -24,9 +15,8 @@ export interface SaveTextOptions {
   via?: 'picker' | 'anchor';
 }
 
-// Minimal local shapes for the File System Access API — declared here rather
-// than relied on from lib.dom (its coverage varies by TS version), and never as
-// globals, so nothing clashes with the platform types.
+// Declared here rather than taken from lib.dom, whose File System Access coverage
+// varies by TS version, and never as globals, so nothing clashes with the platform.
 interface SaveFilePickerOptions {
   suggestedName?: string;
   types?: { description?: string; accept: Record<string, string[]> }[];
@@ -59,10 +49,9 @@ export async function saveTextFile(
         types: [{ accept: { [opts.mime]: [extensionOf(name)] } }],
       });
     } catch (error) {
-      // A cancelled picker is a decision, not a failure.
       if ((error as Error | undefined)?.name === 'AbortError') return 'cancelled';
-      // Anything else (no user activation left, a sandboxed context) must not
-      // cost the user the export: fall back to the path that always works.
+      // No user activation left, or a sandboxed context: fall back rather than cost the
+      // user the export.
       return anchorDownload(name, text, opts.mime);
     }
     const writable = await handle.createWritable(); // truncates by default

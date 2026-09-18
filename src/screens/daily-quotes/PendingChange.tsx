@@ -6,20 +6,16 @@ import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';
 
 /**
- * THE RAIL'S FIRST BLOCK (sheet D-4) — what this snapshot would change.
+ * THE RAIL'S FIRST BLOCK — what this snapshot would change.
  *
- * It exists to make an always-present rail honest on a day with no coupon: the
- * width went "to the day and the portfolio", and without this the rail only
- * holds two rehoused elements and never says so.
- *
- * IT NAMES THE CHANGE AND NEVER THE TOTAL. The sidebar already renders the
- * saved capital; a live total here would be one quantity with two values on one
- * screen. The arithmetic — including the baseline trap it avoids and why an
- * asset without a baseline is not counted — lives in `pendingChange`.
+ * IT NAMES THE CHANGE AND NEVER THE TOTAL: the sidebar already renders the saved
+ * capital, and a live total here would be one quantity with two values on one
+ * screen. The arithmetic, and the baseline trap it avoids, live in
+ * `pendingChange`.
  *
  * Two states, not three: "partially filled" is not one. Assets left alone
- * contribute nothing because coalesce carries them forward unchanged (D33), so
- * a half-filled draft is simply a smaller change.
+ * contribute nothing because coalesce carries them forward unchanged, so a
+ * half-filled draft is simply a smaller change.
  */
 export function PendingChange({
   assets,
@@ -36,8 +32,7 @@ export function PendingChange({
   const t = useT();
   const language = useSettings((s) => s.language);
   const { sum, changed } = pendingChange(assets, drafts, snapshots, selectedDate, language);
-  // Rounded to kopiykas for the same reason the comparison is: a sum of
-  // −0.000000001 is a zero the display would sign.
+  // Rounded to kopiykas for the same reason the comparison is: a sum of −1e−9 is a zero the display would sign.
   const net = Math.round(sum * 100);
   const copy = t.dailyQuotes.pendingChange;
 
@@ -48,13 +43,9 @@ export function PendingChange({
         <p className="mt-1.5 text-[12.5px] text-muted">{copy.none}</p>
       ) : (
         <>
-          {/* The figure is a DELTA, so it takes the signed treatment the rest of
-              the app gives one — `f.signed` owns the glyph (U+2212, never the
-              ASCII hyphen) and the tint.
-              A NET OF ZERO IS NOT A GAIN. Two offsetting drafts (+100 and −100)
-              are two changed rows worth nothing, and «+0,00 ₴» in `pos` claimed
-              otherwise; it reads plain and muted instead, with the count beside
-              it still telling the truth. */}
+          {/* A NET OF ZERO IS NOT A GAIN. Two offsetting drafts are two changed rows
+              worth nothing, and a signed zero in `pos` claimed otherwise; it reads plain
+              and muted instead, with the count beside it still telling the truth. */}
           <p
             key={sum}
             className={`mt-1.5 animate-in text-[19px] font-semibold duration-200 fade-in ${

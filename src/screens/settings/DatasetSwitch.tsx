@@ -5,14 +5,10 @@ import { useDataset, useSettings } from '../../state/settings';
 import { useT } from '../../i18n/useT';
 import { TAP_44 } from '../../components/ui/tap-target';
 
-// S5 dataset switch (design/extensions/settings.dc.html) — FILLED segmented
-// control (D114): track `ink`, `card` sliding chip, no thumb shadow. It was
-// `panel`/`card` and a twin of the sidebar currency toggle, which D114 makes
-// the one exception. Sliding-thumb motion 300ms soft (D7; reduced-motion collapses via
-// the global kill-switch). Flip = confirm-free but explained by the row's
-// helper copy: setDataset persists the flag into kubushka-settings
-// synchronously and location.reload()s (G4) — the brief pre-reload lockout
-// disables both segments so a second click can't race the navigation.
+// FILLED segmented control, the one the sidebar currency toggle is the exception
+// to. Flip is confirm-free but explained by the row's helper copy: `setDataset`
+// persists the flag synchronously and reloads, and the pre-reload lockout
+// disables both segments so a second click cannot race the navigation.
 export function DatasetSwitch() {
   const t = useT();
   const dataset = useDataset();
@@ -22,7 +18,7 @@ export function DatasetSwitch() {
   function flip(next: Dataset) {
     if (next === dataset || switching) return;
     setSwitching(true);
-    setDataset(next); // persists, then reloads (G4)
+    setDataset(next); // persists, then reloads
   }
 
   const segment = (d: Dataset, label: string) => (
@@ -39,26 +35,19 @@ export function DatasetSwitch() {
 
   return (
     <div
-      // A GRID, NOT A FLEX ROW, and that is what equalises the segments. «Демо»
-      // is four mono characters and «Живий» five, so a flex track sized them
-      // 72.8 and 80 while the chip is a fixed `calc(50% - 6px)` = 76.4 — it
-      // overhung one by 3.6px and started 2.6px late on the other. `flex-1` does
-      // NOT fix it: this track shrink-wraps its content, so there is no free
-      // space for a grow factor to distribute. Two `1fr` columns in an
-      // auto-width grid all take the widest content, which is exactly how the
-      // theme (`grid-cols-3`) and language (`grid-cols-2`) controls avoid the
-      // same problem — measured, their segments are equal to the hundredth and
-      // their chips sit at offset 0. The currency pair gets away with flex only
-      // because «₴ UAH» and «$ USD» are the same length.
+      // A GRID, NOT A FLEX ROW, and that is what equalises the segments: the two
+      // labels are different lengths, so a flex track sizes them apart while the chip
+      // is a fixed fraction and overhangs one. `flex-1` does NOT fix it — this track
+      // shrink-wraps its content, so there is no free space for a grow factor to
+      // distribute. Two `1fr` columns take the widest content, which is how the theme
+      // and language controls avoid the same problem. A flex track survives only a pair
+      // equal-width in every dictionary: these two are in English and are not in
+      // Ukrainian, which is the reading the grid removes.
       //
-      // It was invisible until D114: a `card` chip on a `panel` track was
-      // nearly the same colour and hid the misalignment; on an `ink` track it
-      // does not.
+      // It was invisible while the chip and the track were near the same colour.
       data-filled-track
       className={`relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1 transition ${switching ? 'opacity-50' : ''}`}
     >
-      {/* sliding thumb (D7): both segments share the same mono-font width, so
-          translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
         data-owns-motion

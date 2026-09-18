@@ -10,9 +10,8 @@ export interface AllTables {
   transactions: Transaction[];
 }
 
-// Declared Dexie schema version — recorded in backup envelopes (dbVersion
-// field, see core/backup/json.ts); re-exported here because only this module
-// may import lib/db.ts (D2).
+// Re-exported rather than imported from lib/db.ts at the call site: only this
+// module may reach for db.ts. Backup envelopes record it as `dbVersion`.
 export const dbVersion = db.verno;
 
 async function seedTables(): Promise<void> {
@@ -36,20 +35,17 @@ export const repo = {
     return db.transactions.orderBy('date').toArray(); // ascending by date
   },
 
-  // UPSERT by date (re-saving a day replaces it — §9); stamps savedAt.
+  // UPSERT by date — re-saving a day replaces it — and stamps savedAt.
   async saveSnapshot(s: Snapshot): Promise<void> {
     await db.snapshots.put({ ...s, savedAt: new Date().toISOString().slice(0, 19) });
   },
 
-  // One atomic transaction: create the asset (if given), then the record.
   async recordTransaction(tx: Transaction, newAsset?: Asset): Promise<void> {
     await db.transaction('rw', db.assets, db.transactions, async () => {
       if (newAsset) await db.assets.add(newAsset);
       await db.transactions.add(tx);
     });
   },
-
-  // --- Write surface (G2) -------------------------------------------------
 
   async addAsset(asset: Asset): Promise<void> {
     await db.assets.add(asset);
@@ -59,8 +55,8 @@ export const repo = {
     await db.assets.update(id, patch);
   },
 
-  // Cascade ALWAYS, atomically: the asset, its transactions, and its quote
-  // key in every snapshot go in one rw transaction — no orphan rows.
+  // Cascade ALWAYS, atomically: the asset, its transactions and its quote key in
+  // every snapshot go in one rw transaction, so no orphan row can survive.
   async deleteAsset(id: string): Promise<void> {
     await db.transaction('rw', [db.assets, db.transactions, db.snapshots], async () => {
       await db.assets.delete(id);
@@ -76,17 +72,15 @@ export const repo = {
     });
   },
 
-  // THE ONLY UNVALIDATED WRITE PATH LEFT FOR A TRANSACTION, and D128's
-  // "every door is closed" table does not list it because it has no caller —
-  // `useUpdateTransaction` is exported and unused. That is load-bearing: D128
-  // argues a position-moving row cannot exist without a unit count, and this
-  // takes a bare `Partial<Transaction>` with no schema in front of it.
-  //
-  // A transaction-edit affordance is the natural first caller. When one is
-  // written, it must go through `transactionSchema` (D124) or repeat its rule —
-  // otherwise it can store a count-less moving row again, and the export guard
-  // in `useBackupDownload` becomes the only thing standing between that and an
-  // unrestorable backup.
+  // THE ONLY UNVALIDATED WRITE PATH LEFT FOR A TRANSACTION, and it stays open only
+  // because it has no caller yet: `useUpdateTransaction` is exported and unused
+  // while the DDL check, the form schema and the backup importer all refuse a
+  // count-less position-moving row. It takes a bare
+  // `Partial<Transaction>` with no schema in front of it, so a first caller must
+  // go through `transactionSchema` or repeat its rule — otherwise a position-moving
+  // row can be stored without a unit count, and the export guard in
+  // `useBackupDownload` becomes the only thing between that and an unrestorable
+  // backup.
   async updateTransaction(id: string, patch: Partial<Transaction>): Promise<void> {
     await db.transactions.update(id, patch);
   },
@@ -99,8 +93,7 @@ export const repo = {
     await db.snapshots.delete(date);
   },
 
-  // Delete+put in one rw transaction; throws on collision or a missing
-  // source row — either aborts the transaction, so no partial write.
+  // Throws on a collision or a missing source row; either aborts the transaction.
   async moveSnapshotDate(from: string, to: string): Promise<void> {
     await db.transaction('rw', db.snapshots, async () => {
       if (await db.snapshots.get(to)) {
@@ -115,10 +108,8 @@ export const repo = {
     });
   },
 
-  // Key-value side table (D9). First app occupant: the Inzhur last-good cache
-  // ('inzhur:lastFetch', P3); P4's mirror handle follows. Values are `unknown`
-  // in IndexedDB, so the caller owns the row shape and must read it
-  // defensively — the cast is a convenience, not a guarantee.
+  // Values are `unknown` in IndexedDB, so the caller owns the row shape and must
+  // read it defensively — the cast is a convenience, not a guarantee.
   async getMeta<T>(key: string): Promise<T | undefined> {
     return (await db.meta.get(key))?.value as T | undefined;
   },
@@ -127,7 +118,6 @@ export const repo = {
     await db.meta.put({ key, value });
   },
 
-  // One consistent read of all three tables (backup export basis).
   async exportAll(): Promise<AllTables> {
     return db.transaction('r', [db.assets, db.snapshots, db.transactions], async () => ({
       assets: (await db.assets.toArray()).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
@@ -136,12 +126,9 @@ export const repo = {
     }));
   },
 
-  // All-or-nothing replace: clear all three tables + bulkAdd in ONE rw
-  // transaction — any row failure aborts the whole thing, previous data
-  // stays. Stamps the seeded flag (imported data must never be reseeded over).
-  // Held under the cross-tab lock so a second tab's replace/clear cannot
-  // interleave with this one (P4/D24); `onBlocked` fires only while another
-  // tab holds it, and feeds the S3 dialog's "Waiting for another tab…".
+  // All-or-nothing: any row failure aborts the whole transaction and the previous
+  // data stays. Stamps the seeded flag, because imported data must never be
+  // reseeded over. Held under the cross-tab lock so a second tab cannot interleave.
   async replaceAll(data: AllTables, opts: { onBlocked?: () => void } = {}): Promise<void> {
     await withDbLock(
       () =>
@@ -154,14 +141,12 @@ export const repo = {
         }),
       opts.onBlocked,
     );
-    // Only ever after a COMMITTED write: other tabs are told the data changed,
-    // never that it might have.
+    // Only ever after a COMMITTED write: other tabs are told the data changed, never that it might have.
     postDbSync('replace');
   },
 
-  // reseed:true → reset to the reference seed; reseed:false → deliberately
-  // empty, and the seeded flag keeps ensureSeeded() from resurrecting the
-  // seed across reloads. Same cross-tab lock + notification as replaceAll.
+  // reseed:false leaves the dataset deliberately empty, and the seeded flag is what
+  // keeps ensureSeeded from resurrecting the seed across reloads.
   async clearAll(opts: { reseed: boolean }): Promise<void> {
     await withDbLock(() =>
       db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {
@@ -177,10 +162,8 @@ export const repo = {
   },
 };
 
-// Seeds the reference dataset on first run only — and ONLY into the demo DB
-// (G4/D16): live starts empty and stays empty until the user writes or
-// imports into it. Within demo: assets empty AND never seeded before (meta
-// flag) — so deliberate emptiness stays empty.
+// Demo only: live starts empty and stays empty until the user writes or imports.
+// Within demo, the meta flag is what makes a deliberately emptied dataset stay empty.
 export async function ensureSeeded(): Promise<void> {
   if (activeDataset !== 'demo') return;
   await db.transaction('rw', [db.assets, db.snapshots, db.transactions, db.meta], async () => {

@@ -1,6 +1,4 @@
-// Figures come from the trimmed live fixture (core/inzhur/__fixtures__) and
-// the user's real dashboard: 6 164 × 11.1389 = 68 660,18 · 9 × 6 675,8848 =
-// 60 082,96 · 15 × 1 057,67 = 15 865,05 (docs/plans/NEXT-PHASE-PLAN.md P3 Verify).
+// Figures come from the trimmed live fixture in `core/inzhur/__fixtures__`.
 import { describe, expect, it } from 'vitest';
 
 import { matchAssets, parseAssetsFeed, type InzhurMatch } from '../../core/inzhur/parse';
@@ -64,8 +62,8 @@ describe('sameQuote — the S3 equality guard', () => {
   });
 
   it('reads the draft under the user language before comparing', () => {
-    // Read under the wrong grammar the guard answers about a different number,
-    // and S3 either hides an offer that should stand or raises one over nothing.
+    // Read under the wrong grammar the guard answers about a different number, and
+    // the screen either hides an offer that should stand or raises one over nothing.
     expect(sameQuote('1,240', 1.24, 'uk')).toBe(true);
     expect(sameQuote('1,240', 1240, 'uk')).toBe(false);
     expect(sameQuote('1,240', 1240, 'en')).toBe(true);
@@ -152,19 +150,18 @@ describe('reconcileFetched — the G5 decision', () => {
   });
 
   it('NAMES a linked row with no count from any source, instead of skipping it silently', () => {
-    // D117's third state, unreachable before it: the link carries no `units`
-    // (the form stopped asking) and the ledger has no quantities for the asset
-    // (no position-moving rows at all, so it is not in `incompleteLedgers`
-    // either). The fetch used to report success, fill every other row, and leave
-    // this one empty forever with nothing said anywhere.
+    // The third state, unreachable before it: the link carries no `units` and the
+    // ledger has no quantities for the asset, so it is not in `incompleteLedgers`
+    // either. The fetch used to report success, fill every other row, and leave this
+    // one empty forever with nothing said anywhere.
     const fresh = asset('fresh', { kind: 'fund', ref: 'inzhur-reit' });
     const { linked } = matchAssets([fresh], feed, {});
     const out = reconcileFetched(linked, {}, {}, 'uk');
     expect(out.fills).toEqual([]);
     expect(out.offers).toEqual([]);
     expect(out.noCount).toEqual(['fresh']);
-    // NOT the negative list — that one means the ledger holds something
-    // impossible, and this one means it holds nothing yet.
+    // NOT the negative list — that one means the ledger holds something impossible,
+    // and this one means it holds nothing yet.
     expect(out.negative).toEqual([]);
   });
 
@@ -197,7 +194,7 @@ describe('latestFetchedAt', () => {
 });
 
 describe('feedFreshness (S1 microcopy)', () => {
-  // 10:05Z is 13:05 in Kyiv summer (+3) — the design's "Inzhur 13:05".
+  // 10:05Z is 13:05 in Kyiv summer.
   const now = new Date('2026-08-04T10:30:00.000Z');
 
   it('is fresh while the payload carries today’s Kyiv date', () => {
@@ -212,7 +209,7 @@ describe('feedFreshness (S1 microcopy)', () => {
   });
 
   it('uses the KYIV day boundary, not UTC', () => {
-    // 21:30Z on 03.08 is already 00:30 on 04.08 in Kyiv → still today.
+    // 21:30Z is already the next day in Kyiv → still today.
     expect(feedFreshness('2026-08-03T21:30:00.000Z', now)?.state).toBe('fresh');
   });
 
@@ -222,7 +219,6 @@ describe('feedFreshness (S1 microcopy)', () => {
 });
 
 describe('payloadStillFresh (S1 "re-serve, do not refetch")', () => {
-  // Fetched 13:05 Kyiv on 04.08 → fresh until 13:00 Kyiv on 05.08.
   const at = '2026-08-04T10:05:00.000Z';
 
   it('is fresh minutes after the fetch', () => {

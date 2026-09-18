@@ -60,7 +60,7 @@ describe('inzhurObservationRows', () => {
     }
   });
 
-  // D31 measured it: `nav` is "exactly `0` for `ocean-plaza` and `zhytniy`, two
+  // *The price archive* measured it: `nav` is "exactly `0` for `ocean-plaza` and `zhytniy`, two
   // of the four funds" — 0 is the provider's not-published marker, not a price.
   // The fixture shows every BOND carrying `"nav": 0` for the same reason. The
   // archive has no DELETE grant, so writing these would mean thousands of rows

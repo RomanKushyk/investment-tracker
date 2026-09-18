@@ -26,8 +26,6 @@ const BAR_BG: Record<ColorKey, string> = {
   ovdp6475: 'bg-ovdp6475',
 };
 
-// Rebalance plan bond label: "OVDP …8976" (abbreviated); other assets keep
-// their full name — matches Portfolio's highlight-card convention.
 function planLabel(asset: Asset): string {
   return asset.yieldType === 'fixed_coupon' ? bondAbbrev(asset) : asset.name;
 }
@@ -39,8 +37,7 @@ export function Allocation() {
   const snapshots = useSnapshots().data ?? [];
 
   const updateAsset = useUpdateAsset();
-  // A30 — the drafts the editor edits. Keyed by asset id and raw, exactly as
-  // the Settings editor kept them: `targetRowStates` owns the parsing.
+  // Keyed by asset id and raw: `targetRowStates` owns the parsing.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const values = latestQuotes(snapshots);
@@ -50,41 +47,34 @@ export function Allocation() {
   const rows = allocationRows(assets, values, total);
   const { actions, withinRange } = rebalancePlan(assets, values, total);
 
-  // ── the targets editor, rehoused from Settings (A30, brief S2) ───────────
-  // THE LANGUAGE, because the grammar is a language rule: under Ukrainian
-  // `17,500` is 17.5, and this editor used to read it as 17500 while the asset
-  // form beside it read 17.5 — one field, two doors, two answers.
+  // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`
+  // is 17.5, and this editor used to read it as 17500 while the asset form beside
+  // it read 17.5 — one field, two doors, two answers.
   const targetLang = useSettings((state) => state.language);
   const targetRows = targetRowStates(assets, drafts, targetLang);
   const sum = targetsSum(targetRows);
   const status = sumStatus(sum);
   // Σ ≠ 100 warns and never blocks; an unparseable entry is the one thing that
-  // does, because there is no number to write. Both rules are the Settings
-  // editor's, moved unchanged.
+  // does, because there is no number to write.
   const invalid = targetRows.some((r) => r.value === null);
   const pending = changedTargets(targetRows);
   const dirty = pending.length > 0 || invalid;
   const mode = useEditMode(dirty);
-  // BUG 3, found in review: Cancel was live while a save was in flight, so
-  // discarding mid-save still persisted the values and then congratulated the
-  // user on a page they had explicitly abandoned. A save cannot be un-issued;
-  // the honest answer is that it cannot be abandoned either.
+  // CANCEL IS LOCKED WHILE A SAVE IS IN FLIGHT: a save cannot be un-issued, so it
+  // cannot be abandoned either — discarding mid-save persisted the values and then
+  // congratulated the user on a page they had explicitly abandoned.
   //
-  // LOCAL STATE, NOT `updateAsset.isPending` (1.7.0 release review): a TanStack
-  // mutation observer holds ONE current mutation, so each `mutateAsync` replaces
-  // the last and `isPending` reports only the most recently STARTED write. With
-  // four targets edited it went false the moment the fourth settled — which is
-  // not the moment the batch is done, because four independent IndexedDB
-  // requests have no ordering guarantee. The lockout lifted mid-batch and BUG 3
-  // was open again through a different door.
+  // LOCAL STATE, NOT `updateAsset.isPending`: a TanStack mutation observer holds
+  // ONE current mutation, so each `mutateAsync` replaces the last and `isPending`
+  // reports only the most recently STARTED write. With four targets edited it went
+  // false when the fourth settled, which is not when the batch is done.
   const [saving, setSaving] = useState(false);
 
-  // `allSettled`, NOT `all`, and the difference is what the user is told. `all`
-  // rejects on the FIRST failure while the other writes are already committed,
-  // so a partial save reported itself as a total failure: the user read "could
-  // not save", left, and three of four targets had silently changed. Nothing
-  // here can be a transaction — `updateAsset` is one row per call — so the
-  // honest move is to count what landed and say so.
+  // `allSettled`, NOT `all`, and the difference is what the user is told: `all`
+  // rejects on the FIRST failure while the other writes are already committed, so
+  // a partial save reported itself as a total failure. Nothing here can be a
+  // transaction — `updateAsset` is one row per call — so the honest move is to
+  // count what landed and say so.
   function saveTargets() {
     setSaving(true);
     void Promise.allSettled(
@@ -100,30 +90,26 @@ export function Allocation() {
         toast.success(t.targets.savedToast);
         return;
       }
-      // EDIT MODE STAYS OPEN and the drafts stay put. The rows that DID land
-      // stop differing from stored once the query invalidates, so they drop out
-      // of `pending` on their own and the editor is left holding exactly the
-      // ones still to write. Nothing to reconcile by hand.
+      // EDIT MODE STAYS OPEN and the drafts stay put: the rows that DID land stop
+      // differing from stored once the query invalidates, so they drop out of
+      // `pending` on their own.
       toast.error(
         written === 0 ? t.targets.saveFailed : t.targets.savePartial(written, results.length),
       );
     });
   }
 
-  // Leaving edit mode by any path drops the drafts — the stored targets are
-  // what the read-only card must show the instant it comes back.
+  // Leaving edit mode by any path drops the drafts — the stored targets are what
+  // the read-only card must show the instant it comes back.
   const editing = mode.editing;
   if (!editing && Object.keys(drafts).length > 0) setDrafts({});
 
   /**
-   * F5 — THE LIVE PREVIEW IS THE TARGET TICK, NOT A ShareBar.
-   *
-   * The brief specified `ShareBar` widths; there is no `ShareBar` on this
-   * screen, and the card already draws the thing the editor changes. So the
-   * TICK moves to the drafted target and the pp delta re-derives against it,
-   * while the FILL — the current share — never moves: an entered target cannot
-   * change what you own. The bar's own `transition-[width]` 500 ms carries it;
-   * no duration is minted.
+   * THE LIVE PREVIEW IS THE TARGET TICK, NOT A ShareBar. The brief specified
+   * `ShareBar` widths; there is no `ShareBar` on this screen, and the card already
+   * draws the thing the editor changes. So the TICK moves to the drafted target
+   * while the FILL — the current share — never does: an entered target cannot
+   * change what you own.
    */
   const shownTarget = (i: number) => (editing ? targetRows[i].effective : rows[i].target);
 
@@ -132,17 +118,15 @@ export function Allocation() {
       <ScreenHeader
         title={t.screen.allocation.title}
         subtitle={t.screen.allocation.subtitle}
-        // No assets → nothing to edit, so no control at all rather than a
-        // disabled one (brief's rule, and TargetsEditor's own `return null`).
+        // No assets → nothing to edit, so no control at all rather than a disabled one.
         actions={
           assets.length === 0 ? undefined : (
             <EditActions
               mode={mode}
               variant="batch"
               onSave={saveTargets}
-              // BUG 9: with nothing changed, Save ran an empty `Promise.all`
-              // and reported "Цілі збережено" for zero writes. A confirmation
-              // of nothing is worse than no confirmation.
+              // With nothing changed, Save ran an empty batch and reported success for zero
+              // writes. A confirmation of nothing is worse than no confirmation.
               saveDisabled={invalid || saving || pending.length === 0}
               busy={saving}
             />
@@ -231,7 +215,7 @@ export function Allocation() {
                         className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
                         style={{ width: `${r.share}%` }}
                       />
-                      {/* F5: the tick follows the DRAFT, the fill never does. */}
+                      {/* The tick follows the DRAFT, the fill never does. */}
                       <div
                         className="absolute -top-[3px] h-4 w-0.5 bg-ink transition-[left] duration-500 ease-soft"
                         style={{ left: `${target}%` }}
@@ -243,8 +227,6 @@ export function Allocation() {
             </div>
 
             {editing && (
-              /* Keyed by Σ so every value change re-runs the entry animation
-                 (D7), exactly as the Settings editor did. */
               <div className="mt-3.5">
                 <span
                   key={sum}

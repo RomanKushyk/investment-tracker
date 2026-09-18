@@ -20,10 +20,8 @@ import { useBackupDownload } from '../../hooks/useBackupDownload';
 import { useT } from '../../i18n/useT';
 import type { AssetDialogsControl } from './useAssetDialogs';
 
-// Destructive confirm with cascade counts + backup CTA on the D17 AlertDialog
-// idiom (outside click never dismisses, Esc cancels, focus trapped) — but
-// WITHOUT the typed-name arming: per the task brief that stays reserved for
-// the whole-dataset erase/reset (brief S2 addendum, 2026-08-02).
+// Destructive confirm with cascade counts and a backup CTA, but WITHOUT the
+// typed-name arming: that stays reserved for the whole-dataset erase and reset.
 function DeleteAssetDialog({
   asset,
   open,
@@ -40,10 +38,9 @@ function DeleteAssetDialog({
   const backup = useBackupDownload();
   const [backedUp, setBackedUp] = useState(false);
 
-  // FROZEN AT OPEN, not recomputed (A31 review). `useDeleteAsset` invalidates
-  // every query on success, and this node stays MOUNTED for its 220 ms exit
-  // (only `open` flips) — so a live computation repainted the sentence as
-  // "0 транзакцій і котирування за 0 днів" while the dialog was still fading,
+  // FROZEN AT OPEN, not recomputed. `useDeleteAsset` invalidates every query on
+  // success and this node stays MOUNTED for its exit, so a live computation
+  // repainted the sentence to zero counts while the dialog was still fading —
   // turning the last thing the user sees into a lie about what was deleted.
   const [counts] = useState(() => cascadeCounts(asset.id, transactions, snapshots));
 
@@ -96,10 +93,9 @@ function DeleteAssetDialog({
 }
 
 /**
- * The three asset dialogs, rendered ONCE by whoever owns the control (A31).
- *
- * They are portalled, so where this sits in the tree does not matter — but
- * keeping it out of a table row is what stops four rows mounting four copies.
+ * The three asset dialogs, rendered ONCE by whoever owns the control. They are
+ * portalled, so where this sits in the tree does not matter — but keeping it out
+ * of a table row is what stops four rows mounting four copies.
  */
 export function AssetDialogs({ ctl }: { ctl: AssetDialogsControl }) {
   const { dialog, shown, session, close } = ctl;

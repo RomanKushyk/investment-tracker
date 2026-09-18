@@ -1,6 +1,4 @@
-// Pure glue for the Portfolio screen — the highlight cards, and since A31 the
-// delete confirm's cascade counts too. Not in src/lib, that layer stays
-// untouched per this task's scope. Covered by portfolio.test.ts.
+// Pure glue for the Portfolio screen. Covered by portfolio.test.ts.
 import { yieldSinceStart } from '../../core/derive';
 import type { Asset, Snapshot, Transaction } from '../../core/types';
 
@@ -15,9 +13,8 @@ function extreme(
   invested: Record<string, number>,
   pick: (a: number, b: number) => boolean,
 ): PerformanceResult | undefined {
-  // No asset has ever been quoted (empty DB) — every yield would default to 0
-  // and the first asset would win by tie-break, which reads as a real result.
-  // Bail out instead so the caller can show an empty state.
+  // No asset has ever been quoted: every yield would default to 0 and the first
+  // asset would win by tie-break, which reads as a real result. Bail out instead.
   if (!assets.some((a) => a.id in values)) return undefined;
 
   let best: PerformanceResult | undefined;
@@ -28,7 +25,6 @@ function extreme(
   return best;
 }
 
-// Best performer card: highest yieldSinceStart.
 export function bestPerformer(
   assets: Asset[],
   values: Record<string, number>,
@@ -37,7 +33,6 @@ export function bestPerformer(
   return extreme(assets, values, invested, (y, best) => y > best);
 }
 
-// Laggard card: lowest yieldSinceStart.
 export function laggard(
   assets: Asset[],
   values: Record<string, number>,
@@ -52,8 +47,7 @@ export interface IncomeEngineResult {
   coupons: number;
 }
 
-// Income engine card: the asset that generated the most dividend+coupon
-// income to date (dividend_accrual + interest_payout, counted on accrual).
+// Counted on accrual: dividend_accrual plus interest_payout.
 export function incomeEngine(
   assets: Asset[],
   transactions: Transaction[],
@@ -84,12 +78,9 @@ export function incomeEngine(
 }
 
 /**
- * What deleting an asset cascades over (G2: the asset, its transactions, its
- * quote key in every snapshot) — structured counts; the confirm dialog owns the
- * sentence (D8).
- *
- * Moved here from `screens/settings/settings.ts` by A31, with the manager it
- * serves. Not one line of it changed.
+ * What deleting an asset cascades over — the asset, its transactions and its
+ * quote key in every snapshot — as structured counts; the confirm dialog owns
+ * the sentence.
  */
 export function cascadeCounts(
   assetId: string,

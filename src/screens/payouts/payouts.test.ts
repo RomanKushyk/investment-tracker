@@ -60,10 +60,9 @@ describe('payoutLogRows', () => {
     expect(may10.destination).toEqual({ kind: 'account' });
   });
 
-  // THE ROW CARRIES WHAT WAS WITHHELD, because until #138 nothing did: the
-  // figure was written at the form, stored on the row and derived into three
-  // totals, and no screen could show it. The table is one of its two read
-  // surfaces, so the projection has to carry it rather than the screen reaching
+  // THE ROW CARRIES WHAT WAS WITHHELD, because nothing did: the figure was written
+  // at the form, stored on the row and derived into three totals with no screen
+  // showing it. The projection has to carry it rather than the screen reaching
   // past `payoutLogRows` into the transaction.
   it('carries the withholding through, and the net beside it', () => {
     const jun10 = rows.find((r) => r.date === '2026-06-10')!;
@@ -72,20 +71,18 @@ describe('payoutLogRows', () => {
     expect(jun10.net).toBeCloseTo(585.27, 2);
   });
 
-  // ABSENT IS THE ONLY SPELLING OF NONE, the shape `taxWithheld` has had since
-  // #136 — not 0, which would key the asset into `taxesPaidByAsset` and make an
-  // untaxed payout look reported-on.
+  // ABSENT IS THE ONLY SPELLING OF NONE — not 0, which would key the asset into
+  // `taxesPaidByAsset` and make an untaxed payout look reported-on.
   it('leaves the withholding absent where there was none, and nets to the amount', () => {
     const jun03 = rows.find((r) => r.date === '2026-06-03')!;
     expect(jun03.taxWithheld).toBeUndefined();
     expect(jun03.net).toBeCloseTo(jun03.amount, 2);
-    // Seven of the eight seeded payouts are in that state — the bond half of
-    // this portfolio permanently so, ОВДП coupons being exempt.
+    // The bond half of this portfolio is permanently in that state, ОВДП coupons being exempt.
     expect(rows.filter((r) => r.taxWithheld === undefined)).toHaveLength(7);
   });
 
-  // The net is DERIVED here rather than in the component, so the screen carries
-  // no arithmetic and the figure is pinned by a test — G1's line.
+  // The net is DERIVED here rather than in the component, so the screen carries no
+  // arithmetic and the figure is pinned by a test.
   it('nets every row from its own two columns', () => {
     for (const r of rows) expect(r.net).toBeCloseTo(r.amount - (r.taxWithheld ?? 0), 2);
   });

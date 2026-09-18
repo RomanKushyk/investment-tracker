@@ -14,8 +14,8 @@ import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
 // One rule for both forms, so the table and the card can never disagree about
-// which figures are good news. `== null` on purpose: some of these rows report
-// "no value" as `undefined` and others as `null`.
+// which figures are good news. `== null` on purpose: some rows report "no value"
+// as `undefined` and others as `null`.
 function signClass(v: number | null | undefined): string {
   return v == null ? 'text-muted' : v < 0 ? 'text-neg' : 'text-pos';
 }
@@ -28,28 +28,17 @@ export function Yield() {
   const snapshots = useSnapshots().data ?? [];
   const transactions = useTransactions().data ?? [];
 
-  // A39 — one call gives the window and the control that sets it, so the two
-  // cannot resolve differently. `all` is the full history, which is why the
-  // default screen is byte-identical to the one before this task.
+  // One call gives the window and the control that sets it, so the two cannot
+  // resolve differently.
   const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
 
   const series = cumulativeYieldSeriesIn(snapshots, transactions, assets, win);
   const rows = yieldTableRowsIn(assets, snapshots, transactions, win);
-  // "(ann.)" clarity suffix while history < 365 days (S9b) — plain "XIRR" after.
   const xirrHeader = xirrIsExtrapolatedIn(win) ? t.analytics.yield.xirrAnn : t.analytics.yield.xirr;
 
-  // A24 — the basis is derived, so it can be absent. An empty dataset has no
-  // start to name, and a footnote reading "365 days from —" is worse than no
-  // footnote: the table it annotates is empty too.
-  // The footnote names the basis, so it follows the window rather than the
-  // portfolio: under `3 місяці` a note reading "from 3 Feb" would describe a
-  // table that no longer starts there.
-  // THE GREY OWES A LEGEND WHEREVER IT APPEARS, and A39 already made this one
-  // footnote serve both the default and the windowed screen — so the clause is
-  // appended here rather than to a second string. Conditional on a row actually
-  // being marked: a legend for a mark that is not on screen explains nothing
-  // and is one more sentence to read. On the seed's default window …6475 is
-  // marked, so it IS the default screen's footnote (F-3 insists on that).
+  // The basis is DERIVED, so it can be absent, and a footnote naming no start is
+  // worse than none — the table it annotates is empty too. It names the basis, so
+  // it follows the window rather than the portfolio.
   const marked = rows.some((r) => r.shortBasis);
   const note = win
     ? t.analytics.prose.yieldNote(f.date(win.from)) +
@@ -62,7 +51,7 @@ export function Yield() {
           branches on `actions === undefined`, and an element that renders null
           is still defined — so handing it one unconditionally would put an
           empty action row on the empty-dataset screen and break the
-          byte-identity that component's doc pins (A38 review). */}
+          byte-identity that component's doc pins. */}
       <ScreenHeader
         title={t.screen.yield.title}
         subtitle={t.screen.yield.subtitle}
@@ -85,18 +74,14 @@ export function Yield() {
         )}
       </Card>
 
-      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
-          and `md:hidden`, so a phone still built the min-width table, mounted a
-          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
-          browser still paid for it. `useIsDesktop` is the same breakpoint the
-          shell, the charts and the DatePicker already switch on, so this mounts
-          one branch and only one. Both forms still render from the same `rows`,
-          so neither re-derives — only the arrangement differs (S3). */}
+      {/* ONE MECHANISM FOR ONE DECISION: `max-md:hidden` + `md:hidden` still built the
+          min-width table on a phone, mounted a `ScrollArea` for it and ran the row
+          derivation twice. `useIsDesktop` mounts one branch and only one. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width; the Scroller is what clips and draws
-            the rail. Card no longer sets overflow — a rounded card clipping its
-            own content is where the square platform track came from. */}
+          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+              sets no overflow: a rounded card clipping its own content is where the square
+              platform track came from. */}
           <Scroller orientation="horizontal">
             <table className="w-full min-w-[780px] border-collapse text-[12.5px]">
               <thead>
@@ -125,11 +110,9 @@ export function Yield() {
                     <td className={`py-2 text-right font-bold ${signClass(r.deltaTotal)}`}>
                       {r.deltaTotal === undefined ? '—' : f.pct(r.deltaTotal)}
                     </td>
-                    {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a
-                      reader who cannot separate `muted` from `ink` (WCAG
-                      1.4.1). The legend in the footnote explains the grey but
-                      nothing in the accessible tree says WHICH cells are grey,
-                      so the marked ones name themselves (A41 review). */}
+                    {/* COLOUR ALONE CARRIES NO MEANING to a screen reader or to a reader who cannot
+                        separate `muted` from `ink` (WCAG 1.4.1), and nothing in the accessible tree
+                        says WHICH cells are grey — so the marked ones name themselves. */}
                     <td
                       className={`py-2 text-right ${r.shortBasis ? 'text-muted' : ''}`}
                       title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}
@@ -158,8 +141,7 @@ export function Yield() {
           {note && <div className="mt-2.5 text-[11.5px] text-muted">{note}</div>}
         </Card>
       ) : (
-        /* THE SAME ROWS AS CARDS, below the breakpoint. The `dt` text is the `th`
-         text, character for character. */
+        /* THE SAME ROWS AS CARDS, and the `dt` text is the `th` text, character for character. */
         <div className="flex flex-col gap-2.5">
           {rows.map((r, i) => (
             <RecordCard
@@ -178,8 +160,8 @@ export function Yield() {
                 </span>
               </Fact>
               <Fact label={t.analytics.annualized}>
-                {/* The same mark in both shells (D66) — a figure that is greyed on
-                  the rail and black in the drawer is two different claims. */}
+                {/* The same mark in both shells — a figure greyed on the rail and black in the
+                    drawer is two different claims. */}
                 <span
                   className={r.shortBasis ? 'text-muted' : ''}
                   title={r.shortBasis ? t.analytics.prose.shortBasisNote : undefined}

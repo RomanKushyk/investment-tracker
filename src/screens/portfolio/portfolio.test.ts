@@ -44,7 +44,7 @@ describe('incomeEngine', () => {
   });
 });
 
-// Fixtures for `cascadeCounts`, moved with it from `settings.test.ts` (A31).
+// Fixtures for `cascadeCounts`.
 const tx = (id: string, assetId: string): Transaction => ({
   id,
   date: '2026-07-01',
@@ -71,8 +71,6 @@ const SNAPSHOTS: Snapshot[] = [
   { date: '2026-07-27', quotes: { energy: 60100 }, cash: 7.75 },
 ];
 
-// Moved from `screens/settings/settings.test.ts` by A31, with the function it
-// covers. Not one assertion changed.
 describe('cascadeCounts (delete-asset confirm dialog)', () => {
   it('counts the asset transactions and the days holding a quote for it', () => {
     expect(cascadeCounts('reit', TRANSACTIONS, SNAPSHOTS)).toEqual({

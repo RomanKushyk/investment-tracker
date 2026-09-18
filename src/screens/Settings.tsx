@@ -20,8 +20,6 @@ import { useBackupDownload } from '../hooks/useBackupDownload';
 import { useT } from '../i18n/useT';
 import { TAP_44 } from '../components/ui/tap-target';
 
-// Section microlabel — the card-label idiom shared with Overview's cards
-// (design/extensions/settings.dc.html S2, 10px uppercase tracking .12em).
 function SectionLabel({
   className = 'mb-3.5',
   children,
@@ -36,9 +34,6 @@ function SectionLabel({
   );
 }
 
-// Label-left / control-right row (S2): title 13px semibold + 12px muted
-// helper on the left, the control on the right; wraps to stacked when the
-// row gets narrower than the left block's 200px floor (~480px and below).
 function SettingRow({
   title,
   helper,
@@ -50,9 +45,7 @@ function SettingRow({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
-      {/* min() caps the design's 200px floor to the container width, so the
-          card interior never overflows at 360px (same fix as Overview's KPI
-          grid track floor) */}
+      {/* min() caps the design's floor to the container width, so the card interior never overflows at 360. */}
       <div className="min-w-[min(200px,100%)] flex-[1_1_260px]">
         <div className="text-[13px] font-semibold">{title}</div>
         <div className="mt-[3px] text-xs leading-normal text-muted">{helper}</div>
@@ -66,11 +59,6 @@ function Divider() {
   return <div className="my-4 h-px bg-hairline" />;
 }
 
-// S7 — the P1 sidebar Backup pill relocated to its designed home. Identical
-// download path (repo.exportAll → buildBackup → Blob link, shared via
-// useBackupDownload with the destructive dialogs' backup CTA); the outline
-// variant is back on its native light palette, so the sidebar's
-// ON_DARK_OUTLINE token remap is gone with the pill.
 function BackupButton() {
   const t = useT();
   const backup = useBackupDownload();
@@ -87,19 +75,11 @@ function BackupButton() {
   );
 }
 
-// FILLED segmented control (D114): track `ink`, `card` sliding chip, no thumb
-// shadow — the surface step no longer needs one. It was `panel`/`card` and a
-// twin of the sidebar toggle; D114 makes the RAIL the one exception, so the
-// kinship now runs the other way. Sliding-thumb motion still cloned from the
-// sidebar control (D7: transform 300ms soft; press scale; reduced-motion
-// collapses via the global kill-switch).
-//
-// SAME ANATOMY AS THE SIDEBAR TOGGLE, DIFFERENT FIELD (A21). This one writes
-// the PREFERENCE — what the app opens in — and the sidebar's writes the
-// session. It was the same field until 2026-08-18, which made this control a
-// second remote for the sidebar switch rather than a default. It still moves
-// the view immediately, because `setDefaultCurrency` carries the session with
-// it; the sidebar toggle does not come back the other way.
+// SAME ANATOMY AS THE SIDEBAR TOGGLE, DIFFERENT FIELD. This one writes the
+// PREFERENCE — what the app opens in — and the sidebar's writes the session.
+// While they were one field this was a second remote for that switch rather than
+// a default. It still moves the view immediately, because `setDefaultCurrency`
+// carries the session with it; the sidebar toggle does not come back.
 function CurrencyControl() {
   const { defaultCurrency: currency, setDefaultCurrency: setCurrency } = useSettings();
   const segment = (c: 'UAH' | 'USD', label: string) => (
@@ -112,20 +92,15 @@ function CurrencyControl() {
       {label}
     </button>
   );
-  /* A GRID, like the theme and language controls beside it. A flex track
-  shrink-wraps, so a fixed `calc(50% − N)` chip only lands when both
-  labels happen to be the same width — «₴ UAH» and «$ USD» are, which is
-  the only reason this one never drifted. That is a bet on the font
-  resolving U+20B4 at the mono advance and on nobody relabelling it; the
-  dataset switch lost the same bet with «Демо» / «Живий». Two `1fr`
+  /* A GRID, like the controls beside it. A flex track shrink-wraps, so a fixed
+  `calc(50% − N)` chip only lands while both labels are the same width — a bet on
+  the font and on nobody relabelling it, which the dataset switch lost. Two `1fr`
   columns take the widest content, so the chip fits by construction. */
   return (
     <div
       data-filled-track
       className="relative grid grid-cols-2 gap-1 rounded-[12px] border border-ink bg-ink p-1"
     >
-      {/* sliding thumb (D7): both segments share the same mono-font width, so
-          translateX(100% + gap) lands it exactly under the other one */}
       <div
         aria-hidden
         data-owns-motion
@@ -138,24 +113,13 @@ function CurrencyControl() {
   );
 }
 
-// The Light / Dark / System control (P5 S1). Three segments on the same track
-// as the CurrencyControl above — same tokens, same D56 radii (segment 7; track
-// concentric at 7 + 4 padding + 1 border = 12). No icons: the reference rules
-// them out, and the words are the whole label.
-//
-// GRID, not flex, and that is load-bearing. `flex-1` is `flex:1 1 0%`, which
-// only equalises segments that can shrink to their basis — and text cannot go
-// below its min-content, so "Light"/"Dark"/"System" measured 60/52.8/67.2px.
-// `grid-cols-3` is `repeat(3, minmax(0,1fr))`, whose columns are equal by
-// construction whatever the words are, which also means A10 can translate the
-// labels without re-measuring anything. The two-segment control keeps flex only
-// because ₴ UAH and $ USD are the same length in a mono face.
-//
-// The thumb's width is DERIVED, not fitted: its containing block is the track's
-// padding box, so with p-1 (4) and gap-1 (4) between three columns each is
-// (100% - 16px) / 3. The same derivation gives the two-segment control above
-// its (100% - 12px)/2, i.e. the 50% - 6px it already carries.
-// THE ORDER IS THE STORE'S since #85, because the sidebar's track walks it too.
+// GRID, not flex, and that is load-bearing. `flex-1` is `flex:1 1 0%`, which only
+// equalises segments that can shrink to their basis, and text cannot go below its
+// min-content. `grid-cols-3` columns are equal by construction whatever the words
+// are, so the labels can be translated without re-measuring. A flex track holds only
+// while a pair is equal-width in EVERY dictionary — true of ₴ UAH against $ USD in the
+// mono face this app sets, and not of the dataset switch's.
+// The thumb's width is DERIVED from the track's padding box, not fitted.
 
 function ThemeControl() {
   const t = useT();
@@ -165,15 +129,11 @@ function ThemeControl() {
     <div
       role="radiogroup"
       aria-label={t.settings.theme.ariaLabel}
-      // Wraps to its own line under `sm` rather than squeezing three segments
-      // into the row: at 360px the label and a three-up control cannot share it.
       data-filled-track
       className="relative grid grid-cols-3 gap-1 rounded-[12px] border border-ink bg-ink p-1 max-sm:w-full"
     >
-      {/* sliding thumb (D7), same as the two-segment control: `100%` in the
-          transform is the THUMB's own width, so one step is that width plus the
-          4px gap. `data-owns-motion` keeps the theme cross-fade from replacing
-          this transition during the very flip that moves it. */}
+      {/* `data-owns-motion` keeps the theme cross-fade from replacing this transition
+          during the very flip that moves it. */}
       <div
         aria-hidden
         data-owns-motion
@@ -196,11 +156,6 @@ function ThemeControl() {
   );
 }
 
-// The Українська / English control (P5 S2). Two segments, so it keeps flex and
-// the 50% - 6px thumb of its CurrencyControl twin rather than the three-column
-// grid the theme control needed. Both labels are the same length in neither
-// language, but a two-segment flex track distributes what is left evenly and
-// the thumb is derived from the TRACK, not from the words.
 const LANGUAGE_ORDER: Language[] = ['uk', 'en'];
 
 function LanguageControl() {
@@ -237,11 +192,9 @@ function LanguageControl() {
   );
 }
 
-// S8 — editable ₴/$ rate. Held the way every numeric field holds one — stored
-// language-free, shown by `NumberField` in the language on screen — so its
-// validity is language-free too; an invalid or ≤0 value never reaches the store,
+// Stored language-free and shown by `NumberField` in the language on screen, so
+// validity is language-free too: an invalid or ≤0 value never reaches the store
 // and the last valid rate stays in effect.
-// Empty input only errors on blur (arming is progressive).
 const USD_RATE_ERROR_ID = 'usd-rate-error';
 
 /** The rate this text holds, or nothing — a rate is a finite number above zero. */
@@ -253,20 +206,15 @@ function asRate(text: string): number | undefined {
 function UsdRateField() {
   const t = useT();
   const { usdRate, setUsdRate } = useSettings();
-  // STORED LANGUAGE-FREE, shown by `NumberField` in whichever language is on
-  // (D87). Held as its own string because a half-typed or refused value is not
-  // a rate and must not reach the store — but it carries no writing of its own,
-  // so a language switch is a re-render and the box never holds text the new
-  // grammar cannot read.
+  // Its own string, because a half-typed or refused value is not a rate and must
+  // not reach the store.
   const [raw, setRaw] = useState(() => inputValue(usdRate));
   const [error, setError] = useState(false);
-  // ONE READING AND ONE RULE, language-free, shared by the three places that
-  // used to parse `raw` separately. What the field STORES is canonical, so the
-  // live language has no say in whether it is a rate — and reading it under the
-  // live one left a box that had gone green while `usdRate` held the old number.
-  // TWO QUESTIONS, ONE RULE EACH: `asRate` owns what counts as a rate, and
-  // `storedNumber` says whether the text was readable at all. Running them
-  // together is what let «Enter a rate above 0.» answer a pasted «16,5».
+  // ONE READING AND ONE RULE, language-free: what the field STORES is canonical,
+  // and reading it under the live language left a box that had gone green while
+  // `usdRate` held the old number. `asRate` owns what counts as a rate and
+  // `storedNumber` whether the text was readable at all — running them together is
+  // what let «Enter a rate above 0.» answer a pasted «16,5».
   const valid = asRate(raw) !== undefined;
   const unreadable = raw.trim() !== '' && storedNumber(raw) === undefined;
 
@@ -281,8 +229,8 @@ function UsdRateField() {
     }
   }
 
-  // A5: the fetched rate is applied HERE rather than by the fetch control, so
-  // the stored number and the draft string this input shows can never disagree.
+  // Applied HERE rather than by the fetch control, so the stored number and the
+  // draft string this input shows can never disagree.
   function applyFetched(rate: number) {
     setRaw(inputValue(rate));
     setError(false);
@@ -290,19 +238,12 @@ function UsdRateField() {
   }
 
   return (
-    // ml-auto so the block still hugs the right edge on the narrow widths where
-    // SettingRow wraps it onto its own line — every other control in this card
-    // sits right, and a left-aligned one reads as a mistake.
-    // The input goes INSIDE the fetch block: the two are one control — the
-    // rate, and a way to refresh it — and only that nesting keeps them on one
-    // line. See NbuRateFetchProps.children for what stacking them cost.
+    // The input goes INSIDE the fetch block: the two are one control, and only that
+    // nesting keeps them on one line.
     <div className="ml-auto flex flex-col items-end gap-2">
       <NbuRateFetch onApply={applyFetched}>
-        {/* The error travels WITH the input, not after the fetch block: as a
-            sibling below it, the message rendered under the NBU status line —
-            two rows away from the field it describes. `aria-describedby` links
-            it for the same reason LeadDaysField links its own; `aria-invalid`
-            alone announces "invalid" with no reason. */}
+        {/* The error travels WITH the input: as a sibling below the fetch block it
+            rendered under the NBU status line, two rows from the field it describes. */}
         <div className="flex flex-col items-end gap-1">
           <NumberField
             id="usd-rate"
@@ -329,18 +270,13 @@ function UsdRateField() {
   );
 }
 
-// S8 row 4 — "Lead time, days": how far ahead coupon reminders appear. Same
-// arming rule as the ₴/$ rate above (validation via a pure parser; an invalid
-// entry never reaches the store, so the last valid lead time stays in effect
-// and the banners keep using it), and empty only errors on blur.
+// Same arming rule as the ₴/$ rate above: an invalid entry never reaches the
+// store, so the last valid lead time stays in effect.
 const LEAD_DAYS_ERROR_ID = 'reminder-lead-days-error';
 
 function LeadDaysField() {
   const t = useT();
   const { reminderLeadDays, setReminderLeadDays } = useSettings();
-  // `inputValue` like every other field, though lead days are whole numbers so
-  // no language could render them differently. The rule has no exceptions to
-  // remember that way; an exception is what A36 was.
   const [raw, setRaw] = useState(() => inputValue(reminderLeadDays));
   const [error, setError] = useState(false);
 
@@ -366,8 +302,7 @@ function LeadDaysField() {
         inputMode="decimal"
         aria-label={t.settings.reminders.leadAriaLabel}
         aria-invalid={error}
-        // The message lives outside the label, so the link has to be explicit —
-        // otherwise assistive tech announces "invalid" with no reason.
+        // The message lives outside the label, so the link has to be explicit — `aria-invalid` alone gives no reason.
         aria-describedby={error ? LEAD_DAYS_ERROR_ID : undefined}
         className={`h-9 w-[72px] rounded-[9px] border bg-page px-2.5 text-right text-[13px] transition ${error ? 'border-neg' : 'border-field-border hover:border-ink'}`}
       />
@@ -383,10 +318,6 @@ function LeadDaysField() {
   );
 }
 
-// S8 row 5 — the only way back from a dismissal (banner ✕ or an S5 card skip):
-// clears `dismissedReminders` wholesale, re-surfacing everything still in
-// window. Disabled with no count while nothing is dismissed; the label re-keys
-// so a count change fades (D7).
 function RestoreDismissedButton() {
   const t = useT();
   const { dismissedReminders, restoreDismissed } = useSettings();
@@ -407,10 +338,7 @@ function RestoreDismissedButton() {
   );
 }
 
-// S8 (design/extensions/automation.dc.html) — the suggestion switches plus the
-// reminders block (gate + lead time + restore). All three features are pure
-// local derivations, so the card is identical in demo and live (fetching itself
-// has no toggle: it is a manual click by construction).
+// All three features are pure local derivations, so the card is identical in demo and live.
 function AutomationRows() {
   const t = useT();
   const {
@@ -446,9 +374,7 @@ function AutomationRows() {
           onCheckedChange={setRemindersEnabled}
         />
       </SettingRow>
-      {/* The two sub-rows belong to the row above: indented behind a hairline
-          left rule, no dividers between them, and they collapse with the gate
-          (300ms both ways — the shared Reveal idiom). */}
+      {/* The two sub-rows belong to the row above, and collapse with the gate. */}
       <Reveal
         show={remindersEnabled}
         distance={1}
@@ -464,8 +390,7 @@ function AutomationRows() {
           <RestoreDismissedButton />
         </SettingRow>
         <Divider />
-        {/* A7 — read-only. The controls that let the owner tune parsing need
-            the B3 user model (PLAN-OPEN O14); seeing what the parse did needs
+        {/* Read-only. Tuning the parse needs the user model; seeing what it did needs
             nothing, and that is the half that was missing. */}
         <SettingRow title={t.settings.parse.title} helper={t.settings.parse.helper}>
           <ParseSkips className="ml-auto text-right" />
@@ -475,11 +400,6 @@ function AutomationRows() {
   );
 }
 
-// /settings — the Settings home (NEXT-PHASE-PLAN P2, design/extensions/
-// settings.dc.html S1/S2/S5/S6/S7/S8 + asset-form.dc.html S3): four stacked
-// section cards in the pinned order, with the relocated Backup, the live
-// Appearance controls, the Portfolio asset manager + targets editor, the
-// S5 dataset switch and the S6 typed-name erase/reset danger zone.
 export function Settings() {
   const t = useT();
   return (
@@ -487,13 +407,9 @@ export function Settings() {
       <ScreenHeader title={t.screen.settings.title} subtitle={t.screen.settings.subtitle} />
 
       <div className="flex flex-col gap-3.5">
-        {/* THE PORTFOLIO CARD IS GONE (A31). Its two halves went to the screens
-            that draw what they edit: the targets to /allocation (A30) and the
-            asset manager to /portfolio. Settings keeps what belongs to the
-            BROWSER — data, automation, appearance — and nothing that belongs to
-            the portfolio. The stagger delays below are left as they are: they
-            are `delay-75`/`delay-150`/`delay-200` on three cards rather than
-            four, which reads as the same cadence starting one step in. */}
+        {/* THE PORTFOLIO CARD IS GONE: its two halves went to the screens that draw what
+            they edit. Settings keeps what belongs to the BROWSER — data, automation,
+            appearance — and nothing that belongs to the portfolio. */}
         <Card
           radius={24}
           className="animate-in p-[22px] delay-75 duration-300 fade-in slide-in-from-bottom-1"
@@ -503,19 +419,13 @@ export function Settings() {
             <DatasetSwitch />
           </SettingRow>
           <Divider />
-          {/* Helper superseded by P4 S1: the P2 promise ("Restore arrives with
-              import in a later release.") is kept, and now points at the row
-              that keeps it. */}
           <SettingRow title={t.settings.backup.title} helper={t.settings.backup.helper}>
             <BackupButton />
           </SettingRow>
           <Divider />
-          {/* S2 — the label block spans the full row: the one "Choose file…"
-              button lives inside the drop panel. */}
           <ImportRow />
           <Divider />
-          {/* S5 — row 4 of the pinned order (Dataset → Backup → Import →
-              Spreadsheet export → [file mirror] → Danger zone). */}
+          {/* Row 4 of the pinned order: Dataset → Backup → Import → Spreadsheet export → Danger zone. */}
           <CsvExportRow />
           <Divider />
           <SettingRow title={t.settings.dangerZone.title} helper={t.settings.dangerZone.helper}>
@@ -536,9 +446,8 @@ export function Settings() {
           className="animate-in p-[22px] delay-200 duration-300 fade-in slide-in-from-bottom-1"
         >
           <SectionLabel>{t.settings.sections.appearance}</SectionLabel>
-          {/* Theme is the FIRST row, above Currency — the brief places it there
-              (phase-5 Surface 1), and its copy is the brief's verbatim: a brief
-              wins copy disputes even after its extension has merged (D14). */}
+          {/* Theme is the FIRST row and its copy is the brief's verbatim: a brief wins
+              copy disputes even after its extension has merged. */}
           <SettingRow title={t.settings.theme.title} helper={t.settings.theme.helper}>
             <ThemeControl />
           </SettingRow>

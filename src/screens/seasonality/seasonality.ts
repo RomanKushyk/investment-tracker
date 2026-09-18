@@ -1,6 +1,4 @@
-// Pure data-shaping for the Seasonality screen (day-of-month bars + insight
-// cards) — not in src/lib, that layer stays untouched per this task's scope.
-// Covered by seasonality.test.ts.
+// Pure data-shaping for the Seasonality screen. Covered by seasonality.test.ts.
 import { couponProjection, scheduledCouponMonths } from '../../core/accrual';
 import { investedByAsset, transactionsFromWindow, unitsByAsset } from '../../core/derive';
 import type { PeriodWindow } from '../../core/period';
@@ -26,9 +24,8 @@ export function incomeByDayOfMonth(transactions: Transaction[]): Record<number, 
   return out;
 }
 
-// Expected coupon bars come from core/accrual.couponProjection, so a bond
-// missing couponAmount and/or nextCoupon still projects (estimated amount /
-// maturity date) instead of vanishing from the chart — P3 feat/fixed-yield.
+// Expected coupon bars come from `couponProjection`, so a bond missing
+// `couponAmount` and/or `nextCoupon` still projects instead of vanishing.
 function expectedByDayOfMonth(
   assets: Asset[],
   transactions: Transaction[],
@@ -50,19 +47,14 @@ export function seasonalityDays(transactions: Transaction[], assets: Asset[]): S
 }
 
 /**
- * ONE SERIES WINDOWS AND THE OTHER CANNOT, and the spine says which (A42).
- * `/seasonality actual bars` are **FLOW** — "sum over the window, bucketed by
- * day or by month" — while `/seasonality expected bars` are **FORECAST**:
- * *"nothing — a projection has no window"*. A coupon due in September is due in
- * September whichever three months you are looking at, so the expected series
- * reads the whole ledger in every window, including the `investedByAsset` that
- * sizes an estimated coupon.
+ * ONE SERIES WINDOWS AND THE OTHER CANNOT. The actual bars are FLOW — summed
+ * over the window — while the expected bars are FORECAST: a coupon due in
+ * September is due in September whichever three months you are looking at, so
+ * the expected series reads the whole ledger in every window.
  *
- * THE CLIP IS BOTTOM-ONLY, matching `/overview`'s `Отриманий дохід` — the same
- * FLOW row of the same table, and the same reason `yieldTableRowsIn` gives: a
- * payout entered since the last saved quote is the most recent reality, and
- * clipping the top end makes it vanish from this screen while every other
- * screen counts it. On the seed the two readings agree to the kopeck.
+ * THE CLIP IS BOTTOM-ONLY: a payout entered since the last saved quote is the
+ * most recent reality, and clipping the top end makes it vanish from this screen
+ * while every other screen counts it.
  */
 export function seasonalityDaysIn(
   transactions: Transaction[],
@@ -111,20 +103,17 @@ export interface SeasonalityMonth {
 }
 
 /**
- * The same two series bucketed by MONTH OF YEAR (A41, extension § S4).
+ * The same two series bucketed by MONTH OF YEAR.
  *
- * THE EXPECTED SERIES IS THE ONE THAT CHANGES, and it is D-5's answer. On a day
- * axis one bond contributes ONE bar, because `couponProjection` returns one
- * occurrence; on a month axis it contributes every month it is scheduled to pay
- * in, which `scheduledCouponMonths` walks forward from the schedule rather than
- * subtracting from history. The sheet left this open because both of its
- * formulations degenerated — see that function for why, and for the test that
- * pins the case they failed.
+ * THE EXPECTED SERIES IS THE ONE THAT CHANGES: on a day axis a bond contributes
+ * ONE bar, because `couponProjection` returns one occurrence; on a month axis it
+ * contributes every month it is scheduled to pay in, which
+ * `scheduledCouponMonths` walks forward from the schedule rather than
+ * subtracting from history.
  *
- * The amount is `couponProjection`'s, unchanged: one coupon's worth per month
- * the bond pays in. A bond that pays twice a year shows its coupon in two
- * months, not half of it in each — the bar answers "what lands in this month",
- * and what lands is a whole coupon.
+ * The amount is `couponProjection`'s, unchanged: a bond that pays twice a year
+ * shows its coupon in two months, not half of it in each — the bar answers "what
+ * lands in this month", and what lands is a whole coupon.
  */
 export function seasonalityMonths(
   transactions: Transaction[],
@@ -133,7 +122,6 @@ export function seasonalityMonths(
   return seasonalityMonthsIn(transactions, assets, undefined);
 }
 
-/** The month axis under the same window, and the same split (A42). */
 export function seasonalityMonthsIn(
   transactions: Transaction[],
   assets: Asset[],
@@ -149,7 +137,6 @@ export function seasonalityMonthsIn(
   return months;
 }
 
-// "Income anchor" card: the day-of-month with the most accumulated income.
 export function incomeAnchorDay(days: SeasonalityDay[]): SeasonalityDay | undefined {
   return days.reduce<SeasonalityDay | undefined>(
     (best, d) => (!best || d.actual > best.actual ? d : best),
@@ -157,7 +144,6 @@ export function incomeAnchorDay(days: SeasonalityDay[]): SeasonalityDay | undefi
   );
 }
 
-// The asset contributing the most income on a given day-of-month.
 export function dominantAssetOnDay(transactions: Transaction[], day: number): string | undefined {
   const byAsset = new Map<string, number>();
   for (const t of transactions) {
@@ -176,9 +162,8 @@ export function dominantAssetOnDay(transactions: Transaction[], day: number): st
   return bestId;
 }
 
-// The asset contributing the most expected coupon income on a given
-// day-of-month (mirrors dominantAssetOnDay, but over projected coupon dates
-// rather than posted transactions).
+// Mirrors `dominantAssetOnDay` over projected coupon dates rather than posted
+// transactions.
 export function dominantExpectedAssetOnDay(
   assets: Asset[],
   transactions: Transaction[],
@@ -199,7 +184,6 @@ export function dominantExpectedAssetOnDay(
   return bestId;
 }
 
-// First -> latest dividend_accrual amount for an asset ("₴580 -> ₴700 and growing").
 export function anchorAssetGrowth(
   transactions: Transaction[],
   assetId: string,
@@ -207,20 +191,17 @@ export function anchorAssetGrowth(
   const matches = transactions
     .filter((t) => t.type === 'dividend_accrual' && t.assetId === assetId)
     .sort((a, b) => a.date.localeCompare(b.date));
-  // ONE PAYOUT IS NOT A TREND, and windowing this made that reachable (A42
-  // review). The card's copy hardcodes «і зростають», so a window holding a
-  // single REIT dividend rendered «700 ₴ → 700 ₴ і зростають» — and a window
-  // whose first payout exceeds its last would render a DECLINE as growth. Two
-  // points in the growing direction or the card falls back to its own
-  // "no regular income yet" branch, which is the honest answer for a window
-  // that cannot show a trend.
+  // ONE PAYOUT IS NOT A TREND, and windowing this made that reachable: the card's
+  // copy hardcodes «і зростають», so a single payout in the window rendered a
+  // figure growing into itself, and a window whose first payout exceeds its last
+  // would render a DECLINE as growth. Two points in the growing direction or the
+  // card falls back to its own no-regular-income branch.
   if (matches.length < 2) return undefined;
   const first = matches[0].amount;
   const last = matches[matches.length - 1].amount;
   return last > first ? { first, last } : undefined;
 }
 
-// Longest trailing run of zero-income, zero-expected days ("Quiet stretch").
 export function quietStretch(days: SeasonalityDay[]): { from: number; to: number } | undefined {
   const to = 31;
   let from = 32;
@@ -238,7 +219,7 @@ export interface BondCouponInfo {
   historicalMonths: number[];
 }
 
-// Calendar months a bond has paid/will pay a coupon in, plus its coupon
+// Calendar months a bond has paid or will pay a coupon in, plus its coupon
 // day-of-month — feeds the "Coupon season" card.
 export function bondCouponInfo(
   asset: Asset,

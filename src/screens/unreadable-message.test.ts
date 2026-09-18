@@ -60,8 +60,7 @@ const read = (...parts: string[]) => stripTs(readFileSync(join(here, ...parts), 
 //
 // WHAT IS NOT CLOSED: the asset form's three percent inputs and `/allocation`'s target row
 // still answer every failure with one sentence, and the quote row answers two of its three
-// with «Enter a number.». The language-holder list in `docs/DECISIONS.md` is a different one
-// again — the two being nearly the same fields is a coincidence worth not relying on.
+// with «Enter a number.».
 describe('an unreadable value says so, in the six fields this issue covers', () => {
   it('carries the message in both dictionaries', () => {
     for (const dict of [en, uk]) {

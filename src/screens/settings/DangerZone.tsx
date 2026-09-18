@@ -19,24 +19,18 @@ import type { Dataset } from '../../core/backup/json';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 
-// S6 copy (brief = copy authority). The erase body's middle sentence
-// documents the D17 erase scope: the kubushka-draft quote draft goes with the
-// data, kubushka-settings is retained.
-// Was a module constant; the copy now comes from the dictionary, and the one
-// piece that must NOT be translated is passed as DATA: `typeToConfirm(dataset)`
-// keeps the literal `live`/`demo` the confirm compares against, so no
-// translation can make the button unarmable.
+// The erase body's middle sentence documents the erase SCOPE: the quote draft
+// goes with the data, the settings key is retained. The one piece that must NOT
+// be translated is passed as DATA — `typeToConfirm(dataset)` keeps the literal
+// the confirm compares against, so no translation can make the button unarmable.
 function variantCopy(t: Dict, dataset: Dataset) {
   const v = dataset === 'live' ? t.danger.live : t.danger.demo;
   return { ...v, inputLabel: t.danger.typeToConfirm(dataset) };
 }
 
-// Settings→Data danger zone (S6/D17): one trigger per dataset — "Erase live
-// data…" only ever renders in live (clearAll({reseed:false})), "Reset demo
-// data…" only in demo (clearAll({reseed:true})) — both opening the typed-name
-// AlertDialog below. A fresh session key per open resets the typed/backed-up
-// state while the closed dialog stays mounted through its 220ms symmetric
-// exit (D7/S6 — unmounting on close would skip the animation).
+// One trigger per dataset, both opening the typed-name AlertDialog below. A
+// fresh session key per open resets the typed and backed-up state while the
+// closed dialog stays mounted through its exit.
 export function DangerZone() {
   const t = useT();
   const dataset = useDataset();
@@ -83,8 +77,8 @@ function ClearDataDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
 
-  // Progressive arming (S6): the destructive button stays disabled until the
-  // typed name matches the dataset name — case-insensitive, trimmed.
+  // Progressive arming: the destructive button stays disabled until the typed name
+  // matches, case-insensitive and trimmed.
   const armed = typed.trim().toLowerCase() === dataset;
 
   function confirm() {
@@ -93,14 +87,13 @@ function ClearDataDialog({
       {
         onSuccess: () => {
           if (dataset === 'live') {
-            // D17 erase scope: the quote draft references erased asset ids —
-            // reset it (kubushka-draft) with the data; settings are retained.
+            // The quote draft references erased asset ids, so it is reset with the data.
             useDraft.getState().setDate('');
           }
           toast.success(v.success);
           onClose();
         },
-        // Atomic clearAll: a failure commits nothing (dialog stays open).
+        // Atomic clearAll: a failure commits nothing and the dialog stays open.
         onError: () => toast.error(t.danger.failed),
       },
     );
@@ -146,7 +139,6 @@ function ClearDataDialog({
             void backup.download().then((ok) => ok && setBackedUp(true));
           }}
         >
-          {/* re-keyed label = D7 crossfade on success (enter-only idiom) */}
           <span key={String(backedUp)} className="animate-in duration-200 fade-in">
             {backedUp ? t.danger.backupDone : t.danger.backupFirst}
           </span>

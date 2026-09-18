@@ -6,7 +6,8 @@ Current state only, one topic per section: what is decided, why, and what stays 
 **Decision.** `src/core/` is the pure domain layer — no React, no Dexie, no store, no UI — and
 `src/lib/` holds persistence and infra; the import zones are enforced by lint, not by convention.
 Pure modules return keys and tokens, never assembled prose. New code calls `repository.ts`, never
-`db.ts`. Adding a dependency is a decision, and it gets a line in this file.
+`db.ts`. A dependency is a decision, and it is recorded under the topic it serves rather than in a
+register of its own.
 **Why.** The domain layer is the part a move to a server does not touch, and the repository is the
 seam it replaces.
 **Rejected.** A component reaching for `db.ts`: it bypasses the one surface the migration swaps. ·

@@ -49,11 +49,8 @@ import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 
-// Pinned option order (S10, metrics-exposure reference): Withdrawal after
-// Deposit (portfolio-level, like Deposit), Redemption after Reinvest
-// (targets an asset) — the P1 domain types (D13), exposed since P2.
-// ORDER stays here — it is a design decision (S10). The LABELS are looked up,
-// because they are language-dependent and the order is not.
+// ORDER is a design decision and stays here; the LABELS are looked up, because
+// they are language-dependent and the order is not.
 const TYPE_ORDER: TxType[] = [
   'buy',
   'sell',
@@ -65,33 +62,24 @@ const TYPE_ORDER: TxType[] = [
   'redemption',
 ];
 
-// The Recent transactions rows use "Coupon" for interest_payout — matches
-// design copy (line 145) even though the Type select spells out "Interest
-// payout"; the other 8 select types share their select label. The Record
-// stays total over TxType.
+// The Recent rows use "Coupon" for interest_payout where the Type select spells
+// out "Interest payout"; the other eight share their select label.
 const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as const;
 
 // The invalid variant is not decoration: without it the form's own summary
-// ("check the highlighted fields") pointed at nothing. The shape follows
-// `AssetForm`'s `inputClass(invalid)` — border `neg` when at fault, and the
-// message under the field (S3's anatomy) — but NOT its surface: this panel's
-// inputs sit on `card`, not `page`, and take the hover border the rest of the
-// form's controls take.
+// ("check the highlighted fields") pointed at nothing.
 // `min-w-0` IS LOAD-BEARING SINCE THE ROW BECAME A SUBGRID. An `<input>` has an
-// intrinsic min-content width — roughly its default 20-character size — and a
-// GRID item's `min-width` is `auto`, so the cell's own column sizes to that
-// instead of to the cell. Measured at a 578px viewport: cell 244.4, input 246.9,
-// and everything else in the cell stretched to the wider column and hung 2.5px
-// past its box, the toggle included. A `flex flex-col` cell never had this: the
-// floor applies to the MAIN axis, and there the main axis was vertical.
+// intrinsic min-content width and a grid item's `min-width` is `auto`, so the
+// cell's column sizes to that instead of to the cell and everything in it hangs
+// past its box. A `flex flex-col` cell never had this — the floor applies to the
+// MAIN axis, and there the main axis was vertical.
 function inputClass(invalid: boolean): string {
   return `h-9 min-w-0 rounded-[9px] border bg-card px-3 font-body text-[13px] text-ink transition ${
     invalid ? 'border-neg' : 'border-field-border hover:border-ink'
   }`;
 }
 
-// The amount's own ids, so the error can be LINKED to the input rather than
-// folded into its accessible name — see the comment at the field.
+// The amount's own ids, so the error is LINKED to the input rather than folded into its name.
 const AMOUNT_ID = 'tx-amount';
 const AMOUNT_ERROR_ID = 'tx-amount-error';
 const QUANTITY_ID = 'tx-quantity';
@@ -102,61 +90,41 @@ const NOTE_ID = 'tx-note';
 const NOTE_ERROR_ID = 'tx-note-error';
 
 /**
- * ISSUE #31 — what the amount field holds: the whole transaction, or one unit.
+ * What the amount field holds: the whole transaction, or one unit.
  *
- * SIZED TO THE SETTINGS SWITCH (owner's ruling, 2026-09-01) — the track is
- * `h-[22px] w-10 p-[2px]`, the switch's own 40 × 22 box, and the two segments
- * split it. Measured in Chrome: segments **15 × 16** against the switch's 16 × 16
- * knob. (An earlier figure of 15.4 × 16.9 came from a headless Chromium that
- * renders a 1px border at 0.571px — every border-derived number it gave was
- * short. Real Chrome renders `border: 1px` as 1px, and `(40 − 2 − 4 − 4) / 2` = 15 — the
- * halving is the whole point of the figure and an earlier version of this line
- * dropped it, stating 30's arithmetic as 15's answer.)
+ * SIZED TO THE SETTINGS SWITCH (owner's ruling) — the track is the switch's own
+ * 40 × 22 box and the two segments split it.
  *
- * D56 IS TWO RULES AND A SEGMENTED CONTROL NEEDS BOTH. The segment is
- * PROPORTIONAL to its own rendered box; the track is CONCENTRIC around it.
- * round(min(15, 16) × 0.26) = **4** for the segment — the knob's radius,
- * arrived at independently — and 4 + 3 = **7** for the track. The switch's own
- * track is **6**, and the one-pixel difference is the system working rather
- * than failing: a switch derives both radii from their own boxes because it is
- * not segmented, which its component says outright. A radius is never portable
- * between two sizes; `text-[11px]` sets no line height, so none of these
- * numbers can be read off the classes.
+ * A SEGMENTED CONTROL NEEDS BOTH OF *Shape system*'s RULES: the segment is
+ * PROPORTIONAL to its own rendered box, the track CONCENTRIC around it. The
+ * switch's own track differs by a pixel because a switch derives both radii from
+ * their own boxes, not being segmented. A radius is never portable between two
+ * sizes, and `text-[11px]` sets no line height, so a rendered box has to be
+ * measured rather than read off the classes.
  *
- * `flex-1` ON BOTH SEGMENTS IS LOAD-BEARING, not tidiness: the thumb is a fixed
+ * `flex-1` ON BOTH SEGMENTS IS LOAD-BEARING: the thumb is a fixed
  * `calc(50% - 4px)`, which lands correctly only while the two are equal width.
- * Content-sized labels are not — `Σ` is wider than `1`, and any word pair is
- * worse — so the thumb overhangs one state and falls short of the other.
+ * `Σ` is wider than `1`, so content-sized labels overhang one state.
  *
- * NO `TAP_44` HERE, AND THAT IS THE HELPER'S OWN RULE, not an omission. A centred
- * 44px overlay reaches `(44 − w) / 2` past each edge, so two neighbours only tile
- * when `w + gap ≥ 44` — the sidebar's worked example is 36 drawn + 8 gap = 44.
- * These segments are 15 wide with `gap-1`, a pitch of 19, and satisfying 44
- * would need either a 29px gap (44 − 15) or a 40px segment: the first breaks the track's
- * concentric spacing, the second is geometry, which D66 forbids growing.
+ * NO `TAP_44`, AND THAT IS THE HELPER'S OWN RULE: a centred 44px overlay reaches
+ * `(44 − w) / 2` past each edge, so two neighbours only tile when `w + gap ≥ 44`.
+ * Satisfying it here needs either a gap that breaks the track's concentric
+ * spacing or a segment that is geometry, which *Two shells, one breakpoint*
+ * forbids growing. Overlapping hit areas are WORSE than small ones, and here the
+ * wrong control silently re-reads the amount as a price per unit.
  *
- * Overlapping hit areas are WORSE than small ones — `tap-target.ts` measured the
- * daily-quotes ✕ handing its tap to the accept button beside it — and here the
- * wrong control silently re-reads the amount as a price per unit, which the label
- * comment below calls a worse defect than #31.
+ * WHICH LEAVES A KNOWN GAP, and it is the price of the size: the segments are
+ * under WCAG 2.5.8 AA's 24 × 24 and the spacing exception does not rescue them.
+ * Accepted deliberately — the owner asked for the switch's footprint — but it is
+ * a REGRESSION, not something this control never had.
  *
- * WHICH LEAVES A KNOWN GAP, and it is the price of the size. At 15 × 16 the
- * segments are under WCAG 2.5.8 AA's 24 × 24, where the previous 26.6 × 24.5
- * cleared it with no overlay at all. The spacing exception does not rescue it
- * either: the pitch is 19. Accepted deliberately — the owner asked for the
- * switch's footprint, and the switch itself is 22 tall for the same reason —
- * but it is a REGRESSION, not a thing this control never had.
- *
- * UNDOING IT IS SIX EDITS, NOT ONE NUMBER, and an earlier version of this line
- * claimed otherwise. The track must lose `w-10` as well as return to
- * `h-[32px] p-[3px]`; the segments need `px-2.5 py-1` back; and the radii are
- * literals that do NOT follow — segment and thumb go 4 → 6, the track 7 → 10,
- * and the thumb's `w-[calc(50%-4px)]` and `top/bottom/left-[2px]` go back to
- * `-5px` and `[3px]`.
+ * UNDOING IT IS SIX EDITS, NOT ONE NUMBER: the track loses `w-10` and returns to
+ * `h-[32px] p-[3px]`, the segments need `px-2.5 py-1` back, and the radii are
+ * literals that do NOT follow — segment and thumb 4 → 6, track 7 → 10, and the
+ * thumb's `w-[calc(50%-4px)]` and `top/bottom/left-[2px]` back to `-5px`/`[3px]`.
  *
  * `aria-pressed` and not a radio group: it toggles the MEANING of a neighbouring
- * input rather than submitting a value of its own, and it is announced beside
- * that input's own label.
+ * input rather than submitting a value of its own.
  */
 function PriceModeSegment({
   value,
@@ -168,28 +136,21 @@ function PriceModeSegment({
   const t = useT();
   // GLYPH VISIBLE, WORDS IN THE TOOLTIP AND THE ACCESSIBLE NAME.
   //
-  // `Σ` and `1`, not `₴` and `1` (owner, 2026-08-31). The hryvnia distinguishes
-  // NOTHING here — both modes are in hryvnia, so «₴ проти 1» compares a currency
-  // with a number. Σ against 1 compares like with like: a sum against a single
-  // unit. The symbol says what is being done to the number, not what it is in.
+  // `Σ` and `1`, not `₴` and `1`: both modes are in hryvnia, so the currency
+  // distinguishes nothing. Σ against 1 compares a sum with a single unit.
   //
   // `aria-label` is right here and wrong two components over: a trigger's
-  // accessible name comes from its CONTENTS, so `Select` must never take one —
-  // it would announce its purpose and never its value. A bare `Σ` is not a name,
-  // so this one supplies the words the glyph replaced. `title` carries the same
-  // string for pointer users, the idiom `QuoteRow`'s provenance chip already uses.
+  // accessible name comes from its CONTENTS, so `Select` must never take one. A
+  // bare `Σ` is not a name, so this supplies the words the glyph replaced.
   const segment = (mode: 'total' | 'unit', glyph: string, label: string) => (
     <button
       type="button"
       aria-pressed={value === mode}
       aria-label={label}
       title={label}
-      // ONLY ON AN ACTUAL CHANGE, never on a click. A segmented control reports
-      // that its VALUE moved; firing on every press makes the already-active
-      // segment an action, and the panel converts the amount on this event —
-      // measured, three taps on Σ took «55 694,50» to ₴6 961 812 500 000 000,
-      // multiplying by the count each time. `aria-pressed` already says the
-      // press is a no-op; the handler has to agree with it.
+      // ONLY ON AN ACTUAL CHANGE, never on a click: the panel converts the amount on
+      // this event, so firing on every press multiplies by the count each time.
+      // `aria-pressed` already says the press is a no-op.
       onClick={() => {
         if (mode !== value) onChange(mode);
       }}
@@ -219,27 +180,19 @@ function PriceModeSegment({
 
 /**
  * The ledger's distance from the top of the DOCUMENT, published as a custom
- * property so its scroll box can size itself against the viewport (A35 review).
+ * property so its scroll box can size itself against the viewport.
  *
- * MEASURED, NOT MIRRORED — the same answer `useActionBarHeight` gives on `/`,
- * and for the same reason. A first draft summed the parts by hand:
- * `main`'s `pt-8`, `ScreenHeader`'s rendered 85, this card's `py-4`, plus a
- * separate `--app-header-h` published by `Layout` because the desktop header
- * mounts when the rail collapses. That is four components' internals copied
- * into one constant, with no test and nothing to notice when any of them moves
- * — and it was already wrong twice over: `AppHeader` carries
- * `pt-[env(safe-area-inset-top)]` on top of its `h-14`, which the 57 never
- * counted, and nothing counted the inset at all when no header is drawn.
- * Reading the box answers all of it at once, including the cases nobody
- * enumerated.
+ * MEASURED, NOT MIRRORED. Summing the parts by hand copies four components'
+ * internals into one constant, with nothing to notice when any of them moves —
+ * and it missed `AppHeader`'s `pt-[env(safe-area-inset-top)]` and the inset when
+ * no header is drawn at all.
  *
  * DOCUMENT-RELATIVE, not viewport-relative: `getBoundingClientRect().top` moves
- * with the scroll position, so a page that scrolls at all would feed its own
- * offset back into the box's height. Adding `scrollY` pins it to the layout.
+ * with the scroll position, so a page that scrolls would feed its own offset
+ * back into the box's height. Adding `scrollY` pins it to the layout.
  *
- * The observer watches `document.body` as well as the card, because everything
- * that moves this number is ABOVE the card — the header mounting, the header's
- * title rewrapping in the other language, the window changing width.
+ * The observer watches `document.body` too, because everything that moves this
+ * number is ABOVE the card.
  */
 function useLedgerTop() {
   const ref = useRef<HTMLDivElement>(null);
@@ -250,34 +203,25 @@ function useLedgerTop() {
     if (el === null) return;
     const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
     // The guard is not an optimisation. Writing unconditionally from inside a
-    // ResizeObserver whose subject this property RESIZES is the textbook
-    // observe → write → resize cycle, and the browser reports it as
-    // "ResizeObserver loop completed with undelivered notifications".
+    // ResizeObserver whose subject this property RESIZES is the observe → write →
+    // resize cycle the browser reports as an undelivered-notifications loop.
     if (top === last.current) return;
     last.current = top;
     el.style.setProperty('--ledger-top', `${top}px`);
   }, []);
 
-  // Cheap, and it covers a route change or a language switch landing new text
-  // above the card.
   useLayoutEffect(measure);
 
   // A ResizeObserver WATCHES SIZE AND THIS PUBLISHES A POSITION, so the subject
-  // has to be an element that actually resizes when the card moves (1.7.0
-  // release review, then corrected again by measuring the fix). Collapsing the
-  // desktop rail mounts `AppHeader` and pushes this card down 57 px, and
-  // neither obvious subject notices: `document.body` is floored at the viewport
-  // by `Layout`'s `min-h-dvh` whenever the content fits, and the card's own box
-  // is content-driven and unchanged while its height is under the cap.
+  // must be an element that actually resizes when the card moves. Neither obvious
+  // candidate does: `document.body` is floored at the viewport by `Layout`'s
+  // `min-h-dvh`, and the card's own box is content-driven. `main` IS the element
+  // that changes — `flex-1` under the column the header joins, so it loses exactly
+  // the header's height.
   //
-  // `main` IS the element that changes — it is `flex-1` under the column the
-  // header joins, so it loses exactly the header's height. Observing it turns a
-  // position problem into the size problem an observer can answer.
-  //
-  // And rendering does NOT catch this on its own: `createBrowserRouter` builds
-  // each route's element ONCE, so `<Outlet/>` hands React the identical element
-  // object and the subtree bails out of re-rendering. The first fix relied on
-  // that render and was measured doing nothing.
+  // Rendering does not catch this: `createBrowserRouter` builds each route's
+  // element ONCE, so `<Outlet/>` hands React the identical object and the subtree
+  // bails out of re-rendering.
   useEffect(() => {
     const el = ref.current;
     const main = el?.closest('main');
@@ -300,16 +244,13 @@ export function TransactionPanel() {
   const f = useFormat();
   const t = useT();
   const language = useSettings((state) => state.language);
-  // BUILT ONCE PER LANGUAGE, not once per render. These were module constants
-  // until the grammar started following the language (D87); as bare calls in the
-  // component body they rebuilt the whole zod tree — both refinements and both
-  // resolver closures — on every `useWatch` change and every query settle, and
-  // the language changes at most once a session.
+  // BUILT ONCE PER LANGUAGE, not once per render: as bare calls in the component
+  // body these rebuilt the whole zod tree on every `useWatch` change and every
+  // query settle, and the language changes at most once a session.
   const txSchema = useMemo(() => transactionSchema(language), [language]);
-  // The asset form takes the language for the same reason this one does — see
-  // the note at its own `useMemo`: `expectedPct` is an UNBOUNDED percent, so a
-  // Ukrainian `16,400` read under the English grouping rule stores 16400 with
-  // nothing to catch it.
+  // The asset form takes the language for the same reason: `expectedPct` is an
+  // UNBOUNDED percent, so a Ukrainian `16,400` read under the English grouping
+  // rule stores 16400 with nothing to catch it.
   const newAssetSchema = useMemo(() => assetFormSchema('create', language), [language]);
   const assetsData = useAssets().data;
   const assets = useMemo(() => assetsData ?? [], [assetsData]);
@@ -317,15 +258,14 @@ export function TransactionPanel() {
   const recordTransaction = useRecordTransaction();
   const deleteTransaction = useDeleteTransaction();
   const updateAsset = useUpdateAsset();
-  // WHICH ROW IS ASKING — one id, because two rows asking at once is a state the
-  // screen has no use for and a reader would have to rule out.
+  // WHICH ROW IS ASKING — one id, because two rows asking at once is a state the screen has no use for.
   const [confirmingId, setConfirmingId] = useState<string | undefined>(undefined);
 
   const form = useForm<TransactionFormInput, unknown, TransactionFormValues>({
-    // THE LANGUAGE IS A PARSE RULE HERE, not only a display one: a lone comma
-    // is the decimal mark in Ukrainian and a thousands mark in English, and the
-    // two fields #31 adds are the ones a Ukrainian typist writes with three
-    // decimals — the single shape the normalizer cannot disambiguate alone.
+    // THE LANGUAGE IS A PARSE RULE HERE, not only a display one: a lone comma is the
+    // decimal mark in Ukrainian and a thousands mark in English, and the unit price
+    // and the count are the fields a Ukrainian typist writes with three decimals — the
+    // one shape the normalizer cannot disambiguate alone.
     resolver: zodResolver(txSchema),
     defaultValues: {
       date: todayIso(),
@@ -336,94 +276,70 @@ export function TransactionPanel() {
       quantity: '',
       taxWithheld: '',
       note: '',
-      // Total is the default because it is what the field has always meant and
-      // what every provider statement quotes; per-unit is the deliberate switch.
+      // Total is the default because it is what every provider statement quotes; per-unit is the deliberate switch.
       priceMode: 'total',
     },
   });
 
-  // The quick-create sub-form is the standalone AssetForm's fields on their
-  // own form instance (P2 feat/asset-form — replaces the schema-welded
-  // NewAssetFields). Validated only when Asset = "+ New asset…"; the record
-  // itself stays the atomic recordTransaction(tx, newAsset).
+  // The quick-create sub-form is the standalone AssetForm's fields on their own
+  // form instance, validated only when Asset = "+ New asset…". The record itself
+  // stays the atomic recordTransaction(tx, newAsset).
   const assetForm = useForm<AssetFormInput, unknown, AssetFormValues>({
-    // Same language rule as the transaction schema above — the sub-form
-    // carries the very same Units field, one form over.
     resolver: zodResolver(newAssetSchema),
     defaultValues: assetFormDefaults(f),
   });
 
   // `useWatch`, not `form.watch`: the latter returns a function React Compiler
-  // cannot memoize safely, so it skipped memoizing this whole component and said
-  // so as a lint warning. It also subscribes just this read instead of
-  // re-rendering the form on every field change. Same idiom as AssetForm.
+  // cannot memoize safely, so it skipped memoizing this whole component.
   const assetId = useWatch({ control: form.control, name: 'assetId' });
-  // ISSUE #31 — units belong only to rows that move a position, which is W7's
-  // `transaction_quantity_absent_ck` shown as UI rather than only enforced.
+  // Units belong only to rows that move a position — `transaction_quantity_absent_ck` shown as UI.
   const txType = useWatch({ control: form.control, name: 'type' });
   const priceMode = useWatch({ control: form.control, name: 'priceMode' });
   const takesUnits = movesPosition(txType);
-  // A withholding belongs only to a distribution, which is W7's
-  // `transaction_tax_absent_ck` shown as UI rather than only enforced — the
-  // same relationship the units above have to the quantity CHECK.
+  // A withholding belongs only to a distribution — `transaction_tax_absent_ck` shown as UI.
   const takesWithholding = isPayout(txType);
-  // D129 — a deposit and a withdrawal cross the PORTFOLIO's edge, not an
-  // asset's, so the picker has nothing to ask them.
+  // A deposit and a withdrawal cross the PORTFOLIO's edge, not an asset's, so the picker has nothing to ask.
   const needsAsset = targetsAsset(txType);
-  // TWO QUESTIONS, and conflating them cost a half-typed asset (D129 review).
-  // `pickedNew` is where the PICKER is; `isNewAsset` is whether quick-create is
-  // in play, which also needs the type to want an asset at all — a deposit
-  // cannot bring one into existence. Only the second gates the panel and
-  // `onSubmit`; the RESET below keys off the first, because a glance at
-  // «Внесок» must not discard a name and code already typed.
+  // TWO QUESTIONS, and conflating them cost a half-typed asset. `pickedNew` is
+  // where the PICKER is; `isNewAsset` is whether quick-create is in play, which
+  // also needs the type to want an asset. Only the second gates the panel and
+  // `onSubmit`; the RESET below keys off the first, because a glance at «Внесок»
+  // must not discard a name and code already typed.
   const pickedNew = assetId === 'new';
   const isNewAsset = needsAsset && pickedNew;
 
-  // Default the Asset select to the first existing asset once assets load
-  // (an empty picker would satisfy the schema only via the "new" branch).
   useEffect(() => {
     if (!form.getValues('assetId') && assets.length > 0) {
       form.setValue('assetId', assets[0].id);
     }
   }, [assets, form]);
 
-  // D129 — THE ERROR, NOT THE VALUE. The asset field hides on a type that
-  // targets none, and a hidden field carrying a red border would feed the
-  // submit summary a highlight nobody can see — the exact failure the Select's
-  // own `invalid` comment below was added to fix. Reachable: submit a `buy`
-  // with an empty picker, then switch to «Внесок».
+  // THE ERROR, NOT THE VALUE. The asset field hides on a type that targets none,
+  // and a hidden field carrying a red border feeds the submit summary a highlight
+  // nobody can see.
   //
-  // The VALUE deliberately stays, and clearing-and-restoring it here was tried
-  // first — it is what the units reveal does one field over. It cannot work on
-  // this control. Traced 2026-09-02: the effect's write lands (`getValues`
-  // reads it back immediately), and then the freshly mounted Radix `Select`
-  // reports its own empty value through `field.onChange`, so the restored id was
-  // gone again by the next probe. `transactionSchema` blanks the field for these
-  // types on the way out instead, which needs no timing to be right and cannot
-  // be bypassed by whatever the hidden control still holds.
+  // The VALUE deliberately stays, and clearing-and-restoring it here cannot work
+  // on this control: the effect's write lands, then the freshly mounted Radix
+  // `Select` reports its own empty value through `field.onChange`.
+  // `transactionSchema` blanks the field for these types on the way out instead,
+  // which needs no timing to be right.
   useLayoutEffect(() => {
     if (!needsAsset) form.clearErrors('assetId');
   }, [needsAsset, form]);
 
-  // Reset the sub-form whenever it leaves play so stale values/errors never
-  // linger into a later "+ New asset…" round.
+  // Reset the sub-form whenever it leaves play, so stale values never linger into a later round.
   useEffect(() => {
     if (!pickedNew) assetForm.reset(assetFormDefaults(f));
   }, [pickedNew, assetForm, f]);
 
-  // ISSUE #31 — the units field HIDES on a type that moves no position, and a
-  // hidden field holding a value is an invisible error: `transactionSchema`
-  // refuses a quantity on a payout, so typing 100 units against a `buy` and
-  // then switching to `tax` would fail validation pointing at a control nobody
-  // can see. Clearing on the way out is what makes the reveal safe. The mode
-  // goes back to `total` with it, so the amount field can never be left meaning
-  // "per unit" with no count to multiply by.
-  // THE NUMBER MOVES WITH THE LABEL — the arithmetic and the reason for it are
-  // `convertTypedAmount`'s. This is the form wiring: read the two strings, hand
-  // back what they become, and empty the field when they become nothing.
-  //
-  // The result is STORED, not shown — `NumberField` groups it for whichever
-  // language is on screen, so this writes no mark of its own.
+  // The units field HIDES on a type that moves no position, and a hidden field
+  // holding a value is an invisible error: `transactionSchema` refuses a quantity
+  // on a payout, so the failure would point at a control nobody can see. The mode
+  // goes back to `total` with it, so the amount can never be left meaning "per
+  // unit" with no count to multiply by.
+  // THE NUMBER MOVES WITH THE LABEL; the arithmetic is `convertTypedAmount`'s. The
+  // result is STORED, not shown — `NumberField` groups it for whichever language
+  // is on screen.
   const convertAmount = useCallback(
     (to: 'total' | 'unit') => {
       const typed = form.getValues('amount');
@@ -438,58 +354,46 @@ export function TransactionPanel() {
 
   useEffect(() => {
     if (takesUnits) return;
-    // CONVERT BEFORE CLEARING THE COUNT — it is what the conversion divides by,
-    // and a per-unit price left behind here is recorded as a deposit's total.
+    // CONVERT BEFORE CLEARING THE COUNT — it is what the conversion divides by, and
+    // a per-unit price left behind is recorded as a deposit's total.
     if (form.getValues('priceMode') === 'unit') convertAmount('total');
     form.setValue('quantity', '');
     form.setValue('priceMode', 'total');
     form.clearErrors('quantity');
-    // BOTH, because the underflow path sets them as a pair: what failed there
-    // was the PRODUCT, and on a type with no product the amount's red border
-    // outlived the reason for it.
+    // BOTH, because the underflow path sets them as a pair: what failed there was
+    // the PRODUCT, and on a type with no product the amount's red border outlived
+    // the reason for it.
     form.clearErrors('amount');
   }, [takesUnits, form, convertAmount]);
 
-  // THE WITHHOLDING LEAVES WITH ITS ERROR, exactly as the units above do, and
-  // for the reason stated there: the schema REFUSES a withholding on a type
-  // that takes none rather than normalizing it away, so without this the
-  // refusal would point at a control that is no longer on screen. Clearing the
-  // value is what makes the refusal unreachable in the UI while leaving it true
-  // at the other two doors.
+  // THE WITHHOLDING LEAVES WITH ITS ERROR, for the reason the units above give:
+  // the schema REFUSES a withholding on a type that takes none rather than
+  // normalizing it away, so the refusal would point at a control off screen.
   useEffect(() => {
     if (takesWithholding) return;
     form.setValue('taxWithheld', '');
     form.clearErrors('taxWithheld');
   }, [takesWithholding, form]);
 
-  // `handleSubmit` AWAITS the zod resolver, and on the quick-create branch it
-  // awaits a second nested one, so two presses can both land inside that window
-  // — each minting its own `crypto.randomUUID()`, and on quick-create building
-  // the asset twice. `disabled={isPending}` cannot cover it: nothing is pending
-  // yet. Same answer the coupon card already uses for the same hazard: a ref
-  // latch around the whole submit path, released when the write settles or when
-  // the sub-form refuses.
+  // `handleSubmit` AWAITS the zod resolver, and the quick-create branch awaits a
+  // second nested one, so two presses can both land inside that window — each
+  // minting its own id, and on quick-create building the asset twice.
+  // `disabled={isPending}` cannot cover it: nothing is pending yet. A ref latch
+  // round the whole submit path, as the coupon card already does.
   const inFlight = useRef(false);
 
   function record(values: TransactionFormValues, newAsset: Asset | undefined) {
-    // ISSUE #31 — the two numbers the ledger now keeps. `amount` is ALWAYS the
-    // total ₴ the transaction moved, whichever way it was typed: the toggle
-    // changes what the user enters, never what is stored, so a row recorded in
-    // one mode reads identically to a row recorded in the other.
-    // `undefined` MEANS THERE IS NO ROW TO RECORD, and it is the only refusal:
-    // in per-unit mode the total is derived, and it can round away or have no
-    // count to derive from. A price that merely underflowed is NOT this case —
-    // that is a recordable row with no stored price, the same shape every row
-    // written before #31 has.
+    // `amount` is ALWAYS the total ₴ the transaction moved, whichever way it was
+    // typed: the toggle changes what the user enters, never what is stored.
+    // `undefined` MEANS THERE IS NO ROW TO RECORD, and it is the only refusal. A
+    // price that merely underflowed is NOT this case — that is a recordable row
+    // with no stored price, the shape every row written before this had.
     const parts = priceParts(values);
     if (parts === undefined) {
-      // BOTH FIELDS, because what failed is their PRODUCT — either number small
-      // enough rounds the pair away, so highlighting only the amount tells a
-      // user who typed a sane price to look at the one number that is fine.
-      //
-      // `type: 'product'` IS READ BY BOTH ERROR RENDERERS. Without it they fall
-      // through to "must be a positive number" for two values that are both
-      // positive — a message that describes nothing the user can act on.
+      // BOTH FIELDS, because what failed is their PRODUCT — highlighting only the
+      // amount tells a user who typed a sane price to look at the number that is fine.
+      // `type: 'product'` IS READ BY BOTH ERROR RENDERERS; without it they fall
+      // through to "must be a positive number" for two positive values.
       form.setError('amount', { type: 'product' });
       form.setError('quantity', { type: 'product' });
       releaseLatch();
@@ -503,14 +407,13 @@ export function TransactionPanel() {
       assetId: newAsset ? newAsset.id : values.assetId,
       amount,
       source: values.source,
-      // Spread rather than assigned: Dexie stores `undefined` as a present key,
-      // and `json.ts` round-trips the object, so an absent field must be ABSENT.
+      // Spread rather than assigned: Dexie stores `undefined` as a present key, and
+      // `json.ts` round-trips the object, so an absent field must be ABSENT.
       ...(values.quantity === undefined ? {} : { quantity: values.quantity }),
       ...(unitPrice === undefined ? {} : { unitPrice }),
-      // Both spread for the same reason, and the note needs it MOST: the schema
-      // turns a blank field into `undefined`, and assigning that would store a
-      // present key holding nothing — `transaction_note_ck` spells none as NULL
-      // and the backup envelope refuses `''`.
+      // The note needs it MOST: the schema turns a blank field into `undefined`, and
+      // assigning that stores a present key holding nothing — `transaction_note_ck`
+      // spells none as NULL and the backup envelope refuses `''`.
       ...(values.taxWithheld === undefined ? {} : { taxWithheld: values.taxWithheld }),
       ...(values.note === undefined ? {} : { note: values.note }),
     };
@@ -521,72 +424,43 @@ export function TransactionPanel() {
           releaseLatch();
           toast.success(t.transaction.recordedToast);
           // WHAT THE USER CHOSE SURVIVES THE RESET, and only the amount clears.
-          // `assets[0]?.id` was read from the render that submitted: recording
-          // three coupons for the third asset re-picked the first one every
-          // time, and on quick-create the just-made asset was not in that array
-          // at all, so the select snapped to the wrong asset — or to the empty
-          // placeholder when the ledger had none, which is the invisible-error
-          // state this task exists to remove.
+          // `assets[0]?.id` was read from the render that submitted, so recording three
+          // coupons re-picked the first asset every time, and on quick-create the
+          // just-made asset was not in that array at all.
           form.reset({
             date: values.date,
             type: values.type,
-            // `assetId` — THE WATCHED VALUE FROM THE SUBMITTING RENDER, not a
-            // `getValues` read. `values.assetId` cannot serve: D129's transform
-            // has blanked it on a portfolio-level type, and resetting from it
-            // would throw away the asset the user picked for the row before this
-            // one, leaving an empty picker behind on the next `buy`.
-            //
-            // Nor can the control be re-read here, or even at the top of
-            // `record`: `handleSubmit` AWAITS the resolver (and a second nested
-            // one on the quick-create branch), so a picker moved inside that
-            // window would be restored over the choice the row was actually
-            // written with. The closure holds the render that submitted — the
-            // same fix the paragraph below describes for `assets[0]?.id`.
+            // `assetId` — THE WATCHED VALUE FROM THE SUBMITTING RENDER, not a `getValues`
+            // read. `values.assetId` cannot serve: the transform has blanked it on a
+            // portfolio-level type. Nor can the control be re-read here, because
+            // `handleSubmit` AWAITS the resolver and a picker moved inside that window would
+            // be restored over the choice the row was written with.
             assetId: newAsset ? newAsset.id : assetId,
             amount: '',
             source: values.source,
-            // The COUNT clears with the amount — it is per-transaction, and
-            // carrying it over would silently repeat the last purchase's units
-            // on the next one. The MODE survives, like type/asset/source: it is
-            // how this user reads their statements, not a fact about one row.
+            // The COUNT clears with the amount — it is per-transaction. The MODE survives,
+            // like type/asset/source: it is how this user reads their statements.
             quantity: '',
-            // BOTH CLEAR WITH THE AMOUNT, and neither survives the way the type
-            // and the source do. A withholding is per-payout and a note is per
-            // row — carrying either over would attach the last row's facts to
-            // the next one, which is the shape #31 was.
+            // BOTH CLEAR WITH THE AMOUNT: a withholding is per-payout and a note is per row,
+            // so carrying either over attaches the last row's facts to the next one.
             taxWithheld: '',
             note: '',
             priceMode: values.priceMode,
           });
-          // THE ERRORS, NOT THE VALUES. A full `assetForm.reset` here wiped a
-          // half-typed asset whenever a row was recorded that did not use the
-          // sub-form — reachable since the panel stopped closing quick-create on
-          // a type change: pick «+ Новий актив…», type a name, remember a
-          // deposit is needed first, record it, and the name was gone.
-          //
-          // Nothing needs to reset the VALUES from here. On the quick-create
-          // path the `form.reset` above moves the picker onto the asset it just
-          // built, so `pickedNew` goes false and the effect does it; on every
-          // other path the sub-form was already emptied when the picker left the
-          // sentinel. What no effect covers is a failed quick-create press whose
-          // red borders outlive a LATER successful submit — the picker never
-          // moved, so nothing cleared them, and they came back on screen with
-          // the summary line over a form that had just succeeded.
+          // THE ERRORS, NOT THE VALUES. A full `assetForm.reset` here wipes a half-typed
+          // asset whenever a row is recorded that did not use the sub-form. What no effect
+          // covers is a failed quick-create press whose red borders outlive a LATER
+          // successful submit — the picker never moved, so nothing cleared them.
           //
           // `reset` WITH `keepValues`, not `clearErrors`, and the difference is
-          // `isSubmitted`. `clearErrors` empties the errors and leaves that flag
-          // set, so the sub-form stays in re-validate-on-change: the next
-          // keystroke in «Назва» re-runs the resolver and can light «Код» red on
-          // a form nobody has submitted since it was cleared —
-          // `AssetFormFields` reads the flag directly for the derived Code.
+          // `isSubmitted`: `clearErrors` leaves that flag set, so the sub-form stays in
+          // re-validate-on-change and the next keystroke can light a field red on a form
+          // nobody has submitted since.
           //
-          // `keepDirty` IS NOT OPTIONAL HERE. With `formValues` undefined and no
-          // dirty flag, RHF's `_reset` falls through to `dirtyFields: {}` — and
-          // `AssetForm` gates the Name→Code derivation on `!dirtyFields.code`,
-          // so wiping it makes a hand-typed «Код» start being overwritten from
-          // «Назва» again on the next keystroke. `clearErrors`, which this
-          // replaced, never touched dirty state; the three flags together are
-          // what make this reset equivalent to it plus the `isSubmitted` fix.
+          // `keepDirty` IS NOT OPTIONAL. With `formValues` undefined and no dirty flag RHF
+          // falls through to `dirtyFields: {}`, and `AssetForm` gates the Name→Code
+          // derivation on `!dirtyFields.code` — so wiping it makes a hand-typed «Код»
+          // start being overwritten again.
           assetForm.reset(undefined, {
             keepValues: true,
             keepDefaultValues: true,
@@ -601,8 +475,7 @@ export function TransactionPanel() {
     );
   }
 
-  // Released by the write's outcome, or by either form refusing — a latch that
-  // is never lowered disables the form for the rest of the session.
+  // Released by the write's outcome or by either form refusing — a latch never lowered disables the form for the session.
   const releaseLatch = () => {
     inFlight.current = false;
   };
@@ -610,14 +483,12 @@ export function TransactionPanel() {
   function removeTransaction(tx: Transaction) {
     deleteTransaction.mutate(tx.id, {
       onSuccess: () => {
-        // A CONFIRMED COUPON GETS ITS OCCURRENCE BACK. The card's confirm writes
-        // the payout AND rolls `asset.nextCoupon` forward; deleting only the
-        // transaction left the pointer ahead of it, and `nextUnsettledCoupon`
-        // walks the grid FORWARD and never looks behind the pointer — so the
-        // occurrence left the ledger, the due cards, the reminders and income all
-        // at once, with nothing on any screen to say it had. D23: the pointer
-        // moves only through a confirm, and a delete is that confirm taken back
-        // (owner's ruling, 2026-08-25). The arithmetic is `rollbackNextCoupon`.
+        // A CONFIRMED COUPON GETS ITS OCCURRENCE BACK. The card's confirm writes the
+        // payout AND rolls `asset.nextCoupon` forward, and `nextUnsettledCoupon` walks
+        // the grid FORWARD, so deleting only the transaction loses the occurrence from
+        // the ledger, the due cards, the reminders and income at once. The pointer moves
+        // only through a confirm, and a delete is that confirm taken back; the
+        // arithmetic is `rollbackNextCoupon`.
         const asset = assetById.get(tx.assetId);
         const reopened =
           asset === undefined
@@ -637,17 +508,15 @@ export function TransactionPanel() {
             : t.transaction.delete.couponReopenedToast,
         );
       },
-      // The row stays in its asking state on failure, so the answer is still
-      // one press away rather than lost with the toast.
+      // The row stays in its asking state on failure, so the answer is still one press away.
       onError: () => toast.error(t.transaction.delete.failedToast),
     });
   }
 
   function onSubmit(values: TransactionFormValues) {
     if (isNewAsset) {
-      // Both forms must pass; assetForm.handleSubmit surfaces the sub-form's
-      // field errors and only calls through when it validates. firstPurchase
-      // keeps deriving from the transaction date (quick-create rule).
+      // Both forms must pass; assetForm.handleSubmit surfaces the sub-form's field
+      // errors and only calls through when it validates.
       void assetForm.handleSubmit(
         (assetValues) => {
           record(values, assetFromForm(assetValues, values.date, assets.length));
@@ -660,78 +529,51 @@ export function TransactionPanel() {
     record(values, undefined);
   }
 
-  // A32 — THE FULL LEDGER, newest first. The last-three cap existed because
-  // this panel was a guest on `/`, where anything longer would have pushed the
-  // daily ritual off the screen. On a route of its own the history is the
-  // point, so the cap goes and the list scrolls inside its own box (D65).
+  // THE FULL LEDGER, newest first. The last-three cap existed because this panel
+  // was a guest on `/`; on a route of its own the history is the point, and the
+  // list scrolls inside its own box.
   const ledger = [...transactions].reverse();
   const assetById = new Map(assets.map((a) => [a.id, a]));
 
   return (
     <>
-      {/* F6 — NO MICROLABEL. "Останні транзакції" became false the moment the
-          list stopped being the last three, and the extension declined to
-          invent a replacement for a heading the screen's own title already
-          gives. */}
-      {/* NO `px-5` HERE, and that is the Scroller's contract, not an omission
-          (A32 review). Passing `radius` opens the inline gutter from the
-          ScrollArea ROOT — 28 a side, outside the scroll box — so a Card padding
-          of its own inset the rows a SECOND time (20 + 24 + 4 = 48 a side) and
-          pushed the rail 28 off the card's edge instead of 8. It also made the
-          `radius` wrong on its own terms: a radius is measured at the Scroller's
-          box, and a 20 seen from inside 20 px of padding presents 0. With the
-          padding gone the two agree, and the result is the extension's drawn
-          `padding:16px 28px` exactly. `py-4` stays — the gutter is inline only.
-          ImportDialog.tsx carries the same warning; this repeated it. */}
-      {/* THE WIDE COLUMN — the `1.6fr` track of D88's grid; the ledger is what
-          the route is for and it takes the wide track. Its width IS the
-          track's since D93 — no cap of its own; the ledger card's comment
-          below carries the ruling. (This paragraph once described the flex
-          row — `flex:1 1 560px`, a cap keyed to a 944 container query — D88
-          retired all of that with the composition.)
+      {/* NO `px-5` HERE, and that is the Scroller's contract, not an omission.
+          Passing `radius` opens the inline gutter from the ScrollArea ROOT, outside
+          the scroll box, so a Card padding of its own would inset the rows a SECOND
+          time and make the radius wrong on its own terms — a radius is measured at
+          the Scroller's box. `py-4` stays: the gutter is inline only. ImportDialog.tsx
+          carries the same warning. */}
+      {/* THE WIDE COLUMN, and its width IS the grid track's — no cap of its own; the
+          ledger card's comment below carries the ruling.
 
-          THE HEIGHT CAP IS THE VIEWPORT'S AT `lg` AND UP, not 420. That number
-          was chosen when this card sat UNDER the form and had to leave room
-          for it; side by side it only has to leave the header and the page's
-          own padding, so all 18 seeded rows fit and the PAGE stops scrolling
-          while the column does (D65). Below `lg` the cap stays 420 — the card
-          is stacked again there, and 360 must not move.
+          THE HEIGHT CAP IS THE VIEWPORT'S AT `lg` AND UP. Side by side the card only
+          has to leave the header and the page's own padding, so the PAGE stops
+          scrolling while the column does. Below `lg` the cap is fixed — the card is
+          stacked there, and 360 must not move.
 
-          `--ledger-top` IS MEASURED, and 80 is this box's own two paddings —
-          `py-4` here (32) plus `main`'s `pb-12` (48). Everything ABOVE the card
-          is read off the layout rather than summed by hand; see `useLedgerTop`.
-          197 survives only as the pre-measurement fallback for the first paint.
+          `--ledger-top` IS MEASURED: everything above the card is read off the layout
+          rather than summed by hand (see `useLedgerTop`); the fallback in the `var()`
+          survives only for the first paint, and the subtrahend beside it is this card's own
+          `py-4` plus `main`'s `pb-12` — NOT `main`'s top, which the measurement already
+          includes, being taken at this card's own box.
 
-          `max()` FLOORS IT AT 200, because a `max-height` calc that resolves
-          negative is clamped to zero, not ignored (A35 review): a wide but very
-          short window — a split screen, a short embedded frame, a dragged
-          desktop window — collapsed the card to an empty box with a scroll rail
-          and eighteen invisible rows.
+          `max()` FLOORS IT, because a `max-height` calc that resolves negative is
+          clamped to zero, not ignored: a wide but very short window collapsed the
+          card to an empty box with a scroll rail and eighteen invisible rows.
 
-          THE HEIGHT EASES, because the `lg` media query flips DISCRETELY while
-          the rail's width animates over 260 ms (D66/S1), so this box would
-          otherwise snap mid-transition while everything around it glides —
-          against the standing "nothing pops or snaps" rule.
+          THE HEIGHT EASES, because the `lg` media query flips DISCRETELY while the
+          rail's width animates, so this box would otherwise snap mid-transition.
 
-          AND THIS BOUNDS THE LEDGER ONLY. The form is uncapped deliberately —
-          the quick-create reveal makes it tall, and a tall FORM should scroll
-          the page rather than trap its own submit button. "The page stops
-          scrolling" is a claim about the read-only ledger state, which is the
-          state the complaint was about. */}
-      {/* THE SIDE BLOCK — the narrow track, on the RIGHT since the owner's
-          2026-08-25 instruction. It keeps every property the drawing gave it
-          except its side: narrow beside the ledger, capped at 560 when the grid
-          collapses, and never stretched into a settings page. Since D94 that
-          sentence is literally the code (`max-lg:max-w-[560px]`).
+          AND THIS BOUNDS THE LEDGER ONLY. The form is uncapped deliberately: a tall
+          FORM should scroll the page rather than trap its own submit button. */}
+      {/* THE SIDE BLOCK — narrow beside the ledger, capped when the grid collapses,
+          and never stretched into a settings page.
 
-          IT LEADS IN THE DOM, and `lg:col-start-2` puts it on the right anyway.
-          The first cut did the opposite — ledger first, `max-lg:order-first` on
-          the form — and that made the phone's visual order disagree with its
-          reading order: a keyboard or a screen reader went through 18 ledger rows
-          AND 18 delete buttons before the first field of the form it could see at
-          the top (WCAG 2.4.3, 1.3.2). Collapsed, the column IS the sequence, so
-          that is the order the DOM owes. Beside the ledger the two are perceived
-          together and acting before reading is defensible. */}
+          IT LEADS IN THE DOM, and `lg:col-start-2` puts it on the right anyway. The
+          opposite makes the phone's visual order disagree with its reading order — a
+          keyboard or screen reader goes through every ledger row and delete button
+          before the first field of the form it can see at the top (WCAG 2.4.3,
+          1.3.2). Collapsed, the column IS the sequence. */}
       <Card
         radius={24}
         className="min-w-0 animate-in border border-panel-border bg-panel px-[22px] py-5 duration-300 fade-in max-lg:max-w-[560px] lg:col-start-2 lg:row-start-1"
@@ -743,12 +585,10 @@ export function TransactionPanel() {
           </span>
         </div>
         <p className="mt-1 mb-3.5 text-xs text-muted">{t.transaction.subtitle}</p>
-        {/* THE LATCH IS CHECKED IN THE DOM EVENT, not inside `onSubmit`, for two
-            reasons that agree: it is the earliest point a second press can be
-            seen — `handleSubmit` has not begun awaiting the resolver yet — and a
-            ref read inside a function handed to `handleSubmit` DURING RENDER is
-            what `react-hooks/refs` refuses, correctly. Same place the coupon
-            card puts its own latch. */}
+        {/* THE LATCH IS CHECKED IN THE DOM EVENT: the earliest point a second press can
+            be seen — `handleSubmit` has not begun awaiting the resolver — and a ref read
+            inside a function handed to `handleSubmit` DURING RENDER is what
+            `react-hooks/refs` refuses, correctly. */}
         <form
           onSubmit={(e) => {
             if (inFlight.current) {
@@ -806,11 +646,8 @@ export function TransactionPanel() {
                     value={field.value}
                     onValueChange={field.onChange}
                     placeholder={t.transaction.assetPlaceholder}
-                    // Reachable with no assets at all, or on a press before
-                    // `useAssets()` resolves and the effect above has defaulted
-                    // this: the schema refuses an empty id on a type that needs
-                    // one, and without this the summary named highlights that
-                    // did not exist.
+                    // Reachable with no assets at all, or on a press before `useAssets()` resolves:
+                    // the schema refuses an empty id on a type that needs one.
                     invalid={fieldState.invalid}
                     options={[
                       { value: 'new', label: t.transaction.newAssetOption },
@@ -822,34 +659,17 @@ export function TransactionPanel() {
             </label>
           </Reveal>
 
-          {/* A BARE `&&`, AND `Reveal` WAS TRIED HERE AND REVERTED (D129, sixth
-              review round). The observation that started it is real: this panel
-              has an entrance and no exit, and D129 gave `isNewAsset` a second,
-              commoner trigger — the TYPE — so choosing «Внесок» plays the
-              picker's 300ms slide-out directly above a panel that vanishes in
-              the same frame.
-
-              `Reveal` does not fix that, and measured in Chrome it made four
-              things worse. It animates opacity and translate, never HEIGHT: the
-              wrapper held its 593px for the whole exit, so the whole collapse
-              moved from t=0 to a single frame at t=300 — a bigger snap, later.
-              Meanwhile the `!pickedNew` effect fires at t=0 and now lands on
-              live DOM, so the fields visibly blank themselves mid-fade; RHF
-              repaints «Назва» but not «Код», so re-entering inside the window
-              reuses the same nodes and the visible «Код» disagrees with form
-              state — pressing submit then reds a field showing a valid value.
-              And ten controls stay hit-testable and in the tab order while
-              leaving, because `Reveal` marks nothing `inert`.
-
-              A pop is worse than nothing; those four are worse than a pop. The
-              exit this panel wants is a HEIGHT animation plus an `inert`
-              subtree, which belongs in `Reveal` itself and is not D129's to
-              build. Do not re-wrap this without that. */}
+          {/* A BARE `&&`, AND `Reveal` IS REFUSED HERE. It animates opacity and translate,
+              never HEIGHT, so the wrapper holds its full height for the whole exit and the
+              collapse becomes a bigger snap, later. The `!pickedNew` effect then lands on
+              live DOM and blanks the fields mid-fade; RHF repaints «Назва» but not «Код»,
+              so re-entering inside the window leaves the visible «Код» disagreeing with
+              form state. And ten controls stay hit-testable and in the tab order while
+              leaving, because `Reveal` marks nothing `inert`. What this panel wants is a
+              HEIGHT animation plus an `inert` subtree, which belongs in `Reveal` itself.
+              Do not re-wrap this without that. */}
           {isNewAsset && (
             <div className="animate-in duration-300 fade-in slide-in-from-top-2">
-              {/* Same dashed reveal panel as v1 (design lines 116-124), now
-                  hosting the shared AssetFormFields inline: create-mode core
-                  fields only — no First purchase (derived from the tx date). */}
               <div className="flex flex-col gap-2.5 rounded-2xl border border-dashed border-faint bg-card p-3.5">
                 <div className="flex items-center gap-2 text-[11px] font-bold tracking-[.06em] text-pos-tint-text uppercase">
                   <Plus size={13} strokeWidth={2.75} />
@@ -865,49 +685,32 @@ export function TransactionPanel() {
             </div>
           )}
 
-          {/* ISSUE #31 — THE ROW HAS TWO SHAPES (owner's rulings, 2026-08-31).
-              With units: `[Одиниці][Сума]`, «Джерело коштів» full width
-              beneath — the count and the amount are one idea, since a count is
-              what makes a per-unit price into a total, and a full row is what
-              the form already gives «Актив». Without them: `[Сума][Джерело]`,
-              the row closing up rather than leaving a hole, which is the shape
-              this form had before the count existed.
+          {/* THE ROW HAS TWO SHAPES. With units the count and the amount share a row,
+              because a count is what makes a per-unit price into a total; without them the
+              row closes up rather than leaving a hole.
 
-              ALL THREE CELLS AUTO-PLACE. The only placement rule is
-              `col-span-2` on «Джерело», and a spanning cell cannot fit beside
-              two others — so the span alone is what puts it on its own line,
-              and dropping it is what brings it back up.
+              ALL THREE CELLS AUTO-PLACE. The only placement rule is `col-span-2` on
+              «Джерело», and a spanning cell cannot fit beside two others — so the span
+              alone is what puts it on its own line.
 
-              THE SPAN ASKS THE DOM, not `takesUnits`, and the difference is the
-              reveal's exit. The flag flips the instant the type changes, while
-              the field is still on screen playing its leave animation, so a
-              layout driven by it would reflow underneath the field and then
-              again when it unmounts. `:has` turns false only once the node is
-              gone, so the three cells re-place in ONE step, with it.
+              THE SPAN ASKS THE DOM, not `takesUnits`: the flag flips the instant the type
+              changes, while the field is still on screen playing its leave animation, so a
+              layout driven by it reflows twice. `:has` turns false only once the node is
+              gone, so the three cells re-place in ONE step.
 
-              SUBGRID, three shared rows — label, control, error — so the cells
-              align control-to-control whatever sits above or below them. The
-              segment makes the amount's label row the taller one, and an
-              earlier `items-end` pinned the cells' BOTTOMS instead: that held
-              only until an error rendered under one of them, and measured, the
-              two 36px controls then sat 20.5px out of line — on exactly the
-              screen a user is looking at because something is wrong. Row 1
-              sizes itself to the taller label, so nothing here is hard-coded,
-              which is what ruled out equalising the label rows by hand.
+              SUBGRID, three shared rows — label, control, error — so the cells align
+              control-to-control whatever sits above them. AN `items-end` ROW WAS REFUSED:
+              it pins the cells' BOTTOMS, which holds only until an error renders under one
+              of them — on exactly the screen a user is looking at because something is
+              wrong. Row 1 sizes itself to the taller label, which is also what ruled out
+              equalising the label rows by hand.
 
-              UNITS ARE REQUIRED on the types that take them (D124). They were
-              optional until the owner ruled otherwise, on the ground that every
-              row recorded before #31 lacks a count — but that is a fact about
-              rows already stored, and this form only writes new ones. D119 made
-              the whole coupon derivation `rate × units`, so a buy recorded in
-              the default `total` mode with this left blank produced a bond with
-              no coupon figure anywhere and no explanation. Nothing stored
-              changes: the backup, the DDL and the type all keep it optional. */}
+              UNITS ARE REQUIRED on the types that take them. They were optional until the
+              owner ruled otherwise: the coupon derivation is `rate × units`, so a buy
+              recorded in the default `total` mode with this blank produced a bond with no
+              coupon figure anywhere and no explanation. */}
           <div className="group grid grid-cols-2 grid-rows-[auto_auto_auto] gap-2.5">
             <Reveal show={takesUnits} className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
-              {/* `self-center`, because row 1 is as tall as the amount's label
-                  row and a stretched label would render its text at the top of
-                  that box — two labels side by side at different heights. */}
               <label className="self-center text-[11px] text-muted" htmlFor={QUANTITY_ID}>
                 {t.transaction.quantity}
               </label>
@@ -924,11 +727,9 @@ export function TransactionPanel() {
                       aria-describedby={fieldState.invalid ? QUANTITY_ERROR_ID : undefined}
                       name={field.name}
                       ref={field.ref}
-                      // `?? ''` because the schema takes an ABSENT quantity as
-                      // "no units" too — that leniency is what keeps a minimal
-                      // transaction parseable, and it makes the field's own
-                      // value optional at the type level. The input itself is
-                      // always controlled.
+                      // `?? ''` because the schema takes an ABSENT quantity as "no units" too, which
+                      // is what keeps a minimal transaction parseable. The input itself is always
+                      // controlled.
                       value={field.value ?? ''}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
@@ -938,10 +739,6 @@ export function TransactionPanel() {
                         id={QUANTITY_ERROR_ID}
                         className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
                       >
-                        {/* Blank is a failure on ANY position-moving row since
-                            D124 — not only in per-unit mode, where it used to be
-                            the one case the schema added. Anything else here is a
-                            value that parsed but was not a positive number. */}
                         {fieldState.error.type === 'product'
                           ? t.transaction.productTooSmall
                           : (field.value ?? '').trim() === ''
@@ -956,50 +753,28 @@ export function TransactionPanel() {
               />
             </Reveal>
 
-            {/* NOT A `<label>` WRAPPER, unlike its neighbours, and the reason is
-                the error: a message inside the label becomes part of the
-                input's accessible NAME, so submitting an empty field renamed it
-                to «Сума, ₴ Введіть суму.» under a screen reader instead of
-                explaining itself. `htmlFor` + `aria-describedby` is the link
-                that carries it as a description — the idiom `CouponDueCard` and
-                Settings already use, and the one `navigation-map.md` pins.
-                ONE MESSAGE PER FAILURE: the amount schema refuses blank, zero,
-                negative and non-numeric, and a single "Введіть суму." told
-                someone who typed `0` to enter the amount they had just typed.
-                The value itself says which of the two it is — no zod internals,
-                and `fieldState` is the single read behind border, flag and
-                message alike. */}
+            {/* NOT A `<label>` WRAPPER: a message inside the label becomes part of the
+                input's accessible NAME, so submitting an empty field renames it instead of
+                explaining itself. `htmlFor` + `aria-describedby` carries it as a description.
+                ONE MESSAGE PER FAILURE: the amount schema refuses blank, zero, negative and
+                non-numeric, and a single message told someone who typed `0` to enter the
+                amount they had just typed. */}
             <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
-              {/* THE SEGMENT RIDES THE LABEL ROW (owner's variant A, 2026-08-31).
-                  It stood in its own labelled block above, which read as a
-                  second field and sat a whole row away from the number it
-                  governs. Here the two are one line apart, and the row costs
-                  nothing: the label never filled 185px on its own.
-
-                  `min-w-0` + `truncate` on the label, because the row has a
-                  hard budget — the unit-mode label plus the track plus the gap
-                  has to fit the grid column, and a label that wraps would push
-                  the input down out of line with the Source select beside it. */}
+              {/* THE SEGMENT RIDES THE LABEL ROW. `min-w-0` + `truncate` on the label, because
+                  the row has a hard budget: the unit-mode label plus the track plus the gap
+                  has to fit the grid column. */}
               <div className="flex items-center justify-between gap-2">
                 <label className="min-w-0 truncate text-[11px] text-muted" htmlFor={AMOUNT_ID}>
-                  {/* THE LABEL IS THE CONTRACT. A toggle that changed what a
-                      number meant while the field kept saying «Сума, ₴» would be
-                      a worse defect than #31 — silent, and in the direction of
-                      recording a price as a total. The glyphs alone cannot carry
-                      this: `Σ` says which mode is ACTIVE, not what the number is. */}
+                  {/* THE LABEL IS THE CONTRACT. A number meaning one thing while the field says
+                      «Сума, ₴» is a worse defect than the one this fixes — silent, and in the
+                      direction of recording a price as a total. */}
                   {priceMode === 'unit' ? t.transaction.amountUnit : t.transaction.amount}
                 </label>
-                {/* THE SAME `Reveal` THE UNITS FIELD ABOVE USES, and for the
-                    same reason: these two appear and leave on one condition —
-                    `movesPosition` — so a bare `&&` here had the track vanish in
-                    a single frame while the field it governs was still gliding
-                    away beside it. `distance={1}`, the shorter travel, because
-                    this one moves inside a label row rather than a whole
-                    field block. */}
-                {/* `shrink-0` because this wrapper is now the flex item the
-                    track sits in, and the label beside it is `truncate` on a
-                    hard budget — a shrinkable track would be squeezed before
-                    the label gave up a character. */}
+                {/* THE SAME `Reveal` THE UNITS FIELD USES, because these two appear and leave on
+                    one condition: a bare `&&` had the track vanish in a single frame while the
+                    field it governs was still gliding away. `distance={1}` because this one
+                    moves inside a label row, and a shrinkable track would be squeezed before the
+                    `truncate` label beside it. */}
                 <Reveal show={takesUnits} distance={1} className="shrink-0">
                   <Controller
                     control={form.control}
@@ -1054,41 +829,26 @@ export function TransactionPanel() {
               />
             </div>
 
-            {/* THE WITHHOLDING TAKES THE SLOT «Одиниці» TAKES, on the other
-                side of the amount — one layout rule with a second occupant. The
-                mirror image (withholding in the units slot) is refused on the
-                rule rather than on taste: it would make the first column mean
-                units on four types and a deduction on two.
-                IT DOES NOT HOLD THE AMOUNT STILL, and a draft of this comment
-                said it did: measured, the amount sits in column two on a buy and
-                column one on a payout, which is what it already does between a
-                buy and a deposit — cells place in document order and the row's
-                first occupant decides. What the placement settles is which field
-                the amount is PAIRED with.
-                `design/extensions/withholding-and-note.dc.html` T2. */}
-            {/* A KNOWN TRANSIENT, ACCEPTED, AND TWO CURES MEASURED AND
-                REJECTED — written down because the next reader will reach for
-                the same `:has` gate the Source span beside it uses.
+            {/* THE WITHHOLDING TAKES THE SLOT «Одиниці» LEAVES — one layout rule with a
+                second occupant. The mirror image, a withholding in the units slot, is
+                refused on the rule rather than on taste: it would make the first column mean
+                units on four types and a deduction on two. IT DOES NOT HOLD THE AMOUNT
+                STILL — cells place in document order and the row's first occupant decides;
+                what the placement settles is which field the amount is PAIRED with.
 
-                Switching Buy → a payout flips `takesWithholding` at once while
-                `Reveal` keeps the units mounted for their 300 ms exit, so four
-                `row-span-3` cells briefly share a two-column grid and this one
-                auto-places into the implicit rows below the amount before
-                snapping up. `group-has-[#tx-quantity]:hidden` looks like the
-                answer and is worse: `Reveal` unmounts in `onAnimationEnd`, and
-                `display:none` means the exit animation never runs, so the field
-                stays mounted forever and then REAPPEARS at full size on the next
-                type that has no units — a whole field fading out on a Deposit,
-                with the row 73 px too tall while it does. Taking it out of flow
-                instead (`absolute` + `invisible`) unmounts correctly but leaves
-                the exiting copy visible and absolutely positioned over the row
-                it just left.
-
-                So the transient stays. It is the same shape the panel already
-                has: on Buy → Deposit the Source cell jumps from a full-width row
-                to a half cell, and the amount changes column, both for the same
-                reason and both shipped. Sequencing the two Reveals is the real
-                fix and belongs to `Reveal`, not to a caller. */}
+                A KNOWN TRANSIENT, ACCEPTED, AND TWO CURES REFUSED — written down because
+                the next reader will reach for the same `:has` gate the Source span beside
+                it uses. Switching Buy → a payout flips `takesWithholding` at once while
+                `Reveal` keeps the units mounted for their exit, so four `row-span-3` cells
+                briefly share a two-column grid: this one auto-places in the FIRST column,
+                under the units rather than beside them, and moves up AND ACROSS to the amount's
+                side when they unmount. `group-has-[#tx-quantity]:hidden` is worse: `Reveal`
+                unmounts in `onAnimationEnd`, and `display:none` means the exit animation
+                never runs, so the field stays mounted forever and then REAPPEARS at full
+                size on the next type that has no units. Taking it out of flow instead
+                unmounts correctly but leaves the exiting copy positioned over the row it
+                just left. So the transient stays; sequencing the two Reveals is the real
+                fix. */}
             <Reveal
               show={takesWithholding}
               className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1"
@@ -1121,13 +881,9 @@ export function TransactionPanel() {
                         id={WITHHOLDING_ERROR_ID}
                         className="animate-in text-[11px] text-neg duration-200 fade-in slide-in-from-top-1"
                       >
-                        {/* THERE IS NO "MISSING" ARM — a withholding is
-                            optional, and the bond half of this portfolio never
-                            has one. `custom` is the BOUND rule and only the
-                            bound rule: the schema's other custom refusal is a
-                            withholding on a type that takes none, and the
-                            effect above clears the field before that type can
-                            be on screen. */}
+                        {/* THERE IS NO "MISSING" ARM. `custom` is the BOUND rule and only the bound
+                            rule: the schema's other custom refusal is a withholding on a type that takes
+                            none, and the effect above clears the field before that type can reach here. */}
                         {fieldState.error.type === 'custom'
                           ? t.transaction.withholdingAboveAmount
                           : fieldState.error.type === UNREADABLE
@@ -1140,16 +896,11 @@ export function TransactionPanel() {
               />
             </Reveal>
 
-            {/* Spanning lands this in the grid's IMPLICIT rows 4–6, whose
-                leading gap is the same `gap-2.5` the form puts between its own
-                rows — so the full-width shape needs no spacing of its own.
-                And it never shares a line with a «Сума» carrying the Σ/1
-                track, because the track is gated on the same condition the
-                span is.
-
-                IT ASKS THE DOM ABOUT BOTH OCCUPANTS NOW. The rule is "whoever
-                takes the second column pushes Source down", and units are no
-                longer the only one who can. */}
+            {/* Spanning lands this in the grid's IMPLICIT row, and the full-width shape needs
+                no spacing of its own. It never shares a line with a «Сума» carrying the Σ/1
+                track, because the track is gated on the same condition the span is. IT ASKS
+                THE DOM ABOUT BOTH OCCUPANTS: the rule is "whoever takes the second column
+                pushes Source down". */}
             <label className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2 group-has-[#tx-withholding]:col-span-2">
               {t.transaction.source}
               <Controller
@@ -1169,25 +920,17 @@ export function TransactionPanel() {
             </label>
           </div>
 
-          {/* THE NOTE IS ASKED ON ALL EIGHT TYPES, so it is never revealed and
-              never leaves — it has no hidden state to clear. Full width and
-              last, because it is the only free text on the panel and the only
-              field nobody has to fill.
+          {/* THE NOTE IS ASKED ON ALL EIGHT TYPES, full width and last, because it is the
+              only free text on the panel and the only field nobody has to fill.
 
-              NO `maxLength`. A hard stop at 100 would make the refusal
-              unreachable, and the drawing shows it: a cap the field silently
-              enforces teaches nothing about why it is 100, where a sentence
-              does. It is also the only bound in this form whose reason is
-              visual rather than arithmetic. */}
-          {/* ONE BLOCK, not a label and a field that happen to sit next to
-              each other: the cell owns the 4 px between its own three parts and
-              the form owns the 10 between its rows. A first draft made these
-              two siblings of the FORM and pulled the field back up with a
-              negative margin, which is a cell paying for a gap it never asked
-              for — and it would have drifted the moment the form's own gap
-              moved. The label is outside the `Controller` and linked by
-              `htmlFor`, like «Сума» above and for the same reason: a message
-              inside a `<label>` joins the input's accessible NAME. */}
+              NO `maxLength`. A hard stop would make the refusal unreachable: a cap the
+              field silently enforces teaches nothing about why the bound is what it is,
+              where a sentence does.
+
+              The cell owns the gap between its own three parts and the form owns the one
+              between its rows; making these siblings of the FORM means a cell paying for a
+              gap it never asked for. The label is outside the `Controller` and linked by
+              `htmlFor`, like «Сума» above and for the same reason. */}
           <div className="flex min-w-0 flex-col gap-1">
             <label className="text-[11px] text-muted" htmlFor={NOTE_ID}>
               {t.transaction.note}
@@ -1227,24 +970,16 @@ export function TransactionPanel() {
             type="submit"
             weight="bold"
             className="w-full"
-            // `isSubmitting` covers the async window the latch also guards:
-            // the resolver runs before anything is pending.
+            // `isSubmitting` covers the async window the latch also guards: the resolver runs before anything is pending.
             disabled={recordTransaction.isPending || form.formState.isSubmitting}
           >
             {t.transaction.submit}
           </Button>
-          {/* `isNewAsset` GATES THE SUB-FORM'S HALF: its fields are unmounted
-              whenever the select holds a real asset, so their errors could put
-              this line on screen with nothing able to carry a highlight. THE
-              DURABLE DEFECT was every control here lacking an invalid state at
-              all, which is fixed above; this gate closes what is left.
-              It used to say the window was one render frame, because the reset
-              fired the moment the select left «+ Новий актив…». D129 decoupled
-              the two: the reset keys off the PICKER, and `isNewAsset` also goes
-              false when the TYPE stops targeting an asset — so with the picker
-              still on the sentinel the sub-form's errors persist for as long as
-              «Внесок» is selected, unbounded. The gate is what makes that
-              harmless, so it is load-bearing now rather than a nicety. */}
+          {/* `isNewAsset` GATES THE SUB-FORM'S HALF, or its errors could put this line on
+              screen with nothing able to carry a highlight. The window is not one render
+              frame: the reset keys off the PICKER, and `isNewAsset` also goes false when
+              the TYPE stops targeting an asset, so with the picker still on the sentinel
+              the errors persist unbounded. */}
           {(Object.keys(form.formState.errors).length > 0 ||
             (isNewAsset && Object.keys(assetForm.formState.errors).length > 0)) && (
             <p className="text-xs text-neg">{t.transaction.invalid}</p>
@@ -1252,62 +987,43 @@ export function TransactionPanel() {
         </form>
       </Card>
 
-      {/* NO WIDTH CAP SINCE D93 (owner ruling, 2026-08-25). Inside D88's
-          `1.6fr` track the TRACK is the bound — the old 884 cap protected
-          nothing and opened a dead strip between the ledger and the form. The
-          cap had been removed and argued back once before; D93 is the number
-          that ends that loop, and `transactions-layout.test.ts` pins the
-          absence on this card's own class string. The wide-monitor row
-          stretch, and the precedents (`/` dropped its own 884, `/payouts`
-          never had one), are priced in D93. */}
+      {/* NO WIDTH CAP — THE TRACK IS THE BOUND. The old cap protected nothing and
+          opened a dead strip between the ledger and the form; it had been removed and
+          argued back once before, and `transactions-layout.test.ts` pins the absence
+          on this card's own class string. */}
       <Card ref={ledgerRef} className="min-w-0 py-4 lg:col-start-1 lg:row-start-1">
         <Scroller
           radius={20}
           className="max-h-[420px] transition-[max-height] duration-[260ms] ease-soft lg:max-h-[max(200px,calc(100dvh-var(--ledger-top,197px)-80px))]"
         >
-          {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS (A32
-              review). Radix wraps a viewport's children in its own
-              `min-width:100%; display:table` box, and a table box is sized
-              shrink-to-fit — so a row whose label is `truncate` (i.e.
-              `white-space: nowrap`) makes min-content equal max-content, the
-              box grows past the viewport, and `orientation="vertical"` clips
-              the excess with NO rail to say so. Measured at 360: the ledger ran
-              51 px wide and the date fell off every row, silently. `w-0` puts
-              the child's preferred width at zero so the table box collapses
-              back onto its own `min-width:100%`, and `min-w-full` fills it —
-              the label then has a definite width to ellipsize against. */}
-          {/* A SEPARATOR PER ROW, not the 9 px gap the rows used to sit in: a
-              hairline between them is what makes a ledger read as a ledger, and
-              it is the same line `/payouts`' own table draws between its rows —
-              `border-t border-hairline` on the row, `first:border-t-0` to spare
-              the top one. `divide-y` was the obvious spelling and it produced NO
-              rule in this build (measured: the colour from `divide-hairline`
-              applied, the width stayed 0), so the row carries its own border,
-              which is also the app's existing idiom. */}
+          {/* `w-0 min-w-full` IS THE WHOLE REASON THE ELLIPSIS WORKS. Radix wraps a
+              viewport's children in its own `min-width:100%; display:table` box, and a
+              table box is shrink-to-fit — so a row whose label is `truncate` makes
+              min-content equal max-content, the box grows past the viewport, and
+              `orientation="vertical"` clips the excess with NO rail to say so. `w-0` puts
+              the child's preferred width at zero so the table box collapses back onto its
+              own `min-width:100%`, and `min-w-full` fills it.
+
+              The hairline between rows is what makes a ledger read as a ledger, and it is
+              the line `/payouts`' own table draws. `divide-y` was the obvious spelling and
+              produced NO rule in this build, so the row carries its own border. */}
           <div className="flex w-0 min-w-full flex-col text-[12.5px]">
             {ledger.length === 0 && <span className="text-muted">{t.transaction.recentEmpty}</span>}
             {ledger.map((tx) => {
-              // THE TYPE DECIDES, NOT THE ID (D129). Three doors stopped WRITING
-              // a borrowed asset onto a portfolio-level row; none of them touches
-              // a row already in the store, and nothing migrates it — so every
-              // deposit recorded before 2026-09-02 still names whichever asset
-              // the picker happened to be showing, and this row rendered it:
-              // «Внесок · Inzhur REIT» where the seed's own deposits read
-              // «Внесок · Портфель». Asking the type instead makes the display
-              // right for what is stored today as well as for what is written
-              // from now on.
+              // THE TYPE DECIDES, NOT THE ID. Three doors stopped WRITING a borrowed asset
+              // onto a portfolio-level row; none of them touches a row already in the store
+              // and nothing migrates it, so an older deposit still names whichever asset the
+              // picker happened to be showing. Asking the type makes the display right for
+              // what is stored as well as for what is written from now on.
               //
-              // `removeTransaction`'s lookup is deliberately left alone:
-              // `rollbackNextCoupon` refuses anything but an `interest_payout`
-              // on its own asset, so a portfolio-level row cannot reach it.
+              // `removeTransaction`'s lookup is deliberately left alone: `rollbackNextCoupon`
+              // refuses anything but an `interest_payout` on its own asset.
               const asset = targetsAsset(tx.type) ? assetById.get(tx.assetId) : undefined;
               const asking = confirmingId === tx.id;
               return (
-                // THE ROW IS TWO LINES NOW, and the boundary moved out with
-                // it: the hairline, the padding and the `first:` exception
-                // belong to the WHOLE record, not to its first line, or a
-                // noted row would draw its rule between its own two halves.
-                // `group` and the entrance animation move for the same reason.
+                // THE ROW IS TWO LINES NOW, and the boundary moved out with it: the hairline,
+                // the padding and the `first:` exception belong to the WHOLE record, or a noted
+                // row would draw its rule between its own two halves.
                 <div
                   key={tx.id}
                   className="group animate-in border-t border-hairline py-2 duration-300 fade-in slide-in-from-top-1 first:border-t-0"
@@ -1315,29 +1031,16 @@ export function TransactionPanel() {
                   <div className="flex items-center justify-between gap-2.5 max-md:gap-2">
                     {asking ? (
                       <>
-                        {/* THE ROW ITSELF ASKS. The app has no modal for a single
-                          line and should not grow one: a quote row's suggestion
-                          and the coupon card both ask in place, and this is the
-                          same act — a question where the answer will land. */}
-                        {/* IT NAMES THE RECORD, and `role="alert"` announces it.
-                          The question REPLACES the row, so the label, amount and
-                          date it stood on are gone at the moment of confirming
-                          something unrecoverable — two coupons of one amount, or
-                          two rows for one asset days apart, were indistinguishable
-                          there. A reader who never sees the swap was told nothing
-                          at all. */}
+                        {/* THE ROW ITSELF ASKS, and the question REPLACES the row — so the label, amount
+                            and date it stood on are gone at the moment of confirming something
+                            unrecoverable, where two coupons of one amount were indistinguishable. */}
                         <span role="alert" className="min-w-0 flex-1 truncate text-neg">
                           {t.transaction.delete.ask(f.money(tx.amount), f.dateShort(tx.date))}
                         </span>
-                        {/* `TAP_44`, NOT `TAP_44_BOX`: both of these draw a box and
-                          hold a label, and the BOX squares a control to 44 × 44
-                          below `md`, where «Видалити» has no wrap opportunity and
-                          spills straight out of its own border. `tap-target.ts`
-                          reserves the real box for a control without one, and
-                          `Sidebar.tsx` says so outright.
-                          `autoFocus` keeps the keyboard on the question it just
-                          asked — the ✕ unmounts in the same commit and React moves
-                          focus nowhere, which means <body>. */}
+                        {/* `TAP_44`, NOT `TAP_44_BOX`: the BOX squares a control to 44 × 44 below `md`,
+                            where «Видалити» has no wrap opportunity and spills straight out of its own
+                            border. `autoFocus` keeps the keyboard on the question it just asked — the ✕
+                            unmounts in the same commit. */}
                         <button
                           type="button"
                           autoFocus
@@ -1363,17 +1066,11 @@ export function TransactionPanel() {
                             : t.transaction.types[tx.type]}{' '}
                           · {asset ? shortLabel(asset) : t.transaction.portfolioRow}
                         </span>
-                        {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE (owner's
-                          ruling, 2026-09-01). The fetch reports which assets it
-                          had to value from a stale stored total; this is where
-                          that report is acted on, so the row has to show whether
-                          it carries its units.
-                          `movesPosition` GATES IT, because absence has to mean
-                          something: on a deposit or a payout there is no count
-                          to miss, and a blank there would read the same as the gap
-                          the owner is hunting. On a row that CAN hold one, the
-                          dash is the answer — that row is why the ledger stopped
-                          answering for the asset. */}
+                        {/* THE COUNT, AND ONLY WHERE ONE IS POSSIBLE. The fetch reports which assets it
+                            had to value from a stale stored total, and this is where that report is
+                            acted on. `movesPosition` GATES IT, because absence has to mean something: on
+                            a deposit or a payout there is no count to miss, and a blank there would read
+                            the same as the gap being hunted. */}
                         {movesPosition(tx.type) && (
                           <span
                             className="whitespace-nowrap text-muted"
@@ -1384,11 +1081,9 @@ export function TransactionPanel() {
                         )}
                         <strong className="whitespace-nowrap">{f.money(tx.amount)}</strong>
                         <span className="whitespace-nowrap text-muted">{f.dateShort(tx.date)}</span>
-                        {/* HOVER REVEALS IT ON A POINTER, AND TOUCH ALWAYS SEES IT.
-                          Eighteen always-on glyphs are noise on a desktop; a
-                          hover-only control does not exist on a phone, where
-                          there is no hover to have. `focus-visible` keeps it
-                          reachable by keyboard, which hover alone never is. */}
+                        {/* HOVER REVEALS IT ON A POINTER, because always-on glyphs on every row are
+                            noise on a desktop and a hover-only control does not exist on a phone.
+                            `focus-visible` keeps it reachable. */}
                         <button
                           type="button"
                           aria-label={t.transaction.delete.aria}
@@ -1401,33 +1096,20 @@ export function TransactionPanel() {
                       </>
                     )}
                   </div>
-                  {/* THE WITHHOLDING, READ BACK (#138). It was written at the
-                      form, stored on the row and derived into three totals, and
-                      no screen showed it as itself — so a figure small enough to
-                      pass `tax_withheld < amount` understated the tax, overstated
-                      the net and lifted the asset's XIRR with nothing to check it
-                      against a statement.
+                  {/* THE WITHHOLDING, READ BACK. It was stored on the row and derived into three
+                      totals with no screen showing it as itself, so a figure small enough to pass
+                      `tax_withheld < amount` understated the tax and lifted the asset's XIRR with
+                      nothing to check it against a statement.
 
-                      A LINE OF ITS OWN, ABOVE THE NOTE, AND THAT IS THE CAP'S
-                      DOING. The note's 100 characters is a DRAWN number that
-                      `transaction_note_ck` enforces in SQL, derived from a
-                      hundred characters wrapping to three lines at the row's
-                      280 px. Sharing the note's line would narrow it and
-                      re-derive that number; a full-width line above it does not,
-                      and the note still wraps to three at 360 and two at 1280.
-                      The first line was never a candidate — it is already full
-                      there, the label truncating at 53,98.
+                      A LINE OF ITS OWN, ABOVE THE NOTE, AND THAT IS THE CAP'S DOING: the note's
+                      character bound is a DRAWN number that `transaction_note_ck` enforces in SQL,
+                      derived from how it wraps at the row's width. Sharing the note's line would
+                      narrow it and re-derive that number.
 
-                      THE MINUS RATHER THAN THE WORD, measured rather than
-                      preferred. At 11 px the line holds 42,4 characters, and
-                      spelling «утримано» out clears 280 by 9,39 on a three-figure
-                      payout and overruns it at 290,41 on a FOUR-figure dividend —
-                      a sum this portfolio's REIT position reaches, so the word
-                      fits today's demo and not tomorrow's data. The minus form
-                      holds to six figures. `signedMoney` carries the U+2212 the
-                      app pins in one place, and «після податку» keeps the net
-                      wording the dictionary already had.
-                      Figures in `design/extensions/withholding-read-back.dc.html` T1. */}
+                      THE MINUS RATHER THAN THE WORD, measured rather than preferred: spelling
+                      «утримано» out overruns the row on a four-figure dividend, a sum this
+                      portfolio's REIT position reaches. `signedMoney` carries the U+2212 the app
+                      pins in one place. */}
                   {!asking && tx.taxWithheld !== undefined && (
                     <div className="mt-0.5 text-[11px] leading-4 text-muted">
                       {t.transaction.withheldAndNet(
@@ -1436,19 +1118,15 @@ export function TransactionPanel() {
                       )}
                     </div>
                   )}
-                  {/* THE NOTE, AND NOTHING WHERE THERE IS NONE — no empty line,
-                      no dash, no placeholder. Eighteen of eighteen seeded rows
-                      are in that state, so it is the normal one and drawing a
-                      gap for it would cost every row to annotate a few.
+                  {/* THE NOTE, AND NOTHING WHERE THERE IS NONE: the unannotated row is the normal
+                      one, and drawing a gap for it would cost every row to annotate a few.
 
-                      IT RUNS THE ROW'S FULL WIDTH and does not reserve the ✕
-                      column: the ✕ is a child of the line above and centred on
-                      it, so nothing sits over this one. Reserving it costs a
-                      fourth line at the narrow shell, which would move the cap —
-                      the width and the 100 are one decision, and the figures are
-                      in `design/extensions/withholding-and-note.dc.html` T5. It
-                      wraps rather than truncating, because a note the row hides
-                      is a note nobody can read back. */}
+                      IT RUNS THE ROW'S FULL WIDTH and does not reserve the ✕ column, which is a
+                      child of the line above. Reserving it costs a fourth line at the narrow
+                      shell, which would move the cap — the width and the character bound are one
+                      decision, drawn in `design/extensions/withholding-and-note.dc.html`. It wraps
+                      rather than truncating, because a note the row hides is a note nobody
+                      reads. */}
                   {!asking && tx.note !== undefined && (
                     <div className="mt-0.5 text-[11px] leading-4 [overflow-wrap:anywhere] text-muted">
                       {tx.note}

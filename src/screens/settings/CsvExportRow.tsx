@@ -1,15 +1,9 @@
-// S5 — Settings → Data "Spreadsheet export (CSV)": one file per table
-// (design/extensions/data-portability.dc.html S5). Export only — CSV import was
-// cancelled (D29), so the JSON backup is the sole restore path and this row
-// exists purely to hand the user their own numbers in a spreadsheet's language.
-//
-// Pill geometry per the reference note: the existing `header` size variant
-// (padding 8/18, 13px) — the brief's "outline `sm`, 13px" names two different
-// existing things and the 13px type scale wins, so no size variant is minted.
-// Only the PRESSED button disables while its file is built; the other two stay
-// live. No success toast — the browser's own download indication is the
-// feedback (same as "Download backup", D12) — and a cancelled Save-as dialog is
-// not an error (S5 parity, handled in lib/download).
+// One file per table. Export only — CSV import was cancelled, so the JSON backup
+// is the sole restore path and this row exists purely to hand the user their own
+// numbers in a spreadsheet's language.
+// Only the PRESSED button disables while its file is built. No success toast:
+// the browser's own download indication is the feedback, and a cancelled Save-as
+// dialog is not an error.
 import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -28,9 +22,7 @@ import { useT } from '../../i18n/useT';
 
 const CSV_MIME = 'text/csv';
 
-// Copy lives in the dictionary (t.csv).
-
-/** Pinned order, pinned file names (`quirenote-<table>-<date>.csv`). */
+/** Pinned order, pinned file names. */
 const TABLES = [
   {
     key: 'assets',
@@ -57,8 +49,8 @@ export function CsvExportRow() {
   async function run(table: (typeof TABLES)[number]) {
     setBuilding(table.key);
     try {
-      // Read fresh at click time (a mutation, not a cached query) — an export
-      // must reflect the DB now, exactly like the JSON backup.
+      // Read fresh at click time — an export must reflect the DB now, exactly like the
+      // JSON backup.
       const tables = await exportAll.mutateAsync();
       await saveTextFile(`quirenote-${table.key}-${todayIso()}.csv`, table.build(tables), {
         mime: CSV_MIME,
@@ -77,8 +69,6 @@ export function CsvExportRow() {
           <div className="text-[13px] font-semibold">{t.csv.title}</div>
           <div className="mt-[3px] text-xs leading-normal text-muted">{t.csv.helper}</div>
         </div>
-        {/* Wraps to its own line under the label block when the row narrows,
-            and stacks full width at 360px. */}
         <div className="flex flex-wrap justify-end gap-2 max-[420px]:w-full max-[420px]:flex-col">
           {TABLES.map((table) => (
             <Button

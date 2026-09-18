@@ -1,12 +1,10 @@
-// S3 preview/diff + S4 rejected-file report (design/extensions/
-// import-dialog.dc.html). One shell, two contents — the D17 AlertDialog idiom
-// widened to the 480px band.
+// The preview/diff and rejected-file report. One shell, two contents.
 //
-// SAFETY-FIRST (the phase's binding doctrine): the Confirm press is the SOLE
-// write path. Opening this dialog, reading its diff, toggling the settings
-// checkbox and cancelling all leave the dataset byte-identical. The safety
-// backup is handed to the browser BEFORE repo.replaceAll, and a safety backup
-// that cannot be built stops the import.
+// SAFETY FIRST, the phase's binding doctrine: the Confirm press is the SOLE
+// write path — opening this dialog, reading its diff, toggling the checkbox and
+// cancelling all leave the dataset byte-identical. The safety backup is handed
+// to the browser BEFORE `repo.replaceAll`, and a safety backup that cannot be
+// built stops the import.
 import { AlertTriangle, Download } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -45,7 +43,7 @@ import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';
 import { Scroller } from '../../components/ui/Scroller';
 
-/** What the S2 row produced: either a validated file, or the reason it failed. */
+/** What the row produced: either a validated file, or the reason it failed. */
 export type ImportAttempt =
   | {
       kind: 'preview';
@@ -75,8 +73,8 @@ export function ImportDialog({
   const [waiting, setWaiting] = useState(false);
   const [backedUp, setBackedUp] = useState(false);
   // One press = one run: the confirm awaits two async steps, and a second click
-  // inside that window must not start a second import (the P3 CouponDueCard
-  // latch — a ref, so it is set before React can re-render).
+  // inside that window must not start a second import. A ref, so it is set before
+  // React can re-render.
   const running = useRef(false);
 
   const safetyName = `quirenote-before-import-${todayIso()}`;
@@ -87,11 +85,10 @@ export function ImportDialog({
     setPending(true);
     const { envelope, diff } = attempt;
     try {
-      // ACCEPTANCE CRITERION: the safety backup downloads BEFORE anything is
-      // replaced, and a failure to build it means nothing is imported at all.
-      // `via: 'anchor'` is what keeps that true now that exports can open a
-      // Save-as dialog: a modal in front of a guarantee is a modal the user can
-      // cancel, and this one must not be cancellable (D24).
+      // The safety backup downloads BEFORE anything is replaced, and a failure to
+      // build it means nothing is imported at all. `via: 'anchor'` keeps that true now
+      // that exports can open a Save-as dialog: a modal in front of a guarantee is a
+      // modal the user can cancel.
       const saved = await backup.download({
         name: safetyName,
         quiet: true,
@@ -111,24 +108,22 @@ export function ImportDialog({
         onBlocked: () => setWaiting(true),
       });
       // The imported dataset has its own asset ids: a draft left over from the
-      // replaced one would show phantom values against them (the D17 erase
-      // scope, same hazard).
+      // replaced one would show phantom values against them.
       useDraft.getState().setDate('');
       if (applySettings && envelope.settings) {
-        // Through the store's setters and the D11 sanitizer — never a direct
-        // localStorage write, and never dataset/automation/reminder fields.
+        // Through the store's setters and the sanitizer — never a direct localStorage
+        // write, and never the dataset, automation or reminder fields.
         const sane = migrateSettings(envelope.settings);
-        // The PREFERENCE (A21). `setCurrency` here would have put the restored
-        // value in the session only, where it evaporates on the next reload —
-        // a restored setting that silently un-restores itself.
+        // The PREFERENCE. `setCurrency` here would put the restored value in the session
+        // only, where it evaporates on the next reload — a restored setting that
+        // silently un-restores itself.
         useSettings.getState().setDefaultCurrency(sane.defaultCurrency);
         useSettings.getState().setUsdRate(sane.usdRate);
       }
       toast.success(importToasts(t).success(diff.after));
       onClose();
     } catch {
-      // replaceAll is all-or-nothing: nothing was written, so the dialog stays
-      // open on the same diff.
+      // replaceAll is all-or-nothing: nothing was written, so the dialog stays open on the same diff.
       toast.error(importToasts(t).failed);
     } finally {
       setWaiting(false);
@@ -142,7 +137,7 @@ export function ImportDialog({
       open={open}
       width={480}
       onOpenChange={(o) => !o && !pending && onClose()}
-      // Pending blocks Esc as well as the (already inert) outside click.
+      // Pending blocks Esc as well as the already-inert outside click.
       onEscapeKeyDown={(e) => pending && e.preventDefault()}
     >
       {attempt.kind === 'preview' ? (
@@ -163,8 +158,6 @@ export function ImportDialog({
     </AlertDialog>
   );
 }
-
-// --- S3 --------------------------------------------------------------------
 
 function Preview({
   attempt,
@@ -202,8 +195,7 @@ function Preview({
           {fileSubline(name, envelope.exportedAt, envelope.dataset, f, t)}
         </div>
 
-        {/* Replace banner — never dismissible, and it names the dataset it
-            destroys. `neg-tint` at block scale (the widened rule, site 1 of 2). */}
+        {/* Never dismissible, and it names the dataset it destroys. */}
         <AlertDialogDescription asChild>
           <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-neg-tint px-3.5 py-3 text-[12.5px] leading-[1.55] text-neg-tint-text">
             <AlertTriangle size={16} strokeWidth={2.25} className="mt-0.5 flex-none" />
@@ -222,8 +214,7 @@ function Preview({
             <div className="mt-4 mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.importing.preview.warningsLabel}
             </div>
-            {/* One warn-tint block: a list of cautions reads as one object. Every
-                warning is non-blocking — the confirm stays enabled. */}
+            {/* One warn-tint block: a list of cautions reads as one object, and every warning is non-blocking. */}
             <div className="flex animate-in flex-col gap-2 rounded-2xl bg-warn-tint px-3.5 py-3 text-warn-tint-text duration-300 fade-in slide-in-from-top-1">
               {diff.warnings.map((w) => (
                 <div key={w.code} className="flex items-start gap-2 text-xs leading-normal">
@@ -268,7 +259,7 @@ function Preview({
         </div>
       </DialogBody>
       <DialogFooter>
-        {/* At 360px the buttons stack full width with the destructive one LAST. */}
+        {/* At 360 the buttons stack full width with the destructive one LAST. */}
         <div className="flex flex-col gap-2 @min-[420px]:flex-row @min-[420px]:flex-wrap @min-[420px]:justify-end">
           <AlertDialogCancel asChild>
             <Button variant="ghost" disabled={pending} className="@max-[419px]:w-full">
@@ -282,9 +273,8 @@ function Preview({
             className="@max-[419px]:w-full"
             onClick={onConfirm}
           >
-            {/* No percentage bar anywhere: the write is one atomic transaction and
-                a progress number would be fiction. Lock contention swaps the word
-                in the same slot. */}
+            {/* No percentage bar: the write is one atomic transaction and a progress number
+                would be fiction. */}
             <span
               key={pending ? (waiting ? 'waiting' : 'pending') : 'idle'}
               className={
@@ -306,8 +296,7 @@ function Preview({
   );
 }
 
-// The row ORDER is a design decision and stays here; the labels come from the
-// dictionary.
+// The row ORDER is a design decision and stays here; the labels come from the dictionary.
 function diffRows(t: Dict) {
   return [
     ['assets', t.importing.preview.rowAssets],
@@ -316,10 +305,9 @@ function diffRows(t: Dict) {
   ] as const;
 }
 
-// The one DASHED element of the phase (P3's rule: dashed = proposed, and this
-// is data that is not written yet — "Replace all data" is the press that
-// crosses the line). One DOM, two layouts: at ≥420px of DIALOG width each
-// table's cells join the parent grid through `display:contents`; below that
+// The one DASHED element of the phase — dashed = proposed, and this is data that
+// is not written yet. One DOM, two layouts: above a threshold of DIALOG width
+// each table's cells join the parent grid through `display:contents`; below it
 // each table is its own block with the column words as micro-labels.
 function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
   const t = useT();
@@ -357,14 +345,12 @@ function DiffPanel({ diff, dimmed }: { diff: BackupDiff; dimmed: boolean }) {
 }
 
 // A `display:contents` box paints neither border nor padding, so the narrow
-// layout's separator rule is inert at wide widths without an override — the
-// cells carry their own top rule there instead.
+// layout's separator rule is inert at wide widths and the cells carry their own.
 function DiffRow({ label, counts, index }: { label: string; counts: TableDiff; index: number }) {
   const t = useT();
   const cell = 'border-hairline @min-[420px]:border-t @min-[420px]:pt-2';
   return (
     <div
-      // fade + slide, staggered 40ms per TABLE row (never per cell)
       style={{ animationDelay: `${index * 40}ms` }}
       className={`animate-in duration-200 fade-in slide-in-from-top-1 @min-[420px]:contents ${
         index === 0 ? '' : 'border-t border-hairline pt-2'
@@ -397,8 +383,8 @@ function DiffRow({ label, counts, index }: { label: string; counts: TableDiff; i
   );
 }
 
-// Raw accents, never tinted pills — the tint families keep meaning "block",
-// not "number". A zero is muted with no accent at all.
+// Raw accents, never tinted pills — the tint families keep meaning "block", not
+// "number".
 const TONE = {
   pos: 'text-pos font-bold',
   warn: 'text-warn font-bold',
@@ -433,8 +419,6 @@ function Count({
   );
 }
 
-// --- S4 --------------------------------------------------------------------
-
 function Report({
   attempt,
   onChooseAnother,
@@ -465,7 +449,7 @@ function Report({
             <div className="text-[13px] leading-normal">
               {formatReasonSentence(rejection.code, rejection.version, t)}
             </div>
-            {/* The ONE place the D12 parser's own sentence appears on screen. */}
+            {/* The ONE place the parser's own sentence appears on screen. */}
             <div className="mt-1.5 font-body text-[11.5px] [overflow-wrap:anywhere] text-muted">
               {rejection.detail}
             </div>
@@ -475,14 +459,13 @@ function Report({
             <div className="mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
               {problemCount(rejection.total, rejection.issues.length, t)}
             </div>
-            {/* The list scrolls inside its own sub-panel — the page never does.
-                Fade only, no stagger: a wall of staggered errors reads as an
-                animation, not a report. */}
+            {/* The list scrolls inside its own sub-panel — the page never does. Fade only,
+                no stagger: a wall of staggered errors reads as an animation, not a
+                report. */}
             <div className="animate-in rounded-2xl bg-panel duration-200 fade-in">
-              {/* The height limit sits on the Scroller's viewport; the INLINE
-                  padding must not. Passing `radius` already opens the gutter
-                  from the root — adding px here inset the issue lines a second
-                  time and took the column they wrap in from ~404 to ~308. */}
+              {/* The height limit sits on the Scroller's viewport; the INLINE padding must
+                  not. Passing `radius` already opens the gutter from the root, so px here
+                  insets the issue lines a second time. */}
               <Scroller radius={16} className="max-h-[200px] py-3">
                 <div className="font-body text-[11.5px] leading-[1.9] [overflow-wrap:anywhere]">
                   {rejection.issues.map((issue, i) => (

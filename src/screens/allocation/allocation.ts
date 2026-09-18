@@ -1,21 +1,17 @@
-// Pure data-shaping for the Allocation screen (donut/legend, current-vs-target
-// pills, rebalance plan) — not in src/lib, that layer stays untouched per this
-// task's scope. Covered by allocation.test.ts.
+// Pure data-shaping for the Allocation screen. Covered by allocation.test.ts.
 import { allocationDeltaPp, sharePct, topUpAmount, trimAmount } from '../../core/derive';
 import type { Asset } from '../../core/types';
 
-// Off-target color encodes SEVERITY, not sign: within ~0.5pp of target reads
-// "near" (green) even if the delta is negative; beyond it reads "off" (red)
-// even if the delta is positive (design lines 524-537, D5 checkpoint).
+// Off-target colour encodes SEVERITY, not sign: within the threshold reads near
+// even on a negative delta, and beyond it reads off even on a positive one.
 const NEAR_TARGET_PP = 0.5;
 
 /**
- * The one place the threshold is applied (A30 review). `Allocation.tsx` has to
- * re-derive severity against a DRAFTED target while the editor is open, and the
- * first draft inlined `Math.abs(deltaPp) > 0.5` there — a second copy of a rule
- * `allocation.test.ts` only covers through `allocationRows`. Moving
- * `NEAR_TARGET_PP` would then have changed the rebalance plan and the pill
- * colour apart while the suite stayed green.
+ * The one place the threshold is applied. `Allocation.tsx` has to re-derive
+ * severity against a DRAFTED target while the editor is open, and a second
+ * inline copy of the rule is one `allocation.test.ts` only covers through
+ * `allocationRows` — moving `NEAR_TARGET_PP` would then change the rebalance
+ * plan and the pill colour apart while the suite stayed green.
  */
 export function severityOf(deltaPp: number): 'near' | 'off' {
   return Math.abs(deltaPp) <= NEAR_TARGET_PP ? 'near' : 'off';

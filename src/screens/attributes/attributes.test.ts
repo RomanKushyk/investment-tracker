@@ -63,10 +63,9 @@ describe('payoutScheduleFact', () => {
 
 describe('actualAnnualizedPct', () => {
   it('returns undefined when the asset has no quote yet (value undefined) instead of a bogus huge negative %', () => {
-    // Reproduces the reported bug: a freshly created asset with invested
-    // capital but no snapshot quote would otherwise compute
-    // yieldSinceStart(0, invested) = -100%, then annualize it against the
-    // global portfolio-start daysHeld basis — e.g. -100% * 365/174 ≈ -209.8%.
+    // Reproduces the reported bug: a freshly created asset with invested capital but
+    // no snapshot quote would compute a −100% and then annualize it against the
+    // global basis.
     expect(actualAnnualizedPct(undefined, 10000, 174)).toBeUndefined();
   });
 
@@ -75,7 +74,6 @@ describe('actualAnnualizedPct', () => {
   });
 
   it('matches annualizedPct for a real seed figure', () => {
-    // REIT: invested 65,800 -> value 68,629.36 over 174 days from PORTFOLIO_START.
     const pct = actualAnnualizedPct(68629.36, 65800, 174)!;
     expect(pct).toBeGreaterThan(0);
   });
@@ -110,9 +108,8 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
   });
 
   it('solves the yield the paid price implies, against the published schedule', () => {
-    // The fixture quotes UA4000238976 at 1057.67. Feeding that price straight
-    // back must return a yield that reprices it — the inverse of `derivePrice`,
-    // which dcf.ts fits to 0.0026 ₴ on this very bond.
+    // Feeding the fixture's own price straight back must return a yield that reprices
+    // it — the inverse of `derivePrice`.
     const ytm = derivedYtmPct(bond(), [buy()], feed);
     expect(ytm).toBeDefined();
     expect(ytm!).toBeGreaterThan(0);
@@ -120,8 +117,8 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
   });
 
   it('a HIGHER price paid implies a LOWER yield — the relationship that makes it real', () => {
-    // The whole reason this cannot be folded into the coupon rate: the coupon is
-    // one number for life, this one depends on what the holder paid.
+    // The whole reason this cannot be folded into the coupon rate: the coupon is one
+    // number for life, this one depends on what the holder paid.
     const cheap = derivedYtmPct(bond(), [buy({ unitPrice: 1000 })], feed);
     const dear = derivedYtmPct(bond(), [buy({ unitPrice: 1100 })], feed);
     expect(cheap).toBeDefined();

@@ -1,7 +1,5 @@
-// The save paths, against a FAKE file handle. An automated browser cannot
-// drive a native OS file picker, so this is where the `showSaveFilePicker`
-// branch is actually verified: the bytes handed to the handle, the silent
-// AbortError on cancel, and the anchor fallback.
+// Against a FAKE file handle: an automated browser cannot drive a native OS file
+// picker, so this is where the `showSaveFilePicker` branch is actually verified.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { saveTextFile } from './download';
@@ -88,7 +86,6 @@ describe('saveTextFile', () => {
     const anchor = stubAnchor();
 
     await expect(saveTextFile('x.csv', 'a', { mime: 'text/csv' })).resolves.toBe('cancelled');
-    // Nothing else happens: no fallback download behind the user's back.
     expect(anchor.clicks).toBe(0);
   });
 

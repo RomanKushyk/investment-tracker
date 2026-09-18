@@ -6,17 +6,12 @@ import type { FeedFreshness, FetchButtonState } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 
-// S1 — the phase's headline control (design/extensions/daily-quotes-live.dc.html
-// S1): an outline pill in the Daily-quotes header, one notch shorter than the
-// md button (size="header": h 34, 13px) so it reads as part of the ritual
-// header next to the 36px Date field.
-//
-// The 5 machine states: idle · loading (spinning icon, disabled) · success
-// flash ("Fetched 13:05" in `pos`, ~2.5s) · error (a TOAST — never a red
-// button) · stale-cache (the microcopy beside it turns warn). Gating adds
-// `demo` (in-button DEMO tag) and `unlinked` (nothing to fetch).
-// The five states' copy lives in `t.dailyQuotes.fetch` — a module constant
-// could not follow a language that switches without a reload.
+// The headline control: an outline pill one notch shorter than the md button, so
+// it reads as part of the ritual header beside the Date field.
+// Five machine states — idle, loading, success flash, error (a TOAST, never a
+// red button) and stale-cache — plus the gating ones. Their copy lives in the
+// dictionary: a module constant could not follow a language that switches
+// without a reload.
 
 export function FetchQuotesButton({
   state,
@@ -45,15 +40,14 @@ export function FetchQuotesButton({
     <Button
       variant="outline"
       size="header"
-      // The gating states read at .5, the in-flight one at .7 — "you can't press
-      // this" and "it is working" must not look the same (S1).
+      // The gating states read fainter than the in-flight one: "you can't press this"
+      // and "it is working" must not look the same.
       disabledTone={gated ? 'gated' : 'busy'}
       onClick={onFetch}
       disabled={disabled}
       title={title}
-      // No aria-label: the button has visible text, and a fixed label would
-      // override it — the accessible name has to follow "Fetching…"/"Fetched
-      // 13:05" (WCAG 2.5.3), which is also how AT hears the state change.
+      // No aria-label: the button has visible text and a fixed label would override
+      // it, where the accessible name has to follow the state (WCAG 2.5.3).
       className={success ? 'border-pos text-pos' : undefined}
     >
       {success ? (
@@ -65,7 +59,7 @@ export function FetchQuotesButton({
           className={state === 'loading' ? 'animate-spin' : undefined}
         />
       )}
-      {/* Re-keyed so every label change crossfades instead of swapping (D7). */}
+      {/* Re-keyed so every label change crossfades instead of swapping. */}
       <span key={state} className="animate-in duration-200 fade-in">
         {state === 'loading'
           ? t.dailyQuotes.fetch.loading
@@ -83,11 +77,10 @@ export function FetchQuotesButton({
 
   return (
     <>
-      {/* A disabled button is un-hittable (`disabled:pointer-events-none` on the
-          shared base), so its OWN native tooltip can never fire — and in the
-          gating states the `title` is the only explanation S1 gives. The wrapper
-          is hit-testable, so the tooltip appears; the button keeps the attribute
-          so the accessible description survives. */}
+      {/* A disabled button is un-hittable, so its OWN native tooltip can never fire —
+          and in the gating states the `title` is the only explanation there is. The
+          wrapper is hit-testable; the button keeps the attribute so the accessible
+          description survives. */}
       {title === undefined ? (
         button
       ) : (

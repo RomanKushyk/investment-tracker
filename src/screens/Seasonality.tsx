@@ -23,22 +23,15 @@ import {
 } from './seasonality/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
-// The "Coupon season" card spells months out (design line 448 says "June", not
-// the chart axes' "Jun"). Both forms live in the dictionary: t.dates.monthFull
-// for the card's heading, t.dates.monthIn after a preposition.
 
-// A token, not a word: the phrase it turns into is prepositional in Ukrainian
-// ("на початку червня") and adverbial in English ("in early June"), so only the
-// dictionary can spell it.
+// A token, not a word: the phrase is prepositional in Ukrainian and adverbial in
+// English, so only the dictionary can spell it.
 function dayPart(day: number): 'early' | 'mid' | 'late' {
   if (day <= 10) return 'early';
   if (day <= 20) return 'mid';
   return 'late';
 }
 
-// Stable empties, so `?? []` does not hand `useMemo` a new array every render
-// and defeat the memo it depends on — the idiom `Overview` and `DailyQuotes`
-// already use.
 const NO_ASSETS: Asset[] = [];
 const NO_TRANSACTIONS: Transaction[] = [];
 const NO_SNAPSHOTS: Snapshot[] = [];
@@ -50,18 +43,12 @@ export function Seasonality() {
   const transactions = useTransactions().data ?? NO_TRANSACTIONS;
   const snapshots = useSnapshots().data ?? NO_SNAPSHOTS;
 
-  // A42 — the third reader of the one window (D-1). The spine classifies the
-  // ACTUAL bars as FLOW and the expected bars as FORECAST, so only the first
-  // moves; `seasonalityDaysIn` owns that split.
   const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
 
-  // THE LEDGER THIS SCREEN READS FOR EVERY *FLOW* QUESTION. The spine windows
-  // the actual bars and not the expected ones; everything derived FROM those
-  // bars — which day is the anchor, which asset owns a bucket, how that asset's
-  // dividends moved, where the quiet run is — has to be read on the same side
-  // of the boundary, or a windowed height ends up wearing an unwindowed colour
-  // and the card beneath it names an asset that paid nothing inside the window
-  // (A42 review).
+  // THE LEDGER THIS SCREEN READS FOR EVERY *FLOW* QUESTION. Everything derived
+  // from the windowed bars must be read on the same side of the boundary, or a
+  // windowed height wears an unwindowed colour and the card beneath it names an
+  // asset that paid nothing inside the window.
   const windowed = useMemo(() => transactionsFromWindow(transactions, win), [transactions, win]);
 
   const days = useMemo(
@@ -70,30 +57,19 @@ export function Seasonality() {
   );
 
   /**
-   * D-11 — THE AXIS TOGGLE IS EPHEMERAL, and that is forced rather than
-   * preferred. All three of D-4's reasons for opening on the day axis are
-   * arguments about the state the screen ARRIVES in: the D5-pinned day buckets
-   * are what the reference draws, the shipped subtitle says «дохід за днями
-   * місяця», and the three insight cards below are written about days.
-   * Persisting the toggle would make one press change every one of those on
-   * every future visit — so the choice lasts as long as the visit does, and
-   * `state/settings.ts` gains nothing. It is the mirror of A33's reasoning
-   * about the nav groups, which reached the opposite answer for the opposite
-   * reason: an arrangement someone chose for their own tool is durable, a look
-   * at the same data from another angle is not.
+   * THE AXIS TOGGLE IS EPHEMERAL, and that is forced: the day buckets are what
+   * the reference draws, the subtitle says so, and the three insight cards are
+   * written about days, so persisting it would make one press change all of them
+   * on every future visit. The mirror of the nav groups, which reached the
+   * opposite answer for the opposite reason.
    */
   const [axis, setAxis] = useState<'day' | 'month'>('day');
   const anchor = incomeAnchorDay(days);
 
-  // The month axis carries no per-bucket colour: a month aggregates several
-  // assets by construction, so a "dominant asset" hue would be a claim the
-  // bucket does not support. The day axis keeps its hues, where a day usually
-  // is one asset.
-  //
-  // MEMOISED, and built only for the axis on screen (A41 review): both datasets
-  // were rebuilt on every render regardless of which one was displayed, and the
-  // day set walks `dominantExpectedAssetOnDay` 31 times, each walking the whole
-  // ledger again.
+  // The month axis carries no per-bucket colour: a month aggregates several assets
+  // by construction, so a "dominant asset" hue would be a claim the bucket does not
+  // support. MEMOISED, and built only for the axis on screen — the day set walks
+  // the whole ledger once per day of the month.
   const monthData: SeasonalityChartPoint[] = useMemo(
     () =>
       axis === 'month'
@@ -136,61 +112,41 @@ export function Seasonality() {
     [days, windowed, transactions, assets, anchor, f, t],
   );
 
-  // "Income anchor" card copy.
   const anchorAssetId =
     anchor && anchor.actual > 0 ? dominantAssetOnDay(windowed, anchor.day) : undefined;
   const anchorAsset = assets.find((a) => a.id === anchorAssetId);
-  // WINDOWED, because the DAY this sentence names already is. The card reads
-  // «День 10 … 580 ₴ → 700 ₴ і зростають»; under `3 місяці` the 580 is
-  // February's dividend, outside the window the reader selected, sitting in one
-  // breath with a day derived from inside it. `bondCouponInfo` below stays on
-  // the whole ledger on purpose — it describes a SCHEDULE, which the spine
-  // classifies as FORECAST and does not window.
+  // WINDOWED, because the DAY this sentence names already is. `bondCouponInfo`
+  // below stays on the whole ledger on purpose: it describes a SCHEDULE, which the
+  // spine classifies as FORECAST.
   const growth = anchorAsset ? anchorAssetGrowth(windowed, anchorAsset.id) : undefined;
 
-  // "Coupon season" card copy — the bond with the biggest coupon drives the
-  // headline months; other bonds get a one-line "pays in {descriptor} {month}".
-  // RANKED BY THE DERIVED COUPON (D119), not by a stored figure: the rate is what
-  // the asset carries, and what it PAYS depends on how much of it is held — so a
-  // ranking off the rate alone would headline the highest-rate bond rather than
-  // the one that actually pays most.
+  // RANKED BY THE DERIVED COUPON, not by the stored rate: what a bond PAYS depends
+  // on how much is held, so ranking off the rate headlines the wrong bond.
   const bondUnits = useMemo(() => unitsByAsset(transactions), [transactions]);
   const bonds = assets
     .map((a) => ({ asset: a, coupon: couponPerPayment(a, bondUnits[a.id]) }))
-    // `coupon !== undefined` ALONE: `couponPerPayment` opens by returning
-    // `undefined` for any non-`fixed_coupon` asset, so re-checking the yield type
-    // here was a second gate a reader had to reconcile with the one inside.
+    // `coupon !== undefined` ALONE: `couponPerPayment` returns `undefined` for any
+    // non-`fixed_coupon` asset, so re-checking the yield type was a second gate.
     .filter((b): b is { asset: Asset; coupon: number } => b.coupon !== undefined)
     .sort((x, y) => y.coupon - x.coupon)
     .map((b) => b.asset);
   const big = bonds[0];
-  // HALF OF THIS IS HISTORY, and that half windows. `bondCouponInfo`'s months
-  // are the months a bond HAS PAID in, union the one `nextCoupon` names — so
-  // calling it FORECAST and leaving it whole was too clean by half (A42
-  // review): under `3 місяці` the card headlined «лютий і серпень» while the
-  // chart drew no лютий bar at all, because лютий came from a payout the same
-  // screen had just excluded. The schedule half — `nextCoupon` — is genuinely a
-  // forecast and is unaffected by which ledger it is handed.
+  // HALF OF THIS IS HISTORY, AND THAT HALF WINDOWS: the months a bond HAS PAID in
+  // come from the ledger, so leaving them whole headlined a month the chart drew no
+  // bar for. The schedule half is genuinely a forecast.
   const bigInfo = big ? bondCouponInfo(big, windowed) : undefined;
   const others = bonds.slice(1);
 
-  // THE THIRD CARD WINDOWS TOO, and stating it is the point — the branch ruled
-  // on the other two and left this one to be inferred (A42 review). It reads
-  // the windowed `days`, so under a narrow window it reports the quiet the
-  // WINDOW made rather than a seasonal shape. That is the right answer for a
-  // FLOW-derived claim and the same one «Якір доходу» gets: every card that
-  // summarises the bars must agree with the bars above it. The risk it carries
-  // is real and belongs in the copy, not in the derivation — a one-month window
-  // has one month's evidence for a claim about the calendar, and D81 records
-  // that this is the reading chosen.
+  // THE THIRD CARD WINDOWS TOO, and stating it is the point: under a narrow window
+  // it reports the quiet the WINDOW made rather than a seasonal shape. Every card
+  // that summarises the bars must agree with the bars above it, and the risk
+  // belongs in the copy rather than the derivation.
   const quiet = quietStretch(days);
 
   return (
     <div>
-      {/* Same slot, same control, same reasons as `/yield` and `/overview` — the
-          sheet's "geometrically identical on all three", and `control` is
-          `undefined` rather than an element rendering null so `ScreenHeader`'s
-          empty-dataset branch survives (A38 review). */}
+      {/* `control` is `undefined` rather than an element rendering null, so
+          `ScreenHeader`'s empty-dataset branch survives. */}
       <ScreenHeader
         title={t.screen.seasonality.title}
         subtitle={t.screen.seasonality.subtitle}
@@ -198,9 +154,8 @@ export function Seasonality() {
       />
 
       <Card radius={24} className="mb-3.5 animate-in p-[22px] duration-300 fade-in">
-        {/* D-10 — A CONTROL THAT CHANGES ONE CHART SITS ON THAT CHART, where
-            the period control that changes a whole screen sits in its header.
-            Same rule, read at two scales. */}
+        {/* A CONTROL THAT CHANGES ONE CHART SITS ON THAT CHART, where the period control
+            that changes a whole screen sits in its header. */}
         <div className="mb-3 flex justify-end">
           <div
             role="group"
@@ -214,10 +169,8 @@ export function Seasonality() {
                 type="button"
                 aria-pressed={axis === a}
                 onClick={() => setAxis(a)}
-                // 44 × 44 IS HIT AREA, NEVER GEOMETRY: the segment renders 26 px
-                // tall (a 16 px `text-xs` line box plus 5 px either side), and the
-                // overlay grows only downward and upward — the segments are ~92 px
-                // wide, so it cannot reach across the 4 px gap into its neighbour.
+                // 44 × 44 IS HIT AREA, NEVER GEOMETRY: the overlay grows only up and down, and
+                // the segments are wide enough that it cannot reach across the gap.
                 className={`cursor-pointer rounded-[7px] px-4 py-[5px] text-xs font-bold transition duration-220 ease-soft active:scale-[.97] ${TAP_44} ${
                   axis === a ? 'bg-card text-ink' : 'text-page hover:opacity-85'
                 }`}

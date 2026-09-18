@@ -15,14 +15,11 @@ import { useFormat } from '../../hooks/useFormat';
 import { useSettings } from '../../state/settings';
 import { useT } from '../../i18n/useT';
 
-// S2 — provenance of the row's CURRENT draft value: `auto` (a fetch filled
-// it), `manual` (the user's own — a fetch never overwrites it) or the amber
-// `as of dd.MM` stale chip when the value came from the last-good cache.
-// Geometry is one pill for all three; only the paint tokens differ. `auto` is
-// the INFO family and not the gain one (#91) — a fetched value is a provenance,
-// not a gain.
-// The three titles, S2's accrual entry (S4 mints that microcopy) and the S4
-// input tooltip all live in the dictionary now — `t.dailyQuotes.provenance`.
+// Provenance of the row's CURRENT draft value: `auto` (a fetch filled it),
+// `manual` (the user's own — a fetch never overwrites it) or the amber stale
+// chip when the value came from the last-good cache. One geometry for all three;
+// only the paint differs. `auto` is the INFO family and not the gain one — a
+// fetched value is a provenance, not a gain.
 
 function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
   const f = useFormat();
@@ -56,10 +53,8 @@ function ProvenanceChipPill({ chip }: { chip: ProvenanceChip }) {
   );
 }
 
-// The shared "proposed value" line under an input — S3's fetched offer and S4's
-// accrual suggestion are the same affordance: one DASHED ghost pill (dashed =
-// proposed, the phase's binding visual rule) plus a dismiss ✕. The stale variant
-// swaps the stroke and label to `warn`.
+// The shared "proposed value" line under an input: one DASHED ghost pill —
+// dashed = proposed, the phase's binding visual rule — plus a dismiss ✕.
 function OfferLine({
   label,
   dismissLabel,
@@ -74,9 +69,9 @@ function OfferLine({
   onDismiss: () => void;
 }) {
   return (
-    // The right gutter (delta column 52 + its 16 gap) aligns the pill under the
-    // input column; below `sm` the row is already stacked, so the pill gets the
-    // full width instead of wrapping inside a 68px-narrower box.
+    // The right gutter aligns the pill under the input column; below `sm` the row is
+    // already stacked, so the pill takes the full width instead of wrapping inside a
+    // narrower box.
     <div className="flex animate-in items-center justify-end gap-2 pr-0 duration-300 fade-in slide-in-from-top-1 sm:pr-[68px]">
       <button
         type="button"
@@ -89,14 +84,12 @@ function OfferLine({
       >
         {label}
       </button>
-      {/* A REAL 44px box, not `TAP_44`. This ✕ draws no fill and no border —
-          only the 11px glyph — so growing the box moves nothing visually, and
-          it is what stops the two controls fighting. With the overlay it
-          reached (44 − 19) / 2 = 12.5px to its left, across the 8px gap and
-          4.5px onto the accept button; being later in DOM order at the same
-          z-index it won, so a tap on the last 4.5px of "Use 68 702,10"
-          DISCARDED the fetched quote. Measured, not theorised. A real box is
-          laid out, so the gap holds. */}
+      {/* A REAL 44px box, not `TAP_44`. This ✕ draws no fill and no border, so growing
+          the box moves nothing visually — and it is what stops the two controls
+          fighting. With the overlay it reached across the gap and onto the accept
+          button; being later in DOM order at the same z-index it won, so a tap on the
+          accept button's own edge DISCARDED the fetched quote. A real box is laid out,
+          so the gap holds. */}
       <button
         type="button"
         aria-label={dismissLabel}
@@ -109,8 +102,8 @@ function OfferLine({
   );
 }
 
-// S3 — the no-silent-overwrite rule made visible: the fetched number is
-// OFFERED under the input of a row the user typed, never applied.
+// The no-silent-overwrite rule made visible: the fetched number is OFFERED under
+// the input of a row the user typed, never applied.
 function UseFetchedOffer({
   offer,
   onAccept,
@@ -139,11 +132,10 @@ function UseFetchedOffer({
 }
 
 /**
- * A6 — what the pricing model makes of the provider's own quote.
+ * What the pricing model makes of the provider's own quote.
  *
- * Read-only, and it never touches the number: the provider's value stands as
- * the observed fact even when it is days old (G5/D31). This only says so out
- * loud, which a price alone can never do.
+ * Read-only, and it never touches the number: the provider's value stands as the
+ * observed fact even when it is days old. This only says so out loud.
  *
  * `consistent` renders NOTHING. A line that appears on every healthy row is
  * noise, and noise is what stops anyone reading the one row that matters.
@@ -162,10 +154,9 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
     );
   }
 
-  // Deliberately NOT phrased as "the yield was revised". No date in the window
-  // explains this price, and the two readings — a re-priced bond or a quote
-  // staler than a fortnight — cannot be told apart from a single price. The
-  // number is offered; the conclusion is left to the reader.
+  // Deliberately NOT phrased as "the yield was revised". The two readings — a
+  // re-priced bond or a quote staler than a fortnight — cannot be told apart from
+  // a single price, so the number is offered and the conclusion left to the reader.
   if (verdict.state === 'revised') {
     return (
       <div className="animate-in text-[11px] text-warn duration-300 fade-in">
@@ -178,8 +169,8 @@ function ModelNote({ verdict }: { verdict: QuoteVerdict }) {
   }
 
   // `unexplained` is the loudest thing the model can say — no yield at all
-  // reproduces this price — so it must not share a muted line with the two
-  // benign reasons.
+  // reproduces this price — so it must not share a muted line with the two benign
+  // reasons.
   if (verdict.reason === 'unexplained') {
     return (
       <div className="animate-in text-[11px] text-neg duration-300 fade-in">
@@ -214,9 +205,9 @@ export function QuoteRow({
   yesterday: number | undefined;
   chip: ProvenanceChip | undefined;
   offer: QuoteOffer | undefined;
-  /** A6 model reading of the provider's quote; undefined = no check possible. */
+  /** Model reading of the provider's quote; undefined = no check possible. */
   verdict: QuoteVerdict | undefined;
-  /** S4 accrual ghost — already gated by the toggle/dismissal upstream. */
+  /** Accrual ghost — already gated by the toggle and the dismissal upstream. */
   suggestion: number | undefined;
   onChange: (v: string) => void;
   onAcceptOffer: () => void;
@@ -231,29 +222,24 @@ export function QuoteRow({
   const filled = parsed?.success === true;
   const delta =
     filled && yesterday !== undefined ? yieldSinceStart(parsed.data, yesterday) : undefined;
-  // S4: the ghost lives only while the row has NO draft of its own — the first
-  // keystroke (and an accepted suggestion, which fills the draft) clears it. A
-  // ghost is not a draft: it is never counted in "N of M filled", never shows a
-  // delta and never saves.
+  // The ghost lives only while the row has NO draft of its own. A ghost is not a
+  // draft: it is never counted in "N of M filled", never shows a delta and never
+  // saves.
   const ghost = raw === undefined || raw.trim() === '' ? suggestion : undefined;
   const ghostId = `quote-${asset.id}-suggested`;
   // A non-empty draft the schema refuses. Named here so the row says so, instead
-  // of the value silently vanishing from the saved day (#1). A blank is not one.
+  // of the value silently vanishing from the saved day. A blank is not one.
   const unreadable = raw !== undefined && raw.trim() !== '' && parsed?.success === false;
   const errorId = `quote-${asset.id}-error`;
 
   return (
     <Card className="flex animate-in flex-col gap-2 px-5 py-3.5 duration-300 fade-in slide-in-from-bottom-1">
-      {/* TWO LINES BELOW THE BREAKPOINT, as S4 draws it: [avatar][name] on the
-          first, [input][delta] on the second. The single wrapping row is a
-          desktop shape — at 360 it leaves the input about 100px, and a 16px
-          value (G-4) needs 110 for `68 702,10` plus its padding, so the number
-          the screen exists to type was being clipped by its own field.
-          `basis-[calc(100%-60px)]` is the avatar (48) plus 12 — one more than
-          the row's own `max-md:gap-x-2`, so the basis is 4px short and `flex-1`
-          grows it back. Deliberately not exact: the line has to be FULL for the
-          three that follow to wrap together, and rounding the basis down is what
-          guarantees that on a sub-pixel width. */}
+      {/* TWO LINES BELOW THE BREAKPOINT: the single wrapping row is a desktop shape —
+          at 360 it left the input too little for a 16px value, so the number the
+          screen exists to type was being clipped by its own field.
+          `basis-[calc(100%-60px)]` is deliberately a few pixels short with `flex-1`
+          growing it back: the line has to be FULL for the three that follow to wrap
+          together, and rounding down is what guarantees that on a sub-pixel width. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-md:gap-x-2">
         <AssetAvatar code={asset.code} colorKey={asset.colorKey} size={48} />
         <div className="min-w-[110px] flex-1 break-words max-md:basis-[calc(100%-60px)]">
@@ -270,21 +256,17 @@ export function QuoteRow({
             {t.dailyQuotes.chip.suggested}
           </span>
         )}
-        {/* The input keeps its geometry; the ghost is real text rendered OVER
-            its empty value (never a placeholder — a placeholder would vanish on
-            focus and could never be told apart from yesterday's hint). */}
+        {/* The ghost is real text rendered OVER the input's empty value, never a
+            placeholder — a placeholder vanishes on focus and could never be told apart
+            from yesterday's hint. */}
         <div className="relative flex max-w-[160px] min-w-[90px] flex-1 items-center max-md:max-w-none">
           <NumberField
             id={`quote-${asset.id}`}
             name={`quote-${asset.id}`}
             title={ghost !== undefined ? t.dailyQuotes.provenance.ghost : undefined}
-            // THE SECOND DELIBERATE G-2 EXCEPTION: 36 -> 44 below the
-            // breakpoint, radius recomputed as round(44 × 0.26) = 11. This is
-            // the control of the daily ritual, so a bigger target here is the
-            // design rather than a concession. The row's avatar stays 48, which
-            // keeps it inside the 60-70% block rule (README §4) as long as the
-            // row's height does not shrink.
-            // The 16px type comes from the G-4 rule in index.css, not from here.
+            // A DELIBERATE GEOMETRY EXCEPTION below the breakpoint, radius recomputed from
+            // the new box. This is the control of the daily ritual, so a bigger target here
+            // is the design rather than a concession.
             className={
               'h-9 w-full rounded-[9px] border bg-card px-3 text-right font-body text-[13px] transition max-md:h-11 max-md:rounded-[11px] ' +
               (unreadable

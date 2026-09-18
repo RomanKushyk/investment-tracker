@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { changedTargets, parseTargetPct, sumStatus, targetRowStates, targetsSum } from './targets';
 import { makeFormat } from '../../core/money';
 
-// Seed-shaped fixture — the demo targets 40/40/17/3 (D5, navigation-map).
+// Seed-shaped fixture.
 const ASSETS = [
   { id: 'reit', targetPct: 40 },
   { id: 'energy', targetPct: 40 },
@@ -13,10 +13,9 @@ const ASSETS = [
 
 describe('parseTargetPct', () => {
   it('reads the comma the way the typist means it (D128 round)', () => {
-    // THE WHOLE POINT OF THE `lang` PARAMETER, and it had no coverage: this
-    // editor parsed under English grouping while the asset form parsed under the
-    // user's, so `17,500` was 17.5 in one door and 17500 — refused by the 100
-    // cap — in the other, on one stored field.
+    // THE WHOLE POINT OF THE `lang` PARAMETER, and it had no coverage: this editor
+    // parsed under English grouping while the asset form parsed under the user's, so
+    // `17,500` was 17.5 in one door and 17500 in the other, on one stored field.
     expect(parseTargetPct('17,500', 'uk')).toBeCloseTo(17.5, 4);
     expect(parseTargetPct('17,500', 'en')).toBeNull();
     // The unambiguous shapes still mean the same thing in both.
@@ -122,17 +121,15 @@ describe('changedTargets (per-asset save patches)', () => {
 });
 
 describe('A36 — what the editor SHOWS round-trips through what it PARSES', () => {
-  // The screen seeds each input with `f.units(asset.targetPct)` and parses the
-  // edited string with `parseTargetPct`. Before A36 it seeded with `String()`,
-  // so a Ukrainian user was shown "17.5" — a dot this UI uses nowhere else —
-  // for a value it would then have to accept back. The seed's 40/40/17/3 are
-  // all whole, which is why nothing caught it.
+  // The screen seeds each input with `f.units` and parses the edited string with
+  // `parseTargetPct`. Seeding with `String()` showed a Ukrainian user a dot this
+  // UI uses nowhere else, for a value it would then have to accept back — and the
+  // seed's targets are all whole, which is why nothing caught it.
   for (const lang of ['uk', 'en'] as const) {
     it(`accepts back exactly what it displays in ${lang}`, () => {
       const f = makeFormat(lang);
-      // 1,234 is the class the first list skipped: each language writes it its
-      // own way, and the editor has to read back exactly what it printed —
-      // otherwise the row rejects text the app itself put there. `input` verifies.
+      // The class the first list skipped: each language writes it its own way, and the
+      // editor has to read back exactly what it printed.
       for (const v of [0, 3, 17, 17.5, 7.25, 40, 100, 1.234, 6.164]) {
         expect(parseTargetPct(f.input(v), lang), `${v} rendered "${f.input(v)}"`).toBe(v);
       }
@@ -140,8 +137,8 @@ describe('A36 — what the editor SHOWS round-trips through what it PARSES', () 
   }
 
   it("refuses the other language's separator rather than guessing at it", () => {
-    // A lone comma is the decimal in Ukrainian and grouping in English, so
-    // «17,5» under English is a number nobody wrote — unreadable, not 17.5.
+    // A lone comma is the decimal in Ukrainian and grouping in English, so «17,5»
+    // under English is unreadable rather than 17.5.
     expect(parseTargetPct('17.5', 'en')).toBe(17.5);
     expect(parseTargetPct('17,5', 'en')).toBeNull();
     expect(parseTargetPct('17,5', 'uk')).toBe(17.5);

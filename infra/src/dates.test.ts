@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { inzhurAsOf, nbuAsOf } from './dates';
 
 // THE TWO DATES HAD NO TEST, and they were one function that was wrong for
-// eight days of Inzhur rows (D71). This pins the split itself: the same instant
+// eight days of Inzhur rows (*The price archive*). This pins the split itself: the same instant
 // must produce DIFFERENT dates for the two sources, and the Kyiv-vs-UTC trap
 // must stay closed.
 describe('as-of dates', () => {
@@ -19,7 +19,7 @@ describe('as-of dates', () => {
     expect(nbuAsOf(scheduledRun)).toBe('2026-08-17');
   });
 
-  it('never lets the two agree — a single date is the defect D71 fixed', () => {
+  it('never lets the two agree — a single date is the defect it fixed', () => {
     expect(inzhurAsOf(scheduledRun)).not.toBe(nbuAsOf(scheduledRun));
   });
 

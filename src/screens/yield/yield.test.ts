@@ -48,9 +48,8 @@ describe('yieldTableRows', () => {
   });
 
   it('an asset with no quote yet reports undefined figures instead of a bogus huge negative % (empty-state guard)', () => {
-    // No snapshots at all -> every asset is unquoted, even though invested
-    // capital exists — must not compute yieldSinceStart(0, invested) = -100%
-    // scaled up by the annualization factor.
+    // No snapshots at all → every asset is unquoted although invested capital
+    // exists, and yieldSinceStart(0, invested) would annualize a −100%.
     const noQuoteRows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
     for (const r of noQuoteRows) {
       expect(r.value).toBeUndefined();
@@ -73,12 +72,8 @@ describe('yieldTableRows', () => {
     expect(energy.xirr).toBeUndefined();
   });
 
-  // S9b new columns — demo derivations via core/derive + core/xirr (the
-  // extension mock cells are illustrative; these figures are the app's).
-  // REIT RE-DERIVED FOR #138's SEEDED WITHHOLDING, not retuned: `p7` now carries
-  // 95,28 of tax, and this column is net of it, so REIT falls 10,1248 → 9,9774
-  // while the three untaxed assets stand. That is the column reporting what it
-  // says it reports; a figure that had NOT moved here would be the defect.
+  // REIT is NET of the seeded withholding, so it falls while the three untaxed
+  // assets stand: a figure that had NOT moved here would be the defect.
   it('Total return (net of tax, incl. payouts): REIT +9.98%, Energy +1.48%, …8976 +10.65%, …6475 +10.96%', () => {
     const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
     expect(byId.reit.totalReturn! * 100).toBeCloseTo(9.9774, 3);
@@ -87,9 +82,8 @@ describe('yieldTableRows', () => {
     expect(byId.ovdp6475.totalReturn! * 100).toBeCloseTo(10.9619, 3);
   });
 
-  // REIT re-derived for the same reason — `yield.ts` nets each payout flow by
-  // its own withholding, so the money-weighted column follows the total-return
-  // one down: 23,05 → 22,68.
+  // `yield.ts` nets each payout flow by its own withholding, so the
+  // money-weighted column follows the total-return one down.
   it('XIRR (money-weighted, ACT/365): REIT +22.7%, Energy +3.1%, …8976 +25.8%, …6475 +99.4%', () => {
     const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
     expect(byId.reit.xirr! * 100).toBeCloseTo(22.68, 1);
@@ -99,9 +93,8 @@ describe('yieldTableRows', () => {
   });
 });
 
-// The audit's illusion-of-loss triple (FORMULA-AUDIT §2, real …6475 shape):
-// capital-gain −2.6% coexists with total return +5.30% — the columns MAY
-// disagree by design.
+// The illusion-of-loss triple: a capital-gain loss coexists with a positive
+// total return — the columns MAY disagree by design.
 describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total return)', () => {
   const bond: Asset = {
     id: 'b6475',
@@ -171,12 +164,10 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
     expect(row.xirr).toBeCloseTo(0.08, 9);
   });
 
-  // THE SILENT ONE. `assetCashFlows` used to push a `tax` row as its own
-  // negative flow, and that is what netted the series to net-of-tax at each
-  // date. Deleting that case without netting the PAYOUT by `taxWithheld` turns
-  // every per-asset XIRR from net to gross with no type error, no failing test
-  // and nothing visible on screen — so the pin is a payout carrying a
-  // withholding against the SAME payout without one.
+  // THE SILENT ONE. Deleting `assetCashFlows`' own negative `tax` flow without
+  // netting the PAYOUT by `taxWithheld` turns every per-asset XIRR from net to
+  // gross with no type error, no failing test and nothing visible on screen — so
+  // the pin is a payout carrying a withholding against the SAME payout without one.
   it('a payout nets by its withholding: xirr drops below the same payout untaxed', () => {
     const payout = (taxWithheld?: number): Transaction => ({
       id: 'p1',
@@ -193,10 +184,10 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
   });
 
   it('a withholding equal to the whole payout leaves the flow at zero, not negative', () => {
-    // The store forbids it (`tax_withheld < amount`), so this pins the ARITHMETIC
-    // rather than a reachable state: the payout's own flow is `amount − withheld`
-    // and never flips sign, which a naive `push(-withheld)` beside `push(amount)`
-    // would also give — but only because the two happen to land on one date.
+    // The store forbids it, so this pins the ARITHMETIC rather than a reachable
+    // state: the payout's own flow never flips sign, which a naive `push(-withheld)`
+    // beside `push(amount)` would also give — but only because the two land on one
+    // date.
     const full: Transaction = {
       id: 'p1',
       date: '2026-07-01',
@@ -240,11 +231,8 @@ describe('xirrIsExtrapolated (the "(ann.)" header token)', () => {
   });
 
   it('false once the latest snapshot is a full year past the derived start', () => {
-    // A24 rewrote this case rather than only its arguments. It used to hand in
-    // one 2027 snapshot and lean on the constant for the other end; with a
-    // derived start that snapshot would be BOTH ends and the span would be
-    // zero. The seed's assets and transactions now supply the 2026-02-03 end,
-    // which is the relationship the token actually depends on.
+    // With a DERIVED start, handing in one late snapshot would make it BOTH ends and
+    // the span zero. The seed's own rows supply the other end.
     const yearOn: Snapshot[] = [{ date: '2027-02-03', cash: 0, quotes: { reit: 70000 } }];
     expect(xirrIsExtrapolated(SEED_ASSETS, yearOn, SEED_TRANSACTIONS)).toBe(false);
   });
@@ -294,48 +282,36 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
     Object.fromEntries(rows.map((r) => [r.asset.id, r]));
 
   it('THE FULL HISTORY IS NOT A SPECIAL CASE — it reduces exactly', () => {
-    // The property the whole design hangs on, and the reason `yieldTableRows`
-    // is allowed to delegate. If this ever fails, two implementations have
-    // started to disagree and every D5-pinned figure is in play.
+    // The property the whole design hangs on, and the reason `yieldTableRows` is
+    // allowed to delegate: if this fails, two implementations have started to
+    // disagree and every pinned figure is in play.
     expect(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, full)).toEqual(
       yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
     );
   });
 
   it('a shorter window keeps Δ almost still while `Річна` triples — F-2, measured', () => {
-    // The finding the extension spent a page on: `annualizedPct` is LINEAR, so
-    // a 30-day window multiplies by 365/30 = 12,17. …6475 is the row that shows
-    // it, because its Δ barely moves between windows.
+    // `annualizedPct` is LINEAR, and …6475 is the row that shows it because its Δ barely moves between windows.
     const w = (o: 'all' | '3m' | '1m') => resolveWindow(o, '2026-02-03', '2026-07-27')!;
     const at = (o: 'all' | '3m' | '1m') =>
       byId(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w(o))).ovdp6475;
 
-    // `all` and `3m` contain the SAME FLOWS for this asset — bought 02.06, after
-    // 27.04 — so Δ may not move between them. `Річна` must, and by exactly the
-    // ratio of the two spans: 174 / 91 = 1,91. That is the whole of F-2, and a
-    // first draft of this test asserted the two were equal, which is the belief
-    // the finding exists to correct.
+    // `all` and `3m` contain the SAME FLOWS for this asset, so Δ may not move between
+    // them. `Річна` must, and by exactly the ratio of the two spans.
     expect(at('3m').deltaTotal).toBeCloseTo(at('all').deltaTotal!, 10);
     expect(at('3m').annualized! / at('all').annualized!).toBeCloseTo(174 / 91, 2);
     expect(at('3m').annualized! * 100).toBeCloseTo(20.8, 1);
 
-    // 1 місяць opens after the purchase, so the basis becomes the position it
-    // inherited and the annualized figure amplifies.
     expect(at('1m').deltaTotal! * 100).toBeCloseTo(2.77, 1);
     expect(at('1m').annualized! * 100).toBeGreaterThan(30);
     expect(at('all').annualized! * 100).toBeCloseTo(10.9, 1);
   });
 
   it('a SELL inside the window is not a loss — the case the seed cannot show (F-7)', () => {
-    // The seed has no disposals, which is exactly why the sheet's formula could
-    // omit the term for three review rounds without a single figure moving.
-    //
-    // A FIRST DRAFT OF THIS TEST COULD NOT FAIL (A39 review): it added proceeds
-    // to the numerator and left the quote alone, so `withSell > without` was
-    // true by construction and would have passed for `+ 2 * sold` too. A real
-    // disposal REDUCES THE POSITION, so the fixture drops the quote by the same
-    // 10 000 the sale returned — and the return must then be unchanged, because
-    // selling at market moves no value.
+    // The seed has no disposals, which is why the formula could omit the term
+    // without a single figure moving. A REAL disposal REDUCES THE POSITION, so the
+    // fixture drops the quote by the same amount the sale returned — without that,
+    // `withSell > without` is true by construction and would pass for any multiple.
     const asset = SEED_ASSETS.find((a) => a.id === 'energy')!;
     const sold: Transaction = {
       id: 'sell-test',
@@ -354,8 +330,7 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
     const withSell = yieldTableRowsIn([asset], reduced, [...SEED_TRANSACTIONS, sold], w)[0];
     const without = yieldTableRowsIn([asset], snaps, SEED_TRANSACTIONS, w)[0];
 
-    // Selling at market is return-neutral. Drop the `+ sold` term and this row
-    // reports a double-digit loss on a position that merely returned cash.
+    // Selling at market is return-neutral: drop the `+ sold` term and this reports a loss on a position that merely returned cash.
     expect(withSell.deltaTotal! * 100).toBeCloseTo(without.deltaTotal! * 100, 1);
     expect(withSell.deltaTotal!).toBeGreaterThan(0);
   });
@@ -364,8 +339,8 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
 describe('the two regressions A39 shipped and its review caught', () => {
   it('a buy entered AFTER the last snapshot still counts, on every window', () => {
     // Transactions are entered daily; snapshots are not. Clipping flows at the
-    // window's top dropped them, so `/yield` reported 65 800 for an asset
-    // `/portfolio` reported 115 800 for — on the DEFAULT screen.
+    // window's top dropped them, so the two screens reported different figures for
+    // one asset on the DEFAULT screen.
     const later: Transaction = {
       id: 'late-buy',
       date: '2026-08-05',
@@ -379,17 +354,17 @@ describe('the two regressions A39 shipped and its review caught', () => {
   });
 
   it('no snapshots is no VALUATION, not an empty ledger', () => {
-    // `invested` renders unconditionally, so this read "Вкладено 0,00" beside
-    // "Вартість зараз —" for anyone who had entered buys but saved no snapshot.
+    // `invested` renders unconditionally, so this read a zero beside an em dash for
+    // anyone who had entered buys but saved no snapshot.
     const rows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
     expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(65_800);
     expect(rows.find((r) => r.asset.id === 'reit')!.value).toBeUndefined();
   });
 
   it('a zero-length window annualizes NOTHING rather than fabricating a 0', () => {
-    // `ytd` on 1 January resolves from === to. The old 0-guard was written for
-    // an empty dataset where nothing rendered; with data present it produced a
-    // "0,0 %" and a full-expected-rate miss that both read as measurements.
+    // `ytd` on 1 January resolves from === to, and the old zero guard was written for
+    // an empty dataset: with data present it produced figures that read as
+    // measurements.
     const rows = yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, {
       from: '2026-07-27',
       to: '2026-07-27',
@@ -420,10 +395,9 @@ describe('cumulativeYieldSeriesIn (A39) — the half that had no tests', () => {
   });
 
   it('rebases against the inherited position, so the curve opens near zero', () => {
-    // Not merely clipped: a window's first point measures the window, so it
-    // starts near 0 rather than at the since-inception figure. Dropping the
-    // `dayBefore` basis or the `>= from` clause on the buy filter breaks this
-    // and nothing else in the suite notices.
+    // Not merely clipped: a window's first point measures the window, so it starts
+    // near 0 rather than at the since-inception figure. Dropping the `dayBefore`
+    // basis or the `>= from` clause breaks this and nothing else in the suite.
     const m1 = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
     const first = cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, m1)[0];
     const sinceStart = cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS).find(
@@ -447,26 +421,23 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
     rowsAt(period).find((r) => r.asset.id === id)!.shortBasis;
 
   it('marks …6475 at Від початку — 55 days against a 174-day basis', () => {
-    // The sheet's first pinned case. Bought 02.06.2026 into a basis that opens
-    // 03.02.2026, so its +10,9 % is its +5,20 % spread over time it did not exist.
+    // Bought into a basis that opens earlier, so its annualized figure is its spread over time it did not exist.
     expect(mark('all', 'ovdp6475')).toBe(true);
   });
 
   it('does NOT mark …8976 at Від початку, though it was bought after the start', () => {
-    // The sheet's second pinned case, and the one that killed the predicate it
-    // deleted: …8976 was bought 05.02.2026 against a 03.02.2026 start — two days
-    // of a 174-day basis. A "first purchase after `from`" test fires here and
-    // would have marked three cells while the drawing shows two.
+    // The case that killed the deleted predicate: a "first purchase after `from`"
+    // test fires on a row bought two days into the basis and would mark three cells
+    // where the drawing shows two.
     expect(mark('all', 'ovdp8976')).toBe(false);
     expect(mark('all', 'reit')).toBe(false);
     expect(mark('all', 'energy')).toBe(false);
   });
 
   it('never marks a row whose annualized is absent', () => {
-    // The mark says "trust this figure less"; there is no figure to distrust.
-    // Every seed row HAS an annualized at `all`, so this needs an asset with no
-    // quote to reach the branch at all — a loop over the seed asserted nothing
-    // and stayed green with the flag inverted (A41 review).
+    // The mark says "trust this figure less", and there is no figure to distrust.
+    // Every seed row HAS an annualized at `all`, so reaching the branch needs an
+    // asset with no quote — a loop over the seed stays green with the flag inverted.
     const unquoted: Asset = { ...SEED_ASSETS[3]!, id: 'unquoted', firstPurchase: '2026-07-20' };
     const w = resolveWindow(
       'all',
@@ -481,24 +452,18 @@ describe('shortBasis — F-3/D80, the rows whose basis their holding cannot supp
   });
 
   it('marks in EVERY window, which is what D80 claims and only `all` was pinning', () => {
-    // …6475 is bought 02.06.2026. Under `3 місяці` (27.04–27.07, 91 d) it holds
-    // 55 of 91 — 39,6 % short, still marked. Under `1 місяць` (27.06–27.07) it
-    // holds all 30, and the sheet's own errata says NOT to pin it as marked:
-    // "it lived through the whole window and the rule says do NOT mark it".
+    // Under the narrower window it holds every day, and the sheet's own errata says
+    // NOT to pin it as marked.
     expect(mark('3m', 'ovdp6475')).toBe(true);
     expect(mark('1m', 'ovdp6475')).toBe(false);
-    // …8976, bought 05.02.2026, lives through both windows entirely.
     expect(mark('3m', 'ovdp8976')).toBe(false);
     expect(mark('1m', 'ovdp8976')).toBe(false);
   });
 
   it('clamps the holding to the window rather than measuring from purchase', () => {
-    // The `start > w.from ? start : w.from` clamp. Without it an asset bought
-    // before the window opens measures from its purchase, so …8976 under
-    // `1 місяць` would read 172 days against a 30-day basis — held > basis,
-    // never short, right answer for the wrong reason — and REIT, bought at the
-    // portfolio's own start, would too. The clamp is what makes the ratio mean
-    // "of THIS window".
+    // The `start > w.from ? start : w.from` clamp. Without it an asset bought before
+    // the window opens measures from its purchase — never short, right answer for
+    // the wrong reason. The clamp is what makes the ratio mean "of THIS window".
     expect(mark('1m', 'reit')).toBe(false);
     expect(mark('ytd', 'ovdp6475')).toBe(true);
   });

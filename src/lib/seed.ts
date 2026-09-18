@@ -1,6 +1,4 @@
-// Reference seed dataset — pure data builders, NO db access (repository.ts
-// owns ensureSeeded). Figures reconcile per docs/DECISIONS.md D5; the unit
-// tests in seed.test.ts enforce every published aggregate.
+// Reference seed dataset — pure data builders, no db access (*Derived figures and the seed*).
 import type { Asset, Snapshot, Transaction } from '../core/types';
 
 export const SEED_ASSETS: Asset[] = [
@@ -61,19 +59,15 @@ export const SEED_ASSETS: Asset[] = [
   },
 ];
 
-// Deposits = own-funded buys + the ₴7,75 cash residue (D5#6). The 12.05/648,13
-// dividend of the reference log is seeded as 10.05/472,13 (D5#3); reinvests sit
-// on the same date+asset as their source payout so Destination cells derive.
-// ONE PAYOUT IS TAXED, and p7 is the only row that can be: a withholding needs a
-// DIVIDEND (ОВДП coupons are exempt), inside the 3-month window so the period
-// control is exercised, and a paired reinvest payable out of the NET — p8 fails
-// that last one, its 687,02 reinvest exceeding what 700,36 less the rate leaves.
-// prettier-ignore — THE LEDGER IS A TABLE, and it is read as one. README §7
-// pins these eighteen rows figure by figure, and at printWidth 100 the four
-// `buy` rows fit on one line while the eleven payout rows are 101–110 chars and
-// each explode to six, so scanning for a wrong amount would mean reading two
-// layouts in one array (+77 lines in this file alone). The alignment is the
-// point of the fixture (A37).
+// Deposits = own-funded buys + the ₴7,75 cash residue; the reference log's
+// 12.05/648,13 dividend is seeded as 10.05/472,13, and a reinvest shares its
+// source payout's date and asset so the Destination cells derive.
+// p7 IS THE ONLY ROW THAT CAN CARRY A WITHHOLDING: it needs a dividend (ОВДП
+// coupons are exempt), inside the 3-month window, with a reinvest payable out of
+// the NET — p8's 687,02 exceeds what 700,36 less the rate leaves.
+// The alignment is the fixture's point: at printWidth 100 only the three `deposit`
+// rows fit on one line and every other row becomes a multi-line object, so scanning
+// for a wrong amount would mean reading two layouts in one array.
 // prettier-ignore
 export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
@@ -100,7 +94,7 @@ const DAY = 86_400_000;
 const CASH = 7.75;
 const PIN_START = '2026-07-21';
 
-// Verbatim Balances table rows (design lines 229–233).
+// Verbatim from the Balances table in `design/Investment Tracker.dc.html`.
 const PINNED: Record<string, Record<string, number>> = {
   '2026-07-21': { reit: 68450.12, energy: 59980.44, ovdp8976: 15830.1, ovdp6475: 4368.9 },
   '2026-07-22': { reit: 68478.03, energy: 60001.12, ovdp8976: 15833.35, ovdp6475: 4370.02 },
@@ -109,8 +103,6 @@ const PINNED: Record<string, Record<string, number>> = {
   '2026-07-25': { reit: 68629.36, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 },
 };
 
-// Per-asset deterministic price path: buy value → (21.07 pinned value − reinvest
-// bumps), plus each bump once its date passes. Endpoints exact, gentle wiggle between.
 const PATHS: {
   id: string;
   from: string;
@@ -157,7 +149,6 @@ function pathQuote(p: (typeof PATHS)[number], date: string): number | undefined 
   return round2(p.start + (p.end - p.start) * t + wiggle + bumps);
 }
 
-// Daily 03.02→25.07 complete (173 — no 26.07 exists) + PARTIAL 27.07 = 174 (D5#2).
 export function buildSeedSnapshots(): Snapshot[] {
   const out: Snapshot[] = [];
   for (let ms = utc('2026-02-03'); ms <= utc('2026-07-25'); ms += DAY) {

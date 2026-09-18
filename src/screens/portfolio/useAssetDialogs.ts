@@ -11,28 +11,16 @@ export type DialogState =
   { kind: 'create' } | { kind: 'edit'; asset: Asset } | { kind: 'delete'; asset: Asset } | null;
 
 /**
- * The state and the writes behind the asset create / edit / delete dialogs
- * (A31) — no JSX, which is why this is a `.ts` beside the `.tsx` that renders
- * it. `react-refresh/only-export-components` refuses a `.tsx` whose only export
- * is a hook, and the split it forces is the one this project makes everywhere
- * else anyway: logic in a module, rendering in a component.
+ * The state and the writes behind the asset create / edit / delete dialogs — no
+ * JSX, which is why this is a `.ts` beside the `.tsx` that renders it:
+ * `react-refresh/only-export-components` refuses a `.tsx` whose only export is a
+ * hook.
  *
- * This was `screens/settings/AssetManager.tsx`, which owned both the dialogs
- * and the rows that opened them. A31 moved asset management onto `/portfolio`,
- * where the rows already exist — as a table at and above `md` and as record
- * cards below it — so the rows stay with the screen that draws them and only
- * the dialog machinery moves. `AssetForm` and the D17 delete confirm are reused
- * with no contract change.
+ * Returns the STATE and the openers; `<AssetDialogs/>` renders from it.
  *
- * Returns the STATE and the openers; `<AssetDialogs/>` renders from it. The
- * first draft's doc promised a `dialogs` node, which this has never had —
- * corrected in the A31 review before a second caller destructured it and got
- * `undefined`.
- *
- * `assets` is PASSED IN, not read again (A31 review). The calling screen already
- * holds the list; subscribing a second observer only added another re-render on
- * every asset invalidation, for two values — the hue index a new asset takes and
- * the count the form shows.
+ * `assets` is PASSED IN, not read again: the calling screen already holds the
+ * list, and subscribing a second observer only adds another re-render on every
+ * asset invalidation for two values.
  */
 export function useAssetDialogs(assets: Asset[]) {
   const t = useT();
@@ -40,10 +28,9 @@ export function useAssetDialogs(assets: Asset[]) {
   const updateAsset = useUpdateAsset();
   const [dialog, setDialog] = useState<DialogState>(null);
   // `dialog` drives the open flags; `shown` keeps the LAST dialog's content
-  // rendered while it plays its 220ms symmetric exit (D7 — Radix only
-  // animates data-[state=closed] on a still-mounted node). Sanctioned
-  // adjust-state-on-render; the session key gives each open a fresh mount
-  // (form defaults / backup state reset).
+  // rendered while it plays its exit, because Radix only animates
+  // `data-[state=closed]` on a still-mounted node. The session key gives each open
+  // a fresh mount.
   const [shown, setShown] = useState<Exclude<DialogState, null> | null>(null);
   if (dialog !== null && dialog !== shown) setShown(dialog);
   const [session, setSession] = useState(0);
@@ -66,8 +53,7 @@ export function useAssetDialogs(assets: Asset[]) {
 
   function submitEdit(asset: Asset, values: AssetFormValues) {
     updateAsset.mutate(
-      // `asset` so the patch can carry a legacy `inzhur.units` across — the form
-      // stopped asking for it (D117) and `inzhur` is replaced wholesale.
+      // `asset` so the patch can carry a legacy `inzhur.units` across.
       { id: asset.id, patch: assetPatchFromForm(values, asset) },
       {
         onSuccess: () => {

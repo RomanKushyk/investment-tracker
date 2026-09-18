@@ -24,7 +24,7 @@ export function Payouts() {
   const income = incomeReceived(transactions);
   const reinvested = reinvestedTotal(transactions);
   const reinvestedPct = income.total === 0 ? 0 : (reinvested / income.total) * 100;
-  // Today, not the last snapshot — see the note in Overview.tsx (A28).
+  // Today, not the last snapshot — see the note in Overview.tsx.
   const payoutRows = nextPayoutRows(assets, transactions, todayIso());
 
   const chartData = monthlyPayouts(transactions).map((m) => ({
@@ -36,8 +36,7 @@ export function Payouts() {
 
   const logRows = payoutLogRows(transactions);
   const assetName = (id: string) => assets.find((a) => a.id === id)?.name ?? id;
-  // The type Tag's paint is the row's KIND, not the asset's — dividends read
-  // `reit` and coupons `ovdp8976` in both forms, exactly as the table does.
+  // The type Tag's paint is the row's KIND, not the asset's, exactly as the table does.
   const typeColorKey = (type: string): 'reit' | 'ovdp8976' =>
     type === 'dividend_accrual' ? 'reit' : 'ovdp8976';
   const typeLabel = (type: string) =>
@@ -111,22 +110,18 @@ export function Payouts() {
         </div>
       </div>
 
-      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
-          and `md:hidden`, so a phone still built the min-width table, mounted a
-          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
-          browser still paid for it. `useIsDesktop` is the same breakpoint the
-          shell, the charts and the DatePicker already switch on, so this mounts
-          one branch and only one. */}
+      {/* ONE MECHANISM FOR ONE DECISION: `max-md:hidden` + `md:hidden` still built the
+          min-width table on a phone, mounted a `ScrollArea` for it and ran the row
+          derivation twice. `useIsDesktop` mounts one branch and only one. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width; the Scroller is what clips and draws
-            the rail. Card no longer sets overflow — a rounded card clipping its
-            own content is where the square platform track came from. */}
+          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+              sets no overflow: a rounded card clipping its own content is where the square
+              platform track came from. */}
           <Scroller orientation="horizontal">
-            {/* 720, NOT 560: that bound was written for five columns and there
-              are seven. Measured, the seven need 717,86 of max-content, and at
-              768 the table already scrolls at five — so leaving 560 would cramp
-              the two new columns instead of letting the Scroller do its job. */}
+            {/* 720, NOT the 560 that was written for five columns: there are seven, and the
+                smaller bound would cramp the two newest instead of letting the Scroller do its
+                job. */}
             <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="text-left text-muted">
@@ -134,9 +129,8 @@ export function Payouts() {
                   <th className="py-2 font-normal">{t.analytics.asset}</th>
                   <th className="py-2 font-normal">{t.analytics.type}</th>
                   <th className="py-2 text-right font-normal">{t.analytics.amountUah}</th>
-                  {/* AFTER the amount, where they read as a deduction from it and
-                    the remainder — the order the tax spec names when it says a
-                    tracker carries gross, withholding and net. */}
+                  {/* AFTER the amount, where they read as a deduction from it and the remainder —
+                      the order the tax spec names. */}
                   <th className="py-2 text-right font-normal">{t.analytics.withheldUah}</th>
                   <th className="py-2 text-right font-normal">{t.analytics.netOfTaxUah}</th>
                   <th className="py-2 font-normal">{t.analytics.destination}</th>
@@ -154,10 +148,9 @@ export function Payouts() {
                       <Tag colorKey={typeColorKey(row.type)}>{typeLabel(row.type)}</Tag>
                     </td>
                     <td className="py-2 text-right font-bold">{f.num(row.amount)}</td>
-                    {/* EMPTY WHERE THERE IS NONE, the net cell included: such a
-                      row's net IS the amount column, so printing it would repeat
-                      one figure on seven of the eight seeded rows. Not a dash and
-                      not a zero — the rule the ledger row's note already follows. */}
+                    {/* EMPTY WHERE THERE IS NONE, the net cell included: such a row's net IS the
+                        amount column, so printing it would repeat one figure on most rows. Not a
+                        dash and not a zero. */}
                     <td className="py-2 text-right font-bold">
                       {row.taxWithheld !== undefined ? f.num(row.taxWithheld) : ''}
                     </td>
@@ -172,9 +165,8 @@ export function Payouts() {
           </Scroller>
         </Card>
       ) : (
-        /* Below the breakpoint the log becomes one card per payout: the DATE and
-         the asset are the record's identity, so they go in the header, and the
-         type keeps its Tag there. Two facts remain. */
+        /* Below the breakpoint the log becomes one card per payout: the DATE and the
+         asset are the record's identity, so they go in the header. */
         <div className="flex flex-col gap-2.5">
           {logRows.map((row, i) => (
             <RecordCard
@@ -186,21 +178,14 @@ export function Payouts() {
             >
               <Fact label={t.analytics.amountUah}>{f.num(row.amount)}</Fact>
               <Fact label={t.analytics.destination}>{destination(row)}</Fact>
-              {/* The two-column `<dl>` takes these as a SECOND ROW — measured
-                137 × 137, and both labels hold one line there. On a row with no
-                withholding the pair is absent rather than empty: a card has no
-                table structure to keep, so there is nothing to fill. The labels
-                are the table's headers verbatim, which `RecordCard` requires —
-                a reader who learns a column name on a laptop must find it again
-                on a phone.
+              {/* On a row with no withholding the pair is absent rather than empty: a card has
+                  no table structure to keep. The labels are the table's headers verbatim,
+                  which `RecordCard` requires — a reader who learns a column name on a laptop
+                  must find it again on a phone.
 
-                THE ORDER DIVERGES FROM THE TABLE'S, deliberately. The table runs
-                Amount · Withheld · Net · Destination; here the pair comes after
-                Destination, which puts Withheld directly BELOW the amount it was
-                taken from in the two-column grid, and keeps the deduction beside
-                its own remainder. Inserting before Destination would read the
-                table's order and split the pair diagonally instead. `RecordCard`
-                binds the LABELS, not the sequence. */}
+                  THE ORDER DIVERGES FROM THE TABLE'S, deliberately: putting the pair after
+                  Destination puts Withheld directly BELOW the amount it was taken from in the
+                  two-column grid. `RecordCard` binds the LABELS, not the sequence. */}
               {row.taxWithheld !== undefined && (
                 <>
                   <Fact label={t.analytics.withheldUah}>{f.num(row.taxWithheld)}</Fact>

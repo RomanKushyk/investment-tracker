@@ -81,8 +81,7 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
 
   it('|drift| ≤ ε (₴0.01) stays hidden; just above it shows', () => {
     expect(LEDGER_DRIFT_EPSILON).toBe(0.01);
-    // Seed cash is 7.75 and the seed ledger derives exactly 7.75; shift the
-    // ledger by ε via a withdrawal of that size → drift = +0.01 → still null.
+    // Shift the ledger by ε so the drift lands on the threshold and is still null.
     const atEps: Transaction[] = [
       ...SEED_TRANSACTIONS,
       {
@@ -115,9 +114,8 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
 });
 
 describe('nextPayoutRows', () => {
-  // A28 gave this function a reference date. `2026-07-27` is the seed's last
-  // snapshot, so every assertion below is what the screen showed before the
-  // roll existed — the pinned figures are unchanged, not re-pinned.
+  // The reference date is the seed's last snapshot, so every assertion below is
+  // what the screen showed before the roll existed: unchanged, not re-pinned.
   const ON = '2026-07-27';
   const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, ON);
 
@@ -138,8 +136,6 @@ describe('nextPayoutRows', () => {
 
   it('dividend-bearing assets estimate the latest dividend amount (approx), next date = latest + 1 month', () => {
     const reit = rows.find((r) => r.assetId === 'reit');
-    // latest REIT dividend is 700.36 on 10.07 -> next 10.08 (D5#7: the UI's
-    // whole-₴ rendering shows "~₴700", not the reference's ~₴715)
     expect(reit).toMatchObject({
       kind: 'dividend',
       assetRef: 'REIT',
@@ -177,9 +173,8 @@ describe('nextPayoutRows', () => {
   });
 });
 
-// A user-created fixed-coupon asset: the P3 fix (feat/fixed-yield) is that these
-// stop being skipped in silence. The seed's own bonds carry both attributes,
-// which is exactly why the gap was invisible — and why no D5 figure moves.
+// A user-created fixed-coupon asset: these used to be skipped in silence. The
+// seed's own bonds carry both attributes, which is why the gap was invisible.
 function userBond(over: Partial<Asset> = {}): Asset {
   return {
     id: 'bond2',
@@ -208,7 +203,6 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
 
   it('projects an estimated coupon when the asset states no couponAmount', () => {
     const rows = nextPayoutRows([userBond({ nextCoupon: '2026-09-15' })], [buy], '2026-07-27');
-    // 15 % of ₴10 000,00 a year, half-yearly = ₴750,00, flagged approx ('~').
     expect(rows).toEqual([
       {
         assetId: 'bond2',
@@ -251,9 +245,8 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
   });
 });
 
-// A28 — the card is called "Next payouts" and it was offering dates in the past.
-// Found by the 2026-08-19 walk of navigation-map.md: the seed's last REIT
-// accrual is 10.07, so the card said 10.08 on a day the app printed as 19.08.
+// The card is called "Next payouts" and it was offering dates in the past,
+// because the seed's last accrual predates the day the app printed.
 describe('nextPayoutRows — nothing offered is in the past', () => {
   const buy = (assetId: string): Transaction => ({
     id: `b-${assetId}`,
@@ -265,11 +258,9 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
   });
 
   it('rolls a DIVIDEND forward by whole periods until it is on or after the date', () => {
-    // The reported defect, at the date it was reported on.
     const rows = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-08-19');
     expect(rows.find((r) => r.assetId === 'reit')?.date).toBe('2026-09-10');
-    // Two periods behind rolls twice, not once — the bug would have been just
-    // as present with a single +1 month applied to a stale projection.
+    // Two periods behind rolls twice, not once.
     const far = nextPayoutRows(SEED_ASSETS, SEED_TRANSACTIONS, '2026-10-01');
     expect(far.find((r) => r.assetId === 'reit')?.date).toBe('2026-10-10');
   });
@@ -281,10 +272,9 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
   });
 
   it('rolls a COUPON too — the pointer is as stale as the accrual was', () => {
-    // `couponProjection` reads `nextCoupon` verbatim, and that field only ever
-    // moves through the S5 confirm — so an unrecorded coupon leaves it frozen
-    // in the past exactly as the dividend was. Fixing one half and not the
-    // other was the first draft of this fix.
+    // `couponProjection` reads `nextCoupon` verbatim, and that field only ever moves
+    // through the confirm — so an unrecorded coupon leaves it frozen in the past
+    // exactly as the dividend was.
     const bond = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!;
     const rows = nextPayoutRows([bond], [buy('ovdp8976')], '2026-09-01');
     expect(rows[0].date).toBe('2027-02-25'); // 25.08 was missed; the next is half a year on
@@ -293,8 +283,8 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
   it('never rolls a coupon past maturity', () => {
     const bond = SEED_ASSETS.find((a) => a.id === 'ovdp8976')!; // matures 2027-02-25
     const rows = nextPayoutRows([bond], [buy('ovdp8976')], '2028-01-01');
-    // The final coupon lands ON maturity and the roll stops there (accrual.ts),
-    // so a matured bond drops off the card rather than projecting forever.
+    // The final coupon lands ON maturity and the roll stops there, so a matured bond
+    // drops off the card rather than projecting forever.
     expect(rows).toEqual([]);
   });
 
@@ -322,9 +312,8 @@ describe('the windowed KPI (A40) — and the XIRR beside it (D-8)', () => {
   });
 
   it('reproduces A25’s +8,93 % unwindowed, and moves under a window', () => {
-    // The seed figure the brief and the extension both quote. A shorter window
-    // measures the same portfolio over less time, so the money-weighted rate
-    // rises — the same shape F-2 records for `Річна`, on a different figure.
+    // A shorter window measures the same portfolio over less time, so the
+    // money-weighted rate rises.
     expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, full)! * 100).toBeCloseTo(8.93, 1);
     const m3 = { from: '2026-04-27', to: '2026-07-27', clamped: false };
     expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, m3)! * 100).toBeGreaterThan(8.93);
@@ -341,8 +330,8 @@ describe('the windowed KPI (A40) — and the XIRR beside it (D-8)', () => {
     };
     const withDep = totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, later], full);
     const without = totalReturnKpiIn(snaps, SEED_TRANSACTIONS, full);
-    // Capital did not move (no new snapshot), so 10 000 of fresh deposits must
-    // reduce the net return by exactly that much.
+    // Capital did not move, so fresh deposits must reduce the net return by exactly
+    // that much.
     expect(without.uah - withDep.uah).toBeCloseTo(10_000, 6);
   });
 });
@@ -355,8 +344,7 @@ describe('the windowed KPIs move — the half a reduction test cannot see', () =
   it('netResultIn reduces, and then actually changes under a window', () => {
     expect(netResultIn(snaps, SEED_TRANSACTIONS, full).uah).toBeCloseTo(4452.61, 2);
     expect(netResultIn(snaps, SEED_TRANSACTIONS, full).pct * 100).toBeCloseTo(3.08, 2);
-    // The point of the test: a first cut left this card on the full history
-    // while its sub-line pointed at the window's left end.
+    // The point of the test: a card on the full history with a sub-line pointing at the window's left end.
     expect(netResultIn(snaps, SEED_TRANSACTIONS, m3).uah).not.toBeCloseTo(4452.61, 2);
   });
 

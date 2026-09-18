@@ -1,12 +1,7 @@
-// Sentence ASSEMBLY for the import surfaces. The words themselves live in the
-// dictionary (t.importing) — the pure modules return codes + params (D8), this
-// file turns a code into the right dictionary call, and the dictionary turns
-// that into a sentence in the chosen language.
-//
-// Why the assembly did not move into the dictionary wholesale: mapping a
-// `RowIssue` discriminant onto a message is app logic, not copy, and it is the
-// same mapping in both languages. What DOES differ per language — plural forms,
-// list joiners, verb agreement — is on the dictionary side.
+// Sentence ASSEMBLY for the import surfaces; the words live in the dictionary.
+// Mapping a `RowIssue` discriminant onto a message is app logic, not copy, and it
+// is the same mapping in both languages — what differs per language (plurals,
+// joiners, agreement) is on the dictionary side.
 import type { DiffWarning, FileRejectionCode, FormatRejectionCode } from '../../core/backup/import';
 import type { Dataset, RowIssue } from '../../core/backup/json';
 import type { Format } from '../../core/money';
@@ -29,19 +24,16 @@ export function formatReasonSentence(
       return m.notABackup;
     case 'newer-format':
       return m.newerFormat(String(version ?? '?'));
-    // A genuine backup from before the format moved on — named as such, so it
-    // reads as "this app moved past it" rather than "this file is broken".
+    // A genuine backup from before the format moved on — named as such, so it reads
+    // as "this app moved past it" rather than "this file is broken".
     case 'older-format':
       return m.olderFormat(String(version ?? '?'));
-    // A hand-edited or otherwise unreadable version: neither sentence above
-    // would claim anything true about it.
     case 'unsupported-format':
       return m.unsupportedFormat;
   }
 }
 
-// Location first, then the reason — the S4 items verbatim
-// (`transactions.tx-0007 — unknown asset id "a-9"`).
+// Location first, then the reason.
 export function issueLine(issue: RowIssue, t: Dict): string {
   const location = [issue.table, issue.at, issue.code === 'duplicate-key' ? undefined : issue.field]
     .filter(Boolean)
@@ -79,8 +71,8 @@ function issueReason(issue: RowIssue, t: Dict): string {
       return m.withholdingAboveAmount;
     case 'note-length':
       return m.noteLength;
-    // Last resort: state the validator's own words rather than swallow a
-    // reason the user needs in order to fix the file.
+    // Last resort: state the validator's own words rather than swallow a reason the
+    // user needs in order to fix the file.
     case 'invalid':
       return issue.detail ?? m.invalid;
   }
@@ -90,7 +82,6 @@ export function problemCount(total: number, shown: number, t: Dict): string {
   return t.importing.problemCount(total, shown);
 }
 
-/** "quirenote-backup-2026-08-03.json · exported 03.08.2026 21:14 · from live" */
 export function fileSubline(
   name: string,
   exportedAt: string,
@@ -106,7 +97,6 @@ export function fileSubline(
   );
 }
 
-/** "After import: 4 assets · 173 snapshots · 18 transactions." */
 export function resultLine(
   after: { assets: number; snapshots: number; transactions: number },
   t: Dict,
@@ -139,14 +129,13 @@ export function warningSentence(
   t: Dict,
 ): string {
   const w = t.importing.warning;
-  // The dataset reaches here as its STORED token ('demo' | 'live'). Splicing
-  // that into a Ukrainian sentence left an English word inside it, while the
-  // switch two cards above named the same dataset «Демо» / «Живий».
+  // The dataset reaches here as its STORED token. Splicing that into a Ukrainian
+  // sentence left an English word inside it, while the switch two cards above
+  // named the same dataset in Ukrainian.
   const name = t.datasetSwitch[dataset];
   switch (warning.code) {
-    // The brief's sentence names snapshots and transactions; assets join it
-    // when a file drops some but not all of them — the same fact, stated for
-    // whichever tables actually lose rows.
+    // Assets join the sentence when a file drops some but not all of them — the same
+    // fact, stated for whichever tables actually lose rows.
     case 'rows-removed': {
       const c = t.importing.count;
       const parts = [

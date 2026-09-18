@@ -50,6 +50,28 @@ function stripCss(source: string, what: string): string {
   return out;
 }
 
+/** The complement of `stripCss` — every comment body, and nothing else. Same
+ *  quote-awareness, for the same reason. */
+function cssProse(source: string): string {
+  let out = '';
+  let quote = '';
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = '';
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === '/' && source[i + 1] === '*') {
+      const end = source.indexOf('*/', i + 2);
+      if (end === -1) throw new Error('index.css has an unterminated /* comment');
+      out += `${source.slice(i + 2, end)}\n`;
+      i = end + 1;
+    }
+  }
+  return out;
+}
+
 /** The span of a `selector { … }` rule, matched on its own braces. */
 function ruleBody(source: string, opener: string): string {
   const at = source.indexOf(opener + ' {');
@@ -194,6 +216,16 @@ describe('the palette and its two mirrors carry no retired value', () => {
     const found = RETIRED.filter((hex) => source.includes(hex));
     expect(found, `${file} still carries retired values`).toEqual([]);
   });
+
+  // IS THE SWEEP ACTUALLY LOOKING? An absence guard passes on a tree where nothing is left
+  // to find, and this one is already there: no value in `RETIRED` appears in any of the
+  // three files. A positive control held OUTSIDE the swept set is what keeps the needles
+  // provably live, the pattern `infra/src/__fixtures__/retired-lifetime-prose.txt` set. A
+  // `.txt` because the same words in a swept file would make the control the first offender.
+  it('is actually looking — every retired value still matches the record', () => {
+    const record = read('__fixtures__/retired-palette-prose.txt').toLowerCase();
+    expect(RETIRED.filter((hex) => !record.includes(hex))).toEqual([]);
+  });
 });
 
 /* ─────────── the figures `index.css` records beside its values ─────────── */
@@ -293,12 +325,40 @@ describe('the recorded readings still read as recorded', () => {
     ],
   ];
 
+  // The nine the sheet prints beside the tokens. The two it does not print are the dark
+  // halves of the capital strip and the footer band; the set is frozen rather than derived,
+  // so a figure added to or removed from the stylesheet has to move this list with it.
+  const STATED_IN_THE_SHEET = [
+    'accent on panel, under 4.5 — rule 2 makes it every link in light',
+    'warn from accent — a caution and the brand are one colour',
+    'sb-label on its wall — the nav group captions, 11px since #107',
+    'sb-label on its wall, dark',
+    'sb-label on the capital strip, light',
+    'sb-label on the footer band — the version, light',
+    'logo-pill-a on the wall, light',
+    'reit on panel — ColorDot and ShareBar paint the bare hue there',
+    "the switch's OFF edge on its own track, dark",
+  ];
+
   // TO TWO DECIMALS, against the reading rather than the rounded figure the prose prints.
   // ONE DECIMAL CANNOT FAIL FOR ANY PAIR: a contrast ratio floors at 1.0, so
   // `toBeCloseTo(1.01, 1)` accepts anything under 1.06 and the warn/accent collision would
   // have been guarded by nothing.
   it.each(RECORDED)('%s', (_label, block, a, b, expected) => {
     expect(ratio(resolve(block, a), resolve(block, b))).toBeCloseTo(expected, 2);
+  });
+
+  // AND THE OTHER HALF OF THAT SENTENCE, which was asserted by nothing: the block above
+  // recomputes what the sheet states, but never checked the sheet still states it. The
+  // stylesheet prints these to two decimals, so a reading is "stated" when its own rounding
+  // appears IN A COMMENT — the declarations carry decimals of their own and would match by
+  // accident. Nine of the eleven are stated; the set is frozen, so deleting one or reverting
+  // one to an older figure moves it and reddens here.
+  it('index.css still states the readings it records, beside the tokens', () => {
+    const stated = RECORDED.filter(([, , , , expected]) =>
+      cssProse(FILES['src/index.css']).includes(expected.toFixed(2)),
+    ).map(([label]) => label);
+    expect(stated).toEqual(STATED_IN_THE_SHEET);
   });
 
   // The DEMO badge is on `page` as well as on the wall, since the header carries one

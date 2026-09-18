@@ -18,8 +18,7 @@ import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';
 import { useIsDesktop } from '../hooks/useIsDesktop';
 
-// One source for the glyph: the cell that wears it and the legend that explains
-// it must never be able to disagree.
+// One source for the glyph: the cell that wears it and the legend that explains it must never disagree.
 const EARLY_MARK = '*';
 
 export function Balances() {
@@ -33,13 +32,11 @@ export function Balances() {
   const chartData = balanceChartData(snapshots, assets);
   const { rows, page: currentPage, totalPages, total } = paginateSnapshots(snapshots, page);
   const earliest = [...snapshots].sort((a, b) => a.date.localeCompare(b.date))[0]?.date;
-  // Derived once for both forms: the footnote has to know whether this page
-  // holds a marked cell before either form has drawn one.
+  // Derived once for both forms: the footnote has to know whether this page holds
+  // a marked cell before either form has drawn one.
   const built = rows.map((s) => buildBalanceRow(s, assets));
   const hasEarlyQuote = pageHasEarlyQuote(built);
 
-  // The pagination strip belongs to the screen, not to either form of the data,
-  // so it is written once and placed under whichever one is on screen.
   const pager = (
     <div className="flex flex-wrap items-center justify-between gap-3 text-[11.5px] text-muted">
       <span>
@@ -66,8 +63,6 @@ export function Balances() {
     </div>
   );
 
-  // The legend for the mark, written once like the pager and placed under
-  // whichever form is on screen.
   const note = hasEarlyQuote && (
     <div className="text-[11.5px] text-muted">
       {EARLY_MARK} {t.analytics.balances.earlyQuote}
@@ -86,17 +81,14 @@ export function Balances() {
         )}
       </Card>
 
-      {/* ONE MECHANISM FOR ONE DECISION. The two forms used to be `max-md:hidden`
-          and `md:hidden`, so a phone still built the min-width table, mounted a
-          `ScrollArea` for it and ran the row derivation twice — CSS hid it, the
-          browser still paid for it. `useIsDesktop` is the same breakpoint the
-          shell, the charts and the DatePicker already switch on, so this mounts
-          one branch and only one. */}
+      {/* ONE MECHANISM FOR ONE DECISION: `max-md:hidden` + `md:hidden` still built the
+          min-width table on a phone, mounted a `ScrollArea` for it and ran the row
+          derivation twice. `useIsDesktop` mounts one branch and only one. */}
       {desktop ? (
         <Card radius={24} className="animate-in px-[22px] py-2.5 duration-300 fade-in">
-          {/* The table keeps its min-width; the Scroller is what clips and draws
-            the rail. Card no longer sets overflow — a rounded card clipping its
-            own content is where the square platform track came from. */}
+          {/* The table keeps its min-width and the Scroller clips and draws the rail. Card
+              sets no overflow: a rounded card clipping its own content is where the square
+              platform track came from. */}
           <Scroller orientation="horizontal">
             <table className="w-full min-w-[640px] border-collapse text-[12.5px]">
               <thead>
@@ -140,10 +132,9 @@ export function Balances() {
                           <span className="text-faint">{t.analytics.balances.pending}</span>
                         )}
                         {cell.status === 'none' && '—'}
-                        {/* A FIXED SLOT, not an appended glyph: the column is
-                          right-aligned, so hanging the mark off the digits would
-                          push a marked row out of line. Every cell gets the slot
-                          or none does, and only a page with a mark has one. */}
+                        {/* A FIXED SLOT, not an appended glyph: the column is right-aligned, so hanging
+                            the mark off the digits would push a marked row out of line. Every cell gets
+                            the slot or none does. */}
                         {hasEarlyQuote && (
                           <span className="inline-block w-2 text-left text-muted">
                             {cell.status === 'value' && cell.beforeFirstPurchase ? EARLY_MARK : ''}
@@ -170,10 +161,9 @@ export function Balances() {
         </Card>
       ) : (
         /* THIS IS THE SCREEN THE CARD FORM EXISTS FOR. Balances is `3 + N assets`
-          columns, so its width GROWS with the portfolio — a horizontal scroll
-          fixed at 684 px today is a different number next year. One `dt` per
-          asset, then Cash and Total, makes the record grow in HEIGHT instead,
-          which the page already scrolls. */
+         columns, so its width GROWS with the portfolio and a fixed horizontal scroll is
+         a different number next year. One `dt` per asset makes the record grow in
+         HEIGHT instead, which the page already scrolls. */
         <div className="flex flex-col gap-2.5">
           {rows.length === 0 && (
             <Card radius={24} className="animate-in p-[22px] duration-300 fade-in">
@@ -184,9 +174,8 @@ export function Balances() {
             <RecordCard key={row.date} index={i} title={f.date(row.date)}>
               {row.cells.map((cell, ci) => (
                 <Fact key={assets[ci].id} label={assets[ci].name}>
-                  {/* The same mark in both shells (D66), and it names itself —
-                      a glyph with nothing in the accessible tree behind it is
-                      not a message. */}
+                  {/* The same mark in both shells, and it names itself — a glyph with nothing in
+                      the accessible tree behind it is not a message. */}
                   {cell.status === 'value' && (
                     <span
                       title={cell.beforeFirstPurchase ? t.analytics.balances.earlyQuote : undefined}
@@ -197,9 +186,8 @@ export function Balances() {
                       )}
                     </span>
                   )}
-                  {/* A partial row keeps its treatment exactly: `pending` in
-                      `faint`, and the total `—` rather than a number that would
-                      read as complete. */}
+                  {/* A partial row keeps its treatment exactly: the total stays `—` rather than a
+                      number that would read as complete. */}
                   {cell.status === 'pending' && (
                     <span className="font-normal text-faint">{t.analytics.balances.pending}</span>
                   )}

@@ -1,0 +1,81 @@
+THE PARCHMENT MIGRATION'S POSITIVE CONTROL — the record `palette-mirror.test.ts`
+proves its needles against.
+
+A `.txt` on purpose. The guard sweeps `src/index.css`, `src/app/theme.ts` and
+`index.html` for the 64 values the parchment palette replaced, and every one of
+them is gone from all three: an absence guard over a clean tree asserts nothing
+by itself. Holding the record in a swept file would instead make it the guard's
+first offender, and exempting it would blind the guard to itself.
+
+Each line is the LINE the value was retired from, quoted from `a1032fd~1` — the
+commit before "re-value every theme token from the parchment palette, in both
+themes". Most are the declaration itself; five are the sentence that argued for
+the value rather than a declaration of it, which is the form this guard exists to
+catch, and one of those lines carries two of the values. Two values came through
+the migration unchanged and are therefore absent from the list this record
+answers.
+
+  src/index.css:364     anyone moving the alpha. The drawer (`sidebar` #0f0f11) is DARKER than the
+  src/index.css:319     --color-page: #141416;
+  src/index.css:320     --color-card: #1c1c1f;
+  src/index.css:213     light theme too (#333338 / #1c1c20). A flipped pair would put the owner's
+  src/index.css:430     --color-ovdp8976-tint: #20272d;
+  src/index.css:402     --color-pos-tint: #22301f;
+  src/index.css:327     --color-panel: #232327;
+  src/index.css:66      `--tw-shadow:0 1px 3px var(--tw-shadow-color,#26262a0f)` — so redefining
+  src/index.css:326     --color-hairline: #2a2a2e;
+  src/index.css:427     --color-energy-tint: #33261d;
+  src/index.css:410     --color-warn-tint: #332714;
+  src/index.css:208     --color-sidebar-inset: #333338;
+  src/index.css:328     --color-panel-border: #33333a;
+  src/index.css:407     --color-neg-tint: #3a211b;
+  src/index.css:116     value is the #3d3d42 this always used (via the sidebar's hover token); the
+  src/index.css:343     --color-switch-track: #4a4a55;
+  src/index.css:226     --color-pos-tint-text: #4c5a48;
+  src/index.css:258     --color-ovdp8976-tint-text: #525c64;
+  src/index.css:224     --color-pos: #5c7355;
+  src/index.css:405     --color-pos-border: #5c7f53; /* 3.44 on panel */
+  src/index.css:259     --color-ovdp6475: #5f5e5a;
+  src/index.css:242     --color-neg-tint-text: #693f35;
+  src/index.css:131     --color-muted: #696865;
+  src/index.css:249     --color-warn-tint-text: #6b5527;
+  src/index.css:255     --color-energy-tint-text: #6d5a53;
+  src/index.css:324     --color-faint: #6e6d6a; /* 3.29 on card — decorative only, never body text */
+  src/index.css:228     --color-pos-border: #6f8567; /* 3.35 on panel — never weaker than the idle edge */
+  src/index.css:325     --color-field-border: #747169; /* 3.21 on panel · 3.49 on card */
+  src/index.css:136     --color-field-border: #84827d;
+  src/index.css:382     Read through the alias rather than repeated as #8b8a90, so it cannot drift
+  src/index.css:250     --color-reit: #8ba283;
+  src/index.css:247     --color-warn: #8f6b33;
+  src/index.css:401     --color-pos: #8fb184; /* 7.12 on card */
+  src/index.css:207     --color-sidebar-muted: #96959b;
+  src/index.css:256     --color-ovdp8976: #98a3ad;
+  src/index.css:323     --color-muted: #9b9a96; /* 6.04 on card */
+  src/index.css:423     --color-reit: #9dbb93; /* 8.07 on card */
+  src/index.css:432     --color-ovdp6475: #a3a19b; /* 6.58 */
+  src/index.css:229     --color-neg: #a8695a;
+  src/index.css:429     --color-ovdp8976: #a8b6c2; /* 8.20 */
+  src/index.css:403     --color-pos-tint-text: #a9c79f; /* 7.52 on its tint */
+  src/index.css:434     --color-ovdp6475-tint-text: #adaba5; /* 6.56 */
+  src/index.css:132     --color-faint: #b3b2ae;
+  src/index.css:431     --color-ovdp8976-tint-text: #b3c1cd; /* 8.22 */
+  src/index.css:227     --color-pos-on-dark: #b9cdb4;
+  src/index.css:253     --color-energy: #c2a189;
+  src/index.css:392     --color-sidebar-nav: #c4c3c0; /* 10.86 */
+  src/index.css:209     --color-sidebar-nav: #cfcecb;
+  src/index.css:409     --color-warn: #d1a55f; /* 7.50 on card */
+  src/index.css:426     --color-energy: #d8b394; /* 8.74 */
+  src/index.css:406     --color-neg: #d9907e; /* 6.67 on card */
+  src/index.css:411     --color-warn-tint-text: #dcbb80; /* 7.95 on its tint */
+  src/index.css:139     --color-panel-border: #dedcd8;
+  src/index.css:428     --color-energy-tint-text: #e0bfa4; /* 8.47 */
+  src/index.css:225     --color-pos-tint: #e3eadf;
+  src/index.css:257     --color-ovdp8976-tint: #e4e8eb;
+  src/index.css:408     --color-neg-tint-text: #e5a996; /* 7.39 on its tint */
+  src/index.css:137     --color-hairline: #e8e7e4;
+  src/index.css:206     --color-sidebar-text: #e9e8e6;
+  src/index.css:254     --color-energy-tint: #efe4e0;
+  src/index.css:241     --color-neg-tint: #f0cec7;
+  src/index.css:248     --color-warn-tint: #f0e6cb;
+  src/index.css:112     --color-page: #f6f5f3;
+  src/index.css:119     --color-card: #ffffff;

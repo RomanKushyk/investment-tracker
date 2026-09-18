@@ -1,12 +1,8 @@
-// S2 — Settings → Data "Import": the file field + the solid drop target
-// (design/extensions/data-portability.dc.html S2). The single way data comes
-// into the app.
-//
+// The file field and the drop target — the single way data comes into the app.
 // Nothing here reads, parses or writes until a file arrives, and reading always
-// resolves into exactly one of two dialogs — the S3 preview or the S4 report —
-// never a silent no-op and never a write. Import is never disabled: it is the
-// recovery path in every dataset, demo included (it targets the ACTIVE one, and
-// "Reset demo data…" is the escape hatch, G4/D16).
+// resolves into exactly one of two dialogs, never a silent no-op and never a
+// write. Import is never disabled: it is the recovery path in every dataset,
+// demo included, where "Reset demo data…" is the escape hatch.
 import { Download, FileText } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -35,8 +31,8 @@ export function ImportRow() {
   const [rejection, setRejection] = useState<FileRejectionCode | null>(null);
   const [attempt, setAttempt] = useState<ImportAttempt | null>(null);
   const [open, setOpen] = useState(false);
-  // A fresh session key per attempt resets the dialog's opt-in/pending state
-  // while a closed dialog stays mounted through its 220ms exit (D7/D17).
+  // A fresh session key per attempt resets the dialog's state while a closed
+  // dialog stays mounted through its exit.
   const [session, setSession] = useState(0);
 
   useEffect(() => {
@@ -55,11 +51,9 @@ export function ImportRow() {
     const [file] = files;
     setReading(file.name);
     try {
-      // Reading resolves into exactly one of two dialogs — never a silent
-      // no-op, so even a failed read says so (nothing was changed either way).
       const text = await file.text();
-      // Read fresh from the DB rather than off a cached query: the diff is what
-      // the user is about to authorise.
+      // Read fresh from the DB rather than off a cached query: the diff is what the
+      // user is about to authorise.
       const current = await exportAll.mutateAsync();
       const validation = validateImport(text);
       setAttempt(
@@ -109,12 +103,10 @@ export function ImportRow() {
         </div>
       )}
 
-      {/* SOLID border, never dashed: a dashed affordance would read as a
-          machine's guess (P3's dashed = proposed rule). The panel is a
-          container, not a pressable — no lift, no scale, and it adds no second
-          tab stop (drop is a pointer-only enhancement).
-          It still wears the control-boundary rank, because the copy says WHAT
-          and only this border says WHERE (#88, dropzone-edge.dc.html). */}
+      {/* SOLID border, never dashed: a dashed affordance would read as a machine's
+          guess. The panel is a container, not a pressable, and adds no second tab stop
+          — drop is a pointer-only enhancement. It still wears the control-boundary
+          rank, because the copy says WHAT and only this border says WHERE. */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -154,8 +146,6 @@ export function ImportRow() {
             <div className="text-[11px] text-muted">{t.importing.row.dropHint}</div>
           </>
         )}
-        {/* Auto width per the reference; only the 360px drawing caps it at a
-            full-width 200px pill. */}
         <Button
           variant="outline"
           className="mt-1.5 max-sm:w-full max-sm:max-w-[200px]"
@@ -164,8 +154,8 @@ export function ImportRow() {
         >
           {t.importing.row.choose}
         </Button>
-        {/* Label-bound file field: keyboard users never meet the drag path.
-            `.json` only — CSV is export-only (D29). */}
+        {/* Label-bound file field: keyboard users never meet the drag path. `.json`
+            only — CSV is export-only. */}
         <input
           ref={inputRef}
           type="file"
@@ -178,8 +168,8 @@ export function ImportRow() {
       </div>
 
       {rejection && (
-        // `warn`, never `neg`: picking the wrong file is not an error worth
-        // alarming about — and the dataset is untouched.
+        // `warn`, never `neg`: picking the wrong file is not an error worth alarming
+        // about, and the dataset is untouched.
         <div
           role="status"
           className="mt-2 animate-in text-xs leading-normal text-warn duration-200 fade-in slide-in-from-top-1"
@@ -204,7 +194,6 @@ export function ImportRow() {
   );
 }
 
-/** quirenote-backup-2026-08-04.json → quirenote-bac…-08-04.json */
 function middleTruncate(name: string, max = 34): string {
   if (name.length <= max) return name;
   const head = Math.ceil((max - 1) / 2);

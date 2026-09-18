@@ -1,18 +1,12 @@
-// Pure helpers for the targets editor — per-screen
-// glue, imports core only (D8: structured tokens out, no English).
-//
-// MOVED HERE FROM screens/settings/ BY A30, with its test, and not one
-// assertion changed — the editor now lives on /allocation, beside the card that
-// draws what it edits, and per-screen glue belongs under its own route.
-// Covered by targets.test.ts.
+// Pure helpers for the targets editor: imports core only, no English out.
 import { percentInputSchemaFor } from '../../core/schemas';
 import type { Lang } from '../../core/money';
 
 // One raw %-input → 0–100 target share, or null when invalid. Exactly the
-// AssetForm Target grammar via the shared core schema, so the two target
-// editors can never disagree — WHICH NOW MEANS TAKING THE LANGUAGE, because the
-// asset form's copy of that grammar does. Under Ukrainian `17,500` is 17.5 in
-// one editor, and was 17500 (refused by the 100 cap) in the other.
+// AssetForm Target grammar via the shared core schema, so the two target editors
+// can never disagree — WHICH MEANS TAKING THE LANGUAGE, because the asset form's
+// copy of that grammar does. Under Ukrainian `17,500` is 17.5 in one editor and
+// was 17500 in the other.
 export function parseTargetPct(raw: string, lang: Lang): number | null {
   const parsed = percentInputSchemaFor(lang).safeParse(raw);
   return parsed.success ? parsed.data : null;
@@ -20,14 +14,11 @@ export function parseTargetPct(raw: string, lang: Lang): number | null {
 
 export interface TargetRowState {
   id: string;
-  // Parsed draft (stored value when the row has no draft); null = invalid
-  // input → the row shows the error treatment.
+  // Parsed draft (stored value when the row has no draft); null = invalid input.
   value: number | null;
-  // What the live preview/Σ use: the valid entry, else the STORED target —
-  // an unparseable keystroke never zeroes the bar or the sum (the S4 error
-  // mock reads Σ 92 with "3%" typed because the stored 3 still counts).
+  // What the live preview and Σ use: the valid entry, else the STORED target — an
+  // unparseable keystroke never zeroes the bar or the sum.
   effective: number;
-  // Valid and different from stored — feeds the per-asset save patches.
   changed: boolean;
 }
 
@@ -50,22 +41,18 @@ export function targetRowStates(
   });
 }
 
-// Σ of the effective targets, normalized to 2 dp so float noise from valid
-// decimal entries (33.3+33.3+33.4 → 100.00000000000001) can't fake a warn
-// state (D13 display-rounding policy). Demo fixture: 40+40+17+3 = 100.
+// Normalized to 2 dp so float noise from valid decimal entries cannot fake a
+// warn state.
 export function targetsSum(rows: readonly { effective: number }[]): number {
   const sum = rows.reduce((a, r) => a + r.effective, 0);
   return Math.round(sum * 100) / 100;
 }
 
-// Structured status token (D8): 'ok' iff Σ is exactly 100 (post-normalize);
-// everything else is 'warn' — a nudge, never a save blocker (brief S4).
+// 'ok' iff Σ is exactly 100 post-normalize; everything else is a nudge, never a save blocker.
 export function sumStatus(sum: number): 'ok' | 'warn' {
   return sum === 100 ? 'ok' : 'warn';
 }
 
-// Per-asset patches for the explicit Save (useUpdateAsset per asset) — only
-// rows whose valid value actually differs from the stored one.
 export function changedTargets(
   rows: readonly TargetRowState[],
 ): { id: string; targetPct: number }[] {

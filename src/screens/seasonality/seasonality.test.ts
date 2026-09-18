@@ -84,8 +84,7 @@ describe('quietStretch', () => {
   });
 });
 
-// The P3 fix (feat/fixed-yield): a user-created fixed-coupon asset used to be
-// skipped by the expected bars whenever couponAmount or nextCoupon was blank.
+// A user-created fixed-coupon asset used to be skipped whenever either attribute was blank.
 describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
   const userBond: Asset = {
     id: 'bond2',
@@ -162,19 +161,18 @@ describe('seasonalityMonths (A41) — the month axis, and D-5 in it', () => {
   });
 
   it('expects a coupon in EVERY month a bond is scheduled for, not just the next one', () => {
-    // D-5. …8976 pays in August and again at its February maturity, so both
-    // months carry an expectation — and February carries BOTH, because it also
-    // has the 2026 coupon already received. The design sheet drew only August;
-    // the schedule says otherwise, and the schedule is the thing being asked.
+    // …8976 pays in August and again at its February maturity, so both months carry
+    // an expectation — and February carries BOTH, because it also has the coupon
+    // already received. The design sheet drew only August; the schedule says
+    // otherwise, and the schedule is the thing being asked.
     const m = seasonalityMonths(SEED_TRANSACTIONS, SEED_ASSETS);
     expect(m.find((x) => x.month === 8)!.expected).toBe(1240);
     expect(m.find((x) => x.month === 2)!.expected).toBe(1240);
     expect(m.find((x) => x.month === 2)!.actual).toBeGreaterThan(0);
     expect(m.find((x) => x.month === 12)!.expected).toBe(216);
-    // …6475's FINAL coupon (review F1): 03.12.2026 + 6m overshoots the
-    // 27.05.2027 maturity, so `rollNextCoupon` clamps to maturity and травень
-    // carries the last 216,00. The first cut broke out of the walk instead and
-    // this month was missing from the screen.
+    // …6475's FINAL coupon overshoots the maturity, so `rollNextCoupon` clamps to it
+    // and that month carries the last one. Breaking out of the walk instead loses
+    // the month from the screen.
     expect(m.find((x) => x.month === 5)!.expected).toBe(216);
     expect(m.find((x) => x.month === 5)!.actual).toBeCloseTo(472.13, 2);
   });
@@ -197,8 +195,7 @@ describe('A42 — /seasonality under the window: one series moves, the other can
     );
 
   it("reproduces the sheet's measured day-10 figure under 3 місяці", () => {
-    // The spine's own cell: `day 10: 3 641,44 → 1 853,04 (тра + чер + лип)`.
-    // February, March and April's REIT dividends fall before the 27.04 opening.
+    // The REIT dividends of the three earlier months fall before the window opens.
     const all = seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at('all'));
     const q = seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at('3m'));
     expect(all.find((d) => d.day === 10)!.actual).toBeCloseTo(3641.44, 2);
@@ -210,7 +207,6 @@ describe('A42 — /seasonality under the window: one series moves, the other can
       seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at(p)).map((d) => d.expected);
     expect(expectedIn('3m')).toEqual(expectedIn('all'));
     expect(expectedIn('1m')).toEqual(expectedIn('all'));
-    // …and on the month axis, where D-5 projects a bond onto every month it pays in.
     const m = (p: PeriodOption) =>
       seasonalityMonthsIn(SEED_TRANSACTIONS, SEED_ASSETS, at(p)).map((x) => x.expected);
     expect(m('1m')).toEqual(m('all'));
@@ -218,20 +214,17 @@ describe('A42 — /seasonality under the window: one series moves, the other can
 
   it('windows the month axis too — the same bars, bucketed the other way', () => {
     const q = seasonalityMonthsIn(SEED_TRANSACTIONS, SEED_ASSETS, at('3m'));
-    // Лютий's 1 763,70 of recorded income is entirely before 27.04.
     expect(q.find((x) => x.month === 2)!.actual).toBe(0);
-    // …while its EXPECTED coupon survives, so лютий still draws a bar.
+    // …while its EXPECTED coupon survives, so the month still draws a bar.
     expect(q.find((x) => x.month === 2)!.expected).toBe(1240);
     expect(q.find((x) => x.month === 7)!.actual).toBeCloseTo(700.36, 2);
   });
 
   it('reduces exactly to the unwindowed builders at Від початку', () => {
-    // The property A27 pinned. `at('all')` and NOT `undefined`: the unwindowed
-    // form DELEGATES to the windowed one with `undefined`, so comparing the two
-    // asserted `f(x) === f(x)` and could not fail (A42 review). The default
-    // screen renders `resolveWindow('all', …)`, which is a real window and a
-    // different path through `transactionsFrom` — that is the reduction worth
-    // pinning, and it is what `yield.test.ts` compares.
+    // `at('all')` and NOT `undefined`: the unwindowed form DELEGATES to the windowed
+    // one with `undefined`, so comparing the two asserts `f(x) === f(x)` and cannot
+    // fail. The default screen renders a real window, which is a different path
+    // through `transactionsFrom`.
     expect(seasonalityDaysIn(SEED_TRANSACTIONS, SEED_ASSETS, at('all'))).toEqual(
       seasonalityDays(SEED_TRANSACTIONS, SEED_ASSETS),
     );
@@ -241,9 +234,8 @@ describe('A42 — /seasonality under the window: one series moves, the other can
   });
 
   it('a window with a single payout shows no growth claim rather than a flat one', () => {
-    // `1 місяць` holds exactly one REIT dividend, and the card's copy hardcodes
-    // «і зростають» — so the windowed pair rendered «700 ₴ → 700 ₴ і зростають».
-    // One point is not a trend, and a falling pair is not growth (A42 review).
+    // The narrow window holds exactly one REIT dividend and the card's copy hardcodes
+    // «і зростають». One point is not a trend, and a falling pair is not growth.
     const oneMonth = transactionsFrom(SEED_TRANSACTIONS, at('1m')!.from);
     expect(anchorAssetGrowth(oneMonth, 'reit')).toBeUndefined();
     expect(anchorAssetGrowth(SEED_TRANSACTIONS, 'reit')).toEqual({ first: 580.2, last: 700.36 });

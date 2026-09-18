@@ -1,6 +1,4 @@
-// Pure data-shaping for the Payouts screen (monthly chart + log table) —
-// imports core/ only, returns structured tokens (G1). Covered by
-// payouts.test.ts.
+// Pure data-shaping for the Payouts screen: imports core/ only. Covered by payouts.test.ts.
 import type { Transaction, TxType } from '../../core/types';
 
 export interface MonthlyPayout {
@@ -10,8 +8,6 @@ export interface MonthlyPayout {
   total: number;
 }
 
-// dividend_accrual -> dividends bar (reit color), interest_payout -> coupons
-// bar (ovdp8976 color), grouped by calendar month, chronological.
 export function monthlyPayouts(transactions: Transaction[]): MonthlyPayout[] {
   const byMonth = new Map<string, { dividends: number; coupons: number }>();
   for (const t of transactions) {
@@ -32,7 +28,7 @@ export function monthlyPayouts(transactions: Transaction[]): MonthlyPayout[] {
     }));
 }
 
-// Structured token — the UI renders 'account' / 'reinvested (₴X,XX)'.
+// Structured token — the UI renders the destination words.
 export type PayoutDestination = { kind: 'account' } | { kind: 'reinvested'; amount: number };
 
 export interface PayoutLogRow {
@@ -40,15 +36,14 @@ export interface PayoutLogRow {
   assetId: string;
   type: Extract<TxType, 'dividend_accrual' | 'interest_payout'>;
   amount: number;
-  /** Absent is the only spelling of none — never 0 (#136's shape). */
+  /** Absent is the only spelling of none — never 0. */
   taxWithheld?: number;
   /** `amount − coalesce(taxWithheld, 0)`, derived here so the screen has no arithmetic. */
   net: number;
   destination: PayoutDestination;
 }
 
-// A payout's destination derives from a same-date, same-asset `reinvest` tx
-// (README §6.4 / D5#3) — else it went to the account.
+// A payout's destination derives from a same-date, same-asset `reinvest` row.
 export function payoutLogRows(transactions: Transaction[]): PayoutLogRow[] {
   const payouts = transactions.filter(
     (t): t is Transaction & { type: 'dividend_accrual' | 'interest_payout' } =>
@@ -67,8 +62,8 @@ export function payoutLogRows(transactions: Transaction[]): PayoutLogRow[] {
         assetId: t.assetId,
         type: t.type,
         amount: t.amount,
-        // Spread rather than assigned, so an untaxed row carries no key at all
-        // — the same shape the store, the envelope and the CSV already use.
+        // Spread rather than assigned, so an untaxed row carries no key at all — the
+        // shape the store, the envelope and the CSV already use.
         ...(t.taxWithheld === undefined ? {} : { taxWithheld: t.taxWithheld }),
         net: t.amount - (t.taxWithheld ?? 0),
         destination,

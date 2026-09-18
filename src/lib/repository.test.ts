@@ -1,7 +1,5 @@
-// Write-surface tests (G2) against fake-indexeddb — the one test file that
-// touches IndexedDB (scoped D4 amendment, see DECISIONS). The auto import
-// must come first so Dexie picks up the fake globals; db.delete()+open() in
-// beforeEach gives every test a fresh, isolated database.
+// The one test file that touches IndexedDB, against fake-indexeddb. The auto
+// import must come FIRST so Dexie picks up the fake globals.
 import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,7 +36,6 @@ describe('deleteAsset cascade', () => {
     expect(txs.some((t) => t.assetId === 'reit')).toBe(false);
     expect(txs).toHaveLength(SEED_TRANSACTIONS.filter((t) => t.assetId !== 'reit').length);
 
-    // Every snapshot equals the seed row minus exactly the reit quote key.
     const expected = buildSeedSnapshots().map((s) => {
       const quotes = { ...s.quotes };
       delete quotes.reit;
@@ -68,9 +65,6 @@ describe('ensureSeeded meta guard', () => {
   });
 });
 
-// Seed row counts: 4 assets / 174 snapshots / 18 transactions (3 deposits +
-// 4 buys + 6 dividends + 2 coupons + 3 reinvests — D5; browser-verified in
-// docs/archive/BUILD-PLAN.md Task 2). NEXT-PHASE-PLAN's "4/174/19" was a miscount.
 describe('clearAll({ reseed: true })', () => {
   it('restores the exact seed counts 4/174/18 after divergence', async () => {
     await ensureSeeded();
@@ -90,7 +84,6 @@ describe('replaceAll', () => {
 
     const bad = {
       assets: before.assets,
-      // a later row duplicates the first snapshot's primary-key date
       snapshots: [...before.snapshots.slice(0, 3), { ...before.snapshots[0] }],
       transactions: before.transactions,
     };
@@ -117,11 +110,9 @@ describe('replaceAll', () => {
   });
 });
 
-// --- Import round-trip (P4 feat/backup-import, D24) ------------------------
-// The headline invariant: export → erase → import must return the dataset
-// byte-identical, D5-pinned figures included. Lives here (not beside
-// core/backup) because it needs the real DB and the seed — core tests may not
-// import src/lib (G1).
+// The headline invariant: export → erase → import returns the dataset
+// byte-identical. Here rather than beside core/backup because it needs the real
+// database and the seed, which core tests may not import.
 
 async function exportSeedEnvelope() {
   const tables = await repo.exportAll();
@@ -160,7 +151,6 @@ describe('export → erase → import round-trip', () => {
     expect(after.snapshots).toHaveLength(174);
     expect(after.transactions).toHaveLength(18);
 
-    // D5 checkpoints, derived from the re-imported rows.
     const kpis = headlineKpis(after.snapshots, after.transactions);
     expect(kpis.total).toBeCloseTo(149016.36, 2);
     expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
@@ -202,15 +192,10 @@ describe('export → erase → import round-trip', () => {
   /**
    * Wait until `heard` holds `count` messages, or give up after a deadline.
    *
-   * `BroadcastChannel` delivery is asynchronous with NO guaranteed turnaround.
-   * This test used to assume one macrotask tick was enough — which held on a
-   * developer machine and did not on a loaded CI runner, failing three times
-   * across two commits while every retry passed. That is the definition of a
-   * flake, and retrying it would have been treating the symptom.
-   *
-   * Polling is strictly better than a longer fixed sleep: it returns the
-   * instant the message lands (so the fast path stays fast) and still fails —
-   * loudly, at the assertion below — if it never does.
+   * `BroadcastChannel` delivery is asynchronous with no guaranteed turnaround, so
+   * one macrotask tick is not enough on a loaded runner. Polling returns the
+   * instant the message lands and still fails loudly if it never does, which a
+   * longer fixed sleep does not.
    */
   async function waitForMessages(heard: unknown[], count: number): Promise<void> {
     const deadline = Date.now() + 2_000;
@@ -221,23 +206,19 @@ describe('export → erase → import round-trip', () => {
 
   it('tells other tabs after a committed replace, never before', async () => {
     await ensureSeeded();
-    // A second channel object stands in for a second tab: the repository's own
-    // channel never delivers to itself (that is what keeps the acting tab from
-    // toasting at itself).
+    // A second channel object stands in for a second tab: the repository's own never delivers to itself.
     const otherTab = new BroadcastChannel(SYNC_CHANNEL);
     const heard: unknown[] = [];
     otherTab.onmessage = (e: MessageEvent) => void heard.push(e.data);
     try {
       const bad = { assets: SEED_ASSETS, snapshots: [], transactions: SEED_TRANSACTIONS };
-      // A rejected write must stay silent: bulkAdd of transactions referencing
-      // no snapshots is fine, so break it with a duplicate primary key instead.
+      // A rejected write must stay silent, and bulkAdd of transactions referencing no
+      // snapshots is fine — so break it with a duplicate primary key instead.
       await expect(
         repo.replaceAll({ ...bad, assets: [...SEED_ASSETS, SEED_ASSETS[0]] }),
       ).rejects.toThrow();
-      // Asserting ABSENCE, so this one must NOT wait for an arrival — it gives
-      // a wrong implementation a real window to speak up and then insists on
-      // silence. `await Promise.resolve()` alone would have let a broken build
-      // pass simply by being slower than the assertion.
+      // Asserting ABSENCE, so this one must NOT wait for an arrival: it gives a wrong
+      // implementation a real window to speak up and then insists on silence.
       await new Promise((resolve) => setTimeout(resolve, 50));
       expect(heard).toEqual([]);
 
@@ -316,8 +297,6 @@ describe('meta accessors (P3 Inzhur last-good cache)', () => {
   });
 });
 
-// --- Dataset split (G4/D16) ------------------------------------------------
-
 describe('makeDb factory (G4)', () => {
   it('returns an independent instance per name — rows never bleed across', async () => {
     const a = makeDb('kubushka-test-a');
@@ -337,8 +316,7 @@ describe('makeDb factory (G4)', () => {
   });
 
   it('binds the demo DB (quirenote) when no dataset flag is persisted', () => {
-    // The node test env persists no quirenote-settings → the boot-time read
-    // falls back to 'demo' (D16).
+    // No stored settings in the node env, so the boot-time read falls back to demo.
     expect(activeDataset).toBe('demo');
     expect(db.name).toBe('quirenote');
   });
@@ -346,8 +324,7 @@ describe('makeDb factory (G4)', () => {
 
 describe('dataset boot binding (G4)', () => {
   it('binds quirenote-live and never auto-seeds it when the persisted dataset is live', async () => {
-    // Re-init the module graph with a stubbed localStorage carrying the live
-    // flag — the same synchronous read the browser performs before React.
+    // The same synchronous read the browser performs before React, with the live flag stubbed in.
     vi.resetModules();
     vi.stubGlobal('localStorage', {
       getItem: (key: string) =>
@@ -380,8 +357,7 @@ describe('dataset boot binding (G4)', () => {
     }
   });
 
-  // The S6 "Erase live data" flow (feat/clear-data): clearAll({reseed:false})
-  // against the live binding leaves the app truly empty across reloads.
+  // The "Erase live data" flow: clearAll({reseed:false}) on live stays empty across reloads.
   it('erase — clearAll({reseed:false}) on live stays empty across re-inits', async () => {
     vi.resetModules();
     vi.stubGlobal('localStorage', {
@@ -399,7 +375,6 @@ describe('dataset boot binding (G4)', () => {
       const freshDb = await import('./db');
       const freshRepo = await import('./repository');
 
-      // a real live portfolio: the user wrote an asset into quirenote-live
       await freshDb.db.assets.add(SEED_ASSETS[0]);
       expect(await freshDb.db.assets.count()).toBe(1);
 

@@ -1,21 +1,17 @@
-// Dexie database factory — imported ONLY by repository.ts (see src/README.md).
+// Dexie database factory — imported only by repository.ts (*Core is pure*).
 import { Dexie, type Table } from 'dexie';
 
 import type { Dataset } from '../core/backup/json';
 import { SETTINGS_KEY } from './storage-keys';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 
-// Key-value side table (G2): seeding flag now; later the mirror file handle
-// and the Inzhur last-good cache.
 export interface MetaRow {
   key: string;
   value: unknown;
 }
 
-// Versioning policy (G2): bump the Dexie version ONLY for stores/index
-// changes (new table, new/changed index, changed primary key). New OPTIONAL
-// object fields never bump — IndexedDB stores whole objects, so optional
-// fields need no schema change.
+// Bump the Dexie version ONLY for a stores/index change. A new optional field
+// never bumps: IndexedDB stores whole objects.
 class QuirenoteDB extends Dexie {
   assets!: Table<Asset, string>;
   snapshots!: Table<Snapshot, string>; // primary key: date
@@ -29,9 +25,8 @@ class QuirenoteDB extends Dexie {
       snapshots: 'date',
       transactions: 'id, date, assetId',
     });
-    // v2 adds the meta table. Existing DBs that already hold assets were
-    // seeded under v1's count()===0 heuristic — stamp the flag so deliberate
-    // emptiness (clearAll/delete-last-asset) survives reloads from now on.
+    // v2 stamps the flag on databases seeded under v1's count()===0 heuristic, so a
+    // deliberately empty dataset stops reseeding itself on the next reload.
     this.version(2)
       .stores({ meta: 'key' })
       .upgrade(async (tx) => {
@@ -47,20 +42,15 @@ export function makeDb(name: string): QuirenoteDB {
   return new QuirenoteDB(name);
 }
 
-// Dataset split (G4/D16): one Dexie DB per dataset. Renamed with the product
-// (D42) and deliberately WITHOUT an IndexedDB migration: live was empty and
-// demo reseeds itself, so reseeding IS the migration. The pre-rename databases
-// are left on disk rather than deleted — a rename that also destroys data is
-// two operations pretending to be one.
+// One database per dataset, renamed with the product and deliberately without an
+// IndexedDB migration — live was empty and demo reseeds, so reseeding is the
+// migration. The pre-rename databases stay on disk: a rename that also destroys
+// data is two operations pretending to be one.
 const DB_NAME: Record<Dataset, string> = { demo: 'quirenote', live: 'quirenote-live' };
 
-// The active dataset is resolved ONCE, synchronously, at module init — before
-// React, stores or queries exist — from the persisted settings JSON
-// (localStorage SETTINGS_KEY; `dataset` stays top-level under `state`
-// per the D11 head-script contract). Switching datasets = persist + reload
-// (settings.setDataset), so a running app never rebinds. Absent or malformed
-// storage (first run, node tests) falls back to 'demo' — the same
-// anything-but-'live'-means-demo rule as state/settings.migrateSettings.
+// Resolved ONCE, synchronously, at module init — before React, the stores or any
+// query exist. Switching datasets persists and reloads rather than rebinding, and
+// anything but the exact 'live' literal means demo (state/settings.ts agrees).
 function readDatasetFlag(): Dataset {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -69,7 +59,7 @@ function readDatasetFlag(): Dataset {
       if (state?.dataset === 'live') return 'live';
     }
   } catch {
-    // No localStorage (node) or unparseable JSON — fall through to demo.
+    // No localStorage, or unparseable JSON: fall through to demo.
   }
   return 'demo';
 }

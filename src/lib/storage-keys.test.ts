@@ -1,6 +1,5 @@
-// The rename is only safe because of these. A key rename is not a
-// find-and-replace: the key IS the data, so an untested migration is a silent
-// reset of the user's currency, rate, dataset flag and dismissals (D42, E1).
+// A key rename is not a find-and-replace: the key IS the data, so an untested
+// migration silently resets currency, rate, dataset flag and every dismissal.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function fakeStorage(seed: Record<string, string> = {}) {
@@ -37,7 +36,6 @@ describe('pre-Quirenote profile migration', () => {
 
     expect(ls.getItem(keys.SETTINGS_KEY)).toBe(PROFILE);
     expect(ls.getItem(keys.DRAFT_KEY)).toBe('{"state":{"quotes":{}}}');
-    // One live profile: the old keys are gone, not left to diverge.
     expect(ls.getItem('kubushka-settings')).toBeNull();
     expect(ls.getItem('kubushka-draft')).toBeNull();
   });
@@ -71,8 +69,7 @@ describe('pre-Quirenote profile migration', () => {
         throw new Error('denied');
       },
     });
-    // The boot must survive a locked-down browser — nothing here is worth
-    // failing a boot over.
+    // The boot must survive a locked-down browser.
     await expect(import('./storage-keys')).resolves.toBeDefined();
   });
 });
