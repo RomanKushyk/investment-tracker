@@ -8,12 +8,10 @@ GET https://www.inzhur.reit/api/funds        → 200, JSON, 10 funds, no key, no
 GET https://www.inzhur.reit/api/funds/{id}   → 200, one fund
 ```
 
-Strapi. Per-fund fields: `name`, `fundID`, `profitability`, `projectedProfitabilityPercentage`,
-`profitabilityTitle`, `fundType`, `status`, `openDate`, `monthsToClose`,
-`initialInvestmentValue`, `UkrainianStockExchange`, `rank`, `licenses`, `shortDescription`.
-`updatedAt` moves the same day. **No price, NAV or unit count in it**, and no quote endpoint
-exists — `/api/quotes`, `/api/prices`, `/api/securities`, `/api/certificate-prices` all 404;
-`?populate=*` returns 500. Useful for the fund roster, useless for a series.
+Strapi, carrying each fund's name, ids, type, status, dates, projected profitability,
+`UkrainianStockExchange` flag and licences. **No price, NAV or unit count in it**, and no quote
+endpoint exists — `/api/quotes`, `/api/prices`, `/api/securities`, `/api/certificate-prices` all
+404, and `?populate=*` returns 500. Useful for the fund roster, useless for a series.
 
 The offer pages (`/offer/inzhur-reit`, `/offer/inzhur-energy`) do carry a
 `{"buy":…,"sell":…,"nav":…}` object — the same dealer quote `infra/src/capture.ts` already
@@ -25,10 +23,9 @@ not an independent corroboration. Pinned ratios: `sellUAH = navUAH ×
 
 Two traps stacked, and the second is the one that bites.
 
-**First: the numbers in a quote object are indices.** The page ships `<script
-id="__NUXT_DATA__">` holding a devalue array — 4 468 entries on `/offer/inzhur-energy`. So
-`{"buy":1354,…}` means *entry 1354*, not ₴1354 — fully decodable in three lines: parse that
-script's JSON, then index into it.
+**First: the numbers in a quote object are indices.** The page ships `<script id="__NUXT_DATA__">`
+holding a devalue array, so `{"buy":1354,…}` means *entry 1354*, not ₴1354 — decodable by parsing
+that script's JSON and indexing into it.
 
 **Second: one page carries a quote object per instrument card**, around 35 of them, and
 **taking the first regex match gets you a different fund's quote** — an object can belong to a
@@ -45,13 +42,11 @@ script's JSON, then index into it.
 | `inzhur-reit` | 1.009002 | 1.010002 |
 | `inzhur-energy` | **1.0090000** | **1.0100000** |
 
-Energy is exact to seven decimals (`nav × 1.009 = 6648.3109`, `nav × 1.010 = 6654.8999`, both
-to the last digit); REIT's last two digits are kopeck rounding — the pinned `sellUAH = navUAH ×
-1.009` / `buyUAH = navUAH × 1.010` hold on both funds.
-
-**Beware the `nav: 0` objects** — several quote objects on these pages carry `nav: 0` with `buy
-== sell`, genuinely, for two of the four funds, not a broken record or a zero spread. A parser
-that averages or ratios across all quote objects on a page will divide by it.
+Energy is exact to seven decimals and REIT's last two digits are kopeck rounding, so the pinned
+ratios hold on both funds. **Beware the `nav: 0` objects** — several quote objects on these pages
+carry `nav: 0` with `buy == sell`, genuinely, for two of the four funds rather than as a broken
+record or a zero spread, and a parser that averages or ratios across a page's objects divides by
+it.
 
 ## Cross-checks
 
@@ -60,11 +55,11 @@ that averages or ratios across all quote objects on a page will divide by it.
 | `inzhur-reit` | 10.9975 ₴ | 6 349 854 721 ₴ | 565 596 561 |
 | `inzhur-energy` | 6 589.0098 ₴ | 1 161 530 519 ₴ | — |
 
-**Do not divide assets by certificates to check NAV** — *ВЧА* is net of liabilities, *Вартість
-активів фонду* is gross, and the ~2 % gap reads like a parse error when it is a balance sheet;
-quote the ₴ and the base, never the bare percentage. Quarterly «Довідка ВЧА» PDFs, linked from
-each offer page, are the anchor points a parse of the daily series must agree with at quarter
-end — only where Energy's `.xlsx` (starts 2024-11-14) overlaps a PDF:
+**Do not divide assets by certificates to check NAV** — *ВЧА* is net of liabilities and *Вартість
+активів фонду* is gross, so the ~2 % gap reads like a parse error when it is a balance sheet.
+Quarterly «Довідка ВЧА» PDFs, linked from each offer page, are the anchor points a parse of the
+daily series must agree with at quarter end — only where a published file overlaps one, which for
+Energy means 2024-11-14 onward:
 
 | Fund | Quarters linked |
 |---|---|
@@ -87,14 +82,13 @@ Enerdzhi_czina_06_07_2026_2c553a3277.xlsx
 Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx
 ```
 
-Fetching them automatically is allowed — the links sit on an allowed page, and the CDN is a
-separate origin with **no `robots.txt` at all** (`404 NoSuchKey`); `/documents` is not the path
-used. The filename carries a **content hash**, so polling these URLs signals nothing forever —
-re-read the offer page for the current link. `Last-Modified` confirms the cut (`Mon, 06 Jul
-2026 14:08:47 GMT` for the REIT file); naming is not uniform, so do not parse the date out of
-it — the dividend file is `…_dividendi_28_07_…`, no year. The importer (`importFundHistory` in
-`infra/src/capture.ts`) takes the single `czina` link on each offer page and never the
-`dividendi` one; two price links, or none, stop it.
+Fetching them automatically is allowed — the links sit on an allowed page and the CDN is a separate
+origin with **no `robots.txt` at all** (`404 NoSuchKey`); `/documents` is not the path used. **The
+filename carries a content hash, so polling these URLs signals nothing forever** — re-read the offer
+page for the current link, and take the cut from `Last-Modified` rather than the name, which is not
+uniformly formed (the dividend file is `…_dividendi_28_07_…`, no year). The importer
+(`importFundHistory` in `infra/src/capture.ts`) takes the single `czina` link on each offer page and
+never the `dividendi` one; two price links, or none, stop it.
 
 `https://www.inzhur.reit/robots.txt` allows `/` and disallows `/dashboard/`, `/signin/`,
 `/signup/`, `/documents`, `/terms`, `/privacy-policy`, `/fund_merger_report`,

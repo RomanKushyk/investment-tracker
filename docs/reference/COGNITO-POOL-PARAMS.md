@@ -6,7 +6,7 @@ Rehearsed on a throwaway pool created and deleted the same day, because a wrong 
 
 **Three parameters are create-time only, not one.** `UsernameAttributes` is the one the decision names. `UsernameConfiguration` is the one it does not, and leaving it out is what breaks "one account per email". `Schema`'s required flags are the third.
 
-Two sources are quoted throughout and never mixed with what the pool actually did: the developer guide's [Customizing sign-in attributes](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html#user-pool-settings-aliases) and the [`CreateUserPool`](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_CreateUserPool.html) / [`UpdateUserPool`](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_UpdateUserPool.html) API references. **What is changeable is decided by whether `UpdateUserPool` lists the parameter at all** — that is checkable without a pool, and it is the test used below. (`UpdateUserPool`'s sample request is not: it echoes a `DescribeUserPool` body and shows `Arn`, `Name`, `Domain` and `AliasAttributes`, none of which are request parameters.)
+Two sources are quoted throughout and never mixed with what the pool actually did: the developer guide's [Customizing sign-in attributes](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-settings-attributes.html#user-pool-settings-aliases) and the [`CreateUserPool`](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_CreateUserPool.html) / [`UpdateUserPool`](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_UpdateUserPool.html) API references. **What is changeable is decided by whether `UpdateUserPool` lists the parameter at all** — checkable without a pool, and the test used below. Its sample request is not: it echoes a `DescribeUserPool` body and shows fields that are not request parameters.
 
 ## The calls, verbatim
 
@@ -89,11 +89,9 @@ This client is not a template for the real one: its `--explicit-auth-flows` carr
 Both need a deployed pool, and this repository has no local credentials — so they are written down as open rather than guessed at. Neither is relied on by anything yet: nothing calls refresh.
 
 - **What a replayed, already-rotated token does.** AWS documents the retry grace period and that the rotated-out token stops working after it, but never says whether a replay *outside* the window revokes the whole token family the way some providers do. The answer decides whether an unexpected refusal is treated as a forced sign-out or as an alert worth raising, so it has to be established before the refresh endpoint chooses one.
-- **Which refresh path rotation actually requires.** AWS says it two ways. The API reference for `RefreshTokenRotationType` is flat — "Refresh token rotation must be completed with `GetTokensFromRefreshToken`" — while the developer guide's OAuth section says "Requests to the token endpoint are available in app clients with refresh token rotation active… When refresh token rotation is active, the token endpoint returns a new refresh token." This client is OAuth code flow behind managed login, so the token endpoint is the one it would naturally use — but the guide points at `GetTokensFromRefreshToken` in its own "things to know" and SDK sections, and only its OAuth section says otherwise, so the weight is not obviously on either side. The field description for `RetryGracePeriodSeconds` describes the window in terms of `GetTokensFromRefreshToken` too, which matters: the two-tab race that window is chosen for is reasoned on the path this client would take. Establish which before the refresh endpoint is written.
+- **Which refresh path rotation actually requires.** AWS says it two ways: the API reference for `RefreshTokenRotationType` is flat — "Refresh token rotation must be completed with `GetTokensFromRefreshToken`" — while the developer guide's OAuth section says the token endpoint returns a new refresh token when rotation is active. This client is OAuth code flow behind managed login, so the token endpoint is the one it would naturally use, but only that one section says so, and `RetryGracePeriodSeconds` describes its window in terms of `GetTokensFromRefreshToken` — which matters, because the two-tab race the window is chosen for is reasoned on the path this client would take. Establish which before the refresh endpoint is written.
 
 - **Whether the managed-login session cookie undoes the bound.** AWS's own pages disagree: one says such sessions "are set in a browser cookie and are valid for one hour", another that they "don't expire automatically, your user can re-authenticate with a session cookie, with no additional prompt for credentials". On the managed-login path that decides whether a twenty-four-hour refresh token actually forces a credential prompt or merely a silent redirect. It is the difference between a bound and a formality.
-
-*(A third question was raised and then withdrawn: whether the `origin_jti` and `jti` claims rotation adds push a token past the header limit. Token revocation adds those same claims and is on by default for a new client, so they predate rotation and this branch — the tokens are the same size before and after, and the margin question is not new.)*
 
 ## Four deviations this pool made, which a real one must not copy
 
@@ -133,42 +131,30 @@ because the domain is fronted by a CloudFront distribution Cognito builds and ow
 
 **And the RP ID is the apex rather than the auth host, which forecloses nothing and costs one
 thing.** A relying party is matched by registrable suffix, so `quirenote.com` covers
-`auth.quirenote.com` and the SPA's own origin at `quirenote.com` at once — where
-`auth.quirenote.com` would cover only the first and close off a native
-`StartWebAuthnRegistration` from the app. The two environments take their own apex,
-`quirenote.com` and `dev.quirenote.com`, so a passkey registered against dev is not offered at
-the production sign-in page, and a production passkey is not offered at dev's either — a browser
-keys a credential to the exact RP ID, so which passkeys a page is OFFERED is symmetric. WHAT IS
-ONE-WAY IS ORIGIN REACH, and it is the next paragraph: dev sits under the production apex, so code
-on a dev origin can ask for a production credential, and that is the cost of the choice.
-
-**The cost is that the apex scopes a credential to every subdomain, not just the two.** AWS, of
-the same RP ID: a passkey "can authenticate for that domain **and subdomains**". So any origin
-under `quirenote.com` — `dev.quirenote.com` included, and any future or dangling name — can ask
-the browser for a production passkey, where under `auth.quirenote.com` neither host was a suffix
-of the other and that was structurally impossible. This is the ordinary price of an apex relying
-party and it is accepted knowingly; what it means in practice is that a subdomain of the apex is
-part of the auth surface, and adding one is a decision about credentials as well as about
-hosting. The Amplify default hostnames are the other side of it: `main.d17m4jf400my6.amplifyapp.com`
-and `dev.d17m4jf400my6.amplifyapp.com` are live SPA origins (`infra/template-user.yaml`'s CORS
-list, `reference/DEPLOYMENT.md`), and THIS relying party does not reach them — they sit in a
-different domain tree, so no value can cover them and `quirenote.com` at the same time. They are
-not unreachable in principle: `d17m4jf400my6.amplifyapp.com` is one label below a public suffix
-and would be a legal RP ID covering both of them. It is simply not the one chosen, so a passkey
-ceremony run from those URLs cannot work here.
+`auth.quirenote.com` and the SPA's own origin at once, where `auth.quirenote.com` would cover only
+the first and close off a native `StartWebAuthnRegistration` from the app. Each environment takes
+its own apex, so which passkeys a page is OFFERED stays symmetric — a browser keys a credential to
+the exact RP ID. **What is one-way is ORIGIN REACH, and that is the cost:** AWS says a passkey "can
+authenticate for that domain **and subdomains**", so any origin under `quirenote.com` —
+`dev.quirenote.com` included, and any future or dangling name — can ask the browser for a
+production passkey, where under `auth.quirenote.com` neither host was a suffix of the other and
+that was structurally impossible. Accepted knowingly; what it means in practice is that a subdomain
+of the apex is part of the auth surface, and adding one is a decision about credentials as well as
+about hosting. The Amplify default hostnames are the other side of it: they are live SPA origins in
+`infra/template-user.yaml`'s CORS list, and THIS relying party does not reach them — a different
+domain tree, so no value can cover them and `quirenote.com` at once — so a passkey ceremony run
+from those URLs cannot work here.
 
 **AWS documents this two ways, and they contradict each other.** The developer guide's
 [authentication flows](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-authentication-flow-methods.html)
-page calls the custom domain's FQDN what a pool "defaults to" when you "don't specify
-otherwise", adds that you "can also configure your RP ID to be any domain name not in the public
-suffix list (PSL)", and says that entry "applies to passkey registration and authentication in
-managed login and in SDK authentication". The API reference for `WebAuthnConfigurationType` and
-the CloudFormation reference for `AWS::Cognito::UserPool` both say the opposite in terms: the RP
-ID "must be the fully-qualified domain name of your custom domain" when the pool is configured
-for passkeys, has a custom domain, and authenticates through managed login or the classic hosted
-UI — which is this pool exactly. Which one the service ACCEPTS was measured, below; the ceremony
-itself is the half that measurement does not reach. It still has to be settled before the first
-passkey, because changing it strands every one already registered.
+page calls the custom domain's FQDN what a pool "defaults to" when you "don't specify otherwise"
+and adds that you "can also configure your RP ID to be any domain name not in the public suffix
+list (PSL)". The API reference for `WebAuthnConfigurationType` and the CloudFormation reference for
+`AWS::Cognito::UserPool` both say the opposite in terms — the RP ID "must be the fully-qualified
+domain name of your custom domain" when the pool is configured for passkeys, has a custom domain,
+and authenticates through managed login — which is this pool exactly. Which one the service ACCEPTS
+was measured, below; the ceremony is the half that measurement does not reach, and it has to be
+settled before the first passkey, because changing it strands every one already registered.
 
 **Two things the template cannot finish**, both in `reference/DEPLOYMENT.md`: the Cloudflare
 record pointing at that distribution — DNS-only, never proxied — and the fact that until it
@@ -203,13 +189,12 @@ signed in to. Anything deciding that has to read `Enabled`.
 
 **The username is a UUID even for the accounts `AdminCreateUser` makes, and the address reaches
 them by ALIAS.** Under `UsernameAttributes: ["email"]` the pool assigns its own username whatever
-created the account: `ListUsers` on the dev pool returns UUIDs for both accounts this system made,
-with the address only in the `email` attribute. `AdminGetUser` with the address as `Username`
-returns that account anyway — alias resolution on `email`, not a username match — and an address
-the pool holds no local account for answers `UserNotFoundException`. So an admin call by address
-reaches every LOCAL account however it was made, a self-service `SignUp` included, and reaches a
-federated-only profile never: that one is named for its provider and subject and carries no such
-alias. Anything that infers "this account was created by us" from the username shape is wrong.
+created the account, with the address only in the `email` attribute; `AdminGetUser` with the
+address as `Username` returns the account anyway — alias resolution on `email`, not a username
+match — and an address with no local account answers `UserNotFoundException`. So an admin call by
+address reaches every LOCAL account however it was made and never a federated-only profile, which
+is named for its provider and subject. Anything inferring "we created this" from the username shape
+is wrong.
 
 **`DescribeUserPool` does not report the WebAuthn settings, even when they are set.**
 `WebAuthnRelyingPartyID` and `WebAuthnUserVerification` both read back `null` there. They live
@@ -227,29 +212,19 @@ value the config plane refuses to take.
 
 **`SetUserPoolMfaConfig` REPLACES rather than merges, and `required` does not survive an omission.**
 Sending `WebAuthnConfiguration` with `RelyingPartyId` alone returned a configuration with no
-`UserVerification` field at all, where the call before it had been answering `required`. The
-response distinguishes that from the documented default rather than blurring it: setting
-`preferred` EXPLICITLY is echoed back as `"UserVerification": "preferred"`, so an absent field in
-the response is a third state and not a quiet `preferred`. What the guide says about the effective
-behaviour — "this setting defaults to preferred in API requests that don't provide a value" —
-stands alongside that and is not contradicted by it; the pool simply stops reporting a value.
-Either way the outcome is the same one that matters: the setting is no longer `required`, which is
-the state the template deploys. `FactorConfiguration` came back `SINGLE_FACTOR`, which is also its
-default, so that field separates nothing and is not evidence either way. The API reference says
-none of this: every parameter is merely `Required: No`, and the "sets it to its default value"
-language belongs to `UpdateUserPool`, a different call. So the read before the write is not
-optional — anything touching this call echoes back the whole object.
+`UserVerification` field at all, where the call before it had answered `required`. An absent field
+is a third state rather than a quiet `preferred`: setting `preferred` EXPLICITLY is echoed back as
+`"UserVerification": "preferred"`. Either way the outcome is the one that matters — the setting is
+no longer `required`, which is the state the template deploys. The API reference says none of this;
+every parameter is merely `Required: No`, and the "sets it to its default value" language belongs
+to `UpdateUserPool`, a different call. So the read before the write is not optional — anything
+touching this call echoes back the whole object.
 
-**What that measurement does NOT settle**, and the reason to write it down rather than assume it:
-the third condition the "must be" clause names is about the ceremony — "your application performs
-authentication with managed login or the classic hosted UI" — and accepting the string is not the
-same as running the ceremony with it. Two gaps remain, both closed by use rather than by this
-call. It went through the Cognito API and not CloudFormation, so the deploy is what says the same
-of `AWS::Cognito::UserPool`. And no passkey has been registered through managed login against an
-apex RP ID here; the developer guide states the entry "applies to passkey registration and
-authentication in managed login and in SDK authentication", which is the only assurance on that
-point so far, and it is the same guide the reference pages contradict. The first registration is
-what turns it into a measurement.
+**What that measurement does NOT settle:** accepting the string is not the same as running the
+ceremony with it. Two gaps remain, both closed by use. The call went through the Cognito API and
+not CloudFormation, so the deploy is what says the same of `AWS::Cognito::UserPool`; and no passkey
+has been registered through managed login against an apex RP ID here, the only assurance on that
+point being the same developer guide the reference pages contradict.
 
 **A pool that allows passkeys does not offer them to a user who has none.** `InitiateAuth` with
 `AuthFlow: USER_AUTH` against a password-only user answers `SELECT_CHALLENGE` with

@@ -1,8 +1,6 @@
 # Dependabot — security only, and how an advisory reaches `dev`
 
-Alerts and automated security fixes are on as a repository setting; there is no `.github/dependabot.yml` (nor `.yaml`) — see "Dependabot" in [`../DECISIONS.md`](../DECISIONS.md) for the ruling.
-Dependabot cannot always raise a PR for an advisory — no compatible version, or it sits on a transitive dependency.
-**The alert is the unit, not the PR**: closing the PR list is not closing the advisories, so re-run the alert query after any fix to confirm.
+Alerts and automated security fixes are on as a repository setting; there is no `.github/dependabot.yml` (nor `.yaml`) — the ruling is under "Dependabot" in [`../DECISIONS.md`](../DECISIONS.md). Dependabot cannot always raise a PR for an advisory, so **the alert is the unit, not the PR**: closing the PR list is not closing the advisories, and the alert query has to be re-run after any fix.
 
 ## Which manifest
 
@@ -48,15 +46,10 @@ For an `infra/` alert, run `(cd infra && npm ci)` then `pnpm exec tsc --noEmit -
 
 ## Without a PR
 
-On a `chore/<kebab-title>` branch. First find out whether the package is even yours — a flagged version often sits under a transitive parent, not the one that looks obvious.
-
-```sh
-pnpm why <pkg>          # direct, or pulled in by whom?
-```
-If transitive, the discriminator is whether the parent's declared range admits the fix, not transitive-vs-direct — check the registry, not `node_modules` (pnpm's virtual store flattens scoped names, e.g. `@scope/pkg` → `scope+pkg`).
+On a `chore/<kebab-title>` branch. `pnpm why <pkg>` first, because a flagged version often sits under a transitive parent rather than the obvious one — and the discriminator is then whether the parent's declared range admits the fix, which is a question for the registry rather than `node_modules` (pnpm's virtual store flattens scoped names, `@scope/pkg` → `scope+pkg`):
 
 ```sh
 npm view '<parent>@<version>' dependencies peerDependencies optionalDependencies
 ```
 
-If the range admits it, `pnpm update <pkg>`; if not, add a bounded override in `pnpm-workspace.yaml` (see "Which manifest" above), then `pnpm install`. Finish with the same gates and the same merge sequence as "With a PR", including the rebase.
+If the range admits it, `pnpm update <pkg>`; if not, add a bounded override in `pnpm-workspace.yaml`, then `pnpm install`. Finish with the same gates and the same merge sequence as above, rebase included.

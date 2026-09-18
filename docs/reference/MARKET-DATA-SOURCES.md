@@ -16,11 +16,10 @@ Lambda before depending on a reachability claim.
 GET https://smida.gov.ua/db/api/v1/feed-index.xml
 ```
 
-Run by ДУ «Агентство з розвитку інфраструктури фондового ринку України» (АРІФРУ). Documented
-query grammar at `/db/api/v1` — filters include `edrpou`, `period` (`d`/`m`/`q`/`y`/`i`) and
-`date`/`sdate`/`fdate` ranges; modifiers `limit` (`limit=0` returns the header only) and
-`idlast` (pagination) — `?period=d&limit=3` is honoured, echoing `limit="3"`. Each `<item>`
-carries `id`, `timestamp`, `href`, `D_EDRPOU`, `D_NAME` and `<signatures>` with `.p7s`
+Run by ДУ «Агентство з розвитку інфраструктури фондового ринку України» (АРІФРУ), with a documented query
+grammar at `/db/api/v1`: filters `edrpou`, `period` (`d`/`m`/`q`/`y`/`i`) and `date`/`sdate`/`fdate`
+ranges, modifiers `limit` (`limit=0` returns the header only) and `idlast` for pagination. Each
+`<item>` carries `id`, `timestamp`, `href`, `D_EDRPOU`, `D_NAME` and `<signatures>` with `.p7s`
 signatures; `href` points at `https://smida.gov.ua/files/feed/YYYY/MM/DD/<uuid>/report.xml`.
 
 **Our code does not fetch this feed, categorically, per the External sources decision.**
@@ -40,19 +39,17 @@ CC-BY via data.gov.ua.
 | `mortgage-report-index.xml` | mortgage reports |
 
 Schema: `<index>` with `id_min` / `id_max` / `time_min` / `time_max` / `size` / `idlast` /
-`limit=1000`, then `<item>` rows; detail at `<unit>-report-id<N>.xml`, nesting `report → table
-→ row → param` (the namespace `report-index.xsd` 404s).
-
-**All five endpoints answer `200` with a current `timestamp` while the underlying data has
-stopped advancing — monitor `time_max`, not the status code.** Unreachable from our backend: a
-non-Ukrainian egress gets `HTTP 521` (Cloudflare reporting the origin refused its edge, not a
-bot block) while a Ukrainian one is fine. Treat this archive as manual-only: pull it from a
-Ukrainian network and commit the result rather than fetching at runtime.
+`limit=1000`, then `<item>` rows; detail at `<unit>-report-id<N>.xml`, nesting `report → table → row
+→ param` (the namespace `report-index.xsd` 404s). **All five answer `200` with a current `timestamp`
+while the underlying data has stopped advancing — monitor `time_max`, not the status code.**
+Unreachable from our backend: a non-Ukrainian egress gets `HTTP 521`, Cloudflare reporting the
+origin refused its edge rather than a bot block, while a Ukrainian one is fine. Manual-only: pull it
+from a Ukrainian network and commit the result rather than fetching at runtime.
 
 ## 3. UAIB — the only free NAV and unit-price table
 
-Association of asset-management companies. The daily page is a plain GET, reachable from a
-non-UA egress.
+Association of asset-management companies; the daily page is a plain GET, reachable from a non-UA
+egress.
 
 ```
 GET https://www.uaib.com.ua/analituaib/daily-data?date=YYYY-MM-DD
@@ -102,9 +99,8 @@ Everything inspected carries `license_title: Creative Commons Attribution`
 in the URL path, paid tariff. No investment or fund data.
 
 Catalogue pages under `minfin.com.ua/ua/invest/company/` embed schema.org JSON-LD of type
-`OnlineBusiness` with `aggregateRating`, harvestable without an API. Terms allow copying **with
-a hyperlink** to `www.minfin.com.ua`. Treat it as untrusted input — it carries at least one
-live test record.
+`OnlineBusiness` with `aggregateRating`, harvestable without an API; terms allow copying **with a
+hyperlink** to `www.minfin.com.ua`. Untrusted input — it carries at least one live test record.
 
 ## Closed, and why
 
@@ -127,24 +123,15 @@ live test record.
 
 ## Rules this leaves us with
 
-1. **Prefer the regulator's agency over company sites** — SMIDA's feed and the
-   CC-BY datasets pair a stated licence with a stable schema; SMIDA itself is not polled, by
-   ruling (External sources decision).
-2. **Monitor `time_max`, not the status code.**
-3. **Probe from the network the code runs on** — reachability differs by egress.
-4. **Never merge bases** — fund NAV, a dealer's quote and НБУ fair value are
-   three different definitions of "price" (The price archive decision).
-5. **Attribution is a licence condition, not a courtesy** — every source here
-   that permits reuse requires naming it.
-6. **Read `robots.txt` before the first fetch** — a named `Disallow` or
-   `ai-train=no` is final; silence "neither grants nor restricts" under the Content Signals
-   wording.
+**Read `robots.txt` before the first fetch** — a named `Disallow` or `ai-train=no` is final, and
+silence "neither grants nor restricts" under the Content Signals wording. **Attribution is a licence
+condition, not a courtesy**, every source here that permits reuse requiring it. **Probe from the
+network the code runs on**, reachability differing by egress, and **monitor `time_max` rather than
+the status code**. And **never merge bases**: fund NAV, a dealer's quote and НБУ fair value are three
+different definitions of "price" (*The price archive*).
 
-## What this does NOT give
-
-**A NAV or unit-price series for Ukrainian funds.** Disclosure is retrievable as *documents*
-through SMIDA, the fund register is sold per extract, UAIB's daily table covers few funds, and
-the exchange prices only what is listed — which excludes every fund we hold. Any per-fund
-series has to be assembled provider by provider, which is why this project runs its own archive
-(The price archive decision) and why [`INZHUR-FUND-HISTORY.md`](INZHUR-FUND-HISTORY.md) had to
-derive what it derived.
+**What none of it gives is a NAV or unit-price series for Ukrainian funds.** Disclosure is
+retrievable as *documents* through SMIDA, the fund register is sold per extract, UAIB's daily table
+covers few funds, and the exchange prices only what is listed — which excludes every fund we hold.
+Any per-fund series has to be assembled provider by provider, which is why this project runs its own
+archive and why [`INZHUR-FUND-HISTORY.md`](INZHUR-FUND-HISTORY.md) had to derive what it derived.
