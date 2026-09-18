@@ -26,9 +26,8 @@ describe('bondTermsRow', () => {
   });
 
   it('refuses a bond with no schedule, because an empty archive row is a lie', () => {
-    // The whole reason this table exists is that delisting destroys the live
-    // copy. Writing a row that says "this bond has no payments" would be worse
-    // than writing nothing: it is indistinguishable from a real zero-coupon.
+    // Delisting destroys the live copy, and a row saying "no payments" is
+    // indistinguishable from a real zero-coupon — worse than writing nothing.
     expect(bondTermsRow(bond({ paymentSchedule: [] }))).toBeNull();
   });
 
@@ -38,9 +37,8 @@ describe('bondTermsRow', () => {
     expect(JSON.parse(row!.paymentSchedule)).toEqual(bond().paymentSchedule);
   });
 
-  // The digest is what makes a REVISION findable without diffing JSON across
-  // 365 rows a year. Same terms must hash the same on any day; any change to
-  // any field must move it.
+  // The digest is what makes a REVISION findable without diffing JSON across 365
+  // rows a year.
   it('hashes the same terms identically whatever day they are seen on', () => {
     expect(bondTermsRow(bond())!.termsSha256).toBe(bondTermsRow(bond())!.termsSha256);
   });

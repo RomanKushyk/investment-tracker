@@ -1,17 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-// THE GAP RECONCILIATION MEASURES ONLY DAYS THE SOURCE HAS CAPTURED.
+// THE GAP RECONCILIATION MEASURES ONLY DAYS THE SOURCE HAS CAPTURED. It compares each
+// observation group's distinct dates against the capture days for its source over the
+// group's own span, and the fund-history import writes rows from before the first
+// capture — so that span reached back to them, read negative forever, and a missing
+// daily row could not surface. Bounding the span at the source's first capture day
+// holds however the rows got there: an imported row on a captured day is coverage,
+// not a gap.
 //
-// `diagnose` compares each observation group's distinct dates against the
-// capture days for its source over the group's own span. The fund-history
-// import writes rows from before the first capture, with nothing behind them,
-// so a span that reached back to them read negative forever and a missing
-// daily row could not surface. Bounding the span at the source's first
-// capture day is what makes the comparison honest, and it holds however the
-// rows got there: an imported row on a captured day is coverage, not a gap.
-// Source text, like `bind-params.test.ts` beside it and for the same reason:
-// the statement needs a cluster to run, and the defect is visible only there.
+// Source text, like `bind-params.test.ts` beside it: the statement needs a cluster to
+// run, and the defect is visible only there.
 const source = readFileSync(new URL('./capture.ts', import.meta.url), 'utf8');
 
 function statement(): string {

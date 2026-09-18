@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { backupFreshness, type VaultReader } from './backup-freshness';
 
-// `backup-age.test.ts` holds the RULE. This file holds the two things only the
-// handler can get wrong: which recovery points it asks for, and whether a read
-// it could not make is allowed to look like an answer.
+// `backup-age.test.ts` holds the RULE. Here, the two things only the handler can get
+// wrong: which recovery points it asks for, and whether a read it could not make is
+// allowed to look like an answer.
 
 const NOW = new Date('2026-09-15T12:00:00Z');
 const TARGET = {
@@ -27,11 +27,10 @@ const vault = (points: { Status?: string; CompletionDate?: Date }[]) => {
 
 describe('backupFreshness', () => {
   // THE ASSERTION THIS FILE EXISTS FOR. An unfiltered read answers with the whole
-  // vault — which holds the ARCHIVE's recovery points under the same tag-matched
-  // selection — so losing `ByResourceArn` would report prod's user data as freshly
-  // backed up on a night none of it was. That is the one wrong answer that looks
-  // right, and it is invisible to every other test here: the template can only
-  // show that the arn reaches the function's environment.
+  // vault, which holds the ARCHIVE's recovery points under the same tag-matched
+  // selection, so losing `ByResourceArn` would report prod's user data as freshly
+  // backed up on a night none of it was — and the template can only show that the arn
+  // reaches the function's environment.
   it('asks only for THIS cluster’s recovery points', async () => {
     const { reader, asked } = vault([]);
     await backupFreshness(reader, TARGET, NOW);
@@ -52,10 +51,9 @@ describe('backupFreshness', () => {
         value: 10,
         completedAt: '2026-09-15T02:00:00.000Z',
       });
-      // The log line IS the metric — `UserBackupAgeMetricFilter` reads `$.value`
-      // off it and dimensions by `$.cluster`, so a line that stopped being
-      // emitted, or stopped being JSON, would leave the alarm on an empty series
-      // with nothing else reporting it.
+      // The log line IS the metric — `UserBackupAgeMetricFilter` reads `$.value` off
+      // it and dimensions by `$.cluster`, so a line that stopped being emitted, or
+      // stopped being JSON, would leave the alarm on an empty series.
       expect(JSON.parse(log.mock.calls[0][0] as string)).toEqual(line);
     } finally {
       log.mockRestore();
@@ -72,12 +70,10 @@ describe('backupFreshness', () => {
     }
   });
 
-  // IT THROWS WHERE THE CAPTURE'S EQUIVALENT WARNS, and the difference is what
-  // each function is for: a capture must not fail because a monitoring read did,
-  // because it has a perishable price to write first. This one has no other work,
-  // so a swallowed error would be a successful-looking invocation that measured
-  // nothing — and `BackupFreshnessErrorAlarm` is what turns the throw into a
-  // signal rather than a log line.
+  // IT THROWS WHERE THE CAPTURE'S EQUIVALENT WARNS: a capture must not fail because a
+  // monitoring read did, having a perishable price to write first. This one has no
+  // other work, so a swallowed error would be a successful-looking invocation that
+  // measured nothing, and `BackupFreshnessErrorAlarm` turns the throw into a signal.
   it('lets a failed read out rather than reporting it as an answer', async () => {
     const reader: VaultReader = {
       listRecoveryPoints: async () => {

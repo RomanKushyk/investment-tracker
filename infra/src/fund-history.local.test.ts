@@ -7,12 +7,11 @@ import { addDays } from '../../src/core/dates';
 import { fundHistoryRows, type FundHistoryRow } from './fund-history';
 import { readXlsx } from './xlsx';
 
-// The provider's files and the owner's tracker are real financial data and
-// never committed, so this runs only where they are and skips everywhere
-// else. What it pins is the reason the files are stored as `nav`: the
-// tracker values a holding at the dealer's sell price, which is nav × 1.009,
-// so the implied unit count is whole after dividing by the spread and never
-// before. Same arithmetic that settled the basis, reused as a regression test.
+// The provider's files and the owner's tracker are real financial data and never
+// committed, so this runs only where they are and skips everywhere else. What it pins
+// is why the files are stored as `nav`: the tracker values a holding at the dealer's
+// sell price, which is nav × 1.009, so the implied unit count is whole after dividing
+// by the spread and never before.
 const DIR = join(homedir(), '.quirenote');
 const SPREAD = 1.009;
 const OVERLAP_FROM = '2026-04-23';
@@ -98,8 +97,8 @@ describe.skipIf(!present)('the provider files against the owner’s tracker', ()
   });
 
   it('REIT units are whole only after dividing by the spread, over the whole overlap', () => {
-    // The tolerance is the tracker's own rounding to the kopeck at a
-    // four-thousand-unit holding of an eleven-hryvnia certificate.
+    // The tolerance is the tracker's rounding to the kopeck at a four-thousand-unit
+    // holding of an eleven-hryvnia certificate.
     assertWholeUnitsAfterSpread(
       'inzhur-reit',
       files.reit,

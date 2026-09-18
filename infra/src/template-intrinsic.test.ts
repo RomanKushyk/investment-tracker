@@ -2,35 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { grantAt, intrinsicAt, tagAt, taggedCollections } from './template-intrinsic';
 
-// WHAT A TEMPLATE ASSERTION CANNOT SEE WITHOUT THIS. `toJS()` discards an unknown tag and
-// keeps the scalar, so `!GetAtt UserCluster.Endpoint` and a literal spelt the same way are
-// one value to every test that reads a parsed template — and the literal deploys a resource
-// pointing at a name AWS cannot resolve. The document node still carries the tag.
-//
-// It replaces a regex over the template TEXT, which had to be unique to the line it was
-// about to mean anything: `DSQL_ENDPOINT: !GetAtt` is written three times in
+// The helpers that let a template assertion read the tag off the PARSED document. They
+// replace a regex over the template TEXT, which had to be unique to the line it was about
+// to mean anything: `DSQL_ENDPOINT: !GetAtt` is written three times in
 // `template-user.yaml`, so the guard on one of them passed against the other two with the
 // tag dropped. Addressing the node by path needs no uniqueness argument at all.
 //
-// THE TAG AND THE VALUE STAY APART, which is why this returns a pair rather than the two
-// joined into one string: joined, the QUOTED literal `'!GetAtt UserPool.Arn'` — a scalar
-// whose value is that text — reads exactly like the intrinsic, and CloudFormation deploys it
-// as the text. Apart, one cannot impersonate the other.
+// THE TAG AND THE VALUE STAY APART, which is why `intrinsicAt` returns a pair rather than
+// the two joined into one string: joined, the QUOTED literal `'!GetAtt UserPool.Arn'` reads
+// exactly like the intrinsic, and CloudFormation deploys it as the text.
 //
-// THE SAME HAZARD ONE SHAPE ALONG IS WHAT `tagAt` IS FOR. An `!If` is a SEQUENCE, and
-// `toJS()` renders `!If [IsProd, a, b]` as `['IsProd', 'a', 'b']` — the identical array an
-// untagged sequence written the same way renders to, so every assertion over the arms passes
-// with the tag deleted. `intrinsicAt` cannot be pointed at one and must not be: a scalar
-// quietly becoming a sequence has to keep throwing. So the tag is read by a second helper
-// that takes a node of any kind, and a wider door is not a looser one — the quoted imitation
-// is still a scalar carrying that text, and still reads as untagged.
+// `tagAt` IS THE SECOND HELPER because an `!If` is a SEQUENCE, and `intrinsicAt` must keep
+// throwing on one — a scalar quietly becoming a sequence is not something an assertion may
+// accept. A wider door is not a looser one: the quoted imitation is still a scalar, and
+// still reads as untagged.
 //
-// `taggedCollections` DERIVES THE SET rather than trusting a list somebody keeps by hand, which
-// is the half that catches an intrinsic ADDED without a guard. A hand-kept inventory went stale
-// inside one milestone in this suite already (`openapi.test.ts`). It is keyed on the SHAPE and
-// not on a list of tag names, because the hazard belongs to every tagged collection alike: an
-// `!Equals`, an `!And` and the next `!Or` all render through `toJS()` as the plain sequence they
-// are written as, and a set of names would guard the ones somebody thought of.
+// `taggedCollections` DERIVES THE SET rather than trusting a list somebody keeps by hand,
+// which is the half that catches an intrinsic ADDED without a guard; one such list went
+// stale inside a milestone in this suite already (`openapi.test.ts`). Keyed on the SHAPE
+// and not on tag names, because `!Equals`, `!And` and the next `!Or` are sequences alike,
+// and a set of names would guard only the ones somebody thought of.
+// [*Review, gates, tests*]
 
 const TAGGED = `Conditions:
   # NESTED, and it is what a walk reaches only by descending INTO a tagged node: five finds down
@@ -108,8 +100,7 @@ describe('intrinsicAt', () => {
     });
   });
 
-  // THE ONE THAT MATTERS: the same value, read the same way, has to come back different once
-  // the intrinsic is gone. `toJS()` returns 'UserCluster.Endpoint' for both documents.
+  // The same value, read the same way, has to come back different once the tag is gone.
   it('tells a dropped tag from the intrinsic it was', () => {
     expect(intrinsicAt(pinned, ...VARS, 'DSQL_ENDPOINT')).toEqual({
       tag: undefined,
@@ -120,8 +111,8 @@ describe('intrinsicAt', () => {
     );
   });
 
-  // AND A QUOTED TAG FROM A REAL ONE. CloudFormation resolves nothing inside a quoted scalar,
-  // so this deploys the literal text `!GetAtt UserCluster.Endpoint` as the endpoint.
+  // CloudFormation resolves nothing inside a quoted scalar, so this would deploy the
+  // literal text `!GetAtt UserCluster.Endpoint` as the endpoint.
   it('tells a quoted tag from the intrinsic it imitates', () => {
     expect(intrinsicAt(quoted, ...VARS, 'DSQL_ENDPOINT')).toEqual({
       tag: undefined,
@@ -163,39 +154,31 @@ describe('intrinsicAt', () => {
 });
 
 describe('tagAt', () => {
-  // THE PATH `intrinsicAt` THROWS ON, read. Both forms, because the block one looks like the
-  // safer spelling and parses to exactly the same sequence.
+  // Both forms, because the block one looks like the safer spelling and parses the same.
   it('reads the tag off a sequence, flow form and block form alike', () => {
     expect(tagAt(tagged, ...VARS, 'OPEN_REGISTRATION')).toBe('!If');
     expect(tagAt(tagged, ...CLIENT, 'CallbackURLs', 0)).toBe('!If');
     expect(tagAt(tagged, ...CLIENT, 'SupportedIdentityProviders')).toBe('!If');
   });
 
-  // THE ONE THAT MATTERS, and the whole reason for a second helper: these two documents are
-  // one value to `toJS()` and two to this.
   it('tells a dropped !If from the plain sequence it renders to', () => {
     expect(tagAt(untagged, ...VARS, 'OPEN_REGISTRATION')).toBeUndefined();
     expect(untagged.toJS()).toEqual(tagged.toJS());
   });
 
-  // A WIDER DOOR IS NOT A LOOSER ONE. Taking a node of any kind must not make the quoted
-  // imitation readable as the intrinsic it spells — it is a scalar, and it carries no tag.
   it('reads a scalar tag too, and still sees none on the quoted imitation', () => {
     expect(tagAt(tagged, ...VARS, 'DSQL_ENDPOINT')).toBe('!GetAtt');
     expect(tagAt(pinned, ...VARS, 'DSQL_ENDPOINT')).toBeUndefined();
     expect(tagAt(quoted, ...VARS, 'DSQL_ENDPOINT')).toBeUndefined();
   });
 
-  // `intrinsicAt`'s reason, unchanged: a path nobody spelt right would read as "no tag here"
-  // and could be made to pass by deleting the property it was meant to pin.
   it('throws on a path that is not in the document', () => {
     expect(() => tagAt(tagged, ...VARS, 'OPEN_REGISTRATIO')).toThrow(/OPEN_REGISTRATIO\b/);
     expect(() => tagAt(tagged, 'Resources', 'NoSuchFunction')).toThrow(/NoSuchFunction/);
   });
 });
 
-// EVERY INTRINSIC IN HERE IS A SCALAR, and the collections around them carry no tag — the
-// shape the helper below has to come back empty on.
+// Every intrinsic in here is a scalar, and the collections around them carry no tag.
 const SCALARS_ONLY = `Resources:
   CaptureFunction:
     Properties:
@@ -210,16 +193,10 @@ const SCALARS_ONLY = `Resources:
 `;
 
 describe('taggedCollections', () => {
-  // DERIVED, NOT LISTED, which is the half a per-site assertion cannot buy: an intrinsic
-  // ADDED without a guard changes this set, so it cannot arrive unnoticed.
-  //
   // THE PAIR AND NOT THE PATH, because the tag is half of what an inventory is holding: a
-  // path alone passes with an `!If` rewritten `!Or` at the same place.
-  //
-  // AND THE UNTAGGED ARMS ARE ABSENT WHILE THE WALK STILL GOES THROUGH THEM.
-  // `SupportedIdentityProviders` holds two plain sequences inside its tagged one and neither is
-  // a find — a collection is here because of its TAG — yet `CorsConfiguration`'s untagged arm
-  // is descended into far enough to reach the `!If` beneath it.
+  // path alone passes with an `!If` rewritten `!Or` at the same place. The untagged arms are
+  // absent while the walk still goes THROUGH them — `CorsConfiguration`'s is descended into
+  // far enough to reach the `!If` beneath it.
   it('finds every tagged collection, nested, block form and Outputs included', () => {
     expect(taggedCollections(tagged)).toEqual([
       [['Conditions', 'HasGoogle'], '!And'],
@@ -236,20 +213,17 @@ describe('taggedCollections', () => {
     ]);
   });
 
-  // SCALARS ARE NOT COLLECTIONS, and that line is the whole scope of this helper rather than
-  // an omission: a `!GetAtt` survives `toJS()` as its own value, so it is read at its site by
-  // `intrinsicAt`, tag and value apart. It is also what makes the archive stack's empty set a
-  // statement about that template — which carries scalar intrinsics and no tagged collection —
-  // instead of a statement about a document with no tags at all.
+  // SCALARS ARE NOT COLLECTIONS, which is this helper's scope rather than an omission: a
+  // `!GetAtt` survives `toJS()` as its own value, so it is read at its site by `intrinsicAt`,
+  // tag and value apart. It is also what makes the archive stack's empty set a statement
+  // about that template rather than about a document carrying no tags at all.
   it('comes back empty where every intrinsic is a scalar', () => {
     expect(taggedCollections(parseDocument(SCALARS_ONLY))).toEqual([]);
   });
 
-  // WHAT IT CANNOT ADDRESS IT NAMES, and it is the ADDED direction that rests on this entirely:
-  // the set is read by equality, so an intrinsic the walk steps over never enters it and cannot
-  // redden anything. (A subtree holding entries the list ALREADY carries reddens either way —
-  // they go missing.) Each fixture parses with NO errors and hides one tagged `!Equals` a step
-  // in, and the test below holds that "one" to the document rather than to this sentence. The
+  // WHAT IT CANNOT ADDRESS IT NAMES, and the ADDED direction rests on this entirely: the set
+  // is read by equality, so an intrinsic the walk steps over never enters it and cannot redden
+  // anything. Each fixture parses with NO errors and hides a tagged `!Equals` a step in. The
   // path in the message is the point of throwing: "under Conditions" is something a reader can
   // act on, where a set one entry short is not.
   it.each([
@@ -268,9 +242,8 @@ describe('taggedCollections', () => {
     expect(() => taggedCollections(doc)).toThrow(/Conditions/);
   });
 
-  // AND EACH OF THOSE REALLY IS HIDING AN ENTRY. The same condition under a key a path can
-  // carry derives exactly one, so what those four spellings cost is that entry — the figure
-  // held against the parser instead of asserted in a comment nobody runs.
+  // AND EACH OF THOSE REALLY IS HIDING AN ENTRY: the same condition under a key a path can
+  // carry derives exactly one, held against the parser instead of asserted in a comment.
   it('derives from a nameable key the entry those spellings hide', () => {
     const named = parseDocument('Conditions:\n  Named: !Equals [!Ref Environment, prod]\n');
     expect(taggedCollections(named)).toEqual([[['Conditions', 'Named'], '!Equals']]);
@@ -287,9 +260,8 @@ describe('taggedCollections', () => {
     expect(() => taggedCollections(doc)).toThrow(/under Conditions\.Inner: true/);
   });
 
-  // AND THE SAME AT A SEQUENCE INDEX, which is where a real `!If` arm lives. Every other
-  // fixture here hangs its unaddressable node off a MAP key, so the seq branch's half of the
-  // throw is held by this one alone — and stepping over an item there reopens the whole hole.
+  // AND THE SAME AT A SEQUENCE INDEX, where a real `!If` arm lives. Every other fixture here
+  // hangs its unaddressable node off a MAP key, so the seq branch is held by this one alone.
   it('throws naming the path on an alias inside a sequence', () => {
     const doc = parseDocument('Conditions:\n  A: &p !Equals [a, b]\n  B:\n    - *p\n');
     expect(doc.errors).toEqual([]);
@@ -307,8 +279,7 @@ describe('taggedCollections', () => {
 
   // A RAW NULL IS NEITHER SCALAR NOR COLLECTION EITHER, and it is not the `Empty:` spelling —
   // that one parses to a null SCALAR and is a leaf. These two give the pair a value of raw
-  // `null`, a node with no kind at all, and the subtree it stands for is whatever gets written
-  // there next.
+  // `null`, a node with no kind at all.
   it.each([
     ['a flow map entry with no value', 'Conditions: {A}\n'],
     ['an explicit key with no value', 'Conditions:\n  ? A\n'],
@@ -318,9 +289,9 @@ describe('taggedCollections', () => {
     expect(() => taggedCollections(doc)).toThrow(/Conditions\.A/);
   });
 
-  // AN ALIAS IS NOT A COLLECTION, so the node it names is walked at the anchor and never at the
-  // alias — and an anchor on an UNTAGGED collection puts every tag under it out of reach at the
-  // second path entirely. It throws for the same reason a bad key does.
+  // AN ALIAS IS NOT A COLLECTION: the node it names is walked at the anchor and never at the
+  // alias, so an anchor on an UNTAGGED collection puts every tag under it out of reach at the
+  // second path entirely.
   it('throws naming the path on an alias', () => {
     const doc = parseDocument(
       'Conditions:\n  IsProd: &p !Equals [!Ref Environment, prod]\n  Other: *p\n',
@@ -330,12 +301,8 @@ describe('taggedCollections', () => {
   });
 
   // AN EMPTY FILE IS THE ABSENCE ASSERTION'S OLDEST TRAP: `parseDocument('')` gives
-  // `errors: []` and NULL contents, so a set derived from nothing reads exactly like a template
-  // that carries nothing. Null is neither collection nor scalar, so it throws with the rest.
-  // A SCALAR at the root is a different thing and is a leaf, like a scalar anywhere — `---`, `~`
-  // and a bare string all parse to one. Whether a file is a template at all is what
-  // `template-conditionals.test.ts` anchors on `Resources`, and that anchor has to reject a
-  // NULL `Resources:` to be worth leaning on here.
+  // `errors: []` and NULL contents, so a set derived from nothing reads exactly like a
+  // template that carries nothing. A SCALAR at the root is a leaf, like a scalar anywhere.
   //
   // THE MESSAGE AND NOT MERELY A THROW: delete the root's fallback spelling and a bare
   // `toThrow()` still passes, on an error naming an empty path.
@@ -345,8 +312,8 @@ describe('taggedCollections', () => {
     expect(taggedCollections(parseDocument('---\n'))).toEqual([]);
   });
 
-  // THE HALF THAT REDDENS. One tag deleted and the entry is simply gone from the set — which
-  // is what an inventory written against this holds the template to.
+  // One tag deleted and the entry is gone from the set, which is what an inventory written
+  // against this holds the template to.
   it('loses the entry when the tag goes', () => {
     expect(taggedCollections(untagged)).not.toContainEqual([[...VARS, 'OPEN_REGISTRATION'], '!If']);
     // The PROPERTY, not the fixture's count: one fewer than before, so adding a case above
@@ -365,14 +332,13 @@ describe('taggedCollections', () => {
   });
 });
 
-// THE THREE SHAPES A POLICY IS WRITTEN IN, which is why `grantAt` takes the path to a statement
-// list rather than a resource id: a SAM function's inline `Policies`, a role's `PolicyDocument`
-// nested inside one, and a standalone `AWS::IAM::Policy` whose document is the property itself.
-// A helper that guessed between them would be one more thing able to read the wrong statement.
+// THE THREE SHAPES A POLICY IS WRITTEN IN, which is why `grantAt` takes the path to a
+// statement list rather than a resource id: a helper that guessed between them would be one
+// more thing able to read the wrong statement.
 //
-// THE PREFIX TRAP IS IN HERE ON PURPOSE, written BEFORE the action it would be found instead of:
-// `DescribeUserPoolClient` begins with `DescribeUserPool`, so a substring match finds the client's
-// statement first and asserts ITS resource while the one it was about loses its tag unwatched.
+// THE PREFIX TRAP IS IN HERE ON PURPOSE, written BEFORE the action it would be found instead
+// of: `DescribeUserPoolClient` begins with `DescribeUserPool`, so a substring match finds the
+// client's statement first and asserts ITS resource while the one it was about goes unwatched.
 const POLICIES = `Resources:
   MigrateFunction:
     Properties:
@@ -417,10 +383,9 @@ const policies = parseDocument(POLICIES);
 const dropped = parseDocument(
   POLICIES.replace('!GetAtt UserCluster.ResourceArn', 'UserCluster.ResourceArn'),
 );
-// THE WIDENING A FIRST MATCH READS PAST. A grant is widened by a SECOND statement, and a second
-// statement is appended — below the narrow one, not above it. The narrow statement is left exactly
-// as it was, so anything taking the first hit still reads `UserCluster.ResourceArn` and passes
-// while the deployed policy is the union of the two.
+// THE WIDENING A FIRST MATCH READS PAST. A grant is widened by a SECOND statement, appended
+// BELOW the narrow one, which is left exactly as it was — so anything taking the first hit
+// still reads `UserCluster.ResourceArn` and passes while the deployed policy is the union.
 const widened = parseDocument(
   POLICIES.replace(
     '            - Sid: BootstrapTheFirstSuperAdmin',
@@ -463,8 +428,7 @@ describe('grantAt', () => {
     });
   });
 
-  // WHOLE, NOT AS A PREFIX. The client's statement is first in the fixture, so a substring match
-  // returns its resource here and the assertion reads as if it were about the pool.
+  // WHOLE, NOT AS A PREFIX: the client's statement is first, so a substring match wins it.
   it('matches the action whole, so a longer one beginning with it is not the find', () => {
     expect(grantAt(policies, USAGE, 'cognito-idp:DescribeUserPool')).toEqual({
       tag: '!GetAtt',
@@ -490,8 +454,6 @@ describe('grantAt', () => {
     });
   });
 
-  // THE ONE THAT MATTERS, inherited from `intrinsicAt`: the same value read the same way has to
-  // come back different once the tag is gone. `toJS()` returns one string for both documents.
   it('tells a dropped tag from the intrinsic it was', () => {
     expect(grantAt(dropped, INLINE, 'dsql:DbConnectAdmin')).toEqual({
       tag: undefined,
@@ -501,16 +463,14 @@ describe('grantAt', () => {
   });
 
   // A STATEMENT DELETED MUST REDDEN, not read as "no grant here" — otherwise the assertion a
-  // grant carries could be made to pass by removing the grant. Both ways of vanishing: the
-  // action nobody grants, and a path that is not a statement list at all.
+  // grant carries could be made to pass by removing the grant.
   it('throws when no statement carries the action', () => {
     expect(() => grantAt(policies, INLINE, 'dsql:DbConnect')).toThrow(/dsql:DbConnect\b/);
     expect(() => grantAt(policies, USAGE, 'cognito-idp:ListUsers')).toThrow(/ListUsers/);
   });
 
-  // AND WHEN TWO DO, which is the other direction and the one a first match cannot see. The count
-  // is in the message because none and two are opposite repairs — a grant to restore, or a grant
-  // to remove — and the fixture proves the narrow statement is still sitting there reading right.
+  // AND WHEN TWO DO, the direction a first match cannot see. The count is in the message
+  // because none and two are opposite repairs: a grant to restore, or a grant to remove.
   it('throws when the action is granted twice, and says so', () => {
     expect(() => grantAt(widened, INLINE, 'dsql:DbConnectAdmin')).toThrow(/2 statements/);
     expect(() => grantAt(policies, INLINE, 'dsql:DbConnect')).toThrow(/0 statements/);

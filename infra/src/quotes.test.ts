@@ -4,9 +4,8 @@ import sample from '../../src/core/inzhur/__fixtures__/assets-sample.json';
 import { parseAssetsFeed } from '../../src/core/inzhur/parse';
 import { tallyQuotes } from './quotes';
 
-// A6 leans this diagnostic on the nightly run, and A20 removed the other
-// staleness signal on the grounds that this one exists — so the counting is
-// load-bearing now, not decorative.
+// The capture publishes `maxStaleDays` as a metric and logs every unexplained ref
+// (`capture.ts`), so the counting is load-bearing rather than decorative.
 describe('tallyQuotes', () => {
   const feed = parseAssetsFeed(sample);
 

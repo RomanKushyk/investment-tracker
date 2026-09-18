@@ -1,9 +1,7 @@
 // The application cascade, which exists because the keys refuse to do it.
-//
-// `ON DELETE RESTRICT` is deliberate (`docs/DECISIONS.md`, **User schema and
-// deletes**): DSQL's ceiling is 3 000 mutated rows PER TRANSACTION, and cascaded
-// rows count against the same ceiling, so a cascading key would not have removed
-// the batching it appears to replace — it would only have hidden it.
+// `ON DELETE RESTRICT` is deliberate: DSQL's ceiling is 3 000 mutated rows PER
+// TRANSACTION and cascaded rows count against the same ceiling, so a cascading key
+// would only have hidden the batching it appears to replace. [*User schema and deletes*]
 import { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -39,8 +37,7 @@ describe('deleteAsset', () => {
               VALUES ($1, $2, 'inzhur', 'Inzhur', now())`,
         [user, ACCOUNT],
       );
-      // The SAME asset id under both users — `id` is unique only within a user,
-      // which is the whole reason every predicate has to carry `user_id`.
+      // The SAME asset id under both users, which is what the scoping below is about.
       for (const asset of [ASSET, KEEP]) {
         await db.query(
           `INSERT INTO asset (user_id, id, name, code, color_slot, yield_type,
@@ -62,10 +59,8 @@ describe('deleteAsset', () => {
       await db.query(
         `INSERT INTO user_price (user_id, asset_id, as_of, price)
               VALUES ($1, $2, $3, 10)`,
-        // A DISTINCT day per row: `as_of` is in `user_price`'s primary key, so
-        // a modulus would collide in the fixture rather than in the code under
-        // test — and this module's whole subject is behaviour at batch
-        // boundaries, which is where a big `rows` gets passed.
+        // A DISTINCT day per row: `as_of` is in `user_price`'s primary key, so a
+        // modulus would collide in the fixture rather than in the code under test.
         [U, ASSET, addDays('2026-01-01', n)],
       );
     }
@@ -97,9 +92,8 @@ describe('deleteAsset', () => {
     expect(rows.map((r) => r.id)).toEqual([KEEP]);
   });
 
-  // `id` IS UNIQUE ONLY WITHIN A USER, so an unscoped predicate would delete
-  // another user's identically-keyed rows. That is the failure the composite
-  // primary key exists to make possible and the scoping exists to prevent.
+  // `id` IS UNIQUE ONLY WITHIN A USER, so an unscoped predicate would delete another
+  // user's identically-keyed rows.
   it('touches no other user, even for the same asset id', async () => {
     await seed(2);
     await db.query(
@@ -113,9 +107,8 @@ describe('deleteAsset', () => {
     expect(await count('asset', OTHER)).toBe(2);
   });
 
-  // The ceiling is per TRANSACTION, so the point is not that a batch is small
-  // but that each one commits on its own. A batch size of 1 over 5 rows is 5
-  // round trips, which is what this counts.
+  // The ceiling is per TRANSACTION, so the point is not that a batch is small but
+  // that each one commits on its own.
   it('batches, and gives each batch its own statement', async () => {
     await seed(5);
     let deletes = 0;

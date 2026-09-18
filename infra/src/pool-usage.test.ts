@@ -3,9 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { FREE_TIER_USERS, poolUsage, type PoolReader } from './pool-usage';
 
 // There is no CloudWatch metric for monthly actives, so the pool's total user count
-// stands in for one. This file holds the two things only the handler can get wrong:
-// which pool it asks about, and whether a read that produced no count is allowed to
-// look like an answer.
+// stands in for one. Here, the two things only the handler can get wrong: which pool
+// it asks about, and whether a read that produced no count can look like an answer.
 
 const POOL = 'eu-north-1_EXAMPLE';
 
@@ -40,16 +39,16 @@ describe('poolUsage', () => {
       expect(line).toEqual({ metric: 'poolUsers', pool: POOL, value: 42 });
       // The log line IS the metric — `PoolUsersMetricFilter` reads `$.value` off it, so
       // a line that stopped being emitted, or stopped being JSON, would leave the alarm
-      // on an empty series with nothing else reporting it.
+      // on an empty series.
       expect(JSON.parse(log.mock.calls[0][0] as string)).toEqual(line);
     } finally {
       log.mockRestore();
     }
   });
 
-  // A REAL ZERO IS A COUNT, AND AN ABSENT ONE IS NOT — which is why the check below is
-  // `=== undefined` and not a truthiness test. A `!value` guard reads the two as the same
-  // thing and turns a legitimately empty pool into an error every night.
+  // A REAL ZERO IS A COUNT, AND AN ABSENT ONE IS NOT, which is why the check below is
+  // `=== undefined`: a `!value` guard reads the two alike and turns a legitimately
+  // empty pool into an error every night.
   it('publishes a real zero as zero', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
@@ -60,12 +59,10 @@ describe('poolUsage', () => {
     }
   });
 
-  // THE ASSERTION THIS FILE EXISTS FOR, and it is the mirror image of `backup-age.ts`'s.
-  // There, "nothing" must publish a LARGE number so it lands on the bad side of a
-  // `GreaterThan` threshold. Here the alarm is `GreaterThan` too, so the bad side is
-  // also high — and a pool that answers without a count would publish 0 and read as
+  // THE ASSERTION THIS FILE EXISTS FOR. This alarm is `GreaterThan`, so the bad side
+  // is high and a pool that answered without a count would publish 0 and read as
   // healthy forever. `EstimatedNumberOfUsers` is optional in the SDK's own types, so
-  // this is a shape the compiler forces a decision about rather than a hypothetical.
+  // it is a shape the compiler forces a decision about rather than a hypothetical.
   it('refuses to turn an absent count into a healthy zero', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     try {
@@ -78,11 +75,10 @@ describe('poolUsage', () => {
     }
   });
 
-  // IT THROWS RATHER THAN WARNING, like `backup-freshness.ts` and unlike the capture:
-  // a capture must not fail because a monitoring read did, because it has a perishable
-  // price to write first. This function has no other work, so a swallowed error would be
-  // a successful-looking invocation that measured nothing — and `PoolUsageErrorAlarm` is
-  // what turns the throw into a signal rather than a line in a log nobody reads.
+  // IT THROWS RATHER THAN WARNING, like `backup-freshness.ts` and unlike the capture,
+  // which has a perishable price to write first. This function has no other work, so a
+  // swallowed error would be a successful-looking invocation that measured nothing, and
+  // `PoolUsageErrorAlarm` turns the throw into a signal.
   it('lets a failed read out rather than reporting it as an answer', async () => {
     const reader: PoolReader = {
       describeUserPool: async () => {
@@ -92,9 +88,8 @@ describe('poolUsage', () => {
     await expect(poolUsage(reader, POOL)).rejects.toThrow('AccessDeniedException');
   });
 
-  // THE CEILING ONLY. The alarm's 8,000 is not asserted here, because the threshold lives
-  // in the template — `stack-split.test.ts` is where the two are held against each other,
-  // and repeating the figure here would be a second copy no gate reconciles.
+  // THE CEILING ONLY: the alarm's threshold lives in the template, and
+  // `stack-split.test.ts` is where the two are held against each other.
   it('names the ceiling the threshold is derived from', () => {
     expect(FREE_TIER_USERS).toBe(10_000);
   });

@@ -1,20 +1,17 @@
 // How old the newest usable backup of one resource is, in hours.
 //
-// TWO STACKS READ THIS, which is why it is a module rather than a private
-// function. The archive publishes it for its own cluster (`capture.ts`) and the
-// user stack for prod's (`backup-freshness.ts`), each filtering recovery points
-// by the cluster's OWN arn so that neither can make the other look fresh. That
-// filter is the whole design; the rule for turning what comes back into a
-// number is the same rule twice, and two copies of it would eventually disagree
-// about what "backed up" means.
+// TWO STACKS READ THIS, which is why it is a module rather than a private function:
+// the archive for its own cluster (`capture.ts`), the user stack for prod's
+// (`backup-freshness.ts`), each filtering recovery points by the cluster's OWN arn so
+// neither can make the other look fresh. Two copies of the rule would eventually
+// disagree about what "backed up" means.
 //
-// Pure: no SDK client, no `process.env`, no clock of its own. `now` is a
-// parameter so the rule is testable without one.
+// Pure: no SDK client, no `process.env`, no clock. `now` is a parameter so the rule
+// is testable without one.
 
-/** No usable recovery point. Deliberately large rather than 0 or -1: the metric
- *  is an AGE, so "nothing" has to sit on the bad side of any threshold. A zero
- *  would read as "backed up seconds ago", which is the exact inversion that
- *  makes a broken check look healthy. */
+/** No usable recovery point. Deliberately large rather than 0 or -1: the metric is an
+ *  AGE, so "nothing" has to sit on the bad side of any threshold, where a zero would
+ *  read as "backed up seconds ago" and make a broken check look healthy. */
 export const NO_BACKUP_HOURS = 9999;
 
 /** The two fields of an AWS Backup recovery point this rule reads. Narrowed to
@@ -29,10 +26,9 @@ export interface BackupAge {
 }
 
 export function backupAgeHours(points: RecoveryPoint[], now: Date): BackupAge {
-  // Only COMPLETED counts. A job sitting in CREATING or PARTIAL is not something
-  // anything can be restored from, and treating it as one would reproduce the
-  // very failure this check exists to catch — with a NEWER timestamp, so it
-  // wins if the status goes unread.
+  // Only COMPLETED counts: a job sitting in CREATING or PARTIAL is not something
+  // anything can be restored from, and its NEWER timestamp wins if the status is
+  // not read.
   const newest = points
     .filter((p) => p.Status === 'COMPLETED' && p.CompletionDate !== undefined)
     .reduce<Date | undefined>(

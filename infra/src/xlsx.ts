@@ -1,8 +1,7 @@
-// A reader for the one workbook shape the provider publishes: a ZIP of
-// Excel-written XML parts holding numbers, shared strings and cached formula
-// results. It is here instead of a package because every spreadsheet library
-// reads a text cell as a number when it can, and that tolerant cast is exactly
-// the defect the fund-history import must refuse. [The price archive]
+// A reader for the one workbook shape the provider publishes. Here instead of a
+// package because every spreadsheet library reads a text cell as a number when it
+// can, and that tolerant cast is exactly the defect the fund-history import must
+// refuse. [*The price archive*]
 import { inflateRawSync } from 'node:zlib';
 
 /** A cell is a number or a string; the reader never converts between them. */
@@ -51,8 +50,8 @@ export function zipEntries(bytes: Uint8Array): Map<string, Uint8Array> {
     const commentLength = view.getUint16(at + 32, true);
     const local = view.getUint32(at + 42, true);
     const name = Buffer.from(bytes.subarray(at + 46, at + 46 + nameLength)).toString('utf8');
-    // The local header repeats the name and carries its own extra field, so
-    // the data offset is read from it rather than assumed.
+    // The local header repeats the name and carries its own extra field, so the data
+    // offset is read from it rather than assumed.
     const data = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
     const stored = bytes.subarray(data, data + compressed);
     if (method === DEFLATE) out.set(name, new Uint8Array(inflateRawSync(stored)));
@@ -91,10 +90,9 @@ function attribute(attributes: string, name: string): string {
 }
 
 /**
- * The shared-string table in index order; a rich-text string is its runs
- * joined. An empty entry still takes its index, or every string after it
- * would resolve one place off — the reader's one route to a wrong value
- * rather than a refusal.
+ * The shared-string table in index order; a rich-text string is its runs joined. An
+ * empty entry still takes its index, or every string after it resolves one place off
+ * — the reader's one route to a wrong value rather than a refusal.
  */
 export function sharedStrings(xml: string): string[] {
   return [...xml.matchAll(/<si\b(?:\/>|[^>]*>([\s\S]*?)<\/si>)/g)].map((si) =>

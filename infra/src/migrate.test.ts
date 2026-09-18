@@ -1,15 +1,11 @@
-// The migration RUNNER, which is W7's actual first contact with the cluster.
+// The migration RUNNER. What this file covers is the part a cluster round cannot
+// repeat cheaply: the re-run and crash paths, which exist because the generated DDL
+// carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
+// half-applied file cannot simply be re-run.
 //
-// Both first contacts have happened — the DDL's, and now the runner's, both
-// recorded in `infra/docs/dsql-constraints.md`. What this file covers is the
-// part a cluster round cannot repeat cheaply: the re-run and crash paths, which
-// exist because the generated DDL carries no `IF NOT EXISTS` and DSQL has no
-// cross-statement rollback, so a half-applied file cannot simply be re-run.
-//
-// PGlite covers the applier; the rewrite is covered as text, because the three
-// promotion rules produce SQL that PGlite refuses BY DESIGN — `CREATE INDEX
-// ASYNC` is DSQL-only. That is why the module keeps the rewrite and the apply
-// apart: only the unrewritten half can be executed here.
+// PGlite covers the applier; the rewrite is covered as text, because `CREATE INDEX
+// ASYNC` is DSQL-only and PGlite refuses it BY DESIGN. Only the unrewritten half can
+// be executed here, which is why the module keeps the rewrite and the apply apart.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,10 +30,9 @@ const DEMO_ROW = '005_demo_user.sql';
 const CASE_RULE = '006_email_lower.sql';
 
 describe('the file list', () => {
-  // NOT A GLOB, deliberately. `001`, `002` and `004` are the ARCHIVE's, applied
-  // by `ensureSchema` in capture.ts, and a tool globbing `migrations/**/*.sql`
-  // by filename would run the user schema before them — the ambiguity the
-  // numbering rule exists to remove.
+  // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
+  // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
+  // run the user schema before them.
   it('names the user schema, the demo row and the case rule, in that order, and nothing else', () => {
     expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE]);
   });
@@ -47,14 +42,10 @@ describe('statementsOf', () => {
   const stmts = statementsOf(read(USER_SCHEMA));
 
   it('splits the generated schema into its twelve statements', () => {
-    // Five CREATE TABLE, five ALTER TABLE … ADD CONSTRAINT for the foreign
-    // keys, two CREATE INDEX.
     expect(stmts).toHaveLength(12);
   });
 
   it('splits the case rule into its one statement', () => {
-    // Hand-written and one statement, so it carries no breakpoint marker —
-    // the same shape as `005`.
     expect(statementsOf(read(CASE_RULE))).toHaveLength(1);
   });
 
@@ -62,10 +53,8 @@ describe('statementsOf', () => {
     for (const s of stmts) expect(s).not.toContain('statement-breakpoint');
   });
 
-  // The generated file wraps two CHECKs across a line, with an eight-space
-  // indent on the second. Splitting on `;` instead of the marker is what would
-  // survive the count above and then mangle a real statement, so both halves of
-  // one wrapped CHECK are asserted to be in ONE statement.
+  // The generated file wraps two CHECKs across a line, and splitting on `;` instead of
+  // the marker would survive the count above and then mangle a real statement.
   it('keeps a CHECK that wraps across a line in one statement', () => {
     const type = stmts.find((s) => s.includes('transaction_type_ck'));
     expect(type).toContain("'dividend_payout',");
@@ -79,11 +68,8 @@ describe('statementsOf', () => {
     }
   });
 
-  // MEASURED, not hypothetical: `005`'s header gained a line explaining that a
-  // second statement would need drizzle's marker, quoted it, and split the file
-  // in half — the statement that reached PGlite began with a stray backtick.
-  // Stripping comments BEFORE splitting is the fix, and this is the case that
-  // tells the two orders apart.
+  // Comments are stripped BEFORE splitting: a marker quoted in a file's own header
+  // otherwise splits the file there.
   it('does not split on a marker quoted inside a comment', () => {
     const sql = [
       '-- a second statement would need a --> statement-breakpoint before it',
@@ -108,12 +94,11 @@ describe('statementsOf', () => {
 });
 
 describe('rewriteForDsql', () => {
-  // The four promotion rules, `infra/docs/dsql-constraints.md`. Each was
-  // measured against the live cluster, and doing any one of them alone still
-  // leaves a statement the cluster refuses.
+  // The four promotion rules, each measured against the live cluster
+  // (`infra/docs/dsql-constraints.md`); any one alone still leaves a statement DSQL
+  // refuses.
   it('appends NOT VALID to the case rule, which is why the file does not', () => {
-    // DSQL refuses `ADD CONSTRAINT` without it. The file writing it too would
-    // produce a second one, which is what the rule's idempotence prevents.
+    // DSQL refuses `ADD CONSTRAINT` without it.
     const [stmt] = statementsOf(read(CASE_RULE));
     expect(stmt).not.toContain('NOT VALID');
     expect(rewriteForDsql(stmt)).toContain('NOT VALID');
@@ -127,13 +112,10 @@ describe('rewriteForDsql', () => {
     ).toBe('CREATE INDEX ASYNC "asset_user_created" ON "asset" ("user_id","created_at");');
   });
 
-  // MEASURED, and it is what settles the question #47 carried as obligation 8:
-  // "whether the schema qualification is harmless is UNKNOWN". It is not. A
-  // qualified name ignores `search_path`, so a rehearsal into a throwaway schema
-  // built its keys against the REAL `public` tables — which fails loudly where
-  // `public` is empty and would succeed SILENTLY where it is not, leaving a
-  // constraint pointing at production rows and then dropping the referencing
-  // side out from under it.
+  // A qualified name ignores `search_path`, so a rehearsal into a throwaway schema
+  // builds its keys against the REAL `public` tables — loudly where `public` is empty,
+  // SILENTLY where it is not, leaving a constraint pointing at production rows and
+  // then dropping the referencing side out from under it.
   it('strips the schema qualifier drizzle hard-codes onto a key target', () => {
     expect(
       rewriteForDsql(
@@ -151,9 +133,6 @@ describe('rewriteForDsql', () => {
   });
 
   it('appends NOT VALID to an ADD CONSTRAINT', () => {
-    // The five keys are real now, so the assertion two cases down runs this
-    // rule over the generated statements. This one stays because it names the
-    // rule in a single line.
     expect(
       rewriteForDsql(
         'ALTER TABLE "asset" ADD CONSTRAINT "asset_user_fk" FOREIGN KEY ("user_id") REFERENCES "public"."app_user"("user_id") ON DELETE restrict;',
@@ -176,9 +155,8 @@ describe('rewriteForDsql', () => {
     }
   });
 
-  // A runner that rewrote an already-rewritten statement would emit
-  // `CREATE INDEX ASYNC ASYNC` or a second `NOT VALID`, and both are syntax
-  // errors the cluster reports as the caller's fault.
+  // A second rewrite would emit `CREATE INDEX ASYNC ASYNC` or a second `NOT VALID`,
+  // both syntax errors the cluster reports as the caller's fault.
   it('is idempotent', () => {
     // Both files: `003` carries the index lines and the foreign keys, `006` the
     // bare `ADD CONSTRAINT` that the `NOT VALID` rule is the only one to touch.
@@ -216,15 +194,11 @@ describe('applyFile', () => {
     });
   });
 
-  // THE LEDGER HASHES THE SOURCE, NOT WHAT REACHES THE CLUSTER, which is what
-  // lets `send` change without re-presenting every statement as new. This
-  // repository has twice recorded a DSQL limitation that a later release note
-  // had already lifted, so relaxing a rewrite rule is a real event — and under
-  // a rewritten-text key it would rehash the two index lines, re-execute them,
-  // take a 42P07 and abort the run.
-  //
-  // Nothing executes on the second pass, so PGlite never meets the `ASYNC` it
-  // could not run.
+  // THE LEDGER HASHES THE SOURCE, NOT WHAT REACHES THE CLUSTER, which is what lets
+  // `send` change without re-presenting every statement as new: under a
+  // rewritten-text key it would rehash the two index lines, re-execute them, take a
+  // 42P07 and abort. Nothing executes on the second pass, so PGlite never meets the
+  // `ASYNC` it could not run.
   it('recognises its own statements after the transform changes', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     expect(await applyFile(db, USER_SCHEMA, stmts, rewriteForDsql)).toEqual({
@@ -245,11 +219,10 @@ describe('applyFile', () => {
     expect(rows[0].count).toBe(5);
   });
 
-  // THE CRASH WINDOW. DSQL forbids DDL and DML in one transaction, so there is
-  // no way to stamp the ledger and run the statement atomically. The runner
-  // writes the row FIRST with a NULL `applied_at`, which is what makes the
-  // window a named state rather than an ambiguity: on a re-run exactly that one
-  // statement may answer "already exists" with success.
+  // THE CRASH WINDOW. DSQL forbids DDL and DML in one transaction, so there is no way
+  // to stamp the ledger and run the statement atomically. The runner writes the row
+  // FIRST with a NULL `applied_at`, which makes the window a named state rather than an
+  // ambiguity: on a re-run exactly that one statement may answer "already exists".
   it('absorbs an already-exists refusal for the statement the ledger left open', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     await db.query(
@@ -264,9 +237,8 @@ describe('applyFile', () => {
     });
   });
 
-  // An INDEX rather than a table, because the absorb path does more for one: an
-  // index that exists is not yet an index that works, so it re-checks
-  // `pg_index.indisvalid` instead of stamping on the strength of the refusal.
+  // An INDEX rather than a table: an index that exists is not yet an index that works,
+  // so the absorb path re-checks `pg_index.indisvalid` rather than stamping.
   it('absorbs an open index statement only after checking the index is valid', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     const i = stmts.findIndex((s) => s.startsWith('CREATE INDEX'));
@@ -282,16 +254,10 @@ describe('applyFile', () => {
     });
   });
 
-  // The other half, and the reason the absorption above is not a blanket catch:
-  // an object this runner has no record of opening is someone else's, and
-  // applying over it silently is how two schemas become one nobody can read.
-  //
-  // THREE RUNS, NOT TWO, and the third is the whole test. A version of this
-  // that stopped at the second passed while the refusal survived exactly one
-  // attempt: the open row written just before the failed statement was left
-  // behind, so the NEXT run found the hash open, absorbed the very error this
-  // one refused, and adopted the foreign object. The row is withdrawn on a
-  // raised error precisely so that the refusal is permanent.
+  // The reason the absorption above is not a blanket catch: an object this runner has
+  // no record of opening is someone else's. THREE RUNS, NOT TWO — the row is withdrawn
+  // on a raised error so the refusal is permanent, and the third run is what shows the
+  // second left nothing open for it to absorb.
   it('refuses an already-exists refusal for a statement the ledger never opened', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     await db.query(`DELETE FROM schema_migration WHERE file = $1 AND stmt_index = 0`, [
@@ -307,11 +273,9 @@ describe('applyFile', () => {
     expect(rows[0].count).toBe(0);
   });
 
-  // THE OTHER HALF OF THE SAME RULE, and withdrawing on every error broke it:
-  // `pg` reports a dropped connection with NO SQLSTATE, so an error carrying no
-  // code is a statement whose fate is unknown — not proof it failed. Deleting
-  // the row there also destroys a PREVIOUS run's crash evidence, and the state
-  // that leaves cannot be recovered by re-running at all.
+  // THE OTHER HALF OF THE SAME RULE. `pg` reports a dropped connection with NO
+  // SQLSTATE, so a code-less error is a statement whose fate is unknown, not proof it
+  // failed — and deleting the row also destroys a PREVIOUS run's crash evidence.
   it('keeps the row when the failure carries no SQLSTATE', async () => {
     const dropped = Object.assign(new Error('Connection terminated unexpectedly'), {
       code: undefined,
@@ -333,20 +297,14 @@ describe('applyFile', () => {
     expect(rows[0].count).toBe(1);
   });
 
-  // A failure AFTER the statement is not the statement failing. The index job
-  // wait runs once `client.query` has returned, so the DDL is already on the
-  // cluster — withdrawing there left an index nothing could ever adopt, and
-  // every later run died on a bare `already exists`.
+  // A failure AFTER the statement is not the statement failing: the index job wait runs
+  // once `client.query` has returned, so the DDL is already on the cluster.
   it('keeps the row when the statement landed and the work after it failed', async () => {
     const index = stmts.findIndex((s) => s.startsWith('CREATE INDEX'));
     let landed = false;
-    // THE STATEMENT HAS TO ACTUALLY LAND, which an earlier version of this test
-    // did not arrange: it sent the rewritten `CREATE INDEX ASYNC`, PGlite
-    // refused it at parse with `42601`, the mock's own throw was never reached,
-    // and the bare `rejects.toThrow()` was satisfied by the wrong error — so the
-    // region this test exists to guard had no coverage at all. `ASYNC` is
-    // stripped back out on the way to PGlite, and the assertion names the
-    // failure it means.
+    // THE STATEMENT HAS TO ACTUALLY LAND, so `ASYNC` is stripped back out on the way to
+    // PGlite, which would otherwise refuse it at parse with `42601` and satisfy a bare
+    // `rejects.toThrow()` with the wrong error.
     const failing: SqlClient = {
       query: async (text: string, values?: unknown[]) => {
         if (text.startsWith('CREATE INDEX')) {
@@ -368,20 +326,17 @@ describe('applyFile', () => {
     expect(rows.map((r) => r.stmt_index)).toEqual([index]);
   });
 
-  // The ledger's key is `(file, stmt_sha256)`, so the second of two identical
-  // statements collided on it and aborted with a duplicate-key error that read
-  // as a cluster fault. #47 appends generated statements to `003`, which is
-  // when a file could first grow one by accident.
+  // The ledger's key is `(file, stmt_sha256)`, so a byte-identical repeat collides on
+  // it and must be named rather than left reading as a cluster fault.
   it('names the file when it repeats a statement byte for byte', async () => {
     await expect(applyFile(db, USER_SCHEMA, [...stmts, stmts[0]])).rejects.toThrow(
       /repeats a statement byte for byte/,
     );
   });
 
-  // The same window over DML, and it raises NOTHING rather than being absorbed:
-  // `005` carries `ON CONFLICT (user_id) DO NOTHING`, so a re-run is silent and
-  // `23505` is left meaning a real collision — an address already taken, say,
-  // which must stop the run rather than stamp a file whose row never landed.
+  // The same window over DML, raising NOTHING rather than being absorbed: `005` carries
+  // `ON CONFLICT (user_id) DO NOTHING`, so a re-run is silent and `23505` is left
+  // meaning a real collision, which must stop the run.
   it('re-runs an open DML statement without raising', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     const demo = statementsOf(read(DEMO_ROW));
@@ -412,25 +367,21 @@ describe('applyFile', () => {
   });
 });
 
-// `40001` IS CONTENTION, NOT A REFUSAL, and the teardown was the one place in
-// the design that met one and gave up. Dropping a six-table schema is a large
-// catalogue change issued right behind two `CREATE INDEX ASYNC` jobs, and a
-// waited-for job is not a settled catalogue — the drop that failed this way then
-// succeeded by hand on its first attempt.
+// `40001` IS CONTENTION, NOT A REFUSAL. Dropping a six-table schema is a large
+// catalogue change issued right behind two `CREATE INDEX ASYNC` jobs, and a waited-for
+// job is not a settled catalogue — the drop that failed this way then succeeded by
+// hand on its first attempt.
 const conflict = () =>
   Object.assign(new Error('change conflicts with another transaction (OC000)'), {
     code: '40001',
   });
 
 // A REHEARSAL CANNOT REACH ITS OWN TEARDOWN UNDER PGlite unaided: `rewriteForDsql`
-// emits `CREATE INDEX ASYNC`, which the engine refuses, and `waitForIndexJob` then
-// reads the un-stripped text and wants a job id out of the rows. This plays those
-// two DSQL verbs and hands everything else to the engine.
-//
-// It plays them SETTLED — an index valid the moment it returns, a job already
-// complete — which is the very condition a real cluster is thought to violate
-// here. So these tests pin the report and the resolve-or-raise split, and cannot
-// speak to whether the retry defeats the real conflict.
+// emits `CREATE INDEX ASYNC`, which the engine refuses, and `waitForIndexJob` wants a
+// job id out of the rows. This plays those two DSQL verbs and hands the rest to the
+// engine — and plays them SETTLED, which is the very condition a real cluster is
+// thought to violate here. So these tests pin the report and the resolve-or-raise
+// split, and cannot speak to whether the retry defeats a real conflict.
 const dsqlish = (db: PGlite): SqlClient => ({
   query: async <R>(text: string, values?: unknown[]) => {
     if (/^CREATE\s+(UNIQUE\s+)?INDEX\s+ASYNC\b/i.test(text)) {
@@ -442,8 +393,8 @@ const dsqlish = (db: PGlite): SqlClient => ({
   },
 });
 
-// Each exhausting retry spends the real backoff, which is comfortably inside the
-// suite's default per-test budget only when the machine is not contended.
+// Each exhausting retry spends the real backoff, inside the suite's default per-test
+// budget only when the machine is not contended.
 const THROUGH_THE_BACKOFF = 20_000;
 
 describe('dropRehearsalSchema', () => {
@@ -471,13 +422,11 @@ describe('dropRehearsalSchema', () => {
     expect(rows).toEqual([]);
   });
 
-  // A CONFLICT IS THE CLIENT'S VIEW, NOT THE CLUSTER'S: an attempt can commit
-  // and still answer `40001`. `IF EXISTS` is what keeps the retry from meeting
-  // `3F000` — a refusal, so it is not retried — and reporting a schema that is
-  // already gone as one the operator has to go and drop.
-  //
-  // DSQL accepts `DROP SCHEMA IF EXISTS … CASCADE`, schema present or absent;
-  // measured on the dev cluster and recorded in `infra/docs/dsql-constraints.md`.
+  // A CONFLICT IS THE CLIENT'S VIEW, NOT THE CLUSTER'S: an attempt can commit and still
+  // answer `40001`. `IF EXISTS` is what keeps the retry off `3F000` — a refusal, so not
+  // retried — and off reporting a schema already gone as one to go and drop. DSQL
+  // accepts `DROP SCHEMA IF EXISTS … CASCADE` present or absent, measured on the dev
+  // cluster and recorded in `infra/docs/dsql-constraints.md`.
   it('reports a drop that committed under a conflict as dropped, not orphaned', async () => {
     const db = new PGlite();
     await db.query('CREATE SCHEMA rehearsal_d');
@@ -505,14 +454,13 @@ describe('dropRehearsalSchema', () => {
       dropped: true,
       attempts: 2,
     });
-    // THE POINT OF THE TEST, and without it this is its sibling above wearing a
-    // different name: the retry has to have met a schema that was ALREADY GONE.
+    // Without this the test is its sibling above wearing a different name: the retry
+    // has to have met a schema that was ALREADY GONE.
     expect(goneByTheRetry).toBe(true);
   });
 
-  // BOUNDED, because the alternative to giving up is holding the invocation
-  // open against a conflict that may never clear. What it reports is what the
-  // operator needs to finish the job by hand.
+  // BOUNDED, because the alternative is holding the invocation open against a conflict
+  // that may never clear; the report is what the operator needs to finish by hand.
   it(
     'gives up after a bounded number of attempts, and says what refused',
     async () => {
@@ -532,8 +480,8 @@ describe('dropRehearsalSchema', () => {
     THROUGH_THE_BACKOFF,
   );
 
-  // A REFUSAL IS REPORTED, NEVER HAMMERED. Retrying something the cluster will
-  // not do spends the whole backoff to reach the same answer.
+  // Retrying something the cluster will not do spends the whole backoff to reach the
+  // same answer.
   it('does not retry anything but 40001', async () => {
     const refused: SqlClient = {
       query: async () => {
@@ -550,11 +498,9 @@ describe('dropRehearsalSchema', () => {
 });
 
 describe('migrate', () => {
-  // NO SAFE DEFAULT FOR A VERB THIS DESTRUCTIVE. An earlier shape took
-  // `rehearse?: boolean` and fell through to the real apply for anything else,
-  // so `{"rehearse":"true"}` — a quoted boolean, which is what a hand-typed
-  // `aws lambda invoke` produces — migrated production while reading as a
-  // rehearsal, and `role-deploy.md` grants exactly that invoke.
+  // NO SAFE DEFAULT FOR A VERB THIS DESTRUCTIVE, for the reason `MigrateEvent.mode`'s
+  // own doc gives. What is only true here: `role-deploy.md` grants the invoke on prod's
+  // runner as well as dev's, so a mode nobody recognises has somewhere to land.
   it('refuses a missing or unrecognised mode rather than choosing one', async () => {
     const db = new PGlite();
     await expect(migrate(db, {})).rejects.toThrow(/mode must be one of/);
@@ -564,15 +510,11 @@ describe('migrate', () => {
     await expect(migrate(db, { mode: true } as never)).rejects.toThrow(/mode must be one of/);
   });
 
-  // The dry run is what covers the file RESOLUTION, which the deploy's CommonJS
-  // bundle would otherwise be the first thing to exercise: `import.meta.url` is
-  // empty in that format, so the path is built from `LAMBDA_TASK_ROOT` with the
-  // repository root as the fallback this test runs under.
-  //
-  // `pending`, NOT `skipped`. An earlier version reported every statement as
-  // skipped whatever the cluster held, so an operator dry-running an EMPTY one
-  // read `{applied: 0, skipped: 12}` as "nothing to do" — the exact opposite of
-  // the truth, and the CI smoke step had pinned that reading.
+  // The dry run is what covers the file RESOLUTION, which the deploy's CommonJS bundle
+  // would otherwise be the first thing to exercise: `import.meta.url` is empty in that
+  // format, so the path comes from `LAMBDA_TASK_ROOT`, with the repository root as the
+  // fallback this test runs under. `pending`, NOT `skipped` — on an empty cluster
+  // `skipped: 12` reads as "nothing to do".
   it('reports what is still to run, against a cluster with no ledger at all', async () => {
     const db = new PGlite();
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
@@ -603,17 +545,11 @@ describe('migrate', () => {
     });
   });
 
-  // REHEARSE is the workflow's default and had no coverage at all. The rewrite
-  // makes the statements unrunnable here — `ASYNC` is DSQL-only — so what is
-  // asserted is the part that is engine-neutral and was wrong twice: the schema
-  // is created and then dropped, `search_path` goes back to `public`, and the
-  // failure the rehearsal was run to find is the one that surfaces rather than
-  // the cleanup's.
-  // THE CLEANUP MUST NOT REPLACE THE FAILURE, and a bare `rejects.toThrow()`
-  // could not tell whether it did: under PGlite the drop succeeds, so the old
-  // `finally { DROP SCHEMA }` shape would have passed this too. The drop is
-  // forced to fail here, and the assertion is that the STATEMENT's error is
-  // still the one that surfaces.
+  // REHEARSE is the workflow's default. The rewrite makes the statements unrunnable
+  // here, so what is asserted is the engine-neutral part: schema created and dropped,
+  // `search_path` back to `public`, and the STATEMENT's error surfacing over the
+  // cleanup's. Under PGlite the drop succeeds, so it is forced to fail here —
+  // otherwise a `finally { DROP SCHEMA }` shape passes this test too.
   it('reports the statement that failed, not the cleanup that failed after it', async () => {
     const db = new PGlite();
     const brittle: SqlClient = {
@@ -629,10 +565,8 @@ describe('migrate', () => {
     expect((raised as Error).message).not.toContain('undefined');
   });
 
-  // AND NOT ON A RUN THAT CLEANED UP AFTER ITSELF. The note is appended only
-  // when the schema outlived the run; on the ordinary failure — statements
-  // refused, drop fine — it would send an operator after a schema that is not
-  // there, which is the same wrong answer this issue started from.
+  // The note is appended only when the schema outlived the run; otherwise it would
+  // send an operator after a schema that is not there.
   it('says nothing about a schema on a statement failure whose drop succeeded', async () => {
     const db = new PGlite();
     const raised = await migrate(db, { mode: 'rehearse' }).catch((err: unknown) => err);
@@ -651,9 +585,8 @@ describe('migrate', () => {
     expect(path.rows[0].search_path).toContain('public');
   });
 
-  // THE SHAPE EVERY RUN THAT CLEANS UP AFTER ITSELF RETURNS. The key's ABSENCE
-  // is what gives its presence meaning, and it is what the workflow's check
-  // falls through on — so it is worth a test of its own.
+  // The workflow's check falls through on the key's ABSENCE, so absence is worth a
+  // test of its own.
   it('omits the teardown key entirely when it drops its schema', async () => {
     const db = new PGlite();
     const report = await migrate(dsqlish(db), { mode: 'rehearse' });
@@ -664,11 +597,9 @@ describe('migrate', () => {
     expect(rows).toEqual([]);
   });
 
-  // A REHEARSAL THAT APPLIED CLEANLY AND THEN COULD NOT DROP ITS SCHEMA IS NOT
-  // A FINDING, and must not read as one: the statements are what the mode
-  // exists to test, and nothing was wrong with them. So it RESOLVES, carrying
-  // the name of the schema it left behind — the one thing the operator needs,
-  // and the only place they will see it short of CloudWatch.
+  // A REHEARSAL THAT APPLIED CLEANLY AND THEN COULD NOT DROP ITS SCHEMA IS NOT A
+  // FINDING: the statements are what the mode exists to test. So it RESOLVES, carrying
+  // the schema name — the operator's only sight of it short of CloudWatch.
   it(
     'resolves with a report naming the schema when the statements applied and the drop did not',
     async () => {
@@ -698,10 +629,8 @@ describe('migrate', () => {
     THROUGH_THE_BACKOFF,
   );
 
-  // THE ORPHAN IS NAMED ON BOTH PATHS. The statement's failure still outranks
-  // the cleanup's — the test two above pins that — but when the drop failed
-  // too, the schema is on the cluster and the raised message is the only thing
-  // the operator reads.
+  // THE ORPHAN IS NAMED ON BOTH PATHS: when the drop failed too, the schema is on the
+  // cluster and the raised message is the only thing the operator reads.
   it(
     'names the schema it could not drop when a statement failed and the drop failed after it',
     async () => {
@@ -725,27 +654,25 @@ describe('migrate', () => {
 });
 
 describe('the demo user', () => {
-  // One literal, in one place. #50's seed and #137's public route both have to
-  // name this row, and a second copy of the id is a second source of truth.
+  // One literal, in one place: #50's seed and #137's public read will each have to name
+  // this row, and a second copy of the id is a second source of truth.
   it('is the row the migration writes', () => {
     const sql = read(DEMO_ROW);
     expect(sql).toContain(DEMO_USER_ID);
     expect(sql).toContain(DEMO_USER_EMAIL);
   });
 
-  // The address is under the owner's own SES-verified domain, which is what
-  // stops a real applicant ever arriving holding it — see `app_user_email_uq`'s
-  // comment in `infra/schema/user.ts`.
+  // Under the owner's own SES-verified domain, which is what stops a real applicant
+  // ever arriving holding it — see `app_user_email_uq` in `infra/schema/user.ts`.
   it('holds an address the owner controls', () => {
     expect(DEMO_USER_EMAIL.endsWith('@quirenote.com')).toBe(true);
   });
 
-  // `006` refuses anything else. `NOT VALID` spares a row already present the
-  // initial scan, but on stock Postgres not a later write — the CHECK runs on
-  // every UPDATE of it, whatever column is touched — so a capital here would
-  // make the demo row unupdatable rather than harmlessly exempt. That half is
-  // measured on PGlite and unprobed on DSQL; what is certain either way is that
-  // DSQL refuses `VALIDATE CONSTRAINT`, so nothing goes looking later.
+  // `006` refuses anything else. `NOT VALID` spares a row already present the initial
+  // scan but, on stock Postgres, not a later write — the CHECK runs on every UPDATE of
+  // it — so a capital here would make the demo row unupdatable rather than harmlessly
+  // exempt. Measured on PGlite and unprobed on DSQL; either way DSQL refuses
+  // `VALIDATE CONSTRAINT`, so nothing goes looking later.
   it('is already the canonical spelling `006` requires', () => {
     expect(DEMO_USER_EMAIL).toBe(DEMO_USER_EMAIL.toLowerCase());
   });
@@ -753,17 +680,15 @@ describe('the demo user', () => {
 
 describe('the bootstrap mode makes the one account that can approve the others', () => {
   // THE SUB IS NOT THIS FILE'S TO INVENT. `user_id` holds the Cognito `sub` and only
-  // `AdminCreateUser` mints one, which is the whole reason this is a runner mode rather
-  // than a line in `003`: a migration could not produce the value, and `005` gets away
-  // with a pinned literal only because the demo identity must never gain a provider
-  // account at all.
+  // `AdminCreateUser` mints one, which is why this is a runner mode and not a line in
+  // `003`; `005` gets away with a pinned literal only because the demo identity must
+  // never gain a provider account at all.
   const SUB = '9f1e2d3c-0000-4000-8000-00000000ad11';
   const POOL = 'eu-north-1_EXAMPLE';
 
-  // The pool reaches this mode as an environment variable, because a hand-typed invoke
-  // carries no pool the way a Cognito trigger's event does. Stubbed rather than assumed,
-  // and restored after — a shell that happened to export it would make the refusal below
-  // pass for the wrong reason.
+  // The pool arrives as an environment variable, a hand-typed invoke carrying none the
+  // way a Cognito trigger's event does. Stubbed and restored rather than assumed, or an
+  // exported one would make the refusal below pass for the wrong reason.
   beforeEach(() => {
     vi.stubEnv('USER_POOL_ID', POOL);
   });
@@ -771,7 +696,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
     vi.unstubAllEnvs();
   });
 
-  /** Records what the runner asked Cognito for, in the shape `pre-signup.test.ts` uses. */
+  /** The shape `pre-signup.test.ts` uses. */
   const spy = (existing?: string) => {
     const created: unknown[] = [];
     const fetched: unknown[] = [];
@@ -825,10 +750,9 @@ describe('the bootstrap mode makes the one account that can approve the others',
         email: 'owner@quirenote.com',
         status: 'active',
         role: 'super_admin',
-        // SELF-APPROVED, and it is the only truthful shape available.
-        // `app_user_decided_ck` exempts `role = 'demo'` alone, so an active row MUST
-        // carry both halves of the pair — and naming anybody else would be a
-        // fabricated approval by somebody who never ruled on it.
+        // SELF-APPROVED, and the only truthful shape available: `app_user_decided_ck`
+        // exempts `role = 'demo'` alone, so an active row MUST carry both halves of the
+        // decision pair, and naming anybody else would be an approval nobody made.
         decided_by: SUB,
         decided: true,
       },
@@ -851,16 +775,15 @@ describe('the bootstrap mode makes the one account that can approve the others',
       row: 'existing',
     });
     expect(await rows(db)).toHaveLength(1);
-    // The identity is CONFIRMED rather than assumed on the re-run — otherwise a row
-    // whose Cognito user had been deleted would report "existing" and repair nothing.
+    // CONFIRMED rather than assumed on the re-run, or a row whose Cognito user had been
+    // deleted would report "existing" and repair nothing.
     expect(again.fetched).toHaveLength(1);
     expect(again.created).toEqual([]);
   });
 
-  // `app_user_email_lower_ck` must never be the thing that reports this. The runner
-  // holds the cluster's admin grant, so a constraint violation here is a half-applied
-  // surprise rather than a clean refusal — and the address is operator-typed, which is
-  // exactly where a capital letter comes from.
+  // `app_user_email_lower_ck` must never be the thing that reports this: the runner
+  // holds the cluster's admin grant, so a violation here is a half-applied surprise
+  // rather than a clean refusal — and the address is operator-typed.
   it('canonicalises the address before the insert, and asks Cognito for the same one', async () => {
     const db = await applied();
     const { idp, created } = spy();
@@ -881,12 +804,11 @@ describe('the bootstrap mode makes the one account that can approve the others',
     }
   });
 
-  // THE INVITATION IS WHAT MAKES THE ACCOUNT USABLE, and suppressing it was the trap.
-  // `AdminCreateUser` generates a temporary password whatever else happens and leaves the
-  // user in `FORCE_CHANGE_PASSWORD`; nobody told the password cannot sign in, and
-  // `ForgotPassword` refuses a user in that state — so the mode would have produced a
-  // perfect row attached to an account nobody could get into. The medium is named because
-  // it DEFAULTS to SMS and this pool carries no phone number.
+  // THE INVITATION IS WHAT MAKES THE ACCOUNT USABLE. `AdminCreateUser` mints a
+  // temporary password whatever else happens and leaves the user in
+  // `FORCE_CHANGE_PASSWORD`, which `ForgotPassword` refuses — suppress the message and
+  // the row is perfect and the account unreachable. The medium is named because it
+  // DEFAULTS to SMS and this pool carries no phone number.
   it('sends the invitation, by email, rather than suppressing it', async () => {
     const db = await applied();
     const { idp, created } = spy();
@@ -896,10 +818,9 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(call.DesiredDeliveryMediums).toEqual(['EMAIL']);
   });
 
-  // ASKED BEFORE ANYTHING IRREVERSIBLE. `POST /v1/applications` is public, so any address
-  // — including the owner's own, most likely from testing it — can already hold a pending
-  // row. Insert-first, that collides on `app_user_email_uq` AFTER a Cognito identity has
-  // been minted, raises a raw constraint message, and wedges: every re-run repeats it, and
+  // ASKED BEFORE ANYTHING IRREVERSIBLE. `POST /v1/applications` is public, so any
+  // address — the owner's own included — can already hold a pending row. Insert-first,
+  // that collides on `app_user_email_uq` AFTER an identity has been minted, and wedges:
   // this runner has no `AdminDeleteUser` to undo the identity with.
   it('refuses an address that already applied, without minting an identity', async () => {
     const db = await applied();
@@ -913,9 +834,8 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(created).toEqual([]);
   });
 
-  // THE FIRST super-admin, which is what the mode is named for in three places. Without
-  // this the second dispatch writes another `active` super-admin for an address nobody
-  // approved — the property the whole approval gate exists to hold.
+  // THE FIRST super-admin. Without this the second dispatch writes another `active`
+  // super-admin for an address nobody approved.
   it('refuses to mint a second super-admin under another address', async () => {
     const db = await applied();
     await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
@@ -926,11 +846,9 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(created).toEqual([]);
   });
 
-  // A REJECTED SUPER-ADMIN IS NOT A SUPER-ADMIN. Reject sets the status and the decision pair
-  // and never touches `role`, so the row keeps saying `super_admin` after the decision — and
-  // this look used to read it as one, which made the mode throw for EVERY address, forever. No
-  // endpoint could undo it: approve refuses a non-pending row and the gate refuses the caller,
-  // so the only repair was hand-written SQL against the cluster.
+  // A REJECTED SUPER-ADMIN IS NOT A SUPER-ADMIN: reject sets the status and the
+  // decision pair and never touches `role`, so the row keeps saying `super_admin` after
+  // the decision and the look has to exclude it.
   it('is not blocked by a super-admin row that was rejected', async () => {
     const db = await applied();
     await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
@@ -949,10 +867,9 @@ describe('the bootstrap mode makes the one account that can approve the others',
     });
   });
 
-  // AND THE ADDRESS ITSELF IS STILL REFUSED BY NAME. Narrowing the look must not narrow the arm
-  // that finds the caller's own row: without it a rejected row at the same address reaches the
-  // insert and raises `app_user_email_uq` AFTER an identity has been minted, which is the exact
-  // stranding this mode asks the database everything first to avoid.
+  // AND THE ADDRESS ITSELF IS STILL REFUSED BY NAME. Narrowing the look must not narrow
+  // the arm that finds the caller's own row, or a rejected row at that address reaches
+  // the insert and raises `app_user_email_uq` AFTER an identity has been minted.
   it('still refuses a rejected row at the address being bootstrapped', async () => {
     const db = await applied();
     await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
@@ -967,22 +884,21 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(created).toEqual([]);
   });
 
-  // The schema not being applied yet is the other way this used to strand an identity: the
-  // read fails with `42P01` where the insert would have, which is one statement later.
+  // The other way an identity strands: reading first fails with `42P01` one statement
+  // before the insert would have.
   it('refuses before Cognito when the schema is not there at all', async () => {
     const db = new PGlite();
     const { idp, created } = spy();
     await expect(
       migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),
-      // PATTERNED. A bare `toThrow()` here is satisfied by the USER_POOL_ID refusal just
-      // as well, which is the trap this file already records at the unrecognised-mode case.
+      // PATTERNED: a bare `toThrow()` here is satisfied by the `USER_POOL_ID` refusal
+      // just as well.
     ).rejects.toThrow(/app_user/);
     expect(created).toEqual([]);
   });
 
-  // The pool is the template's to supply, and its absence means the function was deployed
-  // without the wiring rather than that the operator typed something wrong — so it fails
-  // before touching either side rather than creating an identity in no pool.
+  // The pool is the template's to supply, so its absence means the function was
+  // deployed without its wiring — it fails before touching either side.
   it('refuses when the function was given no pool', async () => {
     vi.stubEnv('USER_POOL_ID', '');
     const db = await applied();
@@ -993,9 +909,8 @@ describe('the bootstrap mode makes the one account that can approve the others',
     expect(created).toEqual([]);
   });
 
-  // THE REHEARSE TAIL HAS NO GUARD OF ITS OWN — it is the fall-through — so a fourth
-  // mode added without its own early return lands in `CREATE SCHEMA` and drops it
-  // again, having created nothing and reported a rehearsal.
+  // THE REHEARSE TAIL HAS NO GUARD OF ITS OWN — it is the fall-through — so a new mode
+  // added without an early return lands in `CREATE SCHEMA`, having created nothing.
   it('does not fall through into the rehearsal', async () => {
     const db = await applied();
     const report = await migrate(

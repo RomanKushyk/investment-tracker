@@ -1,6 +1,5 @@
 // The OpenAPI document is an ARTIFACT, not a source — the rule
 // `schema-generated.test.ts` states for the generated SQL, applied to the API.
-// A hand edit is discarded by the next regeneration, so it fails here instead.
 //
 // DERIVED FROM THIS REPOSITORY, NOT FROM THE DEPLOYED API. `aws apigatewayv2
 // export-api` returns a correct route half, but regenerating through it needs a
@@ -25,13 +24,12 @@ const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
 
 /**
  * THE TEMPLATE READ A SECOND TIME, here rather than through the generator, so the assertions
- * below compare two readings of one file instead of one reading against itself. Parsed the way
- * `public-api.test.ts` parses it: `toJS()` drops an intrinsic's tag and keeps its value, so
- * `!If [IsProd, a, b]` arrives as the three-element array `['IsProd', a, b]`.
+ * below compare two readings of one file instead of one reading against itself, parsed the
+ * way `public-api.test.ts` parses it.
  *
  * CHECKED ON THE WAY DOWN, because this runs at collection: `yaml` recovers from a structural
  * error by DROPPING content, and a mangled `Domain:` would take the whole file out with a
- * TypeError five levels deep — hiding the generator's own message and the tests below.
+ * TypeError five levels deep, hiding the generator's own message and the tests below.
  */
 const TEMPLATE = parseDocument(
   readFileSync(new URL('../template-user.yaml', import.meta.url), 'utf8'),
@@ -51,8 +49,7 @@ if (DOMAIN === undefined) {
 /**
  * EVERY module beside this one, not a written list of four. A list of the answers went stale
  * inside one milestone, which is this file's whole argument — a list of WHERE TO LOOK for them
- * is the same thing one step removed, and a new handler added to the API would simply not be
- * scanned. Reading the directory cannot forget a file.
+ * is the same thing one step removed. Reading the directory cannot forget a file.
  */
 const SOURCES = readdirSync(new URL('.', import.meta.url), { recursive: true, encoding: 'utf8' })
   .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
@@ -87,8 +84,6 @@ describe('the document is regenerated, never typed', () => {
     expect(fresh).toBe(committed);
   });
 
-  // CRITERION 4, AS A TEST RATHER THAN A PROMISE. The generator reaching for the
-  // deployed API is exactly what would make this suite unable to run it.
   it('needs no deployed API to build', () => {
     const generator = readFileSync(new URL('./openapi.ts', import.meta.url), 'utf8');
     // WHAT IT IMPORTS, not what it mentions: the file argues at length about why it does
@@ -103,10 +98,9 @@ describe('the document is regenerated, never typed', () => {
 });
 
 describe('every answer a handler can give is in the document', () => {
-  // THE WHOLE POINT, and the reason the list is scanned out of the source rather
-  // than written here: a hand-kept inventory of these went stale inside one
-  // milestone — `unclaimed_identity` landed and the issue's own table did not
-  // learn it. A new `json(…)` constant with no entry in the document fails here.
+  // THE WHOLE POINT, and the reason the list is scanned out of the source rather than
+  // written here: a hand-kept inventory of these went stale inside one milestone —
+  // `unclaimed_identity` landed and the issue's own table did not learn it.
   it('describes every json() literal the handlers declare', () => {
     const spec = buildSpec();
     const described = new Set(
@@ -142,11 +136,10 @@ describe('every answer a handler can give is in the document', () => {
 const DECLARED = { ...APPLICATION_RESPONSES, ...ADMIN_RESPONSES };
 
 describe('each operation publishes its own route’s answers', () => {
-  // THE LAST LINK, and it was missing. `approve.test.ts` proves each `RESPONSES` list matches
-  // what that route really answers, and the scan above proves every constant is documented
-  // somewhere — but nothing proved the GENERATOR put the right list on the right operation.
-  // Handing every operation the union of both routes' answers passed the whole suite, which is
-  // the same defect one file downstream: a document advertising an answer the route cannot give.
+  // THE LAST LINK. `approve.test.ts` proves each `RESPONSES` list matches what that route
+  // really answers, and the scan above proves every constant is documented somewhere — but
+  // nothing proved the GENERATOR put the right list on the right operation. Handing every
+  // operation the union of both handlers' answers passed the whole suite.
   it('publishes exactly what each route declares, and nothing from another route', () => {
     const spec = buildSpec();
     for (const [route, answers] of Object.entries(DECLARED)) {
@@ -188,9 +181,8 @@ describe('each operation publishes its own route’s answers', () => {
     expect(withBody[0].body).toEqual(REQUEST_BODY);
   });
 
-  // AND THE SCHEMA IS THE ADDRESS RULE, not a description of it. A hand-kept ceiling or
-  // pattern here is a second answer to what the cluster accepts, which `address.ts` forbids
-  // in its own words.
+  // AND THE SCHEMA IS THE ADDRESS RULE, not a description of it: a hand-kept ceiling or
+  // pattern here is a second answer to what the cluster accepts, which `address.ts` forbids.
   it('publishes the address rule itself', () => {
     const schema = (
       buildSpec().paths['/v1/applications'].post.requestBody as {
@@ -207,14 +199,10 @@ describe('each operation publishes its own route’s answers', () => {
 });
 
 describe('every route that is published is proved, by mechanism rather than by habit', () => {
-  // THE BINDING, and the thing whose absence made the same defect appear four times. The proof
-  // that a route's declared answers are the ones it really gives lives in that handler's own
-  // test file, because that is where the branches are already driven — but nothing REQUIRED a
-  // handler's file to carry one, so a new route would be published proved only "documented
-  // somewhere", which is exactly how two of the four instances happened.
-  //
-  // Derived from the template through `ANSWERS`, so adding a handler to the generator without
-  // proving its routes fails here rather than going unnoticed.
+  // THE BINDING. The proof that a route's declared answers are the ones it really gives
+  // lives in that handler's own test file, where the branches are already driven — but
+  // nothing REQUIRED a handler's file to carry one, so a new route could be published proved
+  // only "documented somewhere". Derived from the template through `ANSWERS`.
   it('makes every handler that owns a route prove it', () => {
     for (const handler of Object.keys(ANSWERS)) {
       const file = `${handler.replace('.handler', '')}.test.ts`;
@@ -248,9 +236,9 @@ describe('the routes, the authorizer, and the one route outside it', () => {
 
   // THE ASYMMETRY IS THE POINT, AND IT IS STATED RATHER THAN IMPLIED.
   // `POST /v1/applications` creates the very row every other route is checked against, so it
-  // alone needs nothing — and it says so with an EMPTY ARRAY, which the specification defines
-  // as removing the document's default. Omitting the field instead would INHERIT that default
-  // and publish the sign-up route as needing the token it exists to let somebody ask for.
+  // alone needs nothing — and says so with an EMPTY ARRAY, which the specification defines as
+  // removing the document's default. Omitting the field would INHERIT that default and publish
+  // the sign-up route as needing the token it exists to let somebody ask for.
   it('opts the application route out explicitly, and names the scheme on the admin routes', () => {
     const op = (key: string) => {
       const [method, path] = key.split(' ');
@@ -262,19 +250,17 @@ describe('the routes, the authorizer, and the one route outside it', () => {
     }
   });
 
-  // AND THERE IS A DEFAULT FOR IT TO OVERRIDE. The empty array above means "needs none" on
-  // its own — an operation's list carries no "may be incomplete" caveat, which belongs to the
-  // root field alone. What the default adds is one level up: a posture the DOCUMENT states,
-  // rather than one a reader has to infer from the operations that happen to be in it.
+  // AND THERE IS A DEFAULT FOR IT TO OVERRIDE. An operation's list carries no "may be
+  // incomplete" caveat, which belongs to the root field alone; what the default adds is a
+  // posture the DOCUMENT states, rather than one a reader infers from the operations in it.
   it('declares the scheme as the document-level default', () => {
     expect(spec.security).toEqual([{ CognitoJwt: [] }]);
   });
 
   // NO OPERATION LEAVES ITS POSTURE TO THE DEFAULT, read from the COMMITTED JSON rather than
   // from `buildSpec()`. Against the typed value this cannot fail: `Operation.security` is a
-  // required field, so `tsc` rejects an operation built without one and `Array.isArray` is
-  // statically true. The compiler is the guard on the GENERATOR; this is the guard on the
-  // ARTIFACT, which is where an omitted field is observable at all.
+  // required field, so `tsc` rejects an operation built without one. The compiler guards the
+  // GENERATOR; this guards the ARTIFACT, where an omitted field is observable at all.
   it('makes every operation state its own posture', () => {
     const committed = JSON.parse(readFileSync(COMMITTED, 'utf8')) as {
       paths: Record<string, Record<string, { security?: unknown }>>;
@@ -305,8 +291,8 @@ describe('the routes, the authorizer, and the one route outside it', () => {
 describe('the document names the hosts it can be called at', () => {
   const spec = buildSpec();
 
-  // THE OTHER HALF THAT WAS MISSING, one field wide. A client generated from a document with no
-  // `servers` has the three operations and no base URL, so it cannot call anything until a
+  // THE OTHER HALF THAT WAS MISSING, one field wide. A client generated from a document with
+  // no `servers` has every operation and no base URL, so it cannot call anything until a
   // hostname arrives out of band — the same gap the response half had.
   it('takes both hosts from the API’s own Domain, and names no others', () => {
     const [, ...arms] = DOMAIN;
@@ -315,11 +301,10 @@ describe('the document names the hosts it can be called at', () => {
     );
   });
 
-  // AND WHICH ARM IS WHICH, written out rather than derived a second time here. `toJS()` keeps
-  // an `!If`'s arms and drops its tag, so the pairing survives as an ORDER alone — and this
-  // template's own comment records that a copied `!If` reads plausibly with its arms inverted.
-  // A client that takes the wrong arm for production calls production. The template side of the
-  // same pair is pinned in `public-api.test.ts`.
+  // AND WHICH ARM IS WHICH, written out rather than derived a second time here: the pairing
+  // survives as an ORDER alone, and this template's own comment records that a copied `!If`
+  // reads plausibly with its arms inverted. A client that takes the wrong arm for production
+  // calls production. The template side of the pair is pinned in `public-api.test.ts`.
   it('pairs each host with its environment, dev first', () => {
     expect(spec.servers).toEqual([
       { url: 'https://api.dev.quirenote.com', description: 'dev' },
@@ -355,8 +340,8 @@ describe('the host derivation refuses what it cannot read', () => {
     expect(servers(templateWith({}))).toEqual(buildSpec().servers);
   });
 
-  // `toJS()` keeps an intrinsic's value and drops its tag, so this is what `!Sub 'api.${Zone}'`
-  // looks like by the time it arrives — and `https://api.${Zone}` is what would ship.
+  // What `!Sub 'api.${Zone}'` looks like by the time it arrives, and `https://api.${Zone}`
+  // is what would ship.
   it('refuses an arm that arrived as an intrinsic’s inner text', () => {
     expect(() =>
       servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com', 'api.${Zone}'] })),
@@ -417,22 +402,21 @@ describe('the host derivation refuses what it cannot read', () => {
 
 describe('what an operation says about credentials', () => {
   // DRIVEN FROM THE FUNCTION, because `buildSpec()` only ever sees the two authorizers this
-  // template writes and the third case is the one that matters. Every guard in this module has
-  // had to be reached this way: one that cannot be driven is deletable with the gates green.
+  // template writes and the third case is the one that matters.
   it('names the scheme for a route that names the authorizer', () => {
     expect(securityOf('CognitoJwt')).toEqual([{ CognitoJwt: [] }]);
   });
 
-  // AN EMPTY ARRAY, not an absent field: it removes the document's default, which an omission
-  // would inherit instead. `[{}]` would be a third statement again — credentials optional.
+  // AN EMPTY ARRAY, not an absent field that would inherit the default. `[{}]` would be
+  // a third statement again — credentials optional.
   it('opts a route with no authorizer out explicitly', () => {
     expect(securityOf(undefined)).toEqual([]);
   });
 
   // AND ANYTHING ELSE RAISES. A second authorizer, or a typo in the first, would otherwise be
-  // published as `security: []` — a positive claim that a stranger may call the route, which
-  // is a worse thing to get wrong than the absent field that claim replaced. The template side
-  // is held by `public-api.test.ts`; this is the half that would publish it.
+  // published as `security: []` — a positive claim that a stranger may call the route, worse
+  // to get wrong than the absent field it replaced. The template side is held by
+  // `public-api.test.ts`; this is the half that would publish it.
   it('refuses a route naming an authorizer it does not declare', () => {
     expect(() => securityOf('CognitoJwtV2')).toThrow(
       /route names authorizer CognitoJwtV2, and only CognitoJwt is declared/,

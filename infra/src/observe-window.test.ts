@@ -3,11 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { addDays } from '../../src/core/dates';
 import { OBSERVE_CAP_DAYS, observeProgress, observeWindowEnd } from './observe-window';
 
-// [Cloud target]: any statement over the archive is bounded by a SQL date
-// window, and completeness names both bounds, the row limit first. After the
-// cap itself, the four cases are the ones the ruling's reasoning names; each
-// is a way that deriving completeness from the row count alone went wrong once
-// the window was capped.
+// Any statement over the archive is bounded by a SQL date window, and completeness
+// names both bounds, the row limit first. Deriving it from the row count alone went
+// wrong once the window was capped. [*Cloud target*]
 describe('the observe window', () => {
   // A whole-archive run: `{observe:{}}` spans the NBU archive from its first
   // file, which is many windows.
@@ -24,15 +22,15 @@ describe('the observe window', () => {
   });
 
   it('refuses a bound Postgres would parse but the JS window cannot', () => {
-    // Before the window, `from` went straight to `BETWEEN $2 AND $3` and the
-    // database read every spelling; now the bound is compared as text first.
+    // The bound is compared as text first: handed straight to `BETWEEN`, the database
+    // reads spellings the JS window cannot.
     expect(() => observeWindowEnd('2016-1-4', to)).toThrow(/YYYY-MM-DD/);
     expect(() => observeWindowEnd(from, '2026/09/10')).toThrow(/YYYY-MM-DD/);
   });
 
   it('both bounds truncating at once continues from the CURSOR, not the window', () => {
-    // The everyday case: a window holds more dates than the limit consumes.
-    // Continuing from the window would skip every fetched-but-unconsumed date.
+    // The everyday case, and continuing from the window rather than the cursor would
+    // skip every fetched-but-unconsumed date.
     const windowEnd = observeWindowEnd(from, to);
     const r = observeProgress({ to, windowEnd, fetched: 684, dates: 400, cursor: '2017-07-14' });
     expect(r).toEqual({ complete: false, nextFrom: '2017-07-15' });
@@ -66,9 +64,8 @@ describe('the observe window', () => {
   });
 
   it('a last window consumed to exactly the limit is finished, not truncated', () => {
-    // The limit bit only when rows were fetched and not consumed; a count that
-    // merely equals the limit is not that, and reporting it so cost one more
-    // invocation to learn the archive was already derived.
+    // A count that merely equals the limit is not "fetched and not consumed", and
+    // reporting it so cost one more invocation to learn the archive was already done.
     const near = '2016-03-01';
     const windowEnd = observeWindowEnd(from, near);
     const r = observeProgress({ to: near, windowEnd, fetched: 40, dates: 40, cursor: near });
@@ -76,9 +73,8 @@ describe('the observe window', () => {
   });
 
   it('a zero limit consumes nothing, advances a day at a time and still ends', () => {
-    // `dates >= limit` held at zero before a single row was consumed and never
-    // let the window or `to` answer, so the caller looped forever. Fetched
-    // rows now carry it a day; an empty window carries it a window.
+    // `dates >= limit` holds at zero before a single row is consumed, so on its own it
+    // loops forever: fetched rows carry it a day, an empty window carries it a window.
     const windowEnd = observeWindowEnd(from, to);
     const r = observeProgress({ to, windowEnd, fetched: 684, dates: 0, cursor: from });
     expect(r).toEqual({ complete: false, nextFrom: addDays(from, 1) });

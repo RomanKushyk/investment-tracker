@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { backupAgeHours, NO_BACKUP_HOURS } from './backup-age';
 
-// The rule two stacks now share: recovery points in, an AGE in hours out. Both
-// freshness checks read it — the archive's own (`capture.ts`) and prod's user
-// cluster's (`backup-freshness.ts`) — so it is tested once, here, rather than
-// twice against two copies that can disagree about what "backed up" means.
+// The rule two stacks share: recovery points in, an AGE in hours out. Both freshness
+// checks read it — `capture.ts` and `backup-freshness.ts` — so it is tested once here
+// rather than twice against copies that can disagree about what "backed up" means.
 
 const NOW = new Date('2026-09-15T12:00:00Z');
 const at = (iso: string) => new Date(iso);
@@ -24,11 +23,9 @@ describe('backupAgeHours', () => {
     expect(completedAt).toBe('2026-09-15T02:00:00.000Z');
   });
 
-  // A job still running, or one that finished with part of the resource missing,
-  // is not something anything can be restored from. Counting it would report a
-  // fresh backup on a night that produced none — the exact inversion the whole
-  // check exists to catch, and the newer timestamp is what makes it win if the
-  // status is not read.
+  // A job still running, or one that finished with part of the resource missing, is
+  // not something anything can be restored from, and its NEWER timestamp is what makes
+  // it win if the status is not read.
   it('ignores a NEWER point that did not complete', () => {
     const { value, completedAt } = backupAgeHours(
       [
@@ -42,9 +39,8 @@ describe('backupAgeHours', () => {
     expect(completedAt).toBe('2026-09-14T12:00:00.000Z');
   });
 
-  // `CompletionDate` is optional on the API's own shape. A point carrying none
-  // has no age to measure, and treating an absent date as the epoch — or as
-  // now — is a wrong answer in one of the two directions rather than no answer.
+  // `CompletionDate` is optional on the API's own shape, and treating an absent one
+  // as the epoch — or as now — is a wrong answer rather than no answer.
   it('ignores a completed point with no completion date', () => {
     expect(backupAgeHours([{ Status: 'COMPLETED' }], NOW)).toEqual({
       value: NO_BACKUP_HOURS,
@@ -56,11 +52,8 @@ describe('backupAgeHours', () => {
     expect(backupAgeHours([], NOW)).toEqual({ value: NO_BACKUP_HOURS, completedAt: null });
   });
 
-  // NOT zero, and this is the assertion that says why the constant is shaped the
-  // way it is: the metric is an AGE, so "nothing" has to land on the BAD side of
-  // any threshold. A zero would read as "backed up seconds ago" — a broken check
-  // reporting perfect health. The thresholds themselves are held against this
-  // value in `stack-split.test.ts`, which is where the templates are parsed.
+  // Why it is large and not zero is on `NO_BACKUP_HOURS` itself. The thresholds are
+  // held against this value in `stack-split.test.ts`, where the templates are parsed.
   it('puts the absence of a backup at the bad end of the scale', () => {
     const { value } = backupAgeHours([], NOW);
     const fresh = backupAgeHours(

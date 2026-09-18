@@ -1,6 +1,5 @@
-// Builds the ZIP container an .xlsx is, for tests. The provider's files are
-// real financial data and never committed, so the workbook under test is
-// assembled from committed XML parts at run time.
+// Builds the ZIP container an .xlsx is. The provider's files are real financial data
+// and never committed, so the workbook under test is assembled from committed parts.
 import { readFileSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
 
@@ -25,9 +24,8 @@ function u32(n: number): number[] {
 }
 
 /**
- * A ZIP archive holding `entries`, every one compressed with `method`:
- * 8 (deflate, what Excel writes), 0 (stored), or any other number to build an
- * archive a reader must refuse.
+ * A ZIP archive holding `entries`. `method` is 8 (deflate, what Excel writes), 0
+ * (stored), or any other number to build an archive a reader must refuse.
  */
 export function zipOf(entries: Record<string, string | Uint8Array>, method = 8): Uint8Array {
   const locals: number[] = [];
