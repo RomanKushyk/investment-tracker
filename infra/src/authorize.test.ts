@@ -1,15 +1,7 @@
-// The gate every authenticated route reads, and the assertions are about WHICH refusal rather
-// than merely that one happened.
-//
-// A caller who is genuinely signed in and may not act yet is not a 401 — that is the whole point
-// of the `pending` case, and a suite that only checked "refused" would pass against a handler
-// that answered 401 to all three. So the three refusals are asserted as three distinct bodies,
-// and the distinctness itself is a test.
-//
-// PGlite applying the migrations the runner names, the way `applications.test.ts` applies them,
-// because the row this file writes has to be one `003` and `006` accept — `app_user_decided_ck`
-// is what refuses a self-approved row with half a decision pair, and an assertion written here
-// could not.
+// The assertions are about WHICH refusal: a caller signed in who may not act yet is not a 401,
+// so a suite that only checked "refused" would pass against a handler answering 401 to all three.
+// PGlite applies the migrations the runner names, because `app_user_decided_ck` refuses a
+// self-approved row with half a decision pair and an assertion written here could not.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,9 +24,8 @@ const OTHER = '9f1e2d3c-0000-4000-8000-0000000000b2';
 const EMAIL = 'applicant@quirenote.com';
 
 /**
- * An ID TOKEN's claims, which is what this API takes. `token_use` is stamped by Cognito and is
- * the only thing that tells an id token from an access token — AWS's own note on JWT authorizers
- * says there is no standard mechanism, and an access token carries no `email` at all.
+ * An ID TOKEN's claims, which is what this API takes. `token_use` is stamped by Cognito and is the
+ * only thing telling an id token from an access token; an access token carries no `email` at all.
  */
 const token = (claims: Record<string, string | string[]> = {}): ApiEvent => ({
   requestContext: {
@@ -97,18 +88,14 @@ afterEach(() => {
 });
 
 describe('the row is what authorizes, on every request', () => {
-  // THE ADMITTING CASE COMES FIRST. Every refusal below is green against a gate that refuses
-  // everything, and against a schema that never loaded.
   it('admits an active row and hands back the role the ROW carries', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'super_admin'));
     const gate = await authorize(db, token());
     expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'super_admin' } });
   });
 
-  // `cognito:groups` IS NOT THE AUTHORIZATION SOURCE. Group membership is stamped into a token
-  // at issue time, so removing somebody from a group would not take effect until the token
-  // refreshed — at any lifetime, since a shorter one shortens the wait without removing it. The
-  // claim is present and says super-admin; the row says `user`; the row wins.
+  // `cognito:groups` is not the authorization source: a group is stamped into a token at issue
+  // time, so a removal would not take effect until the token refreshed. The row wins.
   it('ignores a cognito:groups claim that disagrees with the row', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'user'));
     const gate = await authorize(db, token({ 'cognito:groups': ['super_admin'] }));
@@ -116,10 +103,7 @@ describe('the row is what authorizes, on every request', () => {
     expect(superAdminOnly(gate)).toEqual({ refusal: expect.objectContaining({ statusCode: 403 }) });
   });
 
-  // THE SAME FOLD THE ADDRESS GETS, and for the same reason one step along: the row's `user_id`
-  // comes back from a `uuid` column and is canonical, and `answer()` compares it with `===`. A
-  // `sub` left in the case it arrived would be FOUND by the cluster and then refused by the
-  // comparison — which reads as somebody else holding this address, the loudest refusal here.
+  // The row's `user_id` is canonical and `answer()` compares with `===`, so the fold happens here.
   it('admits a caller whose sub claim arrived in capitals', async () => {
     await db.exec(row(SUB, EMAIL, 'active'));
     const gate = await authorize(db, token({ sub: SUB.toUpperCase() }));
@@ -131,8 +115,8 @@ describe('the row is what authorizes, on every request', () => {
       join(dirname(fileURLToPath(import.meta.url)), 'authorize.ts'),
       'utf8',
     );
-    // The comment explaining why may name it; a `claims[...]` read may not. Asserted on the
-    // subscript rather than the word, so the reason can stay written down.
+    // Asserted on the subscript rather than the word, so the reason may stay written down: the
+    // comment explaining why may name it, a `claims[...]` read may not.
     expect(source).not.toMatch(/claims\s*(\[|\.)\s*['"]?cognito:groups/);
   });
 });
@@ -158,8 +142,7 @@ describe('three refusals, and they are three', () => {
     expect(await rows()).toEqual([]);
   });
 
-  // THE DISTINCTNESS IS THE CRITERION, not each body on its own. Three cases answering the same
-  // bytes would satisfy every assertion above and tell a client nothing.
+  // The distinctness is the criterion: three cases answering the same bytes tell a client nothing.
   it('gives each of the three a different answer, and none of them is 401', async () => {
     const answers: string[] = [];
     answers.push(body(await authorize(db, token())) as string);
@@ -172,9 +155,6 @@ describe('three refusals, and they are three', () => {
     expect(new Set(answers).size).toBe(3);
   });
 
-  // NOT A 401, ASSERTED ON THE ANSWERS THEMSELVES. A 401 says "you are not signed in", which is
-  // false of all three and sends whoever reads it back through a sign-in that succeeds and
-  // changes nothing.
   it('answers none of the three with a 401', async () => {
     const codes: number[] = [];
     const code = (gate: Gate) => ('refusal' in gate ? gate.refusal.statusCode : 200);
@@ -187,11 +167,7 @@ describe('three refusals, and they are three', () => {
     expect(codes).toEqual([403, 403, 403]);
   });
 
-  // THE MOST SECURITY-RELEVANT BRANCH IN THE FILE, and it was the one case the suite did not
-  // construct: an ACTIVE row holding this address under somebody else's id. It should not exist
-  // — approval keys the row by the sub the create call returned, and the pool refuses a
-  // duplicate address and its case variant — but if it ever did, returning the caller would hand
-  // one person's portfolio to another. Asserted so that deleting the check fails a test.
+  // An active row holding this address under another id would hand one portfolio to another.
   it('refuses an active row that holds this address under another id', async () => {
     await db.exec(row(OTHER, EMAIL, 'active'));
     const gate = await authorize(db, token());
@@ -212,9 +188,8 @@ describe('open registration is the only thing that writes a row here', () => {
     const gate = await authorize(db, token());
     expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
     expect(await rows()).toEqual([{ user_id: SUB, email: EMAIL, status: 'active', role: 'user' }]);
-    // SELF-DECIDED, and it is the only truthful shape available: `app_user_decided_ck` exempts
-    // `role = 'demo'` alone, so an active row MUST carry both halves, and nobody ruled on this
-    // one — the deploy that opened registration did. The bootstrap's own argument.
+    // Self-decided, the only truthful shape `app_user_decided_ck` leaves open: it exempts
+    // `role = 'demo'` alone, so an active row must carry both halves and the deploy is what ruled.
     expect(await pair(SUB)).toEqual({ decided: true, decided_by: SUB });
   });
 
@@ -231,12 +206,8 @@ describe('open registration is the only thing that writes a row here', () => {
     expect((await rows()).map((r) => r.email)).toEqual([EMAIL]);
   });
 
-  // THE ADDRESS IS ALREADY CLAIMED, which is reachable rather than exotic: someone applies, the
-  // window opens, and they sign up. `app_user_email_uq` would refuse the insert, so the gate
-  // answers with THAT ROW'S status instead — which keeps the approval queue in charge. An open
-  // window may not launder a decided application into access, and the super-admin's approve
-  // still repairs the pair: `AdminCreateUser` answers `UsernameExistsException`, `AdminGetUser`
-  // returns this very sub, and the row is swapped onto it.
+  // An open window may not launder a decided application into access: `app_user_email_uq` would
+  // refuse the insert, so the gate answers with that row's status and the queue stays in charge.
   it('answers a pending application under another id with pending, and writes nothing', async () => {
     vi.stubEnv('OPEN_REGISTRATION', 'true');
     await db.exec(row(OTHER, EMAIL, 'pending'));
@@ -253,10 +224,7 @@ describe('open registration is the only thing that writes a row here', () => {
     expect(await rows()).toHaveLength(1);
   });
 
-  // THE SAME QUESTION `pre-signup.ts` ASKS BEFORE IT LINKS, asked again of the claim. An open
-  // window plus a provider that never checked the mailbox would otherwise buy a row for an
-  // address its holder does not own — and the real owner's later application is then absorbed by
-  // `app_user_email_uq` and answered 202 for somebody else's row.
+  // A provider that never checked the mailbox would buy a row for an address its holder does not own.
   for (const value of ['false', '', 'True', 'yes']) {
     it(`writes no row when email_verified is ${JSON.stringify(value)}`, async () => {
       vi.stubEnv('OPEN_REGISTRATION', 'true');
@@ -266,17 +234,14 @@ describe('open registration is the only thing that writes a row here', () => {
     });
   }
 
-  // AND IT IS ASKED ONLY OF A ROW THAT DOES NOT EXIST YET. A row already decided by a
-  // super-admin is not re-litigated here; a pool that later stopped asserting the claim would
-  // otherwise lock out everybody who already had one.
+  // Only of a row that does not exist yet — otherwise a changed pool locks out everybody who has one.
   it('does not re-ask it of a caller who already has a row', async () => {
     await db.exec(row(SUB, EMAIL, 'active'));
     const gate = await authorize(db, token({ email_verified: 'false' }));
     expect(gate).toEqual({ caller: { userId: SUB, email: EMAIL, role: 'user' } });
   });
 
-  // UNSET AND EVERY OTHER VALUE MEAN CLOSED, the rule `pre-signup.ts` already holds: an
-  // environment variable arrives as text and `Boolean('false')` is `true`.
+  // Every other value means closed: the variable arrives as text and `Boolean('false')` is `true`.
   for (const value of ['', 'false', 'open', 'yes', '1']) {
     it(`writes nothing when OPEN_REGISTRATION is ${JSON.stringify(value)}`, async () => {
       vi.stubEnv('OPEN_REGISTRATION', value);

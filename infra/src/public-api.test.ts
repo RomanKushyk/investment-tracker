@@ -1,20 +1,12 @@
-// The repository's first HTTP API, pinned the way `cognito-pool.test.ts` pins the pool.
-//
-// Parsed the same way, for the same reason: `parseDocument`, asserting `errors` and never
-// `warnings`, because every CloudFormation intrinsic is an unresolved tag to a YAML
-// parser. `toJS()` keeps an intrinsic's value and discards its tag, so `!If [IsProd, a, b]`
-// arrives as the three-element array `['IsProd', 'a', 'b']` — which is what the paired
-// assertions match — and a `!Ref` arrives as the bare parameter name, indistinguishable
-// from a string spelled the same way. Where the tag itself is load-bearing, `intrinsicAt`
-// reads it off the document node, which is the only place it survives.
+// `toJS()` keeps an intrinsic's value and discards its tag, so `!If [IsProd, a, b]` arrives as the
+// array `['IsProd', 'a', 'b']` and a `!Ref` as the bare parameter name, indistinguishable from a
+// string spelled the same way. Where the tag is load-bearing, `intrinsicAt` reads the node.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
-// THE HANDLER'S OWN CONSTANTS, NOT A SECOND COPY OF THE SAME STRINGS. The route key is matched by
-// string equality in three places — the template declares it, the template throttles it by the
-// same key, and the handler dispatches on it — and nothing validates any of them against another.
-// Renamed on one side alone, every suite here stays green and every admin call answers 400.
+// The route key is matched by string equality in three places and nothing validates them against
+// each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
@@ -60,8 +52,7 @@ const declaredRoutes = () =>
     );
 
 describe('one unauthenticated route, on a domain the stack cannot finish', () => {
-  // The anchor `cognito-pool.test.ts` and `stack-split.test.ts` both open with, for the
-  // same reason: an empty or unparsed file passes every absence assertion below.
+  // An empty or unparsed file passes every absence assertion below.
   it('parses, and the API is in it', () => {
     expect(doc.errors).toEqual([]);
     expect(user.Resources.PublicApi?.Type).toBe('AWS::Serverless::HttpApi');
@@ -82,10 +73,8 @@ describe('one unauthenticated route, on a domain the stack cannot finish', () =>
     expect(props('ApplicationsFunction').Handler).toBe('applications.handler');
   });
 
-  // NO AUTHORIZER IN FRONT OF THIS ONE ROUTE, deliberately. `docs/DECISIONS.md`, **Auth
-  // model**: three surfaces stand outside the authorizer and check no application row — the
-  // archive's reads, the demo's, and the sign-up application, which exists to create the very
-  // row the others are checked against. One of the three is a route on this API today.
+  // No authorizer in front of this one route, deliberately: the sign-up application exists to
+  // create the very row the others are checked against. [*Auth model*]
   it('puts no authorizer in front of the application', () => {
     const [submit] = declaredRoutes().filter((r) => r.key === ROUTE);
     expect(submit.authorizer).toBeUndefined();
@@ -98,16 +87,13 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     DefaultAuthorizer?: string;
   };
 
-  // ONE AUTHORIZER, NATIVE, NO LAMBDA IN THE PATH — `docs/DECISIONS.md`, **Auth model**. A
-  // second one would be a second answer to which pool a token may come from.
+  // One authorizer, native, no Lambda in the path: a second would be a second answer to which pool
+  // a token may come from. [*Auth model*]
   //
-  // AND NO `DefaultAuthorizer`, WHICH IS A DECISION RATHER THAN AN OVERSIGHT. SAM renders a
-  // route opted out of a default as `security: [{"NONE": []}]` against a scheme it never
-  // declares, and this API sets `FailOnWarnings: true` — which rolls the stack back on a warning
-  // `ImportApi` merely records. Whether it records one there is not answerable before a deploy,
-  // and the answer would arrive as a red deploy blocking `dev`. The guarantee the default was
-  // wanted for is the next test instead, and it runs in this same workflow BEFORE the deploy
-  // step, so a route that forgot its authorizer cannot reach AWS at all.
+  // AND NO `DefaultAuthorizer`, a decision rather than an oversight: SAM renders a route opted out
+  // of a default against a scheme it never declares, and `FailOnWarnings: true` rolls the stack
+  // back on a warning. The guarantee it was wanted for is the next test, which runs in this same
+  // workflow BEFORE the deploy step.
   it('declares one JWT authorizer and no default', () => {
     expect(Object.keys(auth?.Authorizers ?? {})).toEqual([AUTHORIZER]);
     expect(auth?.DefaultAuthorizer).toBeUndefined();
@@ -116,11 +102,9 @@ describe('every other route is behind the pool, and the pool is the only issuer'
 
   it('trusts this environment’s own pool and this environment’s own client', () => {
     const jwt = auth.Authorizers?.[AUTHORIZER].JwtConfiguration as { audience?: string[] };
-    // ONE audience and no second, which is the part a path cannot say: a client added here
-    // would be trusted by every route.
     expect(jwt?.audience).toEqual(['UserPoolClient']);
-    // AND BOTH ARE INTRINSICS, tag and value together. A pool id spelled out would pin one
-    // environment's pool into both stacks, and `toJS()` reads that as the same string.
+    // Both are INTRINSICS, tag and value: a pool id spelled out would pin one environment's pool
+    // into both stacks, and `toJS()` reads that as the same string.
     const jwtPath = ['Resources', 'PublicApi', 'Properties', 'Auth', 'Authorizers', AUTHORIZER];
     expect(intrinsicAt(doc, ...jwtPath, 'JwtConfiguration', 'issuer')).toEqual({
       tag: '!Sub',
@@ -133,16 +117,13 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(auth.Authorizers?.[AUTHORIZER].IdentitySource).toBe('$request.header.Authorization');
   });
 
-  // THIS IS THE ONE THAT STANDS IN FOR `DefaultAuthorizer`, and it is stronger in the way that
-  // matters: a route declared with no authorizer fails the suite, and `pnpm test` runs earlier in
-  // the same workflow than `sam deploy`, so such a route never reaches AWS. PUBLIC IS A WRITTEN
-  // LIST, not a count — a count is satisfied by the wrong route being the exception.
+  // This stands in for `DefaultAuthorizer` and is stronger: a route with no authorizer fails the
+  // suite before `sam deploy` runs. PUBLIC IS A WRITTEN LIST, not a count — a count is satisfied
+  // by the wrong route being the exception.
   const PUBLIC = [ROUTE];
 
-  // A `Globals:` BLOCK IS THE ONE WAY AUTH CAN MOVE WITHOUT A ROUTE MOVING. The template forbids
-  // one in prose — "NO `Globals:` BLOCK, here as everywhere in this file" — and prose is not a
-  // gate: `Globals.HttpApi.Auth` would reach every route at once, from outside the derivation
-  // below, and the test would keep reading the events and keep passing.
+  // A `Globals:` block is the one way auth can move without a route moving: `Globals.HttpApi.Auth`
+  // reaches every route from outside the derivation below, and the test would keep passing.
   it('declares no Globals block', () => {
     expect(user as Record<string, unknown>).not.toHaveProperty('Globals');
   });
@@ -154,9 +135,8 @@ describe('every other route is behind the pool, and the pool is the only issuer'
     expect(unprotected).toEqual(PUBLIC);
   });
 
-  // AND EVERY ROUTE IS ON THIS API. A second `AWS::Serverless::HttpApi` is an allowed resource
-  // type here, so a route could be declared against one that carries no authorizer at all — and
-  // the check above, which reads the event's own `Auth` block, would not notice.
+  // A second `AWS::Serverless::HttpApi` could carry no authorizer, and the check above — which
+  // reads the event's own `Auth` block — would not notice.
   it('declares every route against the one API', () => {
     expect(declaredRoutes().map((r) => r.api)).toEqual(declaredRoutes().map(() => 'PublicApi'));
   });
@@ -173,17 +153,10 @@ describe('every other route is behind the pool, and the pool is the only issuer'
 });
 
 describe('the route is throttled below the stage it sits in', () => {
-  // WHAT WAF IS USUALLY BOUGHT FOR, and free. `app_user_email_uq` collapses one mailbox
-  // submitted a thousand times into one row and can do nothing about a thousand different
-  // ones, so this is the endpoint's only defence against that — and what it protects is
-  // the account-level token bucket rather than the table: an unauthenticated route left on
-  // the stage default drains the bucket and takes every other route down with it,
-  // including the ones a signed-in owner needs to reach their own portfolio.
-  // EVERY ROUTE, NOT ONLY THE UNAUTHENTICATED ONE. The admin routes need it for a reason that is
-  // easy to talk yourself out of: the role check runs inside the Lambda, after the connection, so
-  // the authorizer admits every holder of a valid pool token and a `pending` applicant reaches
-  // the function as often as they like. Left on the stage default they would want hundreds of
-  // concurrent executions out of an account pool the template sizes at about ten.
+  // What this protects is the account-level token bucket, not the table: a route left on the stage
+  // default drains the bucket and takes every other route down with it. EVERY ROUTE, not only the
+  // unauthenticated one — the role check runs inside the Lambda, after the connection, so the
+  // authorizer admits every holder of a valid pool token.
   it('gives every route its own ceiling, under the stage default', () => {
     const stage = props('PublicApi').DefaultRouteSettings as Record<string, number>;
     const routes = props('PublicApi').RouteSettings as Record<string, Record<string, number>>;
@@ -201,11 +174,7 @@ describe('the route is throttled below the stage it sits in', () => {
     }
   });
 
-  // ONE ENTRY, SPELLED THE WAY THE ROUTE ITSELF IS DECLARED. A throttle is matched to its
-  // `<METHOD> <path>` key by string equality and nothing validates it: a key naming a
-  // route that does not exist configures nothing, fails nowhere, and leaves the real route
-  // on the stage default — the exact state this block exists to prevent. So the key is
-  // derived from the event rather than compared to a second copy of the same literal.
+  // A throttle key naming no real route configures nothing and fails nowhere, so it is derived.
   it('throttles the routes that exist and no others', () => {
     expect(Object.keys(props('PublicApi').RouteSettings as object).sort()).toEqual(
       declaredRoutes()
@@ -219,10 +188,7 @@ describe('the browser origins are named per environment', () => {
   type Cors = { AllowOrigins: string[]; AllowMethods: string[]; AllowHeaders: string[] };
   const [condition, prod, dev] = props('PublicApi').CorsConfiguration as [string, Cors, Cors];
 
-  // BOTH HOSTS, because both serve the app: the custom domain and the Amplify one the
-  // branch is deployed to (`docs/reference/DEPLOYMENT.md`). A CORS list naming only the
-  // first leaves the Amplify URL — which is what a deploy preview is checked on — failing
-  // at the preflight, months after the branch that caused it merged.
+  // A CORS list naming only the custom domain leaves the Amplify URL failing at the preflight.
   it('allows the custom host and the Amplify host, and nothing from the other environment', () => {
     expect(condition).toBe('IsProd');
     expect(prod.AllowOrigins).toContain('https://quirenote.com');
@@ -233,23 +199,19 @@ describe('the browser origins are named per environment', () => {
     expect(dev.AllowOrigins.every((o) => o.includes('dev'))).toBe(true);
   });
 
-  // THE CONDITION IS ON THE WHOLE BLOCK AND BOTH ARMS ARE COMPLETE, which is not a style
-  // choice and not obvious from the deployed result. SAM builds the OpenAPI extension
-  // itself, and an intrinsic found at `AllowOrigins` sends it down a branch that keeps
-  // that value and DROPS the methods, the headers and the max-age — emitting an
-  // `x-amazon-apigateway-cors` that resolves to a bare list where an object belongs.
-  // Nothing fails at deploy; the preflight simply stops naming a method. Asserting each
-  // arm separately is what makes the shape impossible to simplify back.
+  // THE CONDITION IS ON THE WHOLE BLOCK AND BOTH ARMS ARE COMPLETE, which is not a style choice:
+  // SAM builds the OpenAPI extension itself, and an intrinsic found at `AllowOrigins` sends it
+  // down a branch that keeps that value and DROPS the methods, the headers and the max-age.
+  // Nothing fails at deploy; the preflight simply stops naming a method.
   it('gives each environment a complete block, methods and headers included', () => {
     for (const [name, arm] of [
       ['prod', prod],
       ['dev', dev],
     ] as const) {
       expect([name, arm.AllowMethods?.slice().sort()]).toEqual([name, ['OPTIONS', 'POST']]);
-      // `authorization` IS WHAT LETS A BROWSER SEND THE TOKEN AT ALL. The admin routes are on
-      // a different host from the app, so every call is cross-origin and the preflight refuses
-      // a header the list does not name — a failure that appears only in a browser, never in
-      // `curl`, and only once a screen exists to make the call.
+      // `authorization` is what lets a browser send the token at all: every admin call is
+      // cross-origin, and the preflight refuses a header the list does not name — a failure that
+      // appears only in a browser, never in `curl`.
       expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
         name,
         ['authorization', 'content-type'],
@@ -263,16 +225,14 @@ describe('the custom domain takes a certificate from its own region', () => {
     const domain = props('PublicApi').Domain as Record<string, unknown>;
     expect(domain.DomainName).toEqual(['IsProd', PROD_API, DEV_API]);
     expect(domain.EndpointConfiguration).toBe('REGIONAL');
-    // A `!Ref` rather than a string spelled the same way: this repository is public, so a
-    // hard-coded ARN is an account id in it, and `toJS()` cannot tell the two apart.
+    // A `!Ref`, not a string spelled the same way: this repository is public, so a hard-coded ARN
+    // is an account id in it and `toJS()` cannot tell the two apart.
     expect(
       intrinsicAt(doc, 'Resources', 'PublicApi', 'Properties', 'Domain', 'CertificateArn'),
     ).toEqual({ tag: '!Ref', value: 'ApiCertificateArn' });
   });
 
-  // DNS IS CLOUDFLARE'S. SAM creates a Route 53 record set when `Route53:` is present, in a
-  // hosted zone this account does not have; the record is added by hand, DNS-only, from the
-  // output below.
+  // DNS is Cloudflare's: `Route53:` would create a record set in a zone this account lacks.
   it('asks for no Route 53 record', () => {
     expect(props('PublicApi').Domain).not.toHaveProperty('Route53');
   });
@@ -282,11 +242,10 @@ describe('the custom domain takes a certificate from its own region', () => {
     expect(user.Parameters?.ApiCertificateArn).not.toHaveProperty('Default');
   });
 
-  // THE REGION IS THE TRAP, and copying the pool's pattern is how it is walked into. The
-  // pool's certificate must be in **us-east-1** whatever region the pool is in, because a
-  // Cognito custom domain is fronted by CloudFront, which is global. An HTTP API custom
-  // domain is REGIONAL, and AWS requires its certificate in the API's own region — so the
-  // valid ARN here is the one the pool's pattern would reject, and the other way round.
+  // THE REGION IS THE TRAP, and copying the pool's pattern is how it is walked into: the pool's
+  // certificate must be in us-east-1 because a Cognito custom domain is fronted by CloudFront,
+  // which is global. An HTTP API custom domain is REGIONAL and needs its certificate in the API's
+  // own region — so the valid ARN here is the one the pool's pattern would reject.
   it('refuses an empty or non-eu-north-1 certificate before it creates anything', () => {
     const p = user.Parameters?.ApiCertificateArn as {
       MinLength?: number;
@@ -302,14 +261,11 @@ describe('the custom domain takes a certificate from its own region', () => {
 });
 
 describe('the stack publishes what nobody outside it can construct', () => {
-  // THE SAME SHAPE AS `UserPoolDomainCloudFrontAlias`, and the same reason. API Gateway
-  // builds a regional endpoint for the custom domain and names it itself; the Cloudflare
-  // record has to point at that exact name, DNS-only. Until the record exists the stack is
-  // green and the hostname resolves nowhere.
-  //
-  // READ THROUGH SAM'S REFERENCEABLE PROPERTY, never through the generated logical id: AWS
-  // generates `AWS::ApiGatewayV2::DomainName` under a hashed id and documents that the hash
-  // may change, so `PublicApi.DomainName` is the only stable way to reach it.
+  // API Gateway names the regional endpoint itself and the Cloudflare record must point at that
+  // exact name; until it exists the stack is green and the hostname resolves nowhere. Read through
+  // SAM's referenceable property, never the generated logical id: AWS generates
+  // `AWS::ApiGatewayV2::DomainName` under a hashed id whose hash may change, so
+  // `PublicApi.DomainName` is the only stable way to reach it.
   it('outputs the domain, its regional target and the endpoint that works before DNS', () => {
     expect(user.Outputs?.ApiDomain?.Value).toEqual(['IsProd', PROD_API, DEV_API]);
     expect(intrinsicAt(doc, 'Outputs', 'ApiDomainRegionalTarget', 'Value')).toEqual({
@@ -321,25 +277,16 @@ describe('the stack publishes what nobody outside it can construct', () => {
 });
 
 describe('the handler is wired to the user cluster and logs like its neighbours', () => {
-  // THE GRANT, NOT ONLY THE ENDPOINT VARIABLE. The variable says which cluster the handler
-  // dials; the policy says which one it is ALLOWED to dial as `admin`, and that is the
-  // assertion worth having on an internet-facing unauthenticated function. A copy-paste
-  // leaving the archive's cluster here would pass every other test in this repository.
+  // The grant, not only the endpoint variable: a copy-paste leaving the archive's cluster here
+  // would pass every other test in this repository.
   it('may connect to the user cluster and to nothing else', () => {
     const policies = props('ApplicationsFunction').Policies as [
       { Statement: [Record<string, unknown>] },
     ];
     expect(policies).toHaveLength(1);
-    // BOTH LISTS, because they are different claims and only one of them was made here. The line
-    // above bounds the POLICIES; this bounds the statements inside the one policy, which is where
-    // a second grant lands — and on the internet-facing unauthenticated function, a second grant
-    // is the whole of what "and nothing else" is promising about.
     expect(policies[0].Statement).toHaveLength(1);
     const [statement] = policies[0].Statement;
     expect(statement.Action).toBe('dsql:DbConnectAdmin');
-    // Addressed at THIS function's own statement, and reached through the action it grants
-    // rather than through its position: three grants in the template name the same cluster ARN,
-    // so a hard-coded one here reads as every other one's line.
     expect(
       grantAt(
         doc,
@@ -371,14 +318,10 @@ describe('the approval handler holds exactly two grants, and they are different 
   const approveStatement = (i: number) =>
     ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement', i] as const;
 
-  // THE COGNITO HALF IS THE ONE WORTH ASSERTING. This function can mint an identity and
-  // disable one, which is the widest thing in the stack after the runner's — so the pool it
-  // may do that to is named, never wildcarded, and the actions are the four the handler
-  // makes and no fifth. `AdminEnableUser` is there to undo this file's own disable on the one
-  // path that can turn off an account another caller just approved, and it grants no access by
-  // itself: an enabled identity with no `active` row is refused by every route.
-  // `AdminDeleteUser` in particular is absent: deleting a user is not implemented and not
-  // decided.
+  // This function can mint an identity and disable one, so the pool is named, never wildcarded,
+  // and the actions are the four the handler makes and no fifth. `AdminEnableUser` undoes this
+  // file's own disable and grants no access by itself: an enabled identity with no `active` row is
+  // refused by every route. `AdminDeleteUser` is absent — deleting a user is not decided.
   it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
     const statements = policies[0].Statement;
     const cognito = statements.findIndex((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
@@ -389,8 +332,6 @@ describe('the approval handler holds exactly two grants, and they are different 
       'cognito-idp:AdminEnableUser',
       'cognito-idp:AdminGetUser',
     ]);
-    // The pool as the intrinsic, on the statement those actions are in. Three other grants in
-    // the template name the same ARN, so this is addressed by path rather than matched as text.
     expect(intrinsicAt(doc, ...approveStatement(cognito), 'Resource')).toEqual({
       tag: '!GetAtt',
       value: 'UserPool.Arn',
@@ -408,10 +349,6 @@ describe('the approval handler holds exactly two grants, and they are different 
     });
   });
 
-  // ONE PARAMETER DRIVES EVERY CONSUMER OF THE SWITCH. The pool's `AllowAdminCreateUserOnly`
-  // and the trigger's environment were the first two; the gate is the third, because it is
-  // what creates a row for somebody who got in through the open door. Read from the same
-  // condition so the three cannot disagree.
   it('reads the pool and the registration switch from the stack, not from a literal', () => {
     const vars = (props('ApproveFunction').Environment as { Variables?: Record<string, unknown> })
       ?.Variables;

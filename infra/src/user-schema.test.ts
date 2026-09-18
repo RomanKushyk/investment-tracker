@@ -1,53 +1,29 @@
-// W7's user schema, executed — every DDL migration the runner names, which is
-// `infra/migrations/003_user_schema.sql` and the files that have constrained it
-// since. `003` is a pinned contract with IMMUTABLE primary keys (D30), so a
-// mistake in it is
-// a DROP/CREATE of live user data rather than a migration. It is no longer a
-// draft — `infra/src/migrate.ts` applies it — which makes this suite the last
-// place a mistake is cheap rather than the only place anything notices one.
+// W7's user schema, executed. `003` is a pinned, content-hashed contract with create-time-only
+// keys, so a mistake in it is a DROP/CREATE of live user data rather than a migration, and a
+// tightening is a new migration file. [*User schema and deletes*]
 //
-// PGlite is Postgres compiled to WASM, so the parser, the planner and every
-// CHECK below are Postgres's own. No server, no daemon, no container. That is
-// what makes the "local Postgres for the inner loop" the cloud-stack spec
-// committed to actually available here.
-//
-// WHAT THIS CANNOT PROVE: nothing about Aurora DSQL acceptance. Local
-// Postgres is the SUBSET, and this file is why BOTH halves of the index line
-// stay Postgres-shaped in the generated SQL: `CREATE INDEX ASYNC` is DSQL-only
-// and would fail here, and `USING btree` is what drizzle-kit emits and what
-// this suite needs — DSQL rejects it outright (D99). So the runner rewrites
-// every index line TWICE on the way out, inserting `ASYNC` and stripping
-// `USING btree` (`rewriteForDsql` in `infra/src/migrate.ts`); doing only the
-// first still gives a statement the cluster refuses. A DSQL-only rejection
-// stays invisible to this test by construction, so the suite is not a
-// substitute for first contact — `infra/docs/dsql-constraints.md` records it,
-// for the DDL and now for the runner.
+// WHAT THIS CANNOT PROVE: nothing about Aurora DSQL acceptance. Local Postgres is the SUBSET, and
+// it is why both halves of the index line stay Postgres-shaped — `CREATE INDEX ASYNC` is DSQL-only
+// and would fail here, `USING btree` is what drizzle-kit emits and DSQL rejects outright — so
+// `rewriteForDsql` rewrites every index line TWICE on the way out. Doing only the first still
+// gives a statement the cluster refuses, and a DSQL-only rejection stays invisible here.
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { DEMO_USER_EMAIL } from './demo-user';
-// THE RUNNER'S OWN SPLITTER, so this suite certifies the statements that are
-// actually sent rather than a set of its own. There used to be a second one
-// here, splitting on `;`, whose comment claimed that stripping comments first
-// kept a breakpoint marker out of the next statement's text. Measured on the
-// real file, it did not: that splitter's seventh statement BEGAN with
-// `--> statement-breakpoint`, and it only worked because Postgres reads `--` as
-// a line comment.
+// The runner's own splitter, so this suite certifies the statements actually sent.
+// `--> statement-breakpoint` is a SQL comment AND the statement separator, which is what makes a
+// `;` split quietly wrong rather than loudly: the marker is not line-anchored — drizzle appends it
+// to a terminating `;` — so a full-line comment strip cannot reach it, and the `;` split
+// reproduces the statement count while leaving the marker at the head of the statements that
+// follow.
 import { MIGRATIONS, statementsOf as statements } from './migrate';
 
-// Promoted out of `drafts/` in the commit that gave it a handler entitled to
-// run it. `migrate.ts` reads the same files from the same place.
-//
-// The case rule is a LATER file rather than a column of `003`, because
-// `CREATE TABLE "app_user"` is applied on both clusters and the ledger keys by
-// content hash — editing it would re-send a statement the cluster already has.
-//
-// `005` is excluded because it is DML: this suite builds its own baseline and a
-// seeded row would sit underneath every count below. `DDL` is derived from
-// `MIGRATIONS`, so a new schema file cannot be forgotten here; what stays by
-// hand is the one name being excluded, and a second DML file would be applied
-// rather than skipped — loudly, against the counts below, never green.
+// The case rule is a LATER file rather than a column of `003`, because `CREATE TABLE "app_user"`
+// is applied on both clusters and the ledger keys by content hash — editing it would re-send a
+// statement the cluster already has. `005` is excluded as DML; `DDL` is derived from `MIGRATIONS`,
+// so a new schema file cannot be forgotten here.
 const DML = '005_demo_user.sql';
 const DDL = MIGRATIONS.filter((f) => f !== DML);
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
@@ -56,13 +32,9 @@ const uuid = (c: string) =>
   `'${c.repeat(8)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(4)}-${c.repeat(12)}'`;
 
 /**
- * A FRESH id per insert.
- *
- * Reusing one throwaway id across tests was safe only while every test using it
- * expected a rejection. The moment a case flipped to accepting — a tax with no
- * asset, a moving row WITH a count — the row persisted and the next test collided
- * on the primary key, failing for a reason that had nothing to do with what it
- * was checking. Sequential rather than random so a failure is reproducible.
+ * A FRESH id per insert. One throwaway id was safe only while every test using it expected a
+ * rejection; the moment a case flipped to accepting, the row persisted and the next test collided
+ * on the primary key. Sequential rather than random so a failure is reproducible.
  */
 let seq = 0;
 const nextId = () => {
@@ -112,17 +84,15 @@ beforeAll(async () => {
   db = new PGlite();
   const stmts = DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')));
   for (const stmt of stmts) {
-    // A failure here names the statement rather than the file.
-    // No `+ ';'`: splitting on the marker leaves each statement's own
-    // terminator where it was, unlike the `;` splitter this replaced.
+    // A failure here names the statement rather than the file. No `+ ';'`: splitting on the marker
+    // leaves each statement's own terminator where it was.
     await db.exec(stmt).catch((e: Error) => {
       throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);
     });
   }
   applied = stmts.length;
 
-  // The baseline every constraint below is measured against: one approved user,
-  // one provider account, one asset, one payout.
+  // The baseline every constraint below is measured against.
   await db.exec(`INSERT INTO app_user (user_id, email, status, role, applied_at,
                                        decided_at, decided_by)
                    VALUES (${USER}, 'owner@quirenote.com', 'active', 'super_admin',
@@ -153,9 +123,8 @@ describe('the draft applies as Postgres', () => {
   });
 
   it('leads every per-user key with `user_id` (contract 3)', async () => {
-    // The reason is DSQL's index-organized key, which this engine cannot show;
-    // what IS checkable is that the declared key order says what the contract
-    // says, and that is the part a later edit would silently break.
+    // DSQL's index-organized key is the reason and this engine cannot show it; what IS checkable
+    // is that the declared key order says what the contract says.
     const { rows } = await db.query<{ table_name: string; column_name: string }>(
       `SELECT c.table_name, c.column_name
          FROM information_schema.table_constraints t
@@ -198,18 +167,9 @@ describe('app_user', () => {
     await refuses(other(nextId(), 'c@x.com', 'active'));
   });
 
-  // THE DEMO'S EXEMPTION, and it is what makes the ruling structural. The
-  // seeded original is a row set under an identity that must never gain a
-  // provider account (`docs/DECISIONS.md`, **Auth model**) — and the only
-  // decision-free spelling `app_user_decided_ck` had was `pending`, which means
-  // unapproved. Without the exemption the row would have to carry a fabricated
-  // approval pair and would sit in the super-admin's users table as an ordinary
-  // approved user, beside an approve endpoint that calls `AdminCreateUser` and
-  // would create the very identity the ruling forbids.
-  //
-  // The exemption is an `OR`, so it only WIDENS: a demo row carrying a decision
-  // pair stays legal. Nothing writes one, and a CHECK that also refused it would
-  // be a second rule earning nothing.
+  // The demo's exemption is what makes the ruling structural: the seeded row sits under an
+  // identity that must never gain a provider account, and the only decision-free spelling
+  // `app_user_decided_ck` had was `pending`. It is an `OR`, so it only WIDENS. [*Auth model*]
   it('ACCEPTS an `active` demo row with no decision recorded', async () => {
     await accepts(other(nextId(), DEMO_USER_EMAIL, 'active', 'demo'));
   });
@@ -221,11 +181,8 @@ describe('app_user', () => {
                              now(), ${USER});`);
   });
 
-  // THE TWO CASES ABOVE ARE INSERTS, AND THE APPROVAL GATE TAKES A THIRD SHAPE: it moves a
-  // row out of `pending` with an UPDATE. Nothing here had ever asked the constraint about one,
-  // and an UPDATE is where the pair is likeliest to be forgotten — `SET status = 'rejected'`
-  // reads complete on its own, which is exactly why the database has to be the thing that
-  // refuses it rather than a reviewer.
+  // An UPDATE is where the pair is likeliest to be forgotten — `SET status = 'rejected'` reads
+  // complete on its own, which is why the database has to be the thing that refuses it.
   it('refuses an UPDATE that decides a row without recording the decision', async () => {
     const id = nextId();
     await accepts(other(id, 'reject-me@x.com'));
@@ -240,34 +197,27 @@ describe('app_user', () => {
     await refuses(`UPDATE app_user SET status = 'pending' WHERE user_id = ${id};`);
   });
 
-  // THE CHECK IS "NOT BOTH NULL", NOT "BOTH PRESENT", and the gap is recorded here rather
-  // than discovered: a decided row carrying `decided_at` and naming NO approver is legal, so
-  // the constraint cannot be what holds the pair together. `003` is applied on both clusters
-  // and the ledger keys by content hash, so tightening it would be a new migration file and a
-  // new decision — meanwhile what keeps the pair whole is that ONE statement writes both
-  // halves, which is how the approval gate is written.
+  // The check is "NOT BOTH NULL", not "both present", and the gap is recorded rather than
+  // discovered: a decided row carrying `decided_at` and naming NO approver is legal, so the
+  // constraint cannot be what holds the pair together. Tightening it would be a new migration
+  // file; what keeps the pair whole is that ONE statement writes both halves.
   it('ACCEPTS a decided row naming no approver — the halves are held by the writer', async () => {
     await accepts(`INSERT INTO app_user (user_id, email, status, role, applied_at, decided_at)
                      VALUES (${nextId()}, 'half@x.com', 'active', 'user', now(), now());`);
   });
 
-  // THE ACCEPTING TWIN COMES FIRST, by the rule stated further down this file.
-  // The two halves name ONE mailbox and differ only in case, which is what
-  // makes the refusal below attributable: `app_user_email_uq` is byte-exact, so
-  // `NEW@` does not collide with `new@` and cannot answer `23505` — the only
+  // The two halves name ONE mailbox and differ only in case, which makes the refusal below
+  // attributable: `app_user_email_uq` is byte-exact, so `NEW@` cannot answer `23505` and the only
   // thing left to refuse it is the case rule.
   it('accepts a mailbox in its canonical spelling', async () => {
     await accepts(other(nextId(), 'new@quirenote.com'));
   });
 
-  // The only test here that names its constraint, because its argument is that
-  // the refusal is the CHECK and not `app_user_email_uq`, and `refuses()`
-  // cannot tell a `23514` from a `23505`.
+  // The only test here that names its constraint: its argument is that the refusal is the CHECK
+  // and not `app_user_email_uq`, and `refuses()` cannot tell a `23514` from a `23505`.
   it('refuses that same mailbox spelled with capitals', async () => {
-    // Cognito does not close this: its duplicate refusal is exact-match only,
-    // and a pool matching case-insensitively still stores the case typed
-    // (`docs/reference/COGNITO-POOL-PARAMS.md`). One canonical spelling is the
-    // database's rule now, which is what makes the byte-exact index enough.
+    // Cognito does not close this: its duplicate refusal is exact-match only, and a pool matching
+    // case-insensitively still stores the case typed.
     await expect(db.exec(other(nextId(), 'NEW@quirenote.com'))).rejects.toThrow(
       /app_user_email_lower_ck/,
     );
@@ -333,9 +283,8 @@ describe('asset', () => {
                              'monthly', '2026-02-03', now());`);
   });
   it('refuses a coupon rate outside the range the form allows', async () => {
-    // D119: 0 and negatives are not smaller rates — `couponPerPayment` gates on
-    // `rate > 0`, so they read as ABSENT and fall back to the legacy amount with
-    // nothing to say they did. Over 100 scales every coupon the asset produces.
+    // 0 and negatives are not smaller rates — `couponPerPayment` gates on `rate > 0`, so they read
+    // as ABSENT and fall back to the legacy amount. Over 100 scales every coupon produced.
     await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', 0'));
     await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', -1'));
     await refuses(insertAsset(nextId(), ', coupon_rate_pct', ', 250'));
@@ -358,10 +307,8 @@ describe('transaction', () => {
   });
 
   it('refuses a payout that invents a unit_price, the same as a quantity', async () => {
-    // The price is the other half of one fact — what a position movement cost
-    // per unit — so it takes the rule the count takes. The application enforces
-    // both at all three of its doors; a schema governing only the count would
-    // let a migration land a row the app refuses to write.
+    // The price is the other half of one fact, so it takes the rule the count takes: a schema
+    // governing only the count would let a migration land a row the app refuses to write.
     await refuses(insertTx(nextId(), 'dividend_payout', `${ASSET}, NULL, 11.14, NULL`));
     await refuses(insertTx(nextId(), 'withdrawal', 'NULL, NULL, 11.14, NULL'));
   });
@@ -383,9 +330,8 @@ describe('transaction', () => {
   });
 
   it('refuses a negative quantity', async () => {
-    // Contract 5: the sign of an amount comes from the type, so a negative
-    // quantity is not redundant with anything — it would flip the position
-    // movement independently, and nothing else records units.
+    // The sign of an amount comes from the type, so a negative quantity would flip the position
+    // movement independently and nothing else records units.
     await refuses(insertTx(nextId(), 'sell', `${ASSET}, -5, NULL, NULL`));
   });
 
@@ -398,16 +344,14 @@ describe('transaction', () => {
   });
 
   it("refuses the app's `dividend_accrual` until the migration maps it", async () => {
-    // The CHECK spells the SPEC's eight names. Silent acceptance would split the
-    // vocabulary in two, which is the thing a key-adjacent contract cannot undo.
+    // Silent acceptance would split the vocabulary in two, which a key-adjacent contract cannot
+    // undo.
     await refuses(insertTx(nextId(), 'dividend_accrual', `${ASSET}, NULL, NULL, NULL`));
   });
 
-  // THE ACCEPTING TWIN COMES FIRST, EVERY TIME, and that is a rule rather than
-  // a habit here: `refuses()` asserts that a statement throws, and an INSERT
-  // naming a column the table does not have throws too. A `refuses` written
-  // before its column exists is GREEN FOR THE WRONG REASON and stays green
-  // through a change that never landed.
+  // THE ACCEPTING TWIN COMES FIRST, EVERY TIME, and it is a rule rather than a habit: `refuses()`
+  // asserts that a statement throws, and an INSERT naming a column the table does not have throws
+  // too, so a `refuses` written before its column exists is GREEN FOR THE WRONG REASON.
   it('accepts a withholding on either payout type', async () => {
     await accepts(insertTx(nextId(), 'dividend_payout', `${ASSET}, NULL, NULL, 65.44`));
     await accepts(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 18`));
@@ -423,10 +367,9 @@ describe('transaction', () => {
   });
 
   it('refuses a withholding that is not STRICTLY below its own amount', async () => {
-    // The bound catches a decimal slipped the wrong way UP — 654,40 on a payout
-    // of 467,46 — and deliberately not one slipped DOWN, which stays a
-    // plausible figure no constraint can tell from a real one. Equal is refused
-    // too: a withholding that is the whole payout leaves nothing received.
+    // The bound catches a decimal slipped the wrong way UP and deliberately not one slipped DOWN,
+    // which stays plausible. Equal is refused too: a withholding that is the whole payout leaves
+    // nothing received.
     await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 100`));
     await refuses(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 654.40`, '467.46'));
     await accepts(insertTx(nextId(), 'interest_payout', `${ASSET}, NULL, NULL, 65.44`, '467.46'));
@@ -445,19 +388,16 @@ describe('transaction', () => {
   });
 
   it('refuses a note over the cap and an EMPTY one', async () => {
-    // `length()` counts CHARACTERS in Postgres and not bytes, which is what lets
-    // the cap be stated in the unit the drawing measures in: a Cyrillic note is
-    // two bytes a character, and the bound must not move with the language.
+    // `length()` counts CHARACTERS in Postgres, not bytes, so the bound does not move with the
+    // language.
     const overCap = `'${'я'.repeat(101)}'`;
     await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', overCap));
     await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `''`));
   });
 
   it('refuses a note of WHITESPACE, in every spelling of it', async () => {
-    // The one place the three doors did not agree: the form turns a note of
-    // spaces into absence and the envelope refuses one, while a bare
-    // `length > 0` accepted it — and such a note renders as an empty second
-    // line on the ledger, drawn for nobody.
+    // The one place the three doors did not agree: a bare `length > 0` accepts a note of spaces,
+    // which renders as an empty second line on the ledger.
     for (const blank of [`'   '`, `'\t'`, `'\n'`]) {
       await refuses(insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', blank));
     }
@@ -466,42 +406,28 @@ describe('transaction', () => {
   });
 
   it('counts the CAP in characters, so a Cyrillic note is not half a note', async () => {
-    // `length()` counts characters and not bytes, which is what lets the cap be
-    // stated in the unit the drawing measures in — two bytes a character here.
     await accepts(
       insertTx(nextId(), 'deposit', 'NULL, NULL, NULL, NULL', '100', `'${'я'.repeat(100)}'`),
     );
   });
 
   it('requires an asset on a PAYOUT too, which is what keeps a withholding attributable', async () => {
-    // The widening: four position-moving types become six. A payout naming no
-    // asset would put its withholding under the empty key — no per-asset
-    // consumer reads it while the portfolio totals still count it, so the maps
-    // and the totals disagree, which is worse than a gap because nothing looks
-    // missing.
+    // A payout naming no asset would put its withholding under the empty key: no per-asset
+    // consumer reads it while the totals still count it, so nothing looks missing.
     for (const type of ['dividend_payout', 'interest_payout']) {
       await refuses(insertTx(nextId(), type, 'NULL, NULL, NULL, NULL'));
       await accepts(insertTx(nextId(), type, `${ASSET}, NULL, NULL, NULL`));
     }
-    // The partition is complete for the first time: the other two must name
-    // none, and no type is left to judgement.
+    // The partition is complete: no type is left to judgement.
     await accepts(insertTx(nextId(), 'withdrawal', 'NULL, NULL, NULL, NULL'));
     await refuses(insertTx(nextId(), 'withdrawal', `${ASSET}, NULL, NULL, NULL`));
   });
 
-  it('requires a count on a position-moving row, and only there (D125)', async () => {
-    // THE CONVERSE of `transaction_quantity_absent_ck`, REVERSING the rule this
-    // file pinned until now ("ACCEPTS a buy with no quantity — the legacy rows
-    // have none"). That reasoning was about rows already STORED, and W7 stores
-    // none of them: it seeds fresh demo data rather than carrying the local
-    // store across (owner, 2026-09-01). No live user, no history, no backfill —
-    // the constraint is simply true of everything that will be written.
-    //
-    // The store must not be weaker than the app, which is the argument the
-    // `unit_price` check already makes: the count is now required at the form
-    // (D124) and at the backup importer, so a schema that still accepted a
-    // count-less `buy` would let a migration land rows the application refuses
-    // to write.
+  it('requires a count on a position-moving row, and only there', async () => {
+    // The store must not be weaker than the app: the count is required at the form and at the
+    // backup importer, so a schema accepting a count-less `buy` would let a migration land rows
+    // the application refuses to write. W7 seeds fresh demo data, so there are no legacy rows
+    // without one.
     for (const type of ['buy', 'sell', 'reinvest', 'redemption']) {
       await refuses(insertTx(nextId(), type, `${ASSET}, NULL, NULL, NULL`));
       await accepts(insertTx(nextId(), type, `${ASSET}, 5, NULL, NULL`));
@@ -536,9 +462,8 @@ describe('user_price', () => {
 
 describe('the OCC contract (contract 2)', () => {
   it('detects a conflict by ROWCOUNT, not by an error', async () => {
-    // This is the subtlest thing in the schema and the one W7 has to implement
-    // exactly: the rowcount is the conflict detector, and the SQLSTATE 40001
-    // retry is a different mechanism for a different failure.
+    // The rowcount is the conflict detector, and the SQLSTATE 40001 retry is a different mechanism
+    // for a different failure.
     const bump = (expected: number) =>
       db.query(`UPDATE app_user SET data_version = data_version + 1
                   WHERE user_id = ${USER} AND data_version = ${expected}`);

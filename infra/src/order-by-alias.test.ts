@@ -1,33 +1,20 @@
-// A50 guard for D91's defect: an output alias that shadows the column a query
-// sorts on. `to_char(as_of, …) AS as_of` plus a bare `ORDER BY as_of` binds the
-// sort to the TEXT output rather than the indexed DATE column, so the sort
-// cannot inherit index order.
+// An output alias that shadows the column a query sorts on: `to_char(as_of, …)
+// AS as_of` plus a bare `ORDER BY as_of` binds the sort to the TEXT output
+// rather than the indexed DATE column. It type-checks and returns the right
+// rows, so the guard reads source text — the one place the defect shows without
+// a live cluster.
 //
-// NOTHING else in this repository can catch it. It type-checks, it returns the
-// correct rows in the correct order, and it changes only the plan; these SQL
-// strings never reach a database in a unit test, and there is no local DSQL
-// emulator. So the guard reads the source text, which is the one place the
-// defect is visible without a live cluster.
-//
-// THE RULE, AND IT IS NOT UNIFORM ACROSS CLAUSES. PostgreSQL resolves a bare
-// name in `ORDER BY` against the SELECT list's OUTPUT columns first, and only
-// then against input columns — that is the defect's mechanism. `GROUP BY` does
-// the DOCUMENTED OPPOSITE: "In case of ambiguity, a GROUP BY name will be
-// interpreted as an input-column name rather than an output column name." So
-// GROUP BY is deliberately NOT checked here — flagging it would report a defect
-// that does not exist. `DISTINCT ON` is checked because its expressions must
-// match the leading `ORDER BY` ones, so the two are qualified or not together.
-// A qualified name (`price_capture.as_of`) is never matched against an output
-// alias, which is why qualifying is the fix.
+// NOT UNIFORM ACROSS CLAUSES: PostgreSQL resolves a bare `ORDER BY` name against
+// OUTPUT columns first, where a `GROUP BY` name resolves to the INPUT column, so
+// flagging GROUP BY would report a defect that does not exist.
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const SRC_DIR = new URL('.', import.meta.url);
 
 /**
- * Every non-test source in `infra/src`. Globbed rather than naming
- * `capture.ts`, so the first query moved into a new module is guarded on
- * arrival instead of silently leaving the guard reading an emptier file.
+ * Every non-test source in `infra/src`, globbed so a query moved into a new
+ * module is guarded on arrival rather than leaving the guard reading less.
  */
 function sources(): { file: string; text: string }[] {
   return readdirSync(SRC_DIR)
@@ -36,15 +23,10 @@ function sources(): { file: string; text: string }[] {
 }
 
 /**
- * Template-literal contents, found by SCANNING rather than by pairing backticks
- * with a regex.
- *
- * The regex version was blind in a way that kept the suite green: one unpaired
- * backtick inside a comment — and this file's prose is dense with backticked
- * identifiers — mis-pairs every literal after it, so the count goes DOWN and no
- * assertion fails. Comments and quoted strings are skipped here for that
- * reason. Nested templates inside `${…}` are not handled; there are none, and
- * the exact-count assertion below is what would notice one arriving.
+ * Template-literal contents, found by SCANNING rather than pairing backticks
+ * with a regex: one unpaired backtick in a comment mis-pairs every literal after
+ * it, so the count goes DOWN and no assertion fails. Comments and quoted strings
+ * are skipped for that reason.
  */
 function templateLiterals(src: string): string[] {
   const out: string[] = [];
@@ -91,13 +73,10 @@ function findAtTopLevel(sql: string, re: RegExp, at: number): number {
 }
 
 /**
- * Output aliases — `… AS name` inside the SELECT LIST only.
- *
- * Scoped to the span before `FROM` because an alias after it is a TABLE alias:
- * `FROM price_capture AS pc` would otherwise put `pc` in this set and make
- * `ORDER BY pc.as_of` — correct, index-friendly SQL — fail the guard. A `name`
- * immediately followed by `)` is skipped too, so `CAST(x AS text)` does not
- * contribute the type name.
+ * Output aliases — `… AS name` inside the SELECT LIST only. Scoped to the span
+ * before `FROM`, because an alias after it is a TABLE alias: `FROM price_capture
+ * AS pc` would otherwise make `ORDER BY pc.as_of` fail the guard. A `name`
+ * followed by `)` is skipped, so `CAST(x AS text)` contributes no type name.
  */
 function outputAliases(sql: string): string[] {
   const selectAt = sql.search(/\bSELECT\b/i);
@@ -111,11 +90,10 @@ function outputAliases(sql: string): string[] {
 
 /**
  * The sort clauses: every `ORDER BY` body, and every `DISTINCT ON (…)` list.
- *
- * `ORDER BY` runs to a top-level `LIMIT`/`OFFSET` or the end; `DISTINCT ON`
- * takes its balanced parenthesised group. Both matter: an earlier version cut
- * at the first `)`, so `ORDER BY coalesce(x, y), as_of` hid the shadowed key
- * behind the function call.
+ * `ORDER BY` runs to a top-level `LIMIT`/`OFFSET` OR TO THE END. To the end,
+ * because an earlier version cut at the first `)` and `ORDER BY coalesce(x, y),
+ * as_of` then hid the shadowed key behind the function call; top-level, for a
+ * `LIMIT` inside a parenthesised group. `DISTINCT ON` takes its BALANCED group.
  */
 function sortClauses(sql: string): string[] {
   const out: string[] = [];
@@ -151,9 +129,8 @@ const NOT_A_COLUMN = new Set([
 ]);
 
 /**
- * Bare column references in a clause. A name is NOT bare when it is qualified
- * (`t.col`), when it is itself the qualifier (`t` in `t.col`), or when it is a
- * function name (`coalesce(`).
+ * Bare column references. Not bare when qualified (`t.col`), when it is itself
+ * the qualifier, or when it is a function name.
  */
 function bareRefs(clause: string): string[] {
   const out: string[] = [];
@@ -166,7 +143,7 @@ function bareRefs(clause: string): string[] {
   return out;
 }
 
-describe('no output alias shadows a sorted column (D91)', () => {
+describe('no output alias shadows a sorted column', () => {
   const queries = sources().flatMap(({ file, text }) =>
     templateLiterals(text)
       .filter((sql) => /\bSELECT\b/.test(sql))
@@ -174,25 +151,9 @@ describe('no output alias shadows a sorted column (D91)', () => {
   );
 
   it('reads the queries it is meant to guard', () => {
-    // EXACT, not a floor. A floor cannot catch the scanner going blind, because
-    // the count then goes DOWN. Update this number in the commit that adds or
-    // removes a query, deliberately.
-    //
-    // 10 -> 12, and a SECOND FILE, when `asset-delete.ts` arrived with the
-    // batched cascade: its two key-set sub-selects are the first SQL in this
-    // folder outside `capture.ts`. Both are `DELETE … WHERE (…) IN (SELECT …)`
-    // with no `ORDER BY` and no output alias, so they pass the guard below
-    // trivially — but they are in its scan, which is the point of naming the
-    // set rather than counting alone.
-    //
-    // 12 -> 14 with the approval gate: the row lookup `authorize.ts` makes on
-    // every request and the target read `approve.ts` makes before it rules.
-    // Neither sorts and neither aliases, so both pass trivially too — and both
-    // are now in the scan, which is what the set is for.
-    //
-    // 14 -> 15 with the read-back `approve.ts` makes after an approval that
-    // failed, which decides whether the identity it minted is still wanted. One
-    // column, no sort and no alias, so it passes trivially and joins the scan.
+    // EXACT, not a floor: a floor cannot catch the scanner going blind, because
+    // the count then goes DOWN. Update it deliberately, in the commit that adds
+    // or removes a query. The file set is named rather than counted alone.
     expect(queries.length).toBe(15);
     expect(new Set(queries.map((q) => q.file))).toEqual(
       new Set(['capture.ts', 'asset-delete.ts', 'authorize.ts', 'approve.ts']),
@@ -207,16 +168,14 @@ describe('no output alias shadows a sorted column (D91)', () => {
       const shadowed = sortClauses(sql)
         .flatMap(bareRefs)
         .filter((ref) => aliases.has(ref));
-      // The message carries the query, because the failure is about one clause
-      // in one string and an index alone would send the reader hunting.
+      // The message carries the query: an index alone would send the reader hunting.
       expect(shadowed, `alias-shadowed sort key(s) in:\n${sql}`).toEqual([]);
     },
   );
 
-  it('keeps the two queries D91 named qualified, by name', () => {
-    // A positive pin beside the negative guard: these are the two the audit was
-    // opened for, and a refactor that rewrote them past the analysis above
-    // would otherwise be silent.
+  it('keeps the two queries the audit was opened for qualified, by name', () => {
+    // A positive pin beside the negative guard: a refactor that rewrote these
+    // past the analysis above would otherwise be silent.
     const capture = sources().find((s) => s.file === 'capture.ts')!.text;
     expect(capture).toContain('SELECT DISTINCT ON (price_capture.as_of)');
     expect(capture).toContain('ORDER BY price_capture.as_of, requested_at DESC');
@@ -225,8 +184,7 @@ describe('no output alias shadows a sorted column (D91)', () => {
 });
 
 describe('the guard itself', () => {
-  // A guard whose analysis is never exercised on a defect is a guard nobody
-  // knows the shape of. These are the cases the first version got wrong.
+  // A guard never exercised on a defect is a guard nobody knows the shape of.
   const shadowed = (sql: string) => {
     const aliases = new Set(outputAliases(sql));
     return sortClauses(sql)
@@ -234,7 +192,7 @@ describe('the guard itself', () => {
       .filter((r) => aliases.has(r));
   };
 
-  it('catches D91 verbatim', () => {
+  it('catches the reported query verbatim', () => {
     expect(
       shadowed(`SELECT to_char(as_of, 'YYYY-MM-DD') AS as_of FROM price_capture
                  ORDER BY as_of DESC LIMIT 60`),
@@ -279,8 +237,7 @@ describe('the guard itself', () => {
   });
 
   it('is not blinded by an unpaired backtick in a comment', () => {
-    // The failure mode of the first version: the count fell and the suite
-    // stayed green. Scanning skips comments, so the literal is still found.
+    // The first version's failure: the count fell and the suite stayed green.
     const src = '// a note about `price_capture and the archive\nconst q = `SELECT a FROM t`;';
     expect(templateLiterals(src)).toEqual(['SELECT a FROM t']);
   });
