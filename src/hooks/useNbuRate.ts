@@ -1,10 +1,10 @@
 // The NBU exchange rate's network half: a MANUAL-ONLY TanStack query over the
 // public directory, plus the last-good rate in the Dexie meta table. Parsing
-// stays pure (core/nbu/rate.ts) — core never fetches (G1).
+// stays pure (core/nbu/rate.ts) — core never fetches.
 //
 // Nothing here writes settings. A fetch produces a value in memory; only the
 // user's press in Settings ever stores it, exactly as a quote fetch only fills
-// a draft (G5).
+// a draft.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { kyivDateIso } from '../core/dates';
@@ -36,7 +36,7 @@ async function fetchRate(querySignal: AbortSignal): Promise<NbuRateResult> {
   try {
     // A bare GET: no custom headers, no credentials. `ACAO: *` rules out
     // credentialed requests, and any non-safelisted header would make this
-    // preflighted — the same constraint as the Inzhur feed (D19).
+    // preflighted — the same constraint as the Inzhur feed.
     // KYIV's date, not the device's. The endpoint is anchored to the Kyiv
     // banking calendar, so a device west of Kyiv would ask for yesterday and be
     // handed yesterday's rate stamped with the date it asked for — the silent
@@ -76,7 +76,7 @@ export interface UseNbuRate {
   lastGood: NbuRateResult | undefined;
   isFetching: boolean;
   isError: boolean;
-  /** True in the demo dataset: no request may leave the app (G4/D16). */
+  /** True in the demo dataset: no request may leave the app. */
   disabled: boolean;
   /** The ONLY way a request happens. Resolves undefined when disabled or the
    *  fetch failed — the failure surfaces through isError. */

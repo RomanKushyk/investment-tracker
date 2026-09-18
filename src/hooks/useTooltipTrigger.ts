@@ -1,7 +1,7 @@
 import { useIsDesktop } from './useIsDesktop';
 
 /**
- * S6 / DECISION D-b — TAP TO PIN.
+ * TAP TO PIN — decision D-b in `design/extensions/mobile.dc.html`.
  *
  * A chart's per-point value lives inside a hover tooltip, and hover does not
  * exist on touch: on a phone those values are simply unreachable. Below the
@@ -13,13 +13,10 @@ import { useIsDesktop } from './useIsDesktop';
  * recharts 3 turns its `accessibilityLayer` on by default, which makes the plot
  * focusable and walks the tooltip with the arrow keys.
  *
- * WIRED TO THREE CHARTS, NOT FOUR. The extension says four of the five hide a
- * value behind hover; measured against the code it is three. Seasonality is
- * excluded there for the right reason and this confirms it — `makeIncomeLabel`
- * draws BOTH the actual and the expected amount on the bar itself, joined into
- * one line, so a tap adds nothing. Allocation is the one the count is off by: it
- * declares no `<Tooltip>` at all, so it has never had a hover-only value to
- * reach.
+ * WIRED TO THREE CHARTS, NOT THE FOUR THE EXTENSION COUNTS: Allocation declares no
+ * `<Tooltip>` at all, so it never had a hover-only value to reach. Seasonality is
+ * the fifth, which the extension already excludes — it draws its values on the bars
+ * themselves, so a tap adds nothing.
  */
 export function useTooltipTrigger(): 'hover' | 'click' {
   return useIsDesktop() ? 'hover' : 'click';

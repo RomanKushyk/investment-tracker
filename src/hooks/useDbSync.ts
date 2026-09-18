@@ -1,6 +1,6 @@
-// Cross-tab freshness (P4 `feat/backup-import`, DECISIONS D24). Hosted in
-// app/Layout — the one mount point that spans every route, so a tab left open
-// on any screen still hears that its data was replaced elsewhere.
+// Cross-tab freshness, hosted in app/Layout — the one mount point that spans
+// every route, so a tab left open on any screen still hears that its data was
+// replaced elsewhere.
 //
 // The channel never delivers to the tab that posted (lib/sync.ts), so this
 // only ever fires in the OTHER tabs: exactly one plain toast (the one

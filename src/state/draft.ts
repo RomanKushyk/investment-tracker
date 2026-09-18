@@ -8,10 +8,10 @@ import type { QuoteOrigin } from '../core/types';
 interface DraftState {
   date: string; // ISO yyyy-MM-dd
   quotes: Record<string, string>;
-  // Provenance of the MACHINE-filled drafts only (P3 S2): assetId → which
+  // Provenance of the MACHINE-filled drafts only: assetId → which
   // fetch produced the value. A quote with no entry here is the user's own —
   // typed, copied or prefilled from a saved snapshot — which is exactly what
-  // makes "never overwrite a user value" (G5) decidable after a reload.
+  // makes "never overwrite a user value" decidable after a reload.
   origins: Record<string, QuoteOrigin>;
   setDate: (d: string) => void;
   setQuote: (assetId: string, v: string) => void;

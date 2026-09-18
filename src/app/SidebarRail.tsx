@@ -14,14 +14,6 @@ import { useT } from '../i18n/useT';
  * mobile job. This rail's job is desktop density: navigation one press away
  * while 188 px go back to the content, which is a job the drawer never had.
  *
- * ITS OWN MODULE, not a third `variant` on `SidebarPanel`. The drawer really is
- * that panel in a different box; this is a different shell width, a different
- * head, a different item, a different glyph size, and no labels, groups,
- * captions, chevrons, capital, version or badge. A `rail &&` on every line is
- * the third geometry arriving as a boolean instead of as a file — and it would
- * put a second footer band, a second rule and a second glyph tag inside
- * `Sidebar.tsx`, where three guards count each of them.
- *
  * It imports the route table rather than restating it, and `Sidebar.tsx` does
  * NOT import this file back — the shell takes it as `children`, which is what
  * keeps the two out of an import cycle.
@@ -146,13 +138,6 @@ export function SidebarRail({ onExpand }: { onExpand: () => void }) {
           </Scroller>
         </div>
 
-        {/* The foot carries what the rail cannot hold in its band, and no more.
-            The capital and the version do not follow — the header takes the
-            figure, and the version string is wider than the rail's column. No
-            theme control either: a lone cycling glyph cannot show the two states
-            it is not in, and here it would be the only one on screen. Currency
-            survives that test — two states, and the box shows the one you are
-            in, which is why it is a box and not a track. */}
         {/* IT BLEEDS TO THE SHELL, NOT TO THE GRID. `-mx-2 -mb-4` cancels only
             this grid's own padding, while the safe-area insets are paid a level
             up on the wall — so in landscape on a notched device the band stopped

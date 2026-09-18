@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REPO } from './repo-root';
 
-// D104 §2 declined routine version-bump PRs. GitHub's own UI COMMITS the config
-// when version updates are switched on, so the ruling could be reversed by a
-// button. BOTH extensions are checked because GitHub honours `.yaml` as well —
+// The *Dependabot* ruling declined routine version-bump PRs. GitHub's own UI COMMITS
+// the config when version updates are switched on, so the ruling could be reversed by
+// a button. BOTH extensions are checked because GitHub honours `.yaml` as well —
 // asserting only `.yml` would leave the hole exactly where a generator puts it.
-describe('the Dependabot config stays absent (D104 §2)', () => {
+describe('the Dependabot config stays absent', () => {
   // Same anchor as its sibling: an absence assertion cannot tell 'nothing is there'
   // from 'I am not looking at the right tree'.
   it('is looking at the real .github/ — without this it could pass vacuously', () => {

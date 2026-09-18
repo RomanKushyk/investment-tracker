@@ -1,7 +1,7 @@
-// S6 glue: the stored data → `core/reminders.computeReminders` → the strip and
-// the one app-open toast. Reminders are PURE local derivations, so nothing here
-// is dataset-gated (G4/D16 keeps them active in demo); `remindersEnabled` (S8)
-// is the only gate, read at render time so a flip lands without a reload.
+// The glue: stored data → `core/reminders.computeReminders` → the strip and the
+// one app-open toast. Reminders are PURE local derivations, so nothing here is
+// dataset-gated and they stay active in demo; `remindersEnabled` is the only gate,
+// read at render time so a flip lands without a reload.
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 

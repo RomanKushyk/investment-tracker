@@ -35,7 +35,7 @@ describe('the quote draft store', () => {
 
   it('keeps provenance exactly where the two writers put it', () => {
     // The hazard a reformat action would have walked into: `setQuote` DROPS the
-    // origin on purpose — typing claims the row for G5 — and `fillQuote` always
+    // origin on purpose — typing claims the row — and `fillQuote` always
     // writes one. Rewriting a machine row through the first would relabel it as
     // the user's; rewriting a user row through the second would do the inverse.
     // Neither is reachable while the stored string carries no language.

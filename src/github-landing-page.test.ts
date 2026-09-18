@@ -16,8 +16,8 @@ import { REPO } from './repo-root';
 //
 // Its own file, named for what it guards: this lived inside `dependabot-config.test.ts`
 // for one review round, where the folder index described that file as being about
-// `dependabot.yml` alone — and a later session superseding D104 would have deleted
-// this guard along with it.
+// `dependabot.yml` alone — and a later session superseding the *Dependabot* ruling
+// would have deleted this guard along with it.
 describe('a .github README stays absent, whatever it is called', () => {
   // A guard that only ever asserts ABSENCE passes just as well when it is looking
   // at the wrong place — the failure `repo-root.ts` warns about, and the

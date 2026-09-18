@@ -18,7 +18,7 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <DailyQuotes /> },
-      // A32 — the Transaction panel left `/` for a route of its own; `/` stays
+      // The Transaction panel left `/` for a route of its own; `/` stays
       // the index, because it is the daily ritual and the app opens on it.
       { path: 'transactions', element: <Transactions /> },
       { path: 'overview', element: <Overview /> },

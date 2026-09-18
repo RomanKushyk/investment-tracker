@@ -7,20 +7,20 @@ import { useTweenedNumber } from './useTweenedNumber';
 
 /**
  * The one capital figure, and it has TWO renderers now — the sidebar's Total
- * capital card and the mobile header bar (phase 6, S2). It lives here rather
+ * capital card and the mobile header bar. It lives here rather
  * than in either of them precisely so there is never a second derivation: both
  * read `core/derive.headlineKpis`, through this, and a change to the number is a
  * change to one function.
  *
- * Returns the PARTS, not a sentence (G1, structured returns). The sidebar joins
+ * Returns the PARTS, not a sentence. The sidebar joins
  * them with a middot on one line; the header stacks them, paints the percentage
  * by sign on a light surface, and drops the counter-currency to `muted`. A
  * pre-joined string would have forced one of the two to take the other's layout.
  *
  * Total capital card values per design renderVals (~line 586): UAH mode shows
  * whole ₴ + "+3.08% · $3,324.03"; USD mode flips value and counter-currency.
- * The headline number tweens (~300ms, D7) whenever it changes — on the currency
- * toggle above all, but also as new data comes in.
+ * The headline number tweens whenever it changes — on the currency toggle above
+ * all, but also as new data comes in. *Interaction rules*
  */
 export interface CapitalCard {
   /** Headline, already tweened and formatted in the selected currency. */

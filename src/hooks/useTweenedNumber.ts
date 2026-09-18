@@ -1,8 +1,7 @@
-// Numeric tween for headline figures (D7 motion): sidebar Total capital +
-// Overview's 4 KPIs animate their digits over ~300ms whenever the underlying
-// number changes (currency toggle, new data). Pure step math is exported
-// separately so it's unit-testable without touching rAF/DOM (D4 — vitest
-// covers pure logic only; the rAF wiring itself is browser-verified).
+// Numeric tween for the headline figures (*Interaction rules*): they animate their
+// digits whenever the underlying number changes — the currency toggle above all, but
+// also new data. Pure step math is exported separately so it is unit-testable without
+// touching rAF/DOM; the rAF wiring itself is browser-verified.
 import { useEffect, useRef, useState } from 'react';
 
 const DURATION = 300;
@@ -44,8 +43,8 @@ export function retargetTween(
   return { from: tweenDisplayValue(state, now, duration), to, startedAt: now };
 }
 
-// Animates `value` over ~300ms via requestAnimationFrame; snaps instantly
-// when prefers-reduced-motion is set (D7 kill-switch).
+// Animates `value` via requestAnimationFrame; snaps instantly when
+// prefers-reduced-motion is set — the global kill-switch. *Interaction rules*
 export function useTweenedNumber(value: number, duration = DURATION): number {
   const [display, setDisplay] = useState(value);
   const stateRef = useRef<TweenState>({ from: value, to: value, startedAt: 0 });

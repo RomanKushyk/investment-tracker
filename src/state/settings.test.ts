@@ -10,9 +10,6 @@ import {
   type PersistedSettings,
 } from './settings';
 
-// The full persisted shape at its defaults — spread into every expectation so a
-// new field (P3 added the two automation switches + dismissedReminders) does not
-// rewrite twenty assertions.
 const DEFAULTS: PersistedSettings = {
   defaultCurrency: 'UAH',
   usdRate: 44.83,
@@ -29,16 +26,14 @@ const DEFAULTS: PersistedSettings = {
   period: 'all',
 };
 
-// v0 payloads are what zustand persisted before `version: 1` landed —
-// `{"state":{"currency":…},"version":0}`; migrate receives the `state` part.
-// v0/v1.1 payloads carry no usdRate or dataset — both fill from defaults.
+// A v0 payload is what zustand persisted before `version: 1` — the `state` part of
+// `{"state":{"currency":…},"version":0}`. v0 and v1.1 carry no usdRate or dataset,
+// so both fill from defaults.
 //
-// NOTE ON THE `currency` KEY BELOW. Every payload in this file writes it, and
-// since A21 that is the LEGACY key: the field is persisted as
-// `defaultCurrency` now. They are left as they are on purpose — read this way,
-// each one doubles as a check that a payload written by any pre-A21 build
-// still hydrates, which is the compatibility that let the split ship without a
-// `version` bump.
+// EVERY PAYLOAD HERE WRITES `currency`, WHICH IS THE LEGACY KEY — the field persists
+// as `defaultCurrency` since the split. Left that way on purpose: each one then
+// doubles as a check that a payload written by a pre-split build still hydrates,
+// the compatibility that let the split ship without a `version` bump.
 describe('migrateSettings', () => {
   it('keeps a valid persisted currency from a v0 payload', () => {
     expect(migrateSettings({ currency: 'USD' })).toEqual({ ...DEFAULTS, defaultCurrency: 'USD' });
@@ -71,9 +66,9 @@ describe('migrateSettings', () => {
   });
 
   it('drops unknown fields', () => {
-    // This case used `theme: 'dark'` as its example of a field that does not
-    // exist — until P5 made it one that does. Swapped for fields that are
-    // still genuinely unknown, so the test keeps testing what it claims to.
+    // Fields the store genuinely does not have — check that again when adding one.
+    // `theme` was the example here until it became real, and the case then proved
+    // nothing.
     expect(migrateSettings({ defaultCurrency: 'USD', accent: 'teal', legacy: true })).toEqual({
       ...DEFAULTS,
       defaultCurrency: 'USD',
@@ -100,7 +95,7 @@ describe('migrateSettings', () => {
   });
 
   it('falls back to the default rate for invalid usdRate values', () => {
-    // S8 validity rule: finite number above 0.
+    // The validity rule: a finite number above 0.
     expect(migrateSettings({ currency: 'UAH', usdRate: '44.83' })).toEqual(DEFAULTS);
     expect(migrateSettings({ currency: 'UAH', usdRate: 0 })).toEqual(DEFAULTS);
     expect(migrateSettings({ currency: 'UAH', usdRate: -5 })).toEqual(DEFAULTS);
@@ -112,9 +107,9 @@ describe('migrateSettings', () => {
     for (const theme of ['light', 'dark', 'system'] as const) {
       expect(migrateSettings({ theme })).toEqual({ ...DEFAULTS, theme });
     }
-    // Absent is the case that matters most: every profile written before P5
-    // has no `theme` at all, and those users must land on `system` rather than
-    // on whichever literal happened to be first in the check.
+    // Absent is the case that matters most: a profile written before the theme field
+    // existed has none at all, and those users must land on `system` rather than on
+    // whichever literal happens to be first in the check.
     expect(migrateSettings({ currency: 'UAH' })).toEqual(DEFAULTS);
   });
 
@@ -130,8 +125,8 @@ describe('migrateSettings', () => {
     for (const language of ['uk', 'en'] as const) {
       expect(migrateSettings({ language })).toEqual({ ...DEFAULTS, language });
     }
-    // Every profile written before P5 has no `language`, and those users must
-    // land on the owner-chosen default rather than on whichever literal came
+    // A profile written before the language field existed has none, and those users
+    // must land on the owner-chosen default rather than on whichever literal comes
     // first in the check.
     expect(migrateSettings({ currency: 'UAH' })).toEqual(DEFAULTS);
   });
@@ -144,7 +139,7 @@ describe('migrateSettings', () => {
     }
   });
 
-  it('keeps a persisted live dataset (G4)', () => {
+  it('keeps a persisted live dataset', () => {
     expect(migrateSettings({ currency: 'UAH', dataset: 'live' })).toEqual({
       ...DEFAULTS,
       dataset: 'live',
@@ -152,14 +147,14 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ dataset: 'demo' })).toEqual(DEFAULTS);
   });
 
-  it('treats anything but the exact "live" literal as demo (G4, matches lib/db.ts)', () => {
+  it('treats anything but the exact "live" literal as demo, matching lib/db.ts', () => {
     expect(migrateSettings({ dataset: 'staging' })).toEqual(DEFAULTS);
     expect(migrateSettings({ dataset: 'LIVE' })).toEqual(DEFAULTS);
     expect(migrateSettings({ dataset: 1 })).toEqual(DEFAULTS);
   });
 
-  // P3 feat/fixed-yield (S8): both switches default ON, and a v1 payload from
-  // before them (the shape on every existing profile) must hydrate to ON.
+  // Both switches default ON, and a v1 payload written before they existed (the
+  // shape on every existing profile) must hydrate to ON.
   it('defaults the automation switches ON and keeps an explicit OFF', () => {
     expect(migrateSettings({ currency: 'UAH', usdRate: 44.83, dataset: 'demo' })).toEqual(DEFAULTS);
     expect(migrateSettings({ autoQuoteSuggest: false, couponSuggest: false })).toEqual({
@@ -173,9 +168,9 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ autoQuoteSuggest: 'false', couponSuggest: 0 })).toEqual(DEFAULTS);
   });
 
-  // P3 feat/reminders (S8): the reminders gate defaults ON and the lead time to
-  // 7 days — a v1 payload from before them (every existing profile) must
-  // hydrate to exactly that.
+  // The reminders gate defaults ON and the lead time to 7 days — a v1 payload
+  // written before they existed (every existing profile) must hydrate to exactly
+  // that.
   it('defaults the reminders gate ON and the lead time to 7', () => {
     expect(migrateSettings({ autoQuoteSuggest: true, couponSuggest: true })).toEqual(DEFAULTS);
     expect(migrateSettings({ remindersEnabled: false, reminderLeadDays: 14 })).toEqual({
@@ -210,14 +205,14 @@ describe('migrateSettings', () => {
   });
 });
 
-// The persist `merge` option (mergeSettings): zustand runs `migrate` ONLY
-// when the stored version differs from the store's, so same-version payloads
-// reach the store exclusively through `merge` — it must apply the same
-// sanitization (a hand-edited v1 payload is the shape that matters: lib/db.ts
-// would bind demo via its own exact-'live' rule while an unsanitized store
-// hydrated dataset:'garbage' / usdRate:0 → /settings crash, Infinity in $
-// figures). Pure tests per D4; the option wiring is one declarative line,
-// same trust level as `migrate: migrateSettings` above.
+// The persist `merge` option (mergeSettings): zustand runs `migrate` ONLY when the
+// stored version differs from the store's, so same-version payloads reach the store
+// exclusively through `merge` and it must apply the same sanitization. A hand-edited
+// v1 payload is the shape that matters: `lib/db.ts` would bind demo via its own
+// exact-'live' rule while an unsanitized store hydrated dataset:'garbage' /
+// usdRate:0 — a /settings crash and Infinity in the $ figures. The function and not
+// the wiring, which is one declarative line at the same trust level as
+// `migrate: migrateSettings` above.
 describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   const current = useSettings.getInitialState();
 
@@ -226,8 +221,8 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
       { currency: 'UAH', usdRate: 0, dataset: 'garbage', autoQuoteSuggest: 'yes' },
       current,
     );
-    expect(merged.dataset).toBe('demo'); // exact-'live' rule (G4/D16)
-    expect(merged.usdRate).toBe(44.83); // S8 rule: finite and > 0
+    expect(merged.dataset).toBe('demo'); // exact-'live' rule, as lib/db.ts binds it
+    expect(merged.usdRate).toBe(44.83); // finite and > 0
     expect(merged.currency).toBe('UAH');
     expect(merged.autoQuoteSuggest).toBe(true); // non-boolean → default ON
   });
@@ -269,8 +264,8 @@ describe('mergeSettings (persist merge — runs on every rehydrate)', () => {
   });
 });
 
-// The automation actions themselves (G3/D11: a persisted field lands with its
-// store test in the same commit).
+// The automation actions themselves — a persisted field lands with its store test
+// in the same commit.
 describe('automation actions', () => {
   it('flips the suggestion switches', () => {
     useSettings.getState().setAutoQuoteSuggest(false);
@@ -291,8 +286,8 @@ describe('automation actions', () => {
 
     useSettings.getState().setReminderLeadDays(21);
     expect(useSettings.getState().reminderLeadDays).toBe(21);
-    // The store's own floor: an invalid value never lands (S8 — the last valid
-    // lead time stays in effect while the field shows its error).
+    // The store's own floor: an invalid value never lands — the last valid lead time
+    // stays in effect while the field shows its error.
     useSettings.getState().setReminderLeadDays(0);
     useSettings.getState().setReminderLeadDays(31);
     useSettings.getState().setReminderLeadDays(7.5);
@@ -312,10 +307,9 @@ describe('automation actions', () => {
   });
 });
 
-// A21 — the sidebar toggle is a glance and the Settings control is a
-// preference. They were ONE field until 2026-08-18, so these tests exist to
-// keep them apart: the interesting assertions are the ones about what does NOT
-// happen.
+// The sidebar toggle is a glance and the Settings control is a preference. They
+// were one field once, so these tests exist to keep them apart: the interesting
+// assertions are the ones about what does NOT happen.
 
 // THE THEME IS THE OPPOSITE PAIR, and it had no store test until #85 gave the
 // field a second control. `migrateSettings` above pins what a stored value is
@@ -400,15 +394,14 @@ describe('currency: the session value and the persisted default', () => {
   });
 });
 
-// A33 — the collapsed nav groups. PERSISTED, which is the opposite of the call
-// A21 made for the currency glance, so the tests that matter are the ones about
-// surviving a rehydrate.
+// The collapsed nav groups: PERSISTED, the opposite of the call made for the
+// currency glance, so the tests that matter are the ones about surviving a rehydrate.
 // #108 — the desktop rail's collapsed state. PERSISTED, and the reversal is the
 // point: it was per-session while collapsing meant the navigation went AWAY, and
 // an absence is not a choice anyone wants restored. A rail is a place.
 //
-// A boolean needs no whitelist, unlike `period` — only the `typeof` arm, which
-// is what the three switches above already use.
+// A boolean needs no whitelist, unlike `period` — only the `typeof` arm, which is
+// what the three switches above already use.
 describe('sidebarCollapsed', () => {
   it('survives a rehydrate — a rail is a place, so choosing it is a preference', () => {
     const merged = mergeSettings({ sidebarCollapsed: true }, useSettings.getState());
@@ -470,7 +463,7 @@ describe('collapsedNavGroups', () => {
   });
 });
 
-describe('period (A38) — the window every analytics screen reads', () => {
+describe('period — the window every analytics screen reads', () => {
   // Reset at the START of each mutating test, the convention `currency` and
   // `collapsedNavGroups` already follow — restoring at the end only works on
   // the happy path, and a failure would leak into every test after it.
@@ -495,12 +488,10 @@ describe('period (A38) — the window every analytics screen reads', () => {
   });
 
   it('survives the REHYDRATE path, which is what D-1 actually depends on', () => {
-    // A first draft of this called `migrateSettings` again and named it a round
-    // trip (A38 review). It was the same assertion as the test above with a
-    // different literal, so `partialize` could have dropped `period` entirely
-    // and the suite would have stayed green while every reload reset the user's
-    // window. `mergeSettings` is the rehydrate path the two describes above
-    // test for the same reason.
+    // `mergeSettings` and not `migrateSettings` again: calling that here would be the
+    // same assertion as the test above with a different literal, so `partialize` could
+    // drop `period` entirely and the suite would stay green while every reload reset
+    // the user's window. The two describes above test the rehydrate path for the same reason.
     useSettings.setState({ period: 'all' });
     useSettings.getState().setPeriod('6m');
     expect(useSettings.getState().period).toBe('6m');
@@ -515,14 +506,12 @@ describe('period (A38) — the window every analytics screen reads', () => {
 });
 
 describe('the persist invariant itself — every field, not just the newest', () => {
-  // `state/settings.ts` calls `partialize` "the one that gets forgotten", and
-  // three tasks in a row (A21, A33, A38) have had to be told so in a comment.
-  // A comment is not a guard. This reads the SOURCE and pins the whole set, the
-  // way `app/mark.test.ts` pins the logo across files — so the next field is
-  // covered by a test nobody has to remember to write.
+  // `settings.ts`'s PERSIST DOCTRINE is a comment, not a guard: a field missing from
+  // `partialize` silently resets on every reload. This reads the SOURCE and pins the
+  // whole set, the way `app/mark.test.ts` pins the logo across files.
   //
-  // The runtime alternative was tried and is not available: `useSettings.persist`
-  // is undefined under vitest, so the option object cannot be inspected.
+  // The runtime alternative is not available: `useSettings.persist` is undefined
+  // under vitest, so the option object cannot be inspected.
   const here = dirname(fileURLToPath(import.meta.url));
   const SOURCE = readFileSync(join(here, 'settings.ts'), 'utf8');
 
