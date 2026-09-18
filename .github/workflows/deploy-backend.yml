@@ -1,65 +1,32 @@
 name: Deploy backend
 
-# Separate workflow from the frontend deploy, not a job inside it. The two have
-# different blast radii, different IAM roles and different failure modes: a
-# broken SPA build must never block the price capture, and a stack rollback must
-# never hold up a UI fix. They also change on completely different cadences.
 on:
   push:
-    # BOTH BRANCHES, AND THEY DEPLOY DIFFERENT THINGS. `dev` deploys the archive stack
-    # and the dev user stack; `main` deploys the prod user stack and nothing else. The
-    # archive is one cluster for every environment (docs/DECISIONS.md, **Cloud
-    # target**), so it has exactly one deploying branch.
+    # BOTH BRANCHES, DIFFERENT STACKS: `dev` the archive and the dev user stack, `main` the
+    # prod user stack alone — one archive serves every environment (*Cloud target*).
     branches: [dev, main]
     paths:
       - 'infra/**'
-      # NO EXCLUSION FOR THE DRAFT DDL, and that is the second answer to the
-      # question. A51 first excluded `infra/migrations/drafts/**` here with a
-      # negated pattern, to stop draft SQL that nothing applies from firing a
-      # no-op `sam deploy`. Review found the trade was backwards:
-      # `deploy-frontend.yml` already ignores `infra/**`, so a drafts-only push
-      # matched NO workflow and ran no tests, no format:check and no lint —
-      # recreating precisely the green-but-never-executed gap A50 closed in this
-      # same file, and trading a wasted deploy for no gates at all.
-      # The gates are worth more than the deploy slot. A no-op redeploy of an
-      # unchanged bundle is accepted knowingly — including from a docs-only push,
-      # now that `.github/**` and the root manifests are on this list. Suppressing
-      # it properly means gating the Deploy step; that was tried and removed, and
-      # the comment above that step says what each attempt got wrong.
-      # The handler bundles the parser from src/core, so a parser change is a
-      # backend change even though nothing under infra/ moved.
+      # NO EXCLUSION FOR THE DRAFT DDL: `deploy-frontend.yml` already ignores `infra/**`, so a
+      # drafts-only push excluded here would match NO workflow and run no gates at all. The
+      # three below are here because the handler bundles the parser from src/core.
       - 'src/core/inzhur/**'
       - 'src/core/nbu/**'
       - 'src/core/dates.ts'
-      # In the handler's TypeScript program via `import type` from dates.ts and
-      # parse.ts — confirmed with `tsc -p infra --listFiles`. It matters because the
-      # two tsconfigs disagree: the root has DOM + vite/client, infra has neither, so
-      # a DOM type added here compiles green under `pnpm build` and breaks only the
-      # infra program, which without this line no run would ever typecheck.
+      # In the handler's TypeScript program, and the two tsconfigs disagree: the root has DOM
+      # + vite/client and infra neither, so a DOM type added here breaks the infra build alone.
       - 'src/core/types.ts'
-      # The bundle INLINES root dependencies — `parse.ts` imports `zod` and esbuild
-      # embeds it — so a root bump changes the deployed Lambda's code. Without these
-      # two, a Dependabot security bump of `zod` would deploy the frontend only and
-      # leave the capture Lambda on the vulnerable version until some unrelated
-      # infra/ push happened to redeploy it. The cost is a backend deploy on every
-      # dependency change, most of which never reach the bundle; a silently stale
-      # Lambda is the worse of the two.
+      # The bundle INLINES root dependencies, so a `zod` bump changes the deployed Lambda's
+      # code — without these two a security bump would ship the frontend and leave it behind.
       - 'package.json'
       - 'pnpm-lock.yaml'
-      # `.github/**`, not just this file: a push adding `.github/README.md` is
-      # skipped by deploy-frontend (`**/*.md`), so without this trigger NO workflow
-      # would run on the one commit that replaces the repository's landing page.
-      # The trigger is necessary and not sufficient — the guards also had to be
-      # COVERED by a test step below, which is why that step runs the whole suite
-      # rather than a path-filtered selection. Do not narrow it back to a list:
-      # two earlier versions kept one by hand and both leaked (see there).
+      # `.github/**`, not just this file: deploy-frontend skips `**/*.md`, so without this NO
+      # workflow runs on the commit that replaces the landing page. Do not narrow it to a list.
       - '.github/**'
   workflow_dispatch:
 
 concurrency:
-  # PER BRANCH, so a release does not queue behind a dev push — the two touch disjoint
-  # stacks. That is true only while `main` deploys no archive: the day it does, two
-  # concurrent `sam deploy` reach one stack and the second dies on UPDATE_IN_PROGRESS.
+  # PER BRANCH — true only while `main` deploys no archive, or two `sam deploy` meet one stack.
   group: deploy-backend-${{ github.ref_name }}
   cancel-in-progress: false # never interrupt a CloudFormation update in flight
 
@@ -71,17 +38,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
-      # The ref-to-environment mapping `deploy-frontend.yml` already uses. The
-      # environment is what carries AWS_BACKEND_ROLE_ARN, and its deployment branch
-      # policy is the only thing stopping a job on another branch from assuming it.
-      #
-      # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG. A
-      # `workflow_dispatch` offers this repository's release tags, and picking `vX.Y.Z`
-      # would ask to deploy the DEV stacks from production's tree while the operator
-      # believed the opposite. What refuses it is the `dev` environment's branch policy,
-      # which lists the branch `dev` and no tag — the out-of-band control
-      # `docs/reference/DEPLOYMENT.md` calls required rather than cosmetic. Dispatch
-      # from a branch, never a tag.
+      # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG: a dispatch on `vX.Y.Z`
+      # asks for the DEV stacks from production's tree, and only the branch policy refuses it.
       name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
     steps:
       - uses: actions/checkout@v7
@@ -93,77 +51,29 @@ jobs:
       - name: Enable pnpm via corepack
         run: corepack enable
 
-      # The app's own deps: the handler imports zod through src/core.
       - run: pnpm install --frozen-lockfile
 
-      # npm, not pnpm, and deliberately so. pnpm's symlinked store left `pg`
-      # unable to resolve its own transitive deps (pg-types, pg-protocol) when
-      # esbuild bundled it on the runner. infra has three dependencies and is
-      # not a workspace member, so pnpm buys nothing here while a flat
-      # node_modules removes an entire class of resolution problem.
+      # npm, not pnpm: pnpm's symlinked store left `pg` unable to resolve its own transitive
+      # deps when esbuild bundled it, and infra is not a workspace member, so pnpm buys nothing.
       - name: Install backend deps
         working-directory: infra
         run: npm ci
 
-      # The parser is shared code, so its tests gate the backend too, and
-      # `infra/src` carries the backend's own tests — including A50's
-      # `order-by-alias` guard, which exists to stop a query shape that costs
-      # DPU from reaching the live cluster. It had to be added here explicitly:
-      # deploy-frontend runs `pnpm test` but SKIPS an infra-only push through
-      # its `paths-ignore`, so before this line the infra tests ran in CI only
-      # when an unrelated frontend commit happened to land beside them — green
-      # but never executed on the commit that could break them. Same asymmetry,
-      # same fix, as the `format:check` step below.
-      # Runs before any AWS credential exists — a failing test cannot deploy.
-      #
-      # THE WHOLE SUITE, not a path-filtered selection: two hand-kept file lists
-      # both leaked (an infra push once replaced the repo landing page with every
-      # step green). The suite also guards `.github/` itself. `vite build` is not
-      # run here, so a broken SPA build still never blocks the price capture.
+      # THE WHOLE SUITE, not a path-filtered selection: two hand-kept lists both leaked, and
+      # deploy-frontend skips an infra-only push, leaving these tests green but never run.
       - run: pnpm test
 
-      # A37 — `prettier --check .` covers infra/ too (its sources, their tests and
-      # template.yaml), and deploy-frontend SKIPS an infra-only push through its
-      # `paths-ignore`. Without this step unformatted infra lands on dev and the next
-      # unrelated FRONTEND commit fails the gate on a file it never touched. Same
-      # block, same reason: before any credential exists.
+      # Same asymmetry: prettier covers infra/, but only deploy-frontend ran it.
       - run: pnpm format:check
 
-      # THE THIRD AND FOURTH INSTANCES OF THE SAME ASYMMETRY, closed together.
-      # TYPECHECK: root `tsconfig.json` includes only `src`, `vite.config.ts` and
-      # `scripts`, so `pnpm typecheck` never read infra/ and deploy-frontend skips
-      # an infra-only push anyway — measured, a deliberate `const x: number = "s"`
-      # in infra/src survived `pnpm typecheck` cleanly, esbuild stripped it, and it
-      # would have deployed. `infra/tsconfig.json` existed the whole time and
-      # nothing ran it.
-      # LINT: `eslint .` does cover infra/ (10 source files), but only deploy-frontend runs
-      # it and its `paths-ignore` contains `infra/**` — so an infra-only push was
-      # never linted, and the next unrelated FRONTEND commit failed on a file it had
-      # not touched. Exactly what the format:check step above was added for.
-      # `pnpm exec`, not `npx`: infra/package.json declares neither `typescript` nor
-      # `@types/node` (tsconfig asks for `types: ["node"]`), both resolving from the
-      # ROOT pnpm tree. Bare `npx` outside that tree downloads whatever TypeScript is
-      # latest and then fails on the missing node types — a failure that reads as
-      # the caller's fault. The neighbouring bundle step pins for the same reason.
-      # Both run before any credential exists, like the two above.
+      # AND THE SAME AGAIN, TWICE: root `tsconfig.json` excludes infra/, so a type error there
+      # survived `pnpm typecheck`, esbuild stripped it, and it would have deployed. `pnpm exec`
+      # because infra resolves typescript from the ROOT tree. All of this before any credential.
       - run: pnpm exec tsc --noEmit -p infra
       - run: pnpm lint
 
-      # Bundled here rather than by `sam build`: both SAM builders copy the
-      # CodeUri directory into a sandbox first, so `../../src/core` — the shared
-      # parser the handler deliberately imports rather than duplicates — is not
-      # present when they run. Running esbuild against the real checkout is the
-      # only way to keep one parser and one source of truth.
-      # ONE dist/, ONE ENTRY POINT PER HANDLER. `sam deploy` packages the CodeUri
-      # directory as-is and every function points at it, so each handler costs one
-      # more esbuild invocation and no second artifact. Same flags for the same
-      # reasons — cjs because `pg` is CommonJS, `pg-native` external because it
-      # is optional and not installed.
-      #
-      # THE LIST IS HELD TO THE TEMPLATES, not counted here: `stack-split.test.ts`
-      # derives it from every `Handler:` the two templates declare, so a handler
-      # added to one and forgotten here fails the suite rather than the first
-      # invocation of a function whose file was never built.
+      # Bundled here rather than by `sam build`: both SAM builders sandbox the CodeUri
+      # directory, so `../../src/core` vanishes. The list is held to the templates by a test.
       - name: Bundle the handlers
         working-directory: infra
         run: |
@@ -173,54 +83,33 @@ jobs:
               --outfile="dist/$entry.js" --sourcemap \
               --external:pg-native
           done
-          # The SQL is DATA the migration handler reads at runtime, not code
-          # esbuild can inline, so it rides in the zip beside the bundle and
-          # `LAMBDA_TASK_ROOT` is what finds it. Every `.sql`, not only the ones
-          # the runner names: this file has watched two hand-kept lists leak, and
-          # the runner already names its own files in code.
+          # The SQL is DATA read at runtime, not code esbuild can inline, so it rides along.
           mkdir -p dist/migrations
           cp migrations/*.sql dist/migrations/
           ls -la dist/ dist/migrations/
 
-      # Catches what typecheck cannot: that the bundle actually LOADS. The first
-      # deploy shipped an ESM bundle and died at runtime on `Dynamic require of
-      # "events"` — pg is CommonJS, and `require` does not exist in ESM output.
-      #
-      # Run from a directory with no package.json, exactly like the Lambda zip:
-      # infra/package.json declares "type": "module", which would make node read
-      # the same file as ESM here and give a misleading result.
+      # Catches what typecheck cannot: that the bundle LOADS — an ESM one dies on `Dynamic
+      # require of "events"`. No package.json here, like the zip, or node would read it as ESM.
       - name: Smoke-test the bundle
         run: |
           mkdir -p /tmp/bundle-check
-          # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept and the
-          # guard beside it was not: `stack-split.test.ts` derived its check from the
-          # esbuild step alone, so a handler could be bundled, deployed and never loaded
-          # once while the test that looked like it covered this passed.
+          # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept: a guard derived
+          # from the esbuild step alone let a handler deploy having never once been loaded.
           cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/backup-freshness.js infra/dist/pool-usage.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
-          # The migration handler reads its SQL from LAMBDA_TASK_ROOT, and
-          # `import.meta.url` — which would have been the obvious way to find it
-          # — is EMPTY in a cjs bundle. So the dry run is asserted here, in the
-          # bundled shape, rather than only in vitest where the module is ESM
-          # and the path resolves for a different reason.
+          # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
           LAMBDA_TASK_ROOT=/tmp/bundle-check node -e "
             const g = require('./migrate.js');
             if (typeof g.handler !== 'function') throw new Error('handler missing from migrate bundle');
-            // A stub client whose ledger read comes back empty, so every
-            // statement reads as pending — which is what an unmigrated cluster
-            // says, and the assertion is that the SQL was FOUND.
+            // The stub's ledger read comes back empty, so every statement reads as pending —
+            // what an unmigrated cluster says, and the assertion is that the SQL was FOUND.
             g.migrate({ query: async () => ({ rows: [] }) }, { mode: 'dry-run' }).then((r) => {
               const pending = r.files.reduce((n, f) => n + f.pending, 0);
-              // PER FILE, because the totals cannot see a single empty one.
-              // migrate() reports one entry per MIGRATIONS entry, so those two
-              // lengths agree by construction and only the per-file check
-              // catches a migration that shipped without its statements. The
-              // floor is a floor, not a count: it can only drift when
-              // statements are REMOVED, and a count derived here would compare
-              // the bundle against itself. A hand-kept figure is invisible to
-              // all five gates and fails only in CI, on the run that would
-              // have shipped the migration it miscounts.
+              // PER FILE, because the totals cannot see a single empty one: migrate() reports
+              // one entry per MIGRATIONS entry, so those lengths agree by construction. The
+              // floor is a floor, not a count — a count derived here would compare the bundle
+              // against itself, and a hand-kept figure is invisible to all five gates.
               const empty = r.files.filter((f) => f.pending === 0).map((f) => f.file);
               if (empty.length || r.files.length !== g.MIGRATIONS.length || pending < 8) {
                 throw new Error('migrate bundle cannot read its SQL: ' + JSON.stringify(r));
@@ -231,11 +120,9 @@ jobs:
           node -e "
             const m = require('./capture.js');
             if (typeof m.handler !== 'function') throw new Error('handler missing from bundle');
-            // 22:00Z on the 11th is 01:00 Kyiv on the 12th: the scheduled firing,
-            // and the instant where subtracting from the UTC date would silently
-            // yield D-2. Both dates are asserted, and so is the fact that they
-            // DIFFER — this step used to assert a single as_of and would have
-            // passed happily through the whole eight days D71 had to repair.
+            // 22:00Z on the 11th is 01:00 Kyiv on the 12th: the scheduled firing, and the
+            // instant where subtracting from the UTC date would silently yield D-2. That the
+            // two rules DIFFER is asserted as well, because one as_of would pass either way.
             const run = new Date('2026-08-11T22:00:00Z');
             if (m.inzhurAsOf(run) !== '2026-08-12') {
               throw new Error('inzhurAsOf wrong: it must be the Kyiv date of the run (D71)');
@@ -248,11 +135,7 @@ jobs:
             }
             console.log('bundle loads, handler present, both as_of rules correct');
           "
-          # The trigger's bundle, asserted the same way and for one reason more: this
-          # handler runs on a path a stranger reaches, and a bundle that fails to load
-          # fails the SIGN-UP rather than logging somewhere. The link condition is
-          # exercised in the bundled shape too, because `preSignUp` is the export the
-          # Lambda actually calls and vitest only ever sees the ESM module.
+          # A stranger reaches this path: a bundle that fails to load fails the SIGN-UP.
           node -e "
             const p = require('./pre-signup.js');
             if (typeof p.handler !== 'function') throw new Error('handler missing from pre-signup bundle');
@@ -269,11 +152,11 @@ jobs:
               adminLinkProviderForUser: async () => { linked++; return {}; },
             };
             // AND THE REFUSAL, in the bundled shape: an address with no local account must
-            // reject rather than resolve. A stranger reaches this path, and a refusal that
-            // only works as ESM is a refusal that does not work.
+            // reject. A stranger reaches this path, and a refusal that only works as ESM is
+            // a refusal that does not work.
             const empty = { listUsers: async () => ({ Users: [] }), adminLinkProviderForUser: async () => ({}) };
-            // AND THE SOURCE THAT MUST NEVER BE REFUSED, which is the mirror of the case above:
-            // AWS fires this trigger on AdminCreateUser too, and that call IS approval.
+            // AND THE SOURCE THAT MUST NEVER BE REFUSED, the mirror of the case above: AWS
+            // fires this trigger on AdminCreateUser too, and that call IS approval.
             const approving = { triggerSource: 'PreSignUp_AdminCreateUser', userPoolId: 'eu-north-1_EXAMPLE', userName: 'u', request: { userAttributes: { email: 'a@b.com' } }, response: {} };
             Promise.all([
               p.preSignUp(event('true'), idp),
@@ -296,12 +179,7 @@ jobs:
                 console.log('pre-signup bundle loads, links only a verified address and refuses an unapproved one');
               }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # The applications endpoint, and the reason it is exercised rather than merely
-          # loaded is the same as the trigger's, one step further out: this route is
-          # UNAUTHENTICATED, so a bundle that fails to load fails it for a stranger with
-          # no account to complain from. The two cases are the two halves of the contract
-          # — a valid address is accepted, and an address the cluster would refuse is
-          # turned away before the cluster is asked anything.
+          # The applications route is UNAUTHENTICATED: it fails for a stranger with no account.
           node -e "
             const a = require('./applications.js');
             if (typeof a.handler !== 'function') throw new Error('handler missing from applications bundle');
@@ -310,17 +188,16 @@ jobs:
             const submit = (email) => ({ body: JSON.stringify({ email }), isBase64Encoded: false });
             Promise.all([
               a.applications(client, submit('New@Quirenote.com')),
-              // Escaped rather than typed: the character is the point — a capital I with
-              // a dot, which JavaScript folds to two codepoints and Postgres does not —
-              // and a non-ASCII byte inside a shell string inside YAML has too many
-              // places to be re-encoded on the way to node.
+              // Escaped rather than typed, because the character is the point — a capital I
+              // with a dot, which JavaScript folds to two codepoints and Postgres does not —
+              // and a non-ASCII byte inside a shell string inside YAML has too many places to
+              // be re-encoded on the way to node.
               a.applications(client, submit(String.fromCharCode(304) + 'REN@quirenote.com')),
             ]).then(([ok, bad]) => {
               if (ok.statusCode !== 202) throw new Error('valid address not accepted: ' + ok.statusCode);
               if (bad.statusCode !== 400) throw new Error('bad address not refused: ' + bad.statusCode);
-              // One statement for two submissions, and the address already folded: the
-              // refusal never reached the cluster, and the acceptance was bound rather
-              // than interpolated.
+              // One statement for two submissions: the refusal never reached the cluster, and
+              // the acceptance was bound rather than interpolated.
               if (asked.length !== 1) throw new Error('cluster asked ' + asked.length + ' times, wanted 1');
               if (asked[0].values[0] !== 'new@quirenote.com') {
                 throw new Error('address not folded: ' + asked[0].values[0]);
@@ -328,11 +205,8 @@ jobs:
               console.log('applications bundle loads, accepts one address and refuses the other');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # The approval gate, exercised on the two refusals that cost nothing. Both are
-          # answered BEFORE any Cognito call, which is the property worth holding in the bundled
-          # shape: a mistake here spends a monthly active user and mails an address, and neither
-          # can be taken back. The stub client answers the gate's lookup and the target read from
-          # the same function, told apart by the column only the second one selects.
+          # Both refusals land BEFORE any Cognito call — which would spend a monthly active user
+          # and mail an address, neither retractable.
           node -e "
             const a = require('./approve.js');
             if (typeof a.handler !== 'function') throw new Error('handler missing from approve bundle');
@@ -367,16 +241,8 @@ jobs:
               console.log('approve bundle loads and refuses a demo row and an ordinary caller, without calling Cognito');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # The backup-freshness check, exercised rather than merely loaded, and what is
-          # worth holding in the bundled shape is the FILTER. A read that lost
-          # `ByResourceArn` answers with the whole vault — which holds the ARCHIVE's
-          # recovery points too, so it would report prod's user data as freshly backed up
-          # on a night nothing of it was: the one wrong answer that looks right, and the
-          # entire reason this function exists. The empty case is the other half: no
-          # recovery point at all must land on the BAD side of a fresh reading, never at
-          # zero. The threshold itself is held against that value in
-          # stack-split.test.ts, which reads the template; a figure repeated here would
-          # be a hand-kept one no gate can see.
+          # What matters here is the FILTER: a read that lost `ByResourceArn` answers with the
+          # whole vault, ARCHIVE included, and calls prod's data fresh on a night it was not.
           node -e "
             const b = require('./backup-freshness.js');
             if (typeof b.handler !== 'function') throw new Error('handler missing from backup-freshness bundle');
@@ -395,14 +261,8 @@ jobs:
               console.log('backup-freshness bundle loads, filters by the cluster arn, and puts an empty vault at the bad end');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
-          # The free-tier watch, exercised rather than merely loaded, and what is worth
-          # holding in the bundled shape is the REFUSAL. A pool that answers without
-          # `EstimatedNumberOfUsers` must throw: the alarm is `GreaterThan`, so a zero
-          # published for a count nobody could read sits on the HEALTHY side of it and a
-          # permanently failing read would stay green forever. The other half is that a
-          # real zero is still a count — an empty pool is not an error — which is the
-          # distinction a truthiness check would collapse. The threshold itself is not
-          # repeated here; it lives in stack-split.test.ts, which reads the template.
+          # Here the REFUSAL is what matters: a pool answering without `EstimatedNumberOfUsers`
+          # must throw, or an unreadable count sits on the alarm's HEALTHY side forever.
           node -e "
             const u = require('./pool-usage.js');
             if (typeof u.handler !== 'function') throw new Error('handler missing from pool-usage bundle');
@@ -423,25 +283,11 @@ jobs:
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 
-      # NO DEPLOY GATE HERE, AND THAT IS A DECISION RATHER THAN AN OMISSION.
-      # `paths` now includes `.github/**` and the root manifests so the gates run on
-      # those pushes, which means a prose edit under `.github/` assumes the deploy role
-      # and runs `sam deploy`. A 79-line `changed` step was written to suppress that and
-      # then removed, because every review round found another way for it to skip a
-      # REAL deploy while reporting green:
-      #   * it was inert — checkout is depth-1, so its range never resolved;
-      #   * `^infra/` matched Markdown, so `infra/README.md` deployed anyway;
-      #   * the workflow file itself, a bundle input, fell outside its matcher;
-      #   * `|| true` swallowed grep's error exit as well as its no-match exit;
-      #   * and finally: `concurrency` cancels PENDING runs, so a real infra push can be
-      #     cancelled in the queue while the next run's push range no longer contains it
-      #     — stack never updated, nothing red, a cancelled run reads as neutral.
-      # The last one cannot be closed by a range at all; it needs a watermark of the
-      # last SHA actually deployed. That is real state to keep, for a cost this file
-      # already priced: `--no-fail-on-empty-changeset` makes an unchanged deploy a no-op.
-      # **A silently skipped deploy is worse than a wasted one**, so the wasted one wins
-      # until the wasted runs are actually a cost — the same sentence this file has
-      # carried above `paths` since A50, now with the experiment behind it.
+      # NO DEPLOY GATE HERE, AND THAT IS A DECISION. A `changed` step suppressing the deploy
+      # on a prose push was written and removed: the failure no range can close is that
+      # `concurrency` cancels PENDING runs, so a real infra push can be dropped from the queue
+      # while the next run's range no longer covers it — stack never updated, nothing red.
+      # It needs a watermark of the last SHA deployed; a skipped deploy is worse than a waste.
 
       - uses: aws-actions/setup-sam@v3
         with:
@@ -452,51 +298,21 @@ jobs:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # No `sam build` step — `sam deploy` packages CodeUri (dist/) as-is.
-      #
-      # USER STACK FIRST, ARCHIVE SECOND, and two steps rather than two commands in one
-      # block. The archive deploy is what DELETES the old migration function, so running
-      # it first opens a window in which `migrate.yml` resolves no function at all — and
-      # a user stack that then failed to create would leave you inside it. Two steps also
-      # means a failure names itself; under `bash -e` a shared block would simply skip
-      # what followed.
+      # USER STACK FIRST, ARCHIVE SECOND, in two steps: the archive deploy DELETES the old
+      # migration function, so running it first leaves `migrate.yml` resolving nothing.
       - name: Deploy the user stack
         working-directory: infra
         run: |
-          # THE GOOGLE PAIR IS PASSED ONLY WHEN IT IS SET, because `sam deploy` REFUSES an
-          # empty value: `GoogleClientId=` is "not a valid format" and the command dies
-          # before it makes a single AWS call. Measured on the first real deploy, where the
-          # template's own `Default: ''` had made an unset secret look supported. It is the
-          # CLI's parser, not CloudFormation's — which is why nothing but the argument list
-          # can fix it, and why the failure left no stack behind.
-          #
-          # Omitting a parameter is not the same as clearing it: on a CREATE it falls back
-          # to the template's empty `Default` and `HasGoogle` stays false, which is the
-          # state this is for; on an UPDATE it keeps the previous value. So unsetting the
-          # secrets in GitHub does not remove a provider that already exists — deleting it
-          # is a deliberate act, which is the safer direction for a resource whose users
-          # have accounts hanging off it.
-          # THE TWO CERTIFICATES ARE BOTH UNCONDITIONAL, because neither parameter has a
-          # default: there is no value that would be right, so an unset secret has to fail
-          # rather than resolve. It fails in the same place the Google pair would — this
-          # CLI's own parser, on `ApiCertificateArn=`, before a single AWS call — and the
-          # template's pattern is the second net, for a value that is set but wrong. They
-          # are different ARNs in different Regions and neither is a fallback for the other.
+          # THE GOOGLE PAIR BELOW IS PASSED ONLY WHEN SET, because `sam deploy` REFUSES an empty
+          # value in its own parser, before any AWS call. The three on this line go every time:
+          # neither certificate has a default, so an unset secret has to fail rather than resolve.
           overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}")
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             overrides+=("GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
           fi
-          # ALWAYS PASSED, AND THE `else` IS THE WHOLE POINT — omitting a parameter does NOT
-          # reset it. `sam deploy` sends `UsePreviousValue` for every parameter absent from
-          # this list once the stack exists, which is the behaviour the Google comment above
-          # relies on and the exact opposite of what a registration switch needs: clear the
-          # variable to close registration again and the stack would keep `open`, with the pool
-          # and the trigger both still admitting strangers and nothing reporting it. Unset has
-          # to MEAN closed, so unset passes `closed`.
-          #
-          # Still written as a guard rather than `${OPEN_REGISTRATION:-closed}` because
-          # `sam deploy` refuses an empty value outright, and `stack-split.test.ts` holds every
-          # defaulted parameter to testing its variable before passing it.
+          # ALWAYS PASSED, AND THE `else` IS THE POINT: `sam deploy` sends `UsePreviousValue`
+          # for any parameter absent once the stack exists, so clearing the variable would
+          # leave the stack `open`, pool and trigger still admitting strangers.
           if [ -n "$OPEN_REGISTRATION" ]; then
             overrides+=("OpenRegistration=${OPEN_REGISTRATION}")
           else
@@ -516,31 +332,16 @@ jobs:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
-          # TWO CERTIFICATES, IN TWO REGIONS, AND NEITHER SUBSTITUTES FOR THE OTHER. The
-          # pool's is us-east-1's, because a Cognito custom domain is fronted by
-          # CloudFront; the API's is eu-north-1's, because an HTTP API custom domain is
-          # regional and ACM requires the certificate in the API's own Region. Each covers
-          # both of its hostnames, so one of each serves both environments. Their ARNs
-          # carry the account id and the two Google values are the OAuth client's — none
-          # of the four may be written into this repository, so all four arrive from the
-          # environment's secrets.
-          #
-          # GOOGLE UNSET IS A SUPPORTED STATE, not a broken one: an empty id leaves the
-          # template's `HasGoogle` false, the provider uncreated and the pool on password
-          # and passkey. That is what lets the pool ship before the OAuth client exists.
+          # TWO CERTIFICATES, IN TWO REGIONS, AND NEITHER SUBSTITUTES FOR THE OTHER — the pool's
+          # is fronted by CloudFront, the API's custom domain is regional. See the template.
           AUTH_CERTIFICATE_ARN: ${{ secrets.AUTH_CERTIFICATE_ARN }}
           API_CERTIFICATE_ARN: ${{ secrets.API_CERTIFICATE_ARN }}
-          # A VARIABLE, NOT A SECRET — `open` or `closed`, and which one an environment runs is
-          # not something hiding helps with. Unset is turned into an explicit `closed` above
-          # rather than omitted, so clearing this variable actually closes registration.
+          # A VARIABLE, NOT A SECRET: which environment runs `open` is not worth hiding.
           OPEN_REGISTRATION: ${{ vars.OPEN_REGISTRATION }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
-      # ONE ARCHIVE, ONE CAPTURE, FOR EVERY ENVIRONMENT — so it has one deploying
-      # branch, and this step is skipped on `main`. The consequence worth knowing before
-      # it is needed: a `workflow_dispatch` on `main` cannot repair the archive. The
-      # repair path is a dispatch on `dev`.
+      # Skipped on `main`, so a dispatch there cannot repair the archive — dispatch on `dev`.
       - name: Deploy the archive stack
         if: github.ref_name != 'main'
         working-directory: infra

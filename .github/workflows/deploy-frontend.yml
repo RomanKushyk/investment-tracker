@@ -2,34 +2,21 @@ name: Deploy frontend
 
 on:
   push:
-    # Two targets, one pipeline. `dev` deploys the integration branch to
-    # dev.quirenote.com; `main` is production — quirenote.com — and moves only
-    # when `dev` is fast-forwarded into it, which happens on a new stable version
-    # (MAJOR, MINOR or PATCH) or on demand (D67). Production's cadence is the
-    # release cadence, not a calendar.
     branches: [dev, main]
-    # A commit touching only the files below cannot change dist/, so skip the deploy. One
-    # touching both those and code still runs — paths-ignore only skips when EVERY changed
-    # file matches. To ship after an ignored change anyway, use the workflow_dispatch.
-    #
-    # `docs/**` IS DELIBERATELY NOT HERE, and that one absence is what lets the API
-    # reference stay fresh. Everything under docs/ is Markdown except
-    # docs/reference/openapi.json, which this build now reads — the page is compiled FROM
-    # it — so `**/*.md` already covers the rest and the spec correctly triggers a deploy.
-    # Listing docs/ would ignore the one file in it that matters. A spec change therefore
-    # also runs on `main`, where the page is not built: the artifact is byte-identical,
-    # though the run still assumes the role and creates a real Amplify deployment.
+    # `paths-ignore` skips only when EVERY changed file matches. `docs/**` IS DELIBERATELY
+    # ABSENT from it, and that absence is what keeps the API reference fresh: all of docs/ is
+    # Markdown but docs/reference/openapi.json, which this build compiles the page FROM, so
+    # `**/*.md` covers the rest and listing docs/ would ignore the one file that matters.
+    # `src/api-docs-entry.test.ts` holds both halves.
     paths-ignore:
       - '**/*.md'
-      # The backend is a separate stack with its own workflow and its own IAM
-      # role. Nothing under infra/ can change dist/, so a backend-only commit
-      # must not rebuild and redeploy the SPA.
+      # Separate stack, separate workflow, separate role: nothing under infra/ changes dist/.
       - 'infra/**'
       - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
 
-# Always reflect the newest push: supersede an in-flight deploy rather than racing it.
-# Keyed per BRANCH — a dev push must never cancel a production deploy in flight.
+# Keyed per BRANCH — the one workflow that cancels in flight, so a dev push must never take a
+# production deploy with it.
 concurrency:
   group: deploy-frontend-${{ github.ref_name }}
   cancel-in-progress: true
@@ -41,10 +28,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # AMPLIFY_APP_ID / AWS_REGION / AWS_FRONTEND_ROLE_ARN live in the environment's
-    # scope, so each environment carries its own copies. The environment also
-    # carries the deployment-branch policy that stops any other branch from
-    # deploying to it, and it is what the role's OIDC `sub` claim names.
     environment:
       name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
       url: ${{ github.ref_name == 'main' && 'https://quirenote.com' || 'https://dev.quirenote.com' }}
@@ -60,40 +43,25 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # THE SUITE BELOW REACHES infra/src, SO ITS DEPENDENCIES ARE THIS JOB'S TOO.
-      # Three test files import the migration runner, which imports `connect()`, which
-      # imports `@aws-sdk/dsql-signer` and `pg` — declared in infra/package.json and
-      # installed by npm, never by the root pnpm tree (deploy-backend.yml carries the
-      # same step and the reason pnpm is the wrong tool for it). Without this the suite
-      # fails three files on ERR_MODULE_NOT_FOUND and the SPA never builds, which is how
-      # v1.11.0 shipped its backend and not its frontend.
+      # THE SUITE BELOW REACHES infra/src, so its dependencies are this job's too: several test
+      # files import the migration runner, which imports `pg` from infra/package.json, installed
+      # by npm and never by the root pnpm tree. Without this the suite fails on a missing module.
       - name: Install backend deps
         working-directory: infra
         run: npm ci
 
-      # Quality gate — everything below runs before any AWS credential exists,
-      # so a failing check can never deploy.
+      # Everything below runs before any AWS credential exists, so a failing check cannot deploy.
       - run: pnpm lint
-      # A37 — the formatter joins the gate now that it can actually pass. It
-      # could not before: `endOfLine` was unset, so on a Windows checkout with
-      # `core.autocrlf=true` prettier compared LF output against CRLF files and
-      # failed all 245 of them on line endings alone. `.prettierignore` keeps it
-      # off the merged drawings (D14) and the hand-formatted docs.
       - run: pnpm format:check
       - run: pnpm test
       - run: pnpm build # already runs tsc --noEmit
 
-      # The API reference, appended to dist/ on every branch but production — dev is
-      # behind Amplify's branch basic auth and production carries none, so the page has
-      # to be absent from that artifact rather than merely unlinked.
+      # Appended to dist/ on every branch but production: dev is behind Amplify's branch basic
+      # auth and production carries none, so the page must be ABSENT from it, not unlinked.
       - if: github.ref_name != 'main'
         run: pnpm build:api-docs
 
-      # AND THE ARTIFACT ITSELF IS CHECKED, not just the recipe. The zip below takes
-      # whatever dist/ holds, unconditionally; anything that leaves the page there on a
-      # production run — a reused runner, a restore-cache step, an `if:` a reader
-      # normalises differently from GitHub — ships it. This is the only assertion made
-      # against the bytes that deploy, and it runs before any credential exists.
+      # On the bytes, not the recipe: the zip below takes whatever dist/ holds, unconditionally.
       - if: github.ref_name == 'main'
         name: Production carries no API reference
         run: test ! -f dist/api-docs.html
@@ -110,6 +78,4 @@ jobs:
         run: ./scripts/deploy-amplify.sh dist.zip
         env:
           AMPLIFY_APP_ID: ${{ vars.AMPLIFY_APP_ID }}
-          # The Amplify branch is named after the git branch on purpose: one
-          # name to reason about, and nothing to keep in sync by hand.
           AMPLIFY_BRANCH: ${{ github.ref_name }}

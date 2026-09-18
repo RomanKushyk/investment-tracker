@@ -6,9 +6,6 @@ Description: >
   data exist. See docs/superpowers/specs/2026-08-04-data-model.md.
 
 Parameters:
-  # AlertEmail removed 2026-08-11 with the SNS subscription it fed (D45). It also
-  # took the owner's address out of a public repository, which it had no reason
-  # to be in once nothing consumed it.
   FeedUrl:
     Type: String
     Default: https://www.inzhur.reit/_api/assets
@@ -16,36 +13,20 @@ Parameters:
 Globals:
   Function:
     Runtime: nodejs22.x
-    # 20% cheaper per GB-second than x86 at an identical request price, and Node
-    # 22 runs natively. Free either way at this volume — a free choice.
     Architectures: [arm64]
     MemorySize: 256
-    # SAM's default is 3 SECONDS. Fetching and parsing 165 KB of JSON blows
-    # through that on a cold start.
-    #
-    # 300 rather than 60 because the same function runs the NBU backfill, which
-    # walks ~2,600 business days back to 2016 in bounded chunks. The daily run
-    # still finishes in seconds, and Lambda bills duration, not the ceiling.
-    # 600, not 300. Billing is by the millisecond actually used, so a higher
-    # ceiling costs nothing until it is needed — and the old 300 was a cliff
-    # rather than a limit: two sources, each with three attempts and their
-    # backoff, could reach it and be killed mid-retry with no row written.
+    # SAM's default is 3 SECONDS. Lambda bills the duration used rather than the ceiling, so a
+    # high one is free — and at 300 two sources retrying can be killed mid-retry, no row written.
     Timeout: 600
     Tracing: Active
 
 Resources:
-  # --------------------------------------------------------------------------
-  # Database
-  # --------------------------------------------------------------------------
-  # No VPC anywhere in this stack. DSQL is a public IAM-authenticated endpoint
-  # and Lambda has internet egress by default, so nothing here needs a VPC —
-  # which is the single most important cost decision in the file. A NAT Gateway
-  # is ~$33/month, roughly 1600x the rest of this stack combined.
+  # NO VPC anywhere in this stack, the single most important cost decision in the file: DSQL is
+  # a public IAM-authenticated endpoint, and a NAT Gateway would cost multiples of all the rest.
   PriceCluster:
     Type: AWS::DSQL::Cluster
-    # Retain on stack delete: the provider publishes no price history, so this
-    # archive is the only copy that will ever exist. A `sam delete` must not be
-    # able to destroy it.
+    # The provider publishes no price history, so this archive is the only copy that will ever
+    # exist. A `sam delete` must not be able to destroy it.
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -54,49 +35,28 @@ Resources:
         - Key: app
           Value: quirenote
 
-  # --------------------------------------------------------------------------
-  # Capture function
-  # --------------------------------------------------------------------------
   CaptureFunction:
     Type: AWS::Serverless::Function
     Properties:
-      # No BuildMethod, deliberately. Both SAM builders — the builtin esbuild one
-      # and the makefile one — copy the CodeUri directory into a sandbox before
-      # running, so the handler's `../../src/core` imports resolve to nothing.
-      # The workflow therefore runs esbuild itself, from the repo, and hands SAM
-      # a finished bundle to package. That keeps the parser bundled from its
-      # single source instead of duplicated, and takes SAM's builder semantics
-      # out of the equation entirely.
+      # NO BuildMethod, deliberately: both SAM builders copy the CodeUri directory into a
+      # sandbox first, so the handler's `../../src/core` imports resolve to nothing. The
+      # workflow runs esbuild from the repo instead, keeping one parser rather than a copy.
       CodeUri: dist/
       Handler: capture.handler
-      # No ReservedConcurrentExecutions. A new AWS account's Lambda concurrency
-      # quota is small, and reserving any of it drops the unreserved pool below
-      # the required minimum of 10 — the deploy fails outright. It bought little
-      # anyway: this function is invoked once a day by a schedule capped at 3
-      # retries with a DLQ, so its concurrency is already bounded by the trigger
-      # rather than by a reservation.
+      # No ReservedConcurrentExecutions: reserving any of this account's small quota drops the
+      # unreserved pool below the required minimum of 10 and the deploy fails outright.
       Environment:
         Variables:
           FEED_URL: !Ref FeedUrl
-          # `Endpoint`, not `VpcEndpointServiceName` — the latter exists to
-          # reach the cluster from inside a VPC, which is precisely what this
-          # stack avoids.
           DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
           DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
-          # The alert channel checks ITSELF here (D44/D45). Looked up by
-          # NAME rather than ARN on purpose: a configuration ARN carries
-          # the account id, and this repository is public.
+          # The alert channel and the backup each check THEMSELVES here. Named, not referenced:
+          # the vault is outside the stack it protects, one inside dying with the accident.
           ALERT_CONFIG_NAME: quirenote-backend-alarms
-          # The backup checks itself here, the same way the alert channel does
-          # (D49). The vault is NOT part of this stack on purpose — a backup
-          # inside the stack it protects dies with it — so it is named, not
-          # referenced. `infra/scripts/bootstrap-backups.sh` creates it.
           BACKUP_VAULT_NAME: quirenote-backups
-          # Filtering recovery points by the cluster's own ARN is what keeps a
-          # recreated cluster from inheriting the old one's freshness for the
-          # full 35-day retention.
+          # The ARN filter is what stops a recreated cluster inheriting the old one's freshness.
           DSQL_CLUSTER_ARN: !GetAtt PriceCluster.ResourceArn
       Policies:
         - Statement:
@@ -104,18 +64,12 @@ Resources:
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt PriceCluster.ResourceArn
-            # Read-only, and only about whether a recovery point exists — never
-            # about creating, deleting or restoring one. The vault lives outside
-            # this stack, so it is addressed by constructed ARN; the pseudo
-            # parameters keep the account id out of this public repository.
+            # Both read-only, and only about whether a thing EXISTS. The vault is outside this
+            # stack, so the pseudo parameters build its ARN without the account id.
             - Sid: ReadOwnBackupFreshness
               Effect: Allow
               Action: backup:ListRecoveryPointsByBackupVault
               Resource: !Sub 'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups'
-            # Read-only, and only about the notification configuration itself —
-            # never about what it delivers. This is what lets a dead alert
-            # channel be seen rather than assumed (D44). AWS supports no
-            # resource-level scoping for either list operation.
             - Sid: ReadOwnAlertChannel
               Effect: Allow
               Action:
@@ -126,9 +80,7 @@ Resources:
         Type: SQS
         TargetArn: !GetAtt CaptureDlq.Arn
 
-  # Declared explicitly rather than letting Lambda auto-create it: the implicit
-  # log group defaults to "Never expire", which is the one line here that would
-  # grow without bound.
+  # Declared rather than left to Lambda: the implicit log group never expires.
   CaptureLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -140,16 +92,8 @@ Resources:
     Properties:
       MessageRetentionPeriod: 1209600 # 14 days
 
-  # THE MIGRATION RUNNER IS NOT HERE. It and its log group live in
-  # `template-user.yaml`, because what it applies is the USER schema — one cluster
-  # per environment — while everything in this file is the ARCHIVE, which is one
-  # cluster for every environment (docs/DECISIONS.md, **Cloud target**). Left here it
-  # would hold `dsql:DbConnectAdmin` on the archive, which no migration of ours may
-  # touch.
+  # THE MIGRATION RUNNER IS NOT HERE — in `template-user.yaml`, or it would hold admin here.
 
-  # --------------------------------------------------------------------------
-  # Schedule
-  # --------------------------------------------------------------------------
   CaptureSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
@@ -157,54 +101,27 @@ Resources:
       State: ENABLED
       FlexibleTimeWindow:
         Mode: 'OFF'
-      # Six fields, and one of day-of-month / day-of-week must be '?'.
+      # SIX FIRINGS TWO HOURS APART, STILL ONE SCHEDULE. The retry cannot be a RetryPolicy:
+      # Scheduler spaces attempts by its own exponential backoff, clustering them minutes
+      # apart, and a provider under maintenance is still under maintenance five minutes later.
       #
-      # SIX FIRINGS, TWO HOURS APART — and still ONE schedule, so the "exactly
-      # one automation" ruling holds. The retry the owner asked for cannot be
-      # expressed as a RetryPolicy: EventBridge Scheduler exposes only
-      # MaximumRetryAttempts and MaximumEventAgeInSeconds, and spaces the
-      # attempts by its OWN exponential backoff ("retry attempts with
-      # exponential backoff", API reference) — which clusters them minutes
-      # apart, not hours. A provider under maintenance is still under
-      # maintenance five minutes later; two hours is the interval that gives it
-      # time to come back.
-      #
-      # WHY IT STOPS AT 11:00, AND WHY SIX IS THE NUMBER. The ceiling is not
-      # midnight, it is the FEED REFRESH: Inzhur settles prices at ~13:00 Kyiv,
-      # and `asOfFor` derives as_of from the clock as (Kyiv date - 1). A capture
-      # after the refresh would read the CURRENT day's prices and stamp them
-      # with yesterday's date — wrong data wearing a correct-looking label,
-      # which is worse than a missing day. NBU is immune (its file is fetched
-      # BY date), so this bounds the Inzhur half.
-      #
-      # 01:00 -> 11:00 with a two-hour floor is therefore the widest window
-      # available, and six is simply how many attempts fit in it. The last
-      # firing keeps a full two-hour margin against a refresh that runs early.
-      #
-      # Note this is CONSTANT spacing, not the exponential backoff the AWS
-      # guidance recommends elsewhere — deliberately. That guidance addresses
-      # many clients retrying a throttling service in seconds; here there is one
-      # client, one request a day, and the thing being waited out is a
-      # maintenance window whose length has nothing to do with how many times
-      # we have already asked.
-      #
-      # Every firing after the first is a no-op for a source already settled —
-      # `alreadySettled` in the handler checks BEFORE fetching, so the providers
-      # see one request a day unless something actually failed.
+      # WHY IT STOPS AT 11:00 — the ceiling is the FEED REFRESH, not midnight. Inzhur settles
+      # prices at ~13:00 Kyiv and `asOfFor` derives as_of as (Kyiv date - 1), so a capture
+      # after the refresh reads the CURRENT day's prices and stamps them with yesterday's date:
+      # wrong data wearing a correct label, worse than a missing day. NBU is immune, its file
+      # being fetched BY date. 01:00 -> 11:00 is the widest window left, and six is how many
+      # two-hour attempts fit in it. Constant spacing, not backoff — one client waiting out a
+      # maintenance window, and every firing after the first is a no-op once a source settles.
       ScheduleExpression: cron(0 1,3,5,7,9,11 * * ? *)
-      # Load-bearing. Ukraine still observes DST in 2026 — the 2024 abolition law
-      # was never signed and clocks moved on 29 March — so a fixed-UTC schedule
-      # would silently drift an hour twice a year. Kyiv transitions at 03:00
-      # local, so a 01:00 run never lands in a skipped or repeated hour.
+      # Load-bearing. Ukraine still observes DST, so a fixed-UTC schedule would drift an hour
+      # twice a year; Kyiv transitions at 03:00 local, so a 01:00 run never lands in a skipped
+      # or repeated hour.
       ScheduleExpressionTimezone: Europe/Kyiv
       Target:
         Arn: !GetAtt CaptureFunction.Arn
         RoleArn: !GetAtt SchedulerRole.Arn
-        # This is the OTHER retry, and it answers a different question: the
-        # firings above cover a provider being down, while this covers the
-        # invocation itself failing to be delivered. Scheduler's defaults are 185
-        # attempts over 24 hours; a delivery that lands tomorrow would stamp the
-        # wrong as_of, so both stay cut hard.
+        # The OTHER retry: the firings above cover a provider being down, this a delivery
+        # failing. Cut hard because Scheduler's default would land it tomorrow, on a wrong as_of.
         RetryPolicy:
           MaximumRetryAttempts: 3
           MaximumEventAgeInSeconds: 3600
@@ -232,29 +149,10 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt CaptureFunction.Arn
 
-  # --------------------------------------------------------------------------
-  # Alarms
-  # --------------------------------------------------------------------------
-  # Renamed from `AlertTopic` on 2026-08-11, which mints a NEW topic ARN — that
-  # is the point, not a side effect (D44). SNS deactivated the email
-  # subscription on the previous ARN immediately, three times running, while the
-  # same address on an older topic kept delivering. The suppression appears to
-  # be keyed to the endpoint+topic pair, so a fresh ARN is the way out. The name
-  # is also simply better: it says what the topic alerts about.
-  # The SNS topic is GONE, and with it every alarm's SNS action.
-  #
-  # It was kept at first on "a second channel may want it", which was wrong on
-  # two counts. It contributed nothing to delivery — the push that verified the
-  # channel arrived while the SNS subscription was already dead, so it can only
-  # have travelled EventBridge -> AWS User Notifications -> Console Mobile App,
-  # a path SNS is not on. And it could not even be updated: removing the
-  # subscription block failed the deploy outright, because CloudFormation tries
-  # to Unsubscribe using a stored ARN that SNS had already replaced with the
-  # literal string "Deleted" (`An ARN must have at least 6 elements, not 1`).
-  #
-  # CloudWatch publishes alarm state changes to EventBridge for every alarm,
-  # independently of AlarmActions. Alarms with no action still alert.
-
+  # THERE IS NO SNS TOPIC AND NO AlarmActions, on purpose: CloudWatch publishes alarm state
+  # changes to EventBridge for every alarm regardless, so an alarm with no action still alerts.
+  # Where `notBreaching` guards a value the capture publishes, absence means the capture
+  # stopped — which SilenceAlarm already says, and the second alarm for one fault gets muted.
   ErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -269,13 +167,9 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
-  # THE important one. A scheduler that never fires produces no logs, no errors
-  # and no metrics — it is invisible by construction, and a missed day is
-  # permanently unrecoverable because the provider publishes no history.
-  #
-  # `TreatMissingData: breaching` is the whole point: the default (`missing`)
-  # parks a dead job in INSUFFICIENT_DATA and emails nothing, forever. This is
-  # the single most common way solo-operator cron monitoring silently fails.
+  # THE important one, and `breaching` is the whole point. A scheduler that never fires
+  # produces no logs, no errors and no metrics — invisible by construction, and a missed day is
+  # unrecoverable — where the default would park a dead job in INSUFFICIENT_DATA forever.
   SilenceAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -290,14 +184,7 @@ Resources:
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
 
-  # A frozen upstream is the one failure that looks exactly like success: the
-  # fetch returns 200, the parse yields all 35 entries, every value is a
-  # plausible number — and none of them has moved. Neither the error alarm nor
-  # the silence alarm can see it, because nothing errored and the job did run.
-  #
-  # The alert channel measuring itself (D44/D45). Emitted on EVERY scheduled
-  # run, healthy or not — a signal that appears only on failure cannot tell
-  # "fine" from "the check stopped running".
+  # On EVERY run, healthy or not: a failure-only signal cannot tell "fine" from "stopped".
   AlertChannelsMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -308,18 +195,8 @@ Resources:
           MetricName: AlertChannels
           MetricValue: $.value
 
-  # Zero channels means alarms are being raised into nothing.
-  #
-  # This alarm notifies through the channel it is measuring, which is circular
-  # and deliberately so: it is the BACKUP. The primary is that the number is
-  # readable without any delivery — in the log, on a dashboard, and in the run
-  # journal. On 2026-08-11 the alerting was dead for hours while every indicator
-  # read healthy; the fix is not a cleverer alarm, it is a value someone can look
-  # at.
-  #
-  # notBreaching on missing data: no data means the capture itself stopped, and
-  # SilenceAlarm already says that. Two alarms for one fault is how alarms get
-  # muted.
+  # Zero channels means alarms are raised into nothing. This one notifies through the channel
+  # it measures — circular, and deliberately the BACKUP to reading the number itself.
   AlertChannelAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -336,10 +213,7 @@ Resources:
       ComparisonOperator: LessThanThreshold
       TreatMissingData: notBreaching
 
-  # The backup measuring itself (D49), emitted on every scheduled run like the
-  # two above. The archive spent its whole existence with no backup at all while
-  # deletion protection made it look protected, and a backup PLAN fails the same
-  # silent way: it simply stops producing recovery points.
+  # The backup measuring itself: a PLAN fails silently, and deletion protection still looks safe.
   BackupAgeMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -350,15 +224,8 @@ Resources:
           MetricName: BackupAgeHours
           MetricValue: $.value
 
-  # 48 hours, not 24. The plan runs daily with a 60-minute start window, so a
-  # single late or skipped night is normal operation; the signal wanted is "the
-  # plan has stopped", not "last night ran late". At 24 the alarm would page for
-  # something that fixes itself, and an alarm that pages for nothing gets muted.
-  #
-  # notBreaching on missing data, for the same reason as AlertChannelAlarm: this
-  # value is published BY the capture, so its absence means the capture stopped —
-  # which SilenceAlarm already says. Two alarms for one fault is how alarms get
-  # muted.
+  # 48 hours, not 24: the plan runs daily with a start window, so one late night is normal
+  # operation and the signal wanted is "the plan has stopped".
   BackupAgeAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -376,15 +243,11 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # Rows the scheduled run turned into observations. Published every night,
-  # including the nights it writes nothing.
-  #
-  # NO ALARM, on purpose. Zero is the healthy reading most of the time — NBU
-  # publishes nothing at weekends, and a window already derived yields no new
-  # rows — so an alarm on zero would page every Saturday, and an alarm that
-  # pages for nothing gets muted (D44). The graph is the signal: a small spike
-  # each business day, flat across weekends. Flat through a working week means
-  # the derivation stopped, without anyone having to query the table.
+  # NO ALARM, on purpose: zero is the healthy reading most of the time, since NBU publishes
+  # nothing at weekends. The graph is the signal, and it reads one source at a time — so
+  # DIMENSIONED BY SOURCE, or Inzhur's daily rows fill NBU's weekend zeros and a dead NBU
+  # observer looks healthy. No DefaultValue beside Dimensions in any filter here: CloudWatch
+  # Logs rejects a transformation carrying both, a 400 that appears only at deploy time.
   ObservationsWrittenMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -394,33 +257,14 @@ Resources:
         - MetricNamespace: Quirenote
           MetricName: ObservationsWritten
           MetricValue: $.value
-          # DIMENSIONED BY SOURCE SINCE W4, and the graph's meaning depends on
-          # it. The rationale above reads "flat through a working week means the
-          # derivation stopped" — true only of ONE source at a time. Undimensioned,
-          # Inzhur's daily rows would fill in NBU's weekend zeros and a dead NBU
-          # observer would look healthy. No DefaultValue, same as SkippedRefs
-          # below: CloudWatch Logs rejects a transformation carrying both.
           Dimensions:
             - Key: source
               Value: $.source
 
-  # THE SHAPE OF THE FEED, GRAPHED AND NEVER ALARMED (A20, owner ruling).
-  # Both replace the retired UnchangedDays/StalePrices pair, which asked whether
-  # the NUMBERS moved — a question with no good answer, because a price may sit
-  # still for maintenance, a weekend, a holiday or a holiday moved to the Monday
-  # after. Measured before removing it: for `inzhur` the digest can never repeat
-  # while the feed is alive, since 24 of 31 live bonds carry daily accrued
-  # interest, so the metric was a flat line bought with a query per run.
-  #
-  # No alarm on either, and deliberately, for the reason ObservationsWritten
-  # above has none: neither number has a threshold that is right for both
-  # sources. `entryCount` has only ever GROWN for inzhur (34 -> 35 -> 36), so a
-  # floor is a guess the first delisting invalidates; `skippedRefs` is empty on
-  # every inzhur capture but non-empty on 6,133 of 6,636 NBU rows, where it is
-  # the backfill correctly reporting bonds that did not exist yet (D43).
-  # What DOES alarm is a NAMED ref going missing — `tracked ISIN absent` for
-  # NBU, `tracked ref absent` for inzhur — which needs no threshold at all and
-  # reaches ErrorAlarm through the handler's own throw.
+  # THE SHAPE OF THE FEED — these three are graphed and never alarmed, because no threshold is
+  # right for both sources: a floor on `entryCount` is a guess the first delisting invalidates,
+  # `skippedRefs` is routinely non-empty on NBU alone, and stale bonds are this feed's steady
+  # state. What DOES alarm is a NAMED ref going missing, through the handler's own throw.
   EntryCountMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -443,24 +287,10 @@ Resources:
         - MetricNamespace: Quirenote
           MetricName: SkippedRefs
           MetricValue: $.value
-          # NO DefaultValue here. CloudWatch Logs rejects a transformation that
-          # carries both a default and dimensions — "mutually exclusive
-          # properties", a 400 that only appears at deploy time, never at
-          # validate time. It is not wanted anyway: `skippedRefs` is emitted on
-          # every scheduled run and carries 0 when nothing was skipped, so the
-          # metric already has a datapoint whenever the capture ran. A default
-          # would only invent points for runs that never happened, which is
-          # exactly the reading `SilenceAlarm` exists to make impossible.
           Dimensions:
             - Key: source
               Value: $.source
 
-  # HOW STALE THE PROVIDER'S QUOTES ARE (A6). Graphed, never alarmed, for the
-  # same reason ObservationsWritten is: measured over eight days of archive the
-  # feed carries 3-4 stale bonds every single day, capped at 6 days, and 1-2
-  # `revised` with one ISIN revised on all eight. That is this feed's steady
-  # state. An alarm on it fires nightly and is muted inside a month (D44); a
-  # graph shows the step change that would actually matter.
   QuoteMaxStaleDaysMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -474,15 +304,8 @@ Resources:
             - Key: source
               Value: $.source
 
-  # THE ONE VERDICT WORTH WAKING SOMEONE FOR. `unexplained` means no yield the
-  # model can produce explains the quote at all — a schedule the parser mangled
-  # or a corrupt provider price. It is not a staleness signal and not a
-  # "the value did not move" signal (D70): it says the payload we are archiving
-  # is internally incoherent, which is a structural fact about the data.
-  #
-  # Safe to alarm on because it was measured first: ZERO occurrences across
-  # ~190 evaluations over eight days. That is the difference between this and
-  # the StalePrices alarm it replaces.
+  # THE ONE VERDICT WORTH WAKING SOMEONE FOR, and safe to alarm on because it was measured
+  # first. Not a staleness signal: no yield the model can produce explains the quote at all.
   UnexplainedQuoteMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
@@ -505,9 +328,6 @@ Resources:
       EvaluationPeriods: 1
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
-      # notBreaching: no data means the line was never logged, which is the
-      # healthy state. SilenceAlarm is what covers "nothing ran at all", and
-      # `breaching` here would raise two alarms for one fault (the A14 lesson).
       TreatMissingData: notBreaching
 
   DlqAlarm:

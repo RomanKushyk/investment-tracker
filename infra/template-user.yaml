@@ -12,73 +12,36 @@ Parameters:
   Environment:
     Type: String
     AllowedValues: [dev, prod]
-    # NO DEFAULT, deliberately, and it is the same argument the runner's own `mode`
-    # makes. A deploy that forgets `--parameter-overrides` then fails naming the
-    # parameter, instead of resolving quietly to whichever value was written here —
-    # which, for the half of the pair that is production, is not a failure anyone
-    # would go looking for.
 
   AuthCertificateArn:
     Type: String
     MinLength: 1
     AllowedPattern: ^arn:aws:acm:us-east-1:\d{12}:certificate/.+$
     ConstraintDescription: must be an ACM certificate ARN in us-east-1
-    # CONSTRAINED, AND THE CONSTRAINT IS THE CHEAP HALF OF A MESSY FAILURE. The workflow
-    # passes this unconditionally, so an unset secret arrives as the empty string — which
-    # an unconstrained String accepts. The pool would then be created and the DOMAIN would
-    # fail, and because the pool is Retain + DeletionProtection ACTIVE the rollback KEEPS
-    # it. The retry does succeed — the domain never got as far as claiming its name — but
-    # it creates a SECOND pool, and the first is left behind deletion-protected, one
-    # orphan per attempt, each needing an `UpdateUserPool` before it can be removed at
-    # all. A pattern fails the deploy before any of that, at validation, naming the
-    # parameter.
-    # NO DEFAULT either, for a plainer reason than the above: there is no value that
-    # would be right. The certificate must live in us-east-1 whatever region the pool
-    # is in — a Cognito custom domain is fronted by CloudFront, which is global — and
-    # its ARN carries the account id, which this public repository does not hold.
-    # Supplied by `deploy-backend.yml` from the environment's secrets.
+    # CONSTRAINED, AND THE CONSTRAINT IS THE CHEAP HALF OF A MESSY FAILURE. The workflow passes
+    # this unconditionally, so an unset secret arrives as the empty string an unconstrained String
+    # accepts — the pool is then created and the DOMAIN fails, and because the pool is Retain +
+    # DeletionProtection ACTIVE the rollback KEEPS it: one deletion-protected orphan per attempt.
 
   ApiCertificateArn:
     Type: String
     MinLength: 1
     AllowedPattern: ^arn:aws:acm:eu-north-1:\d{12}:certificate/.+$
     ConstraintDescription: must be an ACM certificate ARN in eu-north-1
-    # THE REGION IS THE OPPOSITE OF THE ONE ABOVE, and copying that pattern is how the
-    # mistake gets made. An HTTP API custom domain is REGIONAL — there is no other kind
-    # for an HTTP API — and AWS requires a Region-specific certificate in the same Region
-    # as the API. So the only valid value here is one `AuthCertificateArn` would reject,
-    # and the reverse: the pool's is fronted by CloudFront, which is global and reads
-    # us-east-1 only. One certificate covers api.quirenote.com and api.dev.quirenote.com
-    # and serves both stacks, exactly as the auth one does.
-    # Same no-default, same constraint, for the reasons written out above.
+    # THE REGION IS THE OPPOSITE OF THE ONE ABOVE, and copying that pattern is how the mistake
+    # gets made: an HTTP API custom domain is REGIONAL, so ACM wants the certificate in the API's
+    # own Region, where the pool's is fronted by CloudFront and reads us-east-1 only. Neither
+    # parameter has a default, because no value would be right and both carry the account id.
 
   OpenRegistration:
     Type: String
     AllowedValues: [closed, open]
     Default: closed
-    # A PARAMETER RATHER THAN A SETTINGS ROW, and the difference is a door that can be half
-    # open with no symptom. Opening registration needs two things true at once: the pool has
-    # to accept `SignUp` at all (`AllowAdminCreateUserOnly` below) and the trigger has to stop
-    # refusing addresses with no application. `AllowAdminCreateUserOnly` is an
-    # `UpdateUserPool` parameter — a deploy, not a row — so a row driving only the trigger
-    # would wave people through a door the pool still holds shut, and nothing would report it.
-    # One parameter drives both, so they cannot disagree.
-    #
-    # AND IT KEEPS A STRANGER-REACHABLE LAMBDA OUT OF THE PORTFOLIO DATABASE. Read from a row,
-    # the trigger would need a cluster connection on a path anyone can reach; read from its
-    # environment, `PreSignUpFunction` keeps the narrowest grant in the stack, which is no
-    # `Policies:` block at all.
-    #
-    # CLOSED IS THE DEFAULT because it is the only safe one, and the value is a warning as much
-    # as a switch. Open means anyone who signs up gets a pool identity immediately — a monthly
-    # active user each — with no threat protection behind it, since Plus has no free tier and
-    # WAF is on the standing "no" list.
-    #
-    # AND CLOSING IT AGAIN DOES NOT UNDO IT. Every account created during the window keeps its
-    # local Cognito profile, so the trigger's "no local account means never approved" test
-    # stops distinguishing them afterwards. What still holds the line is the `status`/`role`
-    # check the API makes on every request; this parameter governs who gets an IDENTITY, never
-    # who gets access.
+    # A PARAMETER RATHER THAN A SETTINGS ROW, because opening registration needs two things true
+    # at once — the pool accepting `SignUp` (`AllowAdminCreateUserOnly`, an `UpdateUserPool`
+    # parameter, so a deploy) and the trigger no longer refusing. AND CLOSING IT AGAIN DOES NOT
+    # UNDO IT: every account created meanwhile keeps its Cognito profile, so what still holds the
+    # line is the `status`/`role` check the API makes on every request.
 
   GoogleClientId:
     Type: String
@@ -87,141 +50,75 @@ Parameters:
     Type: String
     Default: ''
     NoEcho: true
-    # EMPTY IS A VALID STATE, and it is what makes the pool deployable before the
-    # Google OAuth client exists. `HasGoogle` below turns the provider on when the id
-    # arrives; until then the pool is password and passkey, and nothing is half-built
-    # — a provider carrying a placeholder secret would exist, appear in managed login,
-    # and fail at the token exchange.
 
 Conditions:
-  # DERIVED, never passed. An environment and a tag that disagree is the one mistake
-  # this stack could make silently, so it is made unrepresentable rather than
-  # documented.
   IsProd: !Equals [!Ref Environment, prod]
 
-  # ONE CONDITION READ IN THREE PLACES, which is what makes "they cannot disagree" true rather
-  # than remembered. All three consumers are below: the pool's `AllowAdminCreateUserOnly`, the
-  # trigger's `OPEN_REGISTRATION` and the approve handler's copy of it. Note the pool's arms
-  # point the OPPOSITE way to both handlers' — admin-create-only is TRUE when registration is
-  # closed — so a copied `!If` reads plausibly and inverts one of them.
+  # ONE CONDITION READ IN THREE PLACES — the pool's `AllowAdminCreateUserOnly`, the trigger's
+  # `OPEN_REGISTRATION` and the approve handler's. The pool's arms point the OPPOSITE way to
+  # both handlers', so a copied `!If` reads plausibly and inverts one of them.
   IsRegistrationOpen: !Equals [!Ref OpenRegistration, open]
 
-  # BOTH HALVES. Keyed on the id alone, the likelier order in which two secrets get
-  # added to a GitHub environment would create the provider with an empty
-  # `client_secret` — precisely the "exists, appears in managed login, and fails at the
-  # token exchange" state the parameters above say this design prevents.
   HasGoogle: !And
     - !Not [!Equals [!Ref GoogleClientId, '']]
     - !Not [!Equals [!Ref GoogleClientSecret, '']]
 
 Resources:
-  # --------------------------------------------------------------------------
-  # Database
-  # --------------------------------------------------------------------------
-  # No VPC here either, for the reason `template.yaml` gives at length: DSQL is a
-  # public IAM-authenticated endpoint, and a NAT Gateway would cost multiples of
-  # everything else in both stacks combined.
+  # No VPC here either: DSQL is a public IAM-authenticated endpoint, and a NAT Gateway would
+  # cost multiples of everything else in both stacks combined.
   UserCluster:
     Type: AWS::DSQL::Cluster
-    # Retain, like the archive's, and for a different reason: the archive is the only
-    # copy of a history nobody republishes, while this is somebody's portfolio. Both
-    # come to the same rule — a `sam delete` must not be able to destroy it.
+    # Retain: this is somebody's portfolio, so a `sam delete` must not be able to destroy it.
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       DeletionProtectionEnabled: true
       Tags:
         - Key: app
-          # THE TAG IS THE BACKUP DECISION. The AWS Backup selection matches on
-          # `app=quirenote` and nothing else, and `quirenote-backups` is a LOCKED
-          # vault with a 35-day retention floor — a recovery point that lands in it
-          # cannot be removed early. Production user data is the one thing in this
-          # system that cannot be re-derived from anything, so it carries the tag.
-          # Dev's cluster is the `migrations/` files and a dispatch, so it does not.
+          # THE TAG IS THE BACKUP DECISION: the Backup selection matches `app=quirenote` and nothing
+          # else, into a LOCKED vault a recovery point cannot leave early. Dev's cluster is files and a
+          # dispatch; production user data cannot be re-derived from anything.
           Value: !If [IsProd, quirenote, quirenote-dev]
 
-  # --------------------------------------------------------------------------
-  # Migration function
-  # --------------------------------------------------------------------------
-  # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE — which is now not even in the
-  # same stack. What separates them is blast radius: a mode would give the function
-  # that runs unattended six times a day, on a schedule, with a DLQ that retries it,
-  # the standing right to CREATE and ALTER the user tables. This one is invoked by
-  # hand and by nothing else.
-  #
-  # ONE CLUSTER PER RUNNER, for the same reason. A single runner holding
-  # `dsql:DbConnectAdmin` on both clusters would put production one mistyped payload
-  # field away; two stacks means the target is whichever function was invoked. Note
-  # where that stops: the deploy role can invoke BOTH runners, so what keeps a dev
-  # dispatch off production is `migrate.yml`'s environment gate, not IAM —
-  # `infra/docs/role-deploy.md` states that as an accepted risk rather than a claim.
-  #
-  # `CodeUri: dist/` as in the archive stack: `sam deploy` packages the directory
-  # as-is and both bundles live in it, so this costs no second artifact.
+  # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE, and what separates them is blast radius: a
+  # mode would give the function that runs unattended on a schedule, with a DLQ that retries it,
+  # the standing right to CREATE and ALTER the user tables. ONE CLUSTER PER RUNNER for the same
+  # reason — but the deploy role can invoke both, so what keeps a dev dispatch off production is
+  # `migrate.yml`'s environment gate, not IAM (`infra/docs/role-deploy.md`, an accepted risk).
   MigrateFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: dist/
       Handler: migrate.handler
-      # Spelled out rather than inherited from a `Globals` block. One function does
-      # not need one, and a second copy of the runtime version is a second place for
-      # it to drift from the archive stack's.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # 900, the Lambda maximum. `CREATE INDEX ASYNC` returns a job and the runner
-      # waits on it, so the ceiling is an index BUILD rather than a statement — and a
-      # wait killed at the ceiling leaves a ledger row open over an index whose job
-      # may have failed. The runner handles that (it re-checks `indisvalid` before
-      # adopting one), but the cheapest half of the answer is not to be killed.
+      # 900, the Lambda maximum: `CREATE INDEX ASYNC` returns a job the runner waits on, so the
+      # ceiling is an index BUILD, and a wait killed there leaves a ledger row open over it.
       Timeout: 900
-      # NO SCHEDULE AND NO DLQ, both deliberate. DSQL runs one DDL statement per
-      # transaction with no cross-statement rollback, so an automatic retry of a
-      # half-applied file is precisely the thing the ledger exists to make
-      # unnecessary — and a retry that races the run it is retrying would open a
-      # second crash window the first one cannot be told from.
-      #
-      # CONCURRENCY IS NOT BOUNDED HERE, and that is an accepted cost rather than an
-      # oversight. `ReservedConcurrentExecutions: 1` is the usual answer and is
-      # unavailable: reserving any of this account's small quota drops the unreserved
-      # pool below the required minimum of 10 and the deploy fails outright — the
-      # capture function in `template.yaml` carries the same note. What bounds this
-      # one is that nothing invokes it automatically and `migrate.yml` runs under
-      # `concurrency: migrate-<target>`; a second, simultaneous hand-typed invoke is
-      # the gap, and the ledger's open row is what keeps even that recoverable.
+      # NO SCHEDULE AND NO DLQ: DSQL runs one DDL statement per transaction with no cross-statement
+      # rollback, so an automatic retry of a half-applied file is what the ledger exists to make
+      # unnecessary. Concurrency is unbounded for the reason the capture gives — a reservation drops
+      # the unreserved pool below the required minimum of 10 and fails the deploy outright.
       Environment:
         Variables:
-          # `Endpoint`, not `VpcEndpointServiceName` — the latter exists to reach the
-          # cluster from inside a VPC, which is precisely what this stack avoids.
           DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
-          # THE BOOTSTRAP MODE NEEDS A POOL, and a hand-typed invoke carries none — a
-          # Cognito trigger reads it off the event, which is why `pre-signup.ts` has no
-          # environment variable at all. This one has nowhere else to come from.
+          # THE BOOTSTRAP MODE NEEDS A POOL and a hand-typed invoke carries none, where a trigger reads
+          # it off the event — which is why `pre-signup.ts` has no variable at all.
           USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
-            # This cluster and nothing else — not the archive, and not the other
-            # environment's.
             - Sid: ConnectToDsqlAsAdmin
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # THE RUNNER CAN MINT AN IDENTITY, and the cost is stated rather than hidden:
-            # the thing that can rewrite the schema can also create a user. It is taken
-            # because bootstrapping the first super-admin needs a `sub`, which only
-            # `AdminCreateUser` produces, and because this is already the one function
-            # invoked by hand and by nothing else — no schedule, no DLQ.
-            #
-            # INLINE HERE, unlike the trigger's grant, and the difference is the cycle:
-            # the pool names `PreSignUpFunction`, so nothing the pool depends on may name
-            # the pool. `MigrateFunction` is not in that chain, so it can.
-            #
-            # TWO CALLS AND NO THIRD. Create the account, and read it back on a re-run to
-            # recover the `sub` the first run made. Nothing here may approve, disable or
-            # delete anybody.
+            # THE RUNNER CAN MINT AN IDENTITY, stated rather than hidden: bootstrapping the first
+            # super-admin needs a `sub`, which only `AdminCreateUser` produces. Two calls and no third.
+            # INLINE, unlike the trigger's grant, because this function is not in the chain the pool
+            # depends on — so naming the pool from here builds no cycle.
             - Sid: BootstrapTheFirstSuperAdmin
               Effect: Allow
               Action:
@@ -229,179 +126,79 @@ Resources:
                 - cognito-idp:AdminGetUser
               Resource: !GetAtt UserPool.Arn
 
-  # Declared explicitly rather than letting Lambda auto-create it: the implicit log
-  # group defaults to "Never expire".
   MigrateLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${MigrateFunction}
       RetentionInDays: 30
 
-  # --------------------------------------------------------------------------
-  # Identity
-  # --------------------------------------------------------------------------
-  # ONE POOL PER ENVIRONMENT, beside the cluster whose `app_user` rows its `sub` values
-  # key. `docs/DECISIONS.md`, **Auth model**, left this open — "whether one pool or two
-  # serve the two clusters is the pool's question to answer, not the schema's" — and it
-  # is answered here: a shared pool would make a dev sign-in mint a production identity,
-  # and `app_user_email_uq` holds within an environment precisely so the two need not
-  # agree.
-  #
-  # THREE OF THESE PROPERTIES CANNOT BE CHANGED AFTER CREATION, and that is why the
-  # rehearsal in `docs/reference/COGNITO-POOL-PARAMS.md` happened before this file was
-  # written. Getting one wrong is not an edit — it is recreating the pool with users
-  # already in it. `infra/src/cognito-pool.test.ts` holds all three.
+  # ONE POOL PER ENVIRONMENT, beside the cluster whose `app_user` rows its `sub` values key: a
+  # shared pool would make a dev sign-in mint a production identity (*Auth model*). THREE OF
+  # THESE PROPERTIES CANNOT BE CHANGED AFTER CREATION, which is why the rehearsal in
+  # `docs/reference/COGNITO-POOL-PARAMS.md` happened first — getting one wrong is not an edit,
+  # it is recreating the pool with users already in it.
   UserPool:
     Type: AWS::Cognito::UserPool
-    # Retained like both clusters, and for the reason that applies to identity rather
-    # than data: every portfolio row hangs off a `user_id` that is a `sub` in here.
-    #
-    # WHAT RETAINING IT ACROSS A STACK DELETE LEAVES: the pool survives and its trigger
-    # does not, so `LambdaConfig.PreSignUp` points at an ARN that no longer exists and
-    # every federated sign-in against the orphan fails. That is a repair by hand either
-    # way — the pool is deletion-protected precisely so somebody has to look at it — and
-    # it is written here so the state is recognised rather than diagnosed.
+    # WHAT RETAINING IT ACROSS A STACK DELETE LEAVES: the pool survives and its trigger does not,
+    # so `LambdaConfig.PreSignUp` points at an ARN that no longer exists and every federated
+    # sign-in against the orphan fails. Written here so the state is recognised, not diagnosed.
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
-    # The invoke permission, NOT the other way round. See PreSignUpPermission.
     DependsOn: [PreSignUpPermission]
     Properties:
       UserPoolName: !Sub quirenote-${Environment}
-      # CREATE-TIME ONLY #1. Never `AliasAttributes`: aliases let several users hold one
-      # address and resolve it as "only the last user who verified it can sign in",
-      # which takes sign-in away from an existing account silently.
+      # CREATE-TIME ONLY #1. Never `AliasAttributes`: aliases let several users hold one address,
+      # resolved as "only the last to verify it can sign in" — silently, for an existing account.
       UsernameAttributes: [email]
-      # CREATE-TIME ONLY #2, and the one the decision did not name. `DescribeUserPool`
-      # reports it ABSENT rather than defaulted when the create call omits it, so the
-      # effective default cannot be read off a pool — the rehearsal found it by signing
-      # up twice, and the omitted behaviour is case SENSITIVE: `a@b.com` and `A@b.com`
-      # became two accounts with two subs. It is a MATCHING rule and not a rewriting one,
-      # which is why `app_user_email_lower_ck` still has work to do: the sign-up
-      # application row is written before any identity exists, so the database sees an
-      # address this pool has never had an opinion about.
+      # CREATE-TIME ONLY #2, reported ABSENT rather than defaulted by `DescribeUserPool`, so the
+      # effective default cannot be read off a pool: omitted, matching is case SENSITIVE and one
+      # address becomes two accounts. A matching rule and not a rewriting one, which is why
+      # `app_user_email_lower_ck` still has work to do.
       UsernameConfiguration:
         CaseSensitive: false
-      # CREATE-TIME ONLY #3 — "You can't change required attributes after you create a
-      # user pool", and `Schema` is not an `UpdateUserPool` parameter either.
+      # CREATE-TIME ONLY #3 — required attributes cannot change after creation, and `Schema` is not
+      # an `UpdateUserPool` parameter either.
       Schema:
         - Name: email
           AttributeDataType: String
           Required: true
           Mutable: true
-      # Passkeys are not in Lite. Threat protection is in Plus, which has no free tier —
-      # the approval gate is what keeps unapproved sign-ups away from data.
       UserPoolTier: ESSENTIALS
       DeletionProtection: ACTIVE
       AutoVerifiedAttributes: [email]
       MfaConfiguration: 'OFF'
       Policies:
         SignInPolicy:
-          # Changeable later, unlike the three above, but a pool that cannot offer the
-          # factor onboarding is built around is not worth deploying. EMAIL_OTP and
-          # SMS_OTP are deliberately absent: the password is already the recovery path,
-          # and SMS needs two AWS review queues and spends money from outside the
-          # account.
           AllowedFirstAuthFactors: [PASSWORD, WEB_AUTHN]
-      # A passkey with user verification already satisfies MFA, which is why
-      # MfaConfiguration stays OFF above rather than being required separately.
       WebAuthnUserVerification: required
-      # THE RELYING PARTY IS EFFECTIVELY PERMANENT. A passkey is registered against one
-      # RP ID and no browser will offer it to another, and AWS states that adding a
-      # custom domain later "will cause passkey integration for your prefix domain to
-      # stop working due to a mismatch in RP ID". An amazoncognito.com RP ID is not a
-      # registrable suffix of a quirenote.com origin either, so the prefix domain is not
-      # a step on the way to this one — it is a different, one-way road. Hence the
-      # custom domain from the first deploy.
-      #
-      # AND IT IS THE APEX, NOT THE AUTH HOST, WHICH KEEPS A SURFACE OF OUR OWN OPEN. A
-      # relying party is matched by registrable suffix, so quirenote.com covers the host
-      # managed login is served from AND the SPA's own origin at once, where
-      # auth.quirenote.com covers only the first and closes off a native
-      # `StartWebAuthnRegistration`. THE COST IS THAT AN APEX SCOPES A CREDENTIAL TO EVERY
-      # SUBDOMAIN — AWS says a passkey "can authenticate for that domain and subdomains" —
-      # so a name under quirenote.com is part of the auth surface, knowingly.
-      #
-      # AWS SAYS THIS TWO WAYS: the developer guide calls the custom domain's FQDN the
-      # DEFAULT and permits any domain outside the public suffix list, while the API and
-      # CloudFormation references say the RP ID "must be" that FQDN under exactly this
-      # pool's three conditions. `SetUserPoolMfaConfig` took the apex on the dev pool and
-      # read it back, so the config plane does not refuse it; the ceremony is the half
-      # that call does not reach, and `docs/reference/COGNITO-POOL-PARAMS.md` says so and
-      # holds both. Which sign-in surface is built stays open; this only stops the first
-      # passkey from deciding it.
+      # THE RELYING PARTY IS EFFECTIVELY PERMANENT. A passkey is registered against one RP ID and no
+      # browser will offer it to another, and AWS states that adding a custom domain later stops
+      # passkeys working on the prefix domain through an RP ID mismatch — so the prefix domain is no
+      # step on the way here. AND IT IS THE APEX, NOT THE AUTH HOST: matched by registrable suffix,
+      # quirenote.com covers managed login AND the SPA's own origin, where auth.quirenote.com closes
+      # off a native `StartWebAuthnRegistration`. THE COST IS A CREDENTIAL SCOPED TO EVERY SUBDOMAIN.
       WebAuthnRelyingPartyID: !If [IsProd, quirenote.com, dev.quirenote.com]
       AdminCreateUserConfig:
-        # Registration is an application, not an open door: sign-up writes a row and
-        # creates no identity, and approval is what calls `AdminCreateUser`.
-        #
-        # HALF OF THE SWITCH, and the inverted half. `OpenRegistration` above drives this and
-        # the trigger's own refusal from one condition; here TRUE means closed, because the
-        # property is named for what it permits rather than for what it opens.
         AllowAdminCreateUserOnly: !If [IsRegistrationOpen, false, true]
       LambdaConfig:
         PreSignUp: !GetAtt PreSignUpFunction.Arn
-      # NO `app` TAG, and its absence is the decision rather than an omission. That tag
-      # is what the AWS Backup selection matches, and what it matches lands in a Locked
-      # vault with a 35-day floor. Cognito is not a selectable type, so tagging a pool
-      # would state something true of nothing — and blur the one sentence the cluster
-      # above depends on.
 
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       ClientName: !Sub quirenote-${Environment}-web
       UserPoolId: !Ref UserPool
-      # PUBLIC. A browser cannot hold a secret, and a client that has one makes every
-      # call from the SPA fail on a missing SECRET_HASH rather than on anything that
-      # names itself.
       GenerateSecret: false
-      # ALLOW_USER_AUTH is choice-based sign-in — the flow a passkey is selected
-      # through, and the half the rehearsal's client did not have. It also covers the
-      # password on its own: AWS says a user "can complete an SRP challenge through
-      # USER_AUTH without the flow USER_SRP_AUTH being active". ALLOW_USER_SRP_AUTH is
-      # kept as the explicit spelling of a path that must keep working, not because
-      # anything would lose SRP without it.
-      #
-      # NO ALLOW_REFRESH_TOKEN_AUTH, AND ROTATION IS WHY. AWS refuses the pair —
-      # "Refresh token rotation isn't compatible with the authentication flow
-      # REFRESH_TOKEN_AUTH. To implement refresh token rotation, you must disable this
-      # authentication flow in your app client". WHICH PATH REPLACES IT IS NOT SETTLED AND
-      # is written down as open rather than picked here: AWS says it two ways, the API
-      # reference flatly ("refresh token rotation must be completed with
-      # GetTokensFromRefreshToken") and the developer guide's OAuth section the other way
-      # ("requests to the token endpoint are available in app clients with refresh token
-      # rotation active") — while the same guide's other sections point back at the API
-      # operation. This client is OAuth code flow behind managed login, so the token
-      # endpoint is the one it would naturally use — see
-      # `docs/reference/COGNITO-POOL-PARAMS.md`. Nothing calls refresh yet, which is what
-      # made removing the flow affordable now rather than after the endpoints that use it.
+      # ALLOW_USER_AUTH is choice-based sign-in, the flow a passkey is selected through; SRP is the
+      # explicit spelling of a path that must keep working. NO ALLOW_REFRESH_TOKEN_AUTH, because AWS
+      # refuses it alongside rotation, and which path replaces it is open rather than picked here.
       ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH]
       # ONE DAY, AND IT ANSWERS THE THREE REFRESH REQUIREMENTS THE BROWSER BCP SINGLES
-      # OUT — two of them alternatives rather than items on a list, the third a flat
-      # MUST NOT (draft-ietf-oauth-browser-based-apps §6.3.2.3): rotate on each use OR
-      # use a sender-constrained token, which Cognito does not offer; set a maximum
-      # lifetime OR expire on inactivity, which twenty-four hours answers whole; and the
-      # prohibition on a rotated token outliving the original, which Cognito keeps by
-      # construction — "valid for the remaining duration of the original refresh token".
-      # That last one is compliance and not a limitation, the easy thing to get backwards.
-      #
-      # THE SECTION INCORPORATES MORE THAN THOSE THREE, and the claim stops where the
-      # checking did: it also binds a conforming server to RFC 9700's refresh-token
-      # recommendations, of which what a server does on a detected replay is the question
-      # `docs/reference/COGNITO-POOL-PARAMS.md` records as open against this pool.
-      #
-      # Cognito has no inactivity expiry to give at all, so the idle timeout that general
-      # practice pairs with an absolute cap is the session cookie's Max-Age and belongs to
-      # #162. It is a UX bound, not a security boundary: a stolen cookie is not bound by it.
-      #
-      # WHAT MAKES A SHORT LIFETIME CHEAP HERE is passkey-first onboarding: a
-      # re-authentication is a touch rather than a typed password, so the usual reason to
-      # hold a refresh token for months does not apply.
-      #
-      # Access and ID stay at an hour. An access token's life governs authentication
-      # freshness only and never what its holder may do — the API reads `status` and
-      # `role` from `app_user` on every request, and never `cognito:groups` — so
-      # shortening it would buy nothing.
+      # OUT (draft-ietf-oauth-browser-based-apps §6.3.2.3), two of them alternatives rather than
+      # items on a list: rotate on each use OR sender-constrain, which Cognito does not offer;
+      # cap the lifetime OR expire on inactivity; and the flat MUST NOT on a rotated token
+      # outliving the original. The section binds more than those three — it also incorporates
+      # RFC 9700, whose replay question is open in `docs/reference/COGNITO-POOL-PARAMS.md`.
       RefreshTokenValidity: 24
       AccessTokenValidity: 60
       IdTokenValidity: 60
@@ -409,35 +206,21 @@ Resources:
         RefreshToken: hours
         AccessToken: minutes
         IdToken: minutes
-      # THE GRACE PERIOD IS 60 SECONDS RATHER THAN 0, for a race the SPA creates: the
-      # access token is held in memory, so every page load refreshes, and two tabs
-      # opening together submit the same refresh token. At 0 "a successful request
-      # immediately invalidates the submitted refresh token" and the second tab is
-      # signed out. 60 is the documented maximum.
+      # THE GRACE PERIOD IS 60 SECONDS RATHER THAN 0, for a race the SPA creates: the access token
+      # lives in memory, so two tabs opening together submit the same refresh token and at 0 the
+      # second is signed out. 60 is the documented maximum.
       RefreshTokenRotation:
         Feature: ENABLED
         RetryGracePeriodSeconds: 60
-      # STATED RATHER THAN INHERITED. Revocation is already on for a new client, so this
-      # line changes nothing today — it exists so that turning it off is an edit somebody
-      # has to make against a test, rather than a default drifting under us.
       EnableTokenRevocation: true
-      # `!Ref` ON THE PROVIDER, NOT THE LITERAL STRING `Google`, AND THAT IS THE ORDERING.
-      # A `Ref` to this resource type returns its `ProviderName` — the same six characters
-      # — but a literal is not a reference, so CloudFormation would derive no edge from it
-      # and, on the deploy where the credentials FIRST arrive, would be free to update this
-      # client before creating the provider: `UpdateUserPoolClient` then fails with
-      # "identity provider Google does not exist". A `DependsOn` would say the same thing
-      # and is the wrong instrument here — the provider is conditional, and a `DependsOn`
-      # naming a resource that may not exist is an error in its own right. The reference
-      # lives inside the arm that is only evaluated when the provider is there.
+      # `!Ref` ON THE PROVIDER, NOT THE LITERAL STRING `Google`, AND THAT IS THE ORDERING: a literal
+      # derives no edge, so on the deploy where the credentials FIRST arrive CloudFormation would be
+      # free to update this client before creating the provider. A `DependsOn` naming a conditional
+      # resource is an error in its own right, which is why the reference sits inside the arm.
       SupportedIdentityProviders: !If [HasGoogle, [COGNITO, !Ref GoogleIdentityProvider], [COGNITO]]
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid, email, profile]
-      # The SPA has no callback route yet — #48 builds it with the HTTP client. These
-      # are an `UpdateUserPoolClient` parameter, so the day it lands is the day they
-      # change; what they must not be is absent, because a client with no callback
-      # cannot complete a managed-login redirect at all.
       CallbackURLs:
         - !If
           - IsProd
@@ -445,13 +228,8 @@ Resources:
           - https://dev.quirenote.com/auth/callback
       LogoutURLs:
         - !If [IsProd, https://quirenote.com/, https://dev.quirenote.com/]
-      # Answers "incorrect username or password" to a wrong address as readily as a
-      # wrong password, so sign-in cannot be used to enumerate who has an account.
       PreventUserExistenceErrors: ENABLED
 
-  # Conditional, so the stack deploys green before the Google OAuth client exists. The
-  # id and secret are never in this repository: they arrive as NoEcho parameters from
-  # the environment's GitHub secrets.
   GoogleIdentityProvider:
     Type: AWS::Cognito::UserPoolIdentityProvider
     Condition: HasGoogle
@@ -463,39 +241,24 @@ Resources:
         client_id: !Ref GoogleClientId
         client_secret: !Ref GoogleClientSecret
         authorize_scopes: openid email profile
-      # `email_verified` IS MAPPED ON PURPOSE. The pre-sign-up trigger refuses to link
-      # an address the provider has not asserted verified, and an unmapped claim reaches
-      # it as undefined — which reads as unverified, so Google sign-in would quietly
-      # stop linking and start making second accounts instead of failing.
+      # `email_verified` IS MAPPED ON PURPOSE: unmapped, the claim reaches the trigger as undefined,
+      # which reads as unverified — so Google sign-in would stop linking and make second accounts.
       AttributeMapping:
         email: email
         email_verified: email_verified
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
-    # Cognito requires an app client before a custom domain, and CloudFormation has no
-    # way to know that.
     DependsOn: [UserPoolClient]
     Properties:
       UserPoolId: !Ref UserPool
       Domain: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
-      # 2 is managed login; 1 is the classic hosted UI. The decision says managed login.
       ManagedLoginVersion: 2
       CustomDomainConfig:
         CertificateArn: !Ref AuthCertificateArn
-      # Two things this creates that the template cannot finish: a CloudFront
-      # distribution, whose domain name is the UserPoolDomainCloudFrontAlias output
-      # below, and the DNS record pointing at it — which is Cloudflare's and manual.
-      # See docs/reference/DEPLOYMENT.md; the record must be DNS-only, never proxied.
 
-  # WITHOUT THIS THE DOMAIN ABOVE SERVES A BROKEN PAGE. AWS: when an app client has no
-  # style assigned, managed login pages for that client are nonfunctional until one is
-  # created. Branding version 2 does not fall back to the classic UI — it fails. So the
-  # default style is declared rather than left to be clicked into existence in the
-  # branding editor, which is the same reasoning the DNS record gets in DEPLOYMENT.md
-  # and the same failure shape: a green stack and an endpoint nobody can sign in through.
-  #
-  # `UseCognitoProvidedValues: true` REQUIRES `Settings` and `Assets` to be omitted.
+  # WITHOUT THIS THE DOMAIN ABOVE SERVES A BROKEN PAGE: managed login is nonfunctional until a
+  # style exists, and version 2 does not fall back to the classic UI — it fails.
   ManagedLoginBranding:
     Type: AWS::Cognito::ManagedLoginBranding
     Properties:
@@ -503,39 +266,23 @@ Resources:
       ClientId: !Ref UserPoolClient
       UseCognitoProvidedValues: true
 
-  # ITS OWN FUNCTION for the same blast-radius argument the runner above makes, and one
-  # more: this one is invoked by Cognito on a path a stranger can reach, so it holds the
-  # narrowest grant in the stack — link and list, on one pool.
   PreSignUpFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: dist/
       Handler: pre-signup.handler
-      # Spelled out rather than inherited, exactly as the runner's are and for the same
-      # reason: a second copy of the runtime version is a second place to drift from.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # A Cognito trigger's own ceiling is 5 seconds, so a larger number here would only
-      # describe a failure Cognito has already abandoned.
       Timeout: 5
       Environment:
         Variables:
           NODE_OPTIONS: --enable-source-maps
-          # THE OTHER HALF OF THE SWITCH, from the same condition as the pool's
-          # `AllowAdminCreateUserOnly`. Quoted, and read by the handler as the exact string
-          # `true`: an environment variable arrives as text and `Boolean('false')` is true,
-          # which would open registration on any environment that set this to anything.
-          #
-          # THE FIRST ENVIRONMENT VARIABLE THIS FUNCTION READS, against the note below the
-          # handler that the pool id comes off the event so there is no second place for it to
-          # be wrong. The difference is that this one cannot come off the event: nothing in a
-          # sign-up says whether the door is open.
+          # THE OTHER HALF OF THE SWITCH. Quoted, and read as the exact string `true`: a variable
+          # arrives as text and `Boolean('false')` is true, which would open registration anywhere.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
-      # NO POLICIES BLOCK. The grant is PreSignUpPolicy below, for the cycle reason
-      # given there — a policy written here would have to name the pool, and the pool
-      # names this function. The refusal needs no database, which is what keeps that true.
+      # NO POLICIES BLOCK: the grant is PreSignUpPolicy below, for the cycle reason given there.
 
   PreSignUpLogGroup:
     Type: AWS::Logs::LogGroup
@@ -543,11 +290,9 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${PreSignUpFunction}
       RetentionInDays: 30
 
-  # THE CYCLE, AND THE FIRST OF TWO PLACES IT IS BROKEN. The pool names the function, so
-  # nothing the pool depends on may name the pool — and a trigger that is not permitted
-  # to be invoked fails the sign-up rather than skipping the link. So the permission is
-  # scoped by SourceAccount instead of SourceArn, and the pool waits on it. What that
-  # gives up is narrow: Cognito in this account, rather than this pool specifically.
+  # THE CYCLE, AND THE FIRST OF TWO PLACES IT IS BROKEN. The pool names the function, so nothing
+  # the pool depends on may name the pool — and a trigger not permitted to be invoked fails the
+  # sign-up rather than skipping the link. Hence SourceAccount rather than SourceArn.
   PreSignUpPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -556,15 +301,10 @@ Resources:
       Principal: cognito-idp.amazonaws.com
       SourceAccount: !Ref AWS::AccountId
 
-  # THE SECOND PLACE, and here the cycle is broken without giving anything up: a policy
-  # resource is created after both, so it can name the real pool ARN. Written inline on
-  # the function it would have had to be a wildcard over every pool in the account —
-  # including the other environment's, which is the one this must never touch.
-  #
-  # THE COST OF THAT ORDERING is a window on a fresh create: the pool exists, its trigger
-  # is invocable, and this grant is not there yet, so a sign-up landing inside it fails on
-  # `ListUsers`. It cannot be closed by a `DependsOn` — that is the cycle again — and it
-  # lasts as long as one CloudFormation resource, on a stack whose pool has no users.
+  # THE SECOND PLACE, and here the cycle costs nothing: a policy resource is created after both,
+  # so it can name the real pool ARN where an inline one would wildcard every pool in the
+  # account. THE COST IS A WINDOW on a fresh create, uncloseable by `DependsOn`, on a pool with
+  # no users yet.
   PreSignUpPolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -575,108 +315,43 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              # Two calls, and no third. ListUsers finds the local account that owns the
-              # portfolio; AdminLinkProviderForUser attaches the federated identity to
-              # it. Nothing here may create, disable or delete a user.
+              # Two calls and no third: nothing here may create, disable or delete a user. The
+              # test holds one statement on one pool, so a third action here is caught by neither.
               - cognito-idp:ListUsers
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
-  # --------------------------------------------------------------------------
-  # The public API
-  # --------------------------------------------------------------------------
-  # THE ONLY HTTP API IN THIS REPOSITORY, and every route the backend grows joins it rather
-  # than creating a second one.
-  #
-  # `POST /v1/applications` STANDS OUTSIDE THE AUTHORIZER ON PURPOSE. It exists to create
-  # the very `app_user` row every other route is checked against, so there is nothing to
-  # check it with — `docs/DECISIONS.md`, **Auth model**, names it as one of exactly three
-  # such surfaces.
-  #
-  # EVERY OTHER ROUTE NAMES THE AUTHORIZER, and `DefaultAuthorizer` is deliberately NOT set. The
-  # default reads safer and would have been the choice, but SAM renders an opted-out route as
-  # `security: [{"NONE": []}]` against a scheme it never declares — and `FailOnWarnings: true`
-  # above rolls the stack back on a warning `ImportApi` merely records. Whether it records one
-  # here is not answerable before a deploy, and the answer would arrive as a red deploy blocking
-  # `dev`. So the guarantee is held one step earlier instead: `public-api.test.ts` derives the
-  # route list from the events and fails when a route names no authorizer and is not on the
-  # written public list — and `pnpm test` runs in this same workflow, before the deploy step. A
-  # route that forgot its authorizer therefore cannot reach AWS at all, which is the property
-  # `DefaultAuthorizer` was wanted for. Measure the warning and this can become the default.
-  #
-  # NO `Globals:` BLOCK, here as everywhere in this file: properties are spelled out so
-  # there is one place per value rather than two that can drift.
+  # `POST /v1/applications` STANDS OUTSIDE THE AUTHORIZER ON PURPOSE: it creates the very
+  # `app_user` row every other route is checked against (*Auth model*, one of three such
+  # surfaces). EVERY OTHER ROUTE NAMES THE AUTHORIZER and `DefaultAuthorizer` is deliberately
+  # NOT set — SAM renders an opted-out route against a scheme it never declares, and
+  # `FailOnWarnings` would roll the stack back on a warning nobody can predict before a deploy.
   PublicApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      # THE DEFINITION IS IMPORTED, NOT ASSEMBLED FIELD BY FIELD: SAM builds an OpenAPI
-      # body from the properties below and CloudFormation sends it through ImportApi, which
-      # by default keeps going when it does not understand something and merely records a
-      # warning. That is how the CORS block below could have shipped as the wrong shape
-      # with every stack green. Rolling back on a warning is what makes such a thing loud.
       FailOnWarnings: true
-      # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER, and the split is the whole design.
-      # This authorizer proves the token — signature against the pool's `jwks_uri`, issuer,
-      # audience, expiry — and NOTHING ELSE. It cannot prove anything that has happened since
-      # the token was issued, whatever that token's lifetime, so `status` and `role` are read
-      # from the `app_user` row on every request and `cognito:groups` is never the source.
-      # Shortening the refresh token narrows the window; it does not close it, because the
-      # window is the access token's hour and not the refresh token's life. `docs/DECISIONS.md`,
-      # **Auth model**.
-      #
-      # NATIVE, WITH NO LAMBDA IN THE PATH. A request token authorizer would be a second
-      # function on every authenticated route, a second cold start, and a second thing that can
-      # be wrong about a signature AWS already checks.
-      #
-      # THE POOL AND THE CLIENT ARE THIS ENVIRONMENT'S OWN, read from the stack. One pool per
-      # environment is what stops a dev sign-in minting a production identity, and a spelled-out
-      # id here would undo that in the quietest possible way.
+      # AUTHENTICATION HERE, AUTHORIZATION IN THE HANDLER. This authorizer proves the token and
+      # NOTHING ELSE: it cannot prove anything that has happened since the token was issued, so
+      # `status` and `role` are read from `app_user` on every request, never `cognito:groups`.
       Auth:
         Authorizers:
           CognitoJwt:
             IdentitySource: $request.header.Authorization
             JwtConfiguration:
               issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}
-              # THE AUDIENCE ADMITS BOTH TOKEN KINDS AND ONLY THE HANDLER CAN TELL THEM APART.
-              # API Gateway matches `aud`, or `client_id` when `aud` is absent — an ID token
-              # carries the first and a Cognito access token the second, so both pass here. Only
-              # the ID token carries `email`, which the gate needs to write a row for somebody
-              # who arrives through an open door, so `authorize.ts` requires `token_use: id` and
-              # refuses the other by name. AWS's own note says there is no standard mechanism
-              # for this distinction, which is why it is made in code rather than assumed here.
+              # THE AUDIENCE ADMITS BOTH TOKEN KINDS AND ONLY THE HANDLER CAN TELL THEM APART: API Gateway
+              # matches `aud`, or `client_id` when `aud` is absent, so an ID and an access token both pass.
+              # Only the ID token carries `email`, so `authorize.ts` requires `token_use: id`.
               audience:
                 - !Ref UserPoolClient
-      # NO `StageName`, so the stage is `$default` and the path is the same on both
-      # hostnames. A named stage prefixes the generated endpoint and not the custom
-      # domain, which would make the verification URL and the real one differ by a
-      # segment — and that difference is only ever discovered by whoever is holding it.
-      #
-      # THE DEFAULT `execute-api` HOSTNAME STAYS ON. The Cloudflare records below cannot
-      # exist until this stack has deployed once and published the target, so the
-      # generated hostname is the only way to reach the route before DNS. Disabling it
-      # also requires an explicit OpenAPI `DefinitionBody`, which is a second description
-      # of routes this template already declares.
       DefaultRouteSettings:
         ThrottlingRateLimit: 25
         ThrottlingBurstLimit: 50
-      # THE ROUTE'S OWN CEILING, UNDER THE STAGE'S, AND THIS IS WHAT WAF IS USUALLY BOUGHT
-      # FOR. It is the only defence this endpoint has against a flood of DISTINCT addresses:
-      # `app_user_email_uq` collapses one mailbox submitted a thousand times into one row
-      # and can do nothing about a thousand different ones. What the throttle protects is
-      # not the table but the account-level token bucket — an unauthenticated route left on
-      # the stage default drains it and takes every other route down with it, including the
-      # ones a signed-in owner needs to reach their own portfolio.
-      #
-      # QUOTED, because the key is `<METHOD> <path>` and YAML 1.1 reads a bare ON/OFF/NO/YES
-      # as a boolean. A key that arrived as `true` would configure nothing and fail nowhere.
-      #
-      # EVERY ROUTE HAS ONE, NOT ONLY THE UNAUTHENTICATED ONE, and the admin routes need it for a
-      # reason their function's timeout makes concrete: the role check runs INSIDE the Lambda,
-      # after the connection, so the authorizer admits every holder of a valid pool token and only
-      # the handler knows they are not a super-admin. A `pending` applicant left on the stage's 25
-      # rps against a 10-second timeout would want hundreds of concurrent executions out of an
-      # account pool this file sizes at about ten — starving the capture job, the sign-up trigger
-      # and the runner. `public-api.test.ts` holds every declared route to having an entry.
+      # THE ROUTE'S OWN CEILING, UNDER THE STAGE'S, AND THIS IS WHAT WAF IS USUALLY BOUGHT FOR — the
+      # only defence against a flood of DISTINCT addresses, and what it protects is the
+      # account-level token bucket rather than the table. QUOTED, because the key is `<METHOD>
+      # <path>` and YAML 1.1 reads a bare ON/OFF/NO/YES as a boolean: a key arriving as `true` would
+      # configure nothing and fail nowhere. Every route has one, the admin routes included.
       RouteSettings:
         'POST /v1/applications':
           ThrottlingRateLimit: 2
@@ -687,19 +362,11 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
-      # BOTH HOSTS PER ENVIRONMENT, because both serve the app: the custom domain and the
-      # Amplify one the branch deploys to (`docs/reference/DEPLOYMENT.md`). A list naming
-      # only the first leaves the Amplify URL failing at the preflight — and that URL is
-      # what a deploy is checked on.
-      #
-      # THE `!If` IS ON THE WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS
-      # SILENT. SAM builds the OpenAPI extension itself, and when it finds an intrinsic at
-      # `AllowOrigins` it takes a branch that keeps ONLY that value and DROPS the methods,
-      # the headers and the max-age — emitting an `x-amazon-apigateway-cors` that resolves
-      # to a bare list where an object belongs. Measured by running the transform. Given
-      # the intrinsic one level up it instead renames the keys inside both arms, which is
-      # what that branch is written for. The cost is the three shared lines twice, and
-      # `public-api.test.ts` holds both arms to them.
+      # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
+      # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
+      # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
+      # emitting a bare list where an object belongs. One level up it renames the keys inside both
+      # arms instead. The cost is three shared lines twice; `public-api.test.ts` holds both.
       CorsConfiguration: !If
         - IsProd
         - AllowOrigins:
@@ -718,36 +385,20 @@ Resources:
       Domain:
         DomainName: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
         CertificateArn: !Ref ApiCertificateArn
-        # REGIONAL is the only value an HTTP API takes, and it is what puts the
-        # certificate in this Region rather than us-east-1. Written out rather than
-        # defaulted, because it is the reason the parameter above differs from the pool's.
         EndpointConfiguration: REGIONAL
         SecurityPolicy: TLS_1_2
-        # NO `Route53:` BLOCK. SAM creates a record set when one is present, in a hosted
-        # zone this account does not have — DNS is Cloudflare's. The record is added by
-        # hand from the ApiDomainRegionalTarget output below, DNS-only; see
-        # docs/reference/DEPLOYMENT.md for why it cannot be proxied.
 
   ApplicationsFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: dist/
       Handler: applications.handler
-      # Spelled out rather than inherited, as the two above are and for the same reason.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # TIMEOUT × RATE IS A CONCURRENCY BUDGET, and on this account that is the binding
-      # constraint rather than API Gateway's. The runner's comment above records why:
-      # reserving even one execution drops the unreserved pool below the required minimum
-      # of 10, so the account's pool is about that size and EVERY function in both stacks
-      # shares it. At the route's allowed 2 rps a 15-second timeout would want ~30
-      # concurrent executions and starve the capture job, the sign-up trigger and the
-      # runner; 5 keeps the ask at ~10. The work is one INSERT — what spends the time is
-      # the cold start and the IAM auth token, and `pre-signup` does its own round trip
-      # inside 5. The real instrument is `ReservedConcurrentExecutions`, which needs a
-      # quota increase before it can be used at all.
+      # TIMEOUT × RATE IS A CONCURRENCY BUDGET, and on this account it binds before API Gateway
+      # does: the unreserved pool is about ten, and EVERY function in both stacks shares it.
       Timeout: 5
       Environment:
         Variables:
@@ -756,12 +407,8 @@ Resources:
           NODE_OPTIONS: --enable-source-maps
       Policies:
         - Statement:
-            # THE SAME ADMIN GRANT THE RUNNER HOLDS, and it is the widest thing about this
-            # endpoint. DSQL authenticates as a database role and the only one this
-            # cluster has is `admin`; a narrower one would have to be created by a
-            # migration, which is a schema decision rather than this route's. What bounds
-            # the reach meanwhile is the handler: one statement, fixed text, one bound
-            # parameter.
+            # THE SAME ADMIN GRANT THE RUNNER HOLDS, and the widest thing about this endpoint: the
+            # only database role this cluster has is `admin`. What bounds the reach is the handler.
             - Sid: ConnectToDsqlAsAdmin
               Effect: Allow
               Action: dsql:DbConnectAdmin
@@ -773,10 +420,9 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /v1/applications
-            # NO `Auth` BLOCK, AND THAT IS THE ONE PLACE IN THIS FILE WHERE ABSENCE IS THE
-            # DECISION. This endpoint creates the row every other route is checked against, so
-            # there is nothing to check it with — see the API's comment above, and
-            # `public-api.test.ts`, which names it as the only route allowed to be here.
+            # NO `Auth` BLOCK, AND THAT IS THE ONE PLACE IN THIS FILE WHERE ABSENCE IS THE DECISION: this
+            # endpoint creates the row every other route is checked against, so there is nothing to check
+            # it with. `public-api.test.ts` names it as the only route allowed to be here.
 
   ApplicationsLogGroup:
     Type: AWS::Logs::LogGroup
@@ -784,82 +430,45 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${ApplicationsFunction}
       RetentionInDays: 30
 
-  # THE APPROVAL GATE, AND THE TWO ROUTES BEHIND THE AUTHORIZER. Approve calls
-  # `AdminCreateUser` and rekeys the application row onto the `sub` it returns; reject sets the
-  # status and asks the pool to disable the address, taking `UserNotFoundException` as the absence
-  # of an identity rather than reading it off the row. `docs/DECISIONS.md`, **Auth model**.
-  #
-  # ONE FUNCTION FOR BOTH, dispatching on the route key. They read the same row, take the same
-  # gate and differ in one branch; two functions would be two copies of everything but that
-  # branch and a second place for the gate to be forgotten.
   ApproveFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: dist/
       Handler: approve.handler
-      # Spelled out rather than inherited, as its neighbours are and for the same reason.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # LONGER THAN THE APPLICATION'S 5, and the reason is the extra round trip rather than extra
-      # work: approve makes a Cognito call between two database statements, and `AdminCreateUser`
-      # sends an email before it answers.
-      #
-      # THE CONCURRENCY BUDGET STILL GOVERNS, AND IT IS THE ROUTES' THROTTLES THAT BOUND IT — not
-      # the fact that only a super-admin may act. The role check runs HERE, after the connection,
-      # so the authorizer admits every holder of a valid pool token and a `pending` applicant
-      # reaches this function exactly as often as they care to ask. TWO ROUTES SHARE THIS
-      # FUNCTION, so the ceiling is both of them: 4 rps against a 10-second timeout wants ~40
-      # concurrent executions out of a pool this file sizes at about ten. That is the pessimistic
-      # reading — timeout times rate assumes every call runs to the limit, where a refusal returns
-      # in well under a second — but it is the reading this file uses everywhere else, and it is
-      # the reason the two throttles exist rather than the stage default.
+      # LONGER THAN THE APPLICATION'S 5 for the extra round trip, not extra work: `AdminCreateUser`
+      # sends an email before it answers. What bounds the concurrency is the ROUTES' throttles, not
+      # the role check — that runs HERE, after the connection, so a `pending` applicant reaches this
+      # function exactly as often as they care to ask.
       Timeout: 10
       Environment:
         Variables:
           DSQL_ENDPOINT: !GetAtt UserCluster.Endpoint
           AWS_REGION_NAME: !Ref AWS::Region
           NODE_OPTIONS: --enable-source-maps
-          # The pool this function may act on, read from the stack — the same way the runner
-          # reads it, and for the same reason: there is no second place for it to be wrong.
           USER_POOL_ID: !Ref UserPool
-          # THE THIRD CONSUMER OF THE ONE SWITCH, beside the pool's `AllowAdminCreateUserOnly`
-          # and the trigger's own copy. The gate is what writes a row for somebody who got in
-          # while the door was open, so a switch that drove only the first two would let them
-          # through the pool and then refuse them at every route. Quoted, and read as the exact
-          # string: an environment variable arrives as text and `Boolean('false')` is `true`.
+          # THE THIRD CONSUMER OF THE ONE SWITCH: the gate is what writes a row for somebody who got in
+          # while the door was open, so a switch driving only the other two would let them through the
+          # pool and then refuse them at every route.
           OPEN_REGISTRATION: !If [IsRegistrationOpen, 'true', 'false']
       Policies:
         - Statement:
-            # The same admin grant the runner and the applications endpoint hold, for the
-            # reason written out beside theirs: DSQL authenticates as a database role and the
-            # only one this cluster has is `admin`.
             - Sid: ConnectToDsqlAsAdmin
               Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
-            # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S, and it is stated rather than
-            # hidden: this function can mint an identity and take one away. Four actions, one
-            # pool, named — `AdminDeleteUser` is deliberately absent, because deleting a user is
-            # not implemented and not decided, and a grant held for a call nobody makes is a
-            # call somebody can make later without anyone deciding.
-            #
-            # NAMING THE POOL FROM HERE BUILDS NO CYCLE, unlike the trigger's grant: the pool
-            # names `PreSignUpFunction` in its `LambdaConfig`, so nothing the pool depends on may
-            # name the pool back — and this function is not in that chain. The trigger's policy
-            # is a separate `AWS::IAM::Policy` for exactly that reason; this one is inline.
+            # THE WIDEST GRANT IN THIS STACK AFTER THE RUNNER'S: this function can mint an identity and
+            # take one away. `AdminDeleteUser` is deliberately absent — a grant held for a call nobody
+            # makes is a call somebody can make later without anyone deciding.
             - Sid: RuleOnApplications
               Effect: Allow
               Action:
                 - cognito-idp:AdminCreateUser
                 - cognito-idp:AdminGetUser
                 - cognito-idp:AdminDisableUser
-                # PAIRED WITH THE DISABLE, and held for nothing else. Reject disables the address
-                # before it knows its own write applied, which is what keeps a rejection from
-                # leaving a signed-in owner behind; where an approve won that race, this is what
-                # puts back an account somebody was just approved into. It grants no access on its
-                # own — an enabled identity with no `active` row is refused by every route.
                 - cognito-idp:AdminEnableUser
               Resource: !GetAtt UserPool.Arn
       Events:
@@ -886,73 +495,34 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${ApproveFunction}
       RetentionInDays: 30
 
-  # --------------------------------------------------------------------------
-  # Backup freshness — prod only
-  # --------------------------------------------------------------------------
-  # THE OTHER HALF OF THE TAG DECISION ON `UserCluster` ABOVE. Carrying
-  # `app=quirenote` puts this cluster in the locked vault; nothing reported whether it
-  # was still LANDING there. Both existing checks read the ARCHIVE alone:
-  # `reportBackupFreshness` in the capture filters recovery points by the archive
-  # cluster's own arn before publishing the metric, and `BackupAgeAlarm` in
-  # `template.yaml` reads that metric. Deliberately, so that neither cluster can make
-  # the other look fresh. The cost of that correctness is a second check, and it belongs beside
-  # the cluster it reads rather than inside a function that has no business knowing this
-  # cluster exists.
-  #
-  # DEV GETS NONE OF IT. Its cluster carries `app=quirenote-dev` and is deliberately
-  # outside the vault, so an alarm there would watch a backup nobody asked for and read
-  # "no recovery point" every night from the day it deployed. `IsProd` is what carries
-  # the one difference the two otherwise identical stacks now have — and the consequence
-  # worth knowing before it is needed: `deploy-backend.yml` deploys `prod` from `main`
-  # alone, so none of this renders on a `dev` push and its first real execution is a
-  # production deploy.
+  # THE OTHER HALF OF THE TAG DECISION ON `UserCluster`. Both existing checks read the ARCHIVE
+  # alone, deliberately, so neither cluster can make the other look fresh — the cost of that is
+  # a second check, and it belongs beside the cluster it reads. DEV GETS NONE OF IT, its cluster
+  # being outside the vault, so `IsProd` carries the one difference between the two stacks — and
+  # none of it renders on a `dev` push, so its first real execution is a production deploy.
   BackupFreshnessFunction:
     Type: AWS::Serverless::Function
     Condition: IsProd
     Properties:
       CodeUri: dist/
       Handler: backup-freshness.handler
-      # Spelled out rather than inherited from a `Globals` block, as every function in
-      # this file is and for the same reason: one place per value.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # One API call and no database. The capture's 600 is for fetching two providers
-      # with retries; there is nothing here that a cold start plus one list does not
-      # cover.
       Timeout: 10
       Environment:
         Variables:
           NODE_OPTIONS: --enable-source-maps
-          # NAMED, NOT REFERENCED. The vault is outside both stacks on purpose — one
-          # inside the stack it protects is destroyed by the accident it exists for —
-          # so there is nothing to `!Ref`. `infra/scripts/bootstrap-backups.sh`
-          # creates it.
           BACKUP_VAULT_NAME: quirenote-backups
-          # THE FILTER, AND THE POINT OF THE WHOLE SECTION. An unfiltered read cannot
-          # answer this question at all: one vault and one tag-matched selection hold
-          # every backed-up cluster, so the ARCHIVE's nightly points would keep a
-          # vault-wide age fresh while this cluster's had stopped. And against the other
-          # wrong filter — this cluster's OLD arn, kept across a replacement — it is what
-          # makes the replacement read as "no recovery point" that same night, where a
-          # stale arn would age out of the surviving points over the two days after.
+          # THE FILTER, AND THE POINT OF THE WHOLE SECTION. One vault holds every backed-up cluster, so
+          # an unfiltered read would keep a vault-wide age fresh on the ARCHIVE's nightly points while
+          # this cluster's had stopped — and against a stale arn kept across a replacement, it is what
+          # makes the replacement read as "no recovery point" that same night.
           DSQL_CLUSTER_ARN: !GetAtt UserCluster.ResourceArn
-          # The metric's `cluster` dimension, from the same resource the alarm below
-          # selects on — so the number and the alarm cannot come to be about different
-          # clusters.
           DSQL_CLUSTER_ID: !GetAtt UserCluster.Identifier
       Policies:
         - Statement:
-            # NO CLUSTER GRANT AT ALL, which is what distinguishes this function from
-            # every other one here: it never connects to the cluster whose arn it holds
-            # — that arn is a filter string, not an endpoint. Read-only, and only about
-            # whether a recovery point exists, never about creating, deleting or
-            # restoring one. The vault is outside this stack, so it is addressed by
-            # constructed arn; the pseudo parameters keep the account id out of a public
-            # repository. What the rendered role carries beyond this statement is SAM's
-            # doing and not a choice made here: `AWSLambdaBasicExecutionRole`, and
-            # `AWSXrayWriteOnlyAccess` because `Tracing: Active` is set.
             - Sid: ReadThisClusterBackupFreshness
               Effect: Allow
               Action: backup:ListRecoveryPointsByBackupVault
@@ -965,23 +535,10 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${BackupFreshnessFunction}
       RetentionInDays: 30
 
-  # 04:00 UTC, AND THE TIMEZONE IS THE DECISION RATHER THAN THE HOUR. The backup plan
-  # runs `cron(45 22 * * ? *)` on `Etc/UTC` with a 60-minute start window and a
-  # 180-minute completion window, so a night's job is finished by 02:45 UTC at the
-  # latest and 04:00 clears it with room. `Europe/Kyiv` — which the capture's schedule
-  # uses, correctly, because it captures a Kyiv trading day — would drift this an hour
-  # twice a year against a job that does not move, narrowing the gap on one side of each
-  # transition for no reason at all.
-  #
-  # ONCE A DAY, where the capture fires six times: the capture is chasing a perishable
-  # price that cannot be re-fetched tomorrow, and this is reading a number that will
-  # still be there. A 48-hour threshold leaves two firings of slack.
-  #
-  # NO DEAD-LETTER QUEUE, unlike the capture's. A delivery that never lands costs one
-  # datapoint, which tomorrow's firing replaces; a queue nobody reads would be one more
-  # thing to believe in. The retry is cut short for the same reason — Scheduler's
-  # default is 185 attempts over 24 hours, which would still be retrying when the next
-  # firing arrives.
+  # 04:00 UTC, AND THE TIMEZONE IS THE DECISION RATHER THAN THE HOUR: the backup plan runs on
+  # `Etc/UTC`, so `Europe/Kyiv` — correct for the capture, which captures a Kyiv trading day —
+  # would drift this an hour twice a year against a job that does not move. Once a day, and no
+  # DLQ: a lost datapoint is replaced by tomorrow's firing.
   BackupFreshnessSchedule:
     Type: AWS::Scheduler::Schedule
     Condition: IsProd
@@ -1021,16 +578,10 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt BackupFreshnessFunction.Arn
 
-  # DIMENSIONED BY CLUSTER, WHICH IS WHAT LETS IT SHARE A NAME WITH THE ARCHIVE'S.
-  # CloudWatch keys a custom metric on its namespace, its name AND its exact dimension
-  # set, and rolls nothing up across dimension sets — so `Quirenote/BackupAgeHours` with
-  # a `cluster` dimension is a different series from the undimensioned one the capture
-  # publishes, and `BackupAgeAlarm` over there keeps reading the archive alone. The
-  # dimension is also what makes a REPLACED cluster visible: the new id starts a new
-  # series rather than continuing the old one's reading.
-  #
-  # NO `DefaultValue`: CloudWatch Logs rejects a transformation carrying both a default
-  # and dimensions — a 400 that appears at deploy time and never at validate time.
+  # DIMENSIONED BY CLUSTER, WHICH IS WHAT LETS IT SHARE A NAME WITH THE ARCHIVE'S: CloudWatch
+  # keys a custom metric on namespace, name AND dimension set, and rolls nothing up across them.
+  # NO `DefaultValue`: CloudWatch Logs rejects a transformation carrying both that and
+  # dimensions, a 400 that appears at deploy time and never at validate time.
   UserBackupAgeMetricFilter:
     Type: AWS::Logs::MetricFilter
     Condition: IsProd
@@ -1045,25 +596,10 @@ Resources:
             - Key: cluster
               Value: $.cluster
 
-  # 48 hours, not 24, and the archive's alarm gives the reason: the plan runs daily with
-  # a 60-minute start window, so a single late or skipped night is normal operation. The
-  # signal wanted is "the plan has stopped", and an alarm that pages for something which
-  # fixes itself gets muted.
-  #
-  # notBreaching on missing data — which is only honest because of the two alarms below
-  # it. This value is published BY the freshness function, so its absence means the
-  # check did not publish rather than that the backups stopped: the schedule died, or
-  # the function threw. Those are what `BackupFreshnessSilenceAlarm` and
-  # `BackupFreshnessErrorAlarm` are for, and until they existed `notBreaching` would
-  # have parked a dead check in OK forever.
-  #
-  # ONE WAY FOR THE VALUE TO GO ABSENT IS STILL UNCOVERED, and it is named rather than
-  # left to be discovered: a function that runs, succeeds, and emits a line the metric
-  # filter below no longer MATCHES. Invocations are 1, errors are 0, and the series
-  # simply never gets a datapoint — which `notBreaching` reads as OK. Nothing here can
-  # see it; a check cannot watch the filter it publishes through. That is why the filter
-  # pattern and the handler's log line are one contract, held together by
-  # `backup-freshness.test.ts`'s round trip and confirmed on the stack after a deploy.
+  # 48 hours, not 24: the plan runs daily with a start window, so one late night is normal.
+  # `notBreaching` is only honest because of the two alarms below — the value is published BY
+  # this check, so its absence means the check failed. ONE WAY FOR IT TO GO ABSENT IS STILL
+  # UNCOVERED: a run that succeeds and emits a line the filter no longer MATCHES.
   UserBackupAgeAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1084,27 +620,10 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # THE ALARM THAT MAKES THE ONE ABOVE MEAN ANYTHING, and the pair is the archive's own
-  # arrangement rather than a second alarm for one fault: a publisher that stopped and
-  # backups that stopped are two different faults with two different repairs, and only
-  # this one is invisible by construction — a schedule that never fires produces no
-  # logs, no errors and no metrics.
-  #
-  # `TreatMissingData: breaching` is the whole point, exactly as it is on the archive's
-  # `SilenceAlarm`: the default parks a dead job in INSUFFICIENT_DATA and reports
-  # nothing, forever.
-  #
-  # TWO PERIODS, AND NOT FOR THE REASON THAT READS OBVIOUSLY. A single missed firing
-  # would not have paged under one period either: CloudWatch pulls MORE datapoints from
-  # the evaluation range than `EvaluationPeriods` asks for, and where it finds enough
-  # real ones the missing-data treatment is ignored altogether — so a skipped night is
-  # judged against the night before it and reads OK.
-  #
-  # What two periods buy is the BOUNDARY. The evaluation window ends at now rather than
-  # at midnight, so two runs more than 24 hours apart — ordinary Scheduler jitter around
-  # a once-daily cron — can leave a one-period window with no run in it although every
-  # day had one. The capture never meets this because it fires six times a day, which is
-  # why its own `SilenceAlarm` is this shape's precedent and not its argument.
+  # THE ALARM THAT MAKES THE ONE ABOVE MEAN ANYTHING: a publisher that stopped and backups that
+  # stopped are different faults, and only this one is invisible by construction. TWO PERIODS,
+  # and not for the obvious reason — what they buy is the BOUNDARY, the window ending at now, so
+  # ordinary jitter around a once-daily cron can empty a one-period window though every day ran.
   BackupFreshnessSilenceAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1124,26 +643,10 @@ Resources:
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
 
-  # THE THIRD FAULT, AND NEITHER ALARM ABOVE CAN SEE IT. `backup-freshness.ts` throws
-  # where the capture's equivalent warns — it has no other work to protect, so a
-  # swallowed error would be an invocation that reported success and measured nothing.
-  # A throw alone is not a signal, though: `Invocations` counts a FAILED invocation too,
-  # so the silence alarm stays OK, and no age is published, so the age alarm stays OK on
-  # `notBreaching`. Without this resource the check could fail every night — a revoked
-  # grant, a renamed vault, a variable lost in a partial deploy — with both of its own
-  # alarms green, which is the silent-green class this whole family of checks exists to
-  # end. The archive pairs the same three (`template.yaml`, `ErrorAlarm`).
-  #
-  # notBreaching on missing data: no data means no invocations, which the silence alarm
-  # above already says. Two alarms for one fault is how alarms get muted.
-  #
-  # THRESHOLD 1, NOT "MORE ERRORS THAN THE RETRY POLICY ALLOWS", and the reason is a
-  # fact this repository has not measured. A threshold of 3 would say exactly what is
-  # wanted — every attempt tonight failed — IF Scheduler retries a Lambda FUNCTION error
-  # the way it retries a delivery failure. If it does not, each night yields one error,
-  # a threshold of 3 never fires, and a dead check sits green forever. So the threshold
-  # errs the other way: a night that a retry rescued pages once, which is noise, where
-  # the other mistake is silence.
+  # THE THIRD FAULT, AND NEITHER ALARM ABOVE CAN SEE IT: `Invocations` counts a FAILED invocation
+  # too, so the silence alarm stays OK, and no age is published, so the age alarm stays OK on
+  # `notBreaching`. THRESHOLD 1, because whether Scheduler retries a FUNCTION error the way it
+  # retries a delivery failure is unmeasured — and the other mistake is silence.
   BackupFreshnessErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1163,59 +666,29 @@ Resources:
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
-  # --------------------------------------------------------------------------
-  # Free-tier watch — prod only
-  # --------------------------------------------------------------------------
-  # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the free tier cannot be watched
-  # directly at all and the pool's TOTAL user count stands in for one. It is a strict
-  # upper bound — every monthly active is a user, and users who went quiet are still
-  # counted — so an alarm on it fires EARLY and cannot fire late. The alternative already
-  # on offer is AWS's own Free Tier mail at 85%, which arrives with the bill.
-  #
-  # IN THIS STACK, NOT THE CAPTURE'S. Every other number of this shape is emitted by the
-  # capture, which is the ARCHIVE's function in the archive's stack, deployed from `dev`
-  # alone. The pool is neither: it is per-environment and it is here. Handing the capture
-  # a pool id would be the coupling the backup check above already refused
-  # (`docs/DECISIONS.md`, **Alerting**).
-  #
-  # DEV GETS NONE OF IT, like the watch above and by the same `IsProd`. What that gives up
-  # is worth naming rather than discovering: dev identities do count toward the account's
-  # free tier, so this number bounds prod's share of the allowance, not the whole of it.
+  # THERE IS NO CLOUDWATCH METRIC FOR MONTHLY ACTIVES, so the pool's TOTAL user count stands in:
+  # a strict upper bound, firing EARLY and never late. IN THIS STACK, NOT THE CAPTURE'S, the
+  # pool being per-environment — handing the capture a pool id is the coupling the check above
+  # already refused (*Alerting*). Dev identities count too, so this bounds prod's share alone.
   PoolUsageFunction:
     Type: AWS::Serverless::Function
     Condition: IsProd
     Properties:
       CodeUri: dist/
       Handler: pool-usage.handler
-      # Spelled out rather than inherited from a `Globals` block, as every function in
-      # this file is and for the same reason: one place per value.
       Runtime: nodejs22.x
       Architectures: [arm64]
       MemorySize: 256
       Tracing: Active
-      # One API call and no database, the same shape as the backup check beside it.
       Timeout: 10
       Environment:
         Variables:
           NODE_OPTIONS: --enable-source-maps
-          # REFERENCED, NOT NAMED — the opposite of the vault above, and the difference is
-          # that this pool IS in this stack. A literal would be a second spelling of an id
-          # CloudFormation generates, and it would be the other environment's on a copy.
           USER_POOL_ID: !Ref UserPool
       Policies:
         - Statement:
-            # ONE CALL, AND THE BOUNDARY IS THE POINT. `DescribeUserPool` reads pool
-            # CONFIGURATION — settings and a count. No attribute, no list and no user datum
-            # becomes reachable through it, so a scheduled job holding this grant cannot read
-            # a user at all. That boundary is a PERMISSION rather than a convention: what
-            # refuses is the policy, not a rule the handler is trusted to keep.
-            #
-            # NAMING THE POOL FROM HERE BUILDS NO CYCLE, for the reason `ApproveFunction`'s
-            # own grant gives: the pool names `PreSignUpFunction` in its `LambdaConfig`, so
-            # nothing the pool depends on may name the pool back — and this function is not
-            # in that chain. So the grant is inline, on the real pool ARN, rather than a
-            # separate `AWS::IAM::Policy`; written as a wildcard it would reach the OTHER
-            # environment's pool, which is the one thing it must never read.
+            # ONE CALL, AND THE BOUNDARY IS THE POINT: `DescribeUserPool` reads CONFIGURATION, so a
+            # job holding this grant cannot read a user at all — refused by the policy, not by rule.
             - Sid: ReadThisPoolsUserCount
               Effect: Allow
               Action: cognito-idp:DescribeUserPool
@@ -1228,23 +701,6 @@ Resources:
       LogGroupName: !Sub /aws/lambda/${PoolUsageFunction}
       RetentionInDays: 30
 
-  # 05:00 UTC, ONE HOUR AFTER THE BACKUP CHECK, so the two prod functions do not share a
-  # minute. Unlike that one's hour, this is derived from nothing — there is no job this
-  # must run after — so the hour is a choice, and the test pins it as written rather
-  # than deriving it from anything.
-  #
-  # `Etc/UTC` RATHER THAN `Europe/Kyiv`, which the capture uses correctly because it
-  # captures a Kyiv trading day. This job has no local-time meaning at all, and a DST
-  # zone would move it against a fixed clock twice a year for no reason. It is not a
-  # silence-alarm argument: two periods of 86400 absorb a 25-hour gap comfortably — see
-  # `PoolUsageSilenceAlarm`, which is sized for the ONE-period window a >24-hour gap can
-  # empty.
-  #
-  # ONCE A DAY, and monthly was the tempting alternative because the allowance is monthly.
-  # It is refused: at `Period: 86400` a two-period silence window would be two days, so a
-  # monthly job's silence alarm could not watch it, and one missed firing would be a month
-  # blind. NO DEAD-LETTER QUEUE and a short retry, for the reason the check above gives —
-  # a delivery that never lands costs one datapoint tomorrow's firing replaces.
   PoolUsageSchedule:
     Type: AWS::Scheduler::Schedule
     Condition: IsProd
@@ -1284,17 +740,10 @@ Resources:
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt PoolUsageFunction.Arn
 
-  # UNDIMENSIONED, unlike `UserBackupAgeMetricFilter` above. That one carries a `cluster`
-  # key only because TWO stacks publish under one metric name; this series has a single
-  # publisher, so a dimension would key it on a value nothing else supplies and force the
-  # alarm to repeat that value — a second place for the two to disagree, bought for
-  # nothing.
-  #
-  # AND `DefaultValue` IS LEGAL HERE AND MUST STILL NOT BE SET. CloudWatch Logs rejects a
-  # transformation carrying both a default and dimensions, which is what keeps it off the
-  # filter above; with no dimensions nothing would refuse it. It would publish 0 for every
-  # period with no matching log event — on the HEALTHY side of the `GreaterThan` below,
-  # and enough datapoints to make that alarm's `notBreaching` mean nothing.
+  # UNDIMENSIONED, unlike `UserBackupAgeMetricFilter` above, which carries a key only because TWO
+  # stacks publish under one name. AND `DefaultValue` IS LEGAL HERE AND MUST STILL NOT BE SET: it
+  # would publish 0 for every period with no matching event — on the HEALTHY side of the
+  # `GreaterThan` below, and enough datapoints to make that alarm's `notBreaching` mean nothing.
   PoolUsersMetricFilter:
     Type: AWS::Logs::MetricFilter
     Condition: IsProd
@@ -1306,14 +755,6 @@ Resources:
           MetricName: PoolUsers
           MetricValue: $.value
 
-  # 8000 IS 80% OF THE 10,000 MONTHLY ACTIVES ESSENTIALS BILLS NOTHING FOR, and it sits
-  # deliberately below the 85% at which AWS's own Free Tier alert mails the root account:
-  # a guard that fires with the bill is not a guard. The figure is held against the
-  # module's `FREE_TIER_USERS` in `stack-split.test.ts` rather than explained here twice.
-  #
-  # notBreaching on missing data — honest only because of the two alarms below it. This
-  # value is published BY the function, so its absence means the check did not publish
-  # rather than that the pool is empty: the schedule died, or the function threw.
   PoolUsersAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1332,10 +773,6 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
 
-  # TWO PERIODS, NOT ONE, for the reason `BackupFreshnessSilenceAlarm` gives: the window
-  # ends at now rather than at midnight, so two runs more than 24 hours apart — ordinary
-  # Scheduler jitter around a once-daily cron — can leave a one-period window with no run
-  # in it although every day had one.
   PoolUsageSilenceAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1355,11 +792,6 @@ Resources:
       ComparisonOperator: LessThanThreshold
       TreatMissingData: breaching
 
-  # THE THIRD FAULT, AND NEITHER ALARM ABOVE CAN SEE IT. `pool-usage.ts` throws where the
-  # capture's equivalents warn — it has no other work to protect — and a throw alone is not
-  # a signal: `Invocations` counts a failed invocation too, so the silence alarm stays OK,
-  # and no count is published, so the count alarm stays OK on `notBreaching`. A revoked
-  # grant would otherwise sit green forever.
   PoolUsageErrorAlarm:
     Type: AWS::CloudWatch::Alarm
     Condition: IsProd
@@ -1385,9 +817,6 @@ Outputs:
     Value: !GetAtt UserCluster.Identifier
   ClusterArn:
     Value: !GetAtt UserCluster.ResourceArn
-  # `.github/workflows/migrate.yml` reads this rather than constructing the name —
-  # SAM appends a generated suffix, so a constructed one is wrong the first time the
-  # stack is replaced.
   MigrateFunctionName:
     Value: !Ref MigrateFunction
   UserPoolId:
@@ -1396,27 +825,16 @@ Outputs:
     Value: !Ref UserPoolClient
   AuthDomain:
     Value: !If [IsProd, auth.quirenote.com, auth.dev.quirenote.com]
-  # THE ONE VALUE NOBODY CAN CONSTRUCT. Cognito builds a CloudFront distribution for
-  # the custom domain and names it itself; the Cloudflare record has to point at this
-  # exact name, DNS-only. Until that record exists the stack is green and managed login
-  # resolves nowhere — the same shape of half-done state as an empty user cluster.
+  # THE ONE VALUE NOBODY CAN CONSTRUCT: Cognito names the CloudFront distribution itself, and
+  # the Cloudflare record has to point at this exact name, DNS-only.
   UserPoolDomainCloudFrontAlias:
     Value: !GetAtt UserPoolDomain.CloudFrontDistribution
   ApiDomain:
     Value: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
-  # THE SAME ONE NOBODY CAN CONSTRUCT, one service along. API Gateway builds a regional
-  # endpoint for the custom domain and names it itself; the Cloudflare record points at
-  # this exact name, DNS-only, and until it exists the stack is green and the hostname
-  # resolves nowhere.
-  #
-  # READ THROUGH SAM'S REFERENCEABLE PROPERTY RATHER THAN THE GENERATED LOGICAL ID. The
-  # transform creates the AWS::ApiGatewayV2::DomainName under a hashed id and AWS
-  # documents that the hash may change, so `PublicApi.DomainName` is the only stable way
-  # to reach it.
+  # THE SAME ONE NOBODY CAN CONSTRUCT, one service along. READ THROUGH SAM'S REFERENCEABLE
+  # PROPERTY rather than the generated logical id: the transform creates the DomainName under a
+  # hashed id AWS documents as changeable, so `PublicApi.DomainName` is the only stable way in.
   ApiDomainRegionalTarget:
     Value: !GetAtt PublicApi.DomainName.RegionalDomainName
-  # The hostname that works BEFORE the record above exists, which is what the endpoint is
-  # verified against on a first deploy. Constructed, unlike the two above, because every
-  # part of it but the API id is fixed and the id is the `!Ref`.
   ApiEndpoint:
     Value: !Sub https://${PublicApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}
