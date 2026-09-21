@@ -42,9 +42,12 @@
 --
 -- ONE STATEMENT, AND A SECOND WOULD NEED DRIZZLE'S BREAKPOINT MARKER BEFORE IT
 -- (spelled out in `infra/src/migrate.ts`, deliberately not quoted here). The
--- runner splits on that marker, so two statements written here without one are
--- glued together and sent as a single query — which DSQL refuses, since it runs
--- one statement per transaction.
+-- runner splits on that marker, sends each piece as its own query and keys the
+-- ledger by that piece's hash. Two statements written here without one become a
+-- single query under a single hash — one ledger row standing for two writes.
+-- That is the runner's bookkeeping, and the reason for the rule. What the
+-- cluster would make of the glued query is a separate question nobody has put
+-- to it.
 --
 -- `ON CONFLICT` RATHER THAN AN ABSORBED ERROR CODE. The runner's crash window
 -- lets a statement it left open answer "already exists" with success, but a

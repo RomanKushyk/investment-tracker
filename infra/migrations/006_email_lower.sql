@@ -28,7 +28,11 @@
 --
 -- ONE STATEMENT, so no `--> statement-breakpoint` — the same shape as 005. A
 -- second statement added here without one would be glued into the first and
--- sent as a single query, which DSQL refuses.
+-- sent as a single query, under a single hash: one ledger row standing for two
+-- writes. That is the runner's bookkeeping, and it holds whatever the cluster
+-- does. HERE THE CLUSTER ANSWERS TOO, which is not true of 005: this file's
+-- statement is DDL, and DSQL takes one DDL statement per transaction and never
+-- DDL beside DML (`infra/README.md`). A glued pair would be two DDL in one.
 --
 -- `NOT VALID` IS APPENDED BY THE RUNNER (`rewriteForDsql`), not written here:
 -- DSQL refuses `ADD CONSTRAINT` without it, and writing it twice is what the

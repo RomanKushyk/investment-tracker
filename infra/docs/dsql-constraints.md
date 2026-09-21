@@ -260,3 +260,33 @@ already differs by engine, above):
 
 The index case is the one worth knowing: an already-built index reports as a duplicate RELATION, so
 a runner that only absorbed `42710` there would fail on exactly the retry it exists to serve.
+
+## Transactions
+
+**A multi-statement DML transaction is accepted and commits.** `infra/src/provision.ts` wraps three
+DML statements in one transaction — `BEGIN`, the caller's own `INSERT … ON CONFLICT DO NOTHING`, a
+`SELECT`, its own `INSERT … ON CONFLICT DO NOTHING`, `COMMIT` — and it ran against the **dev**
+cluster through `migrate.yml` in `bootstrap` mode.
+
+**[Run 35599249065] is the evidence, and it is one run, not two.** It reported
+`{"identity":"existing","row":"existing","account":"created"}`, and `created` is reachable only
+after `COMMIT` resolved, so that transaction committed and the account row was there afterwards.
+[Run 35599318279] reported `account: existing` on the re-run, which proves nothing about committing:
+`existing` is returned both after a `COMMIT` and after a `ROLLBACK` in the caught-duplicate arm.
+
+**So the one-statement rule is about DDL and only DDL.** `infra/README.md` states it with the scope
+in it — "One DDL statement per transaction, and DDL never shares a transaction with DML" — and that
+is the form to repeat. Dropped, the sentence forbids what the run above did.
+`infra/src/transaction-scope.test.ts` walks `.github`, `docs`, `infra` and `src` and holds every
+copy of that spelling to the qualified form. It matches one spelling family, and the comment on the
+pattern says which — the rule's other live wording here, `one DDL per transaction`, is outside it.
+
+**What those runs did NOT separate, and must not be read as measuring.** A `bootstrap` re-run
+answers `account: existing` whether the `ON CONFLICT (user_id, provider) DO NOTHING` suppressed
+cleanly or raised `23505` and `provision.ts`'s constraint-named branch caught it — both arms return
+the same word, and neither is logged. The secondary-index conflict target above therefore stays
+UNMEASURED, as does `RETURNING` on a suppressed insert. Separating them needs a hand-run against a
+cluster, not another dispatch.
+
+[run 35599249065]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599249065
+[run 35599318279]: https://github.com/RomanKushyk/investment-tracker/actions/runs/35599318279
