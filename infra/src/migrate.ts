@@ -23,15 +23,18 @@ import {
 
 import { canonicalAddress } from './address';
 import { connect } from './dsql';
+import { type Provisioned, provision } from './provision';
 
 /** IN ORDER, AND NOT A GLOB. `001`, `002` and `004` are the ARCHIVE's and stay with `ensureSchema`
  *  in `capture.ts`: the archive is provider data shared by every environment, while these are USER
- *  data, which splits dev from prod (*Cloud target*). `005` is DML and depends on `003`. */
+ *  data, which splits dev from prod (*Cloud target*). `005` is DML and depends on `003`; `008` is
+ *  DML and depends on `005`, the account it writes pointing at that row. */
 export const MIGRATIONS = [
   '003_user_schema.sql',
   '005_demo_user.sql',
   '006_email_lower.sql',
   '007_drop_reinvest_policy.sql',
+  '008_demo_account.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */
@@ -381,6 +384,10 @@ export interface BootstrapReport {
   email: string;
   identity: 'created' | 'existing';
   row: 'created' | 'existing';
+  /** Reported on EVERY run, including one that found the row finished: the clusters hold a
+   *  super-admin written before anything provisioned, so `created` here on a re-run is this mode
+   *  repairing exactly that. */
+  account: Provisioned;
 }
 
 export interface MigrateEvent {
@@ -476,11 +483,18 @@ async function bootstrap(
     if (sub !== mine.user_id) {
       throw new Error(`${email} is row ${mine.user_id} but pool user ${sub ?? 'unknown'}`);
     }
+    // THE FINISHED ROW IS PROVISIONED TOO, and this arm is the only way an EXISTING super-admin ever
+    // gets an account: both clusters hold one written before anything provisioned, so without this
+    // a re-run would keep handing back a user the gate admits and every write refuses. Idempotent,
+    // as the row write beside it is.
+    const account = await provision(client, mine.user_id, () =>
+      client.query(BOOTSTRAP_ROW, [mine.user_id, email]),
+    );
     return {
       mode: 'bootstrap',
       schema: 'public',
       files: [],
-      bootstrap: { email, identity: 'existing', row: 'existing' },
+      bootstrap: { email, identity: 'existing', row: 'existing', account },
     };
   }
 
@@ -528,7 +542,9 @@ async function bootstrap(
   }
   if (!userId) throw new Error(`the pool returned no sub for ${email}`);
 
-  await client.query(BOOTSTRAP_ROW, [userId, email]);
+  const account = await provision(client, userId, () =>
+    client.query(BOOTSTRAP_ROW, [userId, email]),
+  );
   // THE SUB IS LOGGED, NOT RETURNED: the report is kept as a workflow artifact on a PUBLIC
   // repository, and the `sub` is the key every row in this database is scoped by.
   console.log(`bootstrap: ${email} is ${userId} (identity ${identity})`);
@@ -536,7 +552,7 @@ async function bootstrap(
     mode: 'bootstrap',
     schema: 'public',
     files: [],
-    bootstrap: { email, identity, row: 'created' },
+    bootstrap: { email, identity, row: 'created', account },
   };
 }
 

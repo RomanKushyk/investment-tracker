@@ -211,6 +211,32 @@ to a file already applied.
 `23505`, and the error carries `constraint` with the offending name — which is what lets `005` be
 re-runnable without the runner having to absorb a code that could have come from anywhere.
 
+**That clause does not exempt an insert from adjudication** — READ FROM AWS, not measured here.
+Aurora DSQL's optimistic concurrency control marks INSERT × INSERT on the same row as conflicting
+and reports it as `40001` at COMMIT, and AWS's own advice is that OCC makes an application exercise
+retry logic MORE often, not less
+(https://docs.aws.amazon.com/aurora-dsql/latest/userguide/working-with-concurrency-control.html).
+So the clause prevents a duplicate ROW and not a serialization failure. Whether the suppressed path
+skips adjudication is unconfirmed in either direction, which is why `infra/src/provision.ts` wraps
+its transaction in a bounded retry regardless.
+
+**The conflict target that provisions an account is UNMEASURED.** The suppression above was probed
+on a PRIMARY KEY; `ON CONFLICT (user_id, provider)` names the secondary unique index
+`account_user_provider_uq`, which no probe has covered. So the RAISED `23505` is kept as a live
+branch there, matched on the constraint name, exactly as `applications.ts` keeps one for
+`app_user_email_uq`. `008_demo_account.sql` avoids the doubt instead of carrying it: its account id
+is a literal, so it conflicts on the primary key — the target this file did measure.
+
+**`RETURNING` ON A SUPPRESSED `ON CONFLICT` IS UNMEASURED, and nothing here depends on it.**
+`RETURNING` on its own IS sent to the cluster — `asset-delete.ts` on every child batch, `approve.ts`
+on the reject — but no probe has asked what an insert a conflict swallowed returns, and `migrate.ts`
+keeps the clause off `BOOTSTRAP_ROW` saying so. That it is a Postgres guarantee is not an answer
+from a cluster. So `infra/src/provision.ts` tells a performed insert from a suppressed one with a
+`SELECT` inside the same transaction rather than with the returned rows. That does not make the
+transaction fully measured — the conflict target above is still one no probe has covered, which is
+why the raised `23505` branch stays — but it removes a SECOND unmeasured thing from the path, at the
+price of one statement. Both are worth probing when a cluster is next open by hand.
+
 `pg_index.indisvalid` is readable and true for a built index. It is **not** enough on its own: it is
 false for a build that FAILED and false for one still RUNNING, and those want opposite advice — one
 wants `DROP INDEX`, the other wants waiting.

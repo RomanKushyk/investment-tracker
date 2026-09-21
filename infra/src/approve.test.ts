@@ -37,8 +37,8 @@ const approve = async (...args: Parameters<typeof approveRoute>): ReturnType<typ
 const handler = async (...args: Parameters<typeof rawHandler>): ReturnType<typeof rawHandler> =>
   record(args[0], await rawHandler(...args));
 
-const DML = '005_demo_user.sql';
-const DDL = MIGRATIONS.filter((f) => f !== DML);
+const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const POOL = 'eu-north-1_EXAMPLE';
@@ -197,6 +197,15 @@ type Row = {
   applied_at: Date;
 };
 
+/** The super-admin below is inserted as raw SQL and provisions nothing, so every row here is one
+ *  the call under test wrote. */
+const accounts = async () =>
+  (
+    await db.query<{ user_id: string; provider: string; name: string }>(
+      'SELECT user_id, provider, name FROM account',
+    )
+  ).rows;
+
 const rows = async (email = EMAIL) =>
   (
     await db.query<Row>(
@@ -257,6 +266,51 @@ describe('approving replaces the placeholder with the sub the create call return
   it('leaves the pending row whole when the replacement fails', async () => {
     await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
     const res = await approve(failingOn('INSERT INTO app_user'), spy().idp, call(APPROVE_ROUTE));
+    expect(res.statusCode).toBe(500);
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending' }),
+    ]);
+  });
+
+  // THE ACCOUNT IS KEYED BY THE MINTED SUB, not by the placeholder: the row is deleted and
+  // re-inserted, so an account written earlier would belong to an id that no longer exists.
+  it('gives the rekeyed row an account, inside the transaction that rekeys it', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    expect(await accounts()).toEqual([{ user_id: SUB, provider: 'inzhur', name: 'Inzhur' }]);
+  });
+
+  // The replay answer for THIS path is a refusal, not a second idempotent write: approve turns away
+  // every non-pending row before it reaches the account insert at all. One account either way.
+  it('refuses a second approval of the same row, and adds no account', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await approve(db, spy().idp, call(APPROVE_ROUTE));
+    const again = await approve(db, spy().idp, call(APPROVE_ROUTE, SUB));
+    expect(again.statusCode).toBe(409);
+    expect(await accounts()).toHaveLength(1);
+  });
+
+  it('leaves the pending row whole when the account insert fails', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    const res = await approve(failingOn('INSERT INTO account'), spy().idp, call(APPROVE_ROUTE));
+    expect(res.statusCode).toBe(500);
+    expect(await rows()).toEqual([
+      expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending' }),
+    ]);
+    expect(await accounts()).toEqual([]);
+  });
+
+  /**
+   * WHY `applications.ts` PROVISIONS NOTHING, measured rather than asserted in a comment. A pending
+   * row is DELETED to rekey it onto the minted `sub`, and `account_user_fk` is `ON DELETE restrict`
+   * — so an account hung off the placeholder makes every approval fail on the foreign key. A
+   * pending row owns nothing, and this is what holds anyone to it.
+   */
+  it('could not approve at all if the pending row had been given an account', async () => {
+    await db.exec(insert(PLACEHOLDER, EMAIL, 'pending'));
+    await db.exec(`INSERT INTO account (user_id, id, provider, name, created_at)
+                     VALUES ('${PLACEHOLDER}', '${SUB}', 'inzhur', 'Inzhur', now());`);
+    const res = await approve(db, spy().idp, call(APPROVE_ROUTE));
     expect(res.statusCode).toBe(500);
     expect(await rows()).toEqual([
       expect.objectContaining({ user_id: PLACEHOLDER, status: 'pending' }),

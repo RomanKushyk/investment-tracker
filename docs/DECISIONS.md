@@ -227,16 +227,30 @@ RUNNER, never by a deploy: it rewrites each statement on the way out to what DSQ
 records each in a ledger keyed by its content hash, so a file may be re-run after it grows
 statements and only the new ones execute. Foreign keys are `ON DELETE RESTRICT`, never cascading,
 and deleting an asset is an APPLICATION cascade, children before the parent, in batches, every
-predicate scoped by `user_id`.
+predicate scoped by `user_id`. A user and their one account are written in the SAME transaction by
+the gate's open-registration insert, by approval's rekey and by the bootstrap mode — each
+idempotent, so a re-run leaves one account. The gate's and the bootstrap's retry on a serialization
+failure; approval's does not, a retry there re-running an insert whichever concurrent approval won
+has already made. A PENDING application is written by neither and provisions nothing: approval
+DELETES that row to rekey it onto the minted `sub`, and a key restricted on delete would refuse
+that. The demo identity is written by a migration, so its account is too, in a file of its own.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
 exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
 batching is the only shape that works; a cascading key would not remove it, cascaded rows counting
-against the same ceiling.
+against the same ceiling. `transaction.account_id` is NOT NULL against a composite key, so a user
+without an account is not an empty state any screen can render — every write is refused — and both
+rows living in one database makes one transaction the whole answer to a partial failure. `ON
+CONFLICT DO NOTHING` prevents a duplicate row and not the commit-time conflict optimistic
+concurrency reports, which is why the retry is not that clause's job.
 **Rejected.** Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
 turns into deleted data rendered as live. · A migration started by the capture function or by the
 deploy: the schedule, the DLQ and a stack update could then each start one, and a migration must
-only ever be started by hand.
+only ever be started by hand. · Provisioning the account lazily, on first write: the get-or-create
+race, moved into the one path that cannot absorb one. · An outbox or a saga around the two writes:
+both buy atomicity from outside a database that already gives it. · A CHECK enumerating `provider`:
+no constraint here names a specific holding, and a CHECK added after the fact is `NOT VALID` for
+life, so a widened vocabulary would be a rule the rows already there were never held to.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

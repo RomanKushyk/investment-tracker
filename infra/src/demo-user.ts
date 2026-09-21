@@ -16,3 +16,8 @@ export const DEMO_USER_ID = '00000000-0000-4000-8000-00000000de70';
  *  never seen — so only an address the owner alone can hold leaves it without a
  *  victim. */
 export const DEMO_USER_EMAIL = 'demo@quirenote.com';
+
+/** The one account the demo owns, pinned for `DEMO_USER_ID`'s reason and for one more: a literal id
+ *  lets `008` conflict on the PRIMARY KEY, the target `infra/docs/dsql-constraints.md` measured,
+ *  rather than on the secondary unique index it did not. */
+export const DEMO_ACCOUNT_ID = '00000000-0000-4000-8000-00000000acc0';

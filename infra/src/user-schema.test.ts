@@ -22,10 +22,10 @@ import { MIGRATIONS, statementsOf as statements } from './migrate';
 
 // The case rule is a LATER file rather than a column of `003`, because `CREATE TABLE "app_user"`
 // is applied on both clusters and the ledger keys by content hash — editing it would re-send a
-// statement the cluster already has. `005` is excluded as DML; `DDL` is derived from `MIGRATIONS`,
-// so a new schema file cannot be forgotten here.
-const DML = '005_demo_user.sql';
-const DDL = MIGRATIONS.filter((f) => f !== DML);
+// statement the cluster already has. The two DML files are excluded; `DDL` is derived from
+// `MIGRATIONS`, so a new schema file cannot be forgotten here.
+const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const uuid = (c: string) =>
@@ -243,6 +243,23 @@ describe('account', () => {
   it('accepts a second provider', async () => {
     await accepts(`INSERT INTO account (user_id, id, provider, name, created_at)
                      VALUES (${USER}, ${nextId()}, 'other-broker', 'Other', now());`);
+  });
+
+  /**
+   * THE SPEC'S ONE EXPLICIT DDL RULE, read off the generated SQL rather than off `schema/user.ts`:
+   * no CHECK may enumerate a value naming a specific holding, and `inzhur` is one. A closed
+   * vocabulary here would turn "the owner opened an account elsewhere" into a migration — and a
+   * CHECK added after the table exists is `NOT VALID` for life on DSQL, which refuses
+   * `VALIDATE CONSTRAINT`, so the widened rule would never hold the rows already there.
+   * The uniqueness of `(user_id, provider)` is the only rule the column carries.
+   */
+  it('constrains `provider` by no CHECK at all', () => {
+    const table = statements(readFileSync(fileUrl('003_user_schema.sql'), 'utf8')).find((s) =>
+      s.startsWith('CREATE TABLE "account"'),
+    );
+    expect(table).toBeDefined();
+    expect(table).toContain('"provider" text NOT NULL');
+    expect(table).not.toContain('CHECK');
   });
 });
 

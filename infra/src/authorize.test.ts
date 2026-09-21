@@ -13,10 +13,11 @@ import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 
-// `005` is DML — the demo row — and it would sit underneath every count below. Derived from
-// `MIGRATIONS` so a new schema file cannot be forgotten here, exactly as its neighbours derive it.
-const DML = '005_demo_user.sql';
-const DDL = MIGRATIONS.filter((f) => f !== DML);
+// The two DML files — the demo row and the account it owns — would sit underneath every count
+// below. Named, with `DDL` derived from `MIGRATIONS` so a new schema file cannot be forgotten here,
+// exactly as its neighbours derive it.
+const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const SUB = '9f1e2d3c-0000-4000-8000-0000000000a1';
@@ -64,6 +65,21 @@ const rows = async () =>
       'SELECT user_id, email, status, role FROM app_user ORDER BY email',
     )
   ).rows;
+
+const accounts = async () =>
+  (
+    await db.query<{ user_id: string; provider: string; name: string }>(
+      'SELECT user_id, provider, name FROM account',
+    )
+  ).rows;
+
+/** The real cluster, except that one statement fails — so a failure lands mid-transaction. */
+const failingOn = (needle: string): SqlClient => ({
+  query: async <R>(text: string, values?: unknown[]) => {
+    if (text.includes(needle)) throw new Error('the cluster said no');
+    return db.query<R>(text, values) as Promise<{ rows: R[] }>;
+  },
+});
 
 const pair = async (userId: string) =>
   (
@@ -198,6 +214,31 @@ describe('open registration is the only thing that writes a row here', () => {
     await authorize(db, token());
     await authorize(db, token());
     expect(await rows()).toHaveLength(1);
+  });
+
+  // THE ROW IS NOT USABLE WITHOUT IT: `transaction.account_id` is NOT NULL against a composite
+  // key, so a caller admitted here with no account is one who cannot write anything.
+  it('gives the row it writes an account, in the same write', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    await authorize(db, token());
+    expect(await accounts()).toEqual([{ user_id: SUB, provider: 'inzhur', name: 'Inzhur' }]);
+  });
+
+  it('writes one account however many times that caller returns', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    await authorize(db, token());
+    await authorize(db, token());
+    expect(await accounts()).toHaveLength(1);
+  });
+
+  // NEITHER, OR THE GATE WOULD ADMIT SOMEBODY IT CANNOT SERVE. The row is what authorizes, so a
+  // user row that landed alone is a caller the gate lets through and the mutation surface refuses.
+  it('leaves neither row behind when the account insert fails', async () => {
+    vi.stubEnv('OPEN_REGISTRATION', 'true');
+    const gate = await authorize(failingOn('INSERT INTO account'), token());
+    expect(gate).toEqual({ refusal: expect.objectContaining({ statusCode: 500 }) });
+    expect(await rows()).toEqual([]);
+    expect(await accounts()).toEqual([]);
   });
 
   it('lower-cases the address it takes from the token', async () => {

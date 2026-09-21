@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
+import { DEMO_ACCOUNT_ID, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { SqlClient } from './migrate';
 import {
   MIGRATIONS,
@@ -29,13 +29,14 @@ const USER_SCHEMA = '003_user_schema.sql';
 const DEMO_ROW = '005_demo_user.sql';
 const CASE_RULE = '006_email_lower.sql';
 const DROP_POLICY = '007_drop_reinvest_policy.sql';
+const DEMO_ACCOUNT = '008_demo_account.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row, the case rule and the dropped column, in that order, and nothing else', () => {
-    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE, DROP_POLICY]);
+  it('names the user schema, the demo row, the case rule, the dropped column and the demo account, in that order, and nothing else', () => {
+    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE, DROP_POLICY, DEMO_ACCOUNT]);
   });
 });
 
@@ -52,6 +53,10 @@ describe('statementsOf', () => {
 
   it('splits the dropped column into its one statement', () => {
     expect(statementsOf(read(DROP_POLICY))).toHaveLength(1);
+  });
+
+  it('splits the demo account into its one statement', () => {
+    expect(statementsOf(read(DEMO_ACCOUNT))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -552,6 +557,7 @@ describe('migrate', () => {
         { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1 },
         { file: CASE_RULE, applied: 0, skipped: 0, pending: 1 },
         { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1 },
+        { file: DEMO_ACCOUNT, applied: 0, skipped: 0, pending: 1 },
       ],
     });
   });
@@ -563,6 +569,7 @@ describe('migrate', () => {
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
     await applyFile(db, CASE_RULE, statementsOf(read(CASE_RULE)));
     await applyFile(db, DROP_POLICY, statementsOf(read(DROP_POLICY)));
+    await applyFile(db, DEMO_ACCOUNT, statementsOf(read(DEMO_ACCOUNT)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -571,6 +578,7 @@ describe('migrate', () => {
         { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0 },
         { file: CASE_RULE, applied: 0, skipped: 1, pending: 0 },
         { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0 },
+        { file: DEMO_ACCOUNT, applied: 0, skipped: 1, pending: 0 },
       ],
     });
   });
@@ -648,6 +656,7 @@ describe('migrate', () => {
         { file: DEMO_ROW, applied: 1, skipped: 0, pending: 0 },
         { file: CASE_RULE, applied: 1, skipped: 0, pending: 0 },
         { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0 },
+        { file: DEMO_ACCOUNT, applied: 1, skipped: 0, pending: 0 },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -707,6 +716,45 @@ describe('the demo user', () => {
   it('is already the canonical spelling `006` requires', () => {
     expect(DEMO_USER_EMAIL).toBe(DEMO_USER_EMAIL.toLowerCase());
   });
+
+  it('owns the account `008` writes', () => {
+    const sql = read(DEMO_ACCOUNT);
+    expect(sql).toContain(DEMO_USER_ID);
+    expect(sql).toContain(DEMO_ACCOUNT_ID);
+  });
+
+  // A LATER FILE, NEVER AN EDIT OF AN EARLIER ONE. The ledger keys by statement content hash and
+  // both are applied on both clusters, so an account added to `005` would be re-presented as a
+  // statement the runner has no record of — refused, and nothing applied.
+  it('takes its account from a file of its own, leaving `003` and `005` as they were applied', () => {
+    expect(read(USER_SCHEMA)).not.toMatch(/INSERT INTO account/i);
+    expect(read(DEMO_ROW)).not.toMatch(/INSERT INTO account/i);
+    expect(statementsOf(read(DEMO_ROW))).toHaveLength(1);
+  });
+
+  it('has exactly one account once every file has run', async () => {
+    const db = new PGlite();
+    await ensureLedger(db);
+    for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
+
+    const { rows } = await db.query<{ id: string; provider: string; name: string }>(
+      'SELECT id, provider, name FROM account WHERE user_id = $1',
+      [DEMO_USER_ID],
+    );
+    expect(rows).toEqual([{ id: DEMO_ACCOUNT_ID, provider: 'inzhur', name: 'Inzhur' }]);
+  });
+
+  // The runner's crash window lets a statement it left open be sent twice, which `ON CONFLICT` on
+  // the PRIMARY KEY is what makes silent — the target `dsql-constraints.md` measured.
+  it('still has one account when the statement runs twice', async () => {
+    const db = new PGlite();
+    await ensureLedger(db);
+    for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
+    for (const stmt of statementsOf(read(DEMO_ACCOUNT))) await db.exec(stmt);
+
+    const { rows } = await db.query('SELECT id FROM account WHERE user_id = $1', [DEMO_USER_ID]);
+    expect(rows).toHaveLength(1);
+  });
 });
 
 describe('the bootstrap mode makes the one account that can approve the others', () => {
@@ -764,6 +812,14 @@ describe('the bootstrap mode makes the one account that can approve the others',
       )
     ).rows;
 
+  const accounts = async (db: PGlite, userId: string) =>
+    (
+      await db.query<{ provider: string; name: string }>(
+        'SELECT provider, name FROM account WHERE user_id = $1',
+        [userId],
+      )
+    ).rows;
+
   it('creates the identity and one row keyed by the sub the create call returned', async () => {
     const db = await applied();
     const { idp, created } = spy();
@@ -774,6 +830,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
       email: 'owner@quirenote.com',
       identity: 'created',
       row: 'created',
+      account: 'created',
     });
     expect(await rows(db)).toEqual([
       {
@@ -804,12 +861,45 @@ describe('the bootstrap mode makes the one account that can approve the others',
       email: 'owner@quirenote.com',
       identity: 'existing',
       row: 'existing',
+      account: 'existing',
     });
     expect(await rows(db)).toHaveLength(1);
     // CONFIRMED rather than assumed on the re-run, or a row whose Cognito user had been
     // deleted would report "existing" and repair nothing.
     expect(again.fetched).toHaveLength(1);
     expect(again.created).toEqual([]);
+    expect(await accounts(db, SUB)).toHaveLength(1);
+  });
+
+  it('gives the super-admin an account it can write against', async () => {
+    const db = await applied();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+    expect(await accounts(db, SUB)).toEqual([{ provider: 'inzhur', name: 'Inzhur' }]);
+  });
+
+  /**
+   * A RE-RUN IS THE REPAIR, and this arm is why the provisioning is not tucked behind the branch
+   * that writes the row: the clusters already hold a super-admin, so every bootstrap for that
+   * address takes the FINISHED path and would otherwise hand back an account-less user — one the
+   * gate admits and the mutation surface refuses.
+   */
+  it('supplies the account a finished row is missing', async () => {
+    const db = await applied();
+    await migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, spy().idp);
+    await db.query('DELETE FROM account WHERE user_id = $1', [SUB]);
+
+    const report = await migrate(
+      db,
+      { mode: 'bootstrap', email: 'owner@quirenote.com' },
+      spy(SUB).idp,
+    );
+    expect(report.bootstrap).toEqual({
+      email: 'owner@quirenote.com',
+      identity: 'existing',
+      row: 'existing',
+      account: 'created',
+    });
+    expect(await accounts(db, SUB)).toHaveLength(1);
   });
 
   // `app_user_email_lower_ck` must never be the thing that reports this: the runner
@@ -895,6 +985,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
       email: 'owner@quirenote.com',
       identity: 'created',
       row: 'created',
+      account: 'created',
     });
   });
 

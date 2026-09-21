@@ -18,10 +18,10 @@ import type { ApiEvent } from './http';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { proveRouteContract, recorder } from './route-contract';
 
-// `005` is DML — the demo row — and would sit underneath every count below. `DDL` is derived
-// from `MIGRATIONS` so a new schema file cannot be forgotten here.
-const DML = '005_demo_user.sql';
-const DDL = MIGRATIONS.filter((f) => f !== DML);
+// The two DML files — the demo row and the account it owns — would sit underneath every count
+// below. `DDL` is derived from `MIGRATIONS` so a new schema file cannot be forgotten here.
+const DML = ['005_demo_user.sql', '008_demo_account.sql'];
+const DDL = MIGRATIONS.filter((f) => !DML.includes(f));
 const fileUrl = (f: string) => new URL(`../migrations/${f}`, import.meta.url);
 
 const { observed, record } = recorder(ROUTE);

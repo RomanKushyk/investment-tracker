@@ -9,6 +9,7 @@
 import { canonicalAddress } from './address';
 import { INTERNAL, type ApiEvent, type ApiResult, canonicalUuid, claim, json } from './http';
 import type { SqlClient } from './migrate';
+import { provision } from './provision';
 
 /** What the row says about the caller. `role` is the row's, never the token's. */
 export type Caller = { userId: string; email: string; role: string };
@@ -106,8 +107,11 @@ export async function authorize(client: SqlClient, event: ApiEvent): Promise<Gat
     return { refusal: NO_APPLICATION };
   }
 
+  // THE ACCOUNT IS PART OF THE ROW, not a later step: `transaction.account_id` is NOT NULL, so a
+  // caller admitted here without one is somebody this gate lets in and every write refuses. Both
+  // land or neither does, which is what makes the read below the settlement it already claims to be.
   try {
-    await client.query(CREATE, [sub, email]);
+    await provision(client, sub, () => client.query(CREATE, [sub, email]));
   } catch (err) {
     // Not swallowed and not returned: a concurrent request is the only way here, and the read
     // below settles it.
