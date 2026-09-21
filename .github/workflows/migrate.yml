@@ -1,10 +1,15 @@
 name: Apply migrations
 
-# MANUAL ONLY, AND IT MUST STAY SO. DSQL runs one DDL statement per transaction with no
-# cross-statement rollback, so a half-applied file is the failure mode and the ledger in
-# `infra/src/migrate.ts` is what makes it recoverable. `deploy-backend.yml` ships this handler
-# and deliberately never runs it. `target` picks the cluster, never the SQL; resolving `prod`
-# resolves an environment whose deployment branch policy admits `main` alone.
+# THE REPAIR PATH AND THE BOOTSTRAP. `deploy-backend.yml` plans, rehearses and applies on every
+# push that ships SQL, so the ordinary migration never comes through here. DSQL runs one DDL
+# statement per transaction with no cross-statement rollback, so a half-applied file is the failure
+# mode: the ledger in `infra/src/migrate.ts` makes it recoverable and this dispatch is how an
+# operator finishes it, watching. `bootstrap` is here and nowhere else — it mints a real identity,
+# it has no rehearsal, and no automatic path may reach it.
+#
+# `target` picks the cluster, never the SQL; resolving `prod` resolves an environment whose
+# deployment branch policy admits `main` alone. The concurrency group is shared with the deploy's
+# apply job — group names are repository-wide — so the two can never meet at one database.
 on:
   workflow_dispatch:
     inputs:
@@ -50,6 +55,9 @@ permissions:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    # Lambda's 900s is the only bound on an invoke the action deliberately gives no client
+    # timeout; without this a hung one holds this group, and the cluster with it, for six hours.
+    timeout-minutes: 45
     environment:
       name: ${{ inputs.target }}
     steps:
@@ -59,71 +67,11 @@ jobs:
           role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Read from the stack, not constructed: SAM appends a generated suffix to the name.
-      - name: Resolve the function
-        id: fn
-        run: |
-          stack="quirenote-backend-user-${{ inputs.target }}"
-          # `|| true` so the guard below speaks — under `bash -e` a bare assignment takes its
-          # substitution's status. Stderr stays: AccessDenied must not read as "deploy first".
-          name=$(aws cloudformation describe-stacks \
-            --stack-name "$stack" \
-            --query "Stacks[0].Outputs[?OutputKey=='MigrateFunctionName'].OutputValue" \
-            --output text || true)
-          if [ -z "$name" ] || [ "$name" = "None" ]; then
-            echo "MigrateFunctionName is not an output of $stack — deploy first" >&2
-            exit 1
-          fi
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-
-      - name: Invoke
-        run: |
-          # `--cli-read-timeout 0` is NO CLIENT TIMEOUT, and the one setting here that could
-          # start a second migration — the CLI's clock starts before the function's 900s
-          # ceiling and `ReadTimeoutError` is in botocore's retryable set, so a trip would
-          # RE-INVOKE into a migration in flight. `AWS_MAX_ATTEMPTS=1` is the other half.
-          # `--output json`, or the FunctionError check below has no key name to read.
-          # BUILT, NOT SUBSTITUTED: the address is free text, so pasting it into the shell
-          # string is shell injection and into the JSON is JSON injection. `jq -n --arg` quotes
-          # both, and the mode travels the same way so there is one rule rather than two.
-          payload=$(jq -n --arg mode "$MIGRATE_MODE" --arg email "$BOOTSTRAP_EMAIL" \
-            '{mode: $mode} + (if $email == "" then {} else {email: $email} end)')
-          AWS_MAX_ATTEMPTS=1 aws lambda invoke \
-            --function-name "${{ steps.fn.outputs.name }}" \
-            --cli-binary-format raw-in-base64-out \
-            --payload "$payload" \
-            --cli-read-timeout 0 \
-            --output json \
-            out.json > invoke.json
-          cat invoke.json
-          echo '--- report ---'
-          cat out.json
-          # An unhandled error is a 200 with FunctionError set, so `invoke`'s exit code is not
-          # the answer — and `jq -e` exits 2 on a parse error, which an `if` reads as "no
-          # FunctionError". Each file is parse-checked before the `jq -e` that reads it.
-          jq empty invoke.json
-          if jq -e 'has("FunctionError")' invoke.json > /dev/null; then
-            echo 'the migration handler raised' >&2
-            exit 1
-          fi
-          jq empty out.json
-          # A REHEARSAL THAT LEFT ITS SCHEMA BEHIND COMES BACK 200 WITH NO FunctionError, and this
-          # is the only place its name reaches anyone short of CloudWatch.
-          if jq -e '.teardown.dropped == false' out.json > /dev/null; then
-            echo "the rehearsal applied cleanly but could not drop $(jq -r '.teardown.schema' out.json) — check the cluster and drop it by hand" >&2
-            exit 1
-          fi
-        env:
-          MIGRATE_MODE: ${{ inputs.mode }}
-          BOOTSTRAP_EMAIL: ${{ inputs.email }}
-
-      # The report is the only evidence a run leaves, and a log expires.
-      - name: Keep the report
-        if: always()
-        uses: actions/upload-artifact@v4
+      # ONE CALL, AND THE SAME ONE THE DEPLOY MAKES: `$/` resolves the action out of this
+      # repository at the commit the run is on, with no checkout — so the resolve, the invoke
+      # and the three verdicts are written once and neither caller can drift from the other.
+      - uses: $/.github/actions/invoke-migration
         with:
-          name: migrate-${{ inputs.target }}-${{ inputs.mode }}-${{ github.run_id }}
-          path: |
-            out.json
-            invoke.json
-          if-no-files-found: warn
+          target: ${{ inputs.target }}
+          mode: ${{ inputs.mode }}
+          email: ${{ inputs.email }}

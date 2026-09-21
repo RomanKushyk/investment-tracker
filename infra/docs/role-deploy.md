@@ -62,19 +62,25 @@ Inline permission policy:
 }
 ```
 
-`RunMigrations` is the one statement here that is not about deploying:
-[`.github/workflows/migrate.yml`](../../.github/workflows/migrate.yml) assumes this role to invoke
-the migration handler by hand, and the resources are **those two functions ALONE** — deliberately
-not the `quirenote-backend-*` wildcard `role-cfn-exec` uses, which would also let a dispatch fire
-the capture function and write a day's prices under whatever `as_of` the clock gave it. The capture
-function is `quirenote-backend-CaptureFunction-*`, which matches neither pattern.
+`RunMigrations` is the one statement here that is not about deploying: both
+[`deploy-backend.yml`](../../.github/workflows/deploy-backend.yml) and
+[`migrate.yml`](../../.github/workflows/migrate.yml) assume this role to invoke the migration
+handler, and the resources are **those two functions ALONE** — deliberately not the
+`quirenote-backend-*` wildcard `role-cfn-exec` uses, which would also let a run fire the capture
+function and write a day's prices under whatever `as_of` the clock gave it. The capture function is
+`quirenote-backend-CaptureFunction-*`, which matches neither pattern.
 
 **ONE ROLE HOLDS INVOKE ON BOTH RUNNERS, so the separation between the two user databases is the
 WORKFLOW's, not this role's.** A job running in the `dev` environment can invoke prod's migration
-function; what stops it is `migrate.yml` resolving its environment from `target`, and the `prod`
-environment admitting `main` alone. Note the SURFACE that protects: that workflow, and no other. A
-new workflow, or a `run:` step added to `deploy-backend.yml`, inherits invoke on prod's runner with
-no gate in front of it — so the gate is a property of what is written, not of what is permitted.
+function; what stops it is each caller resolving its environment rather than taking a name — the
+dispatch from `target`, the deploy from the ref — and the `prod` environment admitting `main` alone.
+Note the SURFACE that protects: those two workflows, the one composite action they share
+([`.github/actions/invoke-migration`](../../.github/actions/invoke-migration/action.yml)), and
+nothing else. A third workflow, or a `run:` step added anywhere in `deploy-backend.yml`, inherits
+invoke on prod's runner with no gate in front of it — so the gate is a property of what is written,
+not of what is permitted, which is why `src/stack-split.test.ts` pins that the only file under
+`.github/` carrying an `aws lambda invoke` is that action. **Nothing here asks a human first**: the
+apply runs unattended, and what answers for it is the `notify` job opening an issue on a failure.
 The Lambda-level grant, each runner holding `dsql:DbConnectAdmin` on its own cluster and no other,
 is the part that IS structural. Accepted rather than overlooked: a role per environment would make
 it structural here too, and is the change to make if this repository ever has a second person in it.
@@ -82,12 +88,12 @@ it structural here too, and is the change to make if this repository ever has a 
 **Three stack ARNs, written out rather than wildcarded.** `stack/quirenote-backend*` would cover the
 same three and every stack anyone names with that prefix later, which is the opposite of what a
 resource list is for. `cloudformation:DescribeStacks` is already in `DriveTheStack`, which is what
-lets the workflow read `MigrateFunctionName` out of the stack instead of constructing a name SAM
+lets the shared action read `MigrateFunctionName` out of the stack instead of constructing a name SAM
 generates a suffix for.
 
 **Added by hand, like everything else on this page** — a role is not in `template.yaml`, so nothing
 in this repository puts it there and nothing here will notice if it goes. Because `put-role-policy`
 REPLACES the whole inline document, every edit is written from a `get-role-policy` readback with the
-change applied to what came back, never typed fresh. Without `RunMigrations` a dispatch fails at the
+change applied to what came back, never typed fresh. Without `RunMigrations` a deploy or a dispatch fails at the
 invoke step with `AccessDeniedException`, which is the correct failure: nothing is half-applied,
 because nothing ran.

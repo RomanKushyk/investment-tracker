@@ -223,10 +223,16 @@ rejection by signing up again.
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;
 `infra/docs/dsql-constraints.md` carries the measured matrix. The generated DDL is APPLIED BY A
-RUNNER, never by a deploy: it rewrites each statement on the way out to what DSQL accepts and
-records each in a ledger keyed by its content hash, so a file may be re-run after it grows
-statements and only the new ones execute. Foreign keys are `ON DELETE RESTRICT`, never cascading,
-and deleting an asset is an APPLICATION cascade, children before the parent, in batches, every
+RUNNER, and the deploy that ships it is what starts it: the runner rewrites each statement on the
+way out to what DSQL accepts and records each in a ledger keyed by its content hash, so a file may
+be re-run after it grows statements and only the new ones execute. `deploy-backend.yml` plans
+against the stack it has just updated and, where anything is pending, rehearses on that cluster and
+applies — in a job of its own, with no human in front of it and a failure that opens an issue. A
+hand dispatch is the repair path and the only way to bootstrap. THE CODE IS LIVE BEFORE THE SCHEMA,
+the SQL riding in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compatible
+with the code already running — the ordering imposes that on each migration's author, and nothing in
+the pipeline can check it. Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an
+asset is an APPLICATION cascade, children before the parent, in batches, every
 predicate scoped by `user_id`. A user and their one account are written in the SAME transaction by
 the gate's open-registration insert, by approval's rekey and by the bootstrap mode — each
 idempotent, so a re-run leaves one account. The gate's and the bootstrap's retry on a serialization
@@ -244,11 +250,16 @@ rows living in one database makes one transaction the whole answer to a partial 
 CONFLICT DO NOTHING` prevents a duplicate row and not the commit-time conflict optimistic
 concurrency reports, which is why the retry is not that clause's job.
 **Rejected.** Tombstones: a `deleted_at` puts a filter in every read that the first forgotten one
-turns into deleted data rendered as live. · A migration started by the capture function or by the
-deploy: the schedule, the DLQ and a stack update could then each start one, and a migration must
-only ever be started by hand. · Provisioning the account lazily, on first write: the get-or-create
-race, moved into the one path that cannot absorb one. · An outbox or a saga around the two writes:
-both buy atomicity from outside a database that already gives it. · A CHECK enumerating `provider`:
+turns into deleted data rendered as live. · A migration started by the capture function: the
+schedule and the DLQ behind it would each become a starter, and what may start one is the deploy
+that ships it, plus an operator watching. · A required reviewer in front of the apply, built and
+removed: the rule gates a whole ENVIRONMENT, so it needed a `migrate-prod` of its own — `prod` also
+admits the frontend deploy — and the click it bought carried no evidence, being spent before the
+rehearsal ran, on a statement count, by the person who had just fast-forwarded `main`. A failure
+that reaches the task list is the stronger half of what it was for. · Provisioning the account
+lazily, on first write: the get-or-create race, moved into the one path that cannot absorb one. ·
+An outbox or a saga around the two writes: both buy atomicity from outside a database that already
+gives it. · A CHECK enumerating `provider`:
 no constraint here names a specific holding, and a CHECK added after the fact is `NOT VALID` for
 life, so a widened vocabulary would be a rule the rows already there were never held to.
 

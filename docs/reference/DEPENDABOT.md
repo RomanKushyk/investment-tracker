@@ -8,7 +8,7 @@ Alerts and automated security fixes are on as a repository setting; there is no 
 |---|---|---|
 | `package.json` (root) | pnpm / `pnpm-lock.yaml` | edit + `pnpm install`, or override |
 | `infra/package.json` | npm / `infra/package-lock.json` | edit + `npm install`/`npm ci` |
-| `.github/workflows/*.yml` | github-actions / none | hand-edit the `@vN` pin |
+| `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none | hand-edit the `@vN` pin — `actions/upload-artifact` is pinned in the composite action ALONE, so a workflows-only grep misses it |
 
 Overrides live in **`pnpm-workspace.yaml`**, never in `package.json`'s `pnpm` field — pnpm 11 no longer reads that field and only warns, so the fix looks applied and changes nothing.
 

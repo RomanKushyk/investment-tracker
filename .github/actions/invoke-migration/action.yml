@@ -1,0 +1,150 @@
+name: Invoke the migration runner
+description: >
+  Resolve the deployed runner out of its user stack, invoke it in one mode, read the verdict, and
+  keep the report. Written once because two callers need it: deploy-backend.yml plans, rehearses
+  and applies; migrate.yml repairs and bootstraps by hand.
+
+# WHY THIS IS ONE FILE: a migration can fail three ways that all look like success — a handler that
+# raised comes back 200 with `FunctionError`, a rehearsal that could not drop its schema comes back
+# 200 with neither, and a `jq -e` over a report that did not parse exits 2, which an `if` reads as
+# "no problem". Each is closed once here rather than twice in two workflows.
+#
+# It reads no `secrets` — a composite action cannot — so the caller configures credentials first.
+#
+# EVERY INPUT TRAVELS THROUGH `env:`, none substituted into a shell string. An address is free
+# text, so pasting it in is injection; `target` is constrained to `dev` or `prod` by both callers
+# today and goes the same way regardless — a rule only a comment polices is one the third caller
+# breaks.
+
+inputs:
+  target:
+    description: Which environment's user database — the stack suffix, never the SQL
+    required: true
+  mode:
+    description: rehearse | dry-run | apply | bootstrap
+    required: true
+  email:
+    description: bootstrap only — the address to make a super-admin
+    required: false
+    default: ''
+
+outputs:
+  pending:
+    description: >
+      Statements the report still counts as unapplied, summed over every file. What
+      deploy-backend.yml gates its apply job on, so a version cut carrying no schema waits on
+      nobody.
+    value: ${{ steps.invoke.outputs.pending }}
+
+runs:
+  using: composite
+  steps:
+    # Read from the stack, not constructed: SAM appends a generated suffix to the name.
+    - name: Resolve the function
+      id: fn
+      shell: bash
+      run: |
+        # CLEARED FIRST, because one job calls this action up to three times in one workspace and
+        # the report filenames are fixed. Left over, a `rehearse` report would be uploaded under
+        # the `apply` artifact name by the `if: always()` step below, on any run where the apply
+        # failed before it invoked — evidence of a production apply that is another mode's.
+        rm -f out.json invoke.json
+        stack="quirenote-backend-user-${MIGRATE_TARGET}"
+        # `|| true` so the guard below speaks — under `bash -e` a bare assignment takes its
+        # substitution's status. Stderr stays: AccessDenied must not read as "deploy first".
+        name=$(aws cloudformation describe-stacks \
+          --stack-name "$stack" \
+          --query "Stacks[0].Outputs[?OutputKey=='MigrateFunctionName'].OutputValue" \
+          --output text || true)
+        if [ -z "$name" ] || [ "$name" = "None" ]; then
+          echo "MigrateFunctionName is not an output of $stack — deploy first" >&2
+          exit 1
+        fi
+        echo "name=$name" >> "$GITHUB_OUTPUT"
+      env:
+        MIGRATE_TARGET: ${{ inputs.target }}
+
+    - name: Invoke
+      id: invoke
+      shell: bash
+      run: |
+        # BUILT, NOT SUBSTITUTED: the address is free text, so pasting it into the shell string is
+        # shell injection and into the JSON is JSON injection. `jq -n --arg` quotes both, and the
+        # mode travels the same way so there is one rule rather than two.
+        payload=$(jq -n --arg mode "$MIGRATE_MODE" --arg email "$BOOTSTRAP_EMAIL" \
+          '{mode: $mode} + (if $email == "" then {} else {email: $email} end)')
+        # ONE ATTEMPT WHERE A RETRY COULD RE-ENTER A MIGRATION IN FLIGHT — the CLI's clock starts
+        # before the function's 900s ceiling and `ReadTimeoutError` is in botocore's retryable set.
+        # `dry-run` is exempt because it mutates nothing and sits on the critical path of every
+        # backend deploy, where a throttle or a 5xx would redden a run whose stacks both succeeded.
+        # NOT for `ResourceConflictException`: that 409 is not in botocore's retryable set, so a
+        # function still updating fails the plan on the first attempt whatever this says.
+        if [ "$MIGRATE_MODE" = 'dry-run' ]; then attempts=3; else attempts=1; fi
+        # `--cli-read-timeout 0` is NO CLIENT TIMEOUT, the other half of the same rule.
+        # `--output json`, or the FunctionError check below has no key name to read.
+        AWS_MAX_ATTEMPTS=$attempts aws lambda invoke \
+          --function-name "${{ steps.fn.outputs.name }}" \
+          --cli-binary-format raw-in-base64-out \
+          --payload "$payload" \
+          --cli-read-timeout 0 \
+          --output json \
+          out.json > invoke.json
+        cat invoke.json
+        echo '--- report ---'
+        cat out.json
+        # PRESENT AND NON-EMPTY BEFORE PARSED: `jq empty` exits 0 on a zero-byte file — no input is
+        # not a parse error — so without this an absent report would clear every check below,
+        # `pending` would be the empty string, and the step would go green having read nothing.
+        for report in invoke.json out.json; do
+          [ -s "$report" ] || { echo "the runner produced no $report" >&2; exit 1; }
+          jq empty "$report"
+        done
+        # An unhandled error is a 200 with FunctionError set, so `invoke`'s exit code is not the
+        # answer.
+        if jq -e 'has("FunctionError")' invoke.json > /dev/null; then
+          # A TIMEOUT ARRIVES HERE TOO, and it is the one raise that leaves something behind
+          # without naming it: `migrate()` never reaches `dropRehearsalSchema`, so no `teardown`
+          # key exists for the check below and the schema's name is only in the function's log.
+          # Before the line under it, so that one stays adjacent to its `exit 1` — the suite reads
+          # for exactly that.
+          if [ "$MIGRATE_MODE" = 'rehearse' ] &&
+            jq -e '(.errorType? // "") + " " + (.errorMessage? // "") | test("Timedout|Task timed out"; "i")' out.json > /dev/null; then
+            echo "the rehearsal timed out, so migrate_rehearsal_* was never dropped — find its name in the runner's CloudWatch log and drop it by hand" >&2
+          fi
+          echo 'the migration handler raised' >&2
+          exit 1
+        fi
+        # COUNTED BEFORE THE LAST VERDICT CAN EXIT, because a caller gates on it: a rehearsal that
+        # applied cleanly and then could not drop its schema planned perfectly well. `//` for the
+        # modes reporting no file — `bootstrap` applies none.
+        pending=$(jq '[.files[]?.pending] | add // 0' out.json)
+        echo "pending=$pending" >> "$GITHUB_OUTPUT"
+        # On the run page, not only in the log: a deploy whose apply job was skipped has to say why
+        # somewhere a log expiry cannot take.
+        echo "\`$MIGRATE_MODE\` on \`$MIGRATE_TARGET\`: $pending statement(s) pending" \
+          >> "$GITHUB_STEP_SUMMARY"
+        # A REHEARSAL THAT LEFT ITS SCHEMA BEHIND COMES BACK 200 WITH NO FunctionError, and this is
+        # the only place its name reaches anyone short of CloudWatch.
+        if jq -e '.teardown.dropped == false' out.json > /dev/null; then
+          echo "the rehearsal applied cleanly but could not drop $(jq -r '.teardown.schema' out.json) — check the cluster and drop it by hand" >&2
+          exit 1
+        fi
+      env:
+        MIGRATE_MODE: ${{ inputs.mode }}
+        BOOTSTRAP_EMAIL: ${{ inputs.email }}
+        MIGRATE_TARGET: ${{ inputs.target }}
+
+    # The report is the only evidence a run leaves, and a log expires. THE MODE AND THE ATTEMPT ARE
+    # BOTH IN THE NAME: `upload-artifact@v4` refuses a name it has already uploaded in this run, a
+    # deploy calls this action up to three times, and `run_id` does not change when a failed job is
+    # re-run — so without `run_attempt` an `if: always()` upload would redden a re-run whose apply
+    # had just succeeded.
+    - name: Keep the report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: migrate-${{ inputs.target }}-${{ inputs.mode }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: |
+          out.json
+          invoke.json
+        if-no-files-found: warn

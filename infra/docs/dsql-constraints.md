@@ -195,7 +195,7 @@ when it still will not go.** A statement that was refused is what a rehearsal is
 still raises; a teardown that failed is not a finding, and a raise would read as one. So a rehearsal
 that applied cleanly and could not drop its schema RESOLVES carrying a `teardown` key — the schema's
 name, whether it went, the attempt count, the driver's message, and the SQLSTATE where the server
-gave one — and `migrate.yml` fails the run on that key and echoes the name. A schema orphaned by a
+gave one — and `.github/actions/invoke-migration`, which both the deploy and a dispatch go through, fails the run on that key and echoes the name. A schema orphaned by a
 run that raises for another reason is named in the raised message instead, a Lambda error payload
 carrying `errorType`, `errorMessage` and `trace` and no more. Either way the name reaches the run
 page without opening CloudWatch.

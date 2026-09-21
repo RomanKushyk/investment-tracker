@@ -55,7 +55,9 @@ one deploying branch and user data two:
 
 The archive step is skipped off `main`, **so a `workflow_dispatch` on `main` cannot repair the archive**
 — the repair path is a dispatch on `dev`. A `prod` migration is refused from any branch but `main` by the
-`prod` environment's branch policy, before any credential exists.
+`prod` environment's deployment branch policy, before any credential exists, on both paths — the deploy's
+apply job and a hand dispatch resolve the same environment. **No reviewer stands in front of either**; what
+carries a failed apply is the `notify` job, which opens an issue.
 
 **A new POOL resolves nowhere, and a new API does not either**: the `auth` and `api` records are
 Cloudflare's and manual, so until they exist the hostnames answer nothing while every stack reads
@@ -67,8 +69,9 @@ both of its hosts, so one ARN per pair serves both environments. The API's gener
 a route is verified against before the record exists. **An app client
 with no managed login BRANDING STYLE serves nonfunctional pages**, branding version 2 not falling
 back to the classic UI — same shape again, which is why the style is declared in the template rather
-than clicked into the branding editor. **And a new user cluster is EMPTY:** the schema arrives only
-when someone dispatches `migrate.yml` against it — `rehearse`, then `dry-run`, then `apply`.
+than clicked into the branding editor. **And a new user cluster is EMPTY until the deploy that made it
+fills it:** the last step of the deploy job plans against the stack it just updated, and a `migrate` job
+rehearses and applies whatever that plan counted as pending.
 
 ## 3. One-time AWS console setup
 
@@ -200,6 +203,16 @@ an empty value rather than an error that names it.
 | Secret | `AWS_ACCOUNT_ID` | the account number | both |
 | Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` | both |
 | Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy` | both — `prod` needs it since the backend split |
+
+**The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A
+required reviewer gates a whole environment, and `prod` also admits `deploy-frontend.yml` — put one there
+and every production release waits on a click — so the gate had to live somewhere else. The reviewer was
+then dropped on its merits (*User schema and deletes*), and the two environments went with it: the apply
+resolves plain `prod`/`dev`, whose branch policies were always the thing refusing a prod migration from
+another branch. **If you ever name an environment a workflow does not already have, create it FIRST** —
+GitHub's words are that an implicitly created one "will not have any protection rules or secrets
+configured", and entries here are not shared with the repository, so it would come up with no branch
+policy and no `AWS_BACKEND_ROLE_ARN`.
 
 **Deployment branch policy — required, not cosmetic.** Settings → Environments → `<env>` →
 **Deployment branches and tags** → *Selected branches and tags* → the one branch that environment

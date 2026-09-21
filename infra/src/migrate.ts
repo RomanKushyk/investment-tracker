@@ -687,7 +687,8 @@ export async function migrate(
   if (thrown !== undefined) throw orphaned(thrown, teardown);
   if (restoreFailure !== undefined) throw orphaned(restoreFailure, teardown);
   // A TEARDOWN FAILURE IS REPORTED, NOT RAISED: nothing was wrong with the statements, so a
-  // raise would read as a finding the rehearsal did not make. `migrate.yml` fails the run.
+  // raise would read as a finding the rehearsal did not make. The caller fails the run on the key —
+  // `.github/actions/invoke-migration`, which both the deploy and a dispatch go through.
   return { mode, schema, files, ...(teardown.dropped ? {} : { teardown }) };
 }
 

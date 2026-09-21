@@ -27,7 +27,18 @@ on:
 
 concurrency:
   # PER BRANCH — true only while `main` deploys no archive, or two `sam deploy` meet one stack.
+  #
+  # THE WHOLE RUN, NOT THE DEPLOY JOB, and that is what keeps the bundle still under the migration:
+  # a run is not finished while its `migrate` job rehearses and applies, so it keeps this group,
+  # and the next push cannot `sam deploy` a new handler and new `dist/migrations/*.sql` underneath
+  # an apply already in flight against the old one. Grouped on the deploy job alone, the second of
+  # two quick pushes would do exactly that, and the apply would run SQL its own plan never counted.
   group: deploy-backend-${{ github.ref_name }}
+  # `max` QUEUES UP TO 100 RATHER THAN KEEPING ONE, and it is what makes holding the group safe:
+  # the default `single` CANCELS whichever run was already pending when a new one arrives, so a
+  # migration slow enough to outlast two pushes would drop the middle one — stack never updated,
+  # nothing red. Queued, they wait and run in order. Invalid with `cancel-in-progress: true`.
+  queue: max
   cancel-in-progress: false # never interrupt a CloudFormation update in flight
 
 permissions:
@@ -37,6 +48,16 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # THIS JOB INVOKES THE RUNNER TOO, in its last step, and holds the workflow group while it
+    # does: the plan carries no client timeout either, so a hung invoke here would queue every
+    # later push on the branch behind it for the six-hour default. WELL CLEAR OF A SLOW STACK
+    # rather than tight — a managed-login domain change takes CloudFormation tens of minutes, and
+    # a timeout here kills `sam deploy` while CloudFormation carries on regardless.
+    timeout-minutes: 120
+    outputs:
+      # What the gated job below is conditioned on. Read from the runner AFTER the stack update, so
+      # it counts the statements in the bundle THIS run shipped.
+      pending: ${{ steps.plan.outputs.pending }}
     environment:
       # EVERY REF THAT IS NOT `main` RESOLVES `dev`, INCLUDING A TAG: a dispatch on `vX.Y.Z`
       # asks for the DEV stacks from production's tree, and only the branch policy refuses it.
@@ -283,11 +304,14 @@ jobs:
             }).catch((e) => { console.error(e); process.exit(1); });
           "
 
-      # NO DEPLOY GATE HERE, AND THAT IS A DECISION. A `changed` step suppressing the deploy
-      # on a prose push was written and removed: the failure no range can close is that
-      # `concurrency` cancels PENDING runs, so a real infra push can be dropped from the queue
-      # while the next run's range no longer covers it — stack never updated, nothing red.
-      # It needs a watermark of the last SHA deployed; a skipped deploy is worse than a waste.
+      # NO DEPLOY GATE HERE, AND THAT IS STILL A DECISION, though half its reasoning has expired.
+      # A `changed` step suppressing the deploy on a prose push was written and removed because
+      # `concurrency` cancelled PENDING runs, so a real infra push could be dropped from the queue
+      # while the next run's range no longer covered it — stack never updated, nothing red. That
+      # half is closed: `queue: max` above queues rather than cancels, so a push's range is no
+      # longer lost. What remains is that a range-based gate still needs a watermark of the last
+      # SHA actually deployed to be correct across a re-run or a revert, and a skipped deploy is
+      # worse than a wasted one. Reconsidering it is its own change, not a line here.
 
       - uses: aws-actions/setup-sam@v3
         with:
@@ -299,7 +323,8 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       # USER STACK FIRST, ARCHIVE SECOND, in two steps: the archive deploy DELETES the old
-      # migration function, so running it first leaves `migrate.yml` resolving nothing.
+      # migration function, so running it first leaves the plan step below — and any later
+      # dispatch of `migrate.yml` — resolving nothing.
       - name: Deploy the user stack
         working-directory: infra
         run: |
@@ -357,3 +382,131 @@ jobs:
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
+
+      # LAST IN THIS JOB, AND THAT IS THE POINT: a plan read before `sam deploy` counts the
+      # statements the PREVIOUS bundle carried, and would gate this run on them. It runs here
+      # rather than in the gated job below because this job already holds the parent environment's
+      # credentials, and because a plan contacts no object the migration owns.
+      - name: Plan the migration
+        id: plan
+        uses: $/.github/actions/invoke-migration
+        with:
+          target: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          mode: dry-run
+
+  # THE APPLY, AND NO HUMAN IN FRONT OF IT. A required reviewer here was written and removed: it
+  # gates a whole ENVIRONMENT, so it lived in a `migrate-prod` of its own — `prod` also admits
+  # `deploy-frontend.yml`, and a rule there would hold every release for a click. What retired it
+  # is that the click carried no evidence: consent was spent before the rehearsal ran, on a
+  # statement count, by the same person who had just fast-forwarded `main`. The gate is replaced
+  # by the `notify` job below — a failure that reaches the task list beats a human asked to
+  # approve one. [*User schema and deletes*]
+  #
+  # SKIPPED OUTRIGHT WHEN NOTHING IS PENDING, so a version cut carrying no schema deploys
+  # untouched.
+  migrate:
+    needs: deploy
+    # `!= '0'`, NOT A NUMERIC TEST, AND THE DIRECTION IS DELIBERATE: an output that failed to
+    # resolve is the empty string, which this reads as "something might be pending" and runs. The
+    # cost of being wrong that way is a rehearse and an apply that do nothing; the cost of the
+    # other way is a schema change nobody notices, which is what this whole job ended.
+    if: needs.deploy.outputs.pending != '0'
+    runs-on: ubuntu-latest
+    # TWO INVOCATIONS OF A RUNNER WITH NO CLIENT TIMEOUT. The action drops `--cli-read-timeout`
+    # so a slow migration is never re-invoked, which leaves Lambda's own 900s as the only bound —
+    # and Actions cannot see it. A hung invoke would otherwise hold this group, and a paid runner,
+    # for the 360-minute default, blocking the very dispatch that would repair it.
+    timeout-minutes: 45
+    concurrency:
+      # THE SAME STRING `migrate.yml` TAKES FOR THIS CLUSTER. Group names are repository-wide, so
+      # an apply from here and a hand dispatch can never overlap on one database — the
+      # serialisation DSQL cannot give, having no advisory locks.
+      group: migrate-${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      cancel-in-progress: false # never interrupt DDL in flight
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    steps:
+      # NO CHECKOUT: the SQL applied is the copy baked into the DEPLOYED bundle, not the ref. `$/`
+      # is what keeps that true while still sharing one action — it resolves from this repository
+      # at the commit the run is on, without a workspace.
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKEND_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # REHEARSE FIRST, ON THE TARGET CLUSTER, FROM THE SAME BUNDLE: a throwaway schema dropped
+      # CASCADE. It stands in for the rollback DSQL does not have, and it is worth a second
+      # invocation only because it runs against the database that is about to change.
+      - uses: $/.github/actions/invoke-migration
+        with:
+          target: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          mode: rehearse
+
+      - uses: $/.github/actions/invoke-migration
+        with:
+          target: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          mode: apply
+
+  # THE SIGNAL THAT REPLACED THE REVIEWER, and the reason removing one was safe. Nobody watches an
+  # automatic apply, and the two things that would otherwise carry the news are both weak: a red run
+  # is an email governed by a personal notification setting this repository cannot read or test, and
+  # a log expires. An issue is durable and is this repository's only task list.
+  #
+  # THE CONDITION IS READ OFF THE RESULTS, NOT `failure()`, and that is not style. GitHub documents
+  # `failure()` as true "if any ancestor job fails" — `deploy` is an ancestor, and it runs the whole
+  # suite, so a single failing unit test would have opened an issue claiming production was live
+  # against an unmigrated schema when `sam deploy` had not run at all. The three clauses below say
+  # exactly the state worth waking someone for: the stacks updated, and the schema did not follow.
+  #
+  # `!= success && != skipped` RATHER THAN `== failure`, because a job CANCELLED while pending on
+  # `migrate-<target>` — which a hand dispatch can do — leaves the same state and is not a failure.
+  # `skipped` is the healthy case: nothing was pending.
+  #
+  # A FAILED PLAN IS DELIBERATELY OUTSIDE THIS. It fails `deploy`, so the first clause excludes it —
+  # the stacks did update, but no migration was attempted, nothing is half-applied, and a red deploy
+  # is the ordinary signal for it. Widening to any red deploy is what would file an issue per broken
+  # test and teach the channel to be ignored.
+  notify:
+    needs: [deploy, migrate]
+    if: >-
+      always() && needs.deploy.result == 'success' &&
+      needs.migrate.result != 'success' && needs.migrate.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # REPLACES the workflow's grant for this job rather than adding to it: no `id-token`, no AWS,
+    # nothing to write but the issue.
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+          OUTCOME: ${{ needs.migrate.result }}
+        run: |
+          # ONE OPEN ISSUE PER CLUSTER, commented rather than duplicated: a migration that fails
+          # keeps failing on every later push, and three issues about one broken ledger is triage
+          # work that hides the first report. The marker is invisible in the rendered body.
+          marker="<!-- deploy-backend-migration-failure:${TARGET} -->"
+          body=$(printf '%s\n\n@%s the schema did NOT follow the code on `%s` — the apply came back `%s`.\n\nBoth stacks updated and the new handlers are live on `%s`, so that cluster is running new code against its old schema. Expand/contract is what makes it survivable; it is not a state to leave.\n\n- Run: %s\n- Commit: `%s`\n- Report: the `migrate-%s-*` artifacts on that run carry `out.json`, one per mode.\n\n**Read the report before repairing — the mode that failed decides the repair.** A failed `rehearse` means the SQL itself was refused on a throwaway schema: fix the migration on a branch, and do NOT apply. A failed `apply` is resumable — dispatch `migrate.yml` with `target: %s`, `mode: apply`, since the ledger is keyed by statement hash and a re-run continues rather than restarting, which is what a half-applied file needs. If the report names a rehearsal schema that would not drop, drop `migrate_rehearsal_*` by hand first.\n' \
+            "$marker" "$OWNER" "$TARGET" "$OUTCOME" "$TARGET" "$RUN_URL" "$SHA" "$TARGET" "$TARGET")
+          # THE LIST API, NOT `--search`: search is an INDEX, minutes behind a just-created issue and
+          # with a query grammar this marker is punctuation in. A miss here does not degrade, it
+          # duplicates. `|| true` because the step runs under `bash -e`, where one 5xx on the lookup
+          # would abort before either branch and lose the only durable signal the run leaves.
+          existing=$(gh issue list --repo "$REPO" --state open --label area:infra --limit 100 \
+            --json number,body --jq "[.[] | select(.body | contains(\"$marker\"))][0].number // empty" \
+            || true)
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body "$body"
+            echo "commented on #$existing" >> "$GITHUB_STEP_SUMMARY"
+          else
+            url=$(gh issue create --repo "$REPO" \
+              --title "Migration failed on $TARGET — the code is live and the schema is not" \
+              --label bug --label area:infra --body "$body")
+            echo "opened $url" >> "$GITHUB_STEP_SUMMARY"
+          fi

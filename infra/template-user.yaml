@@ -83,8 +83,10 @@ Resources:
   # ITS OWN FUNCTION, NOT A MODE ON THE CAPTURE ONE, and what separates them is blast radius: a
   # mode would give the function that runs unattended on a schedule, with a DLQ that retries it,
   # the standing right to CREATE and ALTER the user tables. ONE CLUSTER PER RUNNER for the same
-  # reason — but the deploy role can invoke both, so what keeps a dev dispatch off production is
-  # `migrate.yml`'s environment gate, not IAM (`infra/docs/role-deploy.md`, an accepted risk).
+  # reason — but the deploy role can invoke both, so what keeps a dev run off production is the
+  # environment each CALLER resolves, not IAM: `migrate.yml` from its `target`, and
+  # `deploy-backend.yml`'s plan and apply from the ref (`infra/docs/role-deploy.md`, an accepted
+  # risk).
   MigrateFunction:
     Type: AWS::Serverless::Function
     Properties:
