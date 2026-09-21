@@ -119,6 +119,9 @@ export interface FileReport {
   skipped: number;
   /** Statements still to run. Always 0 after a successful apply. */
   pending: number;
+  /** Wall time, and OPTIONAL because the two functions that build this report have no
+   *  clock: `migrate` is what stamps it, being the only caller that sees a whole run. */
+  ms?: number;
 }
 
 /** `42P07` is a duplicate RELATION, which an existing INDEX reports rather than `42710`, the
@@ -159,6 +162,7 @@ export async function applyFile(
   file: string,
   statements: string[],
   send: (statement: string) => string = (s) => s,
+  guard: (file: string, index: number) => void = () => {},
 ): Promise<FileReport> {
   const { rows } = await client.query<{ stmt_sha256: string; applied_at: unknown }>(
     'SELECT stmt_sha256, applied_at FROM schema_migration WHERE file = $1',
@@ -184,6 +188,10 @@ export async function applyFile(
       report.skipped += 1;
       continue;
     }
+    // AFTER THE SKIP, so a budget is spent only on work that will really run: a
+    // long history with nothing pending is the state every deploy shipping no new
+    // SQL is in, and refusing that one would be the guard refusing to do nothing.
+    guard(file, index);
     const openedHere = !open.has(hash);
     if (openedHere) {
       await client.query(
@@ -405,6 +413,12 @@ export interface MigrateEvent {
 export interface MigrateReport {
   mode: MigrateMode;
   schema: string;
+  /** Wall time for the run, taken from the top of `migrate` — so it EXCLUDES the connection
+   *  the handler opens around it, a constant rather than a function of how many files there
+   *  are, and it is NOT what `getRemainingTimeInMillis` counts down. What it does cover is
+   *  everything the file entries leave out: the throwaway schema, the ledger, the drop. The
+   *  cost of a rehearsal is then a figure in the artifact the caller already uploads. */
+  ms: number;
   files: FileReport[];
   /** Set by `bootstrap` alone, and absent everywhere else. */
   bootstrap?: BootstrapReport;
@@ -451,7 +465,7 @@ async function bootstrap(
   client: SqlClient,
   idp: IdentityAdminClient,
   supplied: unknown,
-): Promise<MigrateReport> {
+): Promise<Omit<MigrateReport, 'ms'>> {
   // CANONICALISED BEFORE ANYTHING IS ASKED, so a constraint is never what reports an operator's
   // capital letter in the middle of a privileged run.
   const email = canonicalAddress(supplied);
@@ -569,6 +583,56 @@ const DROP_RETRY_DELAYS_MS = [500, 2_000];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Held back from the invocation so a rehearsal can still drop its schema: three
+ *  attempts across `DROP_RETRY_DELAYS_MS`, the `search_path` restore, and room for a
+ *  slow one. `apply` tears nothing down and holds back the same margin anyway, so that
+ *  the refusal itself is reported rather than cut off by the kill it is avoiding. The
+ *  boundary is pinned in `migrate.test.ts`. */
+export const TEARDOWN_RESERVE_MS = 30_000;
+
+/** Lambda's context, reduced to the one method the runner reads. */
+export interface Budget {
+  getRemainingTimeInMillis(): number;
+}
+
+/**
+ * REFUSES TO SEND A STATEMENT WITH THE RESERVE ALREADY SPENT, because being killed at
+ * the ceiling has none of the properties a refusal has: the caller gets no report, a
+ * rehearsal never reaches `dropRehearsalSchema` and leaves a schema named only in
+ * CloudWatch, and an apply killed inside `sys.wait_for_job` leaves its ledger row open.
+ * `Timeout` already sits at Lambda's maximum, so stopping early is the only move left.
+ *
+ * IT BOUNDS WHEN A STATEMENT STARTS, NOT HOW LONG IT RUNS. A single `CALL
+ * sys.wait_for_job` that overruns on its own is still a kill — the connection sets no
+ * `statement_timeout` — so what this catches is a history grown past one invocation,
+ * which is the cost that rises with every file added.
+ *
+ * A NO-OP WITHOUT A BUDGET, which is every caller but the deployed handler: only
+ * Lambda knows how long an invocation has left.
+ */
+const budgetGuard = (budget: Budget | undefined): ((file: string, index: number) => void) => {
+  if (budget === undefined) return () => {};
+  return (file, index) => {
+    const remaining = budget.getRemainingTimeInMillis();
+    if (remaining > TEARDOWN_RESERVE_MS) return;
+    // WHAT IT MEASURED AND NOTHING ELSE. It cannot tell a history grown too long from
+    // one index build that ate the invocation, and it names no teardown: `apply` runs
+    // none, and this one message reaches the run page for both modes.
+    throw new Error(
+      `${file} statement ${index} was not started: ${remaining}ms of this invocation is ` +
+        `left and the runner holds back ${TEARDOWN_RESERVE_MS}ms. Timeout already sits ` +
+        `at Lambda's maximum.`,
+    );
+  };
+};
+
+/** One file's report, with what it cost. The only place a `FileReport` gets its `ms`. */
+const timed = async (run: () => Promise<FileReport>): Promise<FileReport> => {
+  const from = Date.now();
+  const report = await run();
+  return { ...report, ms: Date.now() - from };
+};
+
 /** What became of a rehearsal's schema. Reported only when it outlived the run. */
 export interface TeardownReport {
   schema: string;
@@ -623,7 +687,9 @@ export async function migrate(
   client: SqlClient,
   event: MigrateEvent = {},
   idp: IdentityAdminClient = sdkIdentity,
+  budget?: Budget,
 ): Promise<MigrateReport> {
+  const started = Date.now();
   const mode = event.mode;
   if (mode === undefined || !MODES.includes(mode)) {
     throw new Error(`mode must be one of ${MODES.join(' | ')}, got ${JSON.stringify(event.mode)}`);
@@ -631,23 +697,31 @@ export async function migrate(
 
   // BEFORE THE PLAN AND WELL BEFORE THE REHEARSE TAIL, which is the fall-through and has no
   // guard of its own: a branch added after it lands in `CREATE SCHEMA` and reports a rehearsal.
-  if (mode === 'bootstrap') return bootstrap(client, idp, event.email);
+  if (mode === 'bootstrap') {
+    return { ...(await bootstrap(client, idp, event.email)), ms: Date.now() - started };
+  }
 
   const plan = MIGRATIONS.map((file) => ({ file, statements: statementsOf(fileText(file)) }));
 
   if (mode === 'dry-run') {
     const files: FileReport[] = [];
-    for (const { file, statements } of plan) files.push(await planFile(client, file, statements));
-    return { mode, schema: 'public', files };
+    // NO BUDGET: a dry run reads the files and the ledger and contacts no object the
+    // migration owns, so there is no work to refuse.
+    for (const { file, statements } of plan) {
+      files.push(await timed(() => planFile(client, file, statements)));
+    }
+    return { mode, schema: 'public', ms: Date.now() - started, files };
   }
+
+  const guard = budgetGuard(budget);
 
   if (mode === 'apply') {
     await ensureLedger(client);
     const files: FileReport[] = [];
     for (const { file, statements } of plan) {
-      files.push(await applyFile(client, file, statements, rewriteForDsql));
+      files.push(await timed(() => applyFile(client, file, statements, rewriteForDsql, guard)));
     }
-    return { mode, schema: 'public', files };
+    return { mode, schema: 'public', ms: Date.now() - started, files };
   }
 
   // REHEARSE: a throwaway schema dropped CASCADE, the ledger inside it, so it teaches the real
@@ -662,7 +736,7 @@ export async function migrate(
     await client.query(`SET search_path TO ${schema}`);
     await ensureLedger(client);
     for (const { file, statements } of plan) {
-      files.push(await applyFile(client, file, statements, rewriteForDsql));
+      files.push(await timed(() => applyFile(client, file, statements, rewriteForDsql, guard)));
     }
   } catch (err) {
     thrown = err;
@@ -689,13 +763,24 @@ export async function migrate(
   // A TEARDOWN FAILURE IS REPORTED, NOT RAISED: nothing was wrong with the statements, so a
   // raise would read as a finding the rehearsal did not make. The caller fails the run on the key —
   // `.github/actions/invoke-migration`, which both the deploy and a dispatch go through.
-  return { mode, schema, files, ...(teardown.dropped ? {} : { teardown }) };
+  return {
+    mode,
+    schema,
+    ms: Date.now() - started,
+    files,
+    ...(teardown.dropped ? {} : { teardown }),
+  };
 }
 
-export async function handler(event: MigrateEvent = {}): Promise<MigrateReport> {
+export async function handler(
+  event: MigrateEvent = {},
+  // THE ONLY BUDGET THERE IS. Nothing else knows how long this invocation has left, so
+  // a forward dropped here disarms the guard silently — `migrate.test.ts` covers it.
+  context?: Budget,
+): Promise<MigrateReport> {
   const client = await connect();
   try {
-    return await migrate(client, event);
+    return await migrate(client, event, sdkIdentity, context);
   } finally {
     await client.end();
   }

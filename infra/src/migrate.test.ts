@@ -11,16 +11,24 @@ import { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DEMO_ACCOUNT_ID, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
+import { connect } from './dsql';
 import type { SqlClient } from './migrate';
 import {
   MIGRATIONS,
+  TEARDOWN_RESERVE_MS,
   applyFile,
   dropRehearsalSchema,
   ensureLedger,
+  handler,
   migrate,
   rewriteForDsql,
   statementsOf,
 } from './migrate';
+
+// THE ONE PATH WITH A REAL BUDGET IS THE ONE PGlite CANNOT REACH: `handler` opens a
+// cluster connection before it forwards Lambda's context, so the forward is only
+// testable with the connection replaced. Nothing else in this file calls `handler`.
+vi.mock('./dsql', () => ({ connect: vi.fn() }));
 
 const read = (file: string) =>
   readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
@@ -552,12 +560,13 @@ describe('migrate', () => {
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
+      ms: expect.any(Number),
       files: [
-        { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 12 },
-        { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1 },
-        { file: CASE_RULE, applied: 0, skipped: 0, pending: 1 },
-        { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1 },
-        { file: DEMO_ACCOUNT, applied: 0, skipped: 0, pending: 1 },
+        { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 12, ms: expect.any(Number) },
+        { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: CASE_RULE, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
+        { file: DEMO_ACCOUNT, applied: 0, skipped: 0, pending: 1, ms: expect.any(Number) },
       ],
     });
   });
@@ -573,12 +582,13 @@ describe('migrate', () => {
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
+      ms: expect.any(Number),
       files: [
-        { file: USER_SCHEMA, applied: 0, skipped: 12, pending: 0 },
-        { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0 },
-        { file: CASE_RULE, applied: 0, skipped: 1, pending: 0 },
-        { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0 },
-        { file: DEMO_ACCOUNT, applied: 0, skipped: 1, pending: 0 },
+        { file: USER_SCHEMA, applied: 0, skipped: 12, pending: 0, ms: expect.any(Number) },
+        { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: CASE_RULE, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
+        { file: DEMO_ACCOUNT, applied: 0, skipped: 1, pending: 0, ms: expect.any(Number) },
       ],
     });
   });
@@ -652,11 +662,11 @@ describe('migrate', () => {
       const report = await migrate(conflicted, { mode: 'rehearse' });
       expect(report.schema).toMatch(/^migrate_rehearsal_\d+$/);
       expect(report.files).toEqual([
-        { file: USER_SCHEMA, applied: 12, skipped: 0, pending: 0 },
-        { file: DEMO_ROW, applied: 1, skipped: 0, pending: 0 },
-        { file: CASE_RULE, applied: 1, skipped: 0, pending: 0 },
-        { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0 },
-        { file: DEMO_ACCOUNT, applied: 1, skipped: 0, pending: 0 },
+        { file: USER_SCHEMA, applied: 12, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DEMO_ROW, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: CASE_RULE, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
+        { file: DEMO_ACCOUNT, applied: 1, skipped: 0, pending: 0, ms: expect.any(Number) },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,
@@ -691,6 +701,115 @@ describe('migrate', () => {
     },
     THROUGH_THE_BACKOFF,
   );
+});
+
+// The invocation is the bound nothing else measures: the rehearsal replays the WHOLE
+// history every time — the ledger lives inside the throwaway schema, so no file is
+// ever skipped — while `Timeout: 900` is already Lambda's maximum. What these pin is
+// the shape of running out: refused by name, before the work starts, with the schema
+// still dropped. A kill at the ceiling has none of those properties.
+describe('the invocation budget', () => {
+  /** Lambda's context, reduced to the one method the runner reads. Constant rather
+   *  than counting down: what is under test is the decision, not the clock. */
+  const left = (ms: number) => ({ getRemainingTimeInMillis: () => ms });
+
+  it('refuses a rehearsal statement it cannot finish, naming the file and the statement', async () => {
+    const db = new PGlite();
+    const raised = await migrate(dsqlish(db), { mode: 'rehearse' }, undefined, left(0)).catch(
+      (err: unknown) => err,
+    );
+    expect(raised).toBeInstanceOf(Error);
+    // The three things an operator has to read off a run page: which file, which
+    // statement, and that the wall clock rather than the statement is what refused.
+    expect((raised as Error).message).toContain(USER_SCHEMA);
+    expect((raised as Error).message).toMatch(/statement 0\b/);
+    expect((raised as Error).message).toContain(String(TEARDOWN_RESERVE_MS));
+  });
+
+  // THE PROPERTY THAT SEPARATES THIS FROM A KILL. A timed-out invocation never reaches
+  // `dropRehearsalSchema`, so it leaves a schema whose name is only in CloudWatch.
+  it('still drops its throwaway schema and restores search_path when the budget refuses', async () => {
+    const db = new PGlite();
+    await expect(migrate(dsqlish(db), { mode: 'rehearse' }, undefined, left(0))).rejects.toThrow();
+    const { rows } = await db.query<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
+    );
+    expect(rows).toEqual([]);
+    const path = await db.query<{ search_path: string }>('SHOW search_path');
+    expect(path.rows[0].search_path).toContain('public');
+  });
+
+  // An apply is the worse kill: a wait killed over `CREATE INDEX ASYNC` leaves the
+  // ledger row open. Refusing BEFORE the insert is what keeps the ledger honest.
+  it('refuses an apply the same way, and the ledger records nothing it did not run', async () => {
+    const db = new PGlite();
+    await expect(migrate(dsqlish(db), { mode: 'apply' }, undefined, left(0))).rejects.toThrow(
+      USER_SCHEMA,
+    );
+    const { rows } = await db.query<{ n: number }>(
+      'SELECT count(*)::int AS n FROM schema_migration',
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  // WHERE THE FIGURE LIVES. The reserve exists to cover the teardown, so a budget that
+  // is exactly it is already too little.
+  it('completes on a budget just above the reserve and refuses on the reserve itself', async () => {
+    const above = new PGlite();
+    const report = await migrate(
+      dsqlish(above),
+      { mode: 'rehearse' },
+      undefined,
+      left(TEARDOWN_RESERVE_MS + 1),
+    );
+    expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1]);
+
+    const below = new PGlite();
+    await expect(
+      migrate(dsqlish(below), { mode: 'rehearse' }, undefined, left(TEARDOWN_RESERVE_MS)),
+    ).rejects.toThrow();
+  });
+
+  // The check sits AFTER the ledger's skip, or a long-applied history would refuse a
+  // run with nothing to do — the state every deploy that ships no new SQL is in.
+  it('does not spend the budget on a statement the ledger has already finished', async () => {
+    const db = new PGlite();
+    const client = dsqlish(db);
+    await migrate(client, { mode: 'apply' });
+    const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
+    expect(report.files.map((f) => f.skipped)).toEqual([12, 1, 1, 1, 1]);
+    expect(report.files.map((f) => f.applied)).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.
+  it("carries the budget from the handler's Lambda context", async () => {
+    const db = new PGlite();
+    const client = dsqlish(db);
+    vi.mocked(connect).mockResolvedValue({
+      query: (text: string, values?: unknown[]) => client.query(text, values),
+      end: async () => {},
+    } as unknown as Awaited<ReturnType<typeof connect>>);
+    const raised = await handler({ mode: 'rehearse' }, left(0)).catch((err: unknown) => err);
+    expect(raised).toBeInstanceOf(Error);
+    expect((raised as Error).message).toContain(USER_SCHEMA);
+  });
+});
+
+// WHAT THE REHEARSAL COSTS, in the only artifact a run leaves. The cost grows with
+// every file added and the report is what turns the next decision about it into a
+// curve rather than a paragraph.
+describe("the report's wall time", () => {
+  it('reports a total and a per-file ms, the total covering every file', async () => {
+    const db = new PGlite();
+    const report = await migrate(dsqlish(db), { mode: 'rehearse' });
+    expect(report.ms).toEqual(expect.any(Number));
+    // `?? NaN` rather than `?? 0`: `ms` is optional on a file entry, so a spread
+    // dropped from `migrate` would otherwise sum to a number and pass.
+    const summed = report.files.reduce((total, file) => total + (file.ms ?? NaN), 0);
+    expect(Number.isNaN(summed)).toBe(false);
+    // The total also covers `CREATE SCHEMA` and the teardown, so it can only be larger.
+    expect(report.ms).toBeGreaterThanOrEqual(summed);
+  });
 });
 
 describe('the demo user', () => {

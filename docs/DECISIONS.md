@@ -228,18 +228,24 @@ way out to what DSQL accepts and records each in a ledger keyed by its content h
 be re-run after it grows statements and only the new ones execute. `deploy-backend.yml` plans
 against the stack it has just updated and, where anything is pending, rehearses on that cluster and
 applies — in a job of its own, with no human in front of it and a failure that opens an issue. A
-hand dispatch is the repair path and the only way to bootstrap. THE CODE IS LIVE BEFORE THE SCHEMA,
-the SQL riding in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compatible
-with the code already running — the ordering imposes that on each migration's author, and nothing in
-the pipeline can check it. Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an
-asset is an APPLICATION cascade, children before the parent, in batches, every
-predicate scoped by `user_id`. A user and their one account are written in the SAME transaction by
-the gate's open-registration insert, by approval's rekey and by the bootstrap mode — each
-idempotent, so a re-run leaves one account. The gate's and the bootstrap's retry on a serialization
-failure; approval's does not, a retry there re-running an insert whichever concurrent approval won
-has already made. A PENDING application is written by neither and provisions nothing: approval
-DELETES that row to rekey it onto the minted `sub`, and a key restricted on delete would refuse
-that. The demo identity is written by a migration, so its account is too, in a file of its own.
+hand dispatch is the repair path and the only way to bootstrap. EVERY RUN REPORTS ITS OWN WALL TIME,
+per file and for the run, because a rehearsal replays the whole history — its ledger lives inside
+the throwaway schema, so nothing is ever skipped — and that cost grows with every file added. The
+runner holds back enough of its invocation to drop that schema and REFUSES TO SEND A STATEMENT WITH
+THAT RESERVE ALREADY SPENT, naming it, rather than being killed at a ceiling already set to the
+service maximum. That bounds when a statement STARTS and not how long it runs: one wait that
+overruns alone is still a kill. THE CODE IS LIVE BEFORE THE SCHEMA, the SQL riding in the deployed
+bundle, so every migration MUST BE WRITTEN expand/contract-compatible with the code already running
+— the ordering imposes that on each migration's author, and nothing in the pipeline can check it.
+Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
+cascade, children before the parent, in batches, every predicate scoped by `user_id`. A user and
+their one account are written in the SAME transaction by the gate's open-registration insert, by
+approval's rekey and by the bootstrap mode — each idempotent, so a re-run leaves one account. The
+gate's and the bootstrap's retry on a serialization failure; approval's does not, a retry there
+re-running an insert whichever concurrent approval won has already made. A PENDING application is
+written by neither and provisions nothing: approval DELETES that row to rekey it onto the minted
+`sub`, and a key restricted on delete would refuse that. The demo identity is written by a
+migration, so its account is too, in a file of its own.
 **Why.** Generated DDL carries no `IF NOT EXISTS` and DSQL has no cross-statement rollback, so a
 file that fails partway cannot be retried — the retry dies on the first statement, which already
 exists. The mutated-row ceiling is per transaction and one asset's saved prices can exceed it, so
@@ -261,7 +267,11 @@ lazily, on first write: the get-or-create race, moved into the one path that can
 An outbox or a saga around the two writes: both buy atomicity from outside a database that already
 gives it. · A CHECK enumerating `provider`:
 no constraint here names a specific holding, and a CHECK added after the fact is `NOT VALID` for
-life, so a widened vocabulary would be a rule the rows already there were never held to.
+life, so a widened vocabulary would be a rule the rows already there were never held to. · A `since`
+bound on the rehearsal, replaying only what the plan reported pending: the ledger a rehearsal reads
+is the empty one inside its own throwaway schema, so the files a bound would skip are the ones the
+rest resolve against. · A raised runner `Timeout`: it already sits at the service maximum, so there
+is no headroom to buy.
 
 ## Git model
 **Decision.** `dev` integrates and deploys to dev.quirenote.com; `main` is production and moves only

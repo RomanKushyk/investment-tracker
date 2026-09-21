@@ -26,6 +26,7 @@ type Resource = {
   UpdateReplacePolicy?: string;
   Properties?: {
     Handler?: string;
+    Timeout?: number;
     DeletionProtectionEnabled?: boolean;
     Environment?: { Variables?: Record<string, string> };
     Tags?: { Key: string; Value: unknown }[];
@@ -232,6 +233,14 @@ describe('the user stack holds user data and nothing else', () => {
     });
     expect(JSON.stringify(vars)).not.toContain('PriceCluster');
     expect(vars.FEED_URL).toBeUndefined();
+  });
+
+  // THE RUNNER'S REFUSAL MESSAGE AND `docs/DECISIONS.md` BOTH SAY THE CEILING IS ALREADY
+  // THE SERVICE MAXIMUM, and `TEARDOWN_RESERVE_MS` is held back out of it. Lowered here,
+  // both become false and nothing else would notice — the runner cannot read its own
+  // Timeout, so this template is the only place the figure is SET.
+  it('gives its runner the largest Timeout Lambda allows', () => {
+    expect(user.Resources.MigrateFunction.Properties?.Timeout).toBe(900);
   });
 
   it('may rewrite the USER cluster and no other', () => {
