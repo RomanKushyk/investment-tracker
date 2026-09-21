@@ -5,7 +5,6 @@ import {
   basisIsShort,
   capitalGain,
   capitalGainPct,
-  cashAsOf,
   cashYieldPct,
   freeCashFromLedger,
   globalRoi,
@@ -15,10 +14,8 @@ import {
   incomeReceived,
   incomeReceivedNet,
   investedOwnByAsset,
-  latestCash,
   latestCompleteSnapshot,
   latestQuotes,
-  ledgerCashDrift,
   netDeposits,
   netResult,
   startDateByAsset,
@@ -40,21 +37,36 @@ import {
   totalReturnPct,
   transactionsIn,
   trimAmount,
+  valueAsOf,
   yieldSinceStart,
 } from './derive';
+import type { PriceLookup } from './derive';
 import { unitDelta } from './types';
 import type { Asset, Snapshot, Transaction } from './types';
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
-  cash: 7.75,
   savedAt: '2026-07-25T21:14:00',
   quotes: { reit: 68629.36, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 },
 };
-const partial2707: Snapshot = { date: '2026-07-27', cash: 7.75, quotes: { reit: 68702.1 } };
+const partial2707: Snapshot = { date: '2026-07-27', quotes: { reit: 68702.1 } };
 const snaps = [complete2507, partial2707];
 const ASSET_IDS = ['reit', 'energy', 'ovdp8976', 'ovdp6475'];
 const invested = { reit: 65800, energy: 59208, ovdp8976: 15390, ovdp6475: 4158 };
+
+// Free cash is no longer read off a snapshot, so every total needs the ledger that
+// produces it: the four buys behind `invested`, funded by one deposit that leaves the
+// same ₴7,75 residue the seed carries.
+const LEDGER: Transaction[] = [
+  { id: 'd', date: '2026-02-03', type: 'deposit', assetId: '', amount: 144563.75 },
+  ...Object.entries(invested).map(([assetId, amount], i) => ({
+    id: `b${i}`,
+    date: '2026-02-03',
+    type: 'buy' as const,
+    assetId,
+    amount,
+  })),
+];
 
 describe('headline derivations (latest quote per asset, partials included)', () => {
   it('merges the partial snapshot over the last complete one', () => {
@@ -66,12 +78,9 @@ describe('headline derivations (latest quote per asset, partials included)', () 
     });
   });
 
-  it('headline total = Σ latest quotes + latest cash (sidebar / Overview / donut)', () => {
-    expect(headlineTotal(snaps)).toBeCloseTo(149016.36, 2);
-  });
-
-  it('latest cash comes from the most recent snapshot', () => {
-    expect(latestCash(snaps)).toBe(7.75);
+  it('headline total = Σ latest quotes + the ledger’s free cash (sidebar / Overview / donut)', () => {
+    expect(headlineTotal(snaps, LEDGER)).toBeCloseTo(149016.36, 2);
+    expect(freeCashFromLedger(LEDGER)).toBeCloseTo(7.75, 2);
   });
 
   it('net result excludes cash: +₴4,452.61 = +3.08% since 03.02', () => {
@@ -81,14 +90,7 @@ describe('headline derivations (latest quote per asset, partials included)', () 
   });
 
   it('headlineKpis composes total + net for the sidebar capital card', () => {
-    const txs: Transaction[] = Object.entries(invested).map(([assetId, amount], i) => ({
-      id: `b${i}`,
-      date: '2026-02-03',
-      type: 'buy',
-      assetId,
-      amount,
-    }));
-    const kpis = headlineKpis(snaps, txs);
+    const kpis = headlineKpis(snaps, LEDGER);
     expect(kpis.total).toBeCloseTo(149016.36, 2);
     expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
     expect(kpis.net.pct).toBeCloseTo(0.0308, 4);
@@ -97,7 +99,7 @@ describe('headline derivations (latest quote per asset, partials included)', () 
 
 describe('snapshot-level derivations (Balances)', () => {
   it('totalCapital of one complete snapshot matches the 25.07 table row', () => {
-    expect(totalCapital(complete2507)).toBeCloseTo(148943.62, 2);
+    expect(totalCapital(complete2507, LEDGER)).toBeCloseTo(148943.62, 2);
   });
 
   it('latestCompleteSnapshot skips the partial 27.07 row', () => {
@@ -253,7 +255,7 @@ describe('§2.1 metric family: capital gain vs total return', () => {
   });
 });
 
-describe('§1 free cash from ledger (pinned v1 formulation)', () => {
+describe('§1 free cash from ledger — the ledger’s signed sum, bounded by date', () => {
   it('deposits − withdrawals − buys + sells + redemptions', () => {
     const rows = [
       tx('d', 'deposit', 1000, ''),
@@ -265,32 +267,105 @@ describe('§1 free cash from ledger (pinned v1 formulation)', () => {
     expect(freeCashFromLedger(rows)).toBe(550);
   });
 
-  it('an unpaired payout is EXTERNAL — it never credits broker cash', () => {
+  it('a payout CREDITS the account and a reinvest DEBITS it', () => {
     const base = [tx('d', 'deposit', 1000, ''), tx('b', 'buy', 900)];
-    const withPayout = [...base, tx('p', 'dividend_accrual', 55.5)];
-    expect(freeCashFromLedger(withPayout)).toBe(freeCashFromLedger(base));
+    expect(freeCashFromLedger([...base, tx('p', 'dividend_accrual', 55.5)])).toBeCloseTo(155.5, 10);
+    expect(freeCashFromLedger([...base, tx('r', 'reinvest', 55.5)])).toBeCloseTo(44.5, 10);
   });
 
-  it('a paired payout + reinvest nets to zero broker-cash effect', () => {
+  it('a paired payout + reinvest of the same amount still nets to zero', () => {
+    // The pair nets by ARITHMETIC now rather than by two exclusions, so it holds for a
+    // pair that does NOT match too — which the exclusions could never report.
     const base = [tx('d', 'deposit', 1000, ''), tx('b', 'buy', 900)];
-    const withPair = [...base, tx('p', 'interest_payout', 216), tx('r', 'reinvest', 216)];
-    expect(freeCashFromLedger(withPair)).toBe(freeCashFromLedger(base));
+    const pair = [...base, tx('p', 'interest_payout', 216), tx('r', 'reinvest', 216)];
+    expect(freeCashFromLedger(pair)).toBe(freeCashFromLedger(base));
   });
 
-  it('a withholding rides its payout, and the payout is excluded', () => {
-    // While the payout exclusion stands, nothing about the withholding reaches this sum
-    // — there is no separate row to skip any more.
+  it('a payout contributes amount − coalesce(taxWithheld, 0), and the withholding is the gap', () => {
+    // The paired comparison: one payout carrying a withholding against the same payout
+    // without one. Without the clause free cash overstates by every hryvnia withheld.
     const base = [tx('d', 'deposit', 100, '')];
-    const taxed = { ...tx('p', 'interest_payout', 50, ''), taxWithheld: 12 };
-    expect(freeCashFromLedger([...base, taxed])).toBe(100);
+    const gross = tx('p', 'interest_payout', 50);
+    const taxed = { ...gross, taxWithheld: 12 };
+    expect(freeCashFromLedger([...base, gross])).toBeCloseTo(150, 10);
+    expect(freeCashFromLedger([...base, taxed])).toBeCloseTo(138, 10);
+    expect(freeCashFromLedger([...base, gross]) - freeCashFromLedger([...base, taxed])).toBeCloseTo(
+      12,
+      10,
+    );
   });
 
-  it('empty ledger → 0, and ledgerCashDrift = stored − derived', () => {
+  it('`asOf` bounds the sum INCLUSIVELY — a later row must not count', () => {
+    const rows = [
+      tx('d', 'deposit', 1000, '', '2026-03-01'),
+      tx('p', 'dividend_accrual', 60, 'a1', '2026-03-10'),
+      tx('w', 'withdrawal', 400, '', '2026-03-20'),
+    ];
+    expect(freeCashFromLedger(rows, '2026-02-28')).toBe(0);
+    expect(freeCashFromLedger(rows, '2026-03-01')).toBe(1000); // the bound's own day counts
+    expect(freeCashFromLedger(rows, '2026-03-10')).toBe(1060);
+    expect(freeCashFromLedger(rows, '2026-03-19')).toBe(1060); // nothing between
+    expect(freeCashFromLedger(rows, '2026-03-20')).toBe(660);
+    expect(freeCashFromLedger(rows)).toBe(660); // unbounded = the whole ledger
+  });
+
+  it('empty ledger → 0, bounded or not', () => {
     expect(freeCashFromLedger([])).toBe(0);
+    expect(freeCashFromLedger([], '2026-03-01')).toBe(0);
     expect(netDeposits([])).toBe(0);
-    const rows = [tx('d', 'deposit', 100, ''), tx('b', 'buy', 90)];
-    expect(ledgerCashDrift(10, rows)).toBe(0);
-    expect(ledgerCashDrift(12.5, rows)).toBeCloseTo(2.5, 10);
+  });
+});
+
+describe('value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))', () => {
+  const held = [
+    { ...tx('b', 'buy', 1000, 'a1', '2026-03-01'), quantity: 100 },
+    { ...tx('r', 'reinvest', 60, 'a1', '2026-04-01'), quantity: 5 },
+  ];
+  const none: PriceLookup = () => undefined;
+
+  it('prefers the user’s price over the archive', () => {
+    const user: PriceLookup = () => 12;
+    const archive: PriceLookup = () => 11;
+    expect(valueAsOf('a1', '2026-05-01', held, user, archive)).toBeCloseTo(1260, 10);
+  });
+
+  it('falls back to the archive when the user has no price that day', () => {
+    const archive: PriceLookup = () => 11;
+    expect(valueAsOf('a1', '2026-05-01', held, none, archive)).toBeCloseTo(1155, 10);
+  });
+
+  it('neither lookup answers → undefined, never a fabricated 0', () => {
+    expect(valueAsOf('a1', '2026-05-01', held, none, none)).toBeUndefined();
+  });
+
+  it('units are taken AS OF the date, so a later purchase does not inflate an earlier value', () => {
+    const user: PriceLookup = () => 12;
+    expect(valueAsOf('a1', '2026-03-15', held, user, none)).toBeCloseTo(1200, 10);
+    expect(valueAsOf('a1', '2026-04-01', held, user, none)).toBeCloseTo(1260, 10);
+  });
+
+  it('an asset the ledger cannot count has no value — absent, not zero', () => {
+    // `ledgerUnits` withholds an asset whose position-moving rows lack a quantity; a
+    // price cannot rescue a unit count that was never captured.
+    const incomplete = [tx('b', 'buy', 1000, 'a2', '2026-03-01')];
+    expect(valueAsOf('a2', '2026-05-01', incomplete, () => 12, none)).toBeUndefined();
+  });
+
+  it('an asset with no rows at all is absent too', () => {
+    expect(valueAsOf('a9', '2026-05-01', held, () => 12, none)).toBeUndefined();
+  });
+
+  it('zero units before the first purchase is a DERIVED 0, where an unknown asset is absent', () => {
+    // The asymmetry is the formula's, not a special case: `units × price` with a unit
+    // count of zero IS zero, and the ledger knows the asset exists to hold none of.
+    // Absent is reserved for what the ledger cannot answer at all.
+    expect(valueAsOf('a1', '2026-02-01', held, () => 12, none)).toBe(0);
+    expect(valueAsOf('a9', '2026-02-01', held, () => 12, none)).toBeUndefined();
+  });
+
+  it('a position sold down to nothing is worth nothing, not absent', () => {
+    const closed = [...held, { ...tx('s', 'sell', 1400, 'a1', '2026-06-01'), quantity: 105 }];
+    expect(valueAsOf('a1', '2026-06-01', closed, () => 12, none)).toBe(0);
   });
 });
 
@@ -351,7 +426,7 @@ describe('portfolioStart', () => {
     firstPurchase,
     createdAt: '2026-02-03T00:00:00',
   });
-  const snap = (date: string): Snapshot => ({ date, quotes: {}, cash: 0 });
+  const snap = (date: string): Snapshot => ({ date, quotes: {} });
   const tx = (date: string): Transaction => ({
     id: date,
     date,
@@ -482,30 +557,57 @@ describe('windowed accessors', () => {
     expect(quotesAsOf(snaps, '2026-07-26').reit).toBe(68629.36);
   });
 
-  it('is empty before the first snapshot rather than guessing', () => {
+  it('quotes are empty before the first snapshot, and the total is then the cash alone', () => {
+    // NOT zero any more: money deposited before the first valuation is capital, and the
+    // ledger can say so where a missing snapshot could not.
     expect(quotesAsOf(snaps, '2026-07-24')).toEqual({});
-    expect(headlineTotalAsOf(snaps, '2026-07-24')).toBe(0);
+    expect(headlineTotalAsOf(snaps, LEDGER, '2026-07-24')).toBeCloseTo(7.75, 2);
+    expect(headlineTotalAsOf(snaps, [], '2026-07-24')).toBe(0);
   });
 
   it('the unbounded accessors are the same function with no bound', () => {
     // One implementation of the merge, two names. A second copy of this arithmetic
     // would be a second answer.
     expect(quotesAsOf(snaps)).toEqual(latestQuotes(snaps));
-    expect(cashAsOf(snaps)).toBe(latestCash(snaps));
-    expect(headlineTotalAsOf(snaps)).toBeCloseTo(headlineTotal(snaps), 10);
+    expect(headlineTotalAsOf(snaps, LEDGER)).toBeCloseTo(headlineTotal(snaps, LEDGER), 10);
   });
 
-  it('cashAsOf takes the last snapshot at or before the date, not the last of all', () => {
-    const withCashMove: Snapshot[] = [{ date: '2026-07-20', cash: 500, quotes: {} }, ...snaps];
-    expect(cashAsOf(withCashMove, '2026-07-20')).toBe(500);
-    expect(cashAsOf(withCashMove, '2026-07-25')).toBe(7.75);
-    expect(cashAsOf(withCashMove, '2026-07-19')).toBe(0);
+  it('UNBOUND, a row entered since the last snapshot moves cash with no valuation opposite it', () => {
+    // The seam between a ledger that runs to its last row and quotes that stop at the
+    // last snapshot. A late DEPOSIT raises the total and is right; a late BUY lowers it
+    // by the whole amount, because the units it bought are not valued yet and
+    // `quotesAsOf` will not invent a figure for them. Pinned in BOTH directions so the
+    // trade-off is a decision and not a surprise — bounding the ledger at the last
+    // snapshot instead would hide the deposit again, which is the bug this replaced.
+    const base = headlineTotal(snaps, LEDGER);
+    const late = (type: Transaction['type'], assetId: string): Transaction[] => [
+      ...LEDGER,
+      { id: 'late', date: '2026-07-28', type, assetId, amount: 1000 },
+    ];
+    expect(headlineTotal(snaps, late('deposit', ''))).toBeCloseTo(base + 1000, 2);
+    expect(headlineTotal(snaps, late('buy', 'reit'))).toBeCloseTo(base - 1000, 2);
+    expect(headlineTotal(snaps, late('withdrawal', ''))).toBeCloseTo(base - 1000, 2);
+    // BOUND at the last snapshot, none of the three is visible at all.
+    for (const t of ['deposit', 'buy', 'withdrawal'] as const) {
+      expect(
+        headlineTotalAsOf(snaps, late(t, t === 'buy' ? 'reit' : ''), '2026-07-27'),
+      ).toBeCloseTo(headlineTotalAsOf(snaps, LEDGER, '2026-07-27'), 10);
+    }
   });
 
-  it('headlineTotalAsOf is Σ quotes + cash at the same instant', () => {
-    expect(headlineTotalAsOf(snaps, '2026-07-25')).toBeCloseTo(
+  it('headlineTotalAsOf takes Σ quotes and the free cash at the SAME instant', () => {
+    expect(headlineTotalAsOf(snaps, LEDGER, '2026-07-25')).toBeCloseTo(
       68629.36 + 60086.09 + 15846.3 + 4374.12 + 7.75,
       2,
+    );
+    // A buy after the bound moves neither half.
+    const later: Transaction[] = [
+      ...LEDGER,
+      { id: 'b9', date: '2026-07-26', type: 'buy', assetId: 'reit', amount: 1000 },
+    ];
+    expect(headlineTotalAsOf(snaps, later, '2026-07-25')).toBeCloseTo(
+      headlineTotalAsOf(snaps, LEDGER, '2026-07-25'),
+      10,
     );
   });
 

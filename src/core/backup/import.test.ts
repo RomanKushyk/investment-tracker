@@ -47,11 +47,10 @@ const ASSETS: Asset[] = [
 ];
 
 const SNAPSHOTS: Snapshot[] = [
-  { date: '2026-07-24', quotes: { reit: 68560.9, energy: 60050.87 }, cash: 7.75 },
+  { date: '2026-07-24', quotes: { reit: 68560.9, energy: 60050.87 } },
   {
     date: '2026-07-25',
     quotes: { reit: 68629.36, energy: 60086.09 },
-    cash: 7.75,
     savedAt: '2026-07-25T21:14:00',
   },
 ];
@@ -210,14 +209,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 8 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 8)));
+  it('rejects formatVersion 9 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 9)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(8);
+    expect(result.rejection.version).toBe(9);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 8 — this app reads formatVersion 7 only.',
+      'Unsupported formatVersion 9 — this app reads formatVersion 8 only.',
     );
   });
 
@@ -236,7 +235,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 8;
+        env.formatVersion = 9;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -590,7 +589,7 @@ describe('diffBackup', () => {
   // today's snapshot and today's transaction.
   it("reports yesterday's backup over today's data as replaced + removed", () => {
     const current = tables({
-      snapshots: [...SNAPSHOTS, { date: '2026-07-26', quotes: { reit: 1 }, cash: 0 }],
+      snapshots: [...SNAPSHOTS, { date: '2026-07-26', quotes: { reit: 1 } }],
       transactions: [
         ...TRANSACTIONS,
         { id: 'today', date: '2026-07-26', type: 'buy', assetId: 'reit', amount: 5 },
@@ -782,7 +781,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 7');
+    expect(result.rejection.detail).toContain('formatVersion 8');
   });
 });
 

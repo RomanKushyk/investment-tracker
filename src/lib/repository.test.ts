@@ -66,14 +66,14 @@ describe('ensureSeeded meta guard', () => {
 });
 
 describe('clearAll({ reseed: true })', () => {
-  it('restores the exact seed counts 4/174/18 after divergence', async () => {
+  it('restores the exact seed counts 4/174/25 after divergence', async () => {
     await ensureSeeded();
     await repo.deleteAsset('reit'); // diverge from the seed
     await repo.clearAll({ reseed: true });
 
     expect(await db.assets.count()).toBe(4);
     expect(await db.snapshots.count()).toBe(174);
-    expect(await db.transactions.count()).toBe(18);
+    expect(await db.transactions.count()).toBe(25);
   });
 });
 
@@ -91,14 +91,14 @@ describe('replaceAll', () => {
 
     expect(await db.assets.count()).toBe(4);
     expect(await db.snapshots.count()).toBe(174);
-    expect(await db.transactions.count()).toBe(18);
+    expect(await db.transactions.count()).toBe(25);
     expect(await repo.exportAll()).toEqual(before);
   });
 
   it('replaces every table atomically when the data is valid', async () => {
     await ensureSeeded();
     const seed = await repo.exportAll();
-    const snapshot: Snapshot = { date: '2026-08-01', quotes: { reit: 1 }, cash: 0 };
+    const snapshot: Snapshot = { date: '2026-08-01', quotes: { reit: 1 } };
     const data = {
       assets: [seed.assets[0]],
       snapshots: [snapshot],
@@ -149,13 +149,13 @@ describe('export → erase → import round-trip', () => {
     expect(after).toEqual(before);
     expect(after.assets).toHaveLength(4);
     expect(after.snapshots).toHaveLength(174);
-    expect(after.transactions).toHaveLength(18);
+    expect(after.transactions).toHaveLength(25);
 
     const kpis = headlineKpis(after.snapshots, after.transactions);
     expect(kpis.total).toBeCloseTo(149016.36, 2);
     expect(kpis.net.uah).toBeCloseTo(4452.61, 2);
     expect(kpis.net.pct * 100).toBeCloseTo(3.08, 2);
-    expect(headlineTotal(after.snapshots)).toBeCloseTo(149016.36, 2);
+    expect(headlineTotal(after.snapshots, after.transactions)).toBeCloseTo(149016.36, 2);
   });
 
   it('previews the same-dataset re-import as all-replaced, nothing lost', async () => {
@@ -170,8 +170,8 @@ describe('export → erase → import round-trip', () => {
     });
     expect(diff.assets).toEqual({ added: 0, replaced: 4, removed: 0 });
     expect(diff.snapshots).toEqual({ added: 0, replaced: 174, removed: 0 });
-    expect(diff.transactions).toEqual({ added: 0, replaced: 18, removed: 0 });
-    expect(diff.after).toEqual({ assets: 4, snapshots: 174, transactions: 18 });
+    expect(diff.transactions).toEqual({ added: 0, replaced: 25, removed: 0 });
+    expect(diff.after).toEqual({ assets: 4, snapshots: 174, transactions: 25 });
     expect(diff.warnings).toEqual([]);
   });
 
@@ -258,7 +258,7 @@ describe('moveSnapshotDate', () => {
 
     expect(await db.snapshots.get('2026-07-27')).toBeUndefined();
     const moved = await db.snapshots.get('2026-07-26');
-    expect(moved).toEqual({ date: '2026-07-26', quotes: { reit: 68702.1 }, cash: 7.75 });
+    expect(moved).toEqual({ date: '2026-07-26', quotes: { reit: 68702.1 } });
     expect(await db.snapshots.count()).toBe(174);
   });
 });
@@ -270,7 +270,7 @@ describe('exportAll', () => {
 
     expect(all.assets).toHaveLength(4);
     expect(all.snapshots).toHaveLength(174);
-    expect(all.transactions).toHaveLength(18);
+    expect(all.transactions).toHaveLength(25);
   });
 });
 

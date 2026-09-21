@@ -39,9 +39,9 @@ describe('daysBetween', () => {
 
 describe('latestSnapshotDate', () => {
   const snaps: Snapshot[] = [
-    { date: '2026-07-25', cash: 7.75, quotes: {} },
-    { date: '2026-07-27', cash: 7.75, quotes: { reit: 68702.1 } },
-    { date: '2026-02-03', cash: 0, quotes: {} },
+    { date: '2026-07-25', quotes: {} },
+    { date: '2026-07-27', quotes: { reit: 68702.1 } },
+    { date: '2026-02-03', quotes: {} },
   ];
 
   it('picks the max date regardless of array order', () => {

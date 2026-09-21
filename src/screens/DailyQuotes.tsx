@@ -9,13 +9,7 @@ import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { useAssets, useSaveSnapshot, useSnapshots, useTransactions } from '../hooks/queries';
 import { couponReminderId, dueCoupons } from '../core/accrual';
 import { dayBefore, kyivDateIso, todayIso } from '../core/dates';
-import {
-  investedByAsset,
-  latestCash,
-  latestQuotes,
-  ledgerUnits,
-  unitsByAsset,
-} from '../core/derive';
+import { investedByAsset, latestQuotes, ledgerUnits, unitsByAsset } from '../core/derive';
 import type { QuoteVerdict } from '../core/inzhur/dcf';
 import type { Asset, Snapshot, Transaction } from '../core/types';
 import { useDraft } from '../state/draft';
@@ -147,8 +141,7 @@ export function DailyQuotes() {
       toast.error(t.dailyQuotes.nothingToSave);
       return;
     }
-    const cash = todaySnapshot?.cash ?? latestCash(snapshots);
-    const snapshot: Snapshot = { date: selectedDate, quotes: collected.quotes, cash };
+    const snapshot: Snapshot = { date: selectedDate, quotes: collected.quotes };
     saveSnapshot.mutate(snapshot, {
       onSuccess: () => toast.success(t.dailyQuotes.snapshotSavedToast),
     });

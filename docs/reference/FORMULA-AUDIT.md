@@ -2,8 +2,8 @@
 
 Every challenge in `docs/reference/WEALTH-MANAGEMENT-ARCHITECTURE.md` — the owner's spreadsheet-era
 business-logic spec — checked term by term against the app's core derivations. No formula changed
-after the sweep, and four depart from the doc's letter: §1 deviates deliberately, §4 improves on it,
-§3 matches it exactly with the clamp moved into the callers, and §6.2 is not implemented yet.
+after the sweep, and three depart from the doc's letter: §4 improves on it, §3 matches it exactly
+with the clamp moved into the callers, and §6.2 is not implemented yet.
 Everything else is verbatim. The formulas live in `src/core/derive.ts` unless noted, and every
 figure the audit turned on is pinned by a vitest fixture, which is where a figure belongs. The
 companion decision is *Metric families and windows*.
@@ -15,15 +15,6 @@ capital-gain-versus-total-return pair (whose figures are pinned in `src/core/der
 
 ## Where the implementation departs from the doc
 
-- **Free cash excludes payouts and reinvests.** `freeCashFromLedger` is `deposits − withdrawals −
-  buys + sells + redemptions`: payouts are EXTERNAL unless reinvested — the owner's real Inzhur
-  configuration routes dividends to a bank account — and a reinvest is funded by its paired
-  same-date payout, so the pair has no net broker-cash effect either way. `ledgerCashDrift` is what
-  says when a stored balance and the ledger's own sum have parted. **Both exclusions retire at the
-  migration**, where the cash does pass through the broker account: a payout's signed amount becomes
-  `amount − coalesce(tax_withheld, 0)`, which is
-  [`../superpowers/specs/2026-09-12-tax-on-the-payout-design.md`](../superpowers/specs/2026-09-12-tax-on-the-payout-design.md)
-  §4 rather than an exclusion returning by another door.
 - **An unquoted asset is ABSENT, never 0.** `latestQuotes` merges partial snapshots per asset, so a
   headline figure is built from each asset's own most recent quote rather than from one complete
   day — "previous close" as merge behaviour. An asset never quoted contributes nothing to a headline
@@ -64,9 +55,10 @@ capital-gain-versus-total-return pair (whose figures are pinned in `src/core/der
    beneath them, so this ruling's old limitation has lapsed. **(b) In the STORE:**
    `transaction.tax_withheld` with its three CHECKs, and `transaction_asset_present_ck` widened to
    six types so a withholding is always attributable; the draft carries both and the migration
-   applies them. **(c) At the CUTOVER:** free cash's two exclusions retire, and only then does a
-   payout's signed amount become `amount − coalesce(tax_withheld, 0)`. Coupon suggestions never
-   drafted a tax row and still draft no withholding, OVDP coupons being PIT-exempt in UA.
+   applies them. **(c) In the DERIVATIONS:** free cash's two exclusions are retired, so a payout's
+   signed amount is `amount − coalesce(taxWithheld, 0)` and a reinvest debits its own amount.
+   Coupon suggestions never drafted a tax row and still draft no withholding, OVDP coupons being
+   PIT-exempt in UA.
 7. **Naming map (app ↔ doc):** `dividend_accrual` ↔ Dividend Payout · `interest_payout` ↔ Interest
    Payout · `reinvest` ↔ Reinvestment · `withdrawal` ↔ Withdrawal · `redemption` ↔ Bond Redemption ·
    `buy`/`sell` ↔ Buy/Sell (all buys own-funded today). The §2.1/§5.1 portfolio totals deliberately

@@ -16,7 +16,7 @@ import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import {
   headlineTotal,
   investedByAsset,
-  latestCash,
+  freeCashFromLedger,
   latestQuotes,
   netResult,
   reinvestedByAsset,
@@ -53,8 +53,8 @@ export function Portfolio() {
   const values = latestQuotes(snapshots);
   const invested = investedByAsset(transactions);
   const reinvested = reinvestedByAsset(transactions);
-  const total = headlineTotal(snapshots);
-  const cash = latestCash(snapshots);
+  const total = headlineTotal(snapshots, transactions);
+  const cash = freeCashFromLedger(transactions);
   const net = netResult(values, invested, soldAmount(transactions));
   const investedTotal = Object.values(invested).reduce((a, b) => a + b, 0);
 

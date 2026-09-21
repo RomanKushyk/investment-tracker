@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
+import { netDeposits } from '../../core/derive';
 import type { Asset, Transaction } from '../../core/types';
 import {
-  LEDGER_DRIFT_EPSILON,
-  ledgerDriftChip,
   mostUnderweightAsset,
   nextPayoutRows,
   totalReturnKpi,
@@ -36,78 +35,26 @@ describe('mostUnderweightAsset', () => {
 describe('totalReturnKpi (S9a — audit §5 family, additive to the pinned Capital gain)', () => {
   const snaps = buildSeedSnapshots();
 
-  it('demo: +₴5,839.99 over net deposits 143 176,37 → globalRoi +4.0789% (audit fixture)', () => {
+  it('demo: +₴9,398.27 over net deposits 139 618,09 → +6.7314%', () => {
+    // +₴5 839,99 / +4,08 % was this card while the ₴3 558,28 of withdrawn dividends
+    // was invisible: the gain was short by exactly the money that left the perimeter.
     const kpi = totalReturnKpi(snaps, SEED_TRANSACTIONS);
-    expect(kpi.uah).toBeCloseTo(5839.99, 2);
-    expect(kpi.roi! * 100).toBeCloseTo(4.0789, 4);
+    expect(kpi.uah).toBeCloseTo(9398.27, 2);
+    expect(kpi.roi! * 100).toBeCloseTo(6.7314, 4);
   });
 
-  it('roi is null with no external deposits (netDeposits ≤ 0 guard) → UI sub renders "—"', () => {
+  it('roi is null when external capital is not positive (the basis guard) → UI sub renders "—"', () => {
+    // Dropping the deposits drops the cash they created too, because free cash is
+    // DERIVED: the basis goes negative rather than to zero, and the same guard holds.
     const noDeposits = SEED_TRANSACTIONS.filter((t) => t.type !== 'deposit');
-    const kpi = totalReturnKpi(snaps, noDeposits);
-    expect(kpi.roi).toBeNull();
-    expect(kpi.uah).toBeCloseTo(149016.36, 2); // total − 0
+    expect(netDeposits(noDeposits)).toBeCloseTo(-3558.28, 2);
+    expect(totalReturnKpi(snaps, noDeposits).roi).toBeNull();
   });
 
   it('empty stores → 0 value, null roi (zero-value live empty state)', () => {
     const kpi = totalReturnKpi([], []);
     expect(kpi.uah).toBe(0);
     expect(kpi.roi).toBeNull();
-  });
-});
-
-describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
-  const snaps = buildSeedSnapshots();
-
-  it('demo drift is 0 by construction → chip hidden (null)', () => {
-    expect(ledgerDriftChip(snaps, SEED_TRANSACTIONS)).toBeNull();
-  });
-
-  it('an unmatched withdrawal surfaces the signed drift (stored − derived = +amount)', () => {
-    const withWithdrawal: Transaction[] = [
-      ...SEED_TRANSACTIONS,
-      { id: 'w1', date: '2026-07-27', type: 'withdrawal', assetId: '', amount: 100 },
-    ];
-    expect(ledgerDriftChip(snaps, withWithdrawal)).toBeCloseTo(100, 10);
-  });
-
-  it('an unmatched deposit drifts negative (ledger expects more cash than stored)', () => {
-    const withDeposit: Transaction[] = [
-      ...SEED_TRANSACTIONS,
-      { id: 'd9', date: '2026-07-27', type: 'deposit', assetId: '', amount: 123.45 },
-    ];
-    expect(ledgerDriftChip(snaps, withDeposit)).toBeCloseTo(-123.45, 10);
-  });
-
-  it('|drift| ≤ ε (₴0.01) stays hidden; just above it shows', () => {
-    expect(LEDGER_DRIFT_EPSILON).toBe(0.01);
-    // Shift the ledger by ε so the drift lands on the threshold and is still null.
-    const atEps: Transaction[] = [
-      ...SEED_TRANSACTIONS,
-      {
-        id: 'w2',
-        date: '2026-07-27',
-        type: 'withdrawal',
-        assetId: '',
-        amount: 0.01,
-      },
-    ];
-    expect(ledgerDriftChip(snaps, atEps)).toBeNull();
-    const aboveEps: Transaction[] = [
-      ...SEED_TRANSACTIONS,
-      {
-        id: 'w3',
-        date: '2026-07-27',
-        type: 'withdrawal',
-        assetId: '',
-        amount: 0.02,
-      },
-    ];
-    expect(ledgerDriftChip(snaps, aboveEps)).toBeCloseTo(0.02, 10);
-  });
-
-  it('no snapshots → null even when the ledger is non-empty (nothing observed to reconcile)', () => {
-    expect(ledgerDriftChip([], SEED_TRANSACTIONS)).toBeNull();
   });
 });
 
@@ -307,12 +254,16 @@ describe('the windowed KPI (A40) — and the XIRR beside it (D-8)', () => {
     );
   });
 
-  it('reproduces A25’s +8,93 % unwindowed, and moves under a window', () => {
-    // A shorter window measures the same portfolio over less time, so the
-    // money-weighted rate rises.
-    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, full)! * 100).toBeCloseTo(8.93, 1);
+  it('reproduces the seed’s +14,87 % unwindowed, and moves under a window', () => {
+    // THE WINDOW NOW READS LOWER, and the direction is not a law either way: the full
+    // history collects five months of payouts returned to the investor early, where the
+    // last three months hold only ₴586 of them. Before the payouts entered the ledger
+    // the full history read +8,93 % and any window beat it; a window is a different
+    // span over a different flow set, and the only invariant is that it MOVES.
+    const unwindowed = portfolioXirrIn(snaps, SEED_TRANSACTIONS, full)! * 100;
+    expect(unwindowed).toBeCloseTo(14.87, 1);
     const m3 = { from: '2026-04-27', to: '2026-07-27', clamped: false };
-    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, m3)! * 100).toBeGreaterThan(8.93);
+    expect(portfolioXirrIn(snaps, SEED_TRANSACTIONS, m3)! * 100).toBeCloseTo(13.93, 1);
   });
 
   it('a deposit entered since the last snapshot still counts (the A39 regression, not repeated)', () => {

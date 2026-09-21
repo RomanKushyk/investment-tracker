@@ -62,7 +62,7 @@ export const TRANSACTION_CSV_COLUMNS = [
   'note',
 ] as const;
 
-export const SNAPSHOT_WIDE_LEAD_COLUMNS = ['date', 'cash'] as const;
+export const SNAPSHOT_WIDE_LEAD_COLUMNS = ['date'] as const;
 
 /** `Inzhur REIT (reit)` — the bracketed id names the asset unambiguously. */
 export function snapshotColumnHeader(asset: Asset): string {
@@ -147,7 +147,7 @@ export function serializeTransactionsCsv(transactions: Transaction[]): string {
 }
 
 /**
- * WIDE: `date,cash,<Asset name (id)>…`, one row per date ascending. A quote the
+ * WIDE: `date,<Asset name (id)>…`, one row per date ascending. A quote the
  * day never recorded is an EMPTY cell — never 0, never the word "pending".
  */
 export function serializeSnapshotsCsv(snapshots: Snapshot[], assets: Asset[]): string {
@@ -156,7 +156,6 @@ export function serializeSnapshotsCsv(snapshots: Snapshot[], assets: Asset[]): s
     [...SNAPSHOT_WIDE_LEAD_COLUMNS, ...assets.map(snapshotColumnHeader)],
     ...dated.map((s) => [
       s.date,
-      money(s.cash),
       ...assets.map((a) => (a.id in s.quotes ? money(s.quotes[a.id]) : '')),
     ]),
   ]);

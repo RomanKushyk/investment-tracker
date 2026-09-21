@@ -43,8 +43,8 @@ const ASSETS = [REIT, ENERGY];
 // The 25.07 complete day + the PARTIAL 27.07 one, where Energy is pending and
 // pending is never zero.
 const SNAPSHOTS: Snapshot[] = [
-  { date: '2026-07-25', quotes: { reit: 68629.36, energy: 60086.09 }, cash: 7.75 },
-  { date: '2026-07-27', quotes: { reit: 68702.1 }, cash: 7.75, savedAt: '2026-07-27T21:14:00' },
+  { date: '2026-07-25', quotes: { reit: 68629.36, energy: 60086.09 } },
+  { date: '2026-07-27', quotes: { reit: 68702.1 }, savedAt: '2026-07-27T21:14:00' },
 ];
 
 function lines(csv: string): string[] {
@@ -129,7 +129,7 @@ describe('the CSV dialect (RFC 4180)', () => {
 
   it('writes dot decimals with no thousands grouping and no currency symbol', () => {
     const csv = serializeSnapshotsCsv(SNAPSHOTS, ASSETS);
-    expect(csv).toContain('2026-07-25,7.75,68629.36,60086.09');
+    expect(csv).toContain('2026-07-25,68629.36,60086.09');
     expect(csv).not.toContain('₴');
     expect(csv).not.toContain(' 702'); // no space thousands
     expect(csv).not.toContain('702,10'); // no comma decimals
@@ -137,10 +137,10 @@ describe('the CSV dialect (RFC 4180)', () => {
 
   it('pads money to 2 decimals but never loses precision beyond them', () => {
     const csv = serializeSnapshotsCsv(
-      [{ date: '2026-08-01', quotes: { reit: 1, energy: 2.005 }, cash: 0 }],
+      [{ date: '2026-08-01', quotes: { reit: 1, energy: 2.005 } }],
       ASSETS,
     );
-    expect(lines(csv)[1]).toBe('2026-08-01,0.00,1.00,2.005');
+    expect(lines(csv)[1]).toBe('2026-08-01,1.00,2.005');
   });
 
   it('writes quantities and percentages as they are', () => {
@@ -234,15 +234,15 @@ describe('column orders (pinned contract)', () => {
     ]);
   });
 
-  it('snapshots serialize WIDE: date, cash, then one column per asset', () => {
+  it('snapshots serialize WIDE: date, then one column per asset', () => {
     const rows = readCsv(serializeSnapshotsCsv(SNAPSHOTS, ASSETS));
-    expect(rows[0]).toEqual(['date', 'cash', 'Inzhur REIT (reit)', 'Inzhur Energy (energy)']);
+    expect(rows[0]).toEqual(['date', 'Inzhur REIT (reit)', 'Inzhur Energy (energy)']);
     expect(snapshotColumnHeader(ENERGY)).toBe('Inzhur Energy (energy)');
   });
 
   it('an empty table exports a header-only file', () => {
     expect(lines(serializeAssetsCsv([]))).toEqual([ASSET_CSV_COLUMNS.join(',')]);
-    expect(lines(serializeSnapshotsCsv([], []))).toEqual(['date,cash']);
+    expect(lines(serializeSnapshotsCsv([], []))).toEqual(['date']);
   });
 });
 
@@ -250,13 +250,13 @@ describe('empty cell = pending, never 0', () => {
   it('writes an EMPTY cell for a pending quote and 0.00 for a real zero', () => {
     const csv = serializeSnapshotsCsv(
       [
-        { date: '2026-07-27', quotes: { reit: 68702.1 }, cash: 7.75 },
-        { date: '2026-07-28', quotes: { reit: 68702.1, energy: 0 }, cash: 7.75 },
+        { date: '2026-07-27', quotes: { reit: 68702.1 } },
+        { date: '2026-07-28', quotes: { reit: 68702.1, energy: 0 } },
       ],
       ASSETS,
     );
-    expect(lines(csv)[1]).toBe('2026-07-27,7.75,68702.10,'); // pending → empty
-    expect(lines(csv)[2]).toBe('2026-07-28,7.75,68702.10,0.00'); // zero → 0.00
+    expect(lines(csv)[1]).toBe('2026-07-27,68702.10,'); // pending → empty
+    expect(lines(csv)[2]).toBe('2026-07-28,68702.10,0.00'); // zero → 0.00
   });
 });
 

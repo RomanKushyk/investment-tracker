@@ -60,7 +60,7 @@ describe('yieldTableRows', () => {
   });
 
   it('an asset with invested capital but no quote is undefined even when OTHER assets are quoted', () => {
-    const onlyReit: Snapshot[] = [{ date: '2026-07-25', cash: 7.75, quotes: { reit: 68629.36 } }];
+    const onlyReit: Snapshot[] = [{ date: '2026-07-25', quotes: { reit: 68629.36 } }];
     const partialRows = yieldTableRows(SEED_ASSETS, onlyReit, SEED_TRANSACTIONS);
     const reit = partialRows.find((r) => r.asset.id === 'reit')!;
     const energy = partialRows.find((r) => r.asset.id === 'energy')!;
@@ -118,7 +118,7 @@ describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total ret
       amount: 355.4,
     },
   ];
-  const snapsOne: Snapshot[] = [{ date: '2026-07-27', cash: 0, quotes: { b6475: 4379.52 } }];
+  const snapsOne: Snapshot[] = [{ date: '2026-07-27', quotes: { b6475: 4379.52 } }];
   const row = yieldTableRows([bond], snapsOne, txs)[0];
 
   it('Δ total (capital-gain family) reads −2.6% — the "loss"', () => {
@@ -155,7 +155,7 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
     assetId: 'a1',
     amount: 1000,
   };
-  const oneYearLater: Snapshot[] = [{ date: '2027-01-01', cash: 0, quotes: { a1: 1080 } }];
+  const oneYearLater: Snapshot[] = [{ date: '2027-01-01', quotes: { a1: 1080 } }];
 
   it('known-good: −1,000 buy → +1,080 terminal over exactly one year = 8% (audit §6.1 fixture)', () => {
     const row = yieldTableRows([asset], oneYearLater, [buy])[0];
@@ -227,7 +227,7 @@ describe('xirrIsExtrapolated (the "(ann.)" header token)', () => {
   it('false once the latest snapshot is a full year past the derived start', () => {
     // With a DERIVED start, handing in one late snapshot would make it BOTH ends and
     // the span zero. The seed's own rows supply the other end.
-    const yearOn: Snapshot[] = [{ date: '2027-02-03', cash: 0, quotes: { reit: 70000 } }];
+    const yearOn: Snapshot[] = [{ date: '2027-02-03', quotes: { reit: 70000 } }];
     expect(xirrIsExtrapolated(SEED_ASSETS, yearOn, SEED_TRANSACTIONS)).toBe(false);
   });
 

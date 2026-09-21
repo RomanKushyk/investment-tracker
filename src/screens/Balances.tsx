@@ -6,7 +6,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { useAssets, useSnapshots } from '../hooks/queries';
+import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import {
   balanceChartData,
   buildBalanceRow,
@@ -27,14 +27,15 @@ export function Balances() {
   const desktop = useIsDesktop();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
+  const transactions = useTransactions().data ?? [];
   const [page, setPage] = useState(0);
 
-  const chartData = balanceChartData(snapshots, assets);
+  const chartData = balanceChartData(snapshots, assets, transactions);
   const { rows, page: currentPage, totalPages, total } = paginateSnapshots(snapshots, page);
   const earliest = [...snapshots].sort((a, b) => a.date.localeCompare(b.date))[0]?.date;
   // Derived once for both forms: the footnote has to know whether this page holds
   // a marked cell before either form has drawn one.
-  const built = rows.map((s) => buildBalanceRow(s, assets));
+  const built = rows.map((s) => buildBalanceRow(s, assets, transactions));
   const hasEarlyQuote = pageHasEarlyQuote(built);
 
   const pager = (

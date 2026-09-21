@@ -90,21 +90,28 @@ export function latestQuotes(snaps: Snapshot[]): Record<string, number> {
   return quotesAsOf(snaps);
 }
 
-export function cashAsOf(snaps: Snapshot[], asOf?: string): number {
-  const upTo = byDate(snaps).filter((s) => asOf === undefined || s.date <= asOf);
-  return upTo.length ? upTo[upTo.length - 1].cash : 0;
+/**
+ * Both halves at one instant WHEN BOUND: the quotes merged up to `asOf` and the
+ * ledger summed to the same day. A date before the first valuation returns the cash
+ * alone rather than 0 — money deposited before anything was valued is still capital.
+ *
+ * UNBOUND THE TWO HALVES SIT ON A SEAM, because the ledger runs to its last row while
+ * the quotes stop at the last snapshot. A row entered SINCE that snapshot therefore
+ * moves cash with no valuation opposite it: a late deposit raises the total, correctly,
+ * and a late BUY lowers it by the whole amount until the day is quoted, because the
+ * units it bought are not valued yet. That is the seam, not a loss, and `quotesAsOf`
+ * states the half it comes from: an unquoted asset is ABSENT, never 0. It closes when
+ * value stops coming from snapshots — `valueAsOf` is that door.
+ */
+export function headlineTotalAsOf(snaps: Snapshot[], txs: Transaction[], asOf?: string): number {
+  return (
+    Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) +
+    freeCashFromLedger(txs, asOf)
+  );
 }
 
-export function latestCash(snaps: Snapshot[]): number {
-  return cashAsOf(snaps);
-}
-
-export function headlineTotalAsOf(snaps: Snapshot[], asOf?: string): number {
-  return Object.values(quotesAsOf(snaps, asOf)).reduce((a, b) => a + b, 0) + cashAsOf(snaps, asOf);
-}
-
-export function headlineTotal(snaps: Snapshot[]): number {
-  return headlineTotalAsOf(snaps);
+export function headlineTotal(snaps: Snapshot[], txs: Transaction[]): number {
+  return headlineTotalAsOf(snaps, txs);
 }
 
 export function transactionsIn(txs: Transaction[], w: PeriodWindow): Transaction[] {
@@ -139,9 +146,9 @@ export function latestCompleteSnapshot(
   return undefined;
 }
 
-// Σ quotes + cash of ONE snapshot (Balances rows / area chart).
-export function totalCapital(s: Snapshot): number {
-  return Object.values(s.quotes).reduce((a, b) => a + b, 0) + s.cash;
+// Σ quotes of ONE snapshot + the free cash on ITS day (Balances rows / area chart).
+export function totalCapital(s: Snapshot, txs: Transaction[]): number {
+  return Object.values(s.quotes).reduce((a, b) => a + b, 0) + freeCashFromLedger(txs, s.date);
 }
 
 function sumByAsset(txs: Transaction[], types: readonly Transaction['type'][]) {
@@ -223,6 +230,31 @@ export function ledgerUnits(txs: Transaction[], asOf?: string): LedgerUnits {
   return { units: out, incomplete: [...incomplete] };
 }
 
+/** Resolves ONE price per unit for one asset on one date, or nothing. The server
+ *  passes the user’s overlay and the global archive; core never learns which is
+ *  which, nor where either came from. */
+export type PriceLookup = (assetId: string, asOf: string) => number | undefined;
+
+/**
+ * `value(a, D) = units(a, D) × coalesce(user_price(a, D), archive(a, D))`
+ * (*Derived figures and the seed*). `undefined` where no price answers and where
+ * the ledger cannot count the units — the rule `quotesAsOf` states above: an
+ * unpriced asset stays ABSENT, because a fabricated 0 corrupts every total and
+ * every share built on it.
+ */
+export function valueAsOf(
+  assetId: string,
+  asOf: string,
+  txs: Transaction[],
+  userPrice: PriceLookup,
+  archive: PriceLookup,
+): number | undefined {
+  const units = ledgerUnits(txs, asOf).units[assetId];
+  if (units === undefined) return undefined;
+  const price = userPrice(assetId, asOf) ?? archive(assetId, asOf);
+  return price === undefined ? undefined : units * price;
+}
+
 export function reinvestedByAsset(txs: Transaction[]): Record<string, number> {
   return sumByAsset(txs, ['reinvest']);
 }
@@ -285,7 +317,7 @@ export function headlineKpis(
   txs: Transaction[],
 ): { total: number; net: { uah: number; pct: number } } {
   return {
-    total: headlineTotal(snaps),
+    total: headlineTotal(snaps, txs),
     net: netResult(latestQuotes(snaps), investedByAsset(txs), soldAmount(txs)),
   };
 }
@@ -513,43 +545,40 @@ export function incomeReceivedNet(txs: Transaction[]): {
 }
 
 /**
- * Ledger-derived free cash — a DELIBERATE DEVIATION from doc §1.1
- * (`docs/reference/FORMULA-AUDIT.md` §1), which also adds payouts and subtracts
- * taxes and reinvestments. Payouts are EXTERNAL unless reinvested — the real
- * Inzhur configuration sends dividends to a bank account — and a reinvest is
- * funded by its paired same-date payout, so the pair nets to zero either way.
+ * Free cash on a date: the ledger’s signed sum up to it, and nothing stored
+ * (*Metric families and windows*). Every row crosses the account, so there is no
+ * exclusion left — a payout CREDITS `amount − coalesce(taxWithheld, 0)` and a
+ * reinvest DEBITS its own amount, which is what makes a payout and a reinvest of
+ * UNEQUAL size reportable where two exclusions could only ever net them to zero.
  *
- * ONE REVISIT TRIGGER, changing the formula rather than a value: a `destination`
- * field on payout rows, where a payout’s signed amount then becomes
- * `amount − coalesce(taxWithheld, 0)` rather than an exclusion returning by
- * another door. `src/lib/seed.test.ts` pins the figure.
+ * The withholding is read off the payout rather than skipped, so it is not an
+ * exclusion returning by another door: two columns of one row, nothing hidden.
+ * Without it free cash overstates by every hryvnia ever withheld.
+ *
+ * `asOf` is INCLUSIVE of its own day, like every other bound here, so a window
+ * valued the day before it opens counts each row exactly once.
  */
-export function freeCashFromLedger(txs: Transaction[]): number {
+export function freeCashFromLedger(txs: Transaction[], asOf?: string): number {
   // The `default:` arm takes `never`, so a ninth type fails to COMPILE here — one
   // that slid past would be a zero nobody chose.
   return txs.reduce((s, t): number => {
+    if (asOf !== undefined && t.date > asOf) return s;
     switch (t.type) {
       case 'deposit':
         return s + t.amount;
       case 'withdrawal':
         return s - t.amount;
       case 'buy':
+      case 'reinvest':
         return s - t.amount;
       case 'sell':
       case 'redemption':
         return s + t.amount;
       case 'dividend_accrual':
       case 'interest_payout':
-      case 'reinvest':
-        return s; // external to broker cash — the exclusion above, written out
+        return s + t.amount - (t.taxWithheld ?? 0);
       default:
         return unnamedType(t.type, s);
     }
   }, 0);
-}
-
-/** Doc §1 SSOT, adapted: `Snapshot.cash` stays the OBSERVED broker balance, so
- *  this returns stored − derived rather than making the ledger cash’s record. */
-export function ledgerCashDrift(storedCash: number, txs: Transaction[]): number {
-  return storedCash - freeCashFromLedger(txs);
 }

@@ -49,7 +49,7 @@ function fund(over: Partial<Asset> = {}): Asset {
 }
 
 function snapshot(date: string, quotes: Record<string, number>): Snapshot {
-  return { date, quotes, cash: 7.75 };
+  return { date, quotes };
 }
 
 function payout(over: Partial<Transaction> = {}): Transaction {

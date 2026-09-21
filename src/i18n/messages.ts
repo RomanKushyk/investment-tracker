@@ -483,9 +483,6 @@ export const en = {
       totalReturnNet: 'Total return (net)',
       depositedReinvested: 'Deposited / Reinvested',
       freeCash: 'Free cash',
-      ledgerDrift:
-        "Stored cash differs from the transaction ledger. Record a missing deposit or withdrawal, or correct the snapshot's cash.",
-      ledgerDriftLabel: (amount: string) => `Ledger drift ${amount}`,
     },
     portfolio: {
       bestPerformer: 'Best performer',
@@ -1439,9 +1436,6 @@ export const uk: Dict = {
       totalReturnNet: 'Загальна дохідність (чиста)',
       depositedReinvested: 'Внесено / Реінвестовано',
       freeCash: 'Вільні кошти',
-      ledgerDrift:
-        'Збережена готівка розходиться з реєстром транзакцій. Запишіть пропущений внесок чи виведення або виправте готівку у зрізі.',
-      ledgerDriftLabel: (amount: string) => `Розбіжність реєстру ${amount}`,
     },
     portfolio: {
       bestPerformer: 'Найкращий',

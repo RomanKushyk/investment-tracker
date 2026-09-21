@@ -64,10 +64,9 @@ const SNAPSHOTS: Snapshot[] = [
   {
     date: '2026-07-24',
     quotes: { reit: 68560.9, energy: 60050.87 },
-    cash: 7.75,
   },
-  { date: '2026-07-25', quotes: { reit: 68629.36 }, cash: 7.75 },
-  { date: '2026-07-27', quotes: { energy: 60100 }, cash: 7.75 },
+  { date: '2026-07-25', quotes: { reit: 68629.36 } },
+  { date: '2026-07-27', quotes: { energy: 60100 } },
 ];
 
 describe('cascadeCounts (delete-asset confirm dialog)', () => {

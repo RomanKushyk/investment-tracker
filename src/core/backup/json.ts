@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * promotion — and without the bump that refusal arrives as a wall of per-row
  * errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 7;
+export const BACKUP_FORMAT_VERSION = 8;
 
 export type Dataset = 'demo' | 'live';
 
@@ -71,7 +71,6 @@ const assetRowSchema = z.strictObject({
 const snapshotRowSchema = z.strictObject({
   date: isoDate,
   quotes: z.record(z.string(), z.number()),
-  cash: z.number(),
   savedAt: isoDateTime.optional(),
 });
 

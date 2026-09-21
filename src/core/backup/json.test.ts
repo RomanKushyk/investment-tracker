@@ -36,12 +36,10 @@ const SNAPSHOTS: Snapshot[] = [
   {
     date: '2026-07-24',
     quotes: { reit: 68560.9, energy: 60050.87 },
-    cash: 7.75,
   },
   {
     date: '2026-07-25',
     quotes: { reit: 68629.36, energy: 60086.09 },
-    cash: 7.75,
     savedAt: '2026-07-25T21:14:00',
   },
 ];
@@ -90,7 +88,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(7);
+    expect(env.formatVersion).toBe(8);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -240,13 +238,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 8 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 8)));
+  it('rejects formatVersion 9 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 9)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 8/);
-    expect(result.issues[0]).toMatch(/formatVersion 7/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 9/);
+    expect(result.issues[0]).toMatch(/formatVersion 8/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -272,19 +270,19 @@ describe('parseBackup rejections', () => {
   });
 
   it('refuses a file the PREVIOUS build wrote, on the VERSION and not per row', () => {
-    // Every formatVersion 6 row carried a source of funds. Without the bump the refusal
-    // arrives as one `unrecognized_keys` per transaction — a wall of row errors for one
+    // Every formatVersion 7 snapshot carried a cash balance. Without the bump the refusal
+    // arrives as one `unrecognized_keys` per snapshot — a wall of 174 row errors for one
     // fact about the file.
     const result = parseBackup(
       mutated((env) => {
-        env.formatVersion = 6;
-        for (const row of env.transactions as Record<string, unknown>[]) row.source = 'own';
+        env.formatVersion = 7;
+        for (const row of env.snapshots as Record<string, unknown>[]) row.cash = 7.75;
       }),
     );
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 6/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 7/);
   });
 
   it('refuses an unknown key by CODE and key list, never by the message', () => {
@@ -357,7 +355,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(7);
+    expect(env.formatVersion).toBe(8);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);

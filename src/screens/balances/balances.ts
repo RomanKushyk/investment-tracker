@@ -1,6 +1,6 @@
 // Pure data-shaping for the Balances screen. Covered by balances.test.ts.
-import { totalCapital } from '../../core/derive';
-import type { Asset, Snapshot } from '../../core/types';
+import { freeCashFromLedger, totalCapital } from '../../core/derive';
+import type { Asset, Snapshot, Transaction } from '../../core/types';
 
 // A snapshot is "complete" if every asset that existed by that date has a quote;
 // an asset not yet purchased does not need one.
@@ -21,10 +21,14 @@ export interface BalanceChartPoint {
   total: number;
 }
 
-export function balanceChartData(snapshots: Snapshot[], assets: Asset[]): BalanceChartPoint[] {
+export function balanceChartData(
+  snapshots: Snapshot[],
+  assets: Asset[],
+  transactions: Transaction[],
+): BalanceChartPoint[] {
   return completeSnapshots(snapshots, assets).map((s) => ({
     date: s.date,
-    total: totalCapital(s),
+    total: totalCapital(s, transactions),
   }));
 }
 
@@ -43,7 +47,11 @@ export interface BalanceRow {
   total: number | null; // null when any cell is 'pending' (design: "—")
 }
 
-export function buildBalanceRow(snapshot: Snapshot, assets: Asset[]): BalanceRow {
+export function buildBalanceRow(
+  snapshot: Snapshot,
+  assets: Asset[],
+  transactions: Transaction[],
+): BalanceRow {
   const cells = assets.map((a): BalanceCell => {
     // A stored quote is never hidden: `totalCapital` counts every one, so a cell
     // that withheld one printed a total its own row could not make.
@@ -59,8 +67,10 @@ export function buildBalanceRow(snapshot: Snapshot, assets: Asset[]): BalanceRow
   return {
     date: snapshot.date,
     cells,
-    cash: snapshot.cash,
-    total: complete ? totalCapital(snapshot) : null,
+    // The free cash ON THIS ROW’S DAY, not the latest: the column moves with the
+    // ledger now, where a carried-forward balance repeated one figure down the page.
+    cash: freeCashFromLedger(transactions, snapshot.date),
+    total: complete ? totalCapital(snapshot, transactions) : null,
   };
 }
 

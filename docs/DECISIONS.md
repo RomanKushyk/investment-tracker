@@ -48,14 +48,20 @@ return. The annualized column divides every row by ONE span, the selected window
 holding falls well short of it renders muted; per-asset XIRR is the money-weighted column, and its
 annualization mark tests the WINDOW's length, not the asset's. A window's opening position is valued
 the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; free
-cash is the ledger's signed sum; a coupon derives from its RATE. A withholding is a FIELD on the
-payout it was taken from, never a row of its own.
+cash AT A DATE is the ledger's signed sum up to it, a payout contributing
+`amount − coalesce(tax_withheld, 0)`; a coupon derives from its RATE. A withholding is a FIELD on
+the payout it was taken from, never a row of its own.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. A stored coupon amount goes stale on the
 next purchase where a rate does not; tax runs the other way, rates changing, so a computed
-withholding eventually lies where a recorded one cannot.
+withholding eventually lies where a recorded one cannot. The withholding is READ off the payout
+rather than skipped, which is two columns of one row and not an exclusion returning by another
+door; without it free cash overstates by every hryvnia ever withheld, and per-asset XIRR silently
+turns from net to gross.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
-already the per-asset answer.
+already the per-asset answer. · A stored balance beside the derived one: no screen ever let anyone
+enter the observation, so the second source of truth could only ever carry the previous figure
+forward, and a chip comparing the two reported a gap neither of them could close.
 
 ## Language, numbers, fonts
 **Decision.** Ukrainian is the default language, English the second, and the number grammar

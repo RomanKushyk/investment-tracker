@@ -9,9 +9,7 @@ import {
   incomeReceived,
   incomeReceivedNet,
   investedByAsset,
-  latestCash,
   latestQuotes,
-  ledgerCashDrift,
   netDeposits,
   netResult,
   portfolioStart,
@@ -62,7 +60,7 @@ describe('seed snapshots (design Balances table, D5#2)', () => {
       ovdp6475: 4374.12,
     });
     expect(r2507.savedAt).toBe('2026-07-25T21:14:00');
-    expect(totalCapital(r2507)).toBeCloseTo(148943.62, 2);
+    expect(totalCapital(r2507, SEED_TRANSACTIONS)).toBeCloseTo(148943.62, 2);
     const r2107 = snaps.find((s) => s.date === '2026-07-21')!;
     expect(r2107.quotes).toEqual({
       reit: 68450.12,
@@ -72,11 +70,10 @@ describe('seed snapshots (design Balances table, D5#2)', () => {
     });
   });
 
-  it('no asset is quoted before its first purchase; cash is 7,75 throughout', () => {
+  it('no asset is quoted before its first purchase', () => {
     expect(snaps.find((s) => s.date === '2026-06-01')!.quotes.ovdp6475).toBeUndefined();
     expect(snaps.find((s) => s.date === '2026-06-02')!.quotes.ovdp6475).toBeDefined();
     expect(snaps.find((s) => s.date === '2026-02-04')!.quotes.ovdp8976).toBeUndefined();
-    expect(snaps.every((s) => s.cash === 7.75)).toBe(true);
   });
 
   it('quote paths start at the buy value and never break continuity at pin boundaries', () => {
@@ -94,7 +91,7 @@ describe('seed snapshots (design Balances table, D5#2)', () => {
 
 describe('seed aggregates reproduce renderVals (D5)', () => {
   it('headline total ₴149,016.36', () => {
-    expect(headlineTotal(snaps)).toBeCloseTo(149016.36, 2);
+    expect(headlineTotal(snaps, SEED_TRANSACTIONS)).toBeCloseTo(149016.36, 2);
   });
 
   it('invested per asset (buys + reinvests)', () => {
@@ -162,30 +159,41 @@ describe('seed aggregates reproduce renderVals (D5)', () => {
 
 // The WEALTH-MANAGEMENT reconciliation fixtures pinned on the seed (`docs/reference/FORMULA-AUDIT.md`).
 describe('ledger reconciliation on the seed (formula audit §1/§5)', () => {
-  it('freeCashFromLedger(seed) = ₴7,75 — the stored cash, exactly', () => {
-    // Payout and reinvest rows are external to broker cash: the doc-verbatim formula
-    // gives 3 661,31 and breaks against every seeded snapshot.
-    expect(freeCashFromLedger(SEED_TRANSACTIONS)).toBe(7.75);
+  it('freeCashFromLedger(seed) = ₴7,75 — the whole signed sum, no exclusions', () => {
+    expect(freeCashFromLedger(SEED_TRANSACTIONS)).toBeCloseTo(7.75, 10);
   });
 
-  it('stored cash reconciles with the ledger: drift 0', () => {
-    expect(ledgerCashDrift(latestCash(snaps), SEED_TRANSACTIONS)).toBe(0);
+  it('and ₴7,75 on EVERY date the seed covers, not only at the end', () => {
+    // Each payout is settled on its own day, reinvested or withdrawn, so the residue
+    // never moves. A lumped settlement would balloon the middle of the history and
+    // only agree at the last row — which is what the per-date bound now exposes.
+    for (const s of snaps) {
+      expect(freeCashFromLedger(SEED_TRANSACTIONS, s.date)).toBeCloseTo(7.75, 10);
+    }
+    // Before the first deposit there is no account at all.
+    expect(freeCashFromLedger(SEED_TRANSACTIONS, '2026-02-02')).toBe(0);
   });
 
-  it('netDeposits(seed) = ₴143,176.37 (no withdrawals seeded)', () => {
-    expect(netDeposits(SEED_TRANSACTIONS)).toBe(143176.37);
+  it('netDeposits(seed) = ₴139,618.09 — 143 176,37 in, 3 558,28 of payouts back out', () => {
+    expect(netDeposits(SEED_TRANSACTIONS)).toBeCloseTo(139618.09, 2);
+    expect(depositedTotal(SEED_TRANSACTIONS) - netDeposits(SEED_TRANSACTIONS)).toBeCloseTo(
+      3558.28,
+      2,
+    );
   });
 
-  it('globalRoi(seed) ≈ +4.0789% — NetFinancialResult +₴5,839.99 over NetDeposits', () => {
-    const roi = globalRoi(headlineTotal(snaps), netDeposits(SEED_TRANSACTIONS));
+  it('globalRoi(seed) ≈ +6.7314% — ₴149 016,36 held over ₴139 618,09 of external capital', () => {
+    // It read +4,0789 % while the withdrawn dividends were invisible to the ledger: the
+    // same gain measured against a denominator ₴3 558,28 too large.
+    const roi = globalRoi(headlineTotal(snaps, SEED_TRANSACTIONS), netDeposits(SEED_TRANSACTIONS));
     expect(roi).not.toBeNull();
-    expect(roi! * 100).toBeCloseTo(4.0789, 4);
+    expect(roi! * 100).toBeCloseTo(6.7314, 4);
   });
 });
 
 // Here rather than beside core/backup/json.ts because core tests may not import src/lib.
 describe('backup envelope round-trip on the seed (D12)', () => {
-  it('buildBackup(seed) → stringify → parseBackup returns deep-equal tables (4/174/18)', () => {
+  it('buildBackup(seed) → stringify → parseBackup returns deep-equal tables (4/174/25)', () => {
     const env = buildBackup(
       SEED_ASSETS,
       snaps,
@@ -200,7 +208,7 @@ describe('backup envelope round-trip on the seed (D12)', () => {
     if (!result.ok) return;
     expect(result.data.assets).toHaveLength(4);
     expect(result.data.snapshots).toHaveLength(174);
-    expect(result.data.transactions).toHaveLength(18); // *Review, gates, tests*: "19" was a miscount
+    expect(result.data.transactions).toHaveLength(25);
     expect(result.data.assets).toEqual(SEED_ASSETS);
     expect(result.data.snapshots).toEqual(snaps);
     expect(result.data.transactions).toEqual(SEED_TRANSACTIONS);
@@ -254,21 +262,28 @@ describe('the derived portfolio start (A24)', () => {
 describe('portfolioXirr on the seed (A25)', () => {
   const snaps = buildSeedSnapshots();
   const terminalDate = snaps.reduce((max, s) => (s.date > max ? s.date : max), snaps[0].date);
-  const rate = portfolioXirr(SEED_TRANSACTIONS, headlineTotal(snaps), terminalDate)!;
+  const rate = portfolioXirr(
+    SEED_TRANSACTIONS,
+    headlineTotal(snaps, SEED_TRANSACTIONS),
+    terminalDate,
+  )!;
 
-  it('is +8.93% money-weighted', () => {
-    expect(rate).toBeCloseTo(0.0893, 4);
+  it('is +14.87% money-weighted', () => {
+    // Above the +8,93 % it read before the payouts entered the ledger: ₴3 558,28 came
+    // back out during the period, and money returned early is money that stopped
+    // needing to earn.
+    expect(rate).toBeCloseTo(0.1487, 4);
   });
 
   it('sits just above the naive annualization of globalRoi, which is the check that it means anything', () => {
-    const roi = globalRoi(headlineTotal(snaps), netDeposits(SEED_TRANSACTIONS))!;
+    const roi = globalRoi(headlineTotal(snaps, SEED_TRANSACTIONS), netDeposits(SEED_TRANSACTIONS))!;
     const start = portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS)!;
     const days = daysBetween(start, terminalDate);
     const naive = (roi * 365) / days;
 
-    expect(roi).toBeCloseTo(0.0408, 4);
+    expect(roi).toBeCloseTo(0.0673, 4);
     expect(days).toBe(174);
-    expect(naive).toBeCloseTo(0.0856, 4);
+    expect(naive).toBeCloseTo(0.1412, 4);
 
     // ABOVE the naive figure, and the DIRECTION is the point: XIRR compounds where
     // the stretch is linear, and it weights the February money above the June
@@ -284,7 +299,9 @@ describe('portfolioXirr on the seed (A25)', () => {
     const externalOnly = SEED_TRANSACTIONS.filter(
       (t) => t.type === 'deposit' || t.type === 'withdrawal',
     );
-    expect(externalOnly).toHaveLength(3);
-    expect(portfolioXirr(externalOnly, headlineTotal(snaps), terminalDate)).toBe(rate);
+    expect(externalOnly).toHaveLength(10);
+    expect(portfolioXirr(externalOnly, headlineTotal(snaps, SEED_TRANSACTIONS), terminalDate)).toBe(
+      rate,
+    );
   });
 });

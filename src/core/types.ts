@@ -20,8 +20,10 @@ export type TxType =
  * It ANSWERS rather than throwing because the arm IS reachable at runtime, by a
  * row whose type the union no longer names: Dexie reads are unvalidated and no
  * migration retired `tax`. One such row made `freeCashFromLedger` return `NaN`,
- * and the reconciliation chip VANISHED rather than reading wrong, because
- * `Math.abs(NaN) > ε` is false.
+ * and with no stored balance beside it that `NaN` now reaches the Free-cash card
+ * and every total built on it. `Intl` prints the word rather than a dash, so the
+ * screen reads BROKEN rather than plausible — which is the trade the fallback
+ * buys, and the reason it must stay a fallback and never a silent 0.
  */
 export function unnamedType<T>(_type: never, fallback: T): T {
   return fallback;
@@ -62,7 +64,6 @@ export interface Asset {
 export interface Snapshot {
   date: string; // primary key
   quotes: Record<string, number>; // partial until all assets quoted
-  cash: number;
   savedAt?: string; // ISO datetime, set on save — feeds "Last saved 25.07, 21:14"
 }
 

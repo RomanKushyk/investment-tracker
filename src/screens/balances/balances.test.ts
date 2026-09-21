@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildSeedSnapshots, SEED_ASSETS } from '../../lib/seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
 import {
   balanceChartData,
   buildBalanceRow,
@@ -28,7 +28,7 @@ describe('completeSnapshots', () => {
 
 describe('balanceChartData', () => {
   it('maps complete snapshots to {date, total}, ascending', () => {
-    const data = balanceChartData(snaps, SEED_ASSETS);
+    const data = balanceChartData(snaps, SEED_ASSETS, SEED_TRANSACTIONS);
     expect(data).toHaveLength(173);
     expect(data[0].date).toBe('2026-02-03');
     const last = data[data.length - 1];
@@ -39,7 +39,7 @@ describe('balanceChartData', () => {
 
 describe('buildBalanceRow', () => {
   it('27.07: REIT value, 3 pending cells, total null (design "—")', () => {
-    const row = buildBalanceRow(snaps[snaps.length - 1], SEED_ASSETS);
+    const row = buildBalanceRow(snaps[snaps.length - 1], SEED_ASSETS, SEED_TRANSACTIONS);
     expect(row.cells[0]).toEqual({ status: 'value', amount: 68702.1 });
     expect(row.cells[1]).toEqual({ status: 'pending' });
     expect(row.cells[2]).toEqual({ status: 'pending' });
@@ -51,6 +51,7 @@ describe('buildBalanceRow', () => {
     const row = buildBalanceRow(
       snaps.find((s) => s.date === '2026-07-25')!,
       SEED_ASSETS,
+      SEED_TRANSACTIONS,
     );
     expect(row.cells.every((c) => c.status === 'value')).toBe(true);
     expect(row.total).toBeCloseTo(148943.62, 2);
@@ -60,6 +61,7 @@ describe('buildBalanceRow', () => {
     const row = buildBalanceRow(
       snaps.find((s) => s.date === '2026-02-10')!,
       SEED_ASSETS,
+      SEED_TRANSACTIONS,
     );
     expect(row.cells[3]).toEqual({ status: 'none' }); // ovdp6475 doesn't exist until 02.06
   });
@@ -101,29 +103,32 @@ describe('a quote stored before the asset was first purchased', () => {
   };
 
   it('shows the stored value, marked, instead of "—"', () => {
-    const row = buildBalanceRow(early(), SEED_ASSETS);
+    const row = buildBalanceRow(early(), SEED_ASSETS, SEED_TRANSACTIONS);
     expect(row.cells[2]).toEqual({ status: 'value', amount: 15390, beforeFirstPurchase: true });
   });
 
   // Holds while every quote key belongs to a listed asset. A quote left behind by
   // a deleted one is counted by `totalCapital` with no cell to show it.
   it('adds up: the cells it shows plus its cash equal the total it prints', () => {
-    const row = buildBalanceRow(early(), SEED_ASSETS);
+    const row = buildBalanceRow(early(), SEED_ASSETS, SEED_TRANSACTIONS);
     const shown = row.cells.reduce((sum, c) => sum + (c.status === 'value' ? c.amount : 0), 0);
     expect(row.total).not.toBeNull();
     expect(shown + row.cash).toBeCloseTo(row.total!, 2);
   });
 
   it('is what the page footnote keys off, and only that', () => {
-    const marked = buildBalanceRow(early(), SEED_ASSETS);
+    const marked = buildBalanceRow(early(), SEED_ASSETS, SEED_TRANSACTIONS);
     const plain = buildBalanceRow(
       snaps.find((s) => s.date === '2026-07-25')!,
       SEED_ASSETS,
+      SEED_TRANSACTIONS,
     );
     expect(pageHasEarlyQuote([plain, marked])).toBe(true);
     expect(pageHasEarlyQuote([plain])).toBe(false);
     // A 'none' cell is not a mark: the date predates both bonds and holds no quote.
-    expect(pageHasEarlyQuote([buildBalanceRow(snaps[0], SEED_ASSETS)])).toBe(false);
+    expect(pageHasEarlyQuote([buildBalanceRow(snaps[0], SEED_ASSETS, SEED_TRANSACTIONS)])).toBe(
+      false,
+    );
     expect(pageHasEarlyQuote([])).toBe(false);
   });
 });

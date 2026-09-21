@@ -6,11 +6,10 @@ import { bondAbbrev, collectQuotes, maxSavedAt, pendingChange, yesterdayQuote } 
 
 const complete2507: Snapshot = {
   date: '2026-07-25',
-  cash: 7.75,
   savedAt: '2026-07-25T21:14:00',
   quotes: { reit: 68629.36, energy: 60086.09, ovdp8976: 15846.3, ovdp6475: 4374.12 },
 };
-const partial2707: Snapshot = { date: '2026-07-27', cash: 7.75, quotes: { reit: 68702.1 } };
+const partial2707: Snapshot = { date: '2026-07-27', quotes: { reit: 68702.1 } };
 const snaps = [complete2507, partial2707];
 
 describe('yesterdayQuote', () => {
@@ -42,7 +41,6 @@ describe('maxSavedAt', () => {
   it('takes the max across multiple saved snapshots', () => {
     const earlier: Snapshot = {
       date: '2026-07-20',
-      cash: 0,
       quotes: {},
       savedAt: '2026-07-20T10:00:00',
     };
@@ -109,7 +107,7 @@ describe('pendingChange — what the rail names', () => {
   // THE TRAP. With the picker off today, an unbounded baseline would measure
   // against a LATER snapshot than the sublines beside it.
   it('reads the baseline strictly BEFORE the picked date, never the latest', () => {
-    const later: Snapshot = { date: '2026-07-28', cash: 0, quotes: { reit: 70000 } };
+    const later: Snapshot = { date: '2026-07-28', quotes: { reit: 70000 } };
     const got = pendingChange(assets, { reit: '68700' }, [complete2507, later], '2026-07-26', 'uk');
     expect(got.changed).toBe(1);
     expect(got.sum).toBeCloseTo(70.64, 2); // 68 700 − 68 629,36, not 68 700 − 70 000
@@ -118,7 +116,7 @@ describe('pendingChange — what the rail names', () => {
   it('does not count an asset that has no baseline yet', () => {
     // Its row shows no «учора», so there is nothing to be less than — and a first
     // quote is not a change of anything.
-    const fresh: Snapshot = { date: '2026-07-25', cash: 0, quotes: { reit: 68629.36 } };
+    const fresh: Snapshot = { date: '2026-07-25', quotes: { reit: 68629.36 } };
     const got = pendingChange(assets, { energy: '60000' }, [fresh], on, 'uk');
     expect(got).toEqual({ sum: 0, changed: 0 });
   });

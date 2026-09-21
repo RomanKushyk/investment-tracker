@@ -12,8 +12,6 @@ import {
   portfolioXirr,
   investedByAsset,
   unitsByAsset,
-  latestCash,
-  ledgerCashDrift,
   netDeposits,
   sharePct,
   topUpAmount,
@@ -83,8 +81,8 @@ export function totalReturnKpiIn(
   // A WINDOW THAT OPENS BEFORE THE FIRST SNAPSHOT HAS NO BASELINE, and 0 is not one:
   // the comparison is absent and the figure is an em dash, never zero.
   if (w !== undefined && !hasBaseline(snapshots, transactions, w)) return { uah: 0, roi: null };
-  const close = headlineTotalAsOf(snapshots, w?.to);
-  const open = w === undefined ? 0 : headlineTotalAsOf(snapshots, dayBefore(w.from));
+  const close = headlineTotalAsOf(snapshots, transactions, w?.to);
+  const open = w === undefined ? 0 : headlineTotalAsOf(snapshots, transactions, dayBefore(w.from));
   const inside = w === undefined ? transactions : transactionsFrom(transactions, w.from);
   const deposits = netDeposits(inside);
   const basis = open + deposits;
@@ -136,10 +134,14 @@ export function portfolioXirrIn(
   w: PeriodWindow | undefined,
 ): number | null {
   if (w === undefined) {
-    return portfolioXirr(transactions, headlineTotal(snapshots), latestSnapshotDate(snapshots));
+    return portfolioXirr(
+      transactions,
+      headlineTotal(snapshots, transactions),
+      latestSnapshotDate(snapshots),
+    );
   }
   if (!hasBaseline(snapshots, transactions, w)) return null;
-  const open = headlineTotalAsOf(snapshots, dayBefore(w.from));
+  const open = headlineTotalAsOf(snapshots, transactions, dayBefore(w.from));
   const inside = transactionsFrom(transactions, w.from);
   const opening: Transaction[] =
     open > 0
@@ -153,16 +155,11 @@ export function portfolioXirrIn(
           },
         ]
       : [];
-  return portfolioXirr([...opening, ...inside], headlineTotalAsOf(snapshots, w.to), w.to);
-}
-
-export const LEDGER_DRIFT_EPSILON = 0.01;
-
-// Null with no snapshots: nothing observed to reconcile, which is also the empty state.
-export function ledgerDriftChip(snapshots: Snapshot[], transactions: Transaction[]): number | null {
-  if (snapshots.length === 0) return null;
-  const drift = ledgerCashDrift(latestCash(snapshots), transactions);
-  return Math.abs(drift) > LEDGER_DRIFT_EPSILON ? drift : null;
+  return portfolioXirr(
+    [...opening, ...inside],
+    headlineTotalAsOf(snapshots, transactions, w.to),
+    w.to,
+  );
 }
 
 export interface PayoutRow {

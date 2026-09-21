@@ -23,7 +23,7 @@ import {
   incomeReceived,
   incomeReceivedNet,
   investedByAsset,
-  latestCash,
+  freeCashFromLedger,
   latestQuotes,
   reinvestedTotal,
   sharePct,
@@ -34,7 +34,6 @@ import { toUsd } from '../core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import {
-  ledgerDriftChip,
   mostUnderweightAsset,
   nextPayoutRows,
   netResultIn,
@@ -65,8 +64,8 @@ export function Overview() {
   const usd = currency === 'USD';
 
   const values = latestQuotes(snapshots);
-  const total = headlineTotal(snapshots);
-  const cash = latestCash(snapshots);
+  const total = headlineTotal(snapshots, transactions);
+  const cash = freeCashFromLedger(transactions);
   const deposited = depositedTotal(transactions);
   const reinvested = reinvestedTotal(transactions);
   const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
@@ -98,8 +97,6 @@ export function Overview() {
     }),
     [snapshots, transactions, win, windowed],
   );
-  const drift = ledgerDriftChip(snapshots, transactions);
-
   // Only these headline cards convert; tables and every other card stay ₴.
   const capitalUsd = toUsd(total, usdRate);
   const tweenedCapital = useTweenedNumber(usd ? capitalUsd : total);
@@ -229,24 +226,7 @@ export function Overview() {
           className="animate-in delay-300 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.freeCash}
           value={cashValue}
-          sub={
-            <>
-              {t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))}
-              {/* Warn tokens only — a reconciliation nudge, not an error — and hidden while
-                  |drift| ≤ ₴0.01, the boundary inclusive. */}
-              {drift !== null && (
-                <div className="mt-2">
-                  <span
-                    key={drift}
-                    title={t.analytics.overview.ledgerDrift}
-                    className="inline-block animate-in rounded-[6px] bg-warn-tint px-3 py-1 text-xs font-semibold text-warn-tint-text duration-200 zoom-in-95 fade-in"
-                  >
-                    {t.analytics.overview.ledgerDriftLabel(f.signedMoney(drift))}
-                  </span>
-                </div>
-              )}
-            </>
-          }
+          sub={t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))}
         />
       </div>
 

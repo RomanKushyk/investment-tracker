@@ -61,6 +61,10 @@ export const SEED_ASSETS: Asset[] = [
 // Deposits = own-funded buys + the ₴7,75 cash residue; the reference log's
 // 12.05/648,13 dividend is seeded as 10.05/472,13, and a reinvest shares its
 // source payout's date and asset so the Destination cells derive.
+// EVERY PAYOUT IS SETTLED ON ITS OWN DAY — reinvested, withdrawn, or split
+// between the two — which is what holds free cash at ₴7,75 on every date rather
+// than only at the end. That is the reference reality: Inzhur sends a
+// distribution to a bank account unless it is put straight back in.
 // p7 IS THE ONLY ROW THAT CAN CARRY A WITHHOLDING: it needs a dividend (ОВДП
 // coupons are exempt), inside the 3-month window, with a reinvest payable out of
 // the NET — p8's 687,02 exceeds what 700,36 less the rate leaves.
@@ -87,10 +91,16 @@ export const SEED_TRANSACTIONS: Transaction[] = [
   { id: 'r1', date: '2026-06-03', type: 'reinvest', assetId: 'ovdp6475', amount: 216, quantity: 0.2192 },
   { id: 'r2', date: '2026-06-10', type: 'reinvest', assetId: 'reit', amount: 484.36, quantity: 43.4835 },
   { id: 'r3', date: '2026-07-10', type: 'reinvest', assetId: 'reit', amount: 687.02, quantity: 61.6161 },
+  { id: 'w1', date: '2026-02-10', type: 'withdrawal', assetId: '', amount: 580.2 },
+  { id: 'w2', date: '2026-02-25', type: 'withdrawal', assetId: '', amount: 1183.5 },
+  { id: 'w3', date: '2026-03-10', type: 'withdrawal', assetId: '', amount: 595.8 },
+  { id: 'w4', date: '2026-04-10', type: 'withdrawal', assetId: '', amount: 612.4 },
+  { id: 'w5', date: '2026-05-10', type: 'withdrawal', assetId: '', amount: 472.13 },
+  { id: 'w6', date: '2026-06-10', type: 'withdrawal', assetId: '', amount: 100.91 },
+  { id: 'w7', date: '2026-07-10', type: 'withdrawal', assetId: '', amount: 13.34 },
 ];
 
 const DAY = 86_400_000;
-const CASH = 7.75;
 const PIN_START = '2026-07-21';
 
 // Verbatim from the Balances table in `design/Investment Tracker.dc.html`.
@@ -158,11 +168,9 @@ export function buildSeedSnapshots(): Snapshot[] {
       if (q !== undefined) quotes[p.id] = q;
     }
     out.push(
-      date === '2026-07-25'
-        ? { date, quotes, cash: CASH, savedAt: '2026-07-25T21:14:00' }
-        : { date, quotes, cash: CASH },
+      date === '2026-07-25' ? { date, quotes, savedAt: '2026-07-25T21:14:00' } : { date, quotes },
     );
   }
-  out.push({ date: '2026-07-27', quotes: { reit: 68702.1 }, cash: CASH });
+  out.push({ date: '2026-07-27', quotes: { reit: 68702.1 } });
   return out;
 }

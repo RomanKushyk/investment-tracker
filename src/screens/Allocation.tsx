@@ -8,7 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { EditActions } from '../components/ui/EditActions';
 import { useEditMode } from '../hooks/useEditMode';
-import { useAssets, useSnapshots, useUpdateAsset } from '../hooks/queries';
+import { useAssets, useSnapshots, useTransactions, useUpdateAsset } from '../hooks/queries';
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
 import { severityOf } from './allocation/allocation';
@@ -35,13 +35,14 @@ export function Allocation() {
   const t = useT();
   const assets = useAssets().data ?? [];
   const snapshots = useSnapshots().data ?? [];
+  const transactions = useTransactions().data ?? [];
 
   const updateAsset = useUpdateAsset();
   // Keyed by asset id and raw: `targetRowStates` owns the parsing.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   const values = latestQuotes(snapshots);
-  const total = headlineTotal(snapshots);
+  const total = headlineTotal(snapshots, transactions);
 
   const slices = assets.map((a) => ({ asset: a, value: values[a.id] ?? 0 }));
   const rows = allocationRows(assets, values, total);
