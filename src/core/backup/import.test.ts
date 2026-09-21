@@ -57,7 +57,7 @@ const SNAPSHOTS: Snapshot[] = [
 ];
 
 const TRANSACTIONS: Transaction[] = [
-  { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37, source: 'own' },
+  { id: 'd1', date: '2026-02-03', type: 'deposit', assetId: '', amount: 123844.37 },
   // A COUNT, because a position-moving row requires one at this door too.
   {
     id: 'b1',
@@ -66,7 +66,6 @@ const TRANSACTIONS: Transaction[] = [
     assetId: 'reit',
     amount: 64628.62,
     quantity: 6164,
-    source: 'own',
   },
   {
     id: 'p1',
@@ -74,7 +73,6 @@ const TRANSACTIONS: Transaction[] = [
     type: 'dividend_accrual',
     assetId: 'reit',
     amount: 580.2,
-    source: 'accrual',
   },
 ];
 
@@ -212,14 +210,14 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
     expect(result.rejection.code).toBe('not-a-backup');
   });
 
-  it('rejects formatVersion 7 as a NEWER format, with the version and the detail', () => {
-    const result = validateImport(mutated((env) => void (env.formatVersion = 7)));
+  it('rejects formatVersion 8 as a NEWER format, with the version and the detail', () => {
+    const result = validateImport(mutated((env) => void (env.formatVersion = 8)));
     expect(result.ok).toBe(false);
     if (result.ok || result.rejection.kind !== 'format') return;
     expect(result.rejection.code).toBe('newer-format');
-    expect(result.rejection.version).toBe(7);
+    expect(result.rejection.version).toBe(8);
     expect(result.rejection.detail).toBe(
-      'Unsupported formatVersion 7 — this app reads formatVersion 6 only.',
+      'Unsupported formatVersion 8 — this app reads formatVersion 7 only.',
     );
   });
 
@@ -238,7 +236,7 @@ describe('validateImport — format-level rejections (S4 single reason)', () => 
   it('gates the version BEFORE the row schemas — one reason, not a wall', () => {
     const result = validateImport(
       mutated((env) => {
-        env.formatVersion = 7;
+        env.formatVersion = 8;
         (env.assets as Record<string, unknown>[])[0].createdAt = 'nonsense';
       }),
     );
@@ -308,7 +306,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           amount: 100,
           // A COUNT, so the ONE reason under test is the unknown asset id.
           quantity: 1,
-          source: 'own',
         }),
       ),
     );
@@ -333,7 +330,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           assetId: '',
           amount: 100,
           quantity: 1,
-          source: 'own',
         }),
       ),
     );
@@ -361,7 +357,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           // So the only rule an asset-targeting row can break here is the one this test is
           // about.
           ...(CARRIES[type].quantity ? { quantity: 1 } : {}),
-          source: 'own',
         }),
       );
     // "And only those" is asserted rather than sampled: all eight, against the table,
@@ -389,7 +384,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
             type,
             assetId: 'reit',
             amount: 100,
-            source: 'own',
           }),
         ),
       );
@@ -418,7 +412,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
             assetId: 'reit',
             amount: 100,
             ...(CARRIES[type].quantity ? { quantity: 1 } : {}),
-            source: 'own',
           }),
         ),
       );
@@ -446,7 +439,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
           type: 'deposit',
           assetId: 'a-9',
           amount: 100,
-          source: 'own',
         }),
       ),
     );
@@ -572,7 +564,6 @@ describe('validateImport — row-addressed rejections (S4 list)', () => {
             type: 'buy',
             assetId: 'a-9',
             amount: 1,
-            source: 'own',
           });
         }
       }),
@@ -602,7 +593,7 @@ describe('diffBackup', () => {
       snapshots: [...SNAPSHOTS, { date: '2026-07-26', quotes: { reit: 1 }, cash: 0 }],
       transactions: [
         ...TRANSACTIONS,
-        { id: 'today', date: '2026-07-26', type: 'buy', assetId: 'reit', amount: 5, source: 'own' },
+        { id: 'today', date: '2026-07-26', type: 'buy', assetId: 'reit', amount: 5 },
       ],
     });
     const diff = diffBackup(current, envelope(), CTX);
@@ -791,7 +782,7 @@ describe('an OLDER backup is named as older, not as broken', () => {
     if (result.ok || result.rejection.kind !== 'format')
       throw new Error('expected a format reject');
     expect(result.rejection.detail).toContain('formatVersion 1');
-    expect(result.rejection.detail).toContain('formatVersion 6');
+    expect(result.rejection.detail).toContain('formatVersion 7');
   });
 });
 
@@ -813,7 +804,6 @@ describe('every way a note can be wrong reports ONE localised code', () => {
           type: 'interest_payout',
           assetId: 'reit',
           amount: 100,
-          source: 'own',
           note,
         }),
       ),

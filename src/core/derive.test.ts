@@ -87,7 +87,6 @@ describe('headline derivations (latest quote per asset, partials included)', () 
       type: 'buy',
       assetId,
       amount,
-      source: 'own',
     }));
     const kpis = headlineKpis(snaps, txs);
     expect(kpis.total).toBeCloseTo(149016.36, 2);
@@ -148,7 +147,6 @@ describe('income aggregation', () => {
       type: 'dividend_accrual',
       assetId: 'reit',
       amount: 580.2,
-      source: 'accrual',
     },
     {
       id: 't2',
@@ -156,7 +154,6 @@ describe('income aggregation', () => {
       type: 'interest_payout',
       assetId: 'ovdp8976',
       amount: 1183.5,
-      source: 'accrual',
     },
     {
       id: 't3',
@@ -164,16 +161,14 @@ describe('income aggregation', () => {
       type: 'reinvest',
       assetId: 'reit',
       amount: 484.36,
-      source: 'reinvest_reit',
     },
-    { id: 't4', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62, source: 'own' },
+    { id: 't4', date: '2026-02-03', type: 'buy', assetId: 'reit', amount: 64628.62 },
     {
       id: 't5',
       date: '2026-02-03',
       type: 'deposit',
       assetId: '',
       amount: 123844.37,
-      source: 'own',
     },
   ];
 
@@ -190,7 +185,7 @@ const tx = (
   amount: number,
   assetId = 'a1',
   date = '2026-03-01',
-): Transaction => ({ id, date, type, assetId, amount, source: 'own' });
+): Transaction => ({ id, date, type, assetId, amount });
 
 describe('§2.1 metric family: capital gain vs total return', () => {
   // The user's real …6475 position, the plan's illusion-of-loss fixture.
@@ -363,7 +358,6 @@ describe('portfolioStart', () => {
     type: 'buy',
     assetId: 'reit',
     amount: 1,
-    source: 'own',
   });
 
   it('takes the EARLIEST of the three signals, not any one of them', () => {
@@ -406,7 +400,7 @@ describe('portfolioXirr', () => {
     type: Transaction['type'],
     amount: number,
     assetId = '',
-  ): Transaction => ({ id: `t${(n += 1)}`, date, type, amount, assetId, source: 'own' });
+  ): Transaction => ({ id: `t${(n += 1)}`, date, type, amount, assetId });
 
   it('solves a plain one-year 10%', () => {
     // 100 in, 110 out, 365 days apart. If this ever stops being 0.1 the day count
@@ -472,7 +466,6 @@ describe('windowed accessors', () => {
     type: 'deposit',
     assetId: '',
     amount,
-    source: 'own',
   });
 
   it('quotesAsOf merges only the snapshots up to and including the date', () => {
@@ -557,8 +550,8 @@ describe('startDateByAsset', () => {
   it("takes the earliest of the stated firstPurchase and the asset's own rows", () => {
     const asset = a({ id: 'x', firstPurchase: '2026-05-01' });
     const txs = [
-      { id: 't1', date: '2026-03-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
-      { id: 't2', date: '2026-06-02', type: 'buy', assetId: 'x', amount: 10, source: 'own' },
+      { id: 't1', date: '2026-03-02', type: 'buy', assetId: 'x', amount: 10 },
+      { id: 't2', date: '2026-06-02', type: 'buy', assetId: 'x', amount: 10 },
     ] as Transaction[];
     // A row earlier than the attribute wins — the same min direction `portfolioStart`
     // uses, and the reason this is derived rather than read.
@@ -568,7 +561,7 @@ describe('startDateByAsset', () => {
   it('keeps firstPurchase when no row is earlier, and ignores other assets', () => {
     const asset = a({ id: 'x', firstPurchase: '2026-02-05' });
     const txs = [
-      { id: 't1', date: '2026-01-01', type: 'buy', assetId: 'other', amount: 10, source: 'own' },
+      { id: 't1', date: '2026-01-01', type: 'buy', assetId: 'other', amount: 10 },
     ] as Transaction[];
     expect(startDateByAsset([asset], txs)['x']).toBe('2026-02-05');
   });
@@ -581,7 +574,7 @@ describe('startDateByAsset', () => {
   // Cash rows carry no assetId and belong to no asset's start.
   it('ignores rows with no asset', () => {
     const txs = [
-      { id: 'd1', date: '2026-01-01', type: 'deposit', assetId: '', amount: 10, source: 'own' },
+      { id: 'd1', date: '2026-01-01', type: 'deposit', assetId: '', amount: 10 },
     ] as Transaction[];
     expect(startDateByAsset([a({ id: 'x', firstPurchase: '2026-02-05' })], txs)['x']).toBe(
       '2026-02-05',
@@ -623,7 +616,6 @@ describe('unitDelta — the sign rule units depend on', () => {
     type: 'buy',
     assetId: 'reit',
     amount: 100,
-    source: 'own',
     ...over,
   });
 
@@ -659,7 +651,6 @@ describe('the withholding is a field on the payout it was taken from', () => {
     type,
     assetId,
     amount,
-    source: 'own',
     ...(taxWithheld === undefined ? {} : { taxWithheld }),
   });
 
@@ -723,7 +714,6 @@ describe('the withholding totals do not trust a CHECK core cannot reach', () => 
     type: 'deposit',
     assetId: '',
     amount: 1000,
-    source: 'own',
     taxWithheld: 10,
   };
 

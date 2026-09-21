@@ -29,7 +29,6 @@ describe('dividendDayOfMonth', () => {
         type: 'dividend_accrual',
         assetId: 'reit',
         amount: 1,
-        source: 'accrual',
       },
       {
         id: 't1',
@@ -37,7 +36,6 @@ describe('dividendDayOfMonth', () => {
         type: 'dividend_accrual',
         assetId: 'reit',
         amount: 1,
-        source: 'accrual',
       },
     ];
     expect(dividendDayOfMonth(txs, 'reit')).toBe(10);
@@ -101,7 +99,6 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
     type: 'buy',
     assetId: 'ovdp8976',
     amount: 10_576.7,
-    source: 'own',
     quantity: 10,
     unitPrice: 1057.67,
     ...over,

@@ -56,7 +56,6 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
     type: 'buy',
     assetId: 'reit',
     amount: 55_694.5,
-    source: 'own',
     quantity: FIRST_PURCHASE_UNITS,
     unitPrice: SELL_UAH,
   };
@@ -68,7 +67,6 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
     type: 'reinvest',
     assetId: 'reit',
     amount: REINVESTED_UAH,
-    source: 'reinvest_reit',
     quantity: BOUGHT_UNITS,
     unitPrice: SELL_UAH,
   };
@@ -116,7 +114,6 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
       type: 'buy',
       assetId: 'reit',
       amount: 55_694.5,
-      source: 'own',
     };
     const match = fetched(reitLinkedWith(FIRST_PURCHASE_UNITS), [legacy]);
     expect(match.units).toBe(FIRST_PURCHASE_UNITS);
@@ -132,7 +129,6 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
       type: 'sell',
       assetId: 'reit',
       amount: 55_694.5,
-      source: 'own',
       quantity: FIRST_PURCHASE_UNITS,
       unitPrice: SELL_UAH,
     };
@@ -156,7 +152,6 @@ describe('issue #31 — the fetch values a position from its whole ledger', () =
       type: 'buy',
       assetId: 'reit',
       amount: 55_694.5,
-      source: 'own',
     };
     const match = fetched(reitLinkedWith(FIRST_PURCHASE_UNITS), [legacyBuy, reinvest]);
     expect(match.units).toBe(FIRST_PURCHASE_UNITS);

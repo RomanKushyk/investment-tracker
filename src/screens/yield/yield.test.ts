@@ -109,14 +109,13 @@ describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total ret
     createdAt: '2026-02-03T10:00:00',
   };
   const txs: Transaction[] = [
-    { id: 'b', date: '2026-02-03', type: 'buy', assetId: 'b6475', amount: 4496.4, source: 'own' },
+    { id: 'b', date: '2026-02-03', type: 'buy', assetId: 'b6475', amount: 4496.4 },
     {
       id: 'c',
       date: '2026-05-05',
       type: 'interest_payout',
       assetId: 'b6475',
       amount: 355.4,
-      source: 'accrual',
     },
   ];
   const snapsOne: Snapshot[] = [{ date: '2026-07-27', cash: 0, quotes: { b6475: 4379.52 } }];
@@ -155,7 +154,6 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
     type: 'buy',
     assetId: 'a1',
     amount: 1000,
-    source: 'own',
   };
   const oneYearLater: Snapshot[] = [{ date: '2027-01-01', cash: 0, quotes: { a1: 1080 } }];
 
@@ -175,7 +173,6 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       type: 'interest_payout',
       assetId: 'a1',
       amount: 100,
-      source: 'own',
       ...(taxWithheld === undefined ? {} : { taxWithheld }),
     });
     const gross = yieldTableRows([asset], oneYearLater, [buy, payout()])[0].xirr!;
@@ -194,7 +191,6 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       type: 'interest_payout',
       assetId: 'a1',
       amount: 100,
-      source: 'own',
       taxWithheld: 100,
     };
     const none = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
@@ -208,7 +204,6 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       type: 'deposit',
       assetId: 'a1',
       amount: 500,
-      source: 'own',
     };
     const withdrawal: Transaction = {
       id: 'w1',
@@ -216,7 +211,6 @@ describe('yieldTableRows — xirr column wiring (flow signs)', () => {
       type: 'withdrawal',
       assetId: 'a1',
       amount: 200,
-      source: 'own',
     };
     const base = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
     const withCashMoves = yieldTableRows([asset], oneYearLater, [buy, deposit, withdrawal])[0]
@@ -319,7 +313,6 @@ describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
       type: 'sell',
       assetId: 'energy',
       amount: 10_000,
-      source: 'own',
     };
     const reduced: Snapshot[] = snaps.map((s) =>
       s.date >= '2026-07-01' && s.quotes.energy !== undefined
@@ -347,7 +340,6 @@ describe('the two regressions A39 shipped and its review caught', () => {
       type: 'buy',
       assetId: 'reit',
       amount: 50_000,
-      source: 'own',
     };
     const rows = yieldTableRows(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, later]);
     expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(115_800);

@@ -122,6 +122,16 @@ describe('the draft applies as Postgres', () => {
     ]);
   });
 
+  it('leaves the asset no reinvest policy, the whole point of `007`', async () => {
+    // Applied through `DDL`, so this measures what the cluster ends up with rather than
+    // what `003` created: the column exists there and a later file drops it.
+    const { rows } = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'asset'`,
+    );
+    expect(rows.map((r) => r.column_name)).not.toContain('reinvest_policy');
+  });
+
   it('leads every per-user key with `user_id` (contract 3)', async () => {
     // DSQL's index-organized key is the reason and this engine cannot show it; what IS checkable
     // is that the declared key order says what the contract says.

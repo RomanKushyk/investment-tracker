@@ -27,7 +27,7 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * promotion — and without the bump that refusal arrives as a wall of per-row
  * errors for one fact.
  */
-export const BACKUP_FORMAT_VERSION = 6;
+export const BACKUP_FORMAT_VERSION = 7;
 
 export type Dataset = 'demo' | 'live';
 
@@ -56,7 +56,6 @@ const assetRowSchema = z.strictObject({
   // gates on `rate > 0` and falls back to the legacy amount with no screen saying so.
   couponRatePct: z.number().positive().max(100).optional(),
   nextCoupon: isoDate.optional(),
-  reinvestPolicy: z.string().optional(),
   inzhur: z
     .strictObject({
       kind: z.enum(['fund', 'bond']),
@@ -94,7 +93,6 @@ const transactionRowSchema = z.strictObject({
   // derivation assumes it. A negative here would double-flip signs in
   // `netDeposits` and `freeCashFromLedger`.
   amount: z.number().positive(),
-  source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
   // Optional in the SCHEMA is not additive in the FORMAT: an older build declares
   // neither key and its `strictObject` refuses the file on `unrecognized_keys`.
   quantity: z.number().positive().optional(),

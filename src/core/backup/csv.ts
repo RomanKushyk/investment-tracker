@@ -22,6 +22,13 @@ export const CSV_EOL = '\r\n';
 // someone already built formulas against depends on, and there is no importer to
 // keep in step, so the only compatibility that exists is with files already on
 // disk. `inzhur` is flattened into its three leaf columns.
+//
+// A COLUMN WHOSE FIELD LEAVES THE MODEL LEAVES THE FILE, and every column after it
+// SHIFTS ONE PLACE LEFT. That is the one break the rule above permits, and it is not
+// free: a formula bound to a POSITION keeps that position and so picks up the field
+// that used to sit one to its RIGHT — a total over `quantity` totals `unitPrice`. It
+// is allowed only because the alternative is carrying a column the model can no longer
+// fill, an always-empty cell that still has to be explained to whoever reads the file.
 
 export const ASSET_CSV_COLUMNS = [
   'id',
@@ -37,7 +44,6 @@ export const ASSET_CSV_COLUMNS = [
   'maturity',
   'couponAmount',
   'nextCoupon',
-  'reinvestPolicy',
   'inzhurKind',
   'inzhurRef',
   'inzhurUnits',
@@ -50,7 +56,6 @@ export const TRANSACTION_CSV_COLUMNS = [
   'type',
   'assetId',
   'amount',
-  'source',
   'quantity',
   'unitPrice',
   'taxWithheld',
@@ -104,7 +109,6 @@ export function serializeAssetsCsv(assets: Asset[]): string {
       optional(a.maturity),
       a.couponAmount === undefined ? '' : money(a.couponAmount),
       optional(a.nextCoupon),
-      optional(a.reinvestPolicy),
       optional(a.inzhur?.kind),
       optional(a.inzhur?.ref),
       // The LEGACY count, exported precisely because a value nothing writes any
@@ -124,7 +128,6 @@ export function serializeTransactionsCsv(transactions: Transaction[]): string {
       t.type,
       t.assetId,
       money(t.amount),
-      t.source,
       // `plain` on the COUNT: a count is not money and must not be padded — a
       // reinvestment buys a fractional number of units, and `money()` would round
       // the one column whose whole purpose is to be exact.

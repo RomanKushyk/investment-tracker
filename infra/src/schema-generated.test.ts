@@ -25,10 +25,19 @@ it('regenerating the schema reproduces the committed SQL', () => {
   // drizzle-kit always writes LF and `.gitattributes` pins `*.sql` to it, but development is
   // Windows and CI is Linux — belt and braces, not redundancy.
   const fresh = readFileSync(join(out, generated), 'utf8').replace(/\r\n/g, '\n');
-  const committed = readFileSync('infra/migrations/003_user_schema.sql', 'utf8').replace(
+  let committed = readFileSync('infra/migrations/003_user_schema.sql', 'utf8').replace(
     /\r\n/g,
     '\n',
   );
+  // `003` IS FROZEN — it is applied on both clusters and the ledger keys by statement content
+  // hash, so a column can only leave through a LATER file. The generator therefore stops being
+  // able to emit every line `003` holds, and the comparison has to know which. A stale entry
+  // fails on the `toContain` below rather than quietly matching nothing.
+  const DROPPED_SINCE_003 = ['\t"reinvest_policy" text,\n']; // 007
+  for (const line of DROPPED_SINCE_003) {
+    expect(committed, 'DROPPED_SINCE_003 names a line 003 does not carry').toContain(line);
+    committed = committed.replace(line, '');
+  }
   expect(fresh.trim()).toBe(committed.trim());
 
   // The comparison above cannot catch a wrong action: both sides are generated from

@@ -150,7 +150,6 @@ export function portfolioXirrIn(
             type: 'deposit',
             assetId: '',
             amount: open,
-            source: 'own',
           },
         ]
       : [];

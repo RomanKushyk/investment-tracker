@@ -105,7 +105,6 @@ describe('expected bars — user-created fixed-coupon assets (P3 fix)', () => {
     type: 'buy',
     assetId: 'bond2',
     amount: 10000,
-    source: 'own',
   };
   const days = seasonalityDays([...SEED_TRANSACTIONS, buy], [...SEED_ASSETS, userBond]);
 
@@ -246,7 +245,6 @@ describe('A42 — /seasonality under the window: one series moves, the other can
         type: 'dividend_accrual',
         assetId: 'reit',
         amount: 900,
-        source: 'accrual',
       },
       {
         id: 'b',
@@ -254,7 +252,6 @@ describe('A42 — /seasonality under the window: one series moves, the other can
         type: 'dividend_accrual',
         assetId: 'reit',
         amount: 100,
-        source: 'accrual',
       },
     ] as Transaction[];
     expect(anchorAssetGrowth(falling, 'reit')).toBeUndefined();

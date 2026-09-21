@@ -112,10 +112,6 @@ describe('assetPatchFromForm (P2 edit mode)', () => {
       nextCoupon: '2026-08-25',
       inzhur: { kind: 'bond', ref: 'UA4000238976' },
     });
-    // `reinvestPolicy` was a fourth key here until the control was removed. It is
-    // absent from the patch NOW IN BOTH BRANCHES, which is the whole point: nothing
-    // writes the stored value, so nothing can destroy it.
-    expect('reinvestPolicy' in patch).toBe(false);
   });
 
   it('never touches the stored fixed-coupon fields when the group was hidden (non-bond)', () => {
@@ -130,7 +126,6 @@ describe('assetPatchFromForm (P2 edit mode)', () => {
     expect('maturity' in patch).toBe(false);
     expect('couponRatePct' in patch).toBe(false);
     expect('nextCoupon' in patch).toBe(false);
-    expect('reinvestPolicy' in patch).toBe(false); // REIT's seeded policy survives edits
   });
 
   it('clears the inzhur link when the toggle is off (explicit undefined in the patch)', () => {

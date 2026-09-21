@@ -82,7 +82,6 @@ export function CouponDueCard({
       // Only ever on the `reinvest`: an `interest_payout` moves no position, and a
       // count on one is what `transaction_quantity_absent_ck` refuses.
       ...(quantity === undefined ? {} : { quantity }),
-      source: 'accrual',
     };
   }
 

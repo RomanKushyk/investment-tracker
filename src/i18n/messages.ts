@@ -819,7 +819,6 @@ export const en = {
     // THIS language's grammar (*Language, numbers, fonts*), so «positive» is not what
     // is wrong with a pasted «16,5» — it is positive.
     quantityUnreadable: 'Enter a number.',
-    source: 'Source of funds',
     submit: 'Record transaction',
     amountMissing: 'Enter an amount.',
     amountNotPositive: 'The amount has to be a positive number.',
@@ -878,12 +877,6 @@ export const en = {
       // says so — the schedule moved, not only the ledger.
       couponReopenedToast: 'Transaction deleted — the coupon is due again',
       failedToast: 'Could not delete transaction — please try again.',
-    },
-    sources: {
-      own: 'Own funds',
-      accrual: 'Accrual',
-      reinvest_reit: 'Reinvest (REIT)',
-      reinvest_6475: 'Reinvest (…6475)',
     },
   },
   // The screen-level edit control and the one dialog that guards it. Deliberately
@@ -1735,7 +1728,6 @@ export const uk: Dict = {
     quantityMissing: 'Введіть кількість одиниць.',
     quantityNotPositive: 'Кількість має бути додатним числом.',
     quantityUnreadable: 'Вкажіть число.',
-    source: 'Джерело коштів',
     submit: 'Записати транзакцію',
     amountMissing: 'Введіть суму.',
     amountNotPositive: 'Сума має бути додатним числом.',
@@ -1777,12 +1769,6 @@ export const uk: Dict = {
       doneToast: 'Транзакцію видалено',
       couponReopenedToast: 'Транзакцію видалено — купон знову очікується',
       failedToast: 'Не вдалося видалити транзакцію — спробуйте ще раз.',
-    },
-    sources: {
-      own: 'Власні кошти',
-      accrual: 'Нарахування',
-      reinvest_reit: 'Реінвестиція (REIT)',
-      reinvest_6475: 'Реінвестиція (…6475)',
     },
   },
   edit: {

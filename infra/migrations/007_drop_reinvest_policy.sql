@@ -1,0 +1,33 @@
+-- 007 — the asset carries no reinvest policy (W7)
+--
+-- APPLIED BY `infra/src/migrate.ts`, which names its files rather than globbing
+-- them, so this one is enlisted by `MIGRATIONS` and by nothing else.
+--
+-- WHY A LATER FILE AND NOT AN EDIT OF 003. `CREATE TABLE "asset"` is applied on
+-- both clusters and the ledger keys by statement content hash, so deleting the
+-- column from the generated file would re-present a statement the cluster already
+-- has: the runner would find no record of creating it, refuse, and apply nothing.
+-- `schema/user.ts` cannot express the drop either — drizzle regenerates `003`
+-- whole, and that file is frozen.
+--
+-- `IF EXISTS` CLOSES THE CRASH WINDOW, which is this runner's one re-run hazard and
+-- which each sibling closes its own way: the ledger row is opened BEFORE the send,
+-- so a crash between a successful ALTER and the `applied_at` stamp leaves the row
+-- open and the next run re-sends. A bare DROP then raises `42703 undefined_column`,
+-- which is neither in `ALREADY_THERE` nor the `openedHere` case, so the run aborts
+-- on it — and keeps aborting, blocking every later file. `005` picks `ON CONFLICT
+-- DO NOTHING` for the same reason; `006` gets it free, a duplicate constraint
+-- raising `42710`, which the runner does absorb.
+--
+-- THE CLAUSE ITSELF IS UNPROVEN ON DSQL. `infra/docs/dsql-constraints.md` records
+-- bare `DROP COLUMN` as supported and `DROP SCHEMA IF EXISTS` as supported, but
+-- that matrix is measured row by row and infers nothing from a neighbour, so
+-- neither row covers this spelling. The rehearsal is what proves it: a `rehearse`
+-- run applies `003` and then this file into a throwaway schema, so a DSQL that
+-- refused the clause fails there, before anything is applied for real.
+--
+-- NOTHING EVER READ IT. The form control went before the column had a second
+-- writer and no handler selects it; the app's own field leaves in the same commit.
+-- `rewriteForDsql` leaves the statement alone — its `ALTER TABLE` branch fires
+-- only on `ADD CONSTRAINT`.
+ALTER TABLE "asset" DROP COLUMN IF EXISTS "reinvest_policy";

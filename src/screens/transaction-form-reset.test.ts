@@ -377,15 +377,35 @@ describe('the two controls #136 adds obey the panel\u2019s own rules', () => {
     expect(CODE).toMatch(/\.\.\.\(values\.note === undefined \? \{\} : \{ note: values\.note \}\)/);
     expect(
       CODE,
-      'a per-row fact survived a record — unlike type and source, neither of these may',
+      'a per-row fact survived a record — unlike the type and the asset, neither of these may',
     ).toMatch(/taxWithheld: '',\s*note: '',\s*priceMode: values\.priceMode/);
   });
 
-  it('hands Source the second column back only when nothing else has it', () => {
-    expect(
-      CODE,
-      'Source keeps the second column when something else has taken it — units are no ' +
-        'longer the only control that can',
-    ).toMatch(/group-has-\[#tx-quantity\]:col-span-2 group-has-\[#tx-withholding\]:col-span-2/);
+  it('asks for no source of funds', () => {
+    // Write-only while it existed: the type and the asset carry it in every row
+    // (*Forms and layout*).
+    expect(CODE, 'the Source control is back').not.toContain('name="source"');
+    expect(CODE, 'the source order is back').not.toContain('SOURCE_ORDER');
+  });
+
+  it('closes the amount row when the amount is its only occupant', () => {
+    // «Джерело» used to fill the second column on a deposit; without it the amount held one
+    // column and the other stood empty. The span INVERTS rather than disappearing: the
+    // amount spans by default and gives a column back to whichever field takes one.
+    // ANCHORED on the nearest `grid-rows-subgrid` behind the amount — that is its own
+    // cell — then back to the head of that className. A `<div className="` window finds
+    // the segment row nested inside it, and a bare token window is at the mercy of the
+    // class sorter's order.
+    const start = CODE.indexOf('name="amount"');
+    const sub = CODE.lastIndexOf('grid-rows-subgrid', start);
+    const rule = CODE.slice(CODE.lastIndexOf('className="', sub), start);
+    expect(rule, 'the amount no longer spans the row by default').toContain('col-span-2');
+    // ASKS THE DOM, not `takesUnits` — the flag flips while the field is still playing its
+    // leave animation, so a layout driven by it reflows twice.
+    expect(rule).toContain('group-has-[#tx-quantity]:col-span-1');
+    expect(rule).toContain('group-has-[#tx-withholding]:col-span-1');
+    expect(CODE, 'the grid is no longer a `group`, so neither gate can fire').toContain(
+      '"group grid grid-cols-2',
+    );
   });
 });

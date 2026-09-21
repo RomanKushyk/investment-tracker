@@ -23,7 +23,6 @@ const REIT: Asset = {
   payoutSchedule: 'monthly',
   firstPurchase: '2026-02-03',
   createdAt: '2026-02-03T10:00:00',
-  reinvestPolicy: 'Auto (dividends)',
 };
 
 const ENERGY: Asset = {
@@ -116,20 +115,16 @@ describe('the CSV dialect (RFC 4180)', () => {
   });
 
   it('quotes a field containing a comma, doubles inner quotes, and keeps a newline inside quotes', () => {
-    const tricky: Asset = {
-      ...REIT,
-      id: 'tricky',
-      name: 'Fund, Inc.',
-      reinvestPolicy: 'Auto "always"\nevery month',
-    };
+    // ALL THREE HAZARDS IN ONE CELL, and `name` is where they can all occur: it is the
+    // asset's only free text now that the reinvest policy has left the model, and a
+    // separate fixture per hazard would prove nothing a combined one does not.
+    const tricky: Asset = { ...REIT, id: 'tricky', name: 'Fund, "Inc."\nLtd' };
     const csv = serializeAssetsCsv([tricky]);
-    expect(csv).toContain('"Fund, Inc."');
-    expect(csv).toContain('"Auto ""always""\nevery month"');
+    expect(csv).toContain('"Fund, ""Inc.""\nLtd"');
     // A quoted newline must NOT end the record: two lines, not three.
     const rows = readCsv(csv);
     expect(rows).toHaveLength(2);
-    expect(rows[1][1]).toBe('Fund, Inc.');
-    expect(rows[1][13]).toBe('Auto "always"\nevery month');
+    expect(rows[1][1]).toBe('Fund, "Inc."\nLtd');
   });
 
   it('writes dot decimals with no thousands grouping and no currency symbol', () => {
@@ -156,7 +151,7 @@ describe('the CSV dialect (RFC 4180)', () => {
     };
     const row = readCsv(serializeAssetsCsv([linked]))[1];
     expect(row[5]).toBe('16.4');
-    expect(row[16]).toBe('6164');
+    expect(row[15]).toBe('6164');
   });
 });
 
@@ -178,7 +173,6 @@ describe('column orders (pinned contract)', () => {
       '',
       '',
       '',
-      'Auto (dividends)',
       '',
       '',
       '',
@@ -205,24 +199,12 @@ describe('column orders (pinned contract)', () => {
       type: 'deposit',
       assetId: '',
       amount: 143176.37,
-      source: 'own',
     };
     const rows = readCsv(serializeTransactionsCsv([tx]));
     expect(rows[0]).toEqual([...TRANSACTION_CSV_COLUMNS]);
     // A deposit moves no position, so both #31 columns are EMPTY — never 0, which
     // would read as "zero units bought" rather than "not applicable".
-    expect(rows[1]).toEqual([
-      'tx-0001',
-      '2026-02-03',
-      'deposit',
-      '',
-      '143176.37',
-      'own',
-      '',
-      '',
-      '',
-      '',
-    ]);
+    expect(rows[1]).toEqual(['tx-0001', '2026-02-03', 'deposit', '', '143176.37', '', '', '', '']);
   });
 
   it('carries units and the per-unit price, unrounded (#31)', () => {
@@ -232,7 +214,6 @@ describe('column orders (pinned contract)', () => {
       type: 'reinvest',
       assetId: 'reit',
       amount: 484.36,
-      source: 'reinvest_reit',
       quantity: 43.4785,
       unitPrice: 11.1389,
     };
@@ -246,7 +227,6 @@ describe('column orders (pinned contract)', () => {
       'reinvest',
       'reit',
       '484.36',
-      'reinvest_reit',
       '43.4785',
       '11.1389',
       '',
@@ -284,14 +264,15 @@ describe('the withholding and the note ride the export, APPENDED', () => {
   it('names both columns last, after the two #31 ones', () => {
     // A column order is what a spreadsheet someone already built formulas against
     // depends on, and there is no CSV importer to keep in step — so these are appended
-    // and never inserted, exactly as `quantity` was.
+    // and never inserted, exactly as `quantity` was. The one break that rule permits is
+    // a column whose FIELD left the model: `source` went with the source of funds, and
+    // every column after it shifted one place left.
     expect([...TRANSACTION_CSV_COLUMNS]).toEqual([
       'id',
       'date',
       'type',
       'assetId',
       'amount',
-      'source',
       'quantity',
       'unitPrice',
       'taxWithheld',
@@ -307,7 +288,6 @@ describe('the withholding and the note ride the export, APPENDED', () => {
         type: 'interest_payout',
         assetId: 'ovdp8976',
         amount: 467.46,
-        source: 'own',
         taxWithheld: 65.44,
         note: 'Звірено з випискою',
       },
@@ -317,7 +297,6 @@ describe('the withholding and the note ride the export, APPENDED', () => {
         type: 'interest_payout',
         assetId: 'ovdp8976',
         amount: 100,
-        source: 'own',
       },
     ];
     const [, taxed, plainRow] = readCsv(serializeTransactionsCsv(rows));
@@ -334,7 +313,6 @@ describe('the withholding and the note ride the export, APPENDED', () => {
       type: 'dividend_accrual',
       assetId: 'reit',
       amount: 100,
-      source: 'own',
       note: 'Звірено, з "випискою"',
     };
     const [, row] = readCsv(serializeTransactionsCsv([tx]));

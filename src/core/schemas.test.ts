@@ -133,7 +133,6 @@ describe('transactionSchema', () => {
     // REQUIRED on a position-moving row — a `buy` without one no longer parses, which is
     // what the four rules below are about.
     quantity: '10',
-    source: 'own',
   };
 
   it('accepts a transaction on an existing asset and coerces the amount', () => {
@@ -336,7 +335,6 @@ describe('the comma is a decimal mark in Ukrainian and a thousands mark in Engli
     // A `reinvest` moves a position, so it needs this — every case below overrides it
     // with the shape under test.
     quantity: '1',
-    source: 'reinvest_reit' as const,
   };
 
   it('reads a Ukrainian three-decimal count as a FRACTION, not a thousand', () => {
@@ -418,7 +416,6 @@ describe('the transaction refinements #31 adds, and the count rule completes', (
     assetId: 'reit',
     amount: '1 000,00',
     quantity: '10',
-    source: 'own' as const,
   };
 
   it('refuses per-unit mode with no quantity — there is no total to record', () => {
@@ -476,7 +473,6 @@ describe('the asset is required only on the types that target one', () => {
     assetId: '',
     amount: '1 000,00',
     quantity: '',
-    source: 'own' as const,
   };
 
   it('accepts a portfolio-level row with NO asset — the shape the seed writes', () => {
@@ -583,7 +579,6 @@ describe('a value that cannot be READ is a different failure from one that is no
       date: '2026-09-11',
       type: 'buy' as const,
       assetId: 'reit',
-      source: 'own' as const,
       quantity: '10',
       amount: '1000.00',
     };
@@ -606,7 +601,6 @@ describe('the withholding and the note at the form door', () => {
     type: 'interest_payout' as const,
     assetId: 'a1',
     amount: '100',
-    source: 'own' as const,
   };
 
   it('accepts a withholding below the amount on either payout type', () => {

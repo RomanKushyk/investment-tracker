@@ -64,7 +64,6 @@ const TYPE_ORDER: TxType[] = [
 
 // The Recent rows use "Coupon" for interest_payout where the Type select spells
 // out "Interest payout"; the other eight share their select label.
-const SOURCE_ORDER = ['own', 'accrual', 'reinvest_reit', 'reinvest_6475'] as const;
 
 // The invalid variant is not decoration: without it the form's own summary
 // ("check the highlighted fields") pointed at nothing.
@@ -272,7 +271,6 @@ export function TransactionPanel() {
       type: 'buy',
       assetId: '',
       amount: '',
-      source: 'own',
       quantity: '',
       taxWithheld: '',
       note: '',
@@ -406,7 +404,6 @@ export function TransactionPanel() {
       type: values.type,
       assetId: newAsset ? newAsset.id : values.assetId,
       amount,
-      source: values.source,
       // Spread rather than assigned: Dexie stores `undefined` as a present key, and
       // `json.ts` round-trips the object, so an absent field must be ABSENT.
       ...(values.quantity === undefined ? {} : { quantity: values.quantity }),
@@ -437,9 +434,8 @@ export function TransactionPanel() {
             // be restored over the choice the row was written with.
             assetId: newAsset ? newAsset.id : assetId,
             amount: '',
-            source: values.source,
             // The COUNT clears with the amount — it is per-transaction. The MODE survives,
-            // like type/asset/source: it is how this user reads their statements.
+            // like the type and the asset: it is how this user reads their statements.
             quantity: '',
             // BOTH CLEAR WITH THE AMOUNT: a withholding is per-payout and a note is per row,
             // so carrying either over attaches the last row's facts to the next one.
@@ -685,18 +681,21 @@ export function TransactionPanel() {
             </div>
           )}
 
-          {/* THE ROW HAS TWO SHAPES. With units the count and the amount share a row,
-              because a count is what makes a per-unit price into a total; without them the
-              row closes up rather than leaving a hole.
+          {/* THE ROW IS ALWAYS FULL. The amount shares it with whichever field the type
+              brings — the count on a position-moving row, the withholding on a payout —
+              and spans the whole row when the type brings neither, rather than sitting at
+              half width beside a hole. `navigation-map.md` enumerates the shapes; what is
+              asserted here is the invariant they all satisfy.
 
-              ALL THREE CELLS AUTO-PLACE. The only placement rule is `col-span-2` on
-              «Джерело», and a spanning cell cannot fit beside two others — so the span
-              alone is what puts it on its own line.
+              BOTH CELLS AUTO-PLACE. The only placement rule is `col-span-2` on the AMOUNT,
+              and it is written as a DEFAULT the two gates take back: a spanning cell cannot
+              fit beside another, so the span alone is what decides whether the row holds one
+              field or two.
 
               THE SPAN ASKS THE DOM, not `takesUnits`: the flag flips the instant the type
               changes, while the field is still on screen playing its leave animation, so a
               layout driven by it reflows twice. `:has` turns false only once the node is
-              gone, so the three cells re-place in ONE step.
+              gone, so the cells re-place in ONE step.
 
               SUBGRID, three shared rows — label, control, error — so the cells align
               control-to-control whatever sits above them. AN `items-end` ROW WAS REFUSED:
@@ -759,7 +758,7 @@ export function TransactionPanel() {
                 ONE MESSAGE PER FAILURE: the amount schema refuses blank, zero, negative and
                 non-numeric, and a single message told someone who typed `0` to enter the
                 amount they had just typed. */}
-            <div className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1">
+            <div className="col-span-2 row-span-3 grid min-w-0 grid-rows-subgrid gap-1 group-has-[#tx-quantity]:col-span-1 group-has-[#tx-withholding]:col-span-1">
               {/* THE SEGMENT RIDES THE LABEL ROW. `min-w-0` + `truncate` on the label, because
                   the row has a hard budget: the unit-mode label plus the track plus the gap
                   has to fit the grid column. */}
@@ -836,13 +835,12 @@ export function TransactionPanel() {
                 STILL — cells place in document order and the row's first occupant decides;
                 what the placement settles is which field the amount is PAIRED with.
 
-                A KNOWN TRANSIENT, ACCEPTED, AND TWO CURES REFUSED — written down because
-                the next reader will reach for the same `:has` gate the Source span beside
-                it uses. Switching Buy → a payout flips `takesWithholding` at once while
-                `Reveal` keeps the units mounted for their exit, so four `row-span-3` cells
-                briefly share a two-column grid: this one auto-places in the FIRST column,
-                under the units rather than beside them, and moves up AND ACROSS to the amount's
-                side when they unmount. `group-has-[#tx-quantity]:hidden` is worse: `Reveal`
+                A KNOWN TRANSIENT, ACCEPTED, AND TWO CURES REFUSED. Switching Buy → a payout
+                flips `takesWithholding` at once while `Reveal` keeps the units mounted for
+                their exit, so the units, the amount and this cell briefly share a two-column
+                grid: this one auto-places in the FIRST column, under the units rather than
+                beside them, and moves up AND ACROSS to the amount's side when they unmount.
+                A `:has` gate that HID it instead is worse: `Reveal`
                 unmounts in `onAnimationEnd`, and `display:none` means the exit animation
                 never runs, so the field stays mounted forever and then REAPPEARS at full
                 size on the next type that has no units. Taking it out of flow instead
@@ -895,29 +893,6 @@ export function TransactionPanel() {
                 )}
               />
             </Reveal>
-
-            {/* Spanning lands this in the grid's IMPLICIT row, and the full-width shape needs
-                no spacing of its own. It never shares a line with a «Сума» carrying the Σ/1
-                track, because the track is gated on the same condition the span is. IT ASKS
-                THE DOM ABOUT BOTH OCCUPANTS: the rule is "whoever takes the second column
-                pushes Source down". */}
-            <label className="row-span-3 grid min-w-0 grid-rows-subgrid gap-1 text-[11px] text-muted group-has-[#tx-quantity]:col-span-2 group-has-[#tx-withholding]:col-span-2">
-              {t.transaction.source}
-              <Controller
-                control={form.control}
-                name="source"
-                render={({ field }) => (
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    options={SOURCE_ORDER.map((value) => ({
-                      value,
-                      label: t.transaction.sources[value],
-                    }))}
-                  />
-                )}
-              />
-            </label>
           </div>
 
           {/* THE NOTE IS ASKED ON ALL EIGHT TYPES, full width and last, because it is the

@@ -51,7 +51,6 @@ const tx = (id: string, assetId: string): Transaction => ({
   type: 'buy',
   assetId,
   amount: 100,
-  source: 'own',
 });
 
 const TRANSACTIONS: Transaction[] = [

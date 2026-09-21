@@ -289,7 +289,6 @@ export const asset = pgTable(
     couponAmount: numeric('coupon_amount'),
     couponRatePct: numeric('coupon_rate_pct'),
     nextCoupon: date('next_coupon'),
-    reinvestPolicy: text('reinvest_policy'),
     // The archive link. NULL = a hand-valued asset (D75).
     providerKind: text('provider_kind'),
     providerRef: text('provider_ref'),

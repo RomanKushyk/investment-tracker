@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Asset, Snapshot, Transaction, TxType } from '../types';
-import { buildBackup, parseBackup, type BackupEnvelope } from './json';
+import { backupEnvelopeSchema, buildBackup, parseBackup, type BackupEnvelope } from './json';
 
 // Minimal hand-built portfolio; the full seed round-trip lives in
 // src/lib/seed.test.ts — core tests must not import src/lib. *Core is pure*
@@ -53,7 +53,6 @@ const TRANSACTIONS: Transaction[] = [
     type: 'deposit',
     assetId: '',
     amount: 123844.37,
-    source: 'own',
   },
   {
     id: 'b1',
@@ -64,7 +63,6 @@ const TRANSACTIONS: Transaction[] = [
     // A count is required on a position-moving row at this door too. No `unitPrice`:
     // that one keeps only the one-way rule, being derivable from `amount / quantity`.
     quantity: 6164,
-    source: 'own',
   },
   {
     id: 'p1',
@@ -72,7 +70,6 @@ const TRANSACTIONS: Transaction[] = [
     type: 'dividend_accrual',
     assetId: 'reit',
     amount: 580.2,
-    source: 'accrual',
   },
 ];
 
@@ -93,7 +90,7 @@ describe('buildBackup', () => {
   it('assembles the pinned envelope shape', () => {
     const env = envelope();
     expect(env.format).toBe('quirenote-backup');
-    expect(env.formatVersion).toBe(6);
+    expect(env.formatVersion).toBe(7);
     expect(env.exportedAt).toBe('2026-07-28T12:00:00');
     expect(env.dbVersion).toBe(2);
     expect(env.dataset).toBe('demo');
@@ -160,7 +157,6 @@ describe('parseBackup round-trip', () => {
       type: 'reinvest',
       assetId: 'reit',
       amount: 484.36,
-      source: 'reinvest_reit',
       quantity: 43.4785,
       unitPrice: 11.1389,
     };
@@ -244,13 +240,13 @@ describe('parseBackup rejections', () => {
     expect(result.issues[0]).toMatch(/Not a quirenote-backup file/);
   });
 
-  it('rejects formatVersion 7 with a clear single issue', () => {
-    const result = parseBackup(mutated((env) => void (env.formatVersion = 7)));
+  it('rejects formatVersion 8 with a clear single issue', () => {
+    const result = parseBackup(mutated((env) => void (env.formatVersion = 8)));
     expect(result).toMatchObject({ ok: false });
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
-    expect(result.issues[0]).toMatch(/Unsupported formatVersion 7/);
-    expect(result.issues[0]).toMatch(/formatVersion 6/);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 8/);
+    expect(result.issues[0]).toMatch(/formatVersion 7/);
   });
 
   it('rejects a formatVersion 5 file with ONE sentence, not a wall of row errors', () => {
@@ -266,7 +262,6 @@ describe('parseBackup rejections', () => {
           type: 'tax',
           assetId: 'reit',
           amount: 100,
-          source: 'own',
         });
       }),
     );
@@ -274,6 +269,41 @@ describe('parseBackup rejections', () => {
     if (result.ok) return;
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatch(/Unsupported formatVersion 5/);
+  });
+
+  it('refuses a file the PREVIOUS build wrote, on the VERSION and not per row', () => {
+    // Every formatVersion 6 row carried a source of funds. Without the bump the refusal
+    // arrives as one `unrecognized_keys` per transaction — a wall of row errors for one
+    // fact about the file.
+    const result = parseBackup(
+      mutated((env) => {
+        env.formatVersion = 6;
+        for (const row of env.transactions as Record<string, unknown>[]) row.source = 'own';
+      }),
+    );
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) return;
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0]).toMatch(/Unsupported formatVersion 6/);
+  });
+
+  it('refuses an unknown key by CODE and key list, never by the message', () => {
+    // The message is locale-dependent and zod may reword it; `code` and `keys` are the
+    // contract. The issue hangs on the object that carries the key, so the path names the
+    // ROW rather than the key itself.
+    const raw: unknown = JSON.parse(
+      mutated((env) => void ((env.transactions as Record<string, unknown>[])[0].source = 'own')),
+    );
+    const parsed = backupEnvelopeSchema.safeParse(raw);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'unrecognized_keys',
+        keys: ['source'],
+        path: ['transactions', 0],
+      }),
+    );
   });
 
   it('rejects an unknown key on an asset row (strictObject)', () => {
@@ -301,21 +331,22 @@ describe('parseBackup rejections', () => {
 
   it('CAN BUILD an envelope it cannot parse — which is why the export re-reads its own output', () => {
     // THE HOLE, pinned rather than described. `buildBackup` passes transactions through
-    // unchanged and validates nothing, so a store created before this branch — pre-#31
-    // rows whose counts are unrecoverable — exports a `formatVersion: 5` file that
-    // passes the version gate and then fails row by row, leaving the only restore path
-    // unusable at the one moment it mattered. `useBackupDownload` closes it by parsing
-    // what it just built and refusing to offer a file that comes back rejected; delete
-    // that guard and this asymmetry is what ships. A live store holding a retired row
-    // shape exports a file this build refuses too, and is ruled expendable rather than
-    // migrated. *Persistence today*
+    // unchanged and validates nothing, so a store holding a retired row shape — a
+    // pre-#31 row whose count is unrecoverable, a row still carrying a source of funds —
+    // builds a current-version file that passes the version gate and then fails row by
+    // row, leaving the only restore path unusable at the one moment it mattered.
+    // `useBackupDownload` closes it by parsing what it just built and refusing to offer a
+    // file that comes back rejected; delete that guard and this asymmetry is what ships.
+    //
+    // SO SUCH A STORE CANNOT BACK ITSELF UP — the CSV export validates nothing and still
+    // writes — and that is ruled rather than overlooked, for BOTH databases: Settings →
+    // Danger zone erases live and reseeds demo. Neither is migrated. *Persistence today*
     const legacy: Transaction = {
       id: 'legacy-buy',
       date: '2026-02-03',
       type: 'buy',
       assetId: 'reit',
       amount: 1000,
-      source: 'own',
     };
     const env = buildBackup(
       ASSETS,
@@ -326,7 +357,7 @@ describe('parseBackup rejections', () => {
       '2026-09-01T12:00:00',
       2,
     );
-    expect(env.formatVersion).toBe(6);
+    expect(env.formatVersion).toBe(7);
     expect(env.transactions).toHaveLength(1);
     const readBack = parseBackup(JSON.stringify(env));
     expect(readBack.ok).toBe(false);
@@ -345,7 +376,6 @@ describe('parseBackup rejections', () => {
           type: 'reinvest',
           assetId: 'reit',
           amount: 100,
-          source: 'reinvest_reit',
         }),
       ),
     );
@@ -367,7 +397,6 @@ describe('parseBackup rejections', () => {
           type: 'deposit',
           assetId: 'reit',
           amount: 100,
-          source: 'own',
         }),
       ),
     );
@@ -390,7 +419,6 @@ describe('parseBackup rejections', () => {
           type: 'deposit',
           assetId: 'gone',
           amount: 100,
-          source: 'own',
         }),
       ),
     );
@@ -408,7 +436,6 @@ describe('parseBackup rejections', () => {
           type: 'interest_payout',
           assetId: 'reit',
           amount: 100,
-          source: 'own',
         }),
       ),
     );
@@ -424,7 +451,6 @@ describe('parseBackup rejections', () => {
           type: 'tax',
           assetId: 'reit',
           amount: 100,
-          source: 'own',
         }),
       ),
     );
@@ -442,7 +468,6 @@ describe('parseBackup rejections', () => {
           amount: 100,
           // A COUNT, so the ONE reason under test is the unknown asset id.
           quantity: 1,
-          source: 'own',
         }),
       ),
     );
@@ -602,7 +627,6 @@ describe('the withholding and the note at the envelope door', () => {
     type: 'interest_payout',
     assetId: 'reit',
     amount: 100,
-    source: 'own',
     ...extra,
   });
 
@@ -723,7 +747,6 @@ describe('the sentences `parseBackup` prints are a contract', () => {
     type: 'interest_payout',
     assetId: 'reit',
     amount: 100,
-    source: 'own',
     ...extra,
   });
 
@@ -762,7 +785,6 @@ describe('a note of whitespace is a note nobody typed', () => {
             type: 'interest_payout',
             assetId: 'reit',
             amount: 100,
-            source: 'own',
             note,
           }),
         ),

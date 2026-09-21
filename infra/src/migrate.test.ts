@@ -28,13 +28,14 @@ const read = (file: string) =>
 const USER_SCHEMA = '003_user_schema.sql';
 const DEMO_ROW = '005_demo_user.sql';
 const CASE_RULE = '006_email_lower.sql';
+const DROP_POLICY = '007_drop_reinvest_policy.sql';
 
 describe('the file list', () => {
   // NOT A GLOB, deliberately: `001`, `002` and `004` are the ARCHIVE's, applied by
   // `ensureSchema` in capture.ts, and globbing `migrations/**/*.sql` by filename would
   // run the user schema before them.
-  it('names the user schema, the demo row and the case rule, in that order, and nothing else', () => {
-    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE]);
+  it('names the user schema, the demo row, the case rule and the dropped column, in that order, and nothing else', () => {
+    expect(MIGRATIONS).toEqual([USER_SCHEMA, DEMO_ROW, CASE_RULE, DROP_POLICY]);
   });
 });
 
@@ -47,6 +48,10 @@ describe('statementsOf', () => {
 
   it('splits the case rule into its one statement', () => {
     expect(statementsOf(read(CASE_RULE))).toHaveLength(1);
+  });
+
+  it('splits the dropped column into its one statement', () => {
+    expect(statementsOf(read(DROP_POLICY))).toHaveLength(1);
   });
 
   it('leaves no breakpoint marker inside a statement', () => {
@@ -355,6 +360,28 @@ describe('applyFile', () => {
     expect(rows[0].count).toBe(1);
   });
 
+  // The same window over a DROP, and the reason `007` carries `IF EXISTS`: the column is
+  // already gone on the re-send, so a bare DROP would raise `42703`, which is neither in
+  // `ALREADY_THERE` nor the `openedHere` case — the run would abort on it and keep
+  // aborting, blocking every later file.
+  it('re-runs an open DROP COLUMN without raising', async () => {
+    await applyFile(db, USER_SCHEMA, stmts);
+    const drop = statementsOf(read(DROP_POLICY));
+    await applyFile(db, DROP_POLICY, drop);
+    await db.query(`UPDATE schema_migration SET applied_at = NULL WHERE file = $1`, [DROP_POLICY]);
+    expect(await applyFile(db, DROP_POLICY, drop)).toEqual({
+      file: DROP_POLICY,
+      applied: 1,
+      skipped: 0,
+      pending: 0,
+    });
+    const { rows } = await db.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM information_schema.columns
+        WHERE table_name = 'asset' AND column_name = 'reinvest_policy'`,
+    );
+    expect(rows[0].count).toBe(0);
+  });
+
   it('applies the demo row against the schema it depends on', async () => {
     await applyFile(db, USER_SCHEMA, stmts);
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
@@ -524,6 +551,7 @@ describe('migrate', () => {
         { file: USER_SCHEMA, applied: 0, skipped: 0, pending: 12 },
         { file: DEMO_ROW, applied: 0, skipped: 0, pending: 1 },
         { file: CASE_RULE, applied: 0, skipped: 0, pending: 1 },
+        { file: DROP_POLICY, applied: 0, skipped: 0, pending: 1 },
       ],
     });
   });
@@ -534,6 +562,7 @@ describe('migrate', () => {
     await applyFile(db, USER_SCHEMA, statementsOf(read(USER_SCHEMA)));
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
     await applyFile(db, CASE_RULE, statementsOf(read(CASE_RULE)));
+    await applyFile(db, DROP_POLICY, statementsOf(read(DROP_POLICY)));
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -541,6 +570,7 @@ describe('migrate', () => {
         { file: USER_SCHEMA, applied: 0, skipped: 12, pending: 0 },
         { file: DEMO_ROW, applied: 0, skipped: 1, pending: 0 },
         { file: CASE_RULE, applied: 0, skipped: 1, pending: 0 },
+        { file: DROP_POLICY, applied: 0, skipped: 1, pending: 0 },
       ],
     });
   });
@@ -617,6 +647,7 @@ describe('migrate', () => {
         { file: USER_SCHEMA, applied: 12, skipped: 0, pending: 0 },
         { file: DEMO_ROW, applied: 1, skipped: 0, pending: 0 },
         { file: CASE_RULE, applied: 1, skipped: 0, pending: 0 },
+        { file: DROP_POLICY, applied: 1, skipped: 0, pending: 0 },
       ]);
       expect(report.teardown).toEqual({
         schema: report.schema,

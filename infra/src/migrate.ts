@@ -31,6 +31,7 @@ export const MIGRATIONS = [
   '003_user_schema.sql',
   '005_demo_user.sql',
   '006_email_lower.sql',
+  '007_drop_reinvest_policy.sql',
 ] as const;
 
 /** What both `pg` and PGlite give back, and all this module needs of either. */

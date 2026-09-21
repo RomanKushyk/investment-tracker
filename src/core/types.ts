@@ -11,7 +11,6 @@ export type TxType =
   | 'interest_payout'
   | 'reinvest'
   | 'redemption';
-export type TxSource = 'own' | 'accrual' | 'reinvest_reit' | 'reinvest_6475';
 
 /**
  * The arm a `TxType` cannot reach. `never` accepts no member of the union, so a
@@ -52,7 +51,6 @@ export interface Asset {
   couponRatePct?: number;
   couponAmount?: number;
   nextCoupon?: string;
-  reinvestPolicy?: string;
   // `ref` = fund slug ('inzhur-reit') or bond ISIN ('UA4000238976').
   //
   // `units` is LEGACY and never written again — units are Σ `transaction.quantity`.
@@ -134,7 +132,6 @@ export interface Transaction {
   type: TxType;
   assetId: string; // '' for portfolio-level rows (deposit/withdrawal) — `targetsAsset`
   amount: number;
-  source: TxSource;
   /** Units this row moved. Position-moving types only, and OPTIONAL for good —
    *  every row recorded before units existed carries none, and those counts are
    *  unrecoverable, so absence is the normal state of historical data. */

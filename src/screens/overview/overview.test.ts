@@ -66,7 +66,7 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
   it('an unmatched withdrawal surfaces the signed drift (stored − derived = +amount)', () => {
     const withWithdrawal: Transaction[] = [
       ...SEED_TRANSACTIONS,
-      { id: 'w1', date: '2026-07-27', type: 'withdrawal', assetId: '', amount: 100, source: 'own' },
+      { id: 'w1', date: '2026-07-27', type: 'withdrawal', assetId: '', amount: 100 },
     ];
     expect(ledgerDriftChip(snaps, withWithdrawal)).toBeCloseTo(100, 10);
   });
@@ -74,7 +74,7 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
   it('an unmatched deposit drifts negative (ledger expects more cash than stored)', () => {
     const withDeposit: Transaction[] = [
       ...SEED_TRANSACTIONS,
-      { id: 'd9', date: '2026-07-27', type: 'deposit', assetId: '', amount: 123.45, source: 'own' },
+      { id: 'd9', date: '2026-07-27', type: 'deposit', assetId: '', amount: 123.45 },
     ];
     expect(ledgerDriftChip(snaps, withDeposit)).toBeCloseTo(-123.45, 10);
   });
@@ -90,7 +90,6 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
         type: 'withdrawal',
         assetId: '',
         amount: 0.01,
-        source: 'own',
       },
     ];
     expect(ledgerDriftChip(snaps, atEps)).toBeNull();
@@ -102,7 +101,6 @@ describe('ledgerDriftChip (S9d — stored cash vs freeCashFromLedger)', () => {
         type: 'withdrawal',
         assetId: '',
         amount: 0.02,
-        source: 'own',
       },
     ];
     expect(ledgerDriftChip(snaps, aboveEps)).toBeCloseTo(0.02, 10);
@@ -198,7 +196,6 @@ describe('nextPayoutRows — user-created fixed-coupon assets (P3 fix)', () => {
     type: 'buy',
     assetId: 'bond2',
     amount: 10000,
-    source: 'own',
   };
 
   it('projects an estimated coupon when the asset states no couponAmount', () => {
@@ -254,7 +251,6 @@ describe('nextPayoutRows — nothing offered is in the past', () => {
     type: 'buy',
     assetId,
     amount: 10000,
-    source: 'own',
   });
 
   it('rolls a DIVIDEND forward by whole periods until it is on or after the date', () => {
@@ -326,7 +322,6 @@ describe('the windowed KPI (A40) — and the XIRR beside it (D-8)', () => {
       type: 'deposit',
       assetId: '',
       amount: 10_000,
-      source: 'own',
     };
     const withDep = totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, later], full);
     const without = totalReturnKpiIn(snaps, SEED_TRANSACTIONS, full);
@@ -386,7 +381,6 @@ describe('the windowed edge cases the seed cannot show (A40 review)', () => {
       type: 'withdrawal',
       assetId: '',
       amount: 144_882,
-      source: 'own',
     };
     expect(totalReturnKpiIn(snaps, [...SEED_TRANSACTIONS, out], m3).roi).toBeNull();
 
@@ -406,7 +400,6 @@ describe('the windowed edge cases the seed cannot show (A40 review)', () => {
       type: 'sell',
       assetId: 'ovdp8976',
       amount: 15_800,
-      source: 'own',
     };
     const withSell = netResultIn(snaps, [...SEED_TRANSACTIONS, sell], m3);
     const without = netResultIn(snaps, SEED_TRANSACTIONS, m3);

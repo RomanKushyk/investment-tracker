@@ -19,9 +19,10 @@ seeded, and live, never auto-seeded — bound once at boot. Every persisted sett
 in the commit that adds it. The JSON backup envelope refuses a newer, an older and an unreadable
 version; import validates fully, shows a diff, then replaces in one transaction — a key the file
 omits is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only and writes
-data rather than formulas: a cell beginning `=` or `@` is passed through as typed. A LIVE STORE
-HOLDING A RETIRED ROW SHAPE IS ERASED, NOT MIGRATED: such a row fails the envelope, and the exit is
-Settings → Danger zone, whose erase does not go through the envelope.
+data rather than formulas: a cell beginning `=` or `@` is passed through as typed. A STORE HOLDING A
+RETIRED ROW SHAPE IS RESET, NOT MIGRATED: such a row fails the envelope, so that store can no longer
+BACK ITSELF UP — the CSV export validates nothing and still writes — and the exit is Settings →
+Danger zone, erase on live and reseed on demo, which does not go through the envelope.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is what the dialog must state before the press. The envelope's version tracks what a build
 ACCEPTS, not how long ago it shipped, so two live builds cannot share a number and disagree about
@@ -352,15 +353,15 @@ something that has no direction.
 column when it collapses, `/transactions` mirrored so the ledger leads. Inside a grid track the
 track is the bound, so a card carries no width cap; the form's cap survives only in the stacked
 column. The asset form derives more than it asks, and a deposit is a portfolio-level row that names
-no asset. A transaction names no source of funds: nothing reads it, and the type and the asset carry
-it in every row. The ОВДП code takes four letters or digits, suggested from the ref or the name
-until the user types. Naming a bond from the provider list fills its maturity, next coupon, cadence
-and rate: facts about the instrument, so overwriting them is right where overwriting a typed code is
-not. A payout also asks what was WITHHELD from it, READ BACK on the two surfaces that owe it: a line
-on the ledger row, and a withheld and a net-of-tax column on the payout log. Both draw NOTHING where
-a payout carries none — no dash, no zero, no empty line, the net cell included, a row's net being
-its amount already. Every type asks for a NOTE, absent rather than empty and refused by a sentence
-rather than capped by the control.
+no asset. A transaction names no source of funds and nothing replaced it — the type and the asset
+carry that fact in every row. The ОВДП code takes four letters or digits, suggested from the ref or
+the name until the user types. Naming a bond from the provider list fills its maturity, next coupon,
+cadence and rate: facts about the instrument, so overwriting them is right where overwriting a typed
+code is not. A payout also asks what was WITHHELD from it, READ BACK on the two surfaces that owe
+it: a line on the ledger row, and a withheld and a net-of-tax column on the payout log. Both draw
+NOTHING where a payout carries none — no dash, no zero, no empty line, the net cell included, a
+row's net being its amount already. Every type asks for a NOTE, absent rather than empty and refused
+by a sentence rather than capped by the control.
 **Why.** A figure that is written, stored and derived from but shown nowhere cannot be checked: a
 wrong withholding understates the tax, overstates the net and lifts that asset's XIRR in silence.
 The note's cap is a DRAWN number rather than a stored one, counted in characters and not lines

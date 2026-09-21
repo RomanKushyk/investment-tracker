@@ -312,10 +312,6 @@ export function incomeReceived(txs: Transaction[]): {
 const sumWhere = (txs: Transaction[], types: readonly Transaction['type'][]) =>
   txs.reduce((s, t) => (types.includes(t.type) ? s + t.amount : s), 0);
 
-/**
- * Doc §2.1 InvestedOwn — the doc also filters `Source == "Own Funds"`, but
- * reinvestment is its own TxType here, so every 'buy' is own-funded.
- */
 export function investedOwnByAsset(txs: Transaction[]): Record<string, number> {
   return sumByAsset(txs, ['buy']);
 }
@@ -523,11 +519,10 @@ export function incomeReceivedNet(txs: Transaction[]): {
  * Inzhur configuration sends dividends to a bank account — and a reinvest is
  * funded by its paired same-date payout, so the pair nets to zero either way.
  *
- * TWO REVISIT TRIGGERS, each changing the formula rather than a value: a
- * `destination` field on payout rows, where a payout’s signed amount then
- * becomes `amount − coalesce(taxWithheld, 0)` rather than an exclusion returning
- * by another door; and a buy funded from accrual sources, which gives the buy
- * term a source filter. `src/lib/seed.test.ts` pins the figure.
+ * ONE REVISIT TRIGGER, changing the formula rather than a value: a `destination`
+ * field on payout rows, where a payout’s signed amount then becomes
+ * `amount − coalesce(taxWithheld, 0)` rather than an exclusion returning by
+ * another door. `src/lib/seed.test.ts` pins the figure.
  */
 export function freeCashFromLedger(txs: Transaction[]): number {
   // The `default:` arm takes `never`, so a ninth type fails to COMPILE here — one

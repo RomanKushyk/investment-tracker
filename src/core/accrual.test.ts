@@ -46,7 +46,6 @@ function tx(over: Partial<Transaction> = {}): Transaction {
     type: 'interest_payout',
     assetId: 'ovdp8976',
     amount: 1240,
-    source: 'accrual',
     ...over,
   };
 }

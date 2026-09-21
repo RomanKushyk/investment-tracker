@@ -259,7 +259,6 @@ function transactionObjectFor(lang: Lang) {
     // this object cannot see one — the rule is in the refinement below.
     assetId: z.string(),
     amount: positiveNumberInput(groupsWithComma),
-    source: z.enum(['own', 'accrual', 'reinvest_reit', 'reinvest_6475']),
     // Optional, and it has to stay optional: a payout moves no position, and a `buy`
     // recorded before this field existed has no count that could be recovered. ABSENT
     // and '' both mean "no units", so the minimal transaction stays valid.
