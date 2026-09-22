@@ -56,6 +56,7 @@ type Resource = {
 };
 
 type Template = {
+  Description?: string;
   Parameters?: Record<string, { Type: string; AllowedValues?: string[] }>;
   Conditions?: Record<string, unknown>;
   Resources: Record<string, Resource>;
@@ -116,6 +117,49 @@ describe('the archive stack holds the archive and nothing else', () => {
   it('parses as a template — errors only, because the intrinsics are all warnings', () => {
     expect(archiveDoc.errors).toEqual([]);
     expect(archive.Resources).toBeDefined();
+  });
+
+  // THE STACK Description IS A PROPERTY, not a comment: it is what an operator reads in the
+  // CloudFormation console beside the resources it describes, and the deployed stack changes
+  // with it. `price_observation` is created by `ensureSchema` in the function THIS stack deploys,
+  // and its per-source count published by a filter in this same template, so a Description
+  // deferring that schema sends someone hunting for those rows to the wrong place — or stops
+  // them looking.
+  //
+  // WHAT IT DOES NOT DO: judge the prose. The affirmative half pins the TABLE'S NAME, which the
+  // deferring text never carried — `/observation/` alone matched it, "the observation schema is
+  // deferred" — and the blacklist names only the two wordings that denied it, so a third
+  // phrasing would pass the blacklist.
+  it('does not defer a schema this stack writes and measures', () => {
+    // capture.ts and NOT migrations/002_price_observation.sql: the archive's migration files are
+    // reference copies of this DDL, read by nothing (infra/README.md), so a guard anchored there
+    // stays green with the deployed table gone. `[\s\S]` and not `.`, which excludes \r on CRLF.
+    expect(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8')).toMatch(
+      /CREATE TABLE IF NOT EXISTS price_observation \([\s\S]*?PRIMARY KEY \(as_of, instrument_ref, basis, source\)/,
+    );
+    // Dimensioned, not merely present: the comment above cites a PER-SOURCE count, and dropping
+    // the dimension is what makes Inzhur's daily rows fill NBU's weekend zeros.
+    const [observations] =
+      archive.Resources.ObservationsWrittenMetricFilter.Properties?.MetricTransformations ?? [];
+    expect(observations?.MetricName).toBe('ObservationsWritten');
+    expect(observations?.Dimensions).toEqual([{ Key: 'source', Value: '$.source' }]);
+    expect(archive.Description).toMatch(/price_observation/);
+    expect(archive.Description).not.toMatch(/observation schema is deferred|raw payloads only/i);
+  });
+
+  // The console shows the Description and no way to follow it: a path that stopped resolving is
+  // a reader sent nowhere, and nothing else in the repo would go red.
+  it('points at a design document that is here', () => {
+    // ANCHORED AT A PATH BOUNDARY, or a pointer under a prefix is TRUNCATED rather than missed:
+    // `infra/docs/role-deploy.md`, the spelling template-user.yaml uses, matched from its `docs/`
+    // and reddened this test against `docs/role-deploy.md`, a path nobody wrote.
+    const cited = archive.Description?.match(/(?<![\w/-])[\w/-]*docs\/[\w./-]+\.md/g) ?? [];
+    // A COUNT WOULD BE THE WRONG GUARD: a second pointer is an improvement, not a regression,
+    // and this test is about paths that stopped resolving. It forbids the empty sweep only.
+    expect(cited.length).toBeGreaterThan(0);
+    for (const file of cited) {
+      expect([file, existsSync(join(REPO, file))]).toEqual([file, true]);
+    }
   });
 
   it('declares exactly one cluster, and it is the archive', () => {

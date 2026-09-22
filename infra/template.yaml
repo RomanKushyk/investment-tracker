@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Quirenote Phase 1 - daily capture of the Inzhur and NBU price feeds into Aurora DSQL.
-  Raw payloads only; the observation schema is deferred until ~3 weeks of real
-  data exist. See docs/superpowers/specs/2026-08-04-data-model.md.
+  Quirenote price archive: daily capture of the Inzhur and NBU price feeds into Aurora DSQL.
+  Each payload is stored whole in price_capture; the prices derived from it land in
+  price_observation, one row per as_of, instrument_ref, basis and source.
+  See docs/superpowers/specs/2026-08-04-data-model.md.
 
 Parameters:
   FeedUrl:
