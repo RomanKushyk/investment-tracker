@@ -15,6 +15,7 @@ import {
   netDeposits,
   sharePct,
   topUpAmount,
+  usableTotal,
 } from '../derive';
 import type { Asset, Snapshot, Transaction } from '../types';
 
@@ -30,12 +31,15 @@ export function mostUnderweightAsset(
   total: number,
 ): UnderweightResult | undefined {
   // With no snapshots every asset reads as fully underweight: an empty state, not a hint.
-  if (total === 0) return undefined;
+  // A negative or non-finite total proposes nothing either: see `usableTotal`.
+  if (!usableTotal(total)) return undefined;
 
   let best: UnderweightResult | undefined;
   for (const asset of assets) {
     const value = values[asset.id] ?? 0;
-    const deltaPp = allocationDeltaPp(sharePct(value, total), asset.targetPct);
+    const share = sharePct(value, total);
+    if (share === null) continue;
+    const deltaPp = allocationDeltaPp(share, asset.targetPct);
     if (!best || deltaPp < best.deltaPp) {
       best = { asset, deltaPp, topUp: topUpAmount(value, asset.targetPct, total) };
     }

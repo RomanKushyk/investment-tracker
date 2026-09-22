@@ -288,8 +288,27 @@ export function annualizedPct(value: number, invested: number, daysHeld: number)
   return daysHeld === 0 ? 0 : (yieldSinceStart(value, invested) * 365) / daysHeld;
 }
 
-export function sharePct(value: number, total: number): number {
-  return total === 0 ? 0 : (value / total) * 100;
+/** A denominator a share can be taken of. Free cash is the ledger's signed sum and
+ *  nothing bounds it, so the total can be negative, zero or `NaN`. */
+export function usableTotal(total: number): boolean {
+  return Number.isFinite(total) && total > 0;
+}
+
+/** Negative OR unreadable: `!(cash >= 0)` is how `NaN` counts as short too. */
+export function cashIsShort(cash: number): boolean {
+  return !(cash >= 0);
+}
+
+/** The total shares are taken of: `NaN`, so never usable, while the ledger is short —
+ *  negative cash shrinks the total, so the shares sum past 100 % even while it is positive. */
+export function shareTotal(total: number, cash: number): number {
+  return cashIsShort(cash) ? NaN : total;
+}
+
+/** ABSENT, never a fake 0, when the total is not usable or the value is negative —
+ *  the rule `globalRoi` follows (*Metric families and windows*). */
+export function sharePct(value: number, total: number): number | null {
+  return usableTotal(total) && value >= 0 ? (value / total) * 100 : null;
 }
 
 export function allocationDeltaPp(share: number, targetPct: number): number {

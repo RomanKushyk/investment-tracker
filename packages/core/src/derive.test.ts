@@ -5,6 +5,7 @@ import {
   basisIsShort,
   capitalGain,
   capitalGainPct,
+  cashIsShort,
   cashYieldPct,
   freeCashFromLedger,
   globalRoi,
@@ -27,6 +28,7 @@ import {
   portfolioXirr,
   quotesAsOf,
   sharePct,
+  shareTotal,
   soldAmount,
   soldAmountByAsset,
   taxesPaid,
@@ -132,8 +134,31 @@ describe('allocation & rebalance', () => {
     expect(sharePct(15846.3, 149016.36)).toBeCloseTo(10.634, 2);
   });
 
+  it('a total that is not a usable denominator yields no share at all', () => {
+    expect(sharePct(60000, -10000)).toBeNull();
+    expect(sharePct(60000, 0)).toBeNull();
+    expect(sharePct(60000, NaN)).toBeNull();
+    expect(sharePct(60000, Infinity)).toBeNull();
+    // A negative value over a usable total is the Free-cash card's `-0,06 %` on a short ledger.
+    expect(sharePct(-92.25, 148916.36)).toBeNull();
+  });
+
+  it('cash is short when negative or unreadable, never at zero', () => {
+    expect(cashIsShort(-1)).toBe(true);
+    expect(cashIsShort(NaN)).toBe(true);
+    expect(cashIsShort(0)).toBe(false);
+  });
+
+  it('a short ledger leaves no total to take a share of, even a positive one', () => {
+    // Seed + Withdrawal 100 000: total 49 016,36 over cash -99 992,25 put REIT at ~140 %.
+    expect(sharePct(68702.1, shareTotal(49016.36, -99992.25))).toBeNull();
+    expect(sharePct(68702.1, shareTotal(149016.36, NaN))).toBeNull();
+    expect(shareTotal(149016.36, 7.75)).toBe(149016.36);
+    expect(shareTotal(0, 0)).toBe(0);
+  });
+
   it('trim is linear: REIT overweight → −₴9,095', () => {
-    expect(trimAmount(sharePct(68702.1, 149016.36), 40, 149016.36)).toBeCloseTo(9095.56, 0);
+    expect(trimAmount(sharePct(68702.1, 149016.36)!, 40, 149016.36)).toBeCloseTo(9095.56, 0);
   });
 
   it('top-up compounds the total: …8976 → ₴11,429 (reference prints 11,413)', () => {

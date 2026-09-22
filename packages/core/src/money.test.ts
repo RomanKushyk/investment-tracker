@@ -163,6 +163,32 @@ describe('makeFormat — Contract 0', () => {
   });
 });
 
+describe('a non-finite figure at the display boundary', () => {
+  it.each(['uk', 'en'] as const)(
+    '%s: never the word NaN nor the glyph ∞ — the app’s «—»',
+    (lang) => {
+      const f = makeFormat(lang);
+      for (const n of [NaN, Infinity, -Infinity]) {
+        for (const out of [
+          f.money(n),
+          f.money(n, 'USD'),
+          f.moneyWhole(n),
+          f.signedMoney(n),
+          f.num(n),
+          f.numWhole(n),
+          f.signedNum(n),
+          f.units(n),
+          f.pct(n),
+          f.pctPlain(n),
+          f.pp(n, '%'),
+        ]) {
+          expect(out).toBe('—');
+        }
+      }
+    },
+  );
+});
+
 describe('the two exports Contract 0 left bare', () => {
   it('signed pins U+2212 and is language-independent', () => {
     expect(signed(-1, 'x')).toBe('−x');

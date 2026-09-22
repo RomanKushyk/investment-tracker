@@ -51,3 +51,21 @@ describe('rebalancePlan', () => {
     expect(withinRange.map((a) => a.id).sort()).toEqual(['energy', 'ovdp6475']);
   });
 });
+
+// A short ledger drives free cash, and the total with it, below zero.
+describe.each([-10000, 0, NaN, Infinity])('a total of %s is not a usable denominator', (total) => {
+  it('allocationRows: no share above 100 % and none below 0 — every share is absent', () => {
+    for (const r of allocationRows(SEED_ASSETS, VALUES, total)) {
+      expect(r.share).toBeNull();
+      expect(r.deltaPp).toBeNull();
+      expect(r.severity).toBeNull();
+    }
+  });
+
+  it('rebalancePlan proposes nothing — not the -4 666,67 buy topUpAmount gives', () => {
+    expect(rebalancePlan(SEED_ASSETS, { ...VALUES, ovdp8976: 1000 }, total)).toEqual({
+      actions: [],
+      withinRange: [],
+    });
+  });
+});

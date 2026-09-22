@@ -51,6 +51,13 @@ describe('tweenValue', () => {
 });
 
 describe('retargetTween', () => {
+  it('a NaN on screen does not stick: the ledger fixed, the next tween lands on the new figure', () => {
+    const broken: TweenState = { from: NaN, to: NaN, startedAt: 0 };
+    const retargeted = retargetTween(broken, 7.75, 1000);
+    expect(tweenDisplayValue(retargeted, 1000)).toBe(7.75);
+    expect(tweenDisplayValue(retargeted, 1300)).toBe(7.75);
+  });
+
   // Reproduces the mid-tween retargeting bug: interrupting an in-flight tween
   // (e.g. double-tapping the currency toggle) must continue from wherever the
   // number is currently displayed, not snap backward to the old tween's origin.

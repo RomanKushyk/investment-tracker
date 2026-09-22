@@ -1,5 +1,5 @@
 // Pure data-shaping for the Allocation screen. Covered by allocation.test.ts.
-import { allocationDeltaPp, sharePct, topUpAmount, trimAmount } from '../derive';
+import { allocationDeltaPp, sharePct, topUpAmount, trimAmount, usableTotal } from '../derive';
 import type { Asset } from '../types';
 
 // Off-target colour encodes SEVERITY, not sign: within the threshold reads near
@@ -19,10 +19,10 @@ export function severityOf(deltaPp: number): 'near' | 'off' {
 
 export interface AllocationRow {
   asset: Asset;
-  share: number; // pct 0-100
+  share: number | null; // pct 0-100; null when the total is not usable
   target: number;
-  deltaPp: number; // share - target
-  severity: 'near' | 'off';
+  deltaPp: number | null; // share - target
+  severity: 'near' | 'off' | null;
 }
 
 export function allocationRows(
@@ -32,13 +32,13 @@ export function allocationRows(
 ): AllocationRow[] {
   return assets.map((asset) => {
     const share = sharePct(values[asset.id] ?? 0, total);
-    const deltaPp = allocationDeltaPp(share, asset.targetPct);
+    const deltaPp = share === null ? null : allocationDeltaPp(share, asset.targetPct);
     return {
       asset,
       share,
       target: asset.targetPct,
       deltaPp,
-      severity: severityOf(deltaPp),
+      severity: deltaPp === null ? null : severityOf(deltaPp),
     };
   });
 }
@@ -61,10 +61,13 @@ export function rebalancePlan(
 ): RebalancePlan {
   const actions: RebalanceAction[] = [];
   const withinRange: Asset[] = [];
+  // No plan off a total that is not usable: `topUpAmount` would offer a negative buy.
+  if (!usableTotal(total)) return { actions, withinRange };
 
   for (const asset of assets) {
     const value = values[asset.id] ?? 0;
     const share = sharePct(value, total);
+    if (share === null) continue;
     const deltaPp = allocationDeltaPp(share, asset.targetPct);
     if (deltaPp > NEAR_TARGET_PP) {
       actions.push({ kind: 'sell', asset, amount: trimAmount(share, asset.targetPct, total) });

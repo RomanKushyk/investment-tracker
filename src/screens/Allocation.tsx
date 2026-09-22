@@ -12,7 +12,17 @@ import { useAssets, useSnapshots, useTransactions, useUpdateAsset } from '../hoo
 import { changedTargets, sumStatus, targetRowStates, targetsSum } from './allocation/targets';
 import { useSettings } from '../state/settings';
 import { severityOf } from '@quirenote/core/view/allocation';
-import { headlineTotal, latestQuotes, sharePct } from '@quirenote/core/derive';
+import {
+  cashIsShort,
+  freeCashFromLedger,
+  headlineTotal,
+  latestQuotes,
+  sharePct,
+  shareTotal,
+  usableTotal,
+} from '@quirenote/core/derive';
+import { Share } from '../components/ui/Share';
+import { CashShortChip } from '../components/ui/CashShortChip';
 import type { Asset, ColorKey } from '@quirenote/core/types';
 import { allocationRows, rebalancePlan } from '@quirenote/core/view/allocation';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
@@ -43,10 +53,14 @@ export function Allocation() {
 
   const values = latestQuotes(snapshots);
   const total = headlineTotal(snapshots, transactions);
+  // No free-cash figure lives on this screen, so the warning heads the plan built on it.
+  const cash = freeCashFromLedger(transactions);
+  const cashShort = cashIsShort(cash);
+  const base = shareTotal(total, cash);
 
   const slices = assets.map((a) => ({ asset: a, value: values[a.id] ?? 0 }));
-  const rows = allocationRows(assets, values, total);
-  const { actions, withinRange } = rebalancePlan(assets, values, total);
+  const rows = allocationRows(assets, values, base);
+  const { actions, withinRange } = rebalancePlan(assets, values, base);
 
   // THE LANGUAGE, because the grammar is a language rule: under Ukrainian `17,500`
   // is 17.5, and this editor used to read it as 17500 while the asset form beside
@@ -140,21 +154,26 @@ export function Allocation() {
           radius={24}
           className="flex animate-in flex-col items-center p-[22px] duration-300 fade-in"
         >
-          {total === 0 ? (
-            <EmptyState message={t.analytics.empty.allocation} height={220} />
-          ) : (
+          {/* No donut while no share can be taken, and "no snapshots yet" only when there is no
+              total at all: assets offset by negative cash can sum to 0 without being empty. */}
+          {usableTotal(base) ? (
             <AllocationDonut
               slices={slices}
               centerTop={t.analytics.allocation.centerTotal(Math.round(total / 1000))}
               centerSub={t.analytics.allocation.assetsPlusCash(assets.length)}
             />
+          ) : (
+            total === 0 &&
+            !cashShort && <EmptyState message={t.analytics.empty.allocation} height={220} />
           )}
           <div className="mt-2.5 flex w-full flex-col gap-1.5 text-xs">
             {assets.map((a) => (
               <div key={a.id} className="flex items-center gap-2">
                 <ColorDot colorKey={a.colorKey} />
                 <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                <span className="font-bold">{f.pctPlain(sharePct(values[a.id] ?? 0, total))}</span>
+                <span className="font-bold">
+                  <Share pct={sharePct(values[a.id] ?? 0, base)} />
+                </span>
               </div>
             ))}
           </div>
@@ -169,8 +188,8 @@ export function Allocation() {
             <div className="flex flex-col gap-3.5">
               {rows.map((r, i) => {
                 const target = shownTarget(i);
-                const deltaPp = r.share - target;
-                const off = severityOf(deltaPp) === 'off';
+                const deltaPp = r.share === null ? null : r.share - target;
+                const off = deltaPp !== null && severityOf(deltaPp) === 'off';
                 const error = editing && targetRows[i].value === null;
                 return (
                   <div key={r.asset.id}>
@@ -181,7 +200,7 @@ export function Allocation() {
                       {editing ? (
                         <>
                           <span className="whitespace-nowrap text-muted">
-                            {f.pctPlain(r.share)}
+                            <Share pct={r.share} />
                           </span>
                           <span className="text-muted">/</span>
                           <input
@@ -200,9 +219,16 @@ export function Allocation() {
                         </>
                       ) : (
                         <span className="ml-auto">
-                          {f.pctPlain(r.share)} /{' '}
-                          {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}{' '}
-                          <strong className={off ? 'text-neg' : 'text-pos'}>{f.pp(deltaPp)}</strong>
+                          <Share pct={r.share} /> /{' '}
+                          {f.pctPlain(target, Number.isInteger(target) ? 0 : 1)}
+                          {deltaPp !== null && (
+                            <>
+                              {' '}
+                              <strong className={off ? 'text-neg' : 'text-pos'}>
+                                {f.pp(deltaPp)}
+                              </strong>
+                            </>
+                          )}
                         </span>
                       )}
                     </div>
@@ -214,7 +240,7 @@ export function Allocation() {
                     <div className="relative h-2.5 rounded-[3px] bg-hairline">
                       <div
                         className={`h-full rounded-[3px] transition-[width] duration-500 ease-soft ${BAR_BG[r.asset.colorKey]}`}
-                        style={{ width: `${r.share}%` }}
+                        style={{ width: `${r.share ?? 0}%` }}
                       />
                       {/* The tick follows the DRAFT, the fill never does. */}
                       <div
@@ -249,6 +275,7 @@ export function Allocation() {
             <div className="mb-2 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.allocation.rebalancePlan}
             </div>
+            {cashShort && <CashShortChip className="mb-2" />}
             <div className="flex flex-col gap-2 text-[13px]">
               {actions.map((a, i) => (
                 <div key={a.asset.id} className="flex justify-between gap-2.5">

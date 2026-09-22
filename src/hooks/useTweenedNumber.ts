@@ -40,7 +40,9 @@ export function retargetTween(
   now: number,
   duration = DURATION,
 ): TweenState {
-  return { from: tweenDisplayValue(state, now, duration), to, startedAt: now };
+  const shown = tweenDisplayValue(state, now, duration);
+  // `NaN` absorbs every step, so a tween started from one never lands: snap instead.
+  return { from: Number.isFinite(shown) ? shown : to, to, startedAt: now };
 }
 
 // Animates `value` via requestAnimationFrame; snaps instantly when

@@ -12,6 +12,8 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
+import { Share } from '../components/ui/Share';
+import { CashShortChip } from '../components/ui/CashShortChip';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import {
   headlineTotal,
@@ -22,8 +24,11 @@ import {
   reinvestedByAsset,
   reinvestedTotal,
   sharePct,
+  shareTotal,
   soldAmount,
   yieldSinceStart,
+  cashIsShort,
+  usableTotal,
 } from '@quirenote/core/derive';
 import { daysBetween, latestSnapshotDate } from '@quirenote/core/dates';
 import type { Asset } from '@quirenote/core/types';
@@ -55,6 +60,10 @@ export function Portfolio() {
   const reinvested = reinvestedByAsset(transactions);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
+  const cashShort = cashIsShort(cash);
+  const base = shareTotal(total, cash);
+  // The Total row's 100 % is a share like the others, absent on the same total.
+  const totalShare = usableTotal(base) ? 100 : null;
   const net = netResult(values, invested, soldAmount(transactions));
   const investedTotal = Object.values(invested).reduce((a, b) => a + b, 0);
 
@@ -172,7 +181,9 @@ export function Portfolio() {
                     <td className={`py-2 text-right font-bold ${signClass(r.pnlPct)}`}>
                       {f.pct(r.pnlPct)}
                     </td>
-                    <td className="py-2 text-right">{f.pctPlain(sharePct(r.value, total))}</td>
+                    <td className="py-2 text-right">
+                      <Share pct={sharePct(r.value, base)} />
+                    </td>
                     {editing && (
                       <td className="py-2 pl-4">
                         <div className="flex animate-in items-center justify-end gap-2.5 duration-300 fade-in slide-in-from-bottom-1">
@@ -198,13 +209,17 @@ export function Portfolio() {
                   <td className={`py-2 text-right font-bold ${signClass(net.pct)}`}>
                     {f.pct(net.pct)}
                   </td>
-                  <td className="py-2 text-right font-bold">{f.pctPlain(100, 0)}</td>
+                  <td className="py-2 text-right font-bold">
+                    <Share pct={totalShare} fractionDigits={0} />
+                  </td>
                   {/* The Total row gets no actions — a sum is not an entity. */}
                   {editing && <td className="py-2" />}
                 </tr>
               </tbody>
             </table>
           </Scroller>
+          {/* Under the "Total + cash" line it explains; the chip does not fit the cell. */}
+          {cashShort && <CashShortChip className="mt-2.5" />}
           <div className="mt-2.5 text-[11.5px] text-muted">{t.analytics.prose.capitalGainNote}</div>
         </Card>
       ) : (
@@ -225,7 +240,9 @@ export function Portfolio() {
               <Fact label={t.analytics.invested}>{f.num(r.inv)}</Fact>
               <Fact label={t.analytics.ofItReinvested}>{r.reinv > 0 ? f.num(r.reinv) : '—'}</Fact>
               <Fact label={t.analytics.valueNow}>{f.num(r.value)}</Fact>
-              <Fact label={t.analytics.share}>{f.pctPlain(sharePct(r.value, total))}</Fact>
+              <Fact label={t.analytics.share}>
+                <Share pct={sharePct(r.value, base)} />
+              </Fact>
               <Fact label={t.analytics.capitalGainUah}>
                 <span className={signClass(r.pnl)}>{f.signedNum(r.pnl)}</span>
               </Fact>
@@ -238,11 +255,14 @@ export function Portfolio() {
             index={rows.length}
             title={t.analytics.prose.totalPlusCash(f.money(cash))}
             className="border-t-2 border-panel-border"
+            footer={cashShort ? <CashShortChip /> : undefined}
           >
             <Fact label={t.analytics.invested}>{f.num(investedTotal)}</Fact>
             <Fact label={t.analytics.ofItReinvested}>{f.num(reinvestedTotal(transactions))}</Fact>
             <Fact label={t.analytics.valueNow}>{f.num(total)}</Fact>
-            <Fact label={t.analytics.share}>{f.pctPlain(100, 0)}</Fact>
+            <Fact label={t.analytics.share}>
+              <Share pct={totalShare} fractionDigits={0} />
+            </Fact>
             <Fact label={t.analytics.capitalGainUah}>
               <span className={signClass(net.uah)}>{f.signedNum(net.uah)}</span>
             </Fact>

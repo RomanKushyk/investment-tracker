@@ -452,6 +452,11 @@ export const en = {
     // already guards against.
     ppSuffix: ' pp',
     share: 'Share',
+    // The accessible name of a share's «—»: a bare dash reads as nothing, or "hyphen".
+    notComputable: 'cannot be computed',
+    cashShort: 'Free cash below zero',
+    cashShortDetail:
+      'Free cash is below zero or unreadable — look for a missing deposit or a withdrawal larger than the balance.',
     snapshot: 'Snapshot',
     cash: 'Cash',
     totalUah: 'Total, ₴',
@@ -1407,6 +1412,10 @@ export const uk: Dict = {
     perYear: '/ рік',
     ppSuffix: ' в.п.',
     share: 'Частка',
+    notComputable: 'не обчислюється',
+    cashShort: 'Вільні кошти нижче нуля',
+    cashShortDetail:
+      'Вільні кошти нижче нуля або не читаються — перевірте, чи не бракує поповнення і чи не перевищує виведення баланс.',
     snapshot: 'Зріз',
     cash: 'Готівка',
     totalUah: 'Разом, ₴',

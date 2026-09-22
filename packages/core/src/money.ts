@@ -236,6 +236,12 @@ export function makeFormat(lang: Lang): Format {
     uk ? `${body}${NBSP}${SYMBOL[currency]}` : `${SYMBOL[currency]}${body}`;
 
   const num = (n: number) => nbsp(f.two.format(n));
+  // THE DISPLAY BOUNDARY: `Intl` prints `NaN` and `∞` as words, which read as data.
+  // Whatever produced the figure, a non-finite one renders the app's «—».
+  const finite =
+    <A extends unknown[]>(fmt: (n: number, ...rest: A) => string) =>
+    (n: number, ...rest: A) =>
+      Number.isFinite(n) ? fmt(n, ...rest) : '—';
   const date = (iso: string) => {
     const [y, m, d] = iso.split('-');
     return uk ? `${d}.${m}.${y}` : `${Number(d)}${NBSP}${EN_MONTHS[Number(m) - 1]}${NBSP}${y}`;
@@ -246,35 +252,42 @@ export function makeFormat(lang: Lang): Format {
   };
 
   return {
-    num,
-    numWhole: (n) => nbsp(f.whole.format(n)),
-    units: (n) => nbsp(f.free.format(n)),
+    num: finite(num),
+    numWhole: finite((n) => nbsp(f.whole.format(n))),
+    units: finite((n) => nbsp(f.free.format(n))),
     input: (n) => {
       const shown = nbsp(f.free.format(n));
       return Number(normalizeNumberInput(shown, groupsWithCommaFor(lang))) === n
         ? shown
         : String(n);
     },
-    money: (n, currency = 'UAH') => withSymbol(num(n), currency),
-    moneyWhole: (n, currency = 'UAH') => withSymbol(nbsp(f.whole.format(n)), currency),
+    money: finite((n, currency: Currency = 'UAH') => withSymbol(num(n), currency)),
+    moneyWhole: finite((n, currency: Currency = 'UAH') =>
+      withSymbol(nbsp(f.whole.format(n)), currency),
+    ),
     // `toFixed` then a decimal swap, NOT Intl: a percentage is never grouped here, so
     // the only locale difference is the decimal mark, and `toFixed` is exact about
     // digit count where a formatter’s rounding options are one more thing to keep in
     // step.
-    pct: (n, fractionDigits = 2) => signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
-    pctPlain: (n, fractionDigits = 1) => pctBody(n, fractionDigits, uk),
+    pct: finite((n, fractionDigits = 2) =>
+      signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
+    ),
+    pctPlain: finite((n, fractionDigits = 1) => pctBody(n, fractionDigits, uk)),
     // A raw suffix would bypass the language rule, and did: one screen passed '%' and
     // rendered "−6,4%" beside a "17 %" one space away in the same sentence.
-    pp: (n, suffix = '') =>
+    pp: finite((n, suffix = '') =>
       signed(n, decimal(Math.abs(n).toFixed(1), uk) + (suffix === '%' && uk ? `${NBSP}%` : suffix)),
+    ),
     date,
     dateShort,
     savedAt: (iso) => {
       const [d, time] = iso.split('T');
       return `${dateShort(d)}, ${time.slice(0, 5)}`;
     },
-    signedMoney: (n, currency = 'UAH') => signed(n, withSymbol(num(Math.abs(n)), currency)),
-    signedNum: (n) => signed(n, num(Math.abs(n))),
+    signedMoney: finite((n, currency: Currency = 'UAH') =>
+      signed(n, withSymbol(num(Math.abs(n)), currency)),
+    ),
+    signedNum: finite((n) => signed(n, num(Math.abs(n)))),
   };
 }
 

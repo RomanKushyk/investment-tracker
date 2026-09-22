@@ -19,11 +19,8 @@ export type TxType =
  *
  * It ANSWERS rather than throwing because the arm IS reachable at runtime, by a
  * row whose type the union no longer names: Dexie reads are unvalidated and no
- * migration retired `tax`. One such row made `freeCashFromLedger` return `NaN`,
- * and with no stored balance beside it that `NaN` now reaches the Free-cash card
- * and every total built on it. `Intl` prints the word rather than a dash, so the
- * screen reads BROKEN rather than plausible — which is the trade the fallback
- * buys, and the reason it must stay a fallback and never a silent 0.
+ * migration retired `tax`. `freeCashFromLedger` passes its accumulator, so such a
+ * row leaves the sum finite; a fallback is chosen per caller, never a fabricated 0.
  */
 export function unnamedType<T>(_type: never, fallback: T): T {
   return fallback;

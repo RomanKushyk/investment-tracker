@@ -30,6 +30,11 @@ describe('mostUnderweightAsset', () => {
   it('returns undefined when total is 0 (empty DB), even with assets present — avoids a nonsense "top up ₴0.00" hint', () => {
     expect(mostUnderweightAsset(SEED_ASSETS, {}, 0)).toBeUndefined();
   });
+
+  it('returns undefined on a negative or non-finite total — no top-up off a short ledger', () => {
+    expect(mostUnderweightAsset(SEED_ASSETS, VALUES, -10000)).toBeUndefined();
+    expect(mostUnderweightAsset(SEED_ASSETS, VALUES, NaN)).toBeUndefined();
+  });
 });
 
 describe('totalReturnKpi (S9a — audit §5 family, additive to the pinned Capital gain)', () => {

@@ -47,7 +47,8 @@ capital-gain-versus-total-return pair (whose figures are pinned in `packages/cor
    the ghost land exactly on the coupon, the real bonds paying every 182 days. With no schedule
    available the ACT/365 approximation still applies.
 5. **Percentages are fractions in core** (0.053 = +5.3 %), matching `yieldSinceStart`; display
-   multiplies. `sharePct` is the pre-existing exception — it returns 0–100 and stays pinned.
+   multiplies. `sharePct` is the pre-existing exception — it returns 0–100, or null off a total that is
+   not usable, and stays pinned.
 6. **Tax attribution, settled in THREE separate moments**, worth keeping apart because the ruling
    used to date all of them to "the migration". **(a) In the APP, now:** the withholding is a FIELD
    on the payout (`Transaction.taxWithheld`), the `tax` type is retired, and the category split is

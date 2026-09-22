@@ -69,14 +69,24 @@ annualization mark tests the WINDOW's length, not the asset's. A window's openin
 the day BEFORE it opens. Units are `Σ quantity deltas` over the ledger, never a stored total; free
 cash AT A DATE is the ledger's signed sum up to it, a payout contributing
 `amount − coalesce(tax_withheld, 0)`; a coupon derives from its RATE. A withholding is a FIELD on
-the payout it was taken from, never a row of its own.
+the payout it was taken from, never a row of its own. Nothing bounds free cash, so a share is taken
+only of a USABLE total, positive and finite, only while free cash is at or above zero, and only of a
+value at or above zero; otherwise it is ABSENT and renders «—» with the accessible name "cannot be computed", and the rebalance plan
+proposes nothing. Free cash below zero or unreadable carries a warn-tint warning on every screen
+that shows a share. Every display formatter renders a non-finite figure as «—», whatever produced
+it; a field's own value stays the field boundary's.
 **Why.** The day before is the only boundary at which each transaction counts exactly once, and it
 makes the full history collapse onto its unwindowed twin. A stored coupon amount goes stale on the
 next purchase where a rate does not; tax runs the other way, rates changing, so a computed
 withholding eventually lies where a recorded one cannot. The withholding is READ off the payout
 rather than skipped, which is two columns of one row and not an exclusion returning by another
 door; without it free cash overstates by every hryvnia ever withheld, and per-asset XIRR silently
-turns from net to gross.
+turns from net to gross. A share off a negative total reads in the hundreds of percent, a top-up
+off one is a negative buy, and `Intl` prints `NaN` as a word — each keeps rendering and keeps being
+wrong, where an absent figure says it cannot be computed. Negative cash that leaves the total
+positive still shrinks it: the shares sum past 100 %, a deep enough shortfall puts one past it
+alone, and the plan trims off the shortfall. The «—» alone is silent about the cause; the ledger is
+the cause nothing else can see, so a short ledger is named.
 **Rejected.** Per-asset annualization: a fixed-coupon bond would beat its own contract, and XIRR is
 already the per-asset answer. · A stored balance beside the derived one: no screen ever let anyone
 enter the observation, so the second source of truth could only ever carry the previous figure

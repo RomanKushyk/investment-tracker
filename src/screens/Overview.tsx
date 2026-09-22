@@ -13,6 +13,8 @@ import { usePeriodWindow } from '../hooks/usePeriodWindow';
 import { xirrIsExtrapolatedIn } from '@quirenote/core/view/yield';
 import { dayBefore } from '@quirenote/core/dates';
 import { ShareBar } from '../components/ui/ShareBar';
+import { Share } from '../components/ui/Share';
+import { CashShortChip } from '../components/ui/CashShortChip';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
 import {
@@ -24,9 +26,12 @@ import {
   incomeReceivedNet,
   investedByAsset,
   freeCashFromLedger,
+  cashIsShort,
   latestQuotes,
   reinvestedTotal,
   sharePct,
+  shareTotal,
+  usableTotal,
   yieldSinceStart,
 } from '@quirenote/core/derive';
 import { todayIso } from '@quirenote/core/dates';
@@ -66,6 +71,8 @@ export function Overview() {
   const values = latestQuotes(snapshots);
   const total = headlineTotal(snapshots, transactions);
   const cash = freeCashFromLedger(transactions);
+  const cashShort = cashIsShort(cash);
+  const base = shareTotal(total, cash);
   const deposited = depositedTotal(transactions);
   const reinvested = reinvestedTotal(transactions);
   const { window: win, control } = usePeriodWindow(assets, snapshots, transactions);
@@ -137,14 +144,15 @@ export function Overview() {
 
   const tweenedCash = useTweenedNumber(usd ? toUsd(cash, usdRate) : cash);
   const cashValue = usd ? f.money(tweenedCash, 'USD') : f.money(tweenedCash);
-  const cashSharePct = total === 0 ? 0 : (cash / total) * 100;
+  const cashSharePct = sharePct(cash, base);
 
   const shareSegments = assets.map((a) => ({
     colorKey: a.colorKey,
-    pct: sharePct(values[a.id] ?? 0, total),
+    // A bar has no «—»: an absent share draws no segment.
+    pct: sharePct(values[a.id] ?? 0, base) ?? 0,
   }));
 
-  const underweight = mostUnderweightAsset(assets, values, total);
+  const underweight = mostUnderweightAsset(assets, values, base);
   // The reference is TODAY, not `latestSnapshotDate`. Every other figure here is
   // measured to the data's as-of, but this card answers "what comes next", which is
   // a question about the calendar: a payout dated before today is not next.
@@ -226,7 +234,20 @@ export function Overview() {
           className="animate-in delay-300 duration-300 fade-in slide-in-from-bottom-1"
           label={t.analytics.overview.freeCash}
           value={cashValue}
-          sub={t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))}
+          sub={
+            <>
+              {cashSharePct === null ? (
+                <Share pct={null} />
+              ) : (
+                t.analytics.prose.ofAccount(f.pctPlain(cashSharePct, 2))
+              )}
+              {cashShort && (
+                <div className="mt-2">
+                  <CashShortChip />
+                </div>
+              )}
+            </>
+          }
         />
       </div>
 
@@ -263,7 +284,7 @@ export function Overview() {
                       {a.name}
                     </span>
                     <span className="text-xs whitespace-nowrap text-muted">
-                      {t.asset.yieldShort[a.yieldType]} · {f.pctPlain(sharePct(value, total))}
+                      {t.asset.yieldShort[a.yieldType]} · <Share pct={sharePct(value, base)} />
                     </span>
                     <strong className="w-[110px] text-right text-[13.5px] whitespace-nowrap max-md:ml-auto max-md:w-auto">
                       {f.money(value)}
@@ -309,8 +330,13 @@ export function Overview() {
             <div className="mb-1.5 text-[10px] tracking-[.12em] text-muted uppercase">
               {t.analytics.overview.rebalanceHint}
             </div>
-            {total === 0 ? (
-              <EmptyState message={t.analytics.empty.rebalance} height={44} />
+            {/* A short ledger proposes nothing and says why; no total at all is the empty state. */}
+            {!usableTotal(base) ? (
+              cashShort ? (
+                <CashShortChip />
+              ) : (
+                total === 0 && <EmptyState message={t.analytics.empty.rebalance} height={44} />
+              )
             ) : underweight ? (
               <p className="text-[13px] leading-[1.5]">
                 {underweight.asset.yieldType === 'fixed_coupon'
