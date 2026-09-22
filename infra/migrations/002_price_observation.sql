@@ -22,10 +22,14 @@
 --      key is index-organized. Per-instrument access is served by the
 --      secondary index below, not by the key.
 --
---   2. as_of = capture_date - 1, unchanged from `price_capture`.
---      The 01:00 Europe/Kyiv run reads the file published the previous day.
---      The file's OWN `calc_date` must agree; a row whose `calc_date` differs
---      from the capture's `as_of` is SKIPPED and counted, never coerced.
+--   2. as_of is PER SOURCE, unchanged from `price_capture`: Inzhur's is the
+--      Kyiv date of the run, its endpoint being live; NBU's is that date - 1,
+--      its URL naming a date's file that does not exist yet at 01:00. One rule
+--      for both was wrong for Inzhur, and the correction is written down in
+--      `001_price_capture.sql` rather than left to be inferred from the rows.
+--      The NBU file's OWN `calc_date` must agree; a row whose `calc_date`
+--      differs from the capture's `as_of` is SKIPPED and counted, never
+--      coerced.
 --      Verified 14/14 on sampled dates across 2016-2026 before this was relied
 --      on.
 --

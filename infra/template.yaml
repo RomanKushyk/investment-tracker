@@ -105,13 +105,15 @@ Resources:
       # Scheduler spaces attempts by its own exponential backoff, clustering them minutes
       # apart, and a provider under maintenance is still under maintenance five minutes later.
       #
-      # WHY IT STOPS AT 11:00 — the ceiling is the FEED REFRESH, not midnight. Inzhur settles
-      # prices at ~13:00 Kyiv and `asOfFor` derives as_of as (Kyiv date - 1), so a capture
-      # after the refresh reads the CURRENT day's prices and stamps them with yesterday's date:
-      # wrong data wearing a correct label, worse than a missing day. NBU is immune, its file
-      # being fetched BY date. 01:00 -> 11:00 is the widest window left, and six is how many
-      # two-hour attempts fit in it. Constant spacing, not backoff — one client waiting out a
-      # maintenance window, and every firing after the first is a no-op once a source settles.
+      # WHY IT STOPS AT 11:00 — the ceiling is the FEED REFRESH, not midnight. `inzhurAsOf`
+      # stamps the run's OWN Kyiv date, with no subtraction, because the live endpoint serves
+      # the price struck for that date until Inzhur refreshes at ~13:00. A capture after the
+      # refresh would stamp what it serves THEN with a date that is not its own: wrong data
+      # wearing a correct label, worse than a missing day. NBU is immune, its `as_of` being the
+      # REQUEST parameter rather than a stamp — `infra/src/dates.ts` says why it trails a day.
+      # 01:00 -> 11:00 is the widest window left, and six is how many two-hour attempts fit in
+      # it. Constant spacing, not backoff — one client waiting out a maintenance window, and
+      # every firing after the first is a no-op once a source settles.
       ScheduleExpression: cron(0 1,3,5,7,9,11 * * ? *)
       # Load-bearing. Ukraine still observes DST, so a fixed-UTC schedule would drift an hour
       # twice a year; Kyiv transitions at 03:00 local, so a 01:00 run never lands in a skipped
