@@ -698,6 +698,7 @@ type Step = {
   name?: string;
   id?: string;
   if?: string;
+  'continue-on-error'?: boolean;
   run?: string;
   uses?: string;
   with?: Record<string, string>;
@@ -893,6 +894,89 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
       if (!userStack.run?.includes(`"${name}=`)) continue;
       const variable = name.replace(/(?!^)([A-Z])/g, '_$1').toUpperCase();
       expect([name, userStack.run.includes(`-n "$${variable}"`)]).toEqual([name, true]);
+    }
+  });
+});
+
+// A CHANGE SET DOES NOT COUNT THE STACK `Description` AS A CHANGE, and `sam deploy` has no other
+// route: a commit that changes only that text gets back "No updates are to be performed",
+// `--no-fail-on-empty-changeset` reports that as success, and the deploy cannot tell "nothing
+// needed deploying" from "what I shipped is not what is deployed". A `Metadata` key and a
+// parameter default are refused the same way; an added `Output` is not, its change set being
+// created rather than refused. What repairs a refused one is `update-stack`, which is not a change
+// set and applies the same body — so the failure this block pins is one somebody can act on.
+describe('a deploy that did not land its description fails the run', () => {
+  const wf = workflow('deploy-backend.yml');
+  const steps = wf.jobs.deploy.steps ?? [];
+  const deploys = steps.filter((s) => s.run?.includes('sam deploy'));
+  const check = steps.find((s) => s.run?.includes('describe-stacks'));
+
+  it('reads each stack back after both deploys, and fails on one that did not land', () => {
+    expect(check).toBeDefined();
+    // AFTER THE SHIPMENT, and that is the assertion rather than mere presence: read before
+    // `sam deploy`, the comparison is against the stack the PREVIOUS run left, so it reddens on
+    // every commit that changes the Description — the ones the deploy does land included — and
+    // can never say that what THIS run shipped arrived.
+    const shipped = steps.map((s) => s.run?.includes('sam deploy') ?? false).lastIndexOf(true);
+    expect(shipped).toBeGreaterThanOrEqual(0);
+    expect(steps.indexOf(check as Step)).toBeGreaterThan(shipped);
+    // BOTH STACKS, each against the template that deploys it: the user stack carries the same
+    // defect, and carries it in both environments.
+    expect(check?.run).toContain('template-user.yaml');
+    expect(check?.run).toContain('quirenote-backend-user-');
+    // The archive's own name, which `quirenote-backend-user-` is not: a `-` after it is the user
+    // stack, and a test that took the prefix would pass with the archive never read.
+    expect(check?.run).toMatch(/quirenote-backend(?!-)/);
+    expect(check?.run).toContain('template.yaml');
+    // THE PROPERTY ON BOTH SIDES, not merely the two calls: read any other scalar off the stack,
+    // or take `.toJS().Metadata` off the template, and every other assertion here still passes.
+    expect(check?.run).toContain("--query 'Stacks[0].Description'");
+    expect(check?.run).toContain('.toJS().Description');
+    // AND THE MISMATCH MUST FAIL, not merely be printed: a step that read both strings and exited
+    // 0 would satisfy every assertion above it.
+    expect(check?.run).toMatch(/if \[ "\$shipped" != "\$deployed" \]/);
+    expect(check?.run).toContain('exit 1');
+  });
+
+  it('takes the environment the deploy resolved, and carries no condition and no continue-on-error', () => {
+    // THE SAME EXPRESSION THE JOB'S ENVIRONMENT AND THE USER DEPLOY RESOLVE, pinned as theirs
+    // are: drifted, a `main` run deploys the prod stack and reads the dev one back — in sync, so
+    // the step prints its success line and certifies the stale stack it exists to catch.
+    expect(check?.env?.ENVIRONMENT).toBe(REF_TO_ENV);
+    // AND NO `if:` ON THE STEP. `github.ref_name != 'main'` here looks like the archive's own
+    // rule and is not: it would drop the USER arm on `main`, leaving the prod stack read by
+    // nothing. That rule belongs to the archive arm alone, inside the run.
+    expect(check?.if).toBeUndefined();
+    // Nor anything that turns the red step green.
+    expect(check?.['continue-on-error']).toBeUndefined();
+  });
+
+  it('checks the archive off the deploy that shipped it, not off a second copy of its condition', () => {
+    // `main` ships no archive, so a restated `github.ref_name != 'main'` here is one edit from
+    // comparing production's tree against a stack `dev` deployed. Read off the step's outcome,
+    // the two cannot disagree: a skipped deploy is a skipped check.
+    expect(deploys).toHaveLength(2);
+    const [, archiveStack] = deploys;
+    expect(archiveStack.id).toBeDefined();
+    // THE POLARITY, not merely the reference: `= success && check` reads the archive exactly when
+    // it was NOT deployed, and satisfies a test that only asked for the outcome by name.
+    expect(check?.run).toMatch(
+      new RegExp(`steps\\.${archiveStack.id}\\.outcome \\}\\}" != success \\] \\|\\| check`),
+    );
+  });
+
+  // AND THE ONE SHAPE THAT COULD NEVER ARRIVE: CloudFormation stored a literal `?` where the
+  // template it was given carried an em dash, so a Description outside ASCII cannot be trusted to
+  // arrive, and the check above would redden with nothing able to make it green. Refused here
+  // instead, before a deploy. THE STACK `Description` ALONE: the AlarmDescriptions carry em
+  // dashes and CloudWatch stores them, em dashes and all.
+  it('keeps both stack descriptions inside the ASCII the pipeline carries', () => {
+    for (const [file, template] of [
+      ['template.yaml', archive],
+      ['template-user.yaml', user],
+    ] as const) {
+      const outside = [...(template.Description ?? '')].filter((c) => c.charCodeAt(0) > 126);
+      expect([file, outside]).toEqual([file, []]);
     }
   });
 });

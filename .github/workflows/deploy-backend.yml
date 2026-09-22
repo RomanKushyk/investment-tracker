@@ -361,6 +361,7 @@ jobs:
 
       # Skipped on `main`, so a dispatch there cannot repair the archive — dispatch on `dev`.
       - name: Deploy the archive stack
+        id: archive
         if: github.ref_name != 'main'
         working-directory: infra
         run: |
@@ -375,6 +376,56 @@ jobs:
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
+
+      # A CHANGE SET DOES NOT COUNT THE STACK `Description` AS A CHANGE, AND `sam deploy` HAS NO
+      # OTHER ROUTE. A commit that changes only that text gets back "No updates are to be
+      # performed", `--no-fail-on-empty-changeset` above reports that as success, and the text an
+      # operator reads in the console stays whatever it was — a correction merged, deployed green
+      # and never applied. THE FLAG IS NOT THE FAULT: a commit that touches no backend resource
+      # SHOULD deploy green. What was missing is the run telling that apart from "what I shipped
+      # is not what is deployed", which nothing but a read of the stack afterwards can do. A
+      # `Metadata` key and a parameter default are refused the same way; an added `Output` is not,
+      # its change set being created rather than refused.
+      #
+      # AND THE REPAIR WORKS: `update-stack`, which is not a change set, applies the very body
+      # `create-change-set` refuses, so the failure below names a step that does something.
+      #
+      # IT FAILS THE JOB THE PLAN IS IN. A migration THIS RUN'S OWN COMMIT ships is never stranded
+      # by that — new SQL means a new zip, so the change set is not empty and the Description
+      # lands with it — but one left pending by an earlier run waits for the `migrate.yml`
+      # dispatch that is its repair path anyway.
+      - name: Check each stack this run deployed carries the description it shipped
+        working-directory: infra
+        run: |
+          check() {
+            # `$( )` DROPS THE TRAILING NEWLINE ON BOTH SIDES, the one a folded scalar carries and
+            # CloudFormation stores, so this compares the text rather than YAML's chomping.
+            shipped=$(node -e 'const {parseDocument}=require("yaml"),fs=require("fs");process.stdout.write(String(parseDocument(fs.readFileSync(process.argv[1],"utf8")).toJS().Description??""))' "$2")
+            # NO `|| true`: under `bash -e` a read that fails takes the job down with the AWS
+            # error, which beats comparing against an empty string and blaming the deploy.
+            deployed=$(aws cloudformation describe-stacks --stack-name "$1" \
+              --query 'Stacks[0].Description' --output text)
+            if [ "$shipped" != "$deployed" ]; then
+              echo "::error::$1 is not running the description $2 shipped"
+              printf 'shipped  (%s): %s\n' "$2" "$shipped"
+              printf 'deployed (%s): %s\n' "$1" "$deployed"
+              echo 'Re-submit the DEPLOYED template with the new Description, which differs from'
+              echo 'what is deployed in nothing else:'
+              echo "  aws cloudformation get-template --stack-name $1 --template-stage Original --query TemplateBody --output text > t.yaml"
+              echo "  # replace the Description in t.yaml with the one in $2, then, with one"
+              echo "  # ParameterKey=<name>,UsePreviousValue=true per parameter the stack declares:"
+              echo "  aws cloudformation update-stack --stack-name $1 --template-body file://t.yaml --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --parameters ..."
+              exit 1
+            fi
+            echo "$1 carries the description $2 ships"
+          }
+          check "quirenote-backend-user-${ENVIRONMENT}" template-user.yaml
+          # OFF THE DEPLOY'S OWN OUTCOME rather than a second copy of its condition: `main` ships
+          # no archive, and a restated `!= 'main'` here is one edit away from comparing
+          # production's tree against a stack `dev` deployed.
+          [ "${{ steps.archive.outcome }}" != success ] || check quirenote-backend template.yaml
+        env:
+          ENVIRONMENT: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
       # LAST IN THIS JOB, AND THAT IS THE POINT: a plan read before `sam deploy` counts the
       # statements the PREVIOUS bundle carried, and would gate this run on them. It runs here

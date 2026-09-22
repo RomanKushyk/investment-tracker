@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Quirenote user data — one Aurora DSQL cluster per environment, the migration runner
+  Quirenote user data: one Aurora DSQL cluster per environment, the migration runner
   that fills it, and the Cognito pool whose users own its rows. Deployed twice, as
   quirenote-backend-user-dev and quirenote-backend-user-prod. The ARCHIVE is
   deliberately not here: it is provider data shared by every environment and lives,
