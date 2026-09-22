@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Quirenote Phase 1 — daily capture of the Inzhur price feed into Aurora DSQL.
+  Quirenote Phase 1 - daily capture of the Inzhur and NBU price feeds into Aurora DSQL.
   Raw payloads only; the observation schema is deferred until ~3 weeks of real
   data exist. See docs/superpowers/specs/2026-08-04-data-model.md.
 
@@ -97,7 +97,7 @@ Resources:
   CaptureSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Description: Capture the Inzhur feed at 01:00 Europe/Kyiv, retrying every two hours until 11:00.
+      Description: Capture the Inzhur and NBU feeds at 01:00 Europe/Kyiv, retrying every two hours until 11:00.
       State: ENABLED
       FlexibleTimeWindow:
         Mode: 'OFF'
