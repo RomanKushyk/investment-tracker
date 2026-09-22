@@ -6,8 +6,8 @@
 // not be created.
 import { toast } from 'sonner';
 
-import { buildBackup, parseBackup } from '../core/backup/json';
-import { todayIso } from '../core/dates';
+import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
+import { todayIso } from '@quirenote/core/dates';
 import { useExportAll } from './queries';
 import { saveTextFile } from '../lib/download';
 import { dbVersion } from '../lib/repository';

@@ -9,8 +9,9 @@ vocabulary does not move at all.** The owner's direction was three notes: per-sc
 `/dashboard`, `/allocation` and `/payouts` combined; minimum data on the client, ideally none; and
 porting the derivation to the server makes sense.
 
-**It is an import, not a port.** `infra/src/capture.ts` already imports `src/core/dates`,
-`src/core/inzhur/parse` and `src/core/nbu/fair-value`, and the API Lambda imports `src/core/derive.ts`
+**It is an import, not a port.** `infra/src/capture.ts` already imports `@quirenote/core/dates`,
+`@quirenote/core/inzhur/parse` and `@quirenote/core/nbu/fair-value`, and the API Lambda imports
+`@quirenote/core/derive`
 the same way — **one implementation, one test suite, running server-side** — so the strongest
 objection to server derivation, two answers for one number with nothing checking they agree, does not
 arise. It would arise the moment anyone *reimplements* rather than imports, and that is the line this
@@ -46,7 +47,7 @@ ETag, keeping #48's own asymmetry.
 
 ## §2 — Why `/view` takes no parameters
 
-`PERIOD_OPTIONS` is six values (`src/core/period.ts`) and currency is one multiplication, so `/view`
+`PERIOD_OPTIONS` is six values (`@quirenote/core/period`) and currency is one multiplication, so `/view`
 ships all six period blocks in ₴ with the rate beside them: a period change and a currency flip both
 cost **zero requests**, and language and theme are presentation only. That is what keeps the
 fluid-motion requirement intact, and it removes the cache-key combinatorics — an endpoint with no
@@ -150,11 +151,8 @@ the same store as `live` or beside it.
 - **The `/view` payload's field-by-field schema.** §1 pins that it is the union of the existing
   view-model interfaces; the exact JSON, its versioning and its migration story belong to W7's
   implementation task.
-- **Whether `src/core/derive.ts` stays in `src/`.** It is imported from `infra/` the way four modules
-  already are, and moving it is a refactor no one has asked for. **`CLAUDE.md`'s shared-files rule
-  does not already cover it:** that rule enumerates eight files and `derive.ts` is not among them, nor
-  are `accrual.ts`, `period.ts`, `xirr.ts` or the eight `src/screens/*/` view-model modules the `/view`
-  union needs. The `pnpm exec tsc --noEmit -p infra` gate is keyed to that enumeration, so **server
-  derivation amends the rule by roughly a dozen files** — an amendment W7's implementation task owes.
+- **Where `derive.ts` lives.** Settled since: it and the eight view-model modules the `/view` union
+  needs are in `packages/core`, the workspace package both sides import, and `CLAUDE.md`'s fifth gate
+  names that directory rather than the eight files it used to enumerate (*Core is pure*).
 - **W8's admin surface.** §5 cites W8's demo-ownership ruling because the read surface has to serve
   it; W8's own admin reads are untouched here.

@@ -130,7 +130,7 @@ describe("the coupon card does not spend the screen's one accent fill", () => {
 });
 
 describe('the capital area chart is the accent', () => {
-  const colors = stripTs(read('core/colors.ts'));
+  const colors = stripTs(read('../packages/core/src/colors.ts'));
   const area = stripTs(read('components/charts/BalancesArea.tsx'));
 
   /** Scoped, because `colors.ts` also holds `SERIES` and the tooltip objects: a whole-file

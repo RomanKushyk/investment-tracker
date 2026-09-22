@@ -9,7 +9,7 @@ import {
   XAxis,
 } from 'recharts';
 
-import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
+import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';

@@ -4,12 +4,12 @@ Every challenge in `docs/reference/WEALTH-MANAGEMENT-ARCHITECTURE.md` — the ow
 business-logic spec — checked term by term against the app's core derivations. No formula changed
 after the sweep, and three depart from the doc's letter: §4 improves on it, §3 matches it exactly
 with the clamp moved into the callers, and §6.2 is not implemented yet.
-Everything else is verbatim. The formulas live in `src/core/derive.ts` unless noted, and every
+Everything else is verbatim. The formulas live in `packages/core/src/derive.ts` unless noted, and every
 figure the audit turned on is pinned by a vitest fixture, which is where a figure belongs. The
 companion decision is *Metric families and windows*.
 
 Code comments cite this file by its old challenge numbers: `§1` is free cash, `§2` the
-capital-gain-versus-total-return pair (whose figures are pinned in `src/core/derive.test.ts`),
+capital-gain-versus-total-return pair (whose figures are pinned in `packages/core/src/derive.test.ts`),
 `§3` the rebalancing top-up, `§4` latest-price and null handling, `§5` global ROI's denominator,
 `§6.1` XIRR and `§6.2` seasonality. "Fintech rulings" is the numbered list below.
 

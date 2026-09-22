@@ -1,5 +1,5 @@
 // Multi-tab safety for the whole-dataset writes (*Persistence today*). Browser
-// APIs, so src/lib and never src/core.
+// APIs, so src/lib and never the domain package.
 //
 // TWO INDEPENDENT JOBS. `withDbLock` serializes the whole-dataset writes across
 // tabs: Dexie's rw transaction is atomic within ONE tab, so two tabs each running

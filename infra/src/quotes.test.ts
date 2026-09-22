@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import sample from '../../src/core/inzhur/__fixtures__/assets-sample.json';
-import { parseAssetsFeed } from '../../src/core/inzhur/parse';
+import sample from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
+import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
 import { tallyQuotes } from './quotes';
 
 // The capture publishes `maxStaleDays` as a metric and logs every unexplained ref

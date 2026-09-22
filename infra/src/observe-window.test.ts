@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays } from '../../src/core/dates';
+import { addDays } from '@quirenote/core/dates';
 import { OBSERVE_CAP_DAYS, observeProgress, observeWindowEnd } from './observe-window';
 
 // Any statement over the archive is bounded by a SQL date window, and completeness

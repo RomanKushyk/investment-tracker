@@ -1,6 +1,6 @@
 // The provider's published fund price history, workbook to rows. Pure: everything decidable from
 // the file alone lives here and is tested, and the DB half stays in `capture.ts`.
-import { addDays } from '../../src/core/dates';
+import { addDays } from '@quirenote/core/dates';
 import type { XlsxCell, XlsxWorkbook } from './xlsx';
 
 /** Stored per row, so a row derived by this parser is never mistaken for one the feed parser

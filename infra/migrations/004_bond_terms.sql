@@ -12,7 +12,7 @@
 -- WHY THIS TABLE EXISTS, and it is the only reason. A bond's payment schedule
 -- is reconstructable in principle: it is in every raw payload we have stored.
 -- But the provider DELISTS an instrument after maturity, and at that moment the
--- live copy is gone for good. `src/core/inzhur/dcf.ts` cannot price a bond
+-- live copy is gone for good. `@quirenote/core/inzhur/dcf` cannot price a bond
 -- without its schedule, W10 (2027-03-24) and W12 (2028-09-27) are the two dates
 -- that will need one for an instrument the feed no longer lists, and no other
 -- source publishes it. So the schedule is CAPTURED rather than derived, on

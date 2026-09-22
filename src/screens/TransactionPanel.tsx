@@ -20,12 +20,12 @@ import {
   useTransactions,
   useUpdateAsset,
 } from '../hooks/queries';
-import { rollbackNextCoupon } from '../core/accrual';
-import { assetFromForm } from '../core/asset-builder';
+import { rollbackNextCoupon } from '@quirenote/core/accrual';
+import { assetFromForm } from '@quirenote/core/asset-builder';
 import { NumberField } from '../components/ui/NumberField';
-import { COLOR_KEYS } from '../core/colors';
-import { inputValue } from '../core/money';
-import { todayIso } from '../core/dates';
+import { COLOR_KEYS } from '@quirenote/core/colors';
+import { inputValue } from '@quirenote/core/money';
+import { todayIso } from '@quirenote/core/dates';
 import {
   UNREADABLE,
   assetFormSchema,
@@ -34,8 +34,8 @@ import {
   type AssetFormValues,
   type TransactionFormInput,
   type TransactionFormValues,
-} from '../core/schemas';
-import { convertTypedAmount, priceParts } from '../core/transaction-price';
+} from '@quirenote/core/schemas';
+import { convertTypedAmount, priceParts } from '@quirenote/core/transaction-price';
 import {
   isPayout,
   movesPosition,
@@ -43,7 +43,7 @@ import {
   type Asset,
   type Transaction,
   type TxType,
-} from '../core/types';
+} from '@quirenote/core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import { useSettings } from '../state/settings';
 import { useFormat } from '../hooks/useFormat';

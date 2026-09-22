@@ -12,13 +12,13 @@ import {
 } from '@aws-sdk/client-notifications';
 import type { Client } from 'pg';
 
-import { addDays, kyivDateIso } from '../../src/core/dates';
+import { addDays, kyivDateIso } from '@quirenote/core/dates';
 import { backupAgeHours } from './backup-age';
 import { connect } from './dsql';
 // Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
-import { parseAssetsFeed } from '../../src/core/inzhur/parse';
+import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
 import { bondTermsRow } from './bond-terms';
 import {
   FUND_HISTORY_PAGES,
@@ -30,7 +30,7 @@ import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
 import { observeProgress, observeWindowEnd } from './observe-window';
 import { readXlsx } from './xlsx';
 import { tallyQuotes, type QuoteTally } from './quotes';
-import { parseNbuFairValue } from '../../src/core/nbu/fair-value';
+import { parseNbuFairValue } from '@quirenote/core/nbu/fair-value';
 
 /** Stored per row, so a parser that was wrong leaves identifiable rows. */
 const PARSER_VERSION = '1';

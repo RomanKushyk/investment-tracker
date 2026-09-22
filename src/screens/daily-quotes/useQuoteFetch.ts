@@ -4,9 +4,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { kyivDateIso } from '../../core/dates';
-import { matchAssets, type ParsedFeed } from '../../core/inzhur/parse';
-import type { Asset, QuoteSource } from '../../core/types';
+import { kyivDateIso } from '@quirenote/core/dates';
+import { matchAssets, type ParsedFeed } from '@quirenote/core/inzhur/parse';
+import type { Asset, QuoteSource } from '@quirenote/core/types';
 import { INZHUR_REFRESH_HOUR, useInzhurAssets, type InzhurFeed } from '../../hooks/useInzhurAssets';
 import { useDraft } from '../../state/draft';
 import {
@@ -22,7 +22,7 @@ import {
   type FetchButtonState,
   type ProvenanceChip,
 } from './fetch-quotes';
-import { inputValue } from '../../core/money';
+import { inputValue } from '@quirenote/core/money';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';

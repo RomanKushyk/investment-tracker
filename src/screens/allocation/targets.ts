@@ -1,6 +1,6 @@
 // Pure helpers for the targets editor: imports core only, no English out.
-import { percentInputSchemaFor } from '../../core/schemas';
-import type { Lang } from '../../core/money';
+import { percentInputSchemaFor } from '@quirenote/core/schemas';
+import type { Lang } from '@quirenote/core/money';
 
 // One raw %-input → 0–100 target share, or null when invalid. Exactly the
 // AssetForm Target grammar via the shared core schema, so the two target editors

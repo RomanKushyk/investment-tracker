@@ -12,7 +12,7 @@ import {
   buildBalanceRow,
   pageHasEarlyQuote,
   paginateSnapshots,
-} from './balances/balances';
+} from '@quirenote/core/view/balances';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';

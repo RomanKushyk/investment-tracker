@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { InzhurQuote } from '../../src/core/inzhur/parse';
+import type { InzhurQuote } from '@quirenote/core/inzhur/parse';
 
 export interface BondTermsRow {
   ref: string;

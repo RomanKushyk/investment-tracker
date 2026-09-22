@@ -24,11 +24,11 @@ import {
   sharePct,
   soldAmount,
   yieldSinceStart,
-} from '../core/derive';
-import { daysBetween, latestSnapshotDate } from '../core/dates';
-import type { Asset } from '../core/types';
+} from '@quirenote/core/derive';
+import { daysBetween, latestSnapshotDate } from '@quirenote/core/dates';
+import type { Asset } from '@quirenote/core/types';
 import { bondAbbrev } from './daily-quotes/quotes';
-import { bestPerformer, incomeEngine, laggard } from './portfolio/portfolio';
+import { bestPerformer, incomeEngine, laggard } from '@quirenote/core/view/portfolio';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';

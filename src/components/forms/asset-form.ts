@@ -1,12 +1,12 @@
 // Non-component companions of AssetForm.tsx, split out so the .tsx file exports only
 // components for react-refresh. The message vocabulary is the dictionary's.
-import { sameInstrument } from '../../core/inzhur/ref';
-import { todayIso } from '../../core/dates';
-import type { InzhurQuote } from '../../core/inzhur/parse';
-import type { Format } from '../../core/money';
+import { sameInstrument } from '@quirenote/core/inzhur/ref';
+import { todayIso } from '@quirenote/core/dates';
+import type { InzhurQuote } from '@quirenote/core/inzhur/parse';
+import type { Format } from '@quirenote/core/money';
 import type { Dict } from '../../i18n/messages';
-import type { AssetFormInput } from '../../core/schemas';
-import type { Asset, PayoutSchedule, YieldType } from '../../core/types';
+import type { AssetFormInput } from '@quirenote/core/schemas';
+import type { Asset, PayoutSchedule, YieldType } from '@quirenote/core/types';
 import type { SelectOption } from '../ui/Select';
 
 // ORDER here, labels in the dictionary — the split every option list uses.

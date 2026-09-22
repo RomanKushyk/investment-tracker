@@ -18,16 +18,16 @@ design/
 
 # CAPTURED FROM UPSTREAM, so its shape is the provider's and not ours — the same
 # argument design/ wins on. `assets-sample.json` is a trimmed live capture of
-# Inzhur's `/_api/assets` (see src/core/README.md); reformatting it puts a
+# Inzhur's `/_api/assets` (see packages/core/README.md); reformatting it puts a
 # whitespace diff on top of every re-capture and makes the refreshed file fail
-# this very check.
+# this very check. TWO LINES, NOT ONE `**/__fixtures__/`: infra/src/__fixtures__/
+# is formatted on purpose and a widened glob would silently stop checking it.
 src/**/__fixtures__/
+packages/core/src/**/__fixtures__/
 
-# Machine-written, never hand-edited. Both lockfiles, because gating one and not
-# the other is how `infra/package-lock.json` waits to fail on an npm version
-# whose JSON prettier disagrees with.
+# Machine-written, never hand-edited. One lockfile now that infra/ is a workspace
+# member: its npm one is gone with the second installer (*Core is pure*).
 pnpm-lock.yaml
-infra/package-lock.json
 
 # COMMITTED, BUT NOT OURS TO FORMAT. Git tracks four entries under `.claude/` —
 # `settings.json`, `agents/`, `commands/`, `skills/` — and they are configuration

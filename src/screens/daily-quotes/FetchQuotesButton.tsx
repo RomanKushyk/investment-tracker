@@ -1,7 +1,7 @@
 import { Check, RefreshCw } from 'lucide-react';
 
 import { Button } from '../../components/ui/Button';
-import { kyivDateIso, kyivTimeHm } from '../../core/dates';
+import { kyivDateIso, kyivTimeHm } from '@quirenote/core/dates';
 import type { FeedFreshness, FetchButtonState } from './fetch-quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';

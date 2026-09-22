@@ -1,0 +1,468 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../seed';
+import type { Asset, Snapshot, Transaction } from '../types';
+import {
+  cumulativeYieldSeries,
+  cumulativeYieldSeriesIn,
+  xirrIsExtrapolated,
+  yieldTableRows,
+  yieldTableRowsIn,
+} from './yield';
+import { resolveWindow } from '../period';
+import type { PeriodOption } from '../period';
+import { portfolioStart } from '../derive';
+import { latestSnapshotDate } from '../dates';
+
+const snaps = buildSeedSnapshots();
+
+describe('yieldTableRows', () => {
+  const rows = yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS);
+
+  it('REIT: +4.41% total, +9.3% annualized (global 174-day basis), -4.7pp vs expected', () => {
+    const reit = rows.find((r) => r.asset.id === 'reit')!;
+    expect(reit.deltaTotal).toBeCloseTo(0.0441, 3);
+    expect(reit.annualized).toBeCloseTo(0.0925, 3);
+    expect(reit.vsExpectedPp).toBeCloseTo(-4.7, 1);
+  });
+
+  it('Energy: +1.48% total, +3.1% annualized, -6.9pp vs expected', () => {
+    const energy = rows.find((r) => r.asset.id === 'energy')!;
+    expect(energy.deltaTotal).toBeCloseTo(0.0148, 3);
+    expect(energy.annualized).toBeCloseTo(0.0311, 3);
+    expect(energy.vsExpectedPp).toBeCloseTo(-6.9, 1);
+  });
+
+  it('…8976: +2.96% total, +6.2% annualized, -10.2pp vs expected', () => {
+    const b = rows.find((r) => r.asset.id === 'ovdp8976')!;
+    expect(b.deltaTotal).toBeCloseTo(0.0296, 3);
+    expect(b.annualized).toBeCloseTo(0.0622, 3);
+    expect(b.vsExpectedPp).toBeCloseTo(-10.2, 1);
+  });
+
+  it('…6475 uses the GLOBAL portfolio-start basis: +10.9% (NOT +34.5% per-asset basis, D5#5)', () => {
+    const b = rows.find((r) => r.asset.id === 'ovdp6475')!;
+    expect(b.deltaTotal).toBeCloseTo(0.052, 3);
+    expect(b.annualized).toBeCloseTo(0.109, 2);
+    expect(b.vsExpectedPp).toBeCloseTo(-4.3, 1);
+  });
+
+  it('an asset with no quote yet reports undefined figures instead of a bogus huge negative % (empty-state guard)', () => {
+    // No snapshots at all → every asset is unquoted although invested capital
+    // exists, and yieldSinceStart(0, invested) would annualize a −100%.
+    const noQuoteRows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
+    for (const r of noQuoteRows) {
+      expect(r.value).toBeUndefined();
+      expect(r.deltaTotal).toBeUndefined();
+      expect(r.annualized).toBeUndefined();
+      expect(r.vsExpectedPp).toBeUndefined();
+    }
+  });
+
+  it('an asset with invested capital but no quote is undefined even when OTHER assets are quoted', () => {
+    const onlyReit: Snapshot[] = [{ date: '2026-07-25', quotes: { reit: 68629.36 } }];
+    const partialRows = yieldTableRows(SEED_ASSETS, onlyReit, SEED_TRANSACTIONS);
+    const reit = partialRows.find((r) => r.asset.id === 'reit')!;
+    const energy = partialRows.find((r) => r.asset.id === 'energy')!;
+    expect(reit.value).toBe(68629.36);
+    expect(reit.deltaTotal).toBeDefined();
+    expect(energy.value).toBeUndefined();
+    expect(energy.deltaTotal).toBeUndefined();
+    expect(energy.totalReturn).toBeUndefined();
+    expect(energy.xirr).toBeUndefined();
+  });
+
+  // REIT is NET of the seeded withholding, so it falls while the three untaxed
+  // assets stand: a figure that had NOT moved here would be the defect.
+  it('Total return (net of tax, incl. payouts): REIT +9.98%, Energy +1.48%, …8976 +10.65%, …6475 +10.96%', () => {
+    const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
+    expect(byId.reit.totalReturn! * 100).toBeCloseTo(9.9774, 3);
+    expect(byId.energy.totalReturn! * 100).toBeCloseTo(1.4831, 3);
+    expect(byId.ovdp8976.totalReturn! * 100).toBeCloseTo(10.655, 3);
+    expect(byId.ovdp6475.totalReturn! * 100).toBeCloseTo(10.9619, 3);
+  });
+
+  // `yield.ts` nets each payout flow by its own withholding, so the
+  // money-weighted column follows the total-return one down.
+  it('XIRR (money-weighted, ACT/365): REIT +22.7%, Energy +3.1%, …8976 +25.8%, …6475 +99.4%', () => {
+    const byId = Object.fromEntries(rows.map((r) => [r.asset.id, r]));
+    expect(byId.reit.xirr! * 100).toBeCloseTo(22.68, 1);
+    expect(byId.energy.xirr! * 100).toBeCloseTo(3.14, 1);
+    expect(byId.ovdp8976.xirr! * 100).toBeCloseTo(25.81, 1);
+    expect(byId.ovdp6475.xirr! * 100).toBeCloseTo(99.43, 1);
+  });
+});
+
+// The illusion-of-loss triple: a capital-gain loss coexists with a positive
+// total return — the columns MAY disagree by design.
+describe('yieldTableRows — illusion-of-loss fixture (capital gain vs total return)', () => {
+  const bond: Asset = {
+    id: 'b6475',
+    name: 'OVDP UA4000236475',
+    code: 'GB',
+    colorKey: 'ovdp6475',
+    yieldType: 'fixed_coupon',
+    expectedPct: 15.2,
+    targetPct: 3,
+    payoutSchedule: 'semiannual',
+    firstPurchase: '2026-02-03',
+    createdAt: '2026-02-03T10:00:00',
+  };
+  const txs: Transaction[] = [
+    { id: 'b', date: '2026-02-03', type: 'buy', assetId: 'b6475', amount: 4496.4 },
+    {
+      id: 'c',
+      date: '2026-05-05',
+      type: 'interest_payout',
+      assetId: 'b6475',
+      amount: 355.4,
+    },
+  ];
+  const snapsOne: Snapshot[] = [{ date: '2026-07-27', quotes: { b6475: 4379.52 } }];
+  const row = yieldTableRows([bond], snapsOne, txs)[0];
+
+  it('Δ total (capital-gain family) reads −2.6% — the "loss"', () => {
+    expect(row.deltaTotal! * 100).toBeCloseTo(-2.6, 1);
+  });
+
+  it('Total return reads +5.30% — the honest net figure (audit-pinned)', () => {
+    expect(row.totalReturn! * 100).toBeCloseTo(5.3, 2);
+  });
+
+  it('XIRR is positive too (payout + terminal value beat the buy)', () => {
+    expect(row.xirr).not.toBeNull();
+    expect(row.xirr!).toBeGreaterThan(0);
+  });
+});
+
+describe('yieldTableRows — xirr column wiring (flow signs)', () => {
+  const asset: Asset = {
+    id: 'a1',
+    name: 'Test Asset',
+    code: 'TA',
+    colorKey: 'reit',
+    yieldType: 'capitalization',
+    expectedPct: 10,
+    targetPct: 100,
+    payoutSchedule: 'none',
+    firstPurchase: '2026-01-01',
+    createdAt: '2026-01-01T10:00:00',
+  };
+  const buy: Transaction = {
+    id: 'b1',
+    date: '2026-01-01',
+    type: 'buy',
+    assetId: 'a1',
+    amount: 1000,
+  };
+  const oneYearLater: Snapshot[] = [{ date: '2027-01-01', quotes: { a1: 1080 } }];
+
+  it('known-good: −1,000 buy → +1,080 terminal over exactly one year = 8% (audit §6.1 fixture)', () => {
+    const row = yieldTableRows([asset], oneYearLater, [buy])[0];
+    expect(row.xirr).toBeCloseTo(0.08, 9);
+  });
+
+  // THE SILENT ONE. Deleting `assetCashFlows`' own negative `tax` flow without
+  // netting the PAYOUT by `taxWithheld` turns every per-asset XIRR from net to
+  // gross with no type error, no failing test and nothing visible on screen — so
+  // the pin is a payout carrying a withholding against the SAME payout without one.
+  it('a payout nets by its withholding: xirr drops below the same payout untaxed', () => {
+    const payout = (taxWithheld?: number): Transaction => ({
+      id: 'p1',
+      date: '2026-07-01',
+      type: 'interest_payout',
+      assetId: 'a1',
+      amount: 100,
+      ...(taxWithheld === undefined ? {} : { taxWithheld }),
+    });
+    const gross = yieldTableRows([asset], oneYearLater, [buy, payout()])[0].xirr!;
+    const net = yieldTableRows([asset], oneYearLater, [buy, payout(30)])[0].xirr!;
+    expect(net).toBeLessThan(gross);
+  });
+
+  it('a withholding equal to the whole payout leaves the flow at zero, not negative', () => {
+    // The store forbids it, so this pins the ARITHMETIC rather than a reachable
+    // state: the payout's own flow never flips sign, which a naive `push(-withheld)`
+    // beside `push(amount)` would also give — but only because the two land on one
+    // date.
+    const full: Transaction = {
+      id: 'p1',
+      date: '2026-07-01',
+      type: 'interest_payout',
+      assetId: 'a1',
+      amount: 100,
+      taxWithheld: 100,
+    };
+    const none = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
+    expect(yieldTableRows([asset], oneYearLater, [buy, full])[0].xirr!).toBeCloseTo(none, 9);
+  });
+
+  it('deposit/withdrawal rows carrying the assetId are NOT asset flows (portfolio-level cash)', () => {
+    const deposit: Transaction = {
+      id: 'd1',
+      date: '2026-06-01',
+      type: 'deposit',
+      assetId: 'a1',
+      amount: 500,
+    };
+    const withdrawal: Transaction = {
+      id: 'w1',
+      date: '2026-06-02',
+      type: 'withdrawal',
+      assetId: 'a1',
+      amount: 200,
+    };
+    const base = yieldTableRows([asset], oneYearLater, [buy])[0].xirr!;
+    const withCashMoves = yieldTableRows([asset], oneYearLater, [buy, deposit, withdrawal])[0]
+      .xirr!;
+    expect(withCashMoves).toBeCloseTo(base, 12);
+  });
+});
+
+describe('xirrIsExtrapolated (the "(ann.)" header token)', () => {
+  it('true on the demo seed (03.02 → 27.07 = 174 days < 365)', () => {
+    expect(xirrIsExtrapolated(SEED_ASSETS, snaps, SEED_TRANSACTIONS)).toBe(true);
+  });
+
+  it('false once the latest snapshot is a full year past the derived start', () => {
+    // With a DERIVED start, handing in one late snapshot would make it BOTH ends and
+    // the span zero. The seed's own rows supply the other end.
+    const yearOn: Snapshot[] = [{ date: '2027-02-03', quotes: { reit: 70000 } }];
+    expect(xirrIsExtrapolated(SEED_ASSETS, yearOn, SEED_TRANSACTIONS)).toBe(false);
+  });
+
+  it('true with no snapshots at all', () => {
+    expect(xirrIsExtrapolated(SEED_ASSETS, [], SEED_TRANSACTIONS)).toBe(true);
+  });
+
+  it('true on a wholly empty dataset — no start, nothing to relativize', () => {
+    expect(xirrIsExtrapolated([], [], [])).toBe(true);
+  });
+});
+
+describe('cumulativeYieldSeries', () => {
+  const series = cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS);
+
+  it('starts at the first snapshot date', () => {
+    expect(series[0].date).toBe('2026-02-03');
+  });
+
+  it('…6475 has no entry before its 02.06 first purchase', () => {
+    const feb = series.find((p) => p.date === '2026-02-10')!;
+    expect(feb.ovdp6475).toBeUndefined();
+  });
+
+  it('…6475 appears from 02.06 onward', () => {
+    const jun2 = series.find((p) => p.date === '2026-06-02')!;
+    expect(jun2.ovdp6475).toBeDefined();
+  });
+
+  it("reit's series ends at 07.27 matching the table Δ +4.41% (headline uses the partial-row quote)", () => {
+    const last = series[series.length - 1];
+    expect(last.date).toBe('2026-07-27');
+    expect(last.reit).toBeCloseTo(4.41, 1);
+    expect(last.energy).toBeUndefined();
+  });
+
+  it("energy's last defined point (07.25) matches its table Δ +1.48% (unaffected by the partial row)", () => {
+    const jul25 = series.find((p) => p.date === '2026-07-25')!;
+    expect(jul25.energy).toBeCloseTo(1.48, 1);
+  });
+});
+
+describe('yieldTableRowsIn (A39) — the window, and what reduces', () => {
+  const full = resolveWindow('all', '2026-02-03', '2026-07-27')!;
+  const byId = (rows: ReturnType<typeof yieldTableRows>) =>
+    Object.fromEntries(rows.map((r) => [r.asset.id, r]));
+
+  it('THE FULL HISTORY IS NOT A SPECIAL CASE — it reduces exactly', () => {
+    // The property the whole design hangs on, and the reason `yieldTableRows` is
+    // allowed to delegate: if this fails, two implementations have started to
+    // disagree and every pinned figure is in play.
+    expect(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, full)).toEqual(
+      yieldTableRows(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+    );
+  });
+
+  it('a shorter window keeps Δ almost still while `Річна` triples — F-2, measured', () => {
+    // `annualizedPct` is LINEAR, and …6475 is the row that shows it because its Δ barely moves between windows.
+    const w = (o: 'all' | '3m' | '1m') => resolveWindow(o, '2026-02-03', '2026-07-27')!;
+    const at = (o: 'all' | '3m' | '1m') =>
+      byId(yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w(o))).ovdp6475;
+
+    // `all` and `3m` contain the SAME FLOWS for this asset, so Δ may not move between
+    // them. `Річна` must, and by exactly the ratio of the two spans.
+    expect(at('3m').deltaTotal).toBeCloseTo(at('all').deltaTotal!, 10);
+    expect(at('3m').annualized! / at('all').annualized!).toBeCloseTo(174 / 91, 2);
+    expect(at('3m').annualized! * 100).toBeCloseTo(20.8, 1);
+
+    expect(at('1m').deltaTotal! * 100).toBeCloseTo(2.77, 1);
+    expect(at('1m').annualized! * 100).toBeGreaterThan(30);
+    expect(at('all').annualized! * 100).toBeCloseTo(10.9, 1);
+  });
+
+  it('a SELL inside the window is not a loss — the case the seed cannot show (F-7)', () => {
+    // The seed has no disposals, which is why the formula could omit the term
+    // without a single figure moving. A REAL disposal REDUCES THE POSITION, so the
+    // fixture drops the quote by the same amount the sale returned — without that,
+    // `withSell > without` is true by construction and would pass for any multiple.
+    const asset = SEED_ASSETS.find((a) => a.id === 'energy')!;
+    const sold: Transaction = {
+      id: 'sell-test',
+      date: '2026-07-01',
+      type: 'sell',
+      assetId: 'energy',
+      amount: 10_000,
+    };
+    const reduced: Snapshot[] = snaps.map((s) =>
+      s.date >= '2026-07-01' && s.quotes.energy !== undefined
+        ? { ...s, quotes: { ...s.quotes, energy: s.quotes.energy - 10_000 } }
+        : s,
+    );
+    const w = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const withSell = yieldTableRowsIn([asset], reduced, [...SEED_TRANSACTIONS, sold], w)[0];
+    const without = yieldTableRowsIn([asset], snaps, SEED_TRANSACTIONS, w)[0];
+
+    // Selling at market is return-neutral: drop the `+ sold` term and this reports a loss on a position that merely returned cash.
+    expect(withSell.deltaTotal! * 100).toBeCloseTo(without.deltaTotal! * 100, 1);
+    expect(withSell.deltaTotal!).toBeGreaterThan(0);
+  });
+});
+
+describe('the two regressions A39 shipped and its review caught', () => {
+  it('a buy entered AFTER the last snapshot still counts, on every window', () => {
+    // Transactions are entered daily; snapshots are not. Clipping flows at the
+    // window's top dropped them, so the two screens reported different figures for
+    // one asset on the DEFAULT screen.
+    const later: Transaction = {
+      id: 'late-buy',
+      date: '2026-08-05',
+      type: 'buy',
+      assetId: 'reit',
+      amount: 50_000,
+    };
+    const rows = yieldTableRows(SEED_ASSETS, snaps, [...SEED_TRANSACTIONS, later]);
+    expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(115_800);
+  });
+
+  it('no snapshots is no VALUATION, not an empty ledger', () => {
+    // `invested` renders unconditionally, so this read a zero beside an em dash for
+    // anyone who had entered buys but saved no snapshot.
+    const rows = yieldTableRows(SEED_ASSETS, [], SEED_TRANSACTIONS);
+    expect(rows.find((r) => r.asset.id === 'reit')!.invested).toBe(65_800);
+    expect(rows.find((r) => r.asset.id === 'reit')!.value).toBeUndefined();
+  });
+
+  it('a zero-length window annualizes NOTHING rather than fabricating a 0', () => {
+    // `ytd` on 1 January resolves from === to, and the old zero guard was written for
+    // an empty dataset: with data present it produced figures that read as
+    // measurements.
+    const rows = yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, {
+      from: '2026-07-27',
+      to: '2026-07-27',
+      clamped: false,
+    });
+    const reit = rows.find((r) => r.asset.id === 'reit')!;
+    expect(reit.value).toBeDefined();
+    expect(reit.annualized).toBeUndefined();
+    expect(reit.vsExpectedPp).toBeUndefined();
+  });
+});
+
+describe('cumulativeYieldSeriesIn (A39) — the half that had no tests', () => {
+  const full = resolveWindow('all', '2026-02-03', '2026-07-27')!;
+
+  it('reduces exactly, the same claim the table makes', () => {
+    expect(cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, full)).toEqual(
+      cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS),
+    );
+  });
+
+  it('clips its domain to the window', () => {
+    const m1 = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const pts = cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, m1);
+    expect(pts.length).toBeGreaterThan(0);
+    expect(pts[0].date >= m1.from).toBe(true);
+    expect(pts[pts.length - 1].date).toBe(m1.to);
+  });
+
+  it('rebases against the inherited position, so the curve opens near zero', () => {
+    // Not merely clipped: a window's first point measures the window, so it starts
+    // near 0 rather than at the since-inception figure. Dropping the `dayBefore`
+    // basis or the `>= from` clause breaks this and nothing else in the suite.
+    const m1 = resolveWindow('1m', '2026-02-03', '2026-07-27')!;
+    const first = cumulativeYieldSeriesIn(snaps, SEED_TRANSACTIONS, SEED_ASSETS, m1)[0];
+    const sinceStart = cumulativeYieldSeries(snaps, SEED_TRANSACTIONS, SEED_ASSETS).find(
+      (p) => p.date === first.date,
+    )!;
+    expect(Math.abs(first.reit as number)).toBeLessThan(1);
+    expect(sinceStart.reit as number).toBeGreaterThan(3);
+  });
+});
+
+describe('shortBasis — F-3/D80, the rows whose basis their holding cannot support', () => {
+  const rowsAt = (period: PeriodOption) => {
+    const w = resolveWindow(
+      period,
+      portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      latestSnapshotDate(snaps),
+    );
+    return yieldTableRowsIn(SEED_ASSETS, snaps, SEED_TRANSACTIONS, w);
+  };
+  const mark = (period: PeriodOption, id: string) =>
+    rowsAt(period).find((r) => r.asset.id === id)!.shortBasis;
+
+  it('marks …6475 at Від початку — 55 days against a 174-day basis', () => {
+    // Bought into a basis that opens earlier, so its annualized figure is its spread over time it did not exist.
+    expect(mark('all', 'ovdp6475')).toBe(true);
+  });
+
+  it('does NOT mark …8976 at Від початку, though it was bought after the start', () => {
+    // The case that killed the deleted predicate: a "first purchase after `from`"
+    // test fires on a row bought two days into the basis and would mark three cells
+    // where the drawing shows two.
+    expect(mark('all', 'ovdp8976')).toBe(false);
+    expect(mark('all', 'reit')).toBe(false);
+    expect(mark('all', 'energy')).toBe(false);
+  });
+
+  it('never marks a row whose annualized is absent', () => {
+    // The mark says "trust this figure less", and there is no figure to distrust.
+    // Every seed row HAS an annualized at `all`, so reaching the branch needs an
+    // asset with no quote — a loop over the seed stays green with the flag inverted.
+    const unquoted: Asset = { ...SEED_ASSETS[3]!, id: 'unquoted', firstPurchase: '2026-07-20' };
+    const w = resolveWindow(
+      'all',
+      portfolioStart(SEED_ASSETS, snaps, SEED_TRANSACTIONS),
+      latestSnapshotDate(snaps),
+    );
+    const row = yieldTableRowsIn([...SEED_ASSETS, unquoted], snaps, SEED_TRANSACTIONS, w).find(
+      (r) => r.asset.id === 'unquoted',
+    )!;
+    expect(row.annualized).toBeUndefined();
+    expect(row.shortBasis).toBe(false);
+  });
+
+  it('marks in EVERY window, which is what D80 claims and only `all` was pinning', () => {
+    // Under the narrower window it holds every day, and the sheet's own errata says
+    // NOT to pin it as marked.
+    expect(mark('3m', 'ovdp6475')).toBe(true);
+    expect(mark('1m', 'ovdp6475')).toBe(false);
+    expect(mark('3m', 'ovdp8976')).toBe(false);
+    expect(mark('1m', 'ovdp8976')).toBe(false);
+  });
+
+  it('clamps the holding to the window rather than measuring from purchase', () => {
+    // The `start > w.from ? start : w.from` clamp. Without it an asset bought before
+    // the window opens measures from its purchase — never short, right answer for
+    // the wrong reason. The clamp is what makes the ratio mean "of THIS window".
+    expect(mark('1m', 'reit')).toBe(false);
+    expect(mark('ytd', 'ovdp6475')).toBe(true);
+  });
+
+  it('leaves every D5-pinned figure byte-identical — it is a colour, not a suppression', () => {
+    const r = rowsAt('all').find((x) => x.asset.id === 'ovdp6475')!;
+    expect(r.shortBasis).toBe(true);
+    expect(r.annualized! * 100).toBeCloseTo(10.9, 1);
+  });
+});

@@ -8,7 +8,7 @@
 // nothing else, and this is the part that makes the cost visible.
 import { useState } from 'react';
 
-import type { SkippedEntry } from '../../core/inzhur/parse';
+import type { SkippedEntry } from '@quirenote/core/inzhur/parse';
 import { useLastParse } from '../../hooks/useInzhurAssets';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';

@@ -3,11 +3,11 @@
 //
 // A FETCH MAY FILL A DRAFT INPUT BUT NEVER OVERWRITE A NUMBER THE USER PUT
 // THERE. `reconcileFetched` is where that rule is decided, per row, once.
-import { kyivDateIso, msUntilNextKyivHour } from '../../core/dates';
-import type { InzhurMatch } from '../../core/inzhur/parse';
-import type { Lang } from '../../core/money';
-import { amountInputSchema } from '../../core/schemas';
-import type { Asset, QuoteOrigin } from '../../core/types';
+import { kyivDateIso, msUntilNextKyivHour } from '@quirenote/core/dates';
+import type { InzhurMatch } from '@quirenote/core/inzhur/parse';
+import type { Lang } from '@quirenote/core/money';
+import { amountInputSchema } from '@quirenote/core/schemas';
+import type { Asset, QuoteOrigin } from '@quirenote/core/types';
 
 /**
  * Provenance chip tokens — `at` is an instant; the component formats it.

@@ -8,7 +8,7 @@ import { ParseSkips } from '../components/ui/ParseSkips';
 import { Reveal } from '../components/ui/Reveal';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Switch } from '../components/ui/Switch';
-import { inputValue, storedNumber } from '../core/money';
+import { inputValue, storedNumber } from '@quirenote/core/money';
 import { THEME_ORDER, useSettings, type Language } from '../state/settings';
 import { CsvExportRow } from './settings/CsvExportRow';
 import { DangerZone } from './settings/DangerZone';

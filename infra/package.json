@@ -8,6 +8,7 @@
     "@aws-sdk/client-cognito-identity-provider": "^3.1131.0",
     "@aws-sdk/client-notifications": "^3.1107.0",
     "@aws-sdk/dsql-signer": "^3.1106.0",
+    "@quirenote/core": "workspace:*",
     "pg": "^8.23.0"
   },
   "devDependencies": {

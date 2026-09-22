@@ -1,4 +1,4 @@
-import type { InzhurQuote } from '../../src/core/inzhur/parse';
+import type { InzhurQuote } from '@quirenote/core/inzhur/parse';
 
 /** One `price_observation` row, minus the key columns the caller supplies or this file names. */
 export interface ObservationRow {

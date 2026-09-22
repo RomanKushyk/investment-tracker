@@ -4,12 +4,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode } from 'react';
 import { Controller, useForm, useFormState, useWatch, type UseFormReturn } from 'react-hook-form';
 
-import { COLOR_KEYS } from '../../core/colors';
-import { kyivDateIso } from '../../core/dates';
-import { assetFormSchema, type AssetFormInput, type AssetFormValues } from '../../core/schemas';
-import { sameRef, scheduleFacts } from '../../core/inzhur/parse';
-import { normalizeRef } from '../../core/inzhur/ref';
-import type { Asset, ColorKey } from '../../core/types';
+import { COLOR_KEYS } from '@quirenote/core/colors';
+import { kyivDateIso } from '@quirenote/core/dates';
+import {
+  assetFormSchema,
+  type AssetFormInput,
+  type AssetFormValues,
+} from '@quirenote/core/schemas';
+import { sameRef, scheduleFacts } from '@quirenote/core/inzhur/parse';
+import { normalizeRef } from '@quirenote/core/inzhur/ref';
+import type { Asset, ColorKey } from '@quirenote/core/types';
 import { useInzhurAssets } from '../../hooks/useInzhurAssets';
 import { AssetAvatar } from '../ui/AssetAvatar';
 import { Button } from '../ui/Button';

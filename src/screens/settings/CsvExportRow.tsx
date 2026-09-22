@@ -13,8 +13,8 @@ import {
   serializeAssetsCsv,
   serializeSnapshotsCsv,
   serializeTransactionsCsv,
-} from '../../core/backup/csv';
-import { todayIso } from '../../core/dates';
+} from '@quirenote/core/backup/csv';
+import { todayIso } from '@quirenote/core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { saveTextFile } from '../../lib/download';
 import type { AllTables } from '../../lib/repository';

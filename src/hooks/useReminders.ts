@@ -6,8 +6,8 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { reminderToastText } from '../components/ui/reminder-labels';
-import { todayIso } from '../core/dates';
-import { computeReminders, type Reminder } from '../core/reminders';
+import { todayIso } from '@quirenote/core/dates';
+import { computeReminders, type Reminder } from '@quirenote/core/reminders';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
 import { useAssets, useSnapshots, useTransactions } from './queries';

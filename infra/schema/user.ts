@@ -303,7 +303,7 @@ export const asset = pgTable(
     // vocabulary that names no holding — `yield_type` and `payout_schedule`
     // below are constrained for exactly that reason.
     //
-    // The REAL palette size: `COLOR_KEYS` in `src/core/colors.ts` has four
+    // The REAL palette size: `COLOR_KEYS` in `@quirenote/core/colors` has four
     // entries and new assets cycle `% 4`.
     check('asset_color_slot_ck', sql`${t.colorSlot} >= 0 AND ${t.colorSlot} < 4`),
     // Two letters, because that is what the avatar circle renders.

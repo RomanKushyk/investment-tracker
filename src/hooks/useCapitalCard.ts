@@ -1,5 +1,5 @@
-import { headlineKpis } from '../core/derive';
-import { toUsd } from '../core/money';
+import { headlineKpis } from '@quirenote/core/derive';
+import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 import { useFormat } from './useFormat';
 import { useSnapshots, useTransactions } from './queries';

@@ -2,7 +2,7 @@ import { CircleAlert, Clock, Info, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 
-import type { Reminder, ReminderSeverity } from '../../core/reminders';
+import type { Reminder, ReminderSeverity } from '@quirenote/core/reminders';
 import { useFormat } from '../../hooks/useFormat';
 import { useReminders } from '../../hooks/useReminders';
 import { useSettings } from '../../state/settings';

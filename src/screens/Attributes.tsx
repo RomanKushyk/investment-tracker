@@ -5,8 +5,8 @@ import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { daysBetween, latestSnapshotDate } from '../core/dates';
-import { couponPerPayment } from '../core/accrual';
+import { daysBetween, latestSnapshotDate } from '@quirenote/core/dates';
+import { couponPerPayment } from '@quirenote/core/accrual';
 import {
   basisIsShort,
   investedByAsset,
@@ -14,9 +14,13 @@ import {
   portfolioStart,
   startDateByAsset,
   unitsByAsset,
-} from '../core/derive';
-import type { Asset, Transaction } from '../core/types';
-import { actualAnnualizedPct, derivedYtmPct, payoutScheduleFact } from './attributes/attributes';
+} from '@quirenote/core/derive';
+import type { Asset, Transaction } from '@quirenote/core/types';
+import {
+  actualAnnualizedPct,
+  derivedYtmPct,
+  payoutScheduleFact,
+} from '@quirenote/core/view/attributes';
 import { useInzhurAssets } from '../hooks/useInzhurAssets';
 import { useFormat } from '../hooks/useFormat';
 import type { Dict } from '../i18n/messages';

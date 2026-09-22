@@ -1,12 +1,12 @@
 // Pure helpers for the Daily quotes screen. Covered by quotes.test.ts.
-import { amountInputSchema } from '../../core/schemas';
-import type { Lang } from '../../core/money';
+import { amountInputSchema } from '@quirenote/core/schemas';
+import type { Lang } from '@quirenote/core/money';
 
 /** Money, as whole kopiykas — the unit the app displays and the one to compare in. */
 function kopiykas(n: number): number {
   return Math.round(n * 100);
 }
-import type { Asset, Snapshot } from '../../core/types';
+import type { Asset, Snapshot } from '@quirenote/core/types';
 
 export interface CollectedQuotes {
   /** Every non-empty draft the schema accepts, by asset id. */

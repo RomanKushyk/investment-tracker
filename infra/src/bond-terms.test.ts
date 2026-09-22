@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import sample from '../../src/core/inzhur/__fixtures__/assets-sample.json';
-import { parseAssetsFeed } from '../../src/core/inzhur/parse';
-import type { InzhurQuote } from '../../src/core/inzhur/parse';
+import sample from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
+import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
+import type { InzhurQuote } from '@quirenote/core/inzhur/parse';
 import { bondTermsRow } from './bond-terms';
 
 const bond = (over: Partial<InzhurQuote> = {}): InzhurQuote => ({

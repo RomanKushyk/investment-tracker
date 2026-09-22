@@ -10,10 +10,10 @@ import {
 } from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '../../core/colors';
+import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
-import type { ColorKey } from '../../core/types';
+import type { ColorKey } from '@quirenote/core/types';
 import { clampLabelX, expectedOnlyLabel } from './seasonality-labels';
 
 export interface SeasonalityChartPoint {

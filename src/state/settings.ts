@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import { PERIOD_OPTIONS, type PeriodOption } from '../core/period';
+import { PERIOD_OPTIONS, type PeriodOption } from '@quirenote/core/period';
 import { persist } from 'zustand/middleware';
 
-import type { Dataset } from '../core/backup/json';
-import { DEFAULT_LEAD_DAYS, isLeadDays } from '../core/reminders';
+import type { Dataset } from '@quirenote/core/backup/json';
+import { DEFAULT_LEAD_DAYS, isLeadDays } from '@quirenote/core/reminders';
 import { SETTINGS_KEY } from '../lib/storage-keys';
 
 /** `system` is a PREFERENCE, never a resolved value — which is what lets an OS flip

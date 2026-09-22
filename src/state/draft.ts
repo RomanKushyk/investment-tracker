@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { DRAFT_KEY } from '../lib/storage-keys';
-import type { QuoteOrigin } from '../core/types';
+import type { QuoteOrigin } from '@quirenote/core/types';
 
 // Draft quote entry — raw input text per asset, survives reloads (README §3).
 interface DraftState {

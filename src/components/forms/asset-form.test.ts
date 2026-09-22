@@ -3,12 +3,12 @@
 // inzhur-energy, bonds UA4000238976 (24.03.2027) / UA4000236475 (27.09.2028).
 import { describe, expect, it } from 'vitest';
 
-import { makeFormat } from '../../core/money';
+import { makeFormat } from '@quirenote/core/money';
 import { uk } from '../../i18n/messages';
 
-import { parseAssetsFeed } from '../../core/inzhur/parse';
-import fixture from '../../core/inzhur/__fixtures__/assets-sample.json';
-import { assetFormSchema } from '../../core/schemas';
+import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
+import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
+import { assetFormSchema } from '@quirenote/core/schemas';
 import { assetFormDefaults, inzhurRefOptions } from './asset-form';
 
 // The formatter is a parameter now (Contract 0), so these fixtures bind it

@@ -2,9 +2,13 @@
 // Mapping a `RowIssue` discriminant onto a message is app logic, not copy, and it
 // is the same mapping in both languages — what differs per language (plurals,
 // joiners, agreement) is on the dictionary side.
-import type { DiffWarning, FileRejectionCode, FormatRejectionCode } from '../../core/backup/import';
-import type { Dataset, RowIssue } from '../../core/backup/json';
-import type { Format } from '../../core/money';
+import type {
+  DiffWarning,
+  FileRejectionCode,
+  FormatRejectionCode,
+} from '@quirenote/core/backup/import';
+import type { Dataset, RowIssue } from '@quirenote/core/backup/json';
+import type { Format } from '@quirenote/core/money';
 import type { Dict } from '../../i18n/messages';
 
 export function fileRejection(code: FileRejectionCode, t: Dict): string {

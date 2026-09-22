@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { SEED_ASSETS } from '../../lib/seed';
-import type { Snapshot } from '../../core/types';
+import { SEED_ASSETS } from '@quirenote/core/seed';
+import type { Snapshot } from '@quirenote/core/types';
 import { bondAbbrev, collectQuotes, maxSavedAt, pendingChange, yesterdayQuote } from './quotes';
 
 const complete2507: Snapshot = {

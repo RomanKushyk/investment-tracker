@@ -8,14 +8,14 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '../../components/ui/Button';
-import { classifyImportFiles, diffBackup, validateImport } from '../../core/backup/import';
-import { todayIso } from '../../core/dates';
+import { classifyImportFiles, diffBackup, validateImport } from '@quirenote/core/backup/import';
+import { todayIso } from '@quirenote/core/dates';
 import { useExportAll } from '../../hooks/queries';
 import { dbVersion } from '../../lib/repository';
 import { useDataset } from '../../state/settings';
 import { fileRejection, importToasts } from './import-labels';
 import { ImportDialog, type ImportAttempt } from './ImportDialog';
-import type { FileRejectionCode } from '../../core/backup/import';
+import type { FileRejectionCode } from '@quirenote/core/backup/import';
 import { useT } from '../../i18n/useT';
 
 /** A file-level rejection is transient — it clears on the next attempt too. */

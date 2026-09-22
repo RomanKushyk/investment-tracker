@@ -2,8 +2,8 @@ import { Fragment } from 'react';
 import { Link } from 'react-router';
 
 import { Card } from '../../components/ui/Card';
-import { yieldSinceStart } from '../../core/derive';
-import type { Asset } from '../../core/types';
+import { yieldSinceStart } from '@quirenote/core/derive';
+import type { Asset } from '@quirenote/core/types';
 import { shortLabel } from './quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';

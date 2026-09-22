@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../core/types';
+import type { ColorKey } from '@quirenote/core/types';
 
 // The radius is proportional and NOT a capsule, taken off the RENDERED height:
 // `text-[11px]` sets a font size and no line height, so the markup alone cannot

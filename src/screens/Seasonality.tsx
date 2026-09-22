@@ -7,9 +7,9 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { TAP_44 } from '../components/ui/tap-target';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { couponPerPayment } from '../core/accrual';
-import { transactionsFromWindow, unitsByAsset } from '../core/derive';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import { couponPerPayment } from '@quirenote/core/accrual';
+import { transactionsFromWindow, unitsByAsset } from '@quirenote/core/derive';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { shortLabel } from './daily-quotes/quotes';
 import {
   anchorAssetGrowth,
@@ -20,7 +20,7 @@ import {
   quietStretch,
   seasonalityDaysIn,
   seasonalityMonthsIn,
-} from './seasonality/seasonality';
+} from '@quirenote/core/view/seasonality';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 

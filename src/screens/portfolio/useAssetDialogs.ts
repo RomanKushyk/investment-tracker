@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { assetFromForm, assetPatchFromForm } from '../../core/asset-builder';
-import type { AssetFormValues } from '../../core/schemas';
-import type { Asset } from '../../core/types';
+import { assetFromForm, assetPatchFromForm } from '@quirenote/core/asset-builder';
+import type { AssetFormValues } from '@quirenote/core/schemas';
+import type { Asset } from '@quirenote/core/types';
 import { useAddAsset, useUpdateAsset } from '../../hooks/queries';
 import { useT } from '../../i18n/useT';
 

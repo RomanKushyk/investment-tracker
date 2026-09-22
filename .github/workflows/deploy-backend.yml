@@ -8,14 +8,11 @@ on:
     paths:
       - 'infra/**'
       # NO EXCLUSION FOR THE DRAFT DDL: `deploy-frontend.yml` already ignores `infra/**`, so a
-      # drafts-only push excluded here would match NO workflow and run no gates at all. The
-      # three below are here because the handler bundles the parser from src/core.
-      - 'src/core/inzhur/**'
-      - 'src/core/nbu/**'
-      - 'src/core/dates.ts'
-      # In the handler's TypeScript program, and the two tsconfigs disagree: the root has DOM
-      # + vite/client and infra neither, so a DOM type added here breaks the infra build alone.
-      - 'src/core/types.ts'
+      # drafts-only push excluded here would match NO workflow and run no gates at all.
+      # THE WHOLE PACKAGE, NOT THE MODULES THE HANDLERS IMPORT: the handlers bundle it, and the
+      # four-file list this replaced could only ever fail one way — an import added to a handler
+      # and no deploy triggered, in silence. A superset costs a no-op run; a subset ships nothing.
+      - 'packages/core/**'
       # The bundle INLINES root dependencies, so a `zod` bump changes the deployed Lambda's
       # code — without these two a security bump would ship the frontend and leave it behind.
       - 'package.json'
@@ -74,12 +71,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # npm, not pnpm: pnpm's symlinked store left `pg` unable to resolve its own transitive
-      # deps when esbuild bundled it, and infra is not a workspace member, so pnpm buys nothing.
-      - name: Install backend deps
-        working-directory: infra
-        run: npm ci
-
       # THE WHOLE SUITE, not a path-filtered selection: two hand-kept lists both leaked, and
       # deploy-frontend skips an infra-only push, leaving these tests green but never run.
       - run: pnpm test
@@ -94,7 +85,9 @@ jobs:
       - run: pnpm lint
 
       # Bundled here rather than by `sam build`: both SAM builders sandbox the CodeUri
-      # directory, so `../../src/core` vanishes. The list is held to the templates by a test.
+      # directory, so the symlink to the domain package vanishes with it. The list is held to the
+      # templates by a test, and so is the ABSENCE of `--packages=external`, which would
+      # externalise `@quirenote/core` into a bare require Lambda cannot resolve.
       - name: Bundle the handlers
         working-directory: infra
         run: |

@@ -45,7 +45,7 @@ function stripCss(source: string, what: string): string {
 
 /** LINE BY LINE, and the line boundary is the point: a whole-file scanner cannot be exact
  *  without parsing TypeScript, because a regex literal may hold a quote —
- *  `src/core/backup/csv.ts` has one — and that desynchronises quote tracking for the REST
+ *  `packages/core/src/backup/csv.ts` has one — and that desynchronises quote tracking for the REST
  *  OF THE FILE, silently switching stripping off. Per line, a desync cannot outlive it. */
 function stripTs(source: string): string {
   const out: string[] = [];
@@ -310,8 +310,10 @@ describe('a floating surface clears 3 : 1 on every plane it is drawn on', () => 
 
 /* ────────────────────────── the markup half ────────────────────────── */
 
-/** `.ts` as well as `.tsx`: the chart tooltip's edge is a string in `core/colors.ts`, and
- *  a `.tsx`-only walk could not see it. */
+/** `.ts` as well as `.tsx`: several edges are strings in plain modules and a `.tsx`-only walk
+ *  could not see them. The walk is `src/` alone — the chart tooltip's edge moved to the domain
+ *  package and is read by name below, because widening this sweep to the package would pull in
+ *  sixty modules that paint nothing. */
 function sourceFiles(dir: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir)) {
@@ -333,7 +335,13 @@ const source = (f: string) => {
   expect(s, `${f} is gone — this pin needs rewriting`).toBeDefined();
   return s!;
 };
-const ALL_SOURCE = [...SOURCES.values()].join('\n');
+/** Outside the walk above, and deliberately so — see `sourceFiles`. */
+const CHART_COLORS = stripTs(read('../packages/core/src/colors.ts'));
+
+// AND IT IS IN HERE TOO, not only in the one positive assertion it was read for: the retirement
+// sweep at the foot of this file reads `ALL_SOURCE`, and this is the only module outside `src/`
+// that names palette tokens. Left out, that guard goes on passing because it stopped looking.
+const ALL_SOURCE = [...SOURCES.values(), CHART_COLORS].join('\n');
 
 /** Line-based is enough where `filled-track.test.ts` needed a brace scanner — the border
  *  and the shadow live in one `className` string, not in two attributes. A line deferring
@@ -416,7 +424,7 @@ describe('the floating surfaces point at the token', () => {
       'the toast is back on the rank it left — matched on the DECLARATION, so a sonner ' +
         'action button legitimately reading `panel-border` is not a border regression',
     ).not.toContain("border: '1px solid var(--color-panel-border)'");
-    expect(source('core/colors.ts'), 'the chart tooltip lost the token').toContain(
+    expect(CHART_COLORS, 'the chart tooltip lost the token').toContain(
       '1px solid var(--color-field-border)',
     );
   });

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { makeFormat } from '../../core/money';
+import { makeFormat } from '@quirenote/core/money';
 import { en, uk } from '../../i18n/messages';
 
-import type { Reminder } from '../../core/reminders';
+import type { Reminder } from '@quirenote/core/reminders';
 import {
   moreRemindersLabel,
   reminderAction,

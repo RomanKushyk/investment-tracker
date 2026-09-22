@@ -7,8 +7,8 @@
 // a draft.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { kyivDateIso } from '../core/dates';
-import { nbuRateUrl, parseNbuRate, type NbuRate } from '../core/nbu/rate';
+import { kyivDateIso } from '@quirenote/core/dates';
+import { nbuRateUrl, parseNbuRate, type NbuRate } from '@quirenote/core/nbu/rate';
 import { repo } from '../lib/repository';
 import { useDataset } from '../state/settings';
 

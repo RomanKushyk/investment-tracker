@@ -8,7 +8,7 @@ import {
   type Ref,
 } from 'react';
 
-import { groupedForInput, valueFromInput } from '../../core/money';
+import { groupedForInput, valueFromInput } from '@quirenote/core/money';
 import { caretAfterDigits, digitsBefore, withoutDigit } from './number-field';
 import { useSettings } from '../../state/settings';
 

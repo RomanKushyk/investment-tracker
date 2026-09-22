@@ -3,7 +3,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { addDays } from '../../src/core/dates';
+import { addDays } from '@quirenote/core/dates';
 import { fundHistoryRows, type FundHistoryRow } from './fund-history';
 import { readXlsx } from './xlsx';
 

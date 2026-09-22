@@ -6,8 +6,7 @@ Alerts and automated security fixes are on as a repository setting; there is no 
 
 | Manifest | Manager / lockfile | Fix |
 |---|---|---|
-| `package.json` (root) | pnpm / `pnpm-lock.yaml` | edit + `pnpm install`, or override |
-| `infra/package.json` | npm / `infra/package-lock.json` | edit + `npm install`/`npm ci` |
+| `package.json` (root), `infra/package.json`, `packages/core/package.json` | pnpm / `pnpm-lock.yaml` — one workspace, one lockfile | edit + `pnpm install`, or override |
 | `.github/workflows/*.yml` **and `.github/actions/*/action.yml`** | github-actions / none | hand-edit the `@vN` pin — `actions/upload-artifact` is pinned in the composite action ALONE, so a workflows-only grep misses it |
 
 Overrides live in **`pnpm-workspace.yaml`**, never in `package.json`'s `pnpm` field — pnpm 11 no longer reads that field and only warns, so the fix looks applied and changes nothing.
@@ -42,7 +41,7 @@ Steps that fail silently if skipped, not merely redundant:
 - The final `pnpm install --frozen-lockfile` — without it `node_modules` can still hold the branch's tree rather than `dev`'s lockfile, the same mismatch in the opposite direction.
 - `git branch -D @{-1}`, not `git branch -D -` — `git branch -D -` does not work; `@{-1}` is what `-` expands to elsewhere.
 
-For an `infra/` alert, run `(cd infra && npm ci)` then `pnpm exec tsc --noEmit -p infra` before the gate line — the frozen-lockfile install above never touches `infra/node_modules`, so without these two a `pg` or `@aws-sdk/*` bump merges unverified.
+For an `infra/` or `packages/core/` alert, add `pnpm exec tsc --noEmit -p infra` to the gate line — the four gates do not read `infra/`, so without it a `pg` or `@aws-sdk/*` bump merges unverified. The install above already covers those trees: they are workspace members.
 
 ## Without a PR
 

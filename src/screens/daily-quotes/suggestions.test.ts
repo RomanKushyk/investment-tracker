@@ -2,11 +2,11 @@
 // first case asserts is the design reference's own row.
 import { describe, expect, it } from 'vitest';
 
-import { parseAssetsFeed } from '../../core/inzhur/parse';
-import { investedByAsset } from '../../core/derive';
-import type { Asset } from '../../core/types';
-import fixture from '../../core/inzhur/__fixtures__/assets-sample.json';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '../../lib/seed';
+import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
+import { investedByAsset } from '@quirenote/core/derive';
+import type { Asset } from '@quirenote/core/types';
+import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { accrualSuggestion, couponPrefill } from './suggestions';
 
 const snapshots = buildSeedSnapshots();

@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-import { PERIOD_OPTIONS, resolveWindow, type PeriodOption } from '../../core/period';
+import { PERIOD_OPTIONS, resolveWindow, type PeriodOption } from '@quirenote/core/period';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import { useSettings } from '../../state/settings';

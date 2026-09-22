@@ -9,10 +9,10 @@ import {
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP, SERIES } from '../../core/colors';
-import { signed } from '../../core/money';
-import type { Asset } from '../../core/types';
-import type { YieldSeriesPoint } from '../../screens/yield/yield';
+import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
+import { signed } from '@quirenote/core/money';
+import type { Asset } from '@quirenote/core/types';
+import type { YieldSeriesPoint } from '@quirenote/core/view/yield';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 

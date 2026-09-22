@@ -12,7 +12,7 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 |---|---|
 | `template.yaml` | The ARCHIVE stack, `quirenote-backend`: DSQL cluster, capture Lambda, schedule, DLQ, alarms. One of it for every environment, deployed from `dev` alone |
 | `template-user.yaml` | The USER stack: one DSQL cluster, the migration Lambda that fills it, the Cognito pool whose users own its rows, and the HTTP API the app reaches them through. Deployed twice, as `quirenote-backend-user-dev` and `quirenote-backend-user-prod`, from an `Environment` parameter with no default that the backup tag, the auth domain and the two prod-only watches all derive from. There is deliberately no `DefaultAuthorizer` — SAM renders an opted-out route against a scheme it never declares and `FailOnWarnings` is set — so what holds the line is `src/public-api.test.ts`, which derives the routes from this template and fails any that names no authorizer and is not on its written public list. **Three of the pool's properties cannot be changed after creation** — [`../docs/reference/COGNITO-POOL-PARAMS.md`](../docs/reference/COGNITO-POOL-PARAMS.md) |
-| `src/capture.ts` | The capture handler. Imports the parser from `src/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
+| `src/capture.ts` | The capture handler. Imports the parser from `@quirenote/core` — never a second copy. Manual modes: `backfill`, `observe`, `diagnose`, `importFundHistory` |
 | `src/migrate.ts` | The migration handler, and the only thing that applies a file from `migrations/`. Two callers, one composite action between them — [`.github/actions/invoke-migration`](../.github/actions/invoke-migration/action.yml), which resolves the function, invokes it and reads the verdict: [`deploy-backend.yml`](../.github/workflows/deploy-backend.yml) plans after every stack update and, where anything is pending, rehearses and applies unattended, a failed apply opening an issue; [`migrate.yml`](../.github/workflows/migrate.yml) is the repair path and the bootstrap. One required mode — `rehearse`, `dry-run`, `apply`, or `bootstrap` (the FIRST super-admin, which applies no file, has no rehearsal, and asks the cluster what it already holds because it has no way to un-mint) — and an unrecognised one is refused rather than defaulted. A rehearsal's `DROP SCHEMA` retries a `40001` conflict and, **if the schema still will not go**, RESOLVES with a `teardown` key naming it rather than raising: a teardown that failed is not the finding a refused statement is, and the shared action fails the run on that key, for either caller |
 | `src/asset-delete.ts` | Deleting an asset: children before the parent, batched, each batch its own transaction, every predicate scoped by `user_id` — what the `ON DELETE RESTRICT` keys deliberately refuse to do |
 | `src/pre-signup.ts` | The pre-sign-up trigger. Links a federated identity to the local account already holding the address — only when the provider asserts it verified, and only in one direction, so the account owning the portfolio is not the one absorbed. Its grant is a policy of its own in the template, because the pool names the function and nothing the pool depends on may name the pool |
@@ -37,14 +37,16 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 ## Local rules
 
 - **`pnpm typecheck` does NOT read this folder.** Run `pnpm exec tsc --noEmit -p infra` from the
-  repository root after `npm ci` here — the root `tsconfig.json` includes only `src`,
-  `vite.config.ts` and `scripts`, and this folder carries neither `typescript` nor `@types/node` of
-  its own, nor the `pg` / `@aws-sdk/*` packages `capture.ts` imports.
+  repository root: the root `tsconfig.json` does not include this one, and the two sets of compiler
+  options differ on purpose — no DOM and no `vite/client` here — so the shared domain package is
+  checked twice and a browser-only type in it fails here alone. `pnpm exec` because `typescript`
+  resolves from the root tree; the dependencies `capture.ts` imports come from the ordinary
+  `pnpm install`, this folder being a workspace member.
 - **Never add a VPC.** DSQL is a public IAM-authenticated endpoint and Lambda has internet egress by
   default; a NAT Gateway would cost roughly 1600× the rest of the stack.
 - **Never enable provisioned concurrency or SnapStart.** Both void Lambda's always-free tier for
   this function. Fix cold starts with `Timeout`, not these.
-- **The parser is imported from `src/core`, never reimplemented.** Two parsers eventually disagree
+- **The parser is imported from `@quirenote/core`, never reimplemented.** Two parsers eventually disagree
   about a price, and only one of them is tested.
 - **One DDL statement per transaction, and DDL never shares a transaction with DML** — a DSQL
   constraint, not a style choice. Same for `CREATE INDEX ASYNC`.

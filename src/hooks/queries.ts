@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { repo } from '../lib/repository';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 
 export const keys = {
   assets: ['assets'],

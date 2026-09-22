@@ -19,8 +19,8 @@ import {
   DialogFooter,
   DialogHeader,
 } from '../../components/ui/Dialog';
-import { todayIso } from '../../core/dates';
-import { signed } from '../../core/money';
+import { todayIso } from '@quirenote/core/dates';
+import { signed } from '@quirenote/core/money';
 import { useReplaceAll } from '../../hooks/queries';
 import { useDraft } from '../../state/draft';
 import { migrateSettings, useDataset, useSettings } from '../../state/settings';
@@ -36,8 +36,8 @@ import {
   warningSentence,
 } from './import-labels';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
-import type { BackupDiff, ImportRejection, TableDiff } from '../../core/backup/import';
-import type { BackupEnvelope, Dataset } from '../../core/backup/json';
+import type { BackupDiff, ImportRejection, TableDiff } from '@quirenote/core/backup/import';
+import type { BackupEnvelope, Dataset } from '@quirenote/core/backup/json';
 import { useFormat } from '../../hooks/useFormat';
 import type { Dict } from '../../i18n/messages';
 import { useT } from '../../i18n/useT';

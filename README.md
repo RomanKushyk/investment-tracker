@@ -20,8 +20,8 @@ An empty IndexedDB seeds the demo dataset on first load. `/settings → Data` re
 ## Layout
 | Path | Holds |
 |---|---|
-| `src/core/` | pure domain: types, derivations, XIRR, accrual, parsers; no I/O, returns keys not prose |
-| `src/lib/` | persistence: Dexie schema, `repository.ts`, seed, backup |
+| `packages/core/` | `@quirenote/core`, the pure domain layer the app and `infra/` both import: types, derivations, XIRR, accrual, parsers, the per-screen view models and the demo seed; no I/O, returns keys not prose |
+| `src/lib/` | persistence and browser I/O: Dexie schema, `repository.ts`, file download, cross-tab sync |
 | `src/state/` | the settings store |
 | `src/screens/`, `src/components/` | the routes and the UI kit |
 | `src/i18n/` | the dictionary — English canonical, Ukrainian default |

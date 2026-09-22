@@ -1,9 +1,9 @@
 // Dexie database factory — imported only by repository.ts (*Core is pure*).
 import { Dexie, type Table } from 'dexie';
 
-import type { Dataset } from '../core/backup/json';
+import type { Dataset } from '@quirenote/core/backup/json';
 import { SETTINGS_KEY } from './storage-keys';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 
 export interface MetaRow {
   key: string;

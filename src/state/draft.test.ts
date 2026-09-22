@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useDraft } from './draft';
-import { groupedForInput, inputValue, valueFromInput } from '../core/money';
+import { groupedForInput, inputValue, valueFromInput } from '@quirenote/core/money';
 
 // The first tests for this store, and they exist for one question: whether a
 // language switch has to rewrite what it holds. It does not — the strings are

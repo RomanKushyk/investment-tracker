@@ -1,5 +1,5 @@
 // Handing a generated file to the user (*Persistence today*). Browser APIs, so
-// src/lib and never src/core.
+// src/lib and never the domain package.
 //
 // Two paths, same bytes and same suggested name: `showSaveFilePicker` where it
 // exists, `<a download>` everywhere else. Cancelling the Save-as dialog is not an

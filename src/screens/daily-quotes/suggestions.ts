@@ -7,10 +7,15 @@ import {
   dailyAccrual,
   suggestedQuote,
   type DueCoupon,
-} from '../../core/accrual';
-import { checkQuote, type QuoteVerdict } from '../../core/inzhur/dcf';
-import { couponForecast, matchAssets, NO_UNITS, type ParsedFeed } from '../../core/inzhur/parse';
-import type { Asset, Snapshot } from '../../core/types';
+} from '@quirenote/core/accrual';
+import { checkQuote, type QuoteVerdict } from '@quirenote/core/inzhur/dcf';
+import {
+  couponForecast,
+  matchAssets,
+  NO_UNITS,
+  type ParsedFeed,
+} from '@quirenote/core/inzhur/parse';
+import type { Asset, Snapshot } from '@quirenote/core/types';
 
 import { lastQuoteBefore } from './quotes';
 

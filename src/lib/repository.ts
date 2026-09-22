@@ -1,8 +1,8 @@
 // The ONLY module that touches the database. UI consumes it via hooks/queries.ts.
 import { activeDataset, db } from './db';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { postDbSync, withDbLock } from './sync';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 
 export interface AllTables {
   assets: Asset[];

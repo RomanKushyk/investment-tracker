@@ -793,6 +793,18 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
       expect([entry, bundle?.run?.includes(entry)]).toEqual([entry, true]);
   });
 
+  it('inlines the domain package rather than externalising it', () => {
+    const bundle = steps.find((s) => s.run?.includes('esbuild'));
+    expect(bundle?.run).toContain('--bundle');
+    // `--packages=external` externalises anything that LOOKS like a package path, and the only
+    // exceptions are subpath imports beginning `#` and tsconfig `paths` remappings. A package
+    // NAME is neither, so the flag would leave `@quirenote/core` as a bare require against a
+    // node_modules Lambda never receives — a deploy that only fails at the first invocation.
+    // `--external:pg-native` is the one exclusion, and it is named rather than swept.
+    expect(bundle?.run).not.toContain('--packages=external');
+    expect(bundle?.run).toContain('--external:pg-native');
+  });
+
   it('smoke-tests every bundle it copies, and copies every one it bundles', () => {
     const smoke = steps.find((s) => s.run?.includes('bundle-check'));
     const entries = [archive, user].flatMap(handlers).map((h) => h.replace(/\.handler$/, ''));

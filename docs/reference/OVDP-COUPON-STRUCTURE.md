@@ -88,4 +88,4 @@ One public `GET https://www.inzhur.reit/_api/assets`, then per entry with a non-
 `assetDetails.isin`: read `assetDetails.paymentSchedule`, convert `amount` from kopecks, treat the
 ₴1000 rows as principal and the rest as coupons, and read dates in **Kyiv** time — they are instants
 at local midnight, so parsing them as UTC lands them a day early
-([`parse.ts`](../../src/core/inzhur/parse.ts) `feedDate`).
+([`parse.ts`](../../packages/core/src/inzhur/parse.ts) `feedDate`).

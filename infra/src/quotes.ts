@@ -1,6 +1,6 @@
 // Kept out of `capture.ts` so a test for it does not drag in the handler's `@aws-sdk/*` imports.
-import { checkQuote } from '../../src/core/inzhur/dcf';
-import type { parseAssetsFeed } from '../../src/core/inzhur/parse';
+import { checkQuote } from '@quirenote/core/inzhur/dcf';
+import type { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
 
 /** `unexplained` carries refs, the rest counts: a count is a graph, a ref is a thing to look at. */
 export interface QuoteTally {

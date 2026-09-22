@@ -1,4 +1,4 @@
-import type { ColorKey } from '../../core/types';
+import type { ColorKey } from '@quirenote/core/types';
 
 const BG: Record<ColorKey, string> = {
   reit: 'bg-reit',

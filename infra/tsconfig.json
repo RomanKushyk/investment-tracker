@@ -15,18 +15,20 @@
     "noEmit": true,
     "skipLibCheck": true,
 
-    // Deliberately the same strictness as the root project, no more: src/core
-    // is shared code compiled by both, and a flag enabled only here would make
-    // the same file pass one config and fail the other.
+    // Deliberately the same strictness as the root project, no more: the domain
+    // package is shared code compiled by both, and a flag enabled only here would
+    // make the same file pass one config and fail the other.
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  // src/capture.ts imports the parser from ../../src/core, so those files are
-  // pulled in by resolution and typechecked as part of this project. `schema`
-  // and `drizzle.config.ts` are included explicitly — nothing imports either,
-  // so resolution alone would never pull them in, and neither tsconfig read
-  // them before this line: the root one covers only `src` + `vite.config.ts`.
+  // src/capture.ts imports the parser from `@quirenote/core`, whose exports point at .ts
+  // source, so those files are pulled in by resolution and typechecked as part of this
+  // project under THESE options rather than the root's. `packages` is deliberately NOT on
+  // the include: only what is actually imported belongs here, and naming the package would
+  // drag the whole package in, tests included — derive.ts, period.ts and xirr.ts among them.
+  // `schema` and `drizzle.config.ts` are included explicitly — nothing imports either, so
+  // resolution alone would never pull them in.
   "include": ["src", "schema", "scripts", "drizzle.config.ts"]
 }

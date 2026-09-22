@@ -10,7 +10,7 @@ import type { SqlClient } from './migrate';
 import { applyFile, ensureLedger, statementsOf } from './migrate';
 import { readFileSync } from 'node:fs';
 
-import { addDays } from '../../src/core/dates';
+import { addDays } from '@quirenote/core/dates';
 
 const SCHEMA = new URL('../migrations/003_user_schema.sql', import.meta.url);
 

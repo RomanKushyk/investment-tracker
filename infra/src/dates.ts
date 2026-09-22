@@ -1,6 +1,6 @@
 // The dating rule, kept out of `capture.ts` so a test for it does not drag in the handler's
 // `@aws-sdk/*` imports, which the frontend CI job cannot resolve.
-import { addDays, kyivDateIso } from '../../src/core/dates';
+import { addDays, kyivDateIso } from '@quirenote/core/dates';
 
 /**
  * Inzhur: the Kyiv date the run happens on, with no subtraction. The endpoint is LIVE, and what

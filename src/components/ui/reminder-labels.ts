@@ -1,7 +1,7 @@
 // The reminder banners' and the app-open toast's sentences. The component layer
 // owns the words, `core/reminders` returning tokens only. *Core is pure*
-import type { Reminder, ReminderKind } from '../../core/reminders';
-import type { Format } from '../../core/money';
+import type { Reminder, ReminderKind } from '@quirenote/core/reminders';
+import type { Format } from '@quirenote/core/money';
 import type { Dict } from '../../i18n/messages';
 
 /**

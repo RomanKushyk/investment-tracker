@@ -46,7 +46,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
-  // Import zones (docs/plans/NEXT-PHASE-PLAN.md G1 / DECISIONS D2+D8).
+  // Import zones (*Core is pure*).
   // Everywhere: lib/db.ts is imported ONLY by lib/repository.ts — plus its
   // colocated test, which needs db.delete()/open() for per-test isolation.
   {
@@ -66,28 +66,43 @@ export default tseslint.config(
       ],
     },
   },
-  // src/core is the pure domain layer: no react/dexie/zustand, no lib/.
-  // (This block REPLACES the rule above for core files, so it restates the
-  // db restriction via the lib/** pattern.)
+  // packages/core is the pure domain layer: no react/dexie/zustand, no reach back into the app
+  // or the backend. THE SELECTOR IS THE WHOLE MECHANISM and it fails silently — a config whose
+  // `files` matches nothing still parses green — so `src/domain-purity.test.ts` lints text AT a
+  // package path rather than reading this block.
+  // (It REPLACES the rule above rather than merging with it, so it restates the db restriction
+  // via the lib/** pattern.)
   {
-    files: ['src/core/**/*.ts'],
+    files: ['packages/core/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           paths: [
-            { name: 'react', message: 'src/core is the pure domain layer — no React (G1).' },
-            { name: 'react-dom', message: 'src/core is the pure domain layer — no React (G1).' },
+            {
+              name: 'react',
+              message: 'the domain package is pure — no React (*Core is pure*).',
+            },
+            {
+              name: 'react-dom',
+              message: 'the domain package is pure — no React (*Core is pure*).',
+            },
             {
               name: 'dexie',
-              message: 'src/core never touches persistence — that is src/lib (G1).',
+              message:
+                'the domain package never touches persistence — that is src/lib (*Core is pure*).',
             },
-            { name: 'zustand', message: 'src/core never touches stores — that is src/state (G1).' },
+            {
+              name: 'zustand',
+              message:
+                'the domain package never touches stores — that is src/state (*Core is pure*).',
+            },
           ],
           patterns: [
             {
               group: ['**/lib/**', '**/lib'],
-              message: 'src/core must not import src/lib — core imports only core (G1).',
+              message:
+                'the domain package must not import src/lib — it imports only itself (*Core is pure*).',
             },
             {
               group: [
@@ -97,7 +112,15 @@ export default tseslint.config(
                 '**/state/**',
                 '**/app/**',
               ],
-              message: 'src/core must not import UI layers — core imports only core (G1).',
+              message:
+                'the domain package must not import UI layers — it imports only itself (*Core is pure*).',
+            },
+            {
+              // The two trees it now sits BESIDE rather than inside. Without this a package module
+              // could climb out with ../../../src or ../../../infra and match none of the above.
+              group: ['**/src/**', '**/infra/**'],
+              message:
+                'the domain package never reaches back into the app or the backend (*Core is pure*).',
             },
           ],
         },

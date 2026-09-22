@@ -1,5 +1,5 @@
 import { Card } from '../../components/ui/Card';
-import type { Asset, Snapshot } from '../../core/types';
+import type { Asset, Snapshot } from '@quirenote/core/types';
 import { pendingChange } from './quotes';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';

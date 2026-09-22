@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import type { Dataset } from '../../core/backup/json';
+import type { Dataset } from '@quirenote/core/backup/json';
 import { useDataset, useSettings } from '../../state/settings';
 import { useT } from '../../i18n/useT';
 import { TAP_44 } from '../../components/ui/tap-target';

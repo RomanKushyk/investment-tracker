@@ -4,8 +4,8 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { msUntilNextKyivHour } from '../core/dates';
-import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '../core/inzhur/parse';
+import { msUntilNextKyivHour } from '@quirenote/core/dates';
+import { parseAssetsFeed, type ParsedFeed, type SkippedEntry } from '@quirenote/core/inzhur/parse';
 import { repo } from '../lib/repository';
 import { useDataset } from '../state/settings';
 

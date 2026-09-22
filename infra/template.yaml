@@ -39,8 +39,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       # NO BuildMethod, deliberately: both SAM builders copy the CodeUri directory into a
-      # sandbox first, so the handler's `../../src/core` imports resolve to nothing. The
-      # workflow runs esbuild from the repo instead, keeping one parser rather than a copy.
+      # sandbox first, so the node_modules link to `@quirenote/core` goes with it and the
+      # handler's import of the parser resolves to nothing. The workflow runs esbuild from the
+      # repo instead, keeping one parser rather than a copy.
       CodeUri: dist/
       Handler: capture.handler
       # No ReservedConcurrentExecutions: reserving any of this account's small quota drops the

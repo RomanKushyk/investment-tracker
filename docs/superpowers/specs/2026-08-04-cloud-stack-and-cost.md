@@ -22,7 +22,7 @@ What stays unchanged is the frontend (React 19 + Vite 7 + TS + Tailwind 4) and A
 provider payload is kept **forever** so any lifecycle question stays retroactively re-derivable.
 Two rows of the original plan have since moved: the PWA shell is removed (*Cloud target* —
 cross-browser beats offline, and install needs no service worker), and derivation is no longer
-100% client-side but an IMPORT of `src/core/derive.ts` running server-side, designed in
+100% client-side but an IMPORT of `@quirenote/core/derive` running server-side, designed in
 [`2026-09-03-w7-read-surface-design.md`](2026-09-03-w7-read-surface-design.md).
 
 ## The DSQL limitations a schema has to be written inside

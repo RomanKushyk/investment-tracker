@@ -1,0 +1,16 @@
+{
+  "name": "@quirenote/core",
+  "private": true,
+  "type": "module",
+  "description": "The pure domain layer, imported by the app and by infra/ — see README.md",
+  "exports": {
+    "./inzhur/__fixtures__/assets-sample.json": "./src/inzhur/__fixtures__/assets-sample.json",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}

@@ -13,9 +13,9 @@ import {
   DialogHeader,
   Dialog,
 } from '../../components/ui/Dialog';
-import type { Asset } from '../../core/types';
+import type { Asset } from '@quirenote/core/types';
 import { useDeleteAsset, useSnapshots, useTransactions } from '../../hooks/queries';
-import { cascadeCounts } from './portfolio';
+import { cascadeCounts } from '@quirenote/core/view/portfolio';
 import { useBackupDownload } from '../../hooks/useBackupDownload';
 import { useT } from '../../i18n/useT';
 import type { AssetDialogsControl } from './useAssetDialogs';

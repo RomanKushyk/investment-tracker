@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { Link } from 'react-router';
 
 import { buttonVariants } from '../components/ui/button-variants';
@@ -10,8 +10,8 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { ReminderStrip } from '../components/ui/ReminderStrip';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';
-import { xirrIsExtrapolatedIn } from './yield/yield';
-import { dayBefore } from '../core/dates';
+import { xirrIsExtrapolatedIn } from '@quirenote/core/view/yield';
+import { dayBefore } from '@quirenote/core/dates';
 import { ShareBar } from '../components/ui/ShareBar';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { useTweenedNumber } from '../hooks/useTweenedNumber';
@@ -28,9 +28,9 @@ import {
   reinvestedTotal,
   sharePct,
   yieldSinceStart,
-} from '../core/derive';
-import { todayIso } from '../core/dates';
-import { toUsd } from '../core/money';
+} from '@quirenote/core/derive';
+import { todayIso } from '@quirenote/core/dates';
+import { toUsd } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 import { bondAbbrev, shortLabel } from './daily-quotes/quotes';
 import {
@@ -39,7 +39,7 @@ import {
   netResultIn,
   totalReturnKpiIn,
   portfolioXirrIn,
-} from './overview/overview';
+} from '@quirenote/core/view/overview';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { Scroller } from '../components/ui/Scroller';

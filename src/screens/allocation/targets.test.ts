@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { changedTargets, parseTargetPct, sumStatus, targetRowStates, targetsSum } from './targets';
-import { makeFormat } from '../../core/money';
+import { makeFormat } from '@quirenote/core/money';
 
 // Seed-shaped fixture.
 const ASSETS = [

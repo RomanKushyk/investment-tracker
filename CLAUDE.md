@@ -1,18 +1,18 @@
 # Quirenote — investment portfolio tracker
 
-Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, pnpm. Persistence today is Dexie on IndexedDB. `infra/` is a separate AWS backend (a daily price archive on Aurora DSQL) that the app does not read yet.
+Single-user tracker for Ukrainian government bonds (ОВДП) and Inzhur funds. React 19 + Vite + TypeScript + Tailwind 4, one pnpm workspace: the SPA at the root, `infra/` the AWS backend (a daily price archive on Aurora DSQL), and `packages/core` the domain layer both import. Persistence today is Dexie on IndexedDB; no screen calls the backend yet.
 
 ## Commands
 - `pnpm dev` — port and `strictPort` live in `vite.config.ts`, nowhere else. It refuses to boot on a conflict instead of drifting: check what holds the port, attach if it is this app, else `pnpm dev --port N`. The owner usually has one running.
 - Gates, all four before any merge: `pnpm lint && pnpm typecheck && pnpm test && pnpm format:check`.
-- Fifth gate when `infra/` or a shared core file (`src/core/types.ts`, `dates.ts`, `ovdp.ts`, `inzhur/{parse,dcf,ref}.ts`, `nbu/{date,fair-value}.ts`) changes: `npm ci` in `infra/`, then `pnpm exec tsc --noEmit -p infra` from the root.
+- Fifth gate when `infra/` or `packages/core/` changes: `pnpm exec tsc --noEmit -p infra` from the root. The root typecheck does not cover `infra/`, and the two configs disagree on purpose — a DOM type in the package passes one and fails the other.
 
 ## Workflow
 1. Session start: read the Project's `Triage` column (`gh project item-list 2 --owner RomanKushyk --format json`). Non-empty → run the `triage-issue` skill first. Nothing is coded against an untriaged issue.
 2. Pick a `Ready` issue with no open blocker from the open version milestone; a `bug` goes first. Move it to `In progress` — that column must be empty before. One issue at a time. A multi-part ask that will not fit one issue goes through the `plan-epic` skill first and lands as an epic with `Ready` sub-issues to pick from.
 3. Branch `<type>/<kebab-title>` from `dev`. Always a branch, however small the diff; `dependabot/…` is the one naming exception.
 4. Failing test first, then the change, then the gates.
-5. `/code-review` on the branch diff. One round is the norm. A second or third only when a fix changed behaviour in `src/core/**`, `src/lib/repository.ts`, `src/lib/seed.ts`, `infra/**` or `.github/workflows/**`, or the review found a defect class. Three is the cap; a fourth wanted means the branch is wrong — write a root-cause comment on the issue, then split or redesign.
+5. `/code-review` on the branch diff. One round is the norm. A second or third only when a fix changed behaviour in `packages/core/**`, `src/lib/repository.ts`, `infra/**` or `.github/workflows/**`, or the review found a defect class. Three is the cap; a fourth wanted means the branch is wrong — write a root-cause comment on the issue, then split or redesign.
 6. Squash-merge into `dev` with `Closes #N` in the body; push `dev`. The `work-issue` skill is this list as a procedure.
 
 ## Definition of Done
@@ -27,7 +27,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 
 ## Invariants — the why is in `docs/DECISIONS.md`, under the topic in brackets
 - Every portfolio figure is derived from stored data; nothing is hard-coded. [Derived figures and the seed]
-- The app is local: Dexie, two databases (demo, live). `infra/` archives prices; no screen reads it yet. [Persistence today · The price archive]
+- The app is local: Dexie, two databases (demo, live). `infra/` archives prices and no screen calls it yet — what the two share is `packages/core`, not data. [Persistence today · The price archive]
 - Alarms carry no `AlarmActions` and there is no SNS topic. Deliberate; do not add one. [Alerting]
 - Inzhur dealer quotes and NBU fair values are different bases and are never merged. [The price archive]
 - Nothing is a capsule: standalone radius `round(min(w,h) × 0.26)`, nested `outer = inner + gap`, and a full-bleed band takes square corners. Only avatars and colour dots are round; the mark is drawn geometry. [Shape system]
@@ -38,7 +38,7 @@ Every acceptance criterion ticked · a behaviour change has a test, a bug fix st
 - Every interaction has fluid, soft motion; `prefers-reduced-motion` is respected. [Interaction rules]
 - Measure in the chrome-devtools MCP, never Playwright's headless Chromium. Calibrate a probe first, disable transitions, check `document.visibilityState`, reload rather than flip the theme, and measure the rendered height — `text-[11px]` sets no line height. [Measurement]
 - The design reference is `design/Investment Tracker.dc.html`, styles inline (ignore `support.js` and `_ds/`); colours come from the Tailwind theme tokens, never ad-hoc hex. [Design pipeline]
-- `src/core/` is pure and returns keys, never prose; `src/lib/` is persistence; new code calls `repository.ts`, never `db.ts`. [Core is pure]
+- `packages/core/` is pure and returns keys, never prose; `src/lib/` is persistence; new code calls `repository.ts`, never `db.ts`. [Core is pure]
 
 ## Documentation
 - This file stays under 100 lines: rules, not memory. Details live behind the pointers below.

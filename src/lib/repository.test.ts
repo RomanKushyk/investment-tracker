@@ -4,14 +4,14 @@ import 'fake-indexeddb/auto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { diffBackup, validateImport } from '../core/backup/import';
-import { buildBackup } from '../core/backup/json';
-import { headlineKpis, headlineTotal } from '../core/derive';
+import { diffBackup, validateImport } from '@quirenote/core/backup/import';
+import { buildBackup } from '@quirenote/core/backup/json';
+import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
 import { activeDataset, db, makeDb } from './db';
 import { dbVersion, ensureSeeded, repo } from './repository';
-import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from './seed';
+import { buildSeedSnapshots, SEED_ASSETS, SEED_TRANSACTIONS } from '@quirenote/core/seed';
 import { SYNC_CHANNEL } from './sync';
-import type { Snapshot } from '../core/types';
+import type { Snapshot } from '@quirenote/core/types';
 
 beforeEach(async () => {
   await db.delete();

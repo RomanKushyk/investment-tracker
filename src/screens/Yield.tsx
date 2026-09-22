@@ -6,7 +6,11 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Fact, RecordCard } from '../components/ui/RecordCard';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
-import { cumulativeYieldSeriesIn, xirrIsExtrapolatedIn, yieldTableRowsIn } from './yield/yield';
+import {
+  cumulativeYieldSeriesIn,
+  xirrIsExtrapolatedIn,
+  yieldTableRowsIn,
+} from '@quirenote/core/view/yield';
 import { useFormat } from '../hooks/useFormat';
 import { useT } from '../i18n/useT';
 import { usePeriodWindow } from '../hooks/usePeriodWindow';

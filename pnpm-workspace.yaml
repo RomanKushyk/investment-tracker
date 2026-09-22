@@ -1,3 +1,10 @@
+# THE WORKSPACE IS THE PACKAGE BOUNDARY. Without this key only the root package is a member,
+# which is what left `infra/` installing itself with a second package manager and importing the
+# domain layer by relative path across a `package.json` (*Core is pure*).
+packages:
+  - 'packages/*'
+  - 'infra'
+
 allowBuilds:
   esbuild: false
   # `@scarf/scarf`'s postinstall is install-time analytics. Refused outright rather than left

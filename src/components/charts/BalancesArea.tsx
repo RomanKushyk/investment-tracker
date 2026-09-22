@@ -9,8 +9,8 @@ import {
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP } from '../../core/colors';
-import type { BalanceChartPoint } from '../../screens/balances/balances';
+import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP } from '@quirenote/core/colors';
+import type { BalanceChartPoint } from '@quirenote/core/view/balances';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';

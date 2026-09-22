@@ -41,14 +41,10 @@ jobs:
       - name: Enable pnpm via corepack
         run: corepack enable # honors packageManager: pnpm@11.10.0
 
-      - run: pnpm install --frozen-lockfile
-
       # THE SUITE BELOW REACHES infra/src, so its dependencies are this job's too: several test
-      # files import the migration runner, which imports `pg` from infra/package.json, installed
-      # by npm and never by the root pnpm tree. Without this the suite fails on a missing module.
-      - name: Install backend deps
-        working-directory: infra
-        run: npm ci
+      # files import the migration runner, which imports `pg`. One install covers it because
+      # infra/ is a workspace member — `suite-needs-infra-deps.test.ts` holds that.
+      - run: pnpm install --frozen-lockfile
 
       # Everything below runs before any AWS credential exists, so a failing check cannot deploy.
       - run: pnpm lint

@@ -1,5 +1,5 @@
 // Pure helpers for the Settings screen. Covered by settings.test.ts.
-import { isLeadDays } from '../../core/reminders';
+import { isLeadDays } from '@quirenote/core/reminders';
 
 /**
  * The typed lead time, or `null` when it is not a whole number of days inside the

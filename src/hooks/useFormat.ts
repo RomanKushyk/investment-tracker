@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { makeFormat, type Format } from '../core/money';
+import { makeFormat, type Format } from '@quirenote/core/money';
 import { useSettings } from '../state/settings';
 
 /**

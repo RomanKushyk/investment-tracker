@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { PeriodControl } from '../components/ui/PeriodControl';
-import { latestSnapshotDate } from '../core/dates';
-import { portfolioStart } from '../core/derive';
-import { resolveWindow, type PeriodWindow } from '../core/period';
-import type { Asset, Snapshot, Transaction } from '../core/types';
+import { latestSnapshotDate } from '@quirenote/core/dates';
+import { portfolioStart } from '@quirenote/core/derive';
+import { resolveWindow, type PeriodWindow } from '@quirenote/core/period';
+import type { Asset, Snapshot, Transaction } from '@quirenote/core/types';
 import { useSettings } from '../state/settings';
 
 /**

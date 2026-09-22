@@ -52,7 +52,7 @@ turned on the `tax` row and retires with the type, leaving a hole worth closing 
 payout naming no asset is schema-legal and taxes are attributed by the row's own asset, so a
 withholding on one lands under the empty key rather than vanishing — no per-asset consumer reads it
 while the portfolio totals still count it, which is worse than a gap because nothing looks missing.
-**The backup envelope is the third door:** `src/core/backup/json.ts` gates on `movesPosition` rather
+**The backup envelope is the third door:** `packages/core/src/backup/json.ts` gates on `movesPosition` rather
 than `targetsAsset`, so an imported payout with no asset still reaches the store and would carry a
 withholding past attribution, then fail the CHECK at migration. That looseness was deliberate
 — a stricter rule would have locked the database out of exporting once anything put `{ type: 'tax',
@@ -70,7 +70,7 @@ bites because Postgres counts NULLs as distinct: nothing fails, the column simpl
 key set this schema prescribes drops from six to five, and `asset.delete` loses its first step, the
 batched `UPDATE` that nulled settlement links having nothing left to null.
 
-`tax` leaves `TxType`: nine types become eight, in `transaction_type_ck` and in `src/core/types.ts`,
+`tax` leaves `TxType`: nine types become eight, in `transaction_type_ck` and in `packages/core/src/types.ts`,
 `schemas.ts`, `backup/json.ts`, `TransactionPanel`, `yield.ts` and both languages. The seed holds no
 `tax` row, so the demo translates nothing. **The LIVE store is what makes the retirement safe or
 unsafe, and the owner rules it expendable** — a `{ type: 'tax' }` row the envelope refuses locks the
@@ -84,7 +84,7 @@ payout to the account and debiting the tax beside it. With no tax row left to de
 signed amount is `amount − coalesce(tax_withheld, 0)` — not an exclusion rule returning by another
 door, since nothing is skipped and two columns of one row are read, and without it free cash
 overstates by every hryvnia ever withheld. **Per-asset XIRR needs the same clause, and there it
-bites hardest:** `src/screens/yield/yield.ts` pushes a `tax` row as a negative flow beside its
+bites hardest:** `packages/core/src/view/yield.ts` pushes a `tax` row as a negative flow beside its
 payouts' positives, which is what nets the series to net-of-tax at each date, so removing the case
 without netting the payout flow by `tax_withheld` turns every per-asset XIRR from net to gross — no
 type error, no failing test, no visible break. Attribution also stops being approximate — the

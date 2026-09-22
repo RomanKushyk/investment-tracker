@@ -1,9 +1,9 @@
 // Figures come from the trimmed live fixture in `core/inzhur/__fixtures__`.
 import { describe, expect, it } from 'vitest';
 
-import { matchAssets, parseAssetsFeed, type InzhurMatch } from '../../core/inzhur/parse';
-import type { Asset, QuoteOrigin } from '../../core/types';
-import fixture from '../../core/inzhur/__fixtures__/assets-sample.json';
+import { matchAssets, parseAssetsFeed, type InzhurMatch } from '@quirenote/core/inzhur/parse';
+import type { Asset, QuoteOrigin } from '@quirenote/core/types';
+import fixture from '@quirenote/core/inzhur/__fixtures__/assets-sample.json';
 import {
   feedFreshness,
   fetchButtonState,

@@ -3,15 +3,34 @@
 Current state only, one topic per section: what is decided, why, and what stays rejected. Rewritten in place when a decision changes — the history is `git log -p` on this file. Code cites a topic by its heading; the table at the end resolves the old `D<n>` numbers still found in comments.
 
 ## Core is pure
-**Decision.** `src/core/` is the pure domain layer — no React, no Dexie, no store, no UI — and
-`src/lib/` holds persistence and infra; the import zones are enforced by lint, not by convention.
-Pure modules return keys and tokens, never assembled prose. New code calls `repository.ts`, never
-`db.ts`. A dependency is a decision, and it is recorded under the topic it serves rather than in a
-register of its own.
+**Decision.** The domain layer is `packages/core`, declared in `pnpm-workspace.yaml` as
+`@quirenote/core` and imported by the SPA and by `infra/` alike — no React, no Dexie, no store, no
+UI, and no climbing back out into `src/` or `infra/`; `src/lib/` holds persistence. The reference
+seed is domain and travels with it. IT IS CONSUMED FROM SOURCE: its `exports` point at `.ts`, there
+is no build step and it carries no `tsconfig.json`, so the SPA's compiler options and the backend's
+each compile the same files and a browser-only type fails one of them. `infra/` is a workspace
+member, so ONE INSTALL covers both trees and the backend's handlers bundle the package rather than
+externalising it. The zone is enforced by lint KEYED TO THE PACKAGE PATH, and because a selector
+that stops matching still parses green, a test lints text at a path inside the package rather than
+reading the config back. Pure modules return keys and tokens, never assembled prose. New code calls
+`repository.ts`, never `db.ts`. A dependency is a decision, and it is recorded under the topic it
+serves rather than in a register of its own. The seam test against `infra/schema/user.ts` sits in
+`infra/src/`, so the edge between them runs one way.
 **Why.** The domain layer is the part a move to a server does not touch, and the repository is the
-seam it replaces.
+seam it replaces. A `package.json` is a boundary and relative imports were crossing it, which is
+what a package removes; it was taken while the shared surface was small rather than after server
+derivation widened it. Two programs compiling one source is the property worth paying for — it is
+what catches a browser-only type before a backend build does, and it is the reason no compiled
+artifact sits between them.
 **Rejected.** A component reaching for `db.ts`: it bypasses the one surface the migration swaps. ·
-English returned from `core/`: the language is a parameter, never a default.
+English returned from the package: the language is a parameter, never a default. · Project
+references and `composite`: a referenced project may not set `noEmit`, and references check against
+emitted `.d.ts` — the dual-source check above, given up. · `--packages=external` on the handler
+bundle: esbuild externalises anything shaped like a package path, and a package name is not one of
+its two exceptions, so the import would survive as a bare require Lambda cannot resolve. ·
+`injectWorkspacePackages`: `dedupeInjectedDeps` defaults true, so it symlinks anyway. · A
+`projects` key in the vitest config: one root pattern already collects every tree, and naming
+projects is how the backend's tests get lost.
 
 ## Persistence today
 **Decision.** Dexie on IndexedDB behind `repository.ts`, the only writer; two databases — demo,
@@ -180,7 +199,7 @@ one cluster's nightly job keeps the number up while another has silently left th
 
 ## Cloud target
 **Decision.** Aurora DSQL with Lambda, IAM auth and EventBridge, and no VPC. At the migration the
-DERIVATION MOVES TO THE SERVER: the API Lambda imports the same `src/core/` modules the app uses —
+DERIVATION MOVES TO THE SERVER: the API Lambda imports the same `@quirenote/core` modules the app uses —
 an import, never a port — while raw rows stay on the export/import path. The environment split stops
 at USER data, and it is THREE STACKS: the archive and its capture, deployed from `dev` alone because
 one archive serves every environment, and one DSQL cluster of user data per environment, deployed
@@ -300,7 +319,7 @@ every routine edit is a rehearsal for bumping it unread.
 included; findings are fixed, or declined in the squash commit body with the reason. One round is
 the norm and three is the cap; a fourth means the branch is wrong, so a root-cause comment on the
 issue comes first. The gates are lint, typecheck, test and `format:check`, which skips Markdown on
-purpose, plus `tsc --noEmit -p infra` when `infra/` or a shared core file changes. A site that
+purpose, plus `tsc --noEmit -p infra` when `infra/` or the domain package changes. A site that
 DISPATCHES on a transaction type answers for every type or it does not compile, and a suite iterates
 a `Record<TxType, …>` rather than a literal array; `unnamedType` returns its fallback rather than
 throwing, that arm being reachable by a row an unmigrated store still holds. A CloudFormation
@@ -316,7 +335,7 @@ the author is holding.
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the
 dependency tree into routine version PRs. The ALERT is the unit, not the PR: draining the PR list is
-not draining the advisories. `reference/DEPENDABOT.md` carries the three ecosystems, their fixes and
+not draining the advisories. `reference/DEPENDABOT.md` carries the two ecosystems, their fixes and
 where overrides live.
 **Why.** Every merge here costs a review, so version churn taxes the gate that protects the app and
 buys no security. GitHub's squash preserves the PR author, so the button would land a bot-authored
