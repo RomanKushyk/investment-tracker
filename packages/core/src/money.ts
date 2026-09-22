@@ -214,6 +214,9 @@ export interface Format {
   moneyWhole(n: number, currency?: Currency): string;
   /** Takes a FRACTION, always signed. */
   pct(n: number, fractionDigits?: number): string;
+  /** `pct` for a seven-character column: fewer decimals as it grows, `>9999 %` past
+   *  that. Only a rise is capped — a delta between positive prices stays above −100 %. */
+  pctFit(n: number): string;
   /** Takes a value ALREADY IN PERCENT, never signed — separate from `pct` because
    *  these differ in both respects, and `pct` would force a `+` onto a quantity
    *  that has no direction. */
@@ -272,6 +275,13 @@ export function makeFormat(lang: Lang): Format {
     pct: finite((n, fractionDigits = 2) =>
       signed(n, pctBody(Math.abs(n * 100), fractionDigits, uk)),
     ),
+    // Precision is picked on the ROUNDED figure, so 9,996 steps to `10,0` rather
+    // than printing `10,00` one glyph too wide.
+    pctFit: finite((n) => {
+      const abs = Math.abs(n * 100);
+      const tier = FIT_TIERS.find(([dp, below]) => Number(abs.toFixed(dp)) < below);
+      return tier === undefined ? `>${pctBody(9999, 0, uk)}` : signed(n, pctBody(abs, tier[0], uk));
+    }),
     pctPlain: finite((n, fractionDigits = 1) => pctBody(n, fractionDigits, uk)),
     // A raw suffix would bypass the language rule, and did: one screen passed '%' and
     // rendered "−6,4%" beside a "17 %" one space away in the same sentence.
@@ -293,6 +303,13 @@ export function makeFormat(lang: Lang): Format {
 
 /** Swaps the decimal mark of an already-fixed string. */
 const decimal = (fixed: string, uk: boolean) => (uk ? fixed.replace('.', ',') : fixed);
+
+/** `pctFit`'s [decimals, magnitude it holds below], each at most four digits wide. */
+const FIT_TIERS = [
+  [2, 10],
+  [1, 100],
+  [0, 10000],
+] as const;
 
 /** `3,08 %` / `3.08%` — the unsigned body of a percentage. */
 function pctBody(absPct: number, dp: number, uk: boolean): string {

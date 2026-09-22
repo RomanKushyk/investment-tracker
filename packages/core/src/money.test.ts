@@ -179,6 +179,7 @@ describe('a non-finite figure at the display boundary', () => {
           f.signedNum(n),
           f.units(n),
           f.pct(n),
+          f.pctFit(n),
           f.pctPlain(n),
           f.pp(n, '%'),
         ]) {
@@ -187,6 +188,48 @@ describe('a non-finite figure at the display boundary', () => {
       }
     },
   );
+});
+
+describe('pctFit — a signed percentage that fits a seven-character column', () => {
+  // The daily-quotes delta chip is 52px of 12px JetBrains Mono: seven glyphs, and
+  // the input accepts any magnitude, so a fat-fingered quote must still fit.
+  const uk = makeFormat('uk');
+  const en = makeFormat('en');
+  const NBSP = ' ';
+
+  it('sheds decimals as the magnitude grows, in either language', () => {
+    expect(uk.pctFit(0.0011)).toBe(`+0,11${NBSP}%`);
+    expect(uk.pctFit(-0.00001)).toBe(`−0,00${NBSP}%`);
+    expect(uk.pctFit(0.1234)).toBe(`+12,3${NBSP}%`);
+    expect(uk.pctFit(8.9894)).toBe(`+899${NBSP}%`);
+    expect(uk.pctFit(98.8941)).toBe(`+9889${NBSP}%`);
+    expect(uk.pctFit(-1)).toBe(`−100${NBSP}%`);
+    expect(en.pctFit(0.1234)).toBe('+12.3%');
+    expect(en.pctFit(8.9894)).toBe('+899%');
+  });
+
+  it('steps up a tier when rounding would carry past it', () => {
+    expect(uk.pctFit(0.09996)).toBe(`+10,0${NBSP}%`);
+    expect(uk.pctFit(0.99951)).toBe(`+100${NBSP}%`);
+    expect(uk.pctFit(99.996)).toBe(`>9999${NBSP}%`);
+  });
+
+  it('caps from 10 000 % with «>» in place of the sign', () => {
+    // Only a rise can reach the cap: a quote cannot fall below zero, so a delta
+    // never passes −100 %.
+    expect(uk.pctFit(100)).toBe(`>9999${NBSP}%`);
+    expect(uk.pctFit(130689548.3536)).toBe(`>9999${NBSP}%`);
+    expect(en.pctFit(130689548.3536)).toBe('>9999%');
+  });
+
+  it.each(['uk', 'en'] as const)('%s: never renders more than seven characters', (lang) => {
+    const f = makeFormat(lang);
+    for (let e = -6; e <= 12; e += 0.25) {
+      for (const n of [10 ** e, -Math.min(10 ** e, 1)]) {
+        expect([...f.pctFit(n)].length, f.pctFit(n)).toBeLessThanOrEqual(7);
+      }
+    }
+  });
 });
 
 describe('the two exports Contract 0 left bare', () => {

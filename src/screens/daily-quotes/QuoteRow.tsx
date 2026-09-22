@@ -302,7 +302,7 @@ export function QuoteRow({
             (delta === undefined ? 'text-faint' : delta < 0 ? 'text-neg' : 'text-pos')
           }
         >
-          {delta === undefined ? '—' : f.pct(delta)}
+          {delta === undefined ? '—' : f.pctFit(delta)}
         </span>
       </div>
       {unreadable && (
