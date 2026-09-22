@@ -269,11 +269,15 @@ hand dispatch is the repair path and the only way to bootstrap. EVERY RUN REPORT
 per file and for the run, because a rehearsal replays the whole history — its ledger lives inside
 the throwaway schema, so nothing is ever skipped — and that cost grows with every file added. The
 runner holds back enough of its invocation to drop that schema and REFUSES TO SEND A STATEMENT WITH
-THAT RESERVE ALREADY SPENT, naming it, rather than being killed at a ceiling already set to the
-service maximum. That bounds when a statement STARTS and not how long it runs: one wait that
-overruns alone is still a kill. THE CODE IS LIVE BEFORE THE SCHEMA, the SQL riding in the deployed
-bundle, so every migration MUST BE WRITTEN expand/contract-compatible with the code already running
-— the ordering imposes that on each migration's author, and nothing in the pipeline can check it.
+THAT RESERVE ALREADY SPENT, naming it and what each file it ran cost, rather than being killed
+at a ceiling already set to the service maximum. That bounds when a statement STARTS and not how
+long it runs: one wait that overruns alone is still a kill, and a rehearsal killed that way is not
+applied, the overrun being possibly the SQL's own. A REFUSED REHEARSAL IS REPAIRED BY AN APPLY:
+the statement it refused was never judged, and replaying the whole history it can never get
+further, while an apply resumes off the ledger. THE CODE IS LIVE BEFORE THE SCHEMA, the SQL riding
+in the deployed bundle, so every migration MUST BE WRITTEN expand/contract-compatible with the code
+already running — the ordering imposes that on each migration's author, and nothing in the pipeline
+can check it.
 Foreign keys are `ON DELETE RESTRICT`, never cascading, and deleting an asset is an APPLICATION
 cascade, children before the parent, in batches, every predicate scoped by `user_id`. A user and
 their one account are written in the SAME transaction by the gate's open-registration insert, by

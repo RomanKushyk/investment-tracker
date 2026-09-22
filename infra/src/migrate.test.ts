@@ -795,6 +795,85 @@ describe('the invocation budget', () => {
   });
 });
 
+// THE RUN THAT BLEW THE BUDGET IS THE ONE WHOSE COST MATTERS: the raise is all that leaves the
+// invocation, so what the runner measured before it has to travel in the message.
+describe('what a budget refusal carries out', () => {
+  /** Plenty for the first `calls` statements, then nothing — a refusal mid-run. */
+  const after = (calls: number) => {
+    let seen = 0;
+    return { getRemainingTimeInMillis: () => (seen++ < calls ? 10 * TEARDOWN_RESERVE_MS : 0) };
+  };
+  const refusal = (mode: 'apply' | 'rehearse', db: PGlite, calls: number) =>
+    migrate(dsqlish(db), { mode }, undefined, after(calls)).then(
+      () => expect.fail('the budget did not refuse'),
+      (err: unknown) => (err as Error).message,
+    );
+  const inSchema = statementsOf(read(USER_SCHEMA)).length;
+  const figure = (message: string, file: string) =>
+    message.match(new RegExp(`${file.replace('.', '\\.')} (\\d+)ms`))?.[1];
+
+  // One call per statement sent, so the call after `003`'s last is `005`'s first.
+  it.each(['apply', 'rehearse'] as const)(
+    'names the ms of every file %s finished, and still names the refusal',
+    async (mode) => {
+      const message = await refusal(mode, new PGlite(), inSchema);
+      expect(message).toContain(DEMO_ROW);
+      expect(message).toMatch(/statement 0\b/);
+      expect(message).toContain(String(TEARDOWN_RESERVE_MS));
+      expect(figure(message, USER_SCHEMA)).toMatch(/^\d+$/);
+      // Only what finished: the refused file has no figure, and neither does a later one.
+      expect(figure(message, DEMO_ROW)).toBeUndefined();
+      expect(figure(message, CASE_RULE)).toBeUndefined();
+      // The gap between this and the list bounds the refused file's share.
+      expect(message).toMatch(/\d+ms since the run began/);
+    },
+  );
+
+  // The repair is an apply dispatched again, so the second run's list must not show a file the
+  // ledger held as a finished one that cost next to nothing.
+  it('counts a file the ledger held rather than timing it, on a resumed apply', async () => {
+    const db = new PGlite();
+    await refusal('apply', db, inSchema);
+    const message = await refusal('apply', db, 1);
+    expect(message).toContain(CASE_RULE);
+    expect(figure(message, USER_SCHEMA)).toBeUndefined();
+    expect(figure(message, DEMO_ROW)).toMatch(/^\d+$/);
+    expect(message).toMatch(/\b1 file already in the ledger\b/);
+  });
+
+  // Half-held, its ms covers only the statements this run sent, and the figure says so.
+  it('says how much of a file the ledger had already held', async () => {
+    const db = new PGlite();
+    await refusal('apply', db, 5);
+    const message = await refusal('apply', db, inSchema - 5 + 1);
+    expect(message).toContain(CASE_RULE);
+    expect(figure(message, USER_SCHEMA)).toMatch(/^\d+$/);
+    expect(message).toContain(`ms for ${inSchema - 5} of ${inSchema},`);
+  });
+
+  it('still drops the rehearsal schema when the refusal carries its costs', async () => {
+    const db = new PGlite();
+    await refusal('rehearse', db, inSchema);
+    const { rows } = await db.query(
+      `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
+    );
+    expect(rows).toEqual([]);
+    const path = await db.query<{ search_path: string }>('SHOW search_path');
+    expect(path.rows[0].search_path).toContain('public');
+  });
+
+  it.each(['apply', 'rehearse'] as const)(
+    'says so when %s had finished no file yet',
+    async (mode) => {
+      const message = await refusal(mode, new PGlite(), 0);
+      expect(message).toContain(USER_SCHEMA);
+      expect(message).toMatch(/statement 0\b/);
+      expect(message).toContain(String(TEARDOWN_RESERVE_MS));
+      expect(message).toMatch(/no file had finished/i);
+    },
+  );
+});
+
 // WHAT THE REHEARSAL COSTS, in the only artifact a run leaves. The cost grows with
 // every file added and the report is what turns the next decision about it into a
 // curve rather than a paragraph.

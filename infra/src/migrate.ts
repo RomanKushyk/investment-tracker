@@ -590,6 +590,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  *  boundary is pinned in `migrate.test.ts`. */
 export const TEARDOWN_RESERVE_MS = 30_000;
 
+/** What `budgetGuard` raises, so `costed` can tell it from a statement the cluster refused. */
+class BudgetRefusal extends Error {}
+
 /** Lambda's context, reduced to the one method the runner reads. */
 export interface Budget {
   getRemainingTimeInMillis(): number;
@@ -615,15 +618,34 @@ const budgetGuard = (budget: Budget | undefined): ((file: string, index: number)
   return (file, index) => {
     const remaining = budget.getRemainingTimeInMillis();
     if (remaining > TEARDOWN_RESERVE_MS) return;
-    // WHAT IT MEASURED AND NOTHING ELSE. It cannot tell a history grown too long from
-    // one index build that ate the invocation, and it names no teardown: `apply` runs
-    // none, and this one message reaches the run page for both modes.
-    throw new Error(
+    // Names no teardown: `apply` runs none, and this one message serves both modes. What
+    // the run cost before it is `costed`'s to add, the only one holding the finished files.
+    throw new BudgetRefusal(
       `${file} statement ${index} was not started: ${remaining}ms of this invocation is ` +
         `left and the runner holds back ${TEARDOWN_RESERVE_MS}ms. Timeout already sits ` +
         `at Lambda's maximum.`,
     );
   };
+};
+
+/** A BUDGET REFUSAL CARRIES OUT WHAT THE RUN MEASURED, the message being all that leaves the
+ *  invocation: it is what tells a history grown too long from one file that ate the budget. */
+const costed = (err: unknown, files: FileReport[], started: number): unknown => {
+  if (!(err instanceof BudgetRefusal)) return err;
+  // What the ledger already held cost nothing here; timed as if run, it reads as cheap work.
+  const ran = files.filter((f) => f.applied > 0);
+  const held = files.filter((f) => f.applied === 0 && f.skipped > 0).length;
+  const part = (f: FileReport) =>
+    f.skipped === 0 ? '' : ` for ${f.applied} of ${f.applied + f.skipped}`;
+  const spent =
+    ran.length === 0
+      ? 'No file had finished in this invocation.'
+      : `Finished before it: ${ran.map((f) => `${f.file} ${f.ms}ms${part(f)}`).join(', ')}.`;
+  const ledger =
+    held === 0 ? '' : ` ${held} ${held === 1 ? 'file' : 'files'} already in the ledger.`;
+  // Read before any teardown. It spans more than the list, so the gap bounds the refused file's share.
+  const total = ` ${Date.now() - started}ms since the run began.`;
+  return new Error(`${err.message} ${spent}${ledger}${total}`, { cause: err });
 };
 
 /** One file's report, with what it cost. The only place a `FileReport` gets its `ms`. */
@@ -718,8 +740,12 @@ export async function migrate(
   if (mode === 'apply') {
     await ensureLedger(client);
     const files: FileReport[] = [];
-    for (const { file, statements } of plan) {
-      files.push(await timed(() => applyFile(client, file, statements, rewriteForDsql, guard)));
+    try {
+      for (const { file, statements } of plan) {
+        files.push(await timed(() => applyFile(client, file, statements, rewriteForDsql, guard)));
+      }
+    } catch (err) {
+      throw costed(err, files, started);
     }
     return { mode, schema: 'public', ms: Date.now() - started, files };
   }
@@ -739,7 +765,7 @@ export async function migrate(
       files.push(await timed(() => applyFile(client, file, statements, rewriteForDsql, guard)));
     }
   } catch (err) {
-    thrown = err;
+    thrown = costed(err, files, started);
   }
   // The cleanup must not REPLACE the failure it is cleaning up after, which is the one thing
   // this mode exists to report. BOTH HALVES ALWAYS RUN and neither raises where it stands: a

@@ -1220,6 +1220,48 @@ describe('the deploy plans its migration, and a gated job applies it', () => {
       expect(body).toContain('$TARGET');
     });
 
+    // A REHEARSAL THE BUDGET REFUSED WAS NEVER JUDGED, and replaying the whole history it can never
+    // get further: only an apply, which resumes off the ledger, makes progress from there.
+    describe('a rehearse that ran out is not repaired as bad SQL', () => {
+      const body =
+        step?.run?.slice(step.run.indexOf('body=$('), step.run.indexOf('existing=')) ?? '';
+      const says =
+        /\bfailed `?rehearse`? means the SQL\b(?:(?![.·] ).){0,30}\b(?:refused|broken)\b/i;
+      const retired = [
+        'A failed `rehearse` means the SQL itself was refused on a throwaway schema: fix the migration on a branch, and do NOT apply.',
+        'a failed `rehearse` means the SQL is broken and must NOT be applied.',
+      ];
+
+      it('has an instrument that matches both sentences it retired', () => {
+        for (const sentence of retired)
+          expect([sentence, says.test(sentence)]).toEqual([sentence, true]);
+      });
+
+      it.each([
+        ['the notify body', body],
+        ['.github/WORKFLOWS.md', readFileSync(join(REPO, '.github/WORKFLOWS.md'), 'utf8')],
+      ])('%s no longer says it', (_, text) => {
+        expect(text.length).toBeGreaterThan(0);
+        expect(text.replace(/\s+/g, ' ')).not.toMatch(says);
+      });
+
+      // The refusal's own words, so the operator can match the report to the case.
+      it('names the refusal and sends it to apply', () => {
+        const refused = body.slice(
+          body.indexOf('`was not started`'),
+          body.indexOf('`Task timed out`'),
+        );
+        expect(refused).toContain('`mode: apply`');
+        expect(refused).not.toMatch(/do NOT apply/i);
+      });
+
+      // THE OTHER TWO KEEP THE OLD RULE: a timeout may be one statement overrunning on its own.
+      it('still refuses an apply after a timeout and after refused SQL', () => {
+        expect(body).toMatch(/`Task timed out`[^.]{0,200}do NOT apply/);
+        expect(body).toMatch(/SQL the cluster refused[^]{0,120}do NOT apply/);
+      });
+    });
+
     // THE LOOKUP MUST NOT BE THE THING THAT LOSES THE SIGNAL. Search is an index minutes behind a
     // just-created issue, and the step runs under `bash -e`, where one failed lookup aborts before
     // either branch and the run leaves nothing at all.
