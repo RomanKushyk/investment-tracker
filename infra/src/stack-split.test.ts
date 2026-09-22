@@ -964,17 +964,64 @@ describe('a deploy that did not land its description fails the run', () => {
       new RegExp(`steps\\.${archiveStack.id}\\.outcome \\}\\}" != success \\] \\|\\| check`),
     );
   });
+});
 
-  // AND THE ONE SHAPE THAT COULD NEVER ARRIVE: CloudFormation stored a literal `?` where the
-  // template it was given carried an em dash, so a Description outside ASCII cannot be trusted to
-  // arrive, and the check above would redden with nothing able to make it green. Refused here
-  // instead, before a deploy. THE STACK `Description` ALONE: the AlarmDescriptions carry em
-  // dashes and CloudWatch stores them, em dashes and all.
+// SHAPES NO DEPLOY COULD MAKE GREEN, AND SHAPES IT WOULD NOT ACCEPT AT ALL. CloudFormation stored
+// a literal `?` where the template it was given carried an em dash; and where a template has no
+// `Description` at all, the check's shipped side computes an empty string while the deployed side
+// prints `None`. Either way it compares text that can never match, with no body to re-submit that
+// would fix it. The other half is AWS's own rule for the field — a literal string of at most 1024
+// bytes, taking no parameter and no function — so a template breaking that is documented as
+// refused before it deploys, and the defect arrives as a failing deploy rather than as a check
+// that can never pass. These read the templates because that is where both are settled, which is
+// why they are not under the describe above.
+describe('both stack descriptions are present, bounded, literal and ASCII', () => {
+  const templates = [
+    ['template.yaml', archiveDoc, archive],
+    ['template-user.yaml', userDoc, user],
+  ] as const;
+
+  // THE AFFIRMATIVE HALF, load-bearing rather than decoration: `[...(undefined ?? '')]` is empty,
+  // so a template that lost its `Description` SATISFIED the ASCII rule below and left the deploy
+  // comparing an empty string against the live text — red on every run afterwards, and the repair
+  // that check prints cannot help, there being nothing to re-submit. Only the archive was covered,
+  // and then sideways: one test's `toMatch` errors on undefined, another's `docs/` sweep comes back
+  // empty. `typeof` rather than a truthiness test, so `Description: 123` names its template instead
+  // of throwing `trim is not a function` out of the loop. BYTES, not characters, because that is
+  // the unit AWS states the ceiling in and this text is prose that grows.
+  it('requires a description that is present and within the 1024-byte limit', () => {
+    for (const [file, , template] of templates) {
+      const description = template.Description;
+      const carried =
+        typeof description === 'string' &&
+        description.trim().length > 0 &&
+        Buffer.byteLength(description, 'utf8') <= 1024;
+      expect([file, carried]).toEqual([file, true]);
+    }
+  });
+
+  // THE NODE AND THE PARSED VALUE AS A PAIR, because they can disagree and only the pair is safe.
+  // `toJS()` drops an unknown tag and keeps the value, so `!Sub 'Quirenote ${Environment}'` reads
+  // as plain text to anything taking the parsed value alone, and AWS documents this field as
+  // taking no function. And with the key written twice — what appending below the block scalar
+  // produces — `getIn` returns the FIRST node while `toJS()` returns the LAST, so a tag read on
+  // its own would be read off a node the CHECK never reads. Tying them together closes both, and
+  // the failure prints the text. `intrinsicAt` throws on a node that is not a scalar, which is the
+  // map and the sequence; a number is a scalar and passes here, named by the test above instead.
+  // An alias is the one shape whose only signal is that throw.
+  it('takes each description from an untagged scalar, the value toJS() returns', () => {
+    for (const [file, doc, template] of templates) {
+      expect([file, intrinsicAt(doc, 'Description')]).toEqual([
+        file,
+        { tag: undefined, value: template.Description },
+      ]);
+    }
+  });
+
+  // THE STACK `Description` ALONE: the AlarmDescriptions carry em dashes and CloudWatch stores
+  // them, em dashes and all.
   it('keeps both stack descriptions inside the ASCII the pipeline carries', () => {
-    for (const [file, template] of [
-      ['template.yaml', archive],
-      ['template-user.yaml', user],
-    ] as const) {
+    for (const [file, , template] of templates) {
       const outside = [...(template.Description ?? '')].filter((c) => c.charCodeAt(0) > 126);
       expect([file, outside]).toEqual([file, []]);
     }
