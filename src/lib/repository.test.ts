@@ -5,7 +5,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { diffBackup, validateImport } from '@quirenote/core/backup/import';
-import { buildBackup } from '@quirenote/core/backup/json';
+import { buildBackup, parseBackup } from '@quirenote/core/backup/json';
 import { headlineKpis, headlineTotal } from '@quirenote/core/derive';
 import { activeDataset, db, makeDb } from './db';
 import { dbVersion, ensureSeeded, repo } from './repository';
@@ -126,6 +126,44 @@ async function exportSeedEnvelope() {
     dbVersion,
   );
 }
+
+// All four backup doors are `useBackupDownload`, which writes nothing unless the
+// envelope it built parses back.
+describe('a store holding a retired row shape', () => {
+  async function seedWithRetiredKeys() {
+    await ensureSeeded();
+    const tx = (await repo.listTransactions())[0];
+    await db.transactions.put({ ...tx, source: 'savings' } as typeof tx);
+    const snap = (await db.snapshots.toArray())[0];
+    await db.snapshots.put({ ...snap, cash: 7.75 } as typeof snap);
+  }
+
+  it('exports a file that parses, carrying no retired key', async () => {
+    await seedWithRetiredKeys();
+    const text = JSON.stringify(await exportSeedEnvelope());
+    expect(parseBackup(text)).toMatchObject({ ok: true });
+    expect(text).not.toContain('"source"');
+    expect(text).not.toContain('"cash"');
+  });
+
+  it('imports: the safety backup parses and the replace clears the retired keys', async () => {
+    await seedWithRetiredKeys();
+    const safety = JSON.stringify(await exportSeedEnvelope());
+    expect(parseBackup(safety).ok).toBe(true);
+
+    const validation = validateImport(safety);
+    expect(validation.ok).toBe(true);
+    if (!validation.ok) return;
+    await repo.replaceAll({
+      assets: validation.envelope.assets,
+      snapshots: validation.envelope.snapshots,
+      transactions: validation.envelope.transactions,
+    });
+    const after = JSON.stringify(await repo.exportAll());
+    expect(after).not.toContain('"source"');
+    expect(after).not.toContain('"cash"');
+  });
+});
 
 describe('export → erase → import round-trip', () => {
   it('restores the seed byte-identically, with every D5-pinned figure intact', async () => {

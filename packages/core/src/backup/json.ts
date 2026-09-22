@@ -19,7 +19,8 @@ export const BACKUP_FORMAT = 'quirenote-backup';
  * OPTIONAL field still bumps it, because the rows are `strictObject` and each
  * ships with its writer, so an earlier build rejects the file on
  * `unrecognized_keys`; and a READER NARROWING bumps it too, because a build that
- * starts requiring a count accepts strictly less than the one before it.
+ * starts requiring a count accepts strictly less than the one before it. A WRITER
+ * NARROWING bumps nothing: `buildBackup` projecting its rows leaves the parser as it was.
  *
  * "No build ever WROTE that shape" is not an exemption, and was tried: true about
  * the writer and beside the point. Two live sites run from two branches, so a dev
@@ -37,6 +38,15 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected yyyy-MM-dd');
 const isoDateTime = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, 'expected timezone-less yyyy-MM-ddTHH:mm:ss');
+
+const inzhurSchema = z.strictObject({
+  kind: z.enum(['fund', 'bond']),
+  ref: z.string().min(1),
+  // POSITIVE because the form never accepted 0, and a hand-edited 0 would be
+  // read by `matchAssets` as a count it KNOWS — stamping the row `no-position`
+  // and skipping it in silence.
+  units: z.number().positive().optional(),
+});
 
 const assetRowSchema = z.strictObject({
   id: z.string().min(1),
@@ -56,16 +66,7 @@ const assetRowSchema = z.strictObject({
   // gates on `rate > 0` and falls back to the legacy amount with no screen saying so.
   couponRatePct: z.number().positive().max(100).optional(),
   nextCoupon: isoDate.optional(),
-  inzhur: z
-    .strictObject({
-      kind: z.enum(['fund', 'bond']),
-      ref: z.string().min(1),
-      // POSITIVE because the form never accepted 0, and a hand-edited 0 would be
-      // read by `matchAssets` as a count it KNOWS — stamping the row `no-position`
-      // and skipping it in silence.
-      units: z.number().positive().optional(),
-    })
-    .optional(),
+  inzhur: inzhurSchema.optional(),
 });
 
 const snapshotRowSchema = z.strictObject({
@@ -193,6 +194,12 @@ export const backupEnvelopeSchema = z.strictObject({
 
 export type BackupEnvelope = z.infer<typeof backupEnvelopeSchema>;
 
+// THE MODEL'S SHAPE, NOT THE STORE'S: a retired key stays in IndexedDB, and the strict
+// reader refuses it. The keys come from the row schemas, so no list is written twice.
+function project<T extends object>(row: T, shape: object): T {
+  return Object.fromEntries(Object.entries(row).filter(([k]) => Object.hasOwn(shape, k))) as T;
+}
+
 // `exportedAt` and `dbVersion` are produced by the CALLER, so this module stays
 // deterministic and pure.
 export function buildBackup(
@@ -213,10 +220,15 @@ export function buildBackup(
     // Normalize datetimes to the pinned timezone-less convention: `buildNewAsset`
     // stamps a full `toISOString()`, so without the slice a backup holding any
     // user-created asset would fail this module’s own schema.
-    assets: assets.map((a) => ({ ...a, createdAt: a.createdAt.slice(0, 19) })),
-    snapshots: snapshots.map((s) => (s.savedAt ? { ...s, savedAt: s.savedAt.slice(0, 19) } : s)),
-    transactions,
-    ...(settings ? { settings } : {}),
+    assets: assets.map((a) => {
+      const row = project({ ...a, createdAt: a.createdAt.slice(0, 19) }, assetRowSchema.shape);
+      return a.inzhur ? { ...row, inzhur: project(a.inzhur, inzhurSchema.shape) } : row;
+    }),
+    snapshots: snapshots.map((s) =>
+      project(s.savedAt ? { ...s, savedAt: s.savedAt.slice(0, 19) } : s, snapshotRowSchema.shape),
+    ),
+    transactions: transactions.map((t) => project(t, transactionRowSchema.shape)),
+    ...(settings ? { settings: project(settings, settingsSchema.shape) } : {}),
   };
 }
 

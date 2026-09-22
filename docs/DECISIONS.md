@@ -38,16 +38,24 @@ seeded, and live, never auto-seeded — bound once at boot. Every persisted sett
 in the commit that adds it. The JSON backup envelope refuses a newer, an older and an unreadable
 version; import validates fully, shows a diff, then replaces in one transaction — a key the file
 omits is REMOVED — after a safety backup that cannot be cancelled. CSV is export-only and writes
-data rather than formulas: a cell beginning `=` or `@` is passed through as typed. A STORE HOLDING A
-RETIRED ROW SHAPE IS RESET, NOT MIGRATED: such a row fails the envelope, so that store can no longer
-BACK ITSELF UP — the CSV export validates nothing and still writes — and the exit is Settings →
-Danger zone, erase on live and reseed on demo, which does not go through the envelope.
+data rather than formulas: a cell beginning `=` or `@` is passed through as typed. THE BACKUP WRITES
+THE MODEL'S SHAPE, NOT THE STORE'S: `buildBackup` projects every row onto its schema's keys, so a key
+the model retired, still sitting in IndexedDB, never reaches the file and needs no migration. A
+VALUE the reader refuses — a moving row with no count, the retired `tax` type — has nothing to
+project and still fails the envelope; that store cannot back itself up, and its exit is the CSV
+export, which validates nothing, then Settings → Danger zone, erase on live and reseed on demo.
 **Why.** Replace-never-merge is why the diff exists: yesterday's backup silently dropping today's
 work is what the dialog must state before the press. The envelope's version tracks what a build
 ACCEPTS, not how long ago it shipped, so two live builds cannot share a number and disagree about
-fields.
+fields — which is why a projecting writer bumps nothing. A strict reader needs a strict writer:
+spread, the store's leftovers rode into the file and the file's own parser refused it, shutting
+the download, both destructive dialogs' backup and the import's safety backup at once. The export
+is terminal, the store the only truth and the file there to be restored into it, so nothing
+downstream waits for a field this build has never heard of.
 **Rejected.** A library's own dump format: the envelope has to be app-owned, human-readable and
-domain-validated.
+domain-validated. · Preserving unknown keys through the round trip, as a relay does: it becomes
+right the day the backup carries data between two builds as a sync or merge channel, where a
+projecting writer would destroy the other build's fields.
 
 ## Derived figures and the seed
 **Decision.** Every portfolio figure is derived from stored data and none is hard-coded; value at a

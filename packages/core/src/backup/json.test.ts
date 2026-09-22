@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
-import type { Asset, Snapshot, Transaction, TxType } from '../types';
+import type { Asset, Settings, Snapshot, Transaction, TxType } from '../types';
 import { backupEnvelopeSchema, buildBackup, parseBackup, type BackupEnvelope } from './json';
 
 // Minimal hand-built portfolio; the full seed round-trip lives in `seed.test.ts`, because
@@ -132,6 +132,90 @@ describe('buildBackup', () => {
   });
 });
 
+// A key the model retired stays in IndexedDB: a field removal bumps no Dexie version.
+function withRetired<T>(row: T, retired: Record<string, unknown>): T {
+  return { ...row, ...retired };
+}
+
+const INZHUR = { kind: 'fund', ref: 'reit', units: 6164 } as const;
+
+describe('buildBackup writes the model’s shape, not the store’s', () => {
+  it('drops a retired key on every table, and the file it writes parses', () => {
+    const clean = buildBackup(
+      [{ ...ASSETS[0], inzhur: INZHUR }, ASSETS[1]],
+      SNAPSHOTS,
+      TRANSACTIONS,
+      SETTINGS,
+      'live',
+      '2026-09-22T12:00:00',
+      2,
+    );
+    const stored = buildBackup(
+      [
+        withRetired({ ...ASSETS[0], inzhur: withRetired(INZHUR, { price: 10.5 }) }, { legacy: 1 }),
+        ASSETS[1],
+      ],
+      [withRetired(SNAPSHOTS[0], { cash: 7.75 }), SNAPSHOTS[1]],
+      [withRetired(TRANSACTIONS[0], { source: 'savings' }), ...TRANSACTIONS.slice(1)],
+      withRetired(SETTINGS, { theme: 'dark' }),
+      'live',
+      '2026-09-22T12:00:00',
+      2,
+    );
+    expect(JSON.stringify(stored)).toBe(JSON.stringify(clean));
+    expect(parseBackup(JSON.stringify(stored)).ok).toBe(true);
+  });
+
+  it('names the same keys as the model, so the projection cannot drop a field (typecheck)', () => {
+    // The projection reads the row schemas; a field added to the model alone would be
+    // dropped from every file in silence, and one added to a schema alone is never read.
+    type Row<K extends 'assets' | 'snapshots' | 'transactions'> = BackupEnvelope[K][number];
+    expectTypeOf<keyof Row<'assets'>>().toEqualTypeOf<keyof Asset>();
+    expectTypeOf<keyof NonNullable<Row<'assets'>['inzhur']>>().toEqualTypeOf<
+      keyof NonNullable<Asset['inzhur']>
+    >();
+    expectTypeOf<keyof Row<'snapshots'>>().toEqualTypeOf<keyof Snapshot>();
+    expectTypeOf<keyof Row<'transactions'>>().toEqualTypeOf<keyof Transaction>();
+    expectTypeOf<keyof NonNullable<BackupEnvelope['settings']>>().toEqualTypeOf<keyof Settings>();
+  });
+
+  it('keeps every key the model defines, optional ones included', () => {
+    // Every optional field set, so a key the projection failed to carry shows up here.
+    const asset: Asset = {
+      ...ASSETS[0],
+      maturity: '2027-02-03',
+      couponAmount: 120,
+      couponRatePct: 16.5,
+      nextCoupon: '2026-08-03',
+      inzhur: INZHUR,
+    };
+    const snapshot: Snapshot = SNAPSHOTS[1];
+    const transaction: Transaction = {
+      id: 'p9',
+      date: '2026-03-10',
+      type: 'dividend_accrual',
+      assetId: 'reit',
+      amount: 580.2,
+      taxWithheld: 29.01,
+      note: 'March payout',
+    };
+    const buy: Transaction = { ...TRANSACTIONS[1], unitPrice: 10.4852 };
+    const env = buildBackup(
+      [asset],
+      [snapshot],
+      [buy, transaction],
+      SETTINGS,
+      'live',
+      '2026-09-22T12:00:00',
+      2,
+    );
+    expect(env.assets).toStrictEqual([asset]);
+    expect(env.snapshots).toStrictEqual([snapshot]);
+    expect(env.transactions).toStrictEqual([buy, transaction]);
+    expect(env.settings).toStrictEqual(SETTINGS);
+  });
+});
+
 describe('parseBackup round-trip', () => {
   it('stringify → parse returns deep-equal tables', () => {
     const result = parseBackup(JSON.stringify(envelope()));
@@ -144,11 +228,8 @@ describe('parseBackup round-trip', () => {
   });
 
   it('round-trips units and the per-unit price; a NON-MOVING row still takes neither (#31)', () => {
-    // THE BREAK THIS GUARDS: `buildBackup` passes transactions through unchanged and
-    // the row schema is a `strictObject`, so before `quantity` and `unitPrice` were
-    // declared the app could write a backup its own parser refused. A round trip is the
-    // only test that catches that — a serializer test alone stays green while the
-    // reader rejects the file.
+    // The pins above catch a field the projection drops; a round trip also catches one
+    // the writer emits and the reader refuses.
     const withUnits: Transaction = {
       id: 'tx-units',
       date: '2026-08-10',
@@ -328,17 +409,8 @@ describe('parseBackup rejections', () => {
   });
 
   it('CAN BUILD an envelope it cannot parse — which is why the export re-reads its own output', () => {
-    // THE HOLE, pinned rather than described. `buildBackup` passes transactions through
-    // unchanged and validates nothing, so a store holding a retired row shape — a
-    // pre-#31 row whose count is unrecoverable, a row still carrying a source of funds —
-    // builds a current-version file that passes the version gate and then fails row by
-    // row, leaving the only restore path unusable at the one moment it mattered.
-    // `useBackupDownload` closes it by parsing what it just built and refusing to offer a
-    // file that comes back rejected; delete that guard and this asymmetry is what ships.
-    //
-    // SO SUCH A STORE CANNOT BACK ITSELF UP — the CSV export validates nothing and still
-    // writes — and that is ruled rather than overlooked, for BOTH databases: Settings →
-    // Danger zone erases live and reseeds demo. Neither is migrated. *Persistence today*
+    // A VALUE the reader refuses has no key to drop, so it still builds a file that fails;
+    // `useBackupDownload` refuses to offer it, and the exit is ruled. *Persistence today*
     const legacy: Transaction = {
       id: 'legacy-buy',
       date: '2026-02-03',
