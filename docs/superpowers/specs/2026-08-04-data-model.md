@@ -220,10 +220,10 @@ broken pipeline looks healthy:
 
 **Parse errors are never silent and never destructive.** A payload that fails to parse is still stored
 — the raw bytes are what a later parser fix reads — and `parser_version` on every row is what makes
-"which rows did the broken parser produce" answerable rather than archaeological. **The cron runs for
-~3 weeks writing only timestamped raw payloads before the archive schema is finalised**, which settles
-the feed's weekend and holiday behaviour, yield stability, fund NAV cadence, payload byte-stability
-and the outage shape with no schema decision as a prerequisite. Deferred until the app can read any of
+"which rows did the broken parser produce" answerable rather than archaeological. **Payloads are stored
+whole, so no schema decision was a prerequisite for the first capture**: the feed's weekend and
+holiday behaviour, yield stability, fund NAV cadence, payload byte-stability and the outage shape are
+answerable from recorded payloads, and the daily observations are derived from them. Deferred until the app can read any of
 it: the admin UI, per-source enable/disable as stored settings, alert routing per source.
 
 ### Do not re-litigate

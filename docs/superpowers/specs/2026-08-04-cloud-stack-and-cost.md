@@ -11,9 +11,9 @@ Chosen by the owner over a multi-vendor hybrid that scored higher overall — ve
 hybrid's one weak axis and the one where this stack most out-scores it — for single-vendor coherence
 and one IAM model. The staging is what makes it defensible: pure A1 as a single big-bang project
 scored 50% against A1-staged's 77%, because the only irreversible item on the list — a missed price
-day — must not wait six weeks behind a rewrite. So raw capture ships first and the clock stops
-there; the observation schema is finalised three weeks later **with evidence in hand**, and nothing
-is lost meanwhile because raw payloads regenerate any schema retroactively. The gate on that phase:
+day — must not wait six weeks behind a rewrite. So raw capture shipped first and stopped the
+clock, and each feed's observation schema could wait for **its own evidence** — nothing could be
+lost meanwhile, because raw payloads regenerate any schema retroactively. The gate on that phase:
 if DPU or backup/PITR disappoints, price history moves to S3 + CloudFront, which is planned for and
 costs nothing to keep live.
 

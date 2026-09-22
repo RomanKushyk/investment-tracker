@@ -2,7 +2,7 @@
   "name": "quirenote-infra",
   "private": true,
   "type": "module",
-  "description": "Phase 1 price capture — see infra/README.md",
+  "description": "Quirenote backend: the daily price archive and the user data stack - see infra/README.md",
   "dependencies": {
     "@aws-sdk/client-backup": "^3.1107.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.1131.0",
