@@ -14,6 +14,7 @@ import type { Client } from 'pg';
 
 import { addDays, kyivDateIso } from '@quirenote/core/dates';
 import { backupAgeHours } from './backup-age';
+import { reconcileObservations } from './diagnose-reconciliation';
 import { connect } from './dsql';
 // Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
@@ -998,51 +999,11 @@ async function diagnose(client: Client) {
   );
   plans.observeNbuFirstWindow = observeFirstWindow.rows.map((r) => r['QUERY PLAN']);
 
-  // THE SPAN AND THE DATES START AT THE SOURCE'S FIRST CAPTURE DAY, because the fund-history
-  // import writes rows from before it with no capture behind them, so a span reaching back to
-  // those measures against capture days that do not exist. Bounded here rather than by parser
-  // version: an imported row on a captured day is coverage.
-  const observations = await client.query(
-    `WITH captured AS (
-       SELECT source, min(as_of) AS since
-         FROM price_capture
-        WHERE ok = true
-        GROUP BY source)
-     SELECT o.instrument_ref, o.basis, o.source,
-            count(*)::text AS n,
-            sum(CASE WHEN c.since IS NULL OR o.as_of < c.since THEN 1 ELSE 0 END)::text AS before_capture,
-            to_char(min(o.as_of), 'YYYY-MM-DD') AS earliest_as_of,
-            count(DISTINCT CASE WHEN o.as_of >= c.since THEN o.as_of END)::text AS dates,
-            to_char(min(CASE WHEN o.as_of >= c.since THEN o.as_of END), 'YYYY-MM-DD') AS first_as_of,
-            to_char(max(CASE WHEN o.as_of >= c.since THEN o.as_of END), 'YYYY-MM-DD') AS last_as_of
-       FROM price_observation o
-       LEFT JOIN captured c ON c.source = o.source
-      GROUP BY o.instrument_ref, o.basis, o.source
-      ORDER BY o.instrument_ref, o.basis, o.source`,
-  );
-
-  // The denominator, per ref over ITS OWN span, and THE SOURCE COMES FROM THE ROW: a shared span
-  // measures the younger instrument against days predating its issuance, and a literal source
-  // measures every Inzhur ref against NBU's calendar, closed at weekends where Inzhur is not.
-  const reconciled = [];
-  for (const o of observations.rows) {
-    // A group never written has NULL bounds, and BETWEEN NULL AND NULL matches nothing, so it
-    // reads zero against zero — which is true.
-    const { rows } = await client.query<{ days: string }>(
-      `SELECT count(DISTINCT as_of)::text AS days
-         FROM price_capture
-        WHERE source = $1 AND ok = true AND as_of BETWEEN $2 AND $3`,
-      [o.source, o.first_as_of, o.last_as_of],
-    );
-    reconciled.push({
-      ...o,
-      publishedDays: rows[0].days,
-      // Capture-days minus observation-days, assuming ONE row per published day PER BASIS, which
-      // is why the GROUP BY is per (ref, basis, source). A `nav` day published as zero stores no
-      // row, so it reads as a gap of one — and is one.
-      gaps: Number(rows[0].days) - Number(o.dates),
-    });
-  }
+  // The days `observeInzhur` reads, delisting days included; `observeNbu` reads past nothing.
+  const reconciled = await reconcileObservations(client, {
+    source: SOURCE.inzhur,
+    errorLike: TRACKED_ABSENT_LIKE,
+  });
 
   // A count that reconciles proves the plumbing; only a value proves the parse.
   const sample = await client.query(
