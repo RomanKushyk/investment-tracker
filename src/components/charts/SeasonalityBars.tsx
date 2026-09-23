@@ -10,7 +10,13 @@ import {
 } from 'recharts';
 import type { BarShapeProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
+import {
+  CHART,
+  CHART_CURSOR_FILL,
+  CHART_TOOLTIP,
+  CHART_TOOLTIP_ITEM,
+  SERIES,
+} from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ColorKey } from '@quirenote/core/types';
@@ -218,6 +224,7 @@ export function SeasonalityBars({
               : t.analytics.seasonality.anchorDay(Number(label))
           }
           contentStyle={CHART_TOOLTIP}
+          itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_FILL}
         />
         <Bar

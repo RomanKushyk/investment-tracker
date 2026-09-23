@@ -53,9 +53,12 @@ export const CHART_TOOLTIP = {
   fontSize: 12,
 };
 
+// Rows in the surface's ink, not recharts' per-series paint: a series' fill or stroke is not a
+// text colour, so a row's name, never its colour, ties it to its series.
+export const CHART_TOOLTIP_ITEM = { color: CHART_TOOLTIP.color };
+
 // The hover indicator recharts draws BEHIND the tooltip. Left alone it is a
-// hard-coded rgba wash, the one piece of chart paint the token sweep could not
-// reach. Two shapes: recharts fills the cursor on a categorical chart and
-// strokes it on a continuous one.
+// hard-coded rgba wash that no theme token reaches. Two shapes: recharts fills
+// the cursor on a categorical chart and strokes it on a continuous one.
 export const CHART_CURSOR_FILL = { fill: CHART.hairline };
 export const CHART_CURSOR_LINE = { stroke: CHART.hairline, strokeWidth: 1 };

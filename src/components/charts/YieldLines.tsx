@@ -9,7 +9,13 @@ import {
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
+import {
+  CHART,
+  CHART_CURSOR_LINE,
+  CHART_TOOLTIP,
+  CHART_TOOLTIP_ITEM,
+  SERIES,
+} from '@quirenote/core/colors';
 import { signed } from '@quirenote/core/money';
 import type { Asset } from '@quirenote/core/types';
 import type { YieldSeriesPoint } from '@quirenote/core/view/yield';
@@ -67,6 +73,7 @@ export function YieldLines({ data, assets }: { data: YieldSeriesPoint[]; assets:
             ];
           }}
           contentStyle={CHART_TOOLTIP}
+          itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_LINE}
         />
         {assets.map((asset) => {

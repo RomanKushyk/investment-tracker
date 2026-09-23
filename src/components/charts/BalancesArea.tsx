@@ -9,7 +9,12 @@ import {
 } from 'recharts';
 import type { DotItemDotProps } from 'recharts';
 
-import { CHART, CHART_CURSOR_LINE, CHART_TOOLTIP } from '@quirenote/core/colors';
+import {
+  CHART,
+  CHART_CURSOR_LINE,
+  CHART_TOOLTIP,
+  CHART_TOOLTIP_ITEM,
+} from '@quirenote/core/colors';
 import type { BalanceChartPoint } from '@quirenote/core/view/balances';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
@@ -49,6 +54,7 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           formatter={(v) => [f.money(Number(v)), t.analytics.overview.totalCapital]}
           labelFormatter={(label) => f.dateShort(String(label))}
           contentStyle={CHART_TOOLTIP}
+          itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_LINE}
         />
         <Area
@@ -58,9 +64,8 @@ export function BalancesArea({ data }: { data: BalanceChartPoint[] }) {
           strokeWidth={2.5}
           fill={CHART.accentTint}
           // 1, because `accent-tint` IS ALREADY an alpha — it lies over more
-          // than one plane. This attribute multiplies with it, so the 0.7 the
-          // opaque tint here used to want would land the area near 8 % in light
-          // and just under 10 % in dark, which reads as no fill.
+          // than one plane — and this attribute multiplies with it: softening
+          // it again here reads as no fill.
           fillOpacity={1}
           isAnimationActive
           animationDuration={900}

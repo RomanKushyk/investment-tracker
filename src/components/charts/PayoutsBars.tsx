@@ -9,7 +9,13 @@ import {
   XAxis,
 } from 'recharts';
 
-import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '@quirenote/core/colors';
+import {
+  CHART,
+  CHART_CURSOR_FILL,
+  CHART_TOOLTIP,
+  CHART_TOOLTIP_ITEM,
+  SERIES,
+} from '@quirenote/core/colors';
 import { useFormat } from '../../hooks/useFormat';
 import { useTooltipTrigger } from '../../hooks/useTooltipTrigger';
 import { useT } from '../../i18n/useT';
@@ -36,7 +42,6 @@ interface BarLabelEntry {
 // is stacked on top, so whenever it renders it IS the top of the stack and
 // draws unconditionally; dividends draws only where coupons is 0, at which
 // point dividends is the top segment and its own y needs no adjustment.
-// Anchoring on dividends alone got a month with coupons and no dividends wrong.
 function makeSegmentLabel(data: PayoutsChartPoint[], alwaysTop: boolean) {
   return function TotalLabel({ x, y, width, index }: Partial<BarLabelEntry>) {
     if (x === undefined || y === undefined || width === undefined || index === undefined) {
@@ -92,6 +97,7 @@ export function PayoutsBars({ data }: { data: PayoutsChartPoint[] }) {
             name === 'coupons' ? t.analytics.coupons : t.analytics.dividends,
           ]}
           contentStyle={CHART_TOOLTIP}
+          itemStyle={CHART_TOOLTIP_ITEM}
           cursor={CHART_CURSOR_FILL}
         />
         <Bar
