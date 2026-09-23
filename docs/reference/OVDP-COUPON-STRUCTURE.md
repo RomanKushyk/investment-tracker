@@ -40,9 +40,10 @@ steps, which is what makes the division clean.
 
 ## `returnRates` is NOT the coupon rate
 
-The feed's `returnRates.buy` / `.sell` is the **yield to maturity** — the discount
-rate that prices the bond, and it moves with the price every day. The coupon rate is
-fixed at issuance. They are different numbers and the gap is large:
+The feed's `returnRates.buy` / `.sell` is the **quoted yield** — the discount rate
+that prices the bond, compound until its final period and simple in it (next
+section), and it moves with the price every day. The coupon rate is fixed at
+issuance. They are different numbers and the gap is large:
 
 | ISIN | coupon rate | `returnRates.sell` | gap |
 |---|---|---|---|
@@ -59,6 +60,32 @@ premium less. **Reading `returnRates` as the coupon rate would be wrong by up to
 This is also why `Asset.expectedPct` on a bond, rendered "YTM at purchase", cannot be folded into
 the coupon rate: it depends on the price *this holder paid*, so the same bond bought on two dates
 has two values where its coupon rate has one for life.
+
+## In the final period the quoted yield is simple interest
+
+A quoted bond yield follows NSSMC Decision No. 641, Section IV point 2
+([z0060-21](https://zakon.rada.gov.ua/laws/show/z0060-21)): with **no intermediate payment**
+(coupon, partial amortisation) between the date and maturity, the yield is **simple** over the days
+to the last payment; in every other case it is the root of the **compound** equation over each
+payment's days. The feed says the same in the hint on each bond's yield indicator
+(`assetDetails.indicators[].hint`): "SIM (Simple Interest Method) — простий відсоток для тих
+облігацій, у яких залишився один купонний платіж до дати погашення". The provider's prices fit both
+forms on ACT/365 within the rounding of the published yield:
+
+```
+P = Σ CFᵢ × (1 + y) ^ (−ACT_days / 365)     two or more payment dates left
+P = Σ CFᵢ / (1 + y × ACT_days / 365)         one payment date left
+```
+
+- **The switch counts payment DATES after the pricing date.** The final coupon and the principal
+  share one date, so they are one payment. A flow due on the pricing date is already past
+  (*Metric families and windows*), so a bond switches on its penultimate coupon's payment date.
+- **The NBU does not switch.** Its fair-value file's `ytm` stays compound in a bond's final period:
+  it compounds the fair value back to the final flow, where simple interest would not. The two
+  bases stay apart (*The price archive*), and "YTM at purchase" is compound always, like the NBU's.
+
+[`dcf.ts`](../../packages/core/src/inzhur/dcf.ts) carries both as a yield convention: `published`
+for checking the provider's quote, `ytm` for every figure labelled YTM.
 
 ## What the app derives from this
 

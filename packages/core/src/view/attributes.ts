@@ -79,7 +79,7 @@ export function derivedYtmPct(
   // `bought.date`, NOT `asset.firstPurchase` — the price is discounted against
   // the day it was actually paid. The two are independently editable and need
   // not agree; see `purchaseUnitPrice`.
-  const solved = impliedYield(bought.price, match.quote.paymentSchedule, bought.date);
+  const solved = impliedYield(bought.price, match.quote.paymentSchedule, bought.date, 'ytm');
   // `unbracketed` and `not_applicable` are FINDINGS, not failures — a price no
   // yield can produce, or a schedule already spent — but neither is a figure to
   // print, so both read the same way here.

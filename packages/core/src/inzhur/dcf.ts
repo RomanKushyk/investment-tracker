@@ -4,7 +4,11 @@
 // the published `paymentSchedule`, on an ACT/365 day count, whose only free
 // parameter is the published yield:
 //
-//     P(D) = Σ CFᵢ × (1 + y) ^ (−ACT_days(D, dᵢ) / 365)
+//     P(D) = Σ CFᵢ × (1 + y) ^ (−ACT_days(D, dᵢ) / 365)     two or more payment dates left
+//     P(D) = Σ CFᵢ / (1 + y × ACT_days(D, dᵢ) / 365)         one payment date left
+//
+// The second is simple interest, the regulator's rule for a yield with no payment
+// before the last (docs/reference/OVDP-COUPON-STRUCTURE.md); YTM stays compound.
 //
 // THE INVERSE DATES A QUOTE, which a price alone can never do, and A SILENT YIELD
 // REVISION BECOMES VISIBLE: a re-price with no schedule change leaves the stored
@@ -13,7 +17,7 @@
 import type { InzhurPayment } from './parse';
 
 /** STRICTLY in the future: same-day flows are excluded because the provider’s own
- *  price behaves that way, and the fit depends on it. */
+ *  price behaves that way, and the fit depends on it (*Metric families and windows*). */
 function futureFlows(schedule: readonly InzhurPayment[], onIso: string): InzhurPayment[] {
   return schedule.filter((p) => p.date > onIso);
 }
@@ -31,6 +35,10 @@ export type DerivedPrice =
    */
   | { kind: 'not_applicable'; reason: 'no_future_flows' };
 
+/** `published` is the quoted yield: simple while ONE payment date is left, compound
+ *  otherwise. `ytm` is compound always, like the NBU's. No default, so neither is the cheap one. */
+export type YieldConvention = 'published' | 'ytm';
+
 /**
  * Present value of the remaining schedule at `onIso`. `yieldPct` is the published
  * annual rate as a PERCENT, matching `returnRates.sell` verbatim — converting at
@@ -40,12 +48,19 @@ export function derivePrice(
   schedule: readonly InzhurPayment[],
   yieldPct: number,
   onIso: string,
+  convention: YieldConvention,
 ): DerivedPrice {
   const flows = futureFlows(schedule, onIso);
   if (flows.length === 0) return { kind: 'not_applicable', reason: 'no_future_flows' };
   const y = yieldPct / 100;
+  // Per date priced, so a search walking back past the penultimate coupon prices compound;
+  // the final coupon and the principal share a date, which is one payment.
+  const simple = convention === 'published' && new Set(flows.map((f) => f.date)).size === 1;
   let price = 0;
-  for (const f of flows) price += f.amount * Math.pow(1 + y, -actDays(onIso, f.date) / 365);
+  for (const f of flows) {
+    const t = actDays(onIso, f.date) / 365;
+    price += simple ? f.amount / (1 + y * t) : f.amount * Math.pow(1 + y, -t);
+  }
   return { kind: 'priced', price };
 }
 
@@ -71,12 +86,13 @@ export function impliedYield(
   price: number,
   schedule: readonly InzhurPayment[],
   onIso: string,
+  convention: YieldConvention,
 ): ImpliedYield {
   if (futureFlows(schedule, onIso).length === 0) {
     return { kind: 'not_applicable', reason: 'no_future_flows' };
   }
   const at = (pct: number): number => {
-    const d = derivePrice(schedule, pct, onIso);
+    const d = derivePrice(schedule, pct, onIso, convention);
     return d.kind === 'priced' ? d.price : Number.NaN;
   };
   let lo = YIELD_MIN_PCT;
@@ -116,7 +132,7 @@ export function bestValuationDate(
   // A bond with nothing left to pay is MATURED, and that is the answer. Walking
   // backwards would price the days before its final flow almost exactly and report
   // a completed bond as stale — a fact about the calendar dressed as a fault.
-  if (derivePrice(schedule, yieldPct, onIso).kind !== 'priced') return undefined;
+  if (derivePrice(schedule, yieldPct, onIso, 'published').kind !== 'priced') return undefined;
 
   // The noise floor at the read date: any date inside it is equally consistent with
   // the quote, so "which one" is not something the residual can answer.
@@ -127,7 +143,7 @@ export function bestValuationDate(
     const d = new Date(`${onIso}T00:00:00Z`);
     d.setUTCDate(d.getUTCDate() - back);
     const date = d.toISOString().slice(0, 10);
-    const derived = derivePrice(schedule, yieldPct, date);
+    const derived = derivePrice(schedule, yieldPct, date, 'published');
     if (derived.kind !== 'priced') continue;
     const residual = derived.price - quoted;
     const fit = { date, residual, daysStale: back, atWindowEdge: back === lookbackDays };
@@ -161,8 +177,8 @@ export function yieldSensitivityUah(
   yieldPct: number,
   onIso: string,
 ): number | undefined {
-  const base = derivePrice(schedule, yieldPct, onIso);
-  const bumped = derivePrice(schedule, yieldPct + YIELD_ROUNDING_PCT, onIso);
+  const base = derivePrice(schedule, yieldPct, onIso, 'published');
+  const bumped = derivePrice(schedule, yieldPct + YIELD_ROUNDING_PCT, onIso, 'published');
   if (base.kind !== 'priced' || bumped.kind !== 'priced') return undefined;
   return Math.abs(bumped.price - base.price);
 }
@@ -223,7 +239,7 @@ export function checkQuote(
 
   // Solved at `onIso`, NOT at `fit.date`: the best-fit date was chosen assuming the
   // published yield still held, which this branch has just rejected.
-  const implied = impliedYield(quoted, schedule, onIso);
+  const implied = impliedYield(quoted, schedule, onIso, 'published');
   return implied.kind === 'solved'
     ? { state: 'revised', fit, impliedPct: implied.yieldPct, publishedPct }
     : // `unbracketed`, and the price IS sensitive enough for that to mean

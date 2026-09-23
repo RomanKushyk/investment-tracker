@@ -123,6 +123,15 @@ describe('derivedYtmPct — YTM at purchase, solved rather than typed (D120)', (
     expect(dear!).toBeLessThan(cheap!);
   });
 
+  // The provider quotes a bond with one payment date left in simple interest; YTM
+  // stays compound, the NBU's basis too, so the figure differs from the one it prints.
+  it('stays compound for a purchase made with one payment date left', () => {
+    const ytm = derivedYtmPct(bond(), [buy({ date: '2026-09-23', unitPrice: 1003.82 })], feed);
+    const compound = (Math.pow(1078.4 / 1003.82, 365 / 182) - 1) * 100;
+    expect(ytm).toBeCloseTo(compound, 6);
+    expect(ytm).not.toBeCloseTo(14.9, 1);
+  });
+
   it('takes the EARLIEST purchase, not the latest or an average', () => {
     const ladder = [buy({ id: 'b2', date: '2026-08-20', unitPrice: 1100 }), buy()];
     expect(derivedYtmPct(bond(), ladder, feed)).toBe(derivedYtmPct(bond(), [buy()], feed));

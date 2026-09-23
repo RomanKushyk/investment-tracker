@@ -79,9 +79,11 @@ bound to a `to_char()` alias instead of the column. Size with `EXPLAIN (ANALYZE,
 
 Neither instrument class publishes a market observation. **Bonds are a closed-form function of the
 date** — `sellUAH = Σ CF_i × (1+y)^(−ACT_days/365)` over remaining cashflows with `y =
-returnRates.sell`, confirmed out of sample to within a kopeck. Coupon periods are **exactly 182 days
-and always a Wednesday**, not six calendar months, and the daily step is a **ramp**, so linear
-accrual is wrong at every point. **Funds are arithmetic on NAV**: `sellUAH = navUAH × 1.009` and
+returnRates.sell`, confirmed out of sample to within a kopeck, and `Σ CF_i / (1 + y × ACT_days/365)`
+once one payment date is left: the regulator's simple interest
+(`docs/reference/OVDP-COUPON-STRUCTURE.md`). Coupon periods are **exactly 182 days and always a
+Wednesday**, not six calendar months, and the daily step is a **ramp**, so linear accrual is wrong
+at every point. **Funds are arithmetic on NAV**: `sellUAH = navUAH × 1.009` and
 `buyUAH = navUAH × 1.010` exactly, on both funds, so `navUAH` is the only genuine channel.
 
 A weekend OVDP value is therefore **computable, not carried**, but it is worth one day's accretion
