@@ -162,6 +162,15 @@ describe('the archive stack holds the archive and nothing else', () => {
     }
   });
 
+  // A LITERAL ON THE RESOURCE, so an edit to the address is a change the deploy lands. The value is
+  // the one the capture fetched while it was a parameter's default.
+  it('hands its capture the feed address as a literal', () => {
+    expect(intrinsicAt(archiveDoc, ...envVars('CaptureFunction'), 'FEED_URL')).toEqual({
+      tag: undefined,
+      value: 'https://www.inzhur.reit/_api/assets',
+    });
+  });
+
   it('declares exactly one cluster, and it is the archive', () => {
     expect(idsOfType(archive, CLUSTER)).toEqual(['PriceCluster']);
   });
@@ -877,6 +886,21 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     for (const name of required) {
       expect([name, userStack.run?.includes(`"${name}=`)]).toEqual([name, true]);
     }
+  });
+
+  // `sam deploy` SENDS `UsePreviousValue` FOR EVERY PARAMETER IT IS NOT PASSED, so an edit to a
+  // default it never submits deploys green and never lands. Read off the text: a submission behind
+  // an `if`, as the Google pair's is, counts as one.
+  it('names every parameter either template gives a default in the deploy that ships it', () => {
+    const [userStack, archiveStack] = deploys;
+    const stacks = [
+      ['template-user.yaml', user, userStack],
+      ['template.yaml', archive, archiveStack],
+    ] as const;
+    for (const [file, template, step] of stacks)
+      for (const [name, p] of Object.entries(template.Parameters ?? {}))
+        if ('Default' in p)
+          expect([file, name, step.run?.includes(`"${name}=`)]).toEqual([file, name, true]);
   });
 
   // AND A PARAMETER WITH A DEFAULT IS PASSED ONLY WHEN IT HAS A VALUE. `sam deploy`

@@ -6,11 +6,6 @@ Description: >
   price_observation, one row per as_of, instrument_ref, basis and source.
   See docs/superpowers/specs/2026-08-04-data-model.md.
 
-Parameters:
-  FeedUrl:
-    Type: String
-    Default: https://www.inzhur.reit/_api/assets
-
 Globals:
   Function:
     Runtime: nodejs22.x
@@ -49,7 +44,9 @@ Resources:
       # unreserved pool below the required minimum of 10 and the deploy fails outright.
       Environment:
         Variables:
-          FEED_URL: !Ref FeedUrl
+          # A LITERAL, NOT A PARAMETER: `sam deploy` pins every parameter it is not passed to its
+          # previous value, and nothing passed this one, so only here does an edit to it land.
+          FEED_URL: https://www.inzhur.reit/_api/assets
           DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
           DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
           AWS_REGION_NAME: !Ref AWS::Region
