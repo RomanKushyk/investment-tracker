@@ -1,4 +1,15 @@
+import type { Dict } from '../../i18n/messages';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
+
+/**
+ * The names each `<Bar>` passes to recharts as `name`, which the tooltip prefers
+ * over the `dataKey` — so renaming a key cannot put the raw word back on screen.
+ */
+export function seasonalitySeriesNames(
+  t: Dict,
+): Record<keyof Pick<SeasonalityChartPoint, 'actual' | 'expected'>, string> {
+  return { actual: t.analytics.seasonality.received, expected: t.analytics.seasonality.expected };
+}
 
 /**
  * Which label, if any, the EXPECTED series' `index`-th rectangle should carry —

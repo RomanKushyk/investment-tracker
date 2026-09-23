@@ -509,6 +509,9 @@ export const en = {
       axisByDay: 'By day',
       axisByMonth: 'By month',
       axisAriaLabel: 'Chart axis',
+      // The chart's two series, in the tooltip. Words the app already prints, not new copy.
+      received: 'Received',
+      expected: 'Expected',
       anchorDay: (day: number) => `Day ${day}`,
       // Lowercase: it sits after a figure on the chart's own bar label.
       dayShort: (day: number) => `day ${day}`,
@@ -1462,6 +1465,8 @@ export const uk: Dict = {
       axisByDay: 'За днями',
       axisByMonth: 'За місяцями',
       axisAriaLabel: 'Вісь графіка',
+      received: 'Отримано',
+      expected: 'Очікувано',
       anchorDay: (day: number) => `День ${day}`,
       dayShort: (day: number) => `день ${day}`,
       anchorRest: (asset: string, frequency: string, first: string, last: string) =>

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { en, uk } from '../../i18n/messages';
 import type { SeasonalityChartPoint } from './SeasonalityBars';
-import { expectedOnlyLabel } from './seasonality-labels';
+import { expectedOnlyLabel, seasonalitySeriesNames } from './seasonality-labels';
 
 // SIX POINTS, THREE OF THEM CARRYING AN EXPECTATION — a reduction of the month
 // axis rather than a copy, the months in between changing nothing about the
@@ -46,5 +47,17 @@ describe('expectedOnlyLabel', () => {
 
   it('draws nothing for a series with no expectations at all', () => {
     expect(expectedOnlyLabel([{ day: 1, actual: 500, actualLabel: '500 ₴' }], 0)).toBeNull();
+  });
+});
+
+// The literals are the contract: recharts prints a series' `dataKey` wherever its
+// name is missing. `seasonality-tooltip.test.ts` holds the chart to these names.
+describe('seasonalitySeriesNames', () => {
+  it('names the two series in Ukrainian', () => {
+    expect(seasonalitySeriesNames(uk)).toEqual({ actual: 'Отримано', expected: 'Очікувано' });
+  });
+
+  it('names the two series in English', () => {
+    expect(seasonalitySeriesNames(en)).toEqual({ actual: 'Received', expected: 'Expected' });
   });
 });

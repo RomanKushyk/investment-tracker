@@ -152,7 +152,7 @@ On seed:
 - **A segmented toggle on the chart card: "By day" / "By month".** It sits on the chart because it changes one chart; the period control that changes the whole screen sits in the screen header. The choice is EPHEMERAL — leaving `/seasonality` and coming back opens on days again.
 - **Month axis, on seed:** twelve ticks Jan…Dec, all labelled. Eight labelled bars: Feb 1 764 ₴ · 1 240 ₴*, Mar 596 ₴, Apr 612 ₴, May 472 ₴ · 216 ₴*, Jun 897 ₴, Jul 700 ₴, Aug 1 240 ₴*, Dec 216 ₴*. Aug and Dec are expected-only.
 - **Two months carry both series:** …8976's final coupon falls at its February maturity, so February has a real 2026 coupon AND a scheduled one. May is …6475's — 03.12.2026 + 6 months overshoots the 27.05.2027 maturity, so the schedule clamps to a final short coupon in May. Both pinned by test.
-- **No value label leaves the plot** — labels are clamped to the plot rectangle; a truncated figure is worse than an absent one. **The tooltip names a month on the month axis** — the full word, where the ticks take the short form. The tooltip's series names (`actual`/`expected`) are untranslated on both axes.
+- **No value label leaves the plot** — labels are clamped to the plot rectangle; a truncated figure is worse than an absent one. **The tooltip names a month on the month axis** — the full word, where the ticks take the short form. Its rows are named «Отримано» / «Очікувано» (Received / Expected) on both axes, whether reached by pointer or by keyboard (Tab to the chart, then the arrow keys), at any width.
 
 ## `/portfolio`
 

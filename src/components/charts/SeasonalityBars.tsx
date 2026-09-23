@@ -14,7 +14,7 @@ import { CHART, CHART_CURSOR_FILL, CHART_TOOLTIP, SERIES } from '@quirenote/core
 import { useFormat } from '../../hooks/useFormat';
 import { useT } from '../../i18n/useT';
 import type { ColorKey } from '@quirenote/core/types';
-import { clampLabelX, expectedOnlyLabel } from './seasonality-labels';
+import { clampLabelX, expectedOnlyLabel, seasonalitySeriesNames } from './seasonality-labels';
 
 export interface SeasonalityChartPoint {
   day: number;
@@ -184,6 +184,7 @@ export function SeasonalityBars({
 }) {
   const f = useFormat();
   const t = useT();
+  const names = seasonalitySeriesNames(t);
   const incomeLabel = makeIncomeLabel(data);
   // Capitalised because the lower-case name is TAKEN: `expectedOnlyLabel` is the
   // pure helper imported above, and a local binding of that name shadows it for
@@ -206,7 +207,10 @@ export function SeasonalityBars({
           tickLine={false}
           interval={0}
         />
+        {/* Sorted by key, not recharts' default `name`: the names are translated and would
+            order the rows per language. `actual` < `expected` is what puts Received first. */}
         <Tooltip
+          itemSorter="dataKey"
           formatter={(v) => f.money(Number(v))}
           labelFormatter={(label) =>
             axis === 'month'
@@ -218,6 +222,7 @@ export function SeasonalityBars({
         />
         <Bar
           dataKey="actual"
+          name={names.actual}
           shape={ActualBarShape}
           isAnimationActive
           animationDuration={900}
@@ -229,6 +234,7 @@ export function SeasonalityBars({
         </Bar>
         <Bar
           dataKey="expected"
+          name={names.expected}
           shape={ExpectedBarShape}
           isAnimationActive
           animationDuration={900}
