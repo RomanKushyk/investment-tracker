@@ -203,6 +203,8 @@ an empty value rather than an error that names it.
 | Secret | `AWS_ACCOUNT_ID` | the account number | both |
 | Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` | both |
 | Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy` | both — `prod` needs it since the backend split |
+| Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: unless both are set, the deploy switches Google sign-in OFF, green |
+| Secret | `GOOGLE_CLIENT_SECRET` | that client's secret | both — as above |
 
 **The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A
 required reviewer gates a whole environment, and `prod` also admits `deploy-frontend.yml` — put one there

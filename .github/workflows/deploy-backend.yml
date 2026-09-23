@@ -321,12 +321,15 @@ jobs:
       - name: Deploy the user stack
         working-directory: infra
         run: |
-          # THE GOOGLE PAIR BELOW IS PASSED ONLY WHEN SET, because `sam deploy` REFUSES an empty
-          # value in its own parser, before any AWS call. The three on this line go every time:
-          # neither certificate has a default, so an unset secret has to fail rather than resolve.
+          # The three on this line go every time: neither certificate has a default, so an unset
+          # secret has to fail rather than resolve.
           overrides=("Environment=${ENVIRONMENT}" "AuthCertificateArn=${AUTH_CERTIFICATE_ARN}" "ApiCertificateArn=${API_CERTIFICATE_ARN}")
+          # THE GOOGLE SWITCH GOES EVERY TIME, like `OpenRegistration` below: left out, it keeps its
+          # previous value. The PAIR goes only when set, as `sam deploy` REFUSES an empty value.
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
-            overrides+=("GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
+            overrides+=("GoogleSignIn=enabled" "GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
+          else
+            overrides+=("GoogleSignIn=disabled")
           fi
           # ALWAYS PASSED, AND THE `else` IS THE POINT: `sam deploy` sends `UsePreviousValue`
           # for any parameter absent once the stack exists, so clearing the variable would

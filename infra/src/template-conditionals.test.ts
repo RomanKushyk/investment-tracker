@@ -29,12 +29,7 @@ const archive = read('template.yaml');
 const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] = [
   [['Conditions', 'IsProd'], '!Equals'],
   [['Conditions', 'IsRegistrationOpen'], '!Equals'],
-  // Nested, so the tag dropped at any of the five leaves the arms reading exactly as they do.
-  [['Conditions', 'HasGoogle'], '!And'],
-  [['Conditions', 'HasGoogle', 0], '!Not'],
-  [['Conditions', 'HasGoogle', 0, 0], '!Equals'],
-  [['Conditions', 'HasGoogle', 1], '!Not'],
-  [['Conditions', 'HasGoogle', 1, 0], '!Equals'],
+  [['Conditions', 'HasGoogle'], '!Equals'],
   // `app=quirenote` selects into `quirenote-backups`, a LOCKED vault; dev's tag is out.
   [['Resources', 'UserCluster', 'Properties', 'Tags', 0, 'Value'], '!If'],
   // The passkey relying party: the environment's own apex, so changing it strands credentials.
@@ -86,7 +81,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the twenty written here', () => {
+  it('carries exactly the sixteen written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

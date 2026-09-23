@@ -907,18 +907,39 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
   // refuses an empty one — "not a valid format", and the command dies before making a
   // single AWS call — so a template `Default: ''` does not make an unset secret a
   // supported state on its own. Nothing but the argument list can fix it: the parser that
-  // refuses is the CLI's rather than CloudFormation's.
+  // refuses is the CLI's rather than CloudFormation's. A parameter passed only as values the
+  // template allows needs no guard, since a literal cannot be empty — the Google switch.
   it('guards an optional parameter instead of passing it empty', () => {
     const [userStack] = deploys;
-    const optional = Object.entries(user.Parameters ?? {})
-      .filter(([, p]) => 'Default' in p)
-      .map(([name]) => name);
+    const optional = Object.entries(user.Parameters ?? {}).filter(([, p]) => 'Default' in p);
     expect(optional.length).toBeGreaterThan(0);
-    for (const name of optional) {
+    for (const [name, p] of optional) {
       if (!userStack.run?.includes(`"${name}=`)) continue;
+      const passed = [...userStack.run.matchAll(new RegExp(`"${name}=([^"]*)"`, 'g'))];
+      if (passed.every(([, value]) => p.AllowedValues?.includes(value))) continue;
       const variable = name.replace(/(?!^)([A-Z])/g, '_$1').toUpperCase();
       expect([name, userStack.run.includes(`-n "$${variable}"`)]).toEqual([name, true]);
     }
+  });
+
+  // THE `else` IS THE HALF THAT MATTERS: a switch left out keeps its previous value, so deleting a
+  // secret would leave Google on. `enabled` needs both halves: an id alone builds a broken provider.
+  it('switches Google on with both halves of the pair, and off on every other run', () => {
+    const [userStack] = deploys;
+    const lines = (userStack.run ?? '').split('\n').map((line) => line.trim());
+    const start = lines.indexOf(
+      'if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then',
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    const block = lines.slice(start + 1, lines.indexOf('fi', start));
+    const split = block.indexOf('else');
+    const on = (split < 0 ? block : block.slice(0, split)).join('\n');
+    const off = (split < 0 ? [] : block.slice(split + 1)).join('\n');
+    expect(on).toContain('"GoogleSignIn=enabled"');
+    expect(on).toContain('"GoogleClientId=${GOOGLE_CLIENT_ID}"');
+    expect(on).toContain('"GoogleClientSecret=${GOOGLE_CLIENT_SECRET}"');
+    expect(off).toContain('"GoogleSignIn=disabled"');
+    expect(off).not.toContain('GoogleClient');
   });
 });
 

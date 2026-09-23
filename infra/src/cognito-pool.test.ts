@@ -24,7 +24,10 @@ type Resource = {
   Properties?: Record<string, unknown>;
 };
 type Template = {
-  Parameters?: Record<string, { Type: string; Default?: string; NoEcho?: boolean }>;
+  Parameters?: Record<
+    string,
+    { Type: string; Default?: string; AllowedValues?: string[]; NoEcho?: boolean }
+  >;
   Conditions?: Record<string, unknown>;
   Resources: Record<string, Resource>;
   Outputs?: Record<string, unknown>;
@@ -242,19 +245,29 @@ describe('three sign-in methods reach the pool', () => {
   });
 
   // Google's credentials are not in this repository — it is public — so the provider exists only
-  // when they arrive and the stack deploys green before the Google client exists.
-  it('adds Google only when its credentials were supplied', () => {
+  // when the deploy switches it on: a pair left out keeps its previous values, never reaching `''`.
+  it('adds Google only when the switch says so', () => {
     expect(user.Resources.GoogleIdentityProvider?.Condition).toBe('HasGoogle');
     expect(user.Parameters?.GoogleClientSecret?.NoEcho).toBe(true);
     expect(user.Parameters?.GoogleClientId?.Default).toBe('');
-    // Both halves: an id without a secret builds a provider that is present in managed login and
-    // broken at the token exchange.
-    expect(JSON.stringify(user.Conditions?.HasGoogle)).toContain('GoogleClientSecret');
+    expect(user.Conditions?.HasGoogle).toEqual(['GoogleSignIn', 'enabled']);
+    // The parameter AS THE INTRINSIC: a literal `GoogleSignIn` reads identically through `toJS()`
+    // and compares two constant strings, so Google would be off everywhere.
+    expect(intrinsicAt(doc, 'Conditions', 'HasGoogle', 0)).toEqual({
+      tag: '!Ref',
+      value: 'GoogleSignIn',
+    });
     expect(props('UserPoolClient').SupportedIdentityProviders).toEqual([
       'HasGoogle',
       ['COGNITO', 'GoogleIdentityProvider'],
       ['COGNITO'],
     ]);
+  });
+
+  it('defaults to off', () => {
+    const p = user.Parameters?.GoogleSignIn;
+    expect(p?.Default).toBe('disabled');
+    expect(p?.AllowedValues).toEqual(['disabled', 'enabled']);
   });
 
   // An unmapped `email_verified` arrives as `undefined`, which the trigger treats as unverified,
@@ -449,6 +462,14 @@ describe('the stack still takes its environment the way it did', () => {
     expect(props('UserPool').MfaConfiguration).toBe('OFF');
     expect(props('UserPool').WebAuthnUserVerification).toBe('required');
     expect(props('UserPool').AutoVerifiedAttributes).toEqual(['email']);
+  });
+
+  // SAM PARSES AS YAML 1.1 AND THIS SUITE AS 1.2, so an unquoted `OFF` or `on` is a boolean to the
+  // deploy and a string to every assertion above. This 1.1 also takes `y`/`n`, which SAM does not.
+  it('reads the same under YAML 1.1, which SAM parses, as under 1.2', () => {
+    const asSam = parseDocument(source, { version: '1.1' });
+    expect(asSam.errors).toEqual([]);
+    expect(asSam.toJS()).toEqual(user);
   });
 
   // No `app` tag on the pool, deliberately: that tag is the backup selection, and a Cognito pool is

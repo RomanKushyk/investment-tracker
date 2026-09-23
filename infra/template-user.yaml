@@ -43,6 +43,12 @@ Parameters:
     # UNDO IT: every account created meanwhile keeps its Cognito profile, so what still holds the
     # line is the `status`/`role` check the API makes on every request.
 
+  # A SWITCH RATHER THAN THE PAIR'S EMPTINESS: `sam deploy` resends an absent parameter's
+  # previous value, so a deleted secret never reaches `''`. Not `on`/`off`: YAML 1.1 booleans.
+  GoogleSignIn:
+    Type: String
+    AllowedValues: [disabled, enabled]
+    Default: disabled
   GoogleClientId:
     Type: String
     Default: ''
@@ -59,9 +65,7 @@ Conditions:
   # both handlers', so a copied `!If` reads plausibly and inverts one of them.
   IsRegistrationOpen: !Equals [!Ref OpenRegistration, open]
 
-  HasGoogle: !And
-    - !Not [!Equals [!Ref GoogleClientId, '']]
-    - !Not [!Equals [!Ref GoogleClientSecret, '']]
+  HasGoogle: !Equals [!Ref GoogleSignIn, enabled]
 
 Resources:
   # No VPC here either: DSQL is a public IAM-authenticated endpoint, and a NAT Gateway would
