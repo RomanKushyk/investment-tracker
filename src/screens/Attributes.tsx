@@ -6,7 +6,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Tag } from '../components/ui/Tag';
 import { useAssets, useSnapshots, useTransactions } from '../hooks/queries';
 import { daysBetween, latestSnapshotDate } from '@quirenote/core/dates';
-import { couponPerPayment } from '@quirenote/core/accrual';
+import { couponPerPayment, nextUnsettledCouponDate } from '@quirenote/core/accrual';
 import {
   basisIsShort,
   investedByAsset,
@@ -170,7 +170,12 @@ export function Attributes() {
                     {f.date(a.firstPurchase)}
                   </Fact>
                   <Fact label={t.analytics.attributes.nextCoupon}>
-                    {a.nextCoupon ? f.date(a.nextCoupon) : '—'}
+                    {/* The walk, not `a.nextCoupon`: the transaction form never moves the pointer,
+                        so a payout recorded there leaves it settled. No `dismissed`: a Skip pays nothing. */}
+                    {(() => {
+                      const next = nextUnsettledCouponDate(a, transactions);
+                      return next ? f.date(next) : '—';
+                    })()}
                   </Fact>
                 </>
               ) : (
