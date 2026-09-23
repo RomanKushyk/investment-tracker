@@ -353,13 +353,17 @@ DISPATCHES on a transaction type answers for every type or it does not compile, 
 a `Record<TxType, …>` rather than a literal array; `unnamedType` returns its fallback rather than
 throwing, that arm being reachable by a row an unmigrated store still holds. A CloudFormation
 assertion that depends on an intrinsic reads the tag off the PARSED document, never a regex over the
-template text.
+template text, and a guard over how a query's names resolve reads each statement through
+PostgreSQL's own parser, `libpg-query`, never a pattern over the query text.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
-parsed template.
+parsed template. A pattern over SQL re-derives a grammar it never finishes: each construct it learns
+to skip, a nested query or a quoted name, is one more it can misread.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
-the author is holding.
+the author is holding. · Asking the planner (`EXPLAIN` in PGlite) which sort keys are expressions:
+`SELECT DISTINCT` and `count(DISTINCT …)` sort on expressions by design, so every query would need
+an approved plan to compare against.
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the
