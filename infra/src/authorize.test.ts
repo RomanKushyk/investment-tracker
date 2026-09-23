@@ -5,9 +5,10 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import { type Gate, authorize, superAdminOnly } from './authorize';
 import { DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import type { ApiEvent } from './http';
@@ -90,7 +91,7 @@ const pair = async (userId: string) =>
   ).rows[0];
 
 beforeEach(async () => {
-  db = new PGlite();
+  db = await freshDb();
   for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
     await db.exec(stmt).catch((e: Error) => {
       throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);

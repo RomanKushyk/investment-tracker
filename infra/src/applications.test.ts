@@ -5,9 +5,10 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import {
   ROUTE,
   RESPONSES,
@@ -60,7 +61,7 @@ const rows = async () =>
 
 describe('a submission writes one pending row', () => {
   beforeEach(async () => {
-    db = new PGlite();
+    db = await freshDb();
     for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
       await db.exec(stmt).catch((e: Error) => {
         throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);

@@ -8,9 +8,10 @@
 // `rewriteForDsql` rewrites every index line TWICE on the way out. Doing only the first still
 // gives a statement the cluster refuses, and a DSQL-only rejection stays invisible here.
 import { readFileSync } from 'node:fs';
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import { DEMO_USER_EMAIL } from './demo-user';
 // The runner's own splitter, so this suite certifies the statements actually sent.
 // `--> statement-breakpoint` is a SQL comment AND the statement separator, which is what makes a
@@ -81,7 +82,7 @@ const insertTx = (
            ${note}, now());`;
 
 beforeAll(async () => {
-  db = new PGlite();
+  db = await freshDb();
   const stmts = DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')));
   for (const stmt of stmts) {
     // A failure here names the statement rather than the file. No `+ ';'`: splitting on the marker

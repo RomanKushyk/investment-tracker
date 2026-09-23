@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { addDays } from '@quirenote/core/dates';
+import { freshDb } from './__fixtures__/pglite';
 import { reconcileObservations } from './diagnose-reconciliation';
 
 // The tables come from `ensureSchema`'s own literals: the archive's DDL already exists twice, and
@@ -35,7 +36,7 @@ describe('diagnose reconciles against the capture days the observer reads', () =
 
   beforeEach(async () => {
     expect(TABLES, 'the three archive tables, from capture.ts').toHaveLength(3);
-    db = new PGlite();
+    db = await freshDb();
     for (const ddl of TABLES) await db.exec(ddl);
   });
 

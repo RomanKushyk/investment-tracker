@@ -8,9 +8,10 @@
 // NOTHING` does not exempt an insert from OCC adjudication — stays recorded in
 // `infra/docs/dsql-constraints.md`.
 import { readFileSync } from 'node:fs';
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import { MIGRATIONS, type SqlClient, statementsOf as statements } from './migrate';
 import { provision } from './provision';
 
@@ -75,7 +76,7 @@ const refusingFirstCommit = (code: string) => {
 };
 
 beforeEach(async () => {
-  db = new PGlite();
+  db = await freshDb();
   for (const stmt of DDL.flatMap((f) => statements(readFileSync(fileUrl(f), 'utf8')))) {
     await db.exec(stmt).catch((e: Error) => {
       throw new Error(`DDL failed: ${stmt.split('\n')[0]}\n${e.message}`);

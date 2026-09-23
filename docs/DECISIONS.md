@@ -354,16 +354,24 @@ a `Record<TxType, …>` rather than a literal array; `unnamedType` returns its f
 throwing, that arm being reachable by a row an unmigrated store still holds. A CloudFormation
 assertion that depends on an intrinsic reads the tag off the PARSED document, never a regex over the
 template text, and a guard over how a query's names resolve reads each statement through
-PostgreSQL's own parser, `libpg-query`, never a pattern over the query text.
+PostgreSQL's own parser, `libpg-query`, never a pattern over the query text. A suite that needs
+Postgres takes the worker's one PGlite from `freshDb`, emptied for each test, and only that helper
+may build one — a lint zone, not a test reading source. Isolation is per schema: a test that adds,
+grants or sets anything outside one fails the next call, and a built-in edited in place is shared.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
 parsed template. A pattern over SQL re-derives a grammar it never finishes: each construct it learns
-to skip, a nested query or a quoted name, is one more it can misread.
+to skip, a nested query or a quoted name, is one more it can misread. A PGlite keeps the memory it
+booted with after `close()`, so a cluster per test grew every worker until a full run left the
+machine none to spare; per-test isolation stops at the database or schema in the tools this follows,
+and cluster-level state is shared there too.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · Asking the planner (`EXPLAIN` in PGlite) which sort keys are expressions:
 `SELECT DISTINCT` and `count(DISTINCT …)` sort on expressions by design, so every query would need
-an approved plan to compare against.
+an approved plan to compare against. · A cluster, or a `clone()`, per test: each keeps its memory. ·
+Refusing a built-in edited in place by hashing every catalogue row: it would first need the columns
+PostgreSQL rewrites on its own, to guard against what no suite does.
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the

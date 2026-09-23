@@ -5,6 +5,28 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
+const PGLITE_HELPER = ['infra/src/__fixtures__/pglite.ts', 'infra/src/__fixtures__/pglite.test.ts'];
+const EVERY_SOURCE = '**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}';
+// esquery refuses a `/` inside a regex, so `.` stands for it.
+const PGLITE_PACKAGE = '/^(@electric-sql.pglite|drizzle-orm.pglite(.*)?)$/';
+const PGLITE_MESSAGE =
+  'only infra/src/__fixtures__/pglite.ts builds a PGlite; take one from freshDb.';
+const loadsPGlite = [
+  `CallExpression[arguments.0.value=${PGLITE_PACKAGE}]`,
+  `CallExpression[arguments.0.quasis.0.value.cooked=${PGLITE_PACKAGE}]`,
+  `ImportExpression[source.value=${PGLITE_PACKAGE}]`,
+  `ImportExpression[source.quasis.0.value.cooked=${PGLITE_PACKAGE}]`,
+].map((selector) => ({ selector, message: PGLITE_MESSAGE }));
+const runsConcurrently = [
+  `MemberExpression[property.name='concurrent']`,
+  `MemberExpression[property.value='concurrent']`,
+  `Property[key.name='concurrent']`,
+  `Property[key.value='concurrent']`,
+].map((selector) => ({
+  selector,
+  message: 'tests share one PGlite per worker, so they run one at a time.',
+}));
+
 export default tseslint.config(
   // `src/scratch-dirs.ts`'s PARITY: the directories this file, `.gitignore` and
   // `vitest.config.ts` must ALL name, because flat config does NOT read `.gitignore`
@@ -12,13 +34,12 @@ export default tseslint.config(
   // drifts from that list, and D109 records why each entry is on it.
   //
   // `**/dist`, matched at any depth: `'dist'` alone is root-anchored and did not cover
-  // infra's, so a local lint after the bundle step parsed a multi-hundred-KB file.
+  // infra's, so a local lint after the bundle step parsed the bundle.
   //
   // `**/.claude` WHOLE, including the half git commits: a vendored skill or agent is
   // configuration, not this repository's source, and a `*.test.ts` shipped under
-  // `.claude/skills/` was measured being collected into `pnpm test`. Without any
-  // `.claude` entry, eslint linted 456 files of 685 inside a background agent's
-  // worktrees — two thirds of the run, and a lint error there reddens this tree's gate.
+  // `.claude/skills/` was collected into `pnpm test`. Without it eslint lints a background
+  // agent's worktrees, and a lint error there reddens this tree's gate.
   {
     ignores: [
       '**/dist',
@@ -126,6 +147,47 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // Only the shared helper builds a PGlite, since an instance keeps its memory after `close()`.
+  // `infra/src/__fixtures__/pglite.test.ts` lints text at paths: a dead selector parses green.
+  {
+    files: [EVERY_SOURCE],
+    ignores: PGLITE_HELPER,
+    plugins: { '@typescript-eslint': tseslint.plugin },
+    languageOptions: { parser: tseslint.parser },
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@electric-sql/pglite',
+              importNames: ['PGlite'],
+              allowTypeImports: true,
+              message: PGLITE_MESSAGE,
+            },
+          ],
+          patterns: [
+            {
+              group: ['drizzle-orm/pglite', 'drizzle-orm/pglite/*'],
+              allowTypeImports: true,
+              message: PGLITE_MESSAGE,
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': ['error', ...loadsPGlite],
+    },
+  },
+  // The same rule restated with concurrency added, for tests and the configs that run them only.
+  {
+    files: [
+      '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/__fixtures__/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+      '**/vit{e,est}.config.*',
+    ],
+    ignores: PGLITE_HELPER,
+    rules: { 'no-restricted-syntax': ['error', ...loadsPGlite, ...runsConcurrently] },
   },
   prettier,
 );

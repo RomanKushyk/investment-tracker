@@ -7,9 +7,10 @@
 // ASYNC` is DSQL-only and PGlite refuses it BY DESIGN. Only the unrewritten half can
 // be executed here, which is why the module keeps the rewrite and the apply apart.
 import { readFileSync } from 'node:fs';
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import { DEMO_ACCOUNT_ID, DEMO_USER_EMAIL, DEMO_USER_ID } from './demo-user';
 import { connect } from './dsql';
 import type { SqlClient } from './migrate';
@@ -193,7 +194,7 @@ describe('applyFile', () => {
   const stmts = statementsOf(read(USER_SCHEMA));
 
   beforeEach(async () => {
-    db = new PGlite();
+    db = await freshDb();
     await ensureLedger(db);
   });
 
@@ -439,7 +440,7 @@ const THROUGH_THE_BACKOFF = 20_000;
 
 describe('dropRehearsalSchema', () => {
   it('retries a drop that answers 40001, and the schema goes', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await db.query('CREATE SCHEMA rehearsal_a');
     let attempts = 0;
     const flaky: SqlClient = {
@@ -468,7 +469,7 @@ describe('dropRehearsalSchema', () => {
   // accepts `DROP SCHEMA IF EXISTS … CASCADE` present or absent, measured on the dev
   // cluster and recorded in `infra/docs/dsql-constraints.md`.
   it('reports a drop that committed under a conflict as dropped, not orphaned', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await db.query('CREATE SCHEMA rehearsal_d');
     let attempts = 0;
     let goneByTheRetry: boolean | undefined;
@@ -542,7 +543,7 @@ describe('migrate', () => {
   // own doc gives. What is only true here: `role-deploy.md` grants the invoke on prod's
   // runner as well as dev's, so a mode nobody recognises has somewhere to land.
   it('refuses a missing or unrecognised mode rather than choosing one', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await expect(migrate(db, {})).rejects.toThrow(/mode must be one of/);
     await expect(migrate(db, { mode: 'rehearsal' } as never)).rejects.toThrow(
       /mode must be one of/,
@@ -556,7 +557,7 @@ describe('migrate', () => {
   // fallback this test runs under. `pending`, NOT `skipped` — on an empty cluster
   // `skipped: 12` reads as "nothing to do".
   it('reports what is still to run, against a cluster with no ledger at all', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     expect(await migrate(db, { mode: 'dry-run' })).toEqual({
       mode: 'dry-run',
       schema: 'public',
@@ -572,7 +573,7 @@ describe('migrate', () => {
   });
 
   it('reports nothing pending once the ledger says everything applied', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await ensureLedger(db);
     await applyFile(db, USER_SCHEMA, statementsOf(read(USER_SCHEMA)));
     await applyFile(db, DEMO_ROW, statementsOf(read(DEMO_ROW)));
@@ -599,7 +600,7 @@ describe('migrate', () => {
   // cleanup's. Under PGlite the drop succeeds, so it is forced to fail here —
   // otherwise a `finally { DROP SCHEMA }` shape passes this test too.
   it('reports the statement that failed, not the cleanup that failed after it', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const brittle: SqlClient = {
       query: async (text: string, values?: unknown[]) => {
         if (text.startsWith('DROP SCHEMA')) throw new Error('drop failed too');
@@ -616,14 +617,14 @@ describe('migrate', () => {
   // The note is appended only when the schema outlived the run; otherwise it would
   // send an operator after a schema that is not there.
   it('says nothing about a schema on a statement failure whose drop succeeded', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const raised = await migrate(db, { mode: 'rehearse' }).catch((err: unknown) => err);
     expect((raised as Error).message).toMatch(/ASYNC|syntax/i);
     expect((raised as Error).message).not.toMatch(/could not be dropped/);
   });
 
   it('drops its throwaway schema and restores search_path even when a statement fails', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await expect(migrate(db, { mode: 'rehearse' })).rejects.toThrow();
     const { rows } = await db.query<{ nspname: string }>(
       `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
@@ -636,7 +637,7 @@ describe('migrate', () => {
   // The workflow's check falls through on the key's ABSENCE, so absence is worth a
   // test of its own.
   it('omits the teardown key entirely when it drops its schema', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const report = await migrate(dsqlish(db), { mode: 'rehearse' });
     expect('teardown' in report).toBe(false);
     const { rows } = await db.query<{ nspname: string }>(
@@ -651,7 +652,7 @@ describe('migrate', () => {
   it(
     'resolves with a report naming the schema when the statements applied and the drop did not',
     async () => {
-      const db = new PGlite();
+      const db = await freshDb();
       const settled = dsqlish(db);
       const conflicted: SqlClient = {
         query: async <R>(text: string, values?: unknown[]) => {
@@ -684,7 +685,7 @@ describe('migrate', () => {
   it(
     'names the schema it could not drop when a statement failed and the drop failed after it',
     async () => {
-      const db = new PGlite();
+      const db = await freshDb();
       const doomed: SqlClient = {
         query: async <R>(text: string, values?: unknown[]) => {
           if (text.startsWith('DROP SCHEMA')) throw conflict();
@@ -714,7 +715,7 @@ describe('the invocation budget', () => {
   const left = (ms: number) => ({ getRemainingTimeInMillis: () => ms });
 
   it('refuses a rehearsal statement it cannot finish, naming the file and the statement', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const raised = await migrate(dsqlish(db), { mode: 'rehearse' }, undefined, left(0)).catch(
       (err: unknown) => err,
     );
@@ -729,7 +730,7 @@ describe('the invocation budget', () => {
   // THE PROPERTY THAT SEPARATES THIS FROM A KILL. A timed-out invocation never reaches
   // `dropRehearsalSchema`, so it leaves a schema whose name is only in CloudWatch.
   it('still drops its throwaway schema and restores search_path when the budget refuses', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await expect(migrate(dsqlish(db), { mode: 'rehearse' }, undefined, left(0))).rejects.toThrow();
     const { rows } = await db.query<{ nspname: string }>(
       `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
@@ -742,7 +743,7 @@ describe('the invocation budget', () => {
   // An apply is the worse kill: a wait killed over `CREATE INDEX ASYNC` leaves the
   // ledger row open. Refusing BEFORE the insert is what keeps the ledger honest.
   it('refuses an apply the same way, and the ledger records nothing it did not run', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await expect(migrate(dsqlish(db), { mode: 'apply' }, undefined, left(0))).rejects.toThrow(
       USER_SCHEMA,
     );
@@ -755,7 +756,7 @@ describe('the invocation budget', () => {
   // WHERE THE FIGURE LIVES. The reserve exists to cover the teardown, so a budget that
   // is exactly it is already too little.
   it('completes on a budget just above the reserve and refuses on the reserve itself', async () => {
-    const above = new PGlite();
+    const above = await freshDb();
     const report = await migrate(
       dsqlish(above),
       { mode: 'rehearse' },
@@ -764,7 +765,8 @@ describe('the invocation budget', () => {
     );
     expect(report.files.map((f) => f.applied)).toEqual([12, 1, 1, 1, 1]);
 
-    const below = new PGlite();
+    // The same cluster as `above`, emptied: the worker holds one, so `above` is spent by now.
+    const below = await freshDb();
     await expect(
       migrate(dsqlish(below), { mode: 'rehearse' }, undefined, left(TEARDOWN_RESERVE_MS)),
     ).rejects.toThrow();
@@ -773,7 +775,7 @@ describe('the invocation budget', () => {
   // The check sits AFTER the ledger's skip, or a long-applied history would refuse a
   // run with nothing to do — the state every deploy that ships no new SQL is in.
   it('does not spend the budget on a statement the ledger has already finished', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const client = dsqlish(db);
     await migrate(client, { mode: 'apply' });
     const report = await migrate(client, { mode: 'apply' }, undefined, left(0));
@@ -783,7 +785,7 @@ describe('the invocation budget', () => {
 
   // A BUDGET THAT IS NEVER FORWARDED IS A GUARD THAT NEVER FIRES, and it would compile.
   it("carries the budget from the handler's Lambda context", async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const client = dsqlish(db);
     vi.mocked(connect).mockResolvedValue({
       query: (text: string, values?: unknown[]) => client.query(text, values),
@@ -816,7 +818,7 @@ describe('what a budget refusal carries out', () => {
   it.each(['apply', 'rehearse'] as const)(
     'names the ms of every file %s finished, and still names the refusal',
     async (mode) => {
-      const message = await refusal(mode, new PGlite(), inSchema);
+      const message = await refusal(mode, await freshDb(), inSchema);
       expect(message).toContain(DEMO_ROW);
       expect(message).toMatch(/statement 0\b/);
       expect(message).toContain(String(TEARDOWN_RESERVE_MS));
@@ -832,7 +834,7 @@ describe('what a budget refusal carries out', () => {
   // The repair is an apply dispatched again, so the second run's list must not show a file the
   // ledger held as a finished one that cost next to nothing.
   it('counts a file the ledger held rather than timing it, on a resumed apply', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await refusal('apply', db, inSchema);
     const message = await refusal('apply', db, 1);
     expect(message).toContain(CASE_RULE);
@@ -843,7 +845,7 @@ describe('what a budget refusal carries out', () => {
 
   // Half-held, its ms covers only the statements this run sent, and the figure says so.
   it('says how much of a file the ledger had already held', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await refusal('apply', db, 5);
     const message = await refusal('apply', db, inSchema - 5 + 1);
     expect(message).toContain(CASE_RULE);
@@ -852,7 +854,7 @@ describe('what a budget refusal carries out', () => {
   });
 
   it('still drops the rehearsal schema when the refusal carries its costs', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await refusal('rehearse', db, inSchema);
     const { rows } = await db.query(
       `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'migrate_rehearsal_%'`,
@@ -865,7 +867,7 @@ describe('what a budget refusal carries out', () => {
   it.each(['apply', 'rehearse'] as const)(
     'says so when %s had finished no file yet',
     async (mode) => {
-      const message = await refusal(mode, new PGlite(), 0);
+      const message = await refusal(mode, await freshDb(), 0);
       expect(message).toContain(USER_SCHEMA);
       expect(message).toMatch(/statement 0\b/);
       expect(message).toContain(String(TEARDOWN_RESERVE_MS));
@@ -879,7 +881,7 @@ describe('what a budget refusal carries out', () => {
 // curve rather than a paragraph.
 describe("the report's wall time", () => {
   it('reports a total and a per-file ms, the total covering every file', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const report = await migrate(dsqlish(db), { mode: 'rehearse' });
     expect(report.ms).toEqual(expect.any(Number));
     // `?? NaN` rather than `?? 0`: `ms` is optional on a file entry, so a spread
@@ -931,7 +933,7 @@ describe('the demo user', () => {
   });
 
   it('has exactly one account once every file has run', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await ensureLedger(db);
     for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
 
@@ -945,7 +947,7 @@ describe('the demo user', () => {
   // The runner's crash window lets a statement it left open be sent twice, which `ON CONFLICT` on
   // the PRIMARY KEY is what makes silent — the target `dsql-constraints.md` measured.
   it('still has one account when the statement runs twice', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await ensureLedger(db);
     for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
     for (const stmt of statementsOf(read(DEMO_ACCOUNT))) await db.exec(stmt);
@@ -996,7 +998,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
   };
 
   const applied = async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     await ensureLedger(db);
     for (const file of MIGRATIONS) await applyFile(db, file, statementsOf(read(file)));
     return db;
@@ -1207,7 +1209,7 @@ describe('the bootstrap mode makes the one account that can approve the others',
   // The other way an identity strands: reading first fails with `42P01` one statement
   // before the insert would have.
   it('refuses before Cognito when the schema is not there at all', async () => {
-    const db = new PGlite();
+    const db = await freshDb();
     const { idp, created } = spy();
     await expect(
       migrate(db, { mode: 'bootstrap', email: 'owner@quirenote.com' }, idp),

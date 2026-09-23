@@ -2,9 +2,10 @@
 // `ON DELETE RESTRICT` is deliberate: DSQL's ceiling is 3 000 mutated rows PER
 // TRANSACTION and cascaded rows count against the same ceiling, so a cascading key
 // would only have hidden the batching it appears to replace. [*User schema and deletes*]
-import { PGlite } from '@electric-sql/pglite';
+import type { PGlite } from '@electric-sql/pglite';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { freshDb } from './__fixtures__/pglite';
 import { deleteAsset } from './asset-delete';
 import type { SqlClient } from './migrate';
 import { applyFile, ensureLedger, statementsOf } from './migrate';
@@ -75,7 +76,7 @@ describe('deleteAsset', () => {
   };
 
   beforeEach(async () => {
-    db = new PGlite();
+    db = await freshDb();
     await ensureLedger(db);
     await applyFile(db, 'schema', statementsOf(readFileSync(SCHEMA, 'utf8')));
   });
