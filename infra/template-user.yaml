@@ -57,6 +57,17 @@ Parameters:
     Default: ''
     NoEcho: true
 
+# FOR A HAND-RUN DEPLOY; the workflow never passes `enabled` without the pair. Enforced as a
+# change set EXECUTES, before any resource moves. Restates `HasGoogle`, which a rule cannot read.
+Rules:
+  GoogleNeedsBothHalves:
+    RuleCondition: !Equals [!Ref GoogleSignIn, enabled]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref GoogleClientId, '']]
+        AssertDescription: GoogleSignIn=enabled needs GoogleClientId
+      - Assert: !Not [!Equals [!Ref GoogleClientSecret, '']]
+        AssertDescription: GoogleSignIn=enabled needs GoogleClientSecret
+
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
 

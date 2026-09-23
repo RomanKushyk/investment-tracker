@@ -200,10 +200,13 @@ an empty value rather than an error that names it.
 |------|------|-------|----|
 | Variable | `AMPLIFY_APP_ID` | `d17m4jf400my6` | both |
 | Variable | `AWS_REGION` | `eu-north-1` | both |
+| Variable | `OPEN_REGISTRATION` | `open`, to admit sign-ups | neither — unset deploys `closed` |
 | Secret | `AWS_ACCOUNT_ID` | the account number | both |
 | Secret | `AWS_FRONTEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-frontend-deploy` | both |
 | Secret | `AWS_BACKEND_ROLE_ARN` | `arn:aws:iam::<account-id>:role/quirenote-backend-deploy` | both — `prod` needs it since the backend split |
-| Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: unless both are set, the deploy switches Google sign-in OFF, green |
+| Secret | `AUTH_CERTIFICATE_ARN` | the ACM certificate for both `auth.` hosts, in **us-east-1** | both |
+| Secret | `API_CERTIFICATE_ARN` | the ACM certificate for both `api.` hosts, in `eu-north-1` | both |
+| Secret | `GOOGLE_CLIENT_ID` | the Google OAuth client's id | both — with its secret or not at all: one alone fails the deploy, neither switches Google sign-in off |
 | Secret | `GOOGLE_CLIENT_SECRET` | that client's secret | both — as above |
 
 **The migration needs no environment of its own, and a `migrate-prod` pair was built and deleted.** A

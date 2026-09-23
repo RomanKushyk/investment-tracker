@@ -328,6 +328,10 @@ jobs:
           # previous value. The PAIR goes only when set, as `sam deploy` REFUSES an empty value.
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             overrides+=("GoogleSignIn=enabled" "GoogleClientId=${GOOGLE_CLIENT_ID}" "GoogleClientSecret=${GOOGLE_CLIENT_SECRET}")
+          # ONE HALF IS A MISTAKE, NOT A CHOICE: switching off here would drop Google sign-in, green.
+          elif [ -n "$GOOGLE_CLIENT_ID" ] || [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            echo "::error::GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together, or neither to switch Google sign-in off"
+            exit 1
           else
             overrides+=("GoogleSignIn=disabled")
           fi

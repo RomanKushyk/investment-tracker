@@ -28,6 +28,10 @@ type Template = {
     string,
     { Type: string; Default?: string; AllowedValues?: string[]; NoEcho?: boolean }
   >;
+  Rules?: Record<
+    string,
+    { RuleCondition?: unknown; Assertions?: { Assert: unknown; AssertDescription?: string }[] }
+  >;
   Conditions?: Record<string, unknown>;
   Resources: Record<string, Resource>;
   Outputs?: Record<string, unknown>;
@@ -270,6 +274,35 @@ describe('three sign-in methods reach the pool', () => {
     expect(p?.AllowedValues).toEqual(['disabled', 'enabled']);
   });
 
+  // A HAND-RUN DEPLOY IS REFUSED as its change set executes, before any resource moves. Creating the
+  // change set still succeeds, so a probe that only creates one cannot see this rule.
+  it('refuses the switch on without both halves of the pair', () => {
+    const rule = user.Rules?.GoogleNeedsBothHalves;
+    // A rule cannot read a Condition, so it restates `HasGoogle` and is held equal to it.
+    expect(rule?.RuleCondition).toEqual(user.Conditions?.HasGoogle);
+    // Each description beside its own assertion: swapped, the refusal names the half that is set.
+    expect(rule?.Assertions).toEqual([
+      {
+        Assert: [['GoogleClientId', '']],
+        AssertDescription: 'GoogleSignIn=enabled needs GoogleClientId',
+      },
+      {
+        Assert: [['GoogleClientSecret', '']],
+        AssertDescription: 'GoogleSignIn=enabled needs GoogleClientSecret',
+      },
+    ]);
+    const path = ['Rules', 'GoogleNeedsBothHalves'];
+    expect(intrinsicAt(doc, ...path, 'RuleCondition', 0)).toEqual({
+      tag: '!Ref',
+      value: 'GoogleSignIn',
+    });
+    for (const [i, name] of ['GoogleClientId', 'GoogleClientSecret'].entries())
+      expect(intrinsicAt(doc, ...path, 'Assertions', i, 'Assert', 0, 0)).toEqual({
+        tag: '!Ref',
+        value: name,
+      });
+  });
+
   // An unmapped `email_verified` arrives as `undefined`, which the trigger treats as unverified,
   // so Google sign-in would silently stop linking and start making second accounts.
   //
@@ -462,14 +495,6 @@ describe('the stack still takes its environment the way it did', () => {
     expect(props('UserPool').MfaConfiguration).toBe('OFF');
     expect(props('UserPool').WebAuthnUserVerification).toBe('required');
     expect(props('UserPool').AutoVerifiedAttributes).toEqual(['email']);
-  });
-
-  // SAM PARSES AS YAML 1.1 AND THIS SUITE AS 1.2, so an unquoted `OFF` or `on` is a boolean to the
-  // deploy and a string to every assertion above. This 1.1 also takes `y`/`n`, which SAM does not.
-  it('reads the same under YAML 1.1, which SAM parses, as under 1.2', () => {
-    const asSam = parseDocument(source, { version: '1.1' });
-    expect(asSam.errors).toEqual([]);
-    expect(asSam.toJS()).toEqual(user);
   });
 
   // No `app` tag on the pool, deliberately: that tag is the backup selection, and a Cognito pool is

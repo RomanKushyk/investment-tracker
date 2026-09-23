@@ -24,9 +24,14 @@ const read = (name: string) =>
 const user = read('template-user.yaml');
 const archive = read('template.yaml');
 
-// In document order: the conditions the template defines above `Resources`, then the values
-// that read one.
+// In document order: the rule and the conditions the template defines above `Resources`, then
+// the values that read one.
 const INTRINSICS: readonly (readonly [readonly (string | number)[], string])[] = [
+  [['Rules', 'GoogleNeedsBothHalves', 'RuleCondition'], '!Equals'],
+  [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 0, 'Assert'], '!Not'],
+  [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 0, 'Assert', 0], '!Equals'],
+  [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 1, 'Assert'], '!Not'],
+  [['Rules', 'GoogleNeedsBothHalves', 'Assertions', 1, 'Assert', 0], '!Equals'],
   [['Conditions', 'IsProd'], '!Equals'],
   [['Conditions', 'IsRegistrationOpen'], '!Equals'],
   [['Conditions', 'HasGoogle'], '!Equals'],
@@ -81,7 +86,7 @@ describe('every conditional in the user stack is an intrinsic and not a list spe
   // long form renders as the object `{'Fn::If': [...]}`, so dropping its key already changes what
   // every arm assertion reads. THE RAW PATHS, not their joined spellings: joined, `['A', 'b.c']`
   // and `['A', 'b', 'c']` read alike.
-  it('carries exactly the sixteen written here', () => {
+  it('carries exactly the twenty-one written here', () => {
     expect(taggedCollections(user)).toEqual(INTRINSICS);
   });
 

@@ -63,8 +63,8 @@ type Template = {
   Outputs?: Record<string, unknown>;
 };
 
-const templateDoc = (name: string) =>
-  parseDocument(readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'));
+const templateDoc = (name: string, options?: Parameters<typeof parseDocument>[1]) =>
+  parseDocument(readFileSync(new URL(`../${name}`, import.meta.url), 'utf8'), options);
 
 const archiveDoc = templateDoc('template.yaml');
 const userDoc = templateDoc('template-user.yaml');
@@ -703,6 +703,16 @@ describe('the account’s alarms are counted against what CloudWatch bills nothi
   });
 });
 
+// SAM PARSES AS YAML 1.1 AND THIS SUITE AS 1.2, so an unquoted `OFF` or `on` is a boolean to the
+// deploy and a string to every assertion here. This 1.1 also takes `y`/`n`, which SAM does not.
+describe('both templates read the same under YAML 1.1, which SAM parses, as under 1.2', () => {
+  it.each(['template.yaml', 'template-user.yaml'])('%s', (name) => {
+    const asSam = templateDoc(name, { version: '1.1' });
+    expect(asSam.errors).toEqual([]);
+    expect(asSam.toJS()).toEqual(templateDoc(name).toJS());
+  });
+});
+
 type Step = {
   name?: string;
   id?: string;
@@ -922,9 +932,9 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     }
   });
 
-  // THE `else` IS THE HALF THAT MATTERS: a switch left out keeps its previous value, so deleting a
-  // secret would leave Google on. `enabled` needs both halves: an id alone builds a broken provider.
-  it('switches Google on with both halves of the pair, and off on every other run', () => {
+  // THREE ARMS: both halves switch Google on, neither switches it off — left out, the switch keeps
+  // its previous value — and ONE HALF FAILS THE RUN, or a misspelt secret turns Google off, green.
+  it('switches Google on with both halves, fails on one, and switches it off on neither', () => {
     const [userStack] = deploys;
     const lines = (userStack.run ?? '').split('\n').map((line) => line.trim());
     const start = lines.indexOf(
@@ -932,12 +942,19 @@ describe('deploy-backend.yml deploys one stack set per branch', () => {
     );
     expect(start).toBeGreaterThanOrEqual(0);
     const block = lines.slice(start + 1, lines.indexOf('fi', start));
-    const split = block.indexOf('else');
-    const on = (split < 0 ? block : block.slice(0, split)).join('\n');
-    const off = (split < 0 ? [] : block.slice(split + 1)).join('\n');
+    const half = block.indexOf(
+      'elif [ -n "$GOOGLE_CLIENT_ID" ] || [ -n "$GOOGLE_CLIENT_SECRET" ]; then',
+    );
+    const neither = block.indexOf('else');
+    expect([half >= 0, neither > half]).toEqual([true, true]);
+    const on = block.slice(0, half).join('\n');
+    const failing = block.slice(half + 1, neither).join('\n');
+    const off = block.slice(neither + 1).join('\n');
     expect(on).toContain('"GoogleSignIn=enabled"');
     expect(on).toContain('"GoogleClientId=${GOOGLE_CLIENT_ID}"');
     expect(on).toContain('"GoogleClientSecret=${GOOGLE_CLIENT_SECRET}"');
+    expect(failing).toMatch(/^exit 1$/m);
+    expect(failing).not.toContain('overrides');
     expect(off).toContain('"GoogleSignIn=disabled"');
     expect(off).not.toContain('GoogleClient');
   });
