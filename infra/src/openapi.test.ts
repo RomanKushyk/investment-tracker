@@ -18,7 +18,8 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
-import { ANSWERS, buildSpec, securityOf, servers } from './openapi';
+import { INVALID, bodiless, derived } from './http';
+import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
 
 const COMMITTED = new URL('../../docs/reference/openapi.json', import.meta.url);
 
@@ -107,7 +108,7 @@ describe('every answer a handler can give is in the document', () => {
       Object.values(spec.paths).flatMap((ops) =>
         Object.values(ops).flatMap((op) =>
           Object.entries(op.responses).flatMap(([status, r]) =>
-            Object.values(r.content['application/json'].examples).map(
+            Object.values(r.content?.['application/json'].examples ?? {}).map(
               (e) => `${status} ${JSON.stringify(e.value)}`,
             ),
           ),
@@ -147,7 +148,7 @@ describe('each operation publishes its own route’s answers', () => {
       const op = spec.paths[path][method.toLowerCase()];
       const published = new Set(
         Object.entries(op.responses).flatMap(([status, r]) =>
-          Object.values(r.content['application/json'].examples).map(
+          Object.values(r.content?.['application/json'].examples ?? {}).map(
             (e) => `${status} ${JSON.stringify(e.value)}`,
           ),
         ),
@@ -421,5 +422,57 @@ describe('what an operation says about credentials', () => {
     expect(() => securityOf('CognitoJwtV2')).toThrow(
       /route names authorizer CognitoJwtV2, and only CognitoJwt is declared/,
     );
+  });
+});
+
+describe('an answer with no literal body, as the document states it', () => {
+  // DRIVEN FROM THE FUNCTION, so these shapes are proved whatever the template's routes declare.
+  const TAGGED = derived({ statusCode: 200, name: 'tagged', headers: ['etag'], example: { n: 1 } });
+  const UNCHANGED = bodiless({ name: 'not_modified', headers: ['etag', 'cache-control'] });
+  const STRING = { schema: { type: 'string' } };
+
+  // NO `content` KEY AT ALL: a 304 has no body to describe.
+  it('gives a 304 its headers and no content', () => {
+    const notModified = responses([UNCHANGED])['304'];
+    expect(notModified).toEqual({
+      description: 'Not modified',
+      headers: { etag: STRING, 'cache-control': STRING },
+    });
+    expect('content' in notModified).toBe(false);
+  });
+
+  it('files a derived body’s example under its name, beside its headers', () => {
+    expect(responses([TAGGED])['200']).toEqual({
+      description: 'Accepted',
+      headers: { etag: STRING },
+      content: { 'application/json': { examples: { tagged: { value: { n: 1 } } } } },
+    });
+  });
+
+  // A UNION, which is truthful because a Header Object is `required: false` unless it says so.
+  it('lists every header any answer under a status sends', () => {
+    const other = derived({ statusCode: 200, name: 'other', headers: ['vary'], example: {} });
+    expect(Object.keys(responses([TAGGED, other])['200'].headers ?? {})).toEqual(['etag', 'vary']);
+  });
+
+  // A COPY WOULD BE PUBLISHED around the refusals: this one is a 304 with `content`.
+  it('refuses to publish a declaration no factory made', () => {
+    expect(() => responses([{ ...UNCHANGED, example: {} }])).toThrow(/made by derived/);
+  });
+
+  // THE SECOND WOULD OVERWRITE THE FIRST, and the scan above would still find it described on
+  // another route. An indexed refusal beside the fixed one is exactly this collision.
+  it('refuses two answers under one status filed under one name', () => {
+    const indexed = derived({
+      statusCode: 400,
+      name: 'invalid_request',
+      headers: [],
+      example: { error: 'invalid_request', index: 3 },
+    });
+    expect(() => responses([INVALID, indexed])).toThrow(/400 .*invalid_request/);
+  });
+
+  it('gives a literal answer no headers', () => {
+    expect('headers' in responses([INVALID])['400']).toBe(false);
   });
 });

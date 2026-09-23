@@ -14,7 +14,7 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { RESPONSES as ADMIN_RESPONSES } from './approve';
-import type { ApiResult } from './http';
+import { type ApiResult, type Declared, made } from './http';
 
 /** The one security scheme, named as the template names it. */
 const SCHEME = 'CognitoJwt';
@@ -39,7 +39,7 @@ type Template = {
 
 /** Which module answers a route: the template knows only that one reaches `approve.handler`, and
  *  this map is the only thing that knows whose answers those are. */
-export const ANSWERS: Record<string, Record<string, readonly ApiResult[]>> = {
+export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declared)[]>> = {
   'applications.handler': APPLICATION_RESPONSES,
   'approve.handler': ADMIN_RESPONSES,
 };
@@ -60,7 +60,9 @@ type Operation = {
     string,
     {
       description: string;
-      content: { 'application/json': { examples: Record<string, { value: unknown }> } };
+      headers?: Record<string, { schema: { type: string } }>;
+      // ABSENT for a 304, which has no body: `application/json` here would publish one.
+      content?: { 'application/json': { examples: Record<string, { value: unknown }> } };
     }
   >;
 };
@@ -188,23 +190,43 @@ const nameOf = (body: string): string => {
   return name;
 };
 
-const responses = (answers: readonly ApiResult[]) => {
+export const responses = (answers: readonly (ApiResult | Declared)[]) => {
   const byStatus: Operation['responses'] = {};
   for (const answer of answers) {
     const status = String(answer.statusCode);
-    byStatus[status] ??= {
-      description: status.startsWith('2')
-        ? 'Accepted'
-        : status.startsWith('5')
-          ? 'Failed'
-          : 'Refused',
-      content: { 'application/json': { examples: {} } },
-    };
-    byStatus[status].content['application/json'].examples[nameOf(answer.body)] = {
-      // THE VALUE, NOT THE TEXT: an Example Object holds the media type's own value, so a raw
-      // string types a generated client `string` where the API sends an object.
-      value: JSON.parse(answer.body) as unknown,
-    };
+    const response = (byStatus[status] ??= {
+      description:
+        status === '304'
+          ? 'Not modified'
+          : status.startsWith('2')
+            ? 'Accepted'
+            : status.startsWith('5')
+              ? 'Failed'
+              : 'Refused',
+    });
+    if ('name' in answer) {
+      made(answer);
+      // A UNION of what the status's answers send, true because a Header Object is optional.
+      for (const header of answer.headers) {
+        (response.headers ??= {})[header] = { schema: { type: 'string' } };
+      }
+    }
+    if ('name' in answer && !('example' in answer)) continue;
+
+    const [name, value]: [string, unknown] =
+      'name' in answer
+        ? [answer.name, answer.example]
+        : // THE VALUE, NOT THE TEXT: an Example Object holds the media type's own value, so a
+          // raw string types a generated client `string` where the API sends an object.
+          [nameOf(answer.body), JSON.parse(answer.body)];
+    const { examples } = (response.content ??= { 'application/json': { examples: {} } })[
+      'application/json'
+    ];
+    // REFUSED, NOT OVERWRITTEN: the lost answer could still read as described on another route.
+    if (Object.hasOwn(examples, name)) {
+      throw new Error(`two answers under ${status} are both named ${name}`);
+    }
+    examples[name] = { value };
   }
   return byStatus;
 };

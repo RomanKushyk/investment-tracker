@@ -6,10 +6,27 @@
 // second and third of those happened. `openapi.test.ts` requires every route's handler to use it.
 import { describe, expect, it } from 'vitest';
 
-import type { ApiEvent, ApiResult } from './http';
+import {
+  type ApiEvent,
+  type ApiResult,
+  type Declared,
+  type EmptyResult,
+  declarationOf,
+  made,
+} from './http';
 
-/** `<status> <body>` — one answer, as both the handler and the document spell it. */
-export const answerOf = (result: ApiResult): string => `${result.statusCode} ${result.body}`;
+/** `<status> <body>` for a fixed answer, as both the handler and the document spell it. An answer
+ *  built per request is its declaration — everything that declaration states: status, name,
+ *  headers and, for a body, the example — whatever body this request got. */
+export const answerOf = (answer: ApiResult | EmptyResult | Declared): string => {
+  const declared = 'name' in answer ? made(answer) : declarationOf(answer);
+  if (declared !== undefined) {
+    const example = 'example' in declared ? ` ${JSON.stringify(declared.example)}` : '';
+    return `${declared.statusCode} <${declared.name}> [${declared.headers.join(', ')}]${example}`;
+  }
+  // A bodiless result with no declaration was built by hand, and reads as undeclared.
+  return `${answer.statusCode} ${'body' in answer ? answer.body : '<no body>'}`;
+};
 
 export type Observation = { route: string; answer: string };
 
@@ -19,7 +36,7 @@ export const recorder = (fallbackRoute: string) => {
   const observed: Observation[] = [];
   return {
     observed,
-    record: <T extends ApiResult>(event: ApiEvent, result: T): T => {
+    record: <T extends ApiResult | EmptyResult>(event: ApiEvent, result: T): T => {
       observed.push({ route: event.routeKey ?? fallbackRoute, answer: answerOf(result) });
       return result;
     },
@@ -30,7 +47,7 @@ export const recorder = (fallbackRoute: string) => {
  *  document omits something the route gives; declared but never observed means a client branches
  *  on an answer that never arrives. `minimum` separates a contract break from a filtered `-t` run. */
 export const proveRouteContract = (opts: {
-  declared: Record<string, readonly ApiResult[]>;
+  declared: Record<string, readonly (ApiResult | Declared)[]>;
   observed: Observation[];
   minimum: number;
 }): void => {
