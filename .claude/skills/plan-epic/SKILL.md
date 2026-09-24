@@ -22,10 +22,10 @@ Every `gh` call runs with `GH_CONFIG_DIR="$HOME/.quirenote/gh-config"`. Reuse `P
 `gh issue list --repo RomanKushyk/investment-tracker --state open --limit 200 --json number,title,labels` and read `docs/DECISIONS.md`'s headings. An open issue that already covers the ask becomes the epic — continue as if `--into N` had been given; an issue that covers one part becomes a sub-issue by relation, not a copy: at step 7 it gets the standard body, the parent link and `Ready`, like the new ones. Say what you found in one line.
 
 ### 1. Decompose
-Write the goal in one sentence, then a numbered table — `# | Item | What must be learned | Unknown that changes the plan`. An item is one deliverable a session could finish on one branch. Collect the unknowns and ask the four that change the plan most in ONE `AskUserQuestion` batch (a recommended option first); the remaining unknowns, and anything you decided without asking, are assumptions written down.
+Write the goal in one sentence, then a numbered table — `# | Item | What must be learned | Unknown that changes the plan`. An item is one deliverable a session could finish on one branch. Collect the unknowns and ask the four that change the plan most in ONE `AskUserQuestion` batch (a recommended option first); the remaining unknowns, and anything you decided without asking, are assumptions written down. A step-1 question is about intent — what only the owner knows. A choice of design, formula, convention, number or default is never asked here: it goes through step 2's research and step 3's table.
 
 ### 2. Investigate, without reading it all yourself
-For every item dispatch a read-only `Explore` subagent (1–3 items per agent, all in parallel) with this brief: the item's text; "report facts with `file:line`: the code paths involved, the `docs/DECISIONS.md` topics that bind them, existing tests, related open issues (`gh issue list … --search`), and what is already built". Explore agents cannot write files: save each reply yourself, one file per item, `$SCRATCH/plan-epic/<slug>/item-N.md`. In parallel run one `WebSearch` per item for the industry practice (how mature products or standards do this) and keep at least one source URL per item. Read the reports, not the code.
+For every item dispatch a read-only `Explore` subagent (1–3 items per agent, all in parallel) with this brief: the item's text; "report facts with `file:line`: the code paths involved, the `docs/DECISIONS.md` topics that bind them, existing tests, related open issues (`gh issue list … --search`), and what is already built". Explore agents cannot write files: save each reply yourself, one file per item, `$SCRATCH/plan-epic/<slug>/item-N.md`. In parallel run one `WebSearch` per item for the industry practice (how mature products or standards do this) and keep at least one source URL per item. For a default or a limit read the installed library's source, not its docs page — the two disagree. Read the reports, not the code.
 
 ### 3. Compare and propose
 One table — `Item | Today (repo, file:line) | Practice (source) | Proposal | Owner's call`. A proposal is a concrete change to the item (scope, approach, sequencing), or "matches practice — keep". Put the proposals to the owner in ONE `AskUserQuestion` (multi-select: which to accept); record accepted / declined with the owner's reason.
@@ -85,6 +85,7 @@ Then: ONE `gh project item-list 2 --owner RomanKushyk --format json --limit 500 
 |---|---|
 | A sub-issue with no `file:line` in its Context | step 2 was skipped for it |
 | A proposal with no source | step 3 became opinion |
+| A question to the owner whose options cite no source | a design choice leaked into step 1; research it (step 2) before asking |
 | A criterion that says "implement X" | it restates the plan; rewrite it in step 5 as what will be observed |
 | An item that needs two branches | split it (step 4) |
 | Any GitHub write — create or edit — before the owner's yes, or during a `--dry-run` | step 6 was skipped |
