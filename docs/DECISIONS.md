@@ -358,6 +358,8 @@ PostgreSQL's own parser, `libpg-query`, never a pattern over the query text. A s
 Postgres takes the worker's one PGlite from `freshDb`, emptied for each test, and only that helper
 may build one — a lint zone, not a test reading source. Isolation is per schema: a test that adds,
 grants or sets anything outside one fails the next call, and a built-in edited in place is shared.
+The suite runs `vitest run`'s default worker count, one fewer than the cores, capped at four, and
+watch mode takes the same.
 **Why.** These documents carry figures, contracts and instructions no type checker reads, and a gate
 whose verdict moves with whether an agent happens to be running is not a gate. `toJS()` discards an
 unknown tag and keeps the scalar, so a `!GetAtt` and a literal spelt the same way are one value to a
@@ -365,13 +367,18 @@ parsed template. A pattern over SQL re-derives a grammar it never finishes: each
 to skip, a nested query or a quoted name, is one more it can misread. A PGlite keeps the memory it
 booted with after `close()`, so a cluster per test grew every worker until a full run left the
 machine none to spare; per-test isolation stops at the database or schema in the tools this follows,
-and cluster-level state is shared there too.
+and cluster-level state is shared there too. A worker's memory does not shrink as the cores grow,
+so a count that scales with them spends memory a loaded machine may not have; the one fewer is kept
+for the main thread, whose single Vite server serves every worker.
 **Rejected.** Exempting a one-line docs branch: "too small to review" drifts to the size of whatever
 the author is holding. · Asking the planner (`EXPLAIN` in PGlite) which sort keys are expressions:
 `SELECT DISTINCT` and `count(DISTINCT …)` sort on expressions by design, so every query would need
 an approved plan to compare against. · A cluster, or a `clone()`, per test: each keeps its memory. ·
 Refusing a built-in edited in place by hashing every catalogue row: it would first need the columns
-PostgreSQL rewrites on its own, to guard against what no suite does.
+PostgreSQL rewrites on its own, to guard against what no suite does. · `'50%'` workers: it rounds
+against every core, so a four-core runner would drop to two. · A budget over total memory: it cannot
+see what the machine's other apps hold. · Sizing from free memory: the worker count, and so the
+gate, would move with the machine's load. · `vmMemoryLimit`: it recycles only the vm pools' workers.
 
 ## Dependabot
 **Decision.** Security only, and deliberately no `.github/dependabot.yml`, the file that turns the
