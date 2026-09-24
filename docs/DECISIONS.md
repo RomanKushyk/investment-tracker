@@ -182,13 +182,27 @@ the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV serie
 a different basis, archived from each bond's issuance, and the two are NEVER merged. The observation
 key is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a DROP/CREATE of a
 live archive. `as_of` is per source, the observer writes every day, an imported file is not archived
-but its rows are, and the provider's FX rate is stored nowhere at all.
+but its rows are, and the provider's FX rate is stored nowhere at all. Where an imported history
+stops short of a source's first capture in this archive, the days between are a SEAM: prices that
+existed and that the archive does not hold. It closes only if the provider publishes further, and
+the funds' seam is not expected to, the provider having moved that history into its app. Until then
+the seam is ABSENT in the archive: no other source, basis or derivation stands in for its NAV. A
+reader meets it as a real gap — between `listed_from` and `last_seen_on` the fund existed, so a day
+there with no row is unobserved, never delisted — and `diagnose` counts a seam's days and lists the
+latest of them by date.
 **Why.** Writing every day keeps a zero delta distinct from an unknown one — a row missing on a
 quiet day is byte-identical to a capture that never ran. Premises are kept forever, conclusions
-never.
+never. A NAV the archive never received can only be concluded, not observed: statistical exchange
+flags such a fill as a receiver's imputation (SDMX observation status I), apart from data that
+existed and was not collected (L).
 **Rejected.** Alarming on a price that did not move: maintenance, a weekend and a holiday all trip
 it, so every capture check is structural and none reads a price. · Archiving the price file beside
-its rows: the rows are the premise, the packaging is not.
+its rows: the rows are the premise, the packaging is not. · Filling the seam's NAV from the owner's
+position values: value over units is the dealer's `sell`, and reaching `nav` takes the spread as
+well — an imputation from three figures, none of them a NAV. · Watching for a new cut of the price
+file: with the history moved into the provider's app, the watch would wait on a file with no sign of
+coming; a file published after all is imported manually, and the import writes only the days the
+archive lacks.
 
 ## External sources
 **Decision.** The list is closed: the provider's public asset feed, its price files, and the
