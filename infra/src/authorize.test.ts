@@ -104,6 +104,50 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+/** `authorize.ts` is read through this, so the comment explaining the rule may quote the very read
+ *  it forbids. LINE BY LINE, and the line boundary is the point: a regex literal may hold a
+ *  quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// never claims['cognito:groups']` in `authorize.ts` leaves
+ *  this green and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 describe('the row is what authorizes, on every request', () => {
   it('admits an active row and hands back the role the ROW carries', async () => {
     await db.exec(row(SUB, EMAIL, 'active', 'super_admin'));
@@ -128,12 +172,12 @@ describe('the row is what authorizes, on every request', () => {
   });
 
   it('names the string nowhere in its own source', () => {
-    const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'authorize.ts'),
-      'utf8',
+    const source = stripTs(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'authorize.ts'), 'utf8'),
     );
-    // Asserted on the subscript rather than the word, so the reason may stay written down: the
-    // comment explaining why may name it, a `claims[...]` read may not.
+    // Asserted on the subscript rather than the word, and on the stripped text, so the reason may
+    // stay written down: a comment may quote even the read, and a string may name the claim; the
+    // subscript itself, anywhere outside a comment, fails.
     expect(source).not.toMatch(/claims\s*(\[|\.)\s*['"]?cognito:groups/);
   });
 });

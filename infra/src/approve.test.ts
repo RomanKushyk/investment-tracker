@@ -822,12 +822,55 @@ describe('the handler answers rather than throwing', () => {
   });
 });
 
+/** The mail assertion reads `approve.ts` through this, so a comment explaining why no mail client
+ *  exists may name one. LINE BY LINE, and the line boundary is the point: a regex literal may
+ *  hold a quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// no SESClient here` in `approve.ts` leaves this green and
+ *  turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 describe('the one mail in this flow is Cognito’s own', () => {
   // Asserted on the source: a client never constructed cannot be observed not calling anything.
   it('constructs no mail client and imports no mail SDK', () => {
-    const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'approve.ts'),
-      'utf8',
+    const source = stripTs(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'approve.ts'), 'utf8'),
     );
     for (const name of ['client-ses', 'SESClient', 'SendEmail', 'sendMail', 'nodemailer']) {
       expect([name, source.includes(name)]).toEqual([name, false]);

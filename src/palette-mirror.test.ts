@@ -72,6 +72,50 @@ function cssProse(source: string): string {
   return out;
 }
 
+/** `CHROME` is read through this and nothing else here is: the retired-hex sweep below reads
+ *  `FILES` raw on purpose. LINE BY LINE, and the line boundary is the point: a regex literal may
+ *  hold a quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a commented-out `const CHROME = {…}` with stale hexes above the live map
+ *  leaves this green and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 /** The span of a `selector { … }` rule, matched on its own braces. */
 function ruleBody(source: string, opener: string): string {
   const at = source.indexOf(opener + ' {');
@@ -105,7 +149,7 @@ function page(block: keyof typeof BLOCKS): string {
 /** The two values `CHROME` holds, read as source text — this file must not
  *  import from the app, whose module graph pulls React in for one object. */
 function chrome(): { light: string; dark: string } {
-  const body = FILES['src/app/theme.ts'].match(/const CHROME[^=]*=\s*\{([^}]*)\}/);
+  const body = stripTs(read('app/theme.ts')).match(/const CHROME[^=]*=\s*\{([^}]*)\}/);
   expect(body, 'CHROME is no longer an object literal in theme.ts').not.toBeNull();
   const pick = (key: string) => {
     const m = body![1].match(new RegExp(`${key}:\\s*'(#[0-9a-fA-F]{6})'`));

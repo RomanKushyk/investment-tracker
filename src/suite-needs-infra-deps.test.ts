@@ -23,6 +23,50 @@ import { REPO } from './repo-root';
 
 const read = (p: string) => readFileSync(join(REPO, p), 'utf8');
 
+/** `dsql.ts` is read through this, so the anchor below is the import and not a comment naming
+ *  the package. LINE BY LINE, and the line boundary is the point: a regex literal may hold a
+ *  quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: the signer import deleted from `dsql.ts` and left in a comment turns
+ *  this red, where the reader-less read stayed green. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 const workflow = (file: string) =>
   parseDocument(read(join('.github/workflows', file))).toJS() as {
     jobs: Record<string, { steps?: { name?: string; run?: string }[] }>;
@@ -38,7 +82,7 @@ describe('every workflow that runs the suite installs what the suite imports', (
   // SDK the guards below are guarding nothing, and should be deleted rather than kept
   // green by accident.
   it('still has the import chain that makes infra deps a test-time dependency', () => {
-    expect(read('infra/src/dsql.ts')).toContain('@aws-sdk/dsql-signer');
+    expect(stripTs(read('infra/src/dsql.ts'))).toContain('@aws-sdk/dsql-signer');
     const deps = JSON.parse(read('infra/package.json')) as {
       dependencies?: Record<string, string>;
     };

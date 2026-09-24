@@ -505,6 +505,51 @@ describe('period — the window every analytics screen reads', () => {
   });
 });
 
+/** The persist invariant reads `settings.ts` through this. `keysOf`'s two-space anchor refuses a
+ *  `//` line, but not a block comment's continuation, which sits at the same indent. LINE BY
+ *  LINE, and the line boundary is the point: a regex literal may hold a quote, and one desync
+ *  would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a block-commented `ghost: string;` inside `PersistedSettings` leaves this
+ *  green and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 describe('the persist invariant itself — every field, not just the newest', () => {
   // `settings.ts`'s PERSIST DOCTRINE is a comment, not a guard: a field missing from
   // `partialize` silently resets on every reload. This reads the SOURCE and pins the
@@ -513,7 +558,7 @@ describe('the persist invariant itself — every field, not just the newest', ()
   // The runtime alternative is not available: `useSettings.persist` is undefined
   // under vitest, so the option object cannot be inspected.
   const here = dirname(fileURLToPath(import.meta.url));
-  const SOURCE = readFileSync(join(here, 'settings.ts'), 'utf8');
+  const SOURCE = stripTs(readFileSync(join(here, 'settings.ts'), 'utf8'));
 
   const block = (start: string) => {
     const from = SOURCE.indexOf(start);

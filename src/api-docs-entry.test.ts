@@ -18,6 +18,51 @@ const SPEC = 'docs/reference/openapi.json';
 
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
 
+/** The two configs and the entry are read through this, because an absence assertion over raw
+ *  text fails on a comment that merely names what the file must not do. LINE BY LINE, and the
+ *  line boundary is the point: a regex literal may hold a quote, and one desync would switch
+ *  stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// no rollupOptions input here` in `vite.config.ts` leaves
+ *  this green and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 type Step = { name?: string; run?: string; if?: string; env?: Record<string, string> };
 type Workflow = {
   on?: { push?: { paths?: string[]; 'paths-ignore'?: string[] } };
@@ -41,7 +86,7 @@ describe('the API reference is a second build, and production never runs it', ()
   it('is reading the real frontend workflow and the real app config', () => {
     expect(existsSync(join(REPO, WORKFLOW))).toBe(true);
     expect(steps().some((s) => s.run?.trim() === 'pnpm build')).toBe(true);
-    expect(read('vite.config.ts')).toContain('defineConfig');
+    expect(stripTs(read('vite.config.ts'))).toContain('defineConfig');
     expect(existsSync(join(REPO, SPEC))).toBe(true);
   });
 
@@ -52,17 +97,17 @@ describe('the API reference is a second build, and production never runs it', ()
     // `rollupOptions` FOLLOWED BY AN `input`, which is NARROWER than `rollupOptions` alone —
     // Vite's own build output recommends `rollupOptions.output.manualChunks` for the app's
     // entry chunk, and a bare `rollupOptions` ban would redden this gate for someone taking
-    // that advice. It is not scoped to the object, though, and the text is read unstripped:
-    // an `input` anywhere after it, in a plugin option or a comment, reddens this too.
+    // that advice. It is not scoped to the object, though: an `input` anywhere after it, in a
+    // plugin option or a string, reddens this too. A comment does not; it is stripped first.
     expect(
-      read('vite.config.ts'),
+      stripTs(read('vite.config.ts')),
       'the app config names a rollup input after `rollupOptions`, which would let `pnpm ' +
         'build` emit the page — check it is a real input and not a later unrelated word',
     ).not.toMatch(/rollupOptions[\s\S]*?\binput\b/);
   });
 
   it('the second build has its own config, appends, and owns no app output', () => {
-    const config = read('vite.config.api-docs.ts');
+    const config = stripTs(read('vite.config.api-docs.ts'));
     expect(config).toContain('api-docs.html');
     expect(config, 'the second build wipes the app build that ran before it').toMatch(
       /emptyOutDir:\s*false/,
@@ -93,7 +138,7 @@ describe('the API reference is a second build, and production never runs it', ()
     expect(scripts).toEqual(['/src/api-docs/main.ts']);
     expect(html.match(/<script\b/g)).toHaveLength(1);
 
-    const entry = read('src/api-docs/main.ts');
+    const entry = stripTs(read('src/api-docs/main.ts'));
     const local = [...entry.matchAll(/(?:^import|\bfrom)[^'"]*['"](\.[^'"]+)['"]/gm)].map(
       (m) => m[1],
     );
@@ -101,7 +146,7 @@ describe('the API reference is a second build, and production never runs it', ()
     // A bare specifier could still resolve into src/ through an alias, and it would have to be
     // THIS config's: `vite build --config` REPLACES the app's rather than merging with it, so
     // an alias in `vite.config.ts` cannot reach this graph.
-    expect(read('vite.config.api-docs.ts')).not.toMatch(/\balias\b/);
+    expect(stripTs(read('vite.config.api-docs.ts'))).not.toMatch(/\balias\b/);
   });
 
   it('package.json exposes the script the workflow runs', () => {

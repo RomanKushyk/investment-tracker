@@ -56,10 +56,56 @@ const SOURCES = readdirSync(new URL('.', import.meta.url), { recursive: true, en
   .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
   .sort();
 
+/** Every source this file reads as text is read through this: a commented-out `json(…)` is no
+ *  answer, an import argued about in a comment is no import, and a comment naming
+ *  `proveRouteContract(` proves nothing. LINE BY LINE, and the line boundary is the point: a
+ *  regex literal may hold a quote, and one desync would switch stripping off for the rest of the
+ *  file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// json(404, '{"error":"ghost"}')` in `applications.ts` leaves
+ *  this green and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 /** Every `json(<status>, '<body>')` literal written in those modules. */
 const answersInSource = () =>
   SOURCES.flatMap((file) => {
-    const text = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+    const text = stripTs(readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'));
     return [...text.matchAll(/json\(\s*(\d{3}),\s*'([^']*)',?\s*\)/g)].map((m) => ({
       file,
       status: Number(m[1]),
@@ -86,9 +132,9 @@ describe('the document is regenerated, never typed', () => {
   });
 
   it('needs no deployed API to build', () => {
-    const generator = readFileSync(new URL('./openapi.ts', import.meta.url), 'utf8');
-    // WHAT IT IMPORTS, not what it mentions: the file argues at length about why it does
-    // NOT go through `export-api`, so a substring match would fail on its own reasoning.
+    const generator = stripTs(readFileSync(new URL('./openapi.ts', import.meta.url), 'utf8'));
+    // WHAT IT IMPORTS, not what it mentions, and on the stripped text: the file argues at length
+    // about why it does NOT go through `export-api`, and none of that reasoning is a dependency.
     const imports = [...generator.matchAll(/from '([^']+)';/g)].map((m) => m[1]);
     expect(imports.sort()).toEqual(['./applications', './approve', './http', 'node:fs', 'yaml']);
     // And nothing shells out to the CLI, which is the other way a deployed API creeps in.
@@ -207,7 +253,7 @@ describe('every route that is published is proved, by mechanism rather than by h
   it('makes every handler that owns a route prove it', () => {
     for (const handler of Object.keys(ANSWERS)) {
       const file = `${handler.replace('.handler', '')}.test.ts`;
-      const text = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+      const text = stripTs(readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'));
       expect([file, text.includes('proveRouteContract(')]).toEqual([file, true]);
     }
   });

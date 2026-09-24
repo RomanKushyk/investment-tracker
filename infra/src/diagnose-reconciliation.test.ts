@@ -8,9 +8,53 @@ import { addDays } from '@quirenote/core/dates';
 import { freshDb } from './__fixtures__/pglite';
 import { reconcileObservations } from './diagnose-reconciliation';
 
+/** `capture.ts` is read through this, so a commented-out copy of a table cannot stand in for it
+ *  or break the three-table anchor. LINE BY LINE, and the line boundary is the point: a regex
+ *  literal may hold a quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a commented-out copy of the `instrument` DDL in backticks leaves this
+ *  green and turns the reader it replaces red on the anchor. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 // The tables come from `ensureSchema`'s own literals: the archive's DDL already exists twice, and
 // a third copy here could agree with the test while the deployed table disagrees.
-const capture = readFileSync(new URL('./capture.ts', import.meta.url), 'utf8');
+const capture = stripTs(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8'));
 const TABLES = [
   ...capture.matchAll(
     /`\s*(CREATE TABLE IF NOT EXISTS (?:price_capture|price_observation|instrument) \([^`]*)`/g,

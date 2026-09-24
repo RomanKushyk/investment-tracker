@@ -113,6 +113,50 @@ const inlineStatements = (t: Template, id: string) =>
 
 const CLUSTER = 'AWS::DSQL::Cluster';
 
+/** `capture.ts` is read through this, so a commented-out copy of the DDL cannot stand in for a
+ *  deleted table. LINE BY LINE, and the line boundary is the point: a regex literal may hold a
+ *  quote, and one desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: the `price_observation` key changed in `capture.ts`, with the old one
+ *  left in a comment, turns this red, where the reader-less read stayed green. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 describe('the archive stack holds the archive and nothing else', () => {
   it('parses as a template — errors only, because the intrinsics are all warnings', () => {
     expect(archiveDoc.errors).toEqual([]);
@@ -134,7 +178,7 @@ describe('the archive stack holds the archive and nothing else', () => {
     // capture.ts and NOT migrations/002_price_observation.sql: the archive's migration files are
     // reference copies of this DDL, read by nothing (infra/README.md), so a guard anchored there
     // stays green with the deployed table gone. `[\s\S]` and not `.`, which excludes \r on CRLF.
-    expect(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8')).toMatch(
+    expect(stripTs(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8'))).toMatch(
       /CREATE TABLE IF NOT EXISTS price_observation \([\s\S]*?PRIMARY KEY \(as_of, instrument_ref, basis, source\)/,
     );
     // Dimensioned, not merely present: the comment above cites a PER-SOURCE count, and dropping

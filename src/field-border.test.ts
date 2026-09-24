@@ -151,12 +151,12 @@ function stripTs(source: string): string {
   for (const raw of source.split('\n')) {
     let line = '';
     let quote = '';
-    for (let i = 0; i < raw.length; i += 1) {
+    for (let i = 0; i < raw.length; i++) {
       const c = raw[i];
       if (inBlock) {
         if (c === '*' && raw[i + 1] === '/') {
           inBlock = false;
-          i += 1;
+          i++;
         }
         continue;
       }
@@ -169,7 +169,7 @@ function stripTs(source: string): string {
         line += c;
       } else if (c === '/' && raw[i + 1] === '*') {
         inBlock = true;
-        i += 1;
+        i++;
       } else if (c === '/' && raw[i + 1] === '/') {
         break;
       } else {
@@ -533,7 +533,7 @@ describe('what the ruling deliberately does not touch', () => {
   it('drops the `borderColor` variant but keeps `isNewAsset`', () => {
     expect(stripTs(read('components/ui/Select.tsx'))).not.toMatch(/borderColor/);
     expect(stripTs(read('screens/TransactionPanel.tsx'))).not.toMatch(/borderColor=/);
-    expect(read('screens/TransactionPanel.tsx')).toMatch(
+    expect(stripTs(read('screens/TransactionPanel.tsx'))).toMatch(
       /const isNewAsset = needsAsset && pickedNew;/,
     );
   });

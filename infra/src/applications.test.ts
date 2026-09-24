@@ -191,6 +191,51 @@ describe('an address the cluster would refuse never reaches it', () => {
   });
 });
 
+/** The mail assertion reads `applications.ts` through this: the comment there explains at length
+ *  why no mail client exists, and a rationale naming one of the tokens would redden a raw read.
+ *  LINE BY LINE, and the line boundary is the point: a regex literal may hold a quote, and one
+ *  desync would switch stripping off for the rest of the file.
+ *
+ *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
+ *  INJECTION-VERIFIED: a trailing `// no SESClient here` in `applications.ts` leaves this green
+ *  and turns the reader it replaces red. */
+function stripTs(source: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of source.split('\n')) {
+    let line = '';
+    let quote = '';
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inBlock) {
+        if (c === '*' && raw[i + 1] === '/') {
+          inBlock = false;
+          i++;
+        }
+        continue;
+      }
+      if (quote) {
+        line += c;
+        if (c === '\\') line += raw[++i] ?? '';
+        else if (c === quote) quote = '';
+      } else if (c === '"' || c === "'" || c === '`') {
+        quote = c;
+        line += c;
+      } else if (c === '/' && raw[i + 1] === '*') {
+        inBlock = true;
+        i++;
+      } else if (c === '/' && raw[i + 1] === '/') {
+        break;
+      } else {
+        line += c;
+      }
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
 describe('a submission costs one parameterised statement and no mail', () => {
   it('asks the cluster once, binding the address rather than interpolating it', async () => {
     const { client, asked } = spy();
@@ -212,9 +257,8 @@ describe('a submission costs one parameterised statement and no mail', () => {
   // deliver to it; the invitation belongs to approval. Asserted on the source, since a client
   // that is never constructed cannot be observed not calling anything.
   it('constructs no mail client and imports no mail SDK', () => {
-    const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), 'applications.ts'),
-      'utf8',
+    const source = stripTs(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'applications.ts'), 'utf8'),
     );
     const forbidden = ['client-ses', 'SESClient', 'SendEmail', 'sendMail', 'nodemailer'];
     for (const name of forbidden) expect([name, source.includes(name)]).toEqual([name, false]);
