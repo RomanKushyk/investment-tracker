@@ -14,10 +14,10 @@ endpoint exists — `/api/quotes`, `/api/prices`, `/api/securities`, `/api/certi
 404, and `?populate=*` returns 500. Useful for the fund roster, useless for a series.
 
 The offer pages (`/offer/inzhur-reit`, `/offer/inzhur-energy`) do carry a
-`{"buy":…,"sell":…,"nav":…}` object — the same dealer quote `infra/src/capture.ts` already
-archives daily (`capture.ts:447` hashes `sellUAH:buyUAH:navUAH`), read through a second window,
-not an independent corroboration. Pinned ratios: `sellUAH = navUAH ×
-1.009`, `buyUAH = navUAH × 1.010` ([`data-model.md`](../superpowers/specs/2026-08-04-data-model.md)).
+`{"buy":…,"sell":…,"nav":…}` object — the same dealer quote the asset feed serves
+(`/_api/assets`, below), read through a second window, not an independent corroboration.
+Pinned ratios: `sellUAH = navUAH × 1.009`, `buyUAH = navUAH × 1.010`
+([`data-model.md`](../superpowers/specs/2026-08-04-data-model.md)).
 
 ## THE PAYLOAD IS devalue-ENCODED, and there are ~35 quote objects on one page
 
@@ -94,3 +94,7 @@ never the `dividendi` one; two price links, or none, stop it.
 `/signup/`, `/documents`, `/terms`, `/privacy-policy`, `/fund_merger_report`,
 `/annual_report_2025` — offer pages and `/api/` are not disallowed. The wider external source
 map is in [`MARKET-DATA-SOURCES.md`](MARKET-DATA-SOURCES.md).
+
+The asset feed the capture read, `GET /_api/assets`, answers `302 Found` with
+`location: /dashboard/_api/assets` — a disallowed path, so the capture refuses the feed rather than
+follow it ([`DECISIONS.md`](../DECISIONS.md), *External sources*).

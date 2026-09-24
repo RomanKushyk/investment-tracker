@@ -178,18 +178,20 @@ geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 
 ## The price archive
 **Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet. It buys
-the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series. NBU fair value is
-a different basis, archived from each bond's issuance, and the two are NEVER merged. The observation
-key is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a DROP/CREATE of a
-live archive. `as_of` is per source, the observer writes every day, an imported file is not archived
-but its rows are, and the provider's FX rate is stored nowhere at all. Where an imported history
-stops short of a source's first capture in this archive, the days between are a SEAM: prices that
-existed and that the archive does not hold. It closes only if the provider publishes further, and
-the funds' seam is not expected to, the provider having moved that history into its app. Until then
-the seam is ABSENT in the archive: no other source, basis or derivation stands in for its NAV. A
-reader meets it as a real gap — between `listed_from` and `last_seen_on` the fund existed, so a day
-there with no row is unobserved, never delisted — and `diagnose` counts a seam's days and lists the
-latest of them by date.
+the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series. Neither is
+captured daily while the provider's feed is refused (*External sources*), until a source the crawl
+rules allow replaces it; each night until then is a dealer quote the archive will never hold. NBU
+fair value is a different basis, archived from each bond's issuance, and the two are NEVER merged.
+The observation key is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a
+DROP/CREATE of a live archive. `as_of` is per source, the observer writes every day, an imported
+file is not archived but its rows are, and the provider's FX rate is stored nowhere at all. Where an
+imported history stops short of a source's first capture in this archive, the days between are a
+SEAM: prices that existed and that the archive does not hold. It closes only if the provider
+publishes further, and the funds' seam is not expected to, the provider having moved that history
+into its app. Until then the seam is ABSENT in the archive: no other source, basis or derivation
+stands in for its NAV. A reader meets it as a real gap — between `listed_from` and `last_seen_on`
+the fund existed, so a day there with no row is unobserved, never delisted — and `diagnose` counts a
+seam's days and lists the latest of them by date.
 **Why.** Writing every day keeps a zero delta distinct from an unknown one — a row missing on a
 quiet day is byte-identical to a capture that never ran. Premises are kept forever, conclusions
 never. A NAV the archive never received can only be concluded, not observed: statistical exchange
@@ -209,11 +211,18 @@ archive lacks.
 National Bank — daily fair-value files and the official rate. The price files MAY be fetched, being
 linked from pages the crawl rules allow, but the filename carries a content hash, so the link is
 re-read from that page and no URL is polled. SMIDA's open-data API is alive and is never fetched by
-our code, categorically; `stockmarket.gov.ua` is dead.
+our code, categorically; `stockmarket.gov.ua` is dead. Every request the capture makes to a source,
+each redirect hop included, is first checked against its host's `robots.txt` — a file RFC 9309
+always allows, read per that RFC under the product token `quirenote-price-capture`. A disallowed
+hop fails the fetch without being requested and is not retried: the refusal settles its day, as a
+day NBU publishes no file does, so no later firing asks again. The asset feed is refused on that rule:
+it redirects into `/dashboard/`, which the provider's crawl rules disallow.
 **Why.** A blanket `Disallow` is final even where a statute licenses the use: any exception is a
 rule every future source inherits with no bright line. And a false "this source is dead" does not
-fail loudly, it stops anyone looking again.
+fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and exempts none
+reached by a redirect; Scrapy, Nutch and Heritrix each check the target before requesting it.
 **Rejected.** Crawling a disallowed path while claiming to respect the site's rules: self-refuting.
+· Checking the first URL only: a redirect would then carry a fetch past the rules unseen.
 
 ## Alerting
 **Decision.** No SNS topic, and the alarms carry no `AlarmActions` at all: CloudWatch publishes

@@ -16,6 +16,7 @@ import { addDays, kyivDateIso } from '@quirenote/core/dates';
 import { backupAgeHours } from './backup-age';
 import { reconcileObservations } from './diagnose-reconciliation';
 import { connect } from './dsql';
+import type { SqlClient } from './migrate';
 // Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
@@ -31,6 +32,7 @@ import { BASIS_NAV, inzhurObservationRows } from './observation-rows';
 import { observeProgress, observeWindowEnd } from './observe-window';
 import { readXlsx } from './xlsx';
 import { tallyQuotes, type QuoteTally } from './quotes';
+import { forgetRobots, REFUSED, RobotsRefusal, robotsFetch } from './robots';
 import { parseNbuFairValue } from '@quirenote/core/nbu/fair-value';
 
 /** Stored per row, so a parser that was wrong leaves identifiable rows. */
@@ -47,15 +49,18 @@ export const SOURCE = {
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
 
-/** MANDATORY: Inzhur's CloudFront answers 403 to a request with no User-Agent, and Node sends
- *  none by default. A browser always does, which is why this never surfaced in the SPA. */
-const USER_AGENT = 'quirenote-price-capture/1.0 (+https://quirenote.com)';
-
 interface FetchOutcome {
   ok: boolean;
   httpStatus?: number;
   body?: string;
   error?: string;
+}
+
+/** A refusal keeps the status of the redirect that led to it, so the journal shows where the
+ *  source pointed. */
+function failedOutcome(err: unknown): FetchOutcome {
+  const httpStatus = err instanceof RobotsRefusal ? err.httpStatus : undefined;
+  return { ok: false, httpStatus, error: err instanceof Error ? err.message : String(err) };
 }
 
 /** One file per BUSINESS day on a fully predictable path, archived back to `NBU_ARCHIVE_START`.
@@ -73,10 +78,7 @@ async function fetchNbu(asOf: string): Promise<FetchOutcome> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(nbuFairValueUrl(asOf), {
-      signal: controller.signal,
-      headers: { 'User-Agent': USER_AGENT },
-    });
+    const response = await robotsFetch(nbuFairValueUrl(asOf), controller.signal);
     if (response.status === 404) {
       return { ok: false, httpStatus: 404, error: NOT_PUBLISHED, body: '' };
     }
@@ -92,7 +94,7 @@ async function fetchNbu(asOf: string): Promise<FetchOutcome> {
       body: new TextDecoder('windows-1251').decode(bytes),
     };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return failedOutcome(err);
   } finally {
     clearTimeout(timer);
   }
@@ -152,17 +154,14 @@ function isRetryable(status: number): boolean {
   return status >= 500 || status === 408 || status === 429;
 }
 
-async function fetchFeed(url: string): Promise<FetchOutcome> {
+export async function fetchFeed(url: string): Promise<FetchOutcome> {
   let last: FetchOutcome = { ok: false, error: 'no attempt made' };
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: { 'User-Agent': USER_AGENT },
-      });
+      const response = await robotsFetch(url, controller.signal);
       if (!response.ok) {
         last = { ok: false, httpStatus: response.status, error: `HTTP ${response.status}` };
         if (!isRetryable(response.status)) return last;
@@ -172,7 +171,8 @@ async function fetchFeed(url: string): Promise<FetchOutcome> {
         return { ok: true, httpStatus: response.status, body: await response.text() };
       }
     } catch (err) {
-      last = { ok: false, error: err instanceof Error ? err.message : String(err) };
+      last = failedOutcome(err);
+      if (err instanceof RobotsRefusal) return last;
     } finally {
       clearTimeout(timer);
     }
@@ -272,13 +272,18 @@ interface CaptureResult {
 
 /** KEYED ON `ok = true`, NEVER ON A ROW EXISTING: a failed capture writes a row too, so a range
  *  filled by a defective run would be skipped forever by an ordinary re-run. `not_published`
- *  counts as settled, or every weekend spends every firing asking for a file that cannot exist. */
-async function alreadySettled(client: Client, source: string, asOf: string): Promise<boolean> {
+ *  counts as settled, or every weekend spends every firing asking for a file that cannot exist. So
+ *  does a refusal: re-asking every firing costs more than a same-morning site change is worth. */
+export async function alreadySettled(
+  client: SqlClient,
+  source: string,
+  asOf: string,
+): Promise<boolean> {
   const res = await client.query(
     `SELECT 1 FROM price_capture
-      WHERE source = $1 AND as_of = $2 AND (ok = true OR error = $3)
+      WHERE source = $1 AND as_of = $2 AND (ok = true OR error = $3 OR error LIKE $4)
       LIMIT 1`,
-    [source, asOf, NOT_PUBLISHED],
+    [source, asOf, NOT_PUBLISHED, `${REFUSED} %`],
   );
   return res.rows.length > 0;
 }
@@ -382,10 +387,7 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': USER_AGENT },
-    });
+    const response = await robotsFetch(url, controller.signal);
     if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
     return new Uint8Array(await response.arrayBuffer());
   } finally {
@@ -1046,6 +1048,7 @@ export interface HandlerEvent {
 }
 
 export async function handler(event: HandlerEvent = {}) {
+  forgetRobots();
   const client = await connect();
   try {
     await ensureSchema(client);
