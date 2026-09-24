@@ -8,6 +8,7 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
+    "devalue": "^6.0.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {

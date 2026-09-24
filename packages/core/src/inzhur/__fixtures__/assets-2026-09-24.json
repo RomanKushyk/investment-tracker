@@ -1,0 +1,1884 @@
+[
+  {
+    "id": 7,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000230262",
+      "prices": {
+        "buy": 1087.61,
+        "sell": 1087.58,
+        "nav": 0,
+        "buyUAH": 1087.61,
+        "sellUAH": 1087.58,
+        "navUAH": 0,
+        "buyUSD": 24.246106,
+        "sellUSD": 24.245437,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-01-28",
+      "paymentSchedule": [
+        {
+          "id": 15,
+          "date": "2025-07-30T10:00:00.000Z",
+          "amount": "8800"
+        },
+        {
+          "id": 16,
+          "date": "2026-01-28T11:00:00.000Z",
+          "amount": "8800"
+        },
+        {
+          "id": 19,
+          "date": "2026-01-28T11:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 13.25,
+        "sell": 14
+      }
+    }
+  },
+  {
+    "id": 22,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000233696",
+      "prices": {
+        "buy": 1075.04,
+        "sell": 1075.03,
+        "nav": 0,
+        "buyUAH": 1075.04,
+        "sellUAH": 1075.03,
+        "navUAH": 0,
+        "buyUSD": 23.965883,
+        "sellUSD": 23.96566,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-02-04",
+      "paymentSchedule": [
+        {
+          "id": 46,
+          "date": "2026-02-03T22:00:00.000Z",
+          "amount": "7545"
+        },
+        {
+          "id": 47,
+          "date": "2026-02-03T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14,
+        "sell": 14.1
+      }
+    }
+  },
+  {
+    "id": 23,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000235378",
+      "prices": {
+        "buy": 1081.23,
+        "sell": 1081.22,
+        "nav": 0,
+        "buyUAH": 1081.23,
+        "sellUAH": 1081.22,
+        "navUAH": 0,
+        "buyUSD": 24.103877,
+        "sellUSD": 24.103654,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-08-19",
+      "paymentSchedule": [
+        {
+          "id": 48,
+          "date": "2026-02-17T22:00:00.000Z",
+          "amount": "8165"
+        },
+        {
+          "id": 49,
+          "date": "2026-08-18T21:00:00.000Z",
+          "amount": "8165"
+        },
+        {
+          "id": 50,
+          "date": "2026-08-18T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.15,
+        "sell": 14.6
+      }
+    }
+  },
+  {
+    "id": 24,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000234413",
+      "prices": {
+        "buy": 1037.61,
+        "sell": 1035.8,
+        "nav": 0,
+        "buyUAH": 1037.61,
+        "sellUAH": 1035.8,
+        "navUAH": 0,
+        "buyUSD": 23.131455,
+        "sellUSD": 23.091105,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-01-13",
+      "paymentSchedule": [
+        {
+          "id": 51,
+          "date": "2026-01-13T22:00:00.000Z",
+          "amount": "8305"
+        },
+        {
+          "id": 52,
+          "date": "2026-07-14T21:00:00.000Z",
+          "amount": "8305"
+        },
+        {
+          "id": 53,
+          "date": "2027-01-12T22:00:00.000Z",
+          "amount": "8305"
+        },
+        {
+          "id": 54,
+          "date": "2027-01-12T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.4,
+        "sell": 15
+      }
+    }
+  },
+  {
+    "id": 25,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000234223",
+      "prices": {
+        "buy": 1055.53,
+        "sell": 1053.7,
+        "nav": 0,
+        "buyUAH": 1055.53,
+        "sellUAH": 1053.7,
+        "navUAH": 0,
+        "buyUSD": 23.530946,
+        "sellUSD": 23.49015,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-06-09",
+      "paymentSchedule": [
+        {
+          "id": 57,
+          "date": "2025-12-09T22:00:00.000Z",
+          "amount": "8100"
+        },
+        {
+          "id": 55,
+          "date": "2026-06-09T21:00:00.000Z",
+          "amount": "8100"
+        },
+        {
+          "id": 56,
+          "date": "2026-12-08T22:00:00.000Z",
+          "amount": "8100"
+        },
+        {
+          "id": 59,
+          "date": "2027-06-08T21:00:00.000Z",
+          "amount": "8100"
+        },
+        {
+          "id": 58,
+          "date": "2027-06-08T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.7
+      }
+    }
+  },
+  {
+    "id": 26,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000233712",
+      "prices": {
+        "buy": 1077.32,
+        "sell": 1075.92,
+        "nav": 0,
+        "buyUAH": 1077.32,
+        "sellUAH": 1075.92,
+        "navUAH": 0,
+        "buyUSD": 24.016711,
+        "sellUSD": 23.985501,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-11-03",
+      "paymentSchedule": [
+        {
+          "id": 60,
+          "date": "2025-11-04T22:00:00.000Z",
+          "amount": "8230"
+        },
+        {
+          "id": 61,
+          "date": "2026-05-05T21:00:00.000Z",
+          "amount": "8230"
+        },
+        {
+          "id": 62,
+          "date": "2026-11-03T22:00:00.000Z",
+          "amount": "8230"
+        },
+        {
+          "id": 63,
+          "date": "2027-05-04T21:00:00.000Z",
+          "amount": "8230"
+        },
+        {
+          "id": 65,
+          "date": "2027-11-02T22:00:00.000Z",
+          "amount": "8230"
+        },
+        {
+          "id": 64,
+          "date": "2027-11-02T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.65,
+        "sell": 15.8
+      }
+    }
+  },
+  {
+    "id": 27,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000235196",
+      "prices": {
+        "buy": 1110.88,
+        "sell": 1107.09,
+        "nav": 0,
+        "buyUAH": 1110.88,
+        "sellUAH": 1107.09,
+        "navUAH": 0,
+        "buyUSD": 24.764864,
+        "sellUSD": 24.680374,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-04-12",
+      "paymentSchedule": [
+        {
+          "id": 66,
+          "date": "2025-10-14T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 68,
+          "date": "2026-04-14T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 67,
+          "date": "2026-10-13T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 69,
+          "date": "2027-04-13T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 70,
+          "date": "2027-10-12T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 71,
+          "date": "2028-04-11T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 72,
+          "date": "2028-04-11T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.05,
+        "sell": 16.35
+      }
+    }
+  },
+  {
+    "id": 5,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000229264",
+      "prices": {
+        "buy": 1088.62,
+        "sell": 1088.6,
+        "nav": 0,
+        "buyUAH": 1088.62,
+        "sellUAH": 1088.6,
+        "navUAH": 0,
+        "buyUSD": 24.268622,
+        "sellUSD": 24.268176,
+        "navUSD": 0
+      },
+      "maturityDate": "2025-10-15",
+      "paymentSchedule": [
+        {
+          "id": 10,
+          "date": "2025-04-16T10:45:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 9,
+          "date": "2025-10-15T10:30:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 12,
+          "date": "2025-10-15T11:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 12.75,
+        "sell": 13.5
+      }
+    }
+  },
+  {
+    "id": 9,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000234215",
+      "prices": {
+        "buy": 1075.08,
+        "sell": 1075.07,
+        "nav": 0,
+        "buyUAH": 1075.08,
+        "sellUAH": 1075.07,
+        "navUAH": 0,
+        "buyUSD": 23.966774,
+        "sellUSD": 23.966552,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-06-24",
+      "paymentSchedule": [
+        {
+          "id": 20,
+          "date": "2025-06-25T12:15:00.000Z",
+          "amount": "7550"
+        },
+        {
+          "id": 21,
+          "date": "2025-12-24T11:00:00.000Z",
+          "amount": "7550"
+        },
+        {
+          "id": 22,
+          "date": "2026-06-24T07:30:00.000Z",
+          "amount": "7550"
+        },
+        {
+          "id": 23,
+          "date": "2026-06-24T03:15:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.5
+      }
+    }
+  },
+  {
+    "id": 8,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000232599",
+      "prices": {
+        "buy": 1072.88,
+        "sell": 1072.85,
+        "nav": 0,
+        "buyUAH": 1072.88,
+        "sellUAH": 1072.85,
+        "navUAH": 0,
+        "buyUSD": 23.91773,
+        "sellUSD": 23.917061,
+        "navUSD": 0
+      },
+      "maturityDate": "2025-10-01",
+      "paymentSchedule": [
+        {
+          "id": 17,
+          "date": "2025-10-01T10:00:00.000Z",
+          "amount": "7325"
+        },
+        {
+          "id": 18,
+          "date": "2025-10-01T10:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 12.75,
+        "sell": 13.75
+      }
+    }
+  },
+  {
+    "id": 11,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000235782",
+      "prices": {
+        "buy": 1090.69,
+        "sell": 1084.77,
+        "nav": 0,
+        "buyUAH": 1090.69,
+        "sellUAH": 1084.77,
+        "navUAH": 0,
+        "buyUSD": 24.314768,
+        "sellUSD": 24.182794,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-11-29",
+      "paymentSchedule": [
+        {
+          "id": 29,
+          "date": "2025-12-03T10:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 28,
+          "date": "2026-06-03T09:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 30,
+          "date": "2026-12-02T10:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 38,
+          "date": "2027-06-03T09:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 39,
+          "date": "2027-12-01T10:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 40,
+          "date": "2028-05-31T09:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 41,
+          "date": "2028-11-29T10:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 31,
+          "date": "2028-11-29T10:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.45,
+        "sell": 16.8
+      }
+    }
+  },
+  {
+    "id": 10,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000233332",
+      "prices": {
+        "buy": 1075.58,
+        "sell": 1075.57,
+        "nav": 0,
+        "buyUAH": 1075.58,
+        "sellUAH": 1075.57,
+        "navUAH": 0,
+        "buyUSD": 23.977921,
+        "sellUSD": 23.977698,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-04-29",
+      "paymentSchedule": [
+        {
+          "id": 24,
+          "date": "2025-04-30T10:45:00.000Z",
+          "amount": "7600"
+        },
+        {
+          "id": 25,
+          "date": "2025-10-29T12:45:00.000Z",
+          "amount": "7600"
+        },
+        {
+          "id": 26,
+          "date": "2026-04-29T11:00:00.000Z",
+          "amount": "7600"
+        },
+        {
+          "id": 27,
+          "date": "2026-04-29T13:30:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.25,
+        "sell": 14.75
+      }
+    }
+  },
+  {
+    "id": 28,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000236228",
+      "prices": {
+        "buy": 1014.05,
+        "sell": 1012.75,
+        "nav": 0,
+        "buyUAH": 1014.05,
+        "sellUAH": 1012.75,
+        "navUAH": 0,
+        "buyUSD": 22.606232,
+        "sellUSD": 22.577251,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-03-10",
+      "paymentSchedule": [
+        {
+          "id": 75,
+          "date": "2026-03-10T22:00:00.000Z",
+          "amount": "8550"
+        },
+        {
+          "id": 74,
+          "date": "2026-09-08T21:00:00.000Z",
+          "amount": "8550"
+        },
+        {
+          "id": 76,
+          "date": "2027-03-09T22:00:00.000Z",
+          "amount": "8550"
+        },
+        {
+          "id": 77,
+          "date": "2027-03-09T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.7
+      }
+    }
+  },
+  {
+    "id": 29,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000237556",
+      "prices": {
+        "buy": 1098.43,
+        "sell": 1091.25,
+        "nav": 0,
+        "buyUAH": 1098.43,
+        "sellUAH": 1091.25,
+        "navUAH": 0,
+        "buyUSD": 24.487316,
+        "sellUSD": 24.327253,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-11-15",
+      "paymentSchedule": [
+        {
+          "id": 78,
+          "date": "2025-11-18T22:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 79,
+          "date": "2026-05-19T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 80,
+          "date": "2026-11-17T22:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 84,
+          "date": "2027-05-18T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 83,
+          "date": "2027-11-16T22:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 81,
+          "date": "2028-05-16T21:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 82,
+          "date": "2028-11-14T22:00:00.000Z",
+          "amount": "8900"
+        },
+        {
+          "id": 89,
+          "date": "2028-11-14T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.37,
+        "sell": 16.8
+      }
+    }
+  },
+  {
+    "id": 30,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000237416",
+      "prices": {
+        "buy": 1059.24,
+        "sell": 1058.31,
+        "nav": 0,
+        "buyUAH": 1059.24,
+        "sellUAH": 1058.31,
+        "navUAH": 0,
+        "buyUSD": 23.613653,
+        "sellUSD": 23.592921,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-11-18",
+      "paymentSchedule": [
+        {
+          "id": 85,
+          "date": "2025-11-18T22:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 87,
+          "date": "2026-05-19T21:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 86,
+          "date": "2026-11-17T22:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 88,
+          "date": "2026-11-17T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.7
+      }
+    }
+  },
+  {
+    "id": 31,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000230809",
+      "prices": {
+        "buy": 1084.58,
+        "sell": 1084.58,
+        "nav": 0,
+        "buyUAH": 1084.58,
+        "sellUAH": 1084.58,
+        "navUAH": 0,
+        "buyUSD": 24.178558,
+        "sellUSD": 24.178558,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-03-18",
+      "paymentSchedule": [
+        {
+          "id": 91,
+          "date": "2026-03-17T22:00:00.000Z",
+          "amount": "8500"
+        },
+        {
+          "id": 90,
+          "date": "2026-03-17T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.1,
+        "sell": 14.25
+      }
+    }
+  },
+  {
+    "id": 32,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000236624",
+      "prices": {
+        "buy": 1073.34,
+        "sell": 1073.16,
+        "nav": 0,
+        "buyUAH": 1073.34,
+        "sellUAH": 1073.16,
+        "navUAH": 0,
+        "buyUSD": 23.927985,
+        "sellUSD": 23.923972,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-10-14",
+      "paymentSchedule": [
+        {
+          "id": 94,
+          "date": "2026-04-14T21:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 92,
+          "date": "2026-10-13T21:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 93,
+          "date": "2026-10-13T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.3,
+        "sell": 14.6
+      }
+    }
+  },
+  {
+    "id": 33,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000237804",
+      "prices": {
+        "buy": 1028.12,
+        "sell": 1024.46,
+        "nav": 0,
+        "buyUAH": 1028.12,
+        "sellUAH": 1024.46,
+        "navUAH": 0,
+        "buyUSD": 22.919895,
+        "sellUSD": 22.838302,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-03-22",
+      "paymentSchedule": [
+        {
+          "id": 95,
+          "date": "2026-03-24T22:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 96,
+          "date": "2026-09-22T21:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 97,
+          "date": "2027-03-23T22:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 98,
+          "date": "2027-09-21T21:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 99,
+          "date": "2028-03-21T22:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 100,
+          "date": "2028-03-21T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16,
+        "sell": 16.3
+      }
+    }
+  },
+  {
+    "id": 34,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000238281",
+      "prices": {
+        "buy": 1045.84,
+        "sell": 1045.84,
+        "nav": 0,
+        "buyUAH": 1045.84,
+        "sellUAH": 1045.84,
+        "navUAH": 0,
+        "buyUSD": 23.314927,
+        "sellUSD": 23.314927,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-12-16",
+      "paymentSchedule": [
+        {
+          "id": 101,
+          "date": "2025-12-16T22:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 102,
+          "date": "2026-06-16T21:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 103,
+          "date": "2026-12-15T22:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 104,
+          "date": "2026-12-15T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.1,
+        "sell": 15.1
+      }
+    }
+  },
+  {
+    "id": 35,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000238968",
+      "prices": {
+        "buy": 1039.62,
+        "sell": 1039.62,
+        "nav": 0,
+        "buyUAH": 1039.62,
+        "sellUAH": 1039.62,
+        "navUAH": 0,
+        "buyUSD": 23.176264,
+        "sellUSD": 23.176264,
+        "navUSD": 0
+      },
+      "maturityDate": "2029-03-07",
+      "paymentSchedule": [
+        {
+          "id": 105,
+          "date": "2026-03-10T22:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 106,
+          "date": "2026-09-08T21:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 107,
+          "date": "2027-03-09T22:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 108,
+          "date": "2027-09-07T21:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 109,
+          "date": "2028-03-07T22:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 110,
+          "date": "2028-09-05T21:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 111,
+          "date": "2029-03-06T22:00:00.000Z",
+          "amount": "8740"
+        },
+        {
+          "id": 112,
+          "date": "2029-03-06T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.5,
+        "sell": 16.5
+      }
+    }
+  },
+  {
+    "id": 36,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000238976",
+      "prices": {
+        "buy": 1004.2,
+        "sell": 1004.2,
+        "nav": 0,
+        "buyUAH": 1004.2,
+        "sellUAH": 1004.2,
+        "navUAH": 0,
+        "buyUSD": 22.386646,
+        "sellUSD": 22.386646,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-03-24",
+      "paymentSchedule": [
+        {
+          "id": 113,
+          "date": "2026-03-24T22:00:00.000Z",
+          "amount": "7840"
+        },
+        {
+          "id": 114,
+          "date": "2026-09-22T21:00:00.000Z",
+          "amount": "7840"
+        },
+        {
+          "id": 115,
+          "date": "2027-03-23T22:00:00.000Z",
+          "amount": "7840"
+        },
+        {
+          "id": 116,
+          "date": "2027-03-23T22:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.9,
+        "sell": 14.9
+      }
+    }
+  },
+  {
+    "id": 37,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000236475",
+      "prices": {
+        "buy": 1121.47,
+        "sell": 1121.47,
+        "nav": 0,
+        "buyUAH": 1121.47,
+        "sellUAH": 1121.47,
+        "navUAH": 0,
+        "buyUSD": 25.000947,
+        "sellUSD": 25.000947,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-09-27",
+      "paymentSchedule": [
+        {
+          "id": 117,
+          "date": "2025-09-30T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 118,
+          "date": "2026-03-31T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 119,
+          "date": "2026-09-29T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 120,
+          "date": "2027-03-30T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 121,
+          "date": "2027-09-28T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 122,
+          "date": "2028-03-28T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 123,
+          "date": "2028-09-26T21:00:00.000Z",
+          "amount": "8885"
+        },
+        {
+          "id": 124,
+          "date": "2028-09-26T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.3,
+        "sell": 16.3
+      }
+    }
+  },
+  {
+    "id": 38,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000238992",
+      "prices": {
+        "buy": 1071.95,
+        "sell": 1064.52,
+        "nav": 0,
+        "buyUAH": 1071.95,
+        "sellUAH": 1064.52,
+        "navUAH": 0,
+        "buyUSD": 23.896997,
+        "sellUSD": 23.73136,
+        "navUSD": 0
+      },
+      "maturityDate": "2029-04-25",
+      "paymentSchedule": [
+        {
+          "id": 125,
+          "date": "2026-04-28T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 126,
+          "date": "2026-10-27T22:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 127,
+          "date": "2027-04-27T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 128,
+          "date": "2027-10-26T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 129,
+          "date": "2028-04-25T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 130,
+          "date": "2028-10-24T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 131,
+          "date": "2029-04-24T21:00:00.000Z",
+          "amount": "8080"
+        },
+        {
+          "id": 132,
+          "date": "2029-04-24T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.51,
+        "sell": 16.9
+      }
+    }
+  },
+  {
+    "id": 39,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні облігації України",
+    "assetDetails": {
+      "isin": "UA4000239008",
+      "prices": {
+        "buy": 1045.45,
+        "sell": 1040.16,
+        "nav": 0,
+        "buyUAH": 1045.45,
+        "sellUAH": 1040.16,
+        "navUAH": 0,
+        "buyUSD": 23.306232,
+        "sellUSD": 23.188302,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-06-14",
+      "paymentSchedule": [
+        {
+          "id": 133,
+          "date": "2026-06-16T21:00:00.000Z",
+          "amount": "7890"
+        },
+        {
+          "id": 134,
+          "date": "2026-12-15T22:00:00.000Z",
+          "amount": "7890"
+        },
+        {
+          "id": 135,
+          "date": "2027-06-15T21:00:00.000Z",
+          "amount": "7890"
+        },
+        {
+          "id": 136,
+          "date": "2027-12-14T22:00:00.000Z",
+          "amount": "7890"
+        },
+        {
+          "id": 137,
+          "date": "2028-06-13T21:00:00.000Z",
+          "amount": "7890"
+        },
+        {
+          "id": 138,
+          "date": "2028-06-13T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.21,
+        "sell": 16.6
+      }
+    }
+  },
+  {
+    "id": 40,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000239016",
+      "prices": {
+        "buy": 1027.9,
+        "sell": 1027.9,
+        "nav": 0,
+        "buyUAH": 1027.9,
+        "sellUAH": 1027.9,
+        "navUAH": 0,
+        "buyUSD": 22.91499,
+        "sellUSD": 22.91499,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-07-21",
+      "paymentSchedule": [
+        {
+          "id": 141,
+          "date": "2026-07-22T00:00:00.000Z",
+          "amount": "7575"
+        },
+        {
+          "id": 142,
+          "date": "2027-01-20T00:00:00.000Z",
+          "amount": "7575"
+        },
+        {
+          "id": 143,
+          "date": "2027-07-21T00:00:00.000Z",
+          "amount": "7575"
+        },
+        {
+          "id": 144,
+          "date": "2027-07-21T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.5,
+        "sell": 15.5
+      }
+    }
+  },
+  {
+    "id": 41,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000239040",
+      "prices": {
+        "buy": 1069.39,
+        "sell": 1064.95,
+        "nav": 0,
+        "buyUAH": 1069.39,
+        "sellUAH": 1064.95,
+        "navUAH": 0,
+        "buyUSD": 23.839927,
+        "sellUSD": 23.740946,
+        "navUSD": 0
+      },
+      "maturityDate": "2028-04-26",
+      "paymentSchedule": [
+        {
+          "id": 147,
+          "date": "2026-10-28T00:00:00.000Z",
+          "amount": "7925"
+        },
+        {
+          "id": 148,
+          "date": "2027-04-28T00:00:00.000Z",
+          "amount": "7925"
+        },
+        {
+          "id": 149,
+          "date": "2027-10-27T00:00:00.000Z",
+          "amount": "7925"
+        },
+        {
+          "id": 150,
+          "date": "2028-04-26T00:00:00.000Z",
+          "amount": "7925"
+        },
+        {
+          "id": 151,
+          "date": "2028-04-26T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.1,
+        "sell": 16.45
+      }
+    }
+  },
+  {
+    "id": 44,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000207518",
+      "prices": {
+        "buy": 1001.5,
+        "sell": 998.99,
+        "nav": 0,
+        "buyUAH": 1001.5,
+        "sellUAH": 998.99,
+        "navUAH": 0,
+        "buyUSD": 22.326454,
+        "sellUSD": 22.270499,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-05-26",
+      "paymentSchedule": [
+        {
+          "id": 156,
+          "date": "2025-11-26T00:00:00.000Z",
+          "amount": "4895"
+        },
+        {
+          "id": 157,
+          "date": "2026-05-27T00:00:00.000Z",
+          "amount": "4895"
+        },
+        {
+          "id": 158,
+          "date": "2026-11-25T00:00:00.000Z",
+          "amount": "4895"
+        },
+        {
+          "id": 159,
+          "date": "2027-05-26T00:00:00.000Z",
+          "amount": "4895"
+        },
+        {
+          "id": 160,
+          "date": "2027-05-26T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.3,
+        "sell": 15.75
+      }
+    }
+  },
+  {
+    "id": 43,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000239081",
+      "prices": {
+        "buy": 1016.34,
+        "sell": 1004.9,
+        "nav": 0,
+        "buyUAH": 1016.34,
+        "sellUAH": 1004.9,
+        "navUAH": 0,
+        "buyUSD": 22.657283,
+        "sellUSD": 22.402251,
+        "navUSD": 0
+      },
+      "maturityDate": "2030-02-20",
+      "paymentSchedule": [
+        {
+          "id": 163,
+          "date": "2026-08-26T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 164,
+          "date": "2027-02-24T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 165,
+          "date": "2027-08-25T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 166,
+          "date": "2028-02-23T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 167,
+          "date": "2028-08-23T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 168,
+          "date": "2029-02-21T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 169,
+          "date": "2029-08-22T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 170,
+          "date": "2030-02-20T00:00:00.000Z",
+          "amount": "8220"
+        },
+        {
+          "id": 171,
+          "date": "2030-02-20T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 17.01,
+        "sell": 17.5
+      }
+    }
+  },
+  {
+    "id": 45,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000230270",
+      "prices": {
+        "buy": 1065.66,
+        "sell": 1062.93,
+        "nav": 0,
+        "buyUAH": 1065.66,
+        "sellUAH": 1062.93,
+        "navUAH": 0,
+        "buyUSD": 23.756774,
+        "sellUSD": 23.695914,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-07-07",
+      "paymentSchedule": [
+        {
+          "id": 187,
+          "date": "2027-01-06T00:00:00.000Z",
+          "amount": "9250"
+        },
+        {
+          "id": 188,
+          "date": "2027-07-07T00:00:00.000Z",
+          "amount": "9250"
+        },
+        {
+          "id": 189,
+          "date": "2027-07-07T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.35,
+        "sell": 15.75
+      }
+    }
+  },
+  {
+    "id": 46,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000231195",
+      "prices": {
+        "buy": 1035.38,
+        "sell": 1032.79,
+        "nav": 0,
+        "buyUAH": 1035.38,
+        "sellUAH": 1032.79,
+        "navUAH": 0,
+        "buyUSD": 23.081742,
+        "sellUSD": 23.024003,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-08-25",
+      "paymentSchedule": [
+        {
+          "id": 181,
+          "date": "2026-08-26T00:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 182,
+          "date": "2027-02-24T00:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 183,
+          "date": "2027-08-25T00:00:00.000Z",
+          "amount": "8750"
+        },
+        {
+          "id": 184,
+          "date": "2027-08-25T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.47,
+        "sell": 15.8
+      }
+    }
+  },
+  {
+    "id": 12,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "completed",
+    "title": "Державні \nоблігації України",
+    "assetDetails": {
+      "isin": "UA4000235865",
+      "prices": {
+        "buy": 1081.33,
+        "sell": 1081.32,
+        "nav": 0,
+        "buyUAH": 1081.33,
+        "sellUAH": 1081.32,
+        "navUAH": 0,
+        "buyUSD": 24.106106,
+        "sellUSD": 24.105883,
+        "navUSD": 0
+      },
+      "maturityDate": "2026-09-16",
+      "paymentSchedule": [
+        {
+          "id": 43,
+          "date": "2025-09-17T09:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 42,
+          "date": "2026-03-18T10:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 44,
+          "date": "2026-09-16T09:00:00.000Z",
+          "amount": "8175"
+        },
+        {
+          "id": 45,
+          "date": "2026-09-15T21:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 14.2,
+        "sell": 14.5
+      }
+    }
+  },
+  {
+    "id": 49,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні облігації України",
+    "assetDetails": {
+      "isin": "UA4000239107",
+      "prices": {
+        "buy": 1021.36,
+        "sell": 1016.04,
+        "nav": 0,
+        "buyUAH": 1021.36,
+        "sellUAH": 1016.04,
+        "navUAH": 0,
+        "buyUSD": 22.769194,
+        "sellUSD": 22.650595,
+        "navUSD": 0
+      },
+      "maturityDate": "2029-02-07",
+      "paymentSchedule": [
+        {
+          "id": 192,
+          "date": "2027-02-10T00:00:00.000Z",
+          "amount": "8035"
+        },
+        {
+          "id": 193,
+          "date": "2027-08-11T00:00:00.000Z",
+          "amount": "8035"
+        },
+        {
+          "id": 194,
+          "date": "2028-02-09T00:00:00.000Z",
+          "amount": "8035"
+        },
+        {
+          "id": 195,
+          "date": "2028-08-09T00:00:00.000Z",
+          "amount": "8035"
+        },
+        {
+          "id": 196,
+          "date": "2029-02-07T00:00:00.000Z",
+          "amount": "8035"
+        },
+        {
+          "id": 197,
+          "date": "2029-02-07T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 16.6,
+        "sell": 16.9
+      }
+    }
+  },
+  {
+    "id": 50,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні облігації України",
+    "assetDetails": {
+      "isin": "UA4000239115",
+      "prices": {
+        "buy": 1003.57,
+        "sell": 1002.02,
+        "nav": 0,
+        "buyUAH": 1003.57,
+        "sellUAH": 1002.02,
+        "navUAH": 0,
+        "buyUSD": 22.372601,
+        "sellUSD": 22.338047,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-09-15",
+      "paymentSchedule": [
+        {
+          "id": 202,
+          "date": "2026-09-16T00:00:00.000Z",
+          "amount": "7590"
+        },
+        {
+          "id": 203,
+          "date": "2027-03-17T00:00:00.000Z",
+          "amount": "7590"
+        },
+        {
+          "id": 204,
+          "date": "2027-09-15T00:00:00.000Z",
+          "amount": "7590"
+        },
+        {
+          "id": 205,
+          "date": "2027-09-15T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.76,
+        "sell": 15.95
+      }
+    }
+  },
+  {
+    "id": 51,
+    "slug": "ovdp",
+    "type": "bond",
+    "status": "active",
+    "title": "Державні облігації України",
+    "assetDetails": {
+      "isin": "UA4000233704",
+      "prices": {
+        "buy": 1078.7,
+        "sell": 1076.53,
+        "nav": 0,
+        "buyUAH": 1078.7,
+        "sellUAH": 1076.53,
+        "navUAH": 0,
+        "buyUSD": 24.047475,
+        "sellUSD": 23.999099,
+        "navUSD": 0
+      },
+      "maturityDate": "2027-04-14",
+      "paymentSchedule": [
+        {
+          "id": 208,
+          "date": "2025-04-16T00:00:00.000Z",
+          "amount": "8085"
+        },
+        {
+          "id": 209,
+          "date": "2025-10-15T00:00:00.000Z",
+          "amount": "8085"
+        },
+        {
+          "id": 210,
+          "date": "2026-04-15T00:00:00.000Z",
+          "amount": "8085"
+        },
+        {
+          "id": 211,
+          "date": "2026-10-14T00:00:00.000Z",
+          "amount": "8085"
+        },
+        {
+          "id": 212,
+          "date": "2027-04-14T00:00:00.000Z",
+          "amount": "8085"
+        },
+        {
+          "id": 213,
+          "date": "2027-04-14T00:00:00.000Z",
+          "amount": "100000"
+        }
+      ],
+      "returnRates": {
+        "buy": 15.4,
+        "sell": 15.85
+      }
+    }
+  },
+  {
+    "id": 17,
+    "slug": "ocean-plaza",
+    "type": "fund",
+    "status": "completed",
+    "title": "Inzhur Ocean",
+    "assetDetails": {
+      "prices": {
+        "buy": 4088.78,
+        "sell": 4088.78,
+        "nav": 0,
+        "buyUAH": 4088.78,
+        "sellUAH": 4088.78,
+        "navUAH": 0,
+        "buyUSD": 91.295329,
+        "sellUSD": 91.295329,
+        "navUSD": 0
+      }
+    }
+  },
+  {
+    "id": 13,
+    "slug": "inzhur-energy",
+    "type": "fund",
+    "status": "active",
+    "title": "Inzhur Energy",
+    "assetDetails": {
+      "prices": {
+        "buy": 6634.4499,
+        "sell": 6617.9051,
+        "nav": 6617.9051,
+        "buyUAH": 6634.4499,
+        "sellUAH": 6617.9051,
+        "navUAH": 6617.9051,
+        "buyUSD": 148.1357,
+        "sellUSD": 147.766283,
+        "navUSD": 147.766283
+      }
+    }
+  },
+  {
+    "id": 48,
+    "slug": "inzhur-miltech",
+    "type": "fund",
+    "status": "active",
+    "title": "Inzhur MilTech",
+    "assetDetails": {
+      "prices": {
+        "buy": 1027.0731,
+        "sell": 1021.9377,
+        "nav": 1027.0731,
+        "buyUAH": 1027.0731,
+        "sellUAH": 1021.9377,
+        "navUAH": 1027.0731,
+        "buyUSD": 22.932752,
+        "sellUSD": 22.818087,
+        "navUSD": 22.932752
+      }
+    }
+  },
+  {
+    "id": 21,
+    "slug": "inzhur-reit",
+    "type": "fund",
+    "status": "active",
+    "title": "Inzhur REIT",
+    "assetDetails": {
+      "prices": {
+        "buy": 11.6156,
+        "sell": 11.5866,
+        "nav": 11.5866,
+        "buyUAH": 11.6156,
+        "sellUAH": 11.5866,
+        "navUAH": 11.5866,
+        "buyUSD": 0.259356,
+        "sellUSD": 0.258709,
+        "navUSD": 0.258709
+      }
+    }
+  },
+  {
+    "id": 18,
+    "slug": "zhytniy",
+    "type": "fund",
+    "status": "completed",
+    "title": "Inzhur Житній",
+    "assetDetails": {
+      "prices": {
+        "buy": 1021.45,
+        "sell": 1021.45,
+        "nav": 0,
+        "buyUAH": 1021.45,
+        "sellUAH": 1021.45,
+        "navUAH": 0,
+        "buyUSD": 22.807198,
+        "sellUSD": 22.807198,
+        "navUSD": 0
+      }
+    }
+  }
+]

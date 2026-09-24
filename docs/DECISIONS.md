@@ -178,9 +178,9 @@ geometry rather than the paint clips the mark's caps, a bbox ignoring stroke.
 
 ## The price archive
 **Decision.** A daily job archives prices into Aurora DSQL; the app does not read it yet. It buys
-the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series. Neither is
-captured daily while the provider's feed is refused (*External sources*), until a source the crawl
-rules allow replaces it; each night until then is a dealer quote the archive will never hold. NBU
+the provider's DEALER QUOTE, which exists nowhere else, and the funds' NAV series, both captured
+nightly from the provider's offer page (*External sources*); a night the page is not read is a
+dealer quote the archive will never hold. NBU
 fair value is a different basis, archived from each bond's issuance, and the two are NEVER merged.
 The observation key is `(as_of, instrument_ref, basis, source)` and immutable: a wrong key is a
 DROP/CREATE of a live archive. `as_of` is per source, the observer writes every day, an imported
@@ -207,22 +207,33 @@ coming; a file published after all is imported manually, and the import writes o
 archive lacks.
 
 ## External sources
-**Decision.** The list is closed: the provider's public asset feed, its price files, and the
-National Bank — daily fair-value files and the official rate. The price files MAY be fetched, being
-linked from pages the crawl rules allow, but the filename carries a content hash, so the link is
-re-read from that page and no URL is polled. SMIDA's open-data API is alive and is never fetched by
-our code, categorically; `stockmarket.gov.ua` is dead. Every request the capture makes to a source,
-each redirect hop included, is first checked against its host's `robots.txt` — a file RFC 9309
-always allows, read per that RFC under the product token `quirenote-price-capture`. A disallowed
-hop fails the fetch without being requested and is not retried: the refusal settles its day, as a
-day NBU publishes no file does, so no later firing asks again. The asset feed is refused on that rule:
-it redirects into `/dashboard/`, which the provider's crawl rules disallow.
+**Decision.** The list is closed: the provider's asset feed, which the app fetches only on the
+user's click, its bond offer page, which the capture reads, its price files, and the National Bank
+— daily fair-value files and the official rate. The offer page carries the dealer quote: the
+catalogue in the page's serialized state, decoded with `devalue`, the site's own serializer, and
+the bonds' schedules in one island's props, the state carrying them empty. The page names a fund by
+its core id alone, so a fund is keyed through the id/slug pairs the asset feed published, and an id
+outside them is skipped by name. The price files MAY be fetched, being linked from pages the crawl
+rules allow, but the filename carries a content hash, so the link is re-read from that page and no
+URL is polled. SMIDA's open-data API is alive and is never fetched by our code, categorically;
+`stockmarket.gov.ua` is dead. Every request the capture makes to a source, each redirect hop
+included, is first checked against its host's `robots.txt` — a file RFC 9309 always allows, read
+per that RFC under the product token `quirenote-price-capture`. A disallowed hop fails the fetch
+without being requested and is not retried: the refusal settles its day, as a day NBU publishes no
+file does, so no later firing asks again. The capture refuses the asset feed on that rule: it
+redirects into `/dashboard/`, which the provider's crawl rules disallow.
 **Why.** A blanket `Disallow` is final even where a statute licenses the use: any exception is a
 rule every future source inherits with no bright line. And a false "this source is dead" does not
 fail loudly, it stops anyone looking again. RFC 9309 binds the URI requested and exempts none
-reached by a redirect; Scrapy, Nutch and Heritrix each check the target before requesting it.
+reached by a redirect; Scrapy, Nutch and Heritrix each check the target before requesting it. The
+offer page serves every price, rate and schedule the feed served for the instruments it listed,
+and reshaped into the feed's entries it is read by the feed's own parser, so the archive keeps one
+basis across the switch.
 **Rejected.** Crawling a disallowed path while claiming to respect the site's rules: self-refuting.
-· Checking the first URL only: a redirect would then carry a fetch past the rules unseen.
+· Checking the first URL only: a redirect would then carry a fetch past the rules unseen. · The
+provider's API host, which its pages name: it publishes no robots.txt, but none of the conventional
+OpenAPI or versioned paths answers, and guessing at an undocumented API is not a source anyone
+published. · A hand-written decoder for the page's state: the site's serializer reads it exactly.
 
 ## Alerting
 **Decision.** No SNS topic, and the alarms carry no `AlarmActions` at all: CloudWatch publishes

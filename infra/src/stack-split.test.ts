@@ -207,11 +207,11 @@ describe('the archive stack holds the archive and nothing else', () => {
   });
 
   // A LITERAL ON THE RESOURCE, so an edit to the address is a change the deploy lands. The value is
-  // the one the capture fetched while it was a parameter's default.
+  // the offer page the dealer quote is read from, the feed being refused (*External sources*).
   it('hands its capture the feed address as a literal', () => {
     expect(intrinsicAt(archiveDoc, ...envVars('CaptureFunction'), 'FEED_URL')).toEqual({
       tag: undefined,
-      value: 'https://www.inzhur.reit/_api/assets',
+      value: 'https://www.inzhur.reit/offer/ovdp',
     });
   });
 

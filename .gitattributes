@@ -18,3 +18,7 @@
 # blocked a rebase mid-merge. A pattern rather than two names, so the next
 # machine-written JSON does not silently miss it.
 *.json text eol=lf
+
+# A captured page keeps the LF line endings it was served with, which a Windows
+# checkout would turn CRLF. Scoped to fixtures: `design/` holds immutable drawings.
+packages/core/src/**/__fixtures__/*.html text eol=lf

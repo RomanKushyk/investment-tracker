@@ -46,7 +46,7 @@ Resources:
         Variables:
           # A LITERAL, NOT A PARAMETER: `sam deploy` pins every parameter it is not passed to its
           # previous value, and nothing passed this one, so only here does an edit to it land.
-          FEED_URL: https://www.inzhur.reit/_api/assets
+          FEED_URL: https://www.inzhur.reit/offer/ovdp
           DSQL_ENDPOINT: !GetAtt PriceCluster.Endpoint
           DSQL_CLUSTER_ID: !GetAtt PriceCluster.Identifier
           AWS_REGION_NAME: !Ref AWS::Region

@@ -4,10 +4,10 @@
 import { FUND_HISTORY_PARSER_VERSION } from './fund-history';
 import type { SqlClient } from './migrate';
 
-/** The one capture error a source's observer derives past, as `NEWEST_CAPTURE_PER_DATE`'s `$4`. */
+/** The capture errors a source's observer derives past, as `NEWEST_CAPTURE_PER_DATE`'s `$4`. */
 export interface ReadPast {
   source: string;
-  errorLike: string;
+  errorsLike: readonly string[];
 }
 
 /** At most this many per group, the latest, so an old hole cannot crowd out a repairable one.
@@ -20,7 +20,7 @@ const RECONCILE = `
   WITH usable AS (
     SELECT DISTINCT source, as_of
       FROM price_capture
-     WHERE ok = true OR (source = $1 AND error LIKE $2)),
+     WHERE ok = true OR (source = $1 AND error LIKE ANY ($2::text[]))),
   captured AS (
     SELECT source, min(as_of) AS since FROM usable GROUP BY source),
   counted AS (
@@ -105,7 +105,7 @@ export async function reconcileObservations(client: SqlClient, readPast: ReadPas
     published_days: string | null;
     imported_days: string | null;
     empty_dates: string[] | null;
-  }>(RECONCILE, [readPast.source, readPast.errorLike, FUND_HISTORY_PARSER_VERSION]);
+  }>(RECONCILE, [readPast.source, readPast.errorsLike, FUND_HISTORY_PARSER_VERSION]);
 
   return rows.map(({ published_days, imported_days, empty_dates, ...o }) => {
     const measured = published_days !== null || imported_days !== null;

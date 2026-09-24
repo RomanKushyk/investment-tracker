@@ -20,7 +20,8 @@ import type { SqlClient } from './migrate';
 // Re-exported so the deploy's bundle smoke test can reach them.
 export { inzhurAsOf, nbuAsOf } from './dates';
 import { inzhurAsOf, nbuAsOf } from './dates';
-import { parseAssetsFeed } from '@quirenote/core/inzhur/parse';
+import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';
+import { parseOfferPage } from '@quirenote/core/inzhur/offer-page';
 import { bondTermsRow } from './bond-terms';
 import {
   FUND_HISTORY_PAGES,
@@ -37,6 +38,18 @@ import { parseNbuFairValue } from '@quirenote/core/nbu/fair-value';
 
 /** Stored per row, so a parser that was wrong leaves identifiable rows. */
 const PARSER_VERSION = '1';
+
+/** Inzhur rows read from the offer page, where `PARSER_VERSION` marks the refused feed's JSON:
+ *  the stored payload is a different document, so a re-derivation must know which. */
+const OFFER_PAGE_PARSER_VERSION = '2';
+
+/** Each stored Inzhur payload by the parser that wrote it; an unknown version is thrown rather
+ *  than read as either document. */
+function parseInzhurPayload(body: string, parserVersion: string): ParsedFeed {
+  if (parserVersion === OFFER_PAGE_PARSER_VERSION) return parseOfferPage(body);
+  if (parserVersion === PARSER_VERSION) return parseAssetsFeed(JSON.parse(body));
+  throw new Error(`unknown inzhur parser_version: ${parserVersion}`);
+}
 
 /** `inzhur` is the provider's own DEALER QUOTE; `nbu_fv` is the National Bank's MODEL valuation.
  *  They are NOT substitutes and are never merged, so storing them without distinguishing the
@@ -299,6 +312,7 @@ async function captureOne(
   const requestedAt = new Date();
   const outcome =
     source === SOURCE.nbuFairValue ? await fetchNbu(asOf) : await fetchFeed(process.env.FEED_URL!);
+  const parserVersion = source === SOURCE.inzhur ? OFFER_PAGE_PARSER_VERSION : PARSER_VERSION;
 
   let entryCount: number | null = null;
   let skipped: string | null = null;
@@ -316,8 +330,9 @@ async function captureOne(
         if (expectTracked && parsed.missing.length > 0) error = `tracked ISIN absent: ${skipped}`;
         else if (parsed.rows === 0) error = 'file parsed to zero rows';
       } else {
-        // The SAME parser the app uses, or client and server eventually disagree about a price.
-        const feed = parseAssetsFeed(JSON.parse(outcome.body));
+        // The SAME parser the app uses, or client and server eventually disagree about a price:
+        // the page is reshaped into the feed's entries before `parseAssetsFeed` reads them.
+        const feed = parseInzhurPayload(outcome.body, parserVersion);
         entryCount = feed.entries.length;
         // `ref:reason` per entry, so the archive records WHY an asset dropped out — a renamed
         // field is the likeliest cause and the one a bare ref list cannot distinguish.
@@ -333,11 +348,17 @@ async function captureOne(
         // entry count is a guess the first delisting makes wrong.
         const present = new Set(feed.entries.map((e) => e.ref.toLowerCase()));
         const absent = TRACKED_INZHUR_REFS.filter((r) => !present.has(r.toLowerCase()));
+        // Prices and schedules are two elements of the page, so either can vanish alone: the error
+        // keeps the day open to the next firing, and `observe` still reads its prices.
+        const unscheduled = feed.entries
+          .filter((e) => e.kind === 'bond' && e.paymentSchedule.length === 0)
+          .map((e) => e.ref);
         // Zero readable entries is shape drift, recorded as a failure — but the payload is still
         // stored, being what a future parser fix needs to read.
         if (entryCount === 0) error = 'feed parsed to zero entries';
         else if (expectTracked && absent.length > 0)
           error = `tracked ref absent: ${absent.join(',')}`;
+        else if (unscheduled.length > 0) error = `schedule absent: ${unscheduled.join(',')}`;
         // Diagnostic only: a stale provider quote is a fact to record, not a failed capture.
         quotes = tallyQuotes(feed, asOf);
       }
@@ -367,7 +388,7 @@ async function captureOne(
       // would make every hash unique and silently disable change detection.
       createHash('sha256').update(body, 'utf8').digest('hex'),
       digest,
-      PARSER_VERSION,
+      parserVersion,
     ],
   );
 
@@ -508,8 +529,9 @@ export interface ObserveRequest {
   source?: string;
 }
 
-/** The error prefix a delisting produces, and the ONE defect a derivation may read past. */
-const TRACKED_ABSENT_LIKE = 'tracked ref absent:%';
+/** The errors a derivation reads past, the prices having been read whole: a delisted tracked ref,
+ *  and bonds whose schedules did not come through. */
+const READ_PAST_LIKE = ['tracked ref absent:%', 'schedule absent:%'];
 
 /**
  * The newest USABLE capture per date. ONE string for both observers and for `diagnose`'s two
@@ -520,13 +542,13 @@ const TRACKED_ABSENT_LIKE = 'tracked ref absent:%';
  * error. *Cloud target*, `order-by-alias.test.ts`. `$3` is `observeWindowEnd`, never further than
  * `OBSERVE_CAP_DAYS` past `$2`; `observe-window.ts` says why a SQL `LIMIT` cannot bound the read.
  *
- * $1 source · $2 from · $3 window end · $4 an error pattern to read past, or NULL.
+ * $1 source · $2 from · $3 window end · $4 the error patterns to read past, or NULL.
  *
  * NOT `ok = true` ALONE. A missing tracked ref sets `error`, so keyed on `ok` this derives nothing
  * for EVERY instrument from the day the feed stops listing one — unrecoverably, since
  * `price_capture` is append-only and the endpoint is LIVE. The instrument whose delisting triggers
- * it is one of the two whose schedule `bond_terms` exists to outlive. So `$4` lets ONE defect
- * through, where the payload is intact and only our own expectation failed.
+ * it is one of the two whose schedule `bond_terms` exists to outlive. So `$4` lets through the
+ * defects that leave every price read.
  */
 const NEWEST_CAPTURE_PER_DATE = `
   SELECT DISTINCT ON (price_capture.as_of)
@@ -534,7 +556,7 @@ const NEWEST_CAPTURE_PER_DATE = `
          payload_gzip, parser_version
     FROM price_capture
    WHERE source = $1 AND as_of BETWEEN $2 AND $3
-     AND (ok = true OR ($4::text IS NOT NULL AND error LIKE $4))
+     AND (ok = true OR ($4::text[] IS NOT NULL AND error LIKE ANY ($4::text[])))
    ORDER BY price_capture.as_of, requested_at DESC`;
 
 /** Reads NOTHING from the network, which is the payoff of storing payloads: the schema can be
@@ -690,7 +712,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     requested_at: Date;
     payload_gzip: Buffer;
     parser_version: string;
-  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.inzhur, from, windowEnd, TRACKED_ABSENT_LIKE]);
+  }>(NEWEST_CAPTURE_PER_DATE, [SOURCE.inzhur, from, windowEnd, READ_PAST_LIKE]);
 
   let dates = 0;
   let seen = 0;
@@ -709,7 +731,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
     dates += 1;
 
     const body = gunzipSync(cap.payload_gzip).toString('utf8');
-    const feed = parseAssetsFeed(JSON.parse(body));
+    const feed = parseInzhurPayload(body, cap.parser_version);
     const observedAt = cap.requested_at.toISOString();
     // The parser's own refusals over the WHOLE feed, before `refs` narrows, so a single-ref
     // repair reports refusals for instruments the caller did not ask about. Deliberate: hiding a
@@ -749,7 +771,7 @@ async function observeInzhur(client: Client, req: ObserveRequest) {
       const terms = bondTermsRow(quote);
       // A BOND WITH NO ARCHIVABLE TERMS IS COUNTED, or the instrument this table exists to
       // preserve goes unarchived with no output changing. It does NOT catch a PARTIALLY parsed
-      // schedule, which arrives with a fresh digest and reads as a genuine revision.
+      // schedule in a feed-era payload, which arrives with a fresh digest as a genuine revision.
       if (quote.kind === 'bond' && !terms) termsRefused += 1;
       if (terms) {
         const termsIns = await client.query(
@@ -1004,7 +1026,7 @@ async function diagnose(client: Client) {
   // The days `observeInzhur` reads, delisting days included; `observeNbu` reads past nothing.
   const reconciled = await reconcileObservations(client, {
     source: SOURCE.inzhur,
-    errorLike: TRACKED_ABSENT_LIKE,
+    errorsLike: READ_PAST_LIKE,
   });
 
   // A count that reconciles proves the plumbing; only a value proves the parse.

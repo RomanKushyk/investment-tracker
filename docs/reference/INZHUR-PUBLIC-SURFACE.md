@@ -1,7 +1,7 @@
 # Inzhur — the provider's public read surface
 
-Not a new price source and no ruling changes here — what the provider serves publicly, how to
-read it without recording garbage, and which cross-checks exist for free.
+What the provider serves publicly, how to read it without recording garbage, and which
+cross-checks exist for free.
 
 ```
 GET https://www.inzhur.reit/api/funds        → 200, JSON, 10 funds, no key, no auth
@@ -13,40 +13,39 @@ Strapi, carrying each fund's name, ids, type, status, dates, projected profitabi
 endpoint exists — `/api/quotes`, `/api/prices`, `/api/securities`, `/api/certificate-prices` all
 404, and `?populate=*` returns 500. Useful for the fund roster, useless for a series.
 
-The offer pages (`/offer/inzhur-reit`, `/offer/inzhur-energy`) do carry a
-`{"buy":…,"sell":…,"nav":…}` object — the same dealer quote the asset feed serves
-(`/_api/assets`, below), read through a second window, not an independent corroboration.
-Pinned ratios: `sellUAH = navUAH × 1.009`, `buyUAH = navUAH × 1.010`
-([`data-model.md`](../superpowers/specs/2026-08-04-data-model.md)).
+The offer pages carry the dealer quote the asset feed served — every page the whole catalogue of it,
+a second window on one quote rather than an independent corroboration. The capture reads
+`/offer/ovdp` ([`DECISIONS.md`](../DECISIONS.md), *External sources*), and the page takes two
+decoders.
 
-## THE PAYLOAD IS devalue-ENCODED, and there are ~35 quote objects on one page
+## THE CATALOGUE IS devalue-ENCODED, and its schedules are empty
 
-Two traps stacked, and the second is the one that bites.
+`<script class="it-astro-state" type="application/json+devalue">` holds the page's state as a
+devalue-flattened `Map`: a number inside an object is an index into the flat array, not a value, so
+the script is decoded with `devalue.unflatten` and never read by regex. Its key
+`@inox-tools/request-nanostores:assets` is the catalogue, one entry per instrument —
+`{id, status, type, details: {isin?, maturityDate?, prices, returnRates?, paymentSchedule}}`.
 
-**First: the numbers in a quote object are indices.** The page ships `<script id="__NUXT_DATA__">`
-holding a devalue array, so `{"buy":1354,…}` means *entry 1354*, not ₴1354 — decodable by parsing
-that script's JSON and indexing into it.
+- **The site reduces URLs itself**, as `["URL", <index>]`, where devalue's built-in `URL` type reads
+  a string — so the decode passes a `URL` reviver that returns the value untouched.
+- **`paymentSchedule` is present on every entry and EMPTY on every entry.** A count of the key
+  finds one per instrument and proves nothing.
+- **Funds carry a core `id` and nothing else** — no slug, no title. The asset feed published each
+  fund's `id` beside its `slug`, the only record pairing the two (`/api/funds` numbers funds in a
+  `fundID` space of its own), and `FUND_SLUGS` in `packages/core/src/inzhur/offer-page.ts` holds
+  those pairs. A fund's own offer page names its id too, as `assetId` in its island props.
+- **Bonds carry `nav: 0`**, as they did in the feed, so a parser that ratios across the catalogue
+  divides by it.
 
-**Second: one page carries a quote object per instrument card**, around 35 of them, and
-**taking the first regex match gets you a different fund's quote** — an object can belong to a
-`nav: 0` instrument. Identify the right one by cross-checking `nav` against the rendered *ВЧА
-на сертифікат*. Resolved this way, both funds are exact:
+## The schedules sit in an island's props
 
-| | index | `buy` | `sell` | `nav` |
-|---|---|---|---|---|
-| `inzhur-reit` | 1590 | 11.1075 | 11.0965 | 10.9975 |
-| `inzhur-energy` | 1767 | 6654.8999 | 6648.3109 | 6589.0098 |
-
-| | `sell / nav` | `buy / nav` |
-|---|---|---|
-| `inzhur-reit` | 1.009002 | 1.010002 |
-| `inzhur-energy` | **1.0090000** | **1.0100000** |
-
-Energy is exact to seven decimals and REIT's last two digits are kopeck rounding, so the pinned
-ratios hold on both funds. **Beware the `nav: 0` objects** — several quote objects on these pages
-carry `nav: 0` with `buy == sell`, genuinely, for two of the four funds rather than as a broken
-record or a zero spread, and a parser that averages or ratios across a page's objects divides by
-it.
+The `OffersWelcome` island's `props` attribute carries each bond's schedule, under
+`data.Sections[].bondSegments.data[].attributes`: the ISIN at `asset.data.attributes.isin`, beside
+`paymentSchedule: [{id, date, amount}]` — amounts in kopecks as strings, dates as instants. The
+encoding is Astro's, not devalue's: every value is a `[type, value]` pair (`PROP_TYPE` in astro's
+`runtime/server/serialize.ts`), 0 for a value or an object of pairs and 1 for an array, inside an
+HTML-escaped attribute. Read by the day in Kyiv time, as the feed's dates are, each schedule is the
+one the feed served.
 
 ## Cross-checks
 
@@ -98,3 +97,6 @@ map is in [`MARKET-DATA-SOURCES.md`](MARKET-DATA-SOURCES.md).
 The asset feed the capture read, `GET /_api/assets`, answers `302 Found` with
 `location: /dashboard/_api/assets` — a disallowed path, so the capture refuses the feed rather than
 follow it ([`DECISIONS.md`](../DECISIONS.md), *External sources*).
+The capture reads `/offer/ovdp` in its place. The API host the pages name, `api.inzhur.reit`,
+publishes no `robots.txt`, but none of the conventional OpenAPI or versioned paths under its `/core`
+answers.

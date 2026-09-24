@@ -64,11 +64,14 @@ const TABLES = [
 const INZHUR = 'inzhur';
 const NBU = 'nbu_fv';
 const ABSENT = 'tracked ref absent: UA4000238976';
-// The pattern `observeInzhur` and `diagnose` both pass, read rather than restated, so the suite
+const UNSCHEDULED = 'schedule absent: UA4000238976';
+// The patterns `observeInzhur` and `diagnose` both pass, read rather than restated, so the suite
 // runs with what production runs.
 const READ_PAST = {
   source: INZHUR,
-  errorLike: capture.match(/const TRACKED_ABSENT_LIKE = '([^']+)';/)?.[1] ?? 'unread',
+  errorsLike: [
+    ...(capture.match(/const READ_PAST_LIKE = \[([^\]]*)\];/)?.[1] ?? '').matchAll(/'([^']+)'/g),
+  ].map((m) => m[1]),
 };
 const NAV = { basis: 'nav' };
 // The stored literal, not `FUND_HISTORY_PARSER_VERSION`: rows keep the version they were written
@@ -133,18 +136,28 @@ describe('diagnose reconciles against the capture days the observer reads', () =
 
   it('passes diagnose exactly what the observers read past', () => {
     // `usable` restates the observers' predicate; a change to it must change that CTE too.
-    expect(capture).toContain('AND (ok = true OR ($4::text IS NOT NULL AND error LIKE $4))');
-    expect(READ_PAST.errorLike).toBe('tracked ref absent:%');
+    expect(capture).toContain(
+      'AND (ok = true OR ($4::text[] IS NOT NULL AND error LIKE ANY ($4::text[])))',
+    );
+    expect(READ_PAST.errorsLike).toEqual(['tracked ref absent:%', 'schedule absent:%']);
     expect(capture).toMatch(
-      /NEWEST_CAPTURE_PER_DATE, \[SOURCE\.inzhur, from, windowEnd, TRACKED_ABSENT_LIKE\]/,
+      /NEWEST_CAPTURE_PER_DATE, \[SOURCE\.inzhur, from, windowEnd, READ_PAST_LIKE\]/,
     );
     // `ReadPast` carries one source because NBU reads past nothing.
     expect(capture).toMatch(
       /NEWEST_CAPTURE_PER_DATE, \[SOURCE\.nbuFairValue, from, windowEnd, null\]/,
     );
     expect(capture).toMatch(
-      /reconcileObservations\(client, \{\s*source: SOURCE\.inzhur,\s*errorLike: TRACKED_ABSENT_LIKE/,
+      /reconcileObservations\(client, \{\s*source: SOURCE\.inzhur,\s*errorsLike: READ_PAST_LIKE/,
     );
+  });
+
+  it('counts a day whose capture carries only a schedule-absent error', async () => {
+    await captured(INZHUR, day(0));
+    await captured(INZHUR, day(1), UNSCHEDULED);
+    for (const n of [0, 1]) await observed('inzhur-reit', INZHUR, day(n));
+
+    expect(await group('inzhur-reit')).toMatchObject({ dates: '2', publishedDays: '2', gaps: 0 });
   });
 
   it('counts a day whose capture carries only a tracked-ref-absent error, once', async () => {
