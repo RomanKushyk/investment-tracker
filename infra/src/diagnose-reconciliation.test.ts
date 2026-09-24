@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { addDays } from '@quirenote/core/dates';
 import { freshDb } from './__fixtures__/pglite';
-import { reconcileObservations } from './diagnose-reconciliation';
+import { EMPTY_DATES_CAP, reconcileObservations } from './diagnose-reconciliation';
 
 /** `capture.ts` is read through this, so a commented-out copy of a table cannot stand in for it
  *  or break the three-table anchor. LINE BY LINE, and the line boundary is the point: a regex
@@ -71,9 +71,12 @@ const READ_PAST = {
   errorLike: capture.match(/const TRACKED_ABSENT_LIKE = '([^']+)';/)?.[1] ?? 'unread',
 };
 const NAV = { basis: 'nav' };
+// The stored literal, not `FUND_HISTORY_PARSER_VERSION`: rows keep the version they were written
+// with, so a bump of the constant must fail here before it strands them.
 const IMPORTED = { basis: 'nav', parser: 'fund-history-1' };
 const D = '2026-08-11';
 const day = (n: number) => addDays(D, n);
+const run = (from: string, length: number) => Array.from({ length }, (_, i) => addDays(from, i));
 
 describe('diagnose reconciles against the capture days the observer reads', () => {
   let db: PGlite;
@@ -200,6 +203,8 @@ describe('diagnose reconciles against the capture days the observer reads', () =
       dates: '3',
       publishedDays: '5',
       gaps: 2,
+      emptyDays: 2,
+      emptyDates: [day(0), day(1)],
     });
   });
 
@@ -253,10 +258,14 @@ describe('diagnose reconciles against the capture days the observer reads', () =
       measured_from: null,
       publishedDays: null,
       gaps: null,
+      importedDays: null,
+      emptyDays: null,
+      emptyDates: null,
     });
   });
 
-  it('reads unmeasured, not zero gaps, when every row precedes the first capture', async () => {
+  it('measures rows that all precede the first capture by the calendar, to the last', async () => {
+    // The captured era never counts past a group's last row, and neither does the imported one.
     await captured(INZHUR, day(5));
     for (const n of [0, 1]) await observed('inzhur-energy', INZHUR, day(n), IMPORTED);
 
@@ -267,6 +276,9 @@ describe('diagnose reconciles against the capture days the observer reads', () =
       measured_from: null,
       publishedDays: null,
       gaps: null,
+      importedDays: '2',
+      emptyDays: 0,
+      emptyDates: [],
     });
   });
 
@@ -279,7 +291,9 @@ describe('diagnose reconciles against the capture days the observer reads', () =
     await listed('UA4000236475', '2026-08-14');
     for (const d of ['2026-08-14', '2026-08-17']) await observed('UA4000236475', NBU, d);
 
-    expect(await group('UA4000236475', NBU)).toMatchObject({
+    // EQUAL, not a subset: a group with no imported rows reads every field it read before, and
+    // the imported era's fields read as absent.
+    expect(await group('UA4000236475', NBU)).toEqual({
       instrument_ref: 'UA4000236475',
       basis: 'fair',
       source: NBU,
@@ -287,14 +301,19 @@ describe('diagnose reconciles against the capture days the observer reads', () =
       before_capture: '0',
       earliest_as_of: '2026-08-14',
       dates: '2',
+      measured_from: '2026-08-14',
       first_as_of: '2026-08-14',
       last_as_of: '2026-08-17',
       publishedDays: '2',
       gaps: 0,
+      importedDays: null,
+      emptyDays: 0,
+      emptyDates: [],
     });
   });
 
-  // #129's contract: imported history sits before the first capture and is not measured against it.
+  // Imported history sits before the first capture: outside the capture days' count, inside the
+  // calendar's.
   it('holds imported rows before the first capture outside the count', async () => {
     for (let n = 0; n < 3; n += 1) await captured(INZHUR, day(n));
     await listed('inzhur-energy', day(-3));
@@ -308,6 +327,8 @@ describe('diagnose reconciles against the capture days the observer reads', () =
       measured_from: day(0),
       dates: '3',
       gaps: 0,
+      importedDays: '3',
+      emptyDays: 0,
     });
   });
 
@@ -317,6 +338,131 @@ describe('diagnose reconciles against the capture days the observer reads', () =
     await observed('inzhur-energy', INZHUR, day(-1), IMPORTED);
     for (const n of [0, 2]) await observed('inzhur-energy', INZHUR, day(n), NAV);
 
-    expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({ dates: '2', gaps: 1 });
+    expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+      dates: '2',
+      gaps: 1,
+      emptyDays: 1,
+      emptyDates: [day(1)],
+    });
+  });
+
+  describe('reports every empty day over the whole span, imported era included', () => {
+    it('finds a hole among imported rows and the seam before the first capture', async () => {
+      for (let n = 0; n < 3; n += 1) await captured(INZHUR, day(n));
+      await listed('inzhur-energy', day(-6));
+      for (const n of [-6, -5, -3]) await observed('inzhur-energy', INZHUR, day(n), IMPORTED);
+      for (const n of [0, 1, 2]) await observed('inzhur-energy', INZHUR, day(n), NAV);
+
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        // What the captured era alone reads, and all that was read before.
+        gaps: 0,
+        importedDays: '6',
+        emptyDays: 3,
+        emptyDates: [day(-4), day(-2), day(-1)],
+      });
+    });
+
+    it('reads the seam between a fund’s history file and its first capture', async () => {
+      // The archive's shape: both files stop on the same day, and capture begins after a gap.
+      for (const d of run('2026-08-11', 3)) await captured(INZHUR, d);
+      for (const ref of ['inzhur-energy', 'inzhur-reit']) {
+        await listed(ref, '2026-07-01');
+        for (const d of run('2026-07-01', 6)) await observed(ref, INZHUR, d, IMPORTED);
+        for (const d of run('2026-08-11', 3)) await observed(ref, INZHUR, d, NAV);
+      }
+
+      for (const ref of ['inzhur-energy', 'inzhur-reit']) {
+        const g = await group(ref, INZHUR, 'nav');
+        expect(g).toMatchObject({
+          measured_from: '2026-08-11',
+          gaps: 0,
+          importedDays: '41',
+          emptyDays: 35,
+          emptyDates: run('2026-07-07', 35),
+        });
+        expect(g.emptyDates?.at(-1)).toBe('2026-08-10');
+      }
+    });
+
+    it('keeps the latest empty dates up to the cap, and counts every one', async () => {
+      // An old hole longer than the cap must not push a recent, repairable one out of the list.
+      // Sized from the cap, so the old hole outruns it whatever the cap is.
+      const span = EMPTY_DATES_CAP + 50;
+      for (let n = 0; n < 3; n += 1) await captured(INZHUR, day(n));
+      await observed('inzhur-energy', INZHUR, day(-span), IMPORTED);
+      for (const n of [0, 2]) await observed('inzhur-energy', INZHUR, day(n), NAV);
+
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        importedDays: String(span),
+        emptyDays: span,
+        emptyDates: [...run(day(1 - EMPTY_DATES_CAP), EMPTY_DATES_CAP - 1), day(1)],
+      });
+    });
+
+    it('measures imported rows to the last of them when the source has no usable capture', async () => {
+      await captured(INZHUR, day(0), 'HTTP 500');
+      for (const n of [0, 1, 3]) await observed('inzhur-energy', INZHUR, day(n), IMPORTED);
+
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        before_capture: '3',
+        measured_from: null,
+        publishedDays: null,
+        gaps: null,
+        importedDays: '4',
+        emptyDays: 1,
+        emptyDates: [day(2)],
+      });
+    });
+
+    it('keeps capture days as the captured era’s denominator across both eras', async () => {
+      await captured(INZHUR, day(0));
+      await captured(INZHUR, day(1), 'HTTP 500');
+      await captured(INZHUR, day(2));
+      await captured(INZHUR, day(3));
+      for (const n of [-3, -1]) await observed('inzhur-energy', INZHUR, day(n), IMPORTED);
+      for (const n of [0, 3]) await observed('inzhur-energy', INZHUR, day(n), NAV);
+
+      // Day 1 has no usable capture, so it is no empty day; day -2 has no capture to need.
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        publishedDays: '3',
+        gaps: 1,
+        importedDays: '3',
+        emptyDays: 2,
+        emptyDates: [day(-2), day(2)],
+      });
+    });
+
+    it('opens the captured era where the imported one ends, with no listed_from', async () => {
+      for (let n = 0; n < 4; n += 1) await captured(INZHUR, day(n));
+      for (const n of [-2, -1]) await observed('inzhur-energy', INZHUR, day(n), IMPORTED);
+      for (const n of [2, 3]) await observed('inzhur-energy', INZHUR, day(n), NAV);
+
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        measured_from: day(0),
+        gaps: 2,
+        importedDays: '2',
+        emptyDays: 2,
+        emptyDates: [day(0), day(1)],
+      });
+    });
+
+    it('counts an empty day that gaps nets away against a row with no usable capture', async () => {
+      // An imported row on or after the first capture belongs to the captured era.
+      await captured(INZHUR, day(0));
+      await captured(INZHUR, day(1), 'HTTP 500');
+      await captured(INZHUR, day(2));
+      await captured(INZHUR, day(3));
+      for (const n of [0, 3]) await observed('inzhur-energy', INZHUR, day(n), NAV);
+      await observed('inzhur-energy', INZHUR, day(1), IMPORTED);
+
+      expect(await group('inzhur-energy', INZHUR, 'nav')).toMatchObject({
+        dates: '3',
+        publishedDays: '3',
+        gaps: 0,
+        importedDays: null,
+        emptyDays: 1,
+        emptyDates: [day(2)],
+      });
+    });
   });
 });
