@@ -32,9 +32,11 @@ the file's unit price and you get the implied holding:
 | REIT | 4443.651 · 5210.469 · 5240.722 · 6183.175 | **4404 · 5164 · 5194 · 6128** |
 | Energy | 8.072 · 9.081 | **8.000 · 9.000** |
 
-Raw is never whole; divided by 1.009 it always is. And 1.009 is exactly the `sell / nav` ratio the
-archive measured from its first capture to 2026-08-31, every day, to the rounding of a four-decimal
-quote. Anchoring the other end, the tracker's value divided by the archive's **`sell`** gives exactly
+Raw is never whole; divided by 1.009 it is, and exactly so with the quote's rounding kept: the
+tracker's value is a whole holding times `nav × 1.009` rounded to four decimals, to the kopeck, on
+every overlap day but one per fund. And 1.009 is exactly the `sell / nav` ratio the archive measured
+from its first capture to 2026-08-31, every day, to the rounding of a four-decimal quote. Anchoring
+the other end, the tracker's value divided by the archive's **`sell`** gives exactly
 6207.000 and 9.000 on three separate days, while dividing by `nav` gives 6262.88 and 9.081. So **the
 tracker is `sell`-based and the files are `nav`.** All of this evidence predates 2026-09-01, when the
 provider changed its factors, so that change leaves the conclusion standing.
@@ -48,9 +50,10 @@ pricing in its news instead:
 says that before 2026-01-31 an investor bought REIT and Energy at «ВЧА + 1%» and sold «за ВЧА», and
 that from then an investor sells «за ціною, максимально наближеною до реальної ціни покупки»: «Різниця
 між купівлею та продажем є динамічною і може змінюватися — від 0,1% до 1%». Measured:
-1.009 held across the whole 75-day overlap the tracker gives (2026-04-23 → 2026-07-06), the implied
-unit counts whole to the tolerance `infra/src/fund-history.local.test.ts` pins, then on 2026-07-28,
-the one day of the gap a committed feed capture holds, and again in the archive to 2026-08-31.
+1.009 held across the 75-day overlap the tracker gives (2026-04-23 → 2026-07-06) on every day its
+value is that day's quote, all but one per fund, as `infra/src/fund-history.local.test.ts` pins;
+then on 2026-07-28, the one day of the gap a committed feed capture holds, and again in the archive
+to 2026-08-31.
 **The factor is the provider's to set, and it moves:** REIT's and Energy's changed on 2026-09-01,
 MilTech's has not matched theirs on any archived day, and
 `packages/core/src/inzhur/fund-quotes.test.ts` pins each committed feed fixture's. So before the

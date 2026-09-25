@@ -56,9 +56,12 @@ one the feed served.
 
 **Do not divide assets by certificates to check NAV** — *ВЧА* is net of liabilities and *Вартість
 активів фонду* is gross, so the ~2 % gap reads like a parse error when it is a balance sheet.
-Quarterly «Довідка ВЧА» PDFs, listed with the price files in each fund's document category, are the
-anchor points a parse of the daily series must agree with at quarter end — only where a published
-file overlaps one, which for Energy means 2024-11-14 onward:
+Quarterly «Довідка ВЧА» PDFs, listed with the price files in each fund's document category, give the
+ВЧА per certificate struck at each quarter end (Таблиця 2, row 13), and **it is not the daily
+series' value that day**: no price file carries it on its quarter end, and Energy's carried it once,
+the day after. Close as the two stay, a report bounds a parse of the daily series coarsely and
+never checks its digits (`infra/src/fund-history.local.test.ts` pins every report the files span).
+They are scans under an unreadable text layer, so reading one takes rendering the page:
 
 | Fund | Quarters linked |
 |---|---|
