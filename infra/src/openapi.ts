@@ -21,9 +21,8 @@ const SCHEME = 'CognitoJwt';
 
 const PRODUCTION = 'prod';
 
-/** A hostname and nothing else, because an intrinsic arm arrives as its inner text. Case is
- *  ignored: refusing `Api.Quirenote.com` would fail `pnpm openapi` with a message about
- *  intrinsics that misnames what it found. */
+/** A hostname only, because an intrinsic arm arrives as its inner text. Case-blind: refusing
+ *  `Api.Quirenote.com` would say a hostname is not one. */
 const HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 
 type Event = {
@@ -109,7 +108,7 @@ export const servers = (user: Template): OpenApiDocument['servers'] => {
     !domain.slice(1).every((arm) => typeof arm === 'string' && HOSTNAME.test(arm))
   ) {
     throw new Error(
-      `PublicApi.Domain.DomainName is not an !If over two hostnames: ${JSON.stringify(domain)}`,
+      `PublicApi.Domain.DomainName is not three items, the last two hostnames: ${JSON.stringify(domain)}`,
     );
   }
   const [condition, whenTrue, whenFalse] = domain as [string, string, string];
@@ -121,7 +120,10 @@ export const servers = (user: Template): OpenApiDocument['servers'] => {
     (value) => value !== whenTrueIs,
   );
   if (whenTrueIs === undefined || rest.length !== 1) {
-    throw new Error(`${condition} is not an !Equals over one of two values ${parameter} allows`);
+    throw new Error(
+      `Conditions.${condition} is not a parameter and a value, with exactly one other value ` +
+        `allowed: ${JSON.stringify(equals)}`,
+    );
   }
   const named = [
     { url: `https://${whenTrue}`, description: whenTrueIs },

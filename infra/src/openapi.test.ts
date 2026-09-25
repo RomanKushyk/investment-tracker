@@ -392,30 +392,42 @@ describe('the host derivation refuses what it cannot read', () => {
 
   // What `!Sub 'api.${Zone}'` looks like by the time it arrives, and `https://api.${Zone}`
   // is what would ship.
-  it('refuses an arm that arrived as an intrinsic’s inner text', () => {
+  it('refuses an arm that is not a hostname', () => {
     expect(() =>
       servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com', 'api.${Zone}'] })),
-    ).toThrow(/not an !If over two hostnames/);
-  });
-
-  it('refuses an !If that carries one arm rather than two', () => {
-    expect(() => servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com'] }))).toThrow(
-      /not an !If over two hostnames/,
+    ).toThrow(
+      /DomainName is not three items, the last two hostnames: \["IsProd","api\.quirenote\.com","api\.\$\{Zone\}"\]$/,
     );
   });
 
-  it('refuses a Domain that is not an !If at all', () => {
+  it('refuses a Domain that carries one hostname rather than two', () => {
+    expect(() => servers(templateWith({ domainName: ['IsProd', 'api.quirenote.com'] }))).toThrow(
+      /DomainName is not three items, the last two hostnames: \["IsProd","api\.quirenote\.com"\]$/,
+    );
+  });
+
+  it('refuses a Domain that is a bare hostname rather than a list', () => {
     expect(() => servers(templateWith({ domainName: 'api.quirenote.com' }))).toThrow(
-      /not an !If over two hostnames/,
+      /DomainName is not three items, the last two hostnames: "api\.quirenote\.com"/,
     );
   });
 
   // The full function form is legal YAML and arrives as an OBJECT, which destructures into a
-  // TypeError rather than a message naming the file.
+  // TypeError rather than a message naming the condition.
   it('refuses a condition written as Fn::Equals', () => {
     expect(() =>
       servers(templateWith({ conditions: { IsProd: { 'Fn::Equals': ['Environment', 'prod'] } } })),
-    ).toThrow(/is not an !Equals/);
+    ).toThrow(
+      /Conditions\.IsProd is not a parameter and a value, with exactly one other value allowed: \{"Fn::Equals":/,
+    );
+  });
+
+  it('refuses a condition whose value leaves its parameter two others', () => {
+    expect(() =>
+      servers(templateWith({ conditions: { IsProd: ['Environment', 'staging'] } })),
+    ).toThrow(
+      /Conditions\.IsProd is not a parameter and a value, with exactly one other value allowed: \["Environment","staging"\]/,
+    );
   });
 
   // THE COPY-PASTE THIS TEMPLATE INVITES. `IsRegistrationOpen` is a second two-valued condition
