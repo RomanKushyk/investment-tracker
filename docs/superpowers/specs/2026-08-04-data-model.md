@@ -83,8 +83,13 @@ returnRates.sell`, confirmed out of sample to within a kopeck, and `Σ CF_i / (1
 once one payment date is left: the regulator's simple interest
 (`docs/reference/OVDP-COUPON-STRUCTURE.md`). Coupon periods are **exactly 182 days and always a
 Wednesday**, not six calendar months, and the daily step is a **ramp**, so linear accrual is wrong
-at every point. **Funds are arithmetic on NAV**: `sellUAH = navUAH × 1.009` and
-`buyUAH = navUAH × 1.010` exactly, on both funds, so `navUAH` is the only genuine channel.
+at every point. **Active funds quote on NAV**: on every captured day a fund with a `navUAH` above
+zero quotes `sellUAH` and `buyUAH` as that `navUAH` times a factor the provider sets per fund and
+side, rounded to the quote's four decimals, and the provider has changed those factors
+(`packages/core/src/inzhur/fund-quotes.test.ts` pins them per committed feed fixture). A completed
+fund reads `navUAH` 0, so its quote is no factor on it. `navUAH` is the provider's own daily figure
+for the fund and the factors are its pricing on it, so `sell` and `buy` are captured, never
+recovered from `nav` alone.
 
 A weekend OVDP value is therefore **computable, not carried**, but it is worth one day's accretion
 where a single unnoticed 25 bp yield revision is worth more than a year of weekends — **the value of
@@ -170,7 +175,8 @@ datasets contain no NAV, SMIDA's live feed carries filings rather than NAV, and 
 it is settled: no, categorically** (*External sources*). So Inzhur's daily JSON is **voluntary
 commercial disclosure**: contractually «Базова ціна», cl. 1.4 of their services agreement — *"the price
 INZHUR offers to buy and/or sell securities at"*, a dealer quote on their own secondary market and not
-a NAV, which is why it carries a ~0.1% spread and moves daily while NAV is struck monthly.
+a NAV: for an active fund it is set on the provider's own daily `navUAH` with a buy–sell spread
+the provider sets per fund and has changed, while NAV is struck monthly.
 
 | | ОВДП (bonds) | Inzhur fund units |
 |---|---|---|
@@ -179,8 +185,9 @@ a NAV, which is why it carries a ~0.1% spread and moves daily while NAV is struc
 | Backfillable | **yes, by URL** | **no** |
 | What our archive is | convenience + cross-check | **the only copy that will ever exist** |
 
-**The axis that matters is not "has an API" — it is "is backfillable".** Only the two fund NAVs are
-genuinely perishable.
+**The axis that matters is not "has an API" — it is "is backfillable".** A bond's official value is
+backfillable by URL; a fund has no official daily series, so its quotes, `nav`, `sell` and `buy`,
+are genuinely perishable.
 
 ### NBU fair value
 

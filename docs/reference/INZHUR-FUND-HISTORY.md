@@ -23,44 +23,58 @@ file-to-archive gap is 2026-07-07 … 2026-08-10, 35 days**.
 
 REIT's column says *«Вартість ВЧА 1 ЦП»* and Energy's says only *«Вартість 1 ЦП»*, so the labels
 alone decide nothing, and a trend argument fails too: the gap is 35 days and the extrapolation
-cannot separate two series 0.9 % apart. **It was settled by unit arithmetic instead.** The owner's
-tracker records position VALUE per asset per date; divide it by the file's unit price and you get
-the implied holding:
+cannot separate two series 0.9 % apart, as they were on both sides of it. **It was settled by unit
+arithmetic instead.** The owner's tracker records position VALUE per asset per date; divide it by
+the file's unit price and you get the implied holding:
 
 | | raw | ÷ 1.009 |
 |---|---|---|
 | REIT | 4443.651 · 5210.469 · 5240.722 · 6183.175 | **4404 · 5164 · 5194 · 6128** |
 | Energy | 8.072 · 9.081 | **8.000 · 9.000** |
 
-Raw is never whole; divided by 1.009 it always is. And 1.009 is exactly the `sell / nav` ratio
-measured in the archive (1.008997–1.009004, every day). Anchoring the other end, the tracker's value
-divided by the archive's **`sell`** gives exactly 6207.000 and 9.000 on three separate days, while
-dividing by `nav` gives 6262.88 and 9.081. So **the tracker is `sell`-based, the files are `nav`,
-and the spread is a flat 0.9 %.**
+Raw is never whole; divided by 1.009 it always is. And 1.009 is exactly the `sell / nav` ratio the
+archive measured from its first capture to 2026-08-31, every day, to the rounding of a four-decimal
+quote. Anchoring the other end, the tracker's value divided by the archive's **`sell`** gives exactly
+6207.000 and 9.000 on three separate days, while dividing by `nav` gives 6262.88 and 9.081. So **the
+tracker is `sell`-based and the files are `nav`.** All of this evidence predates 2026-09-01, when the
+provider changed its factors, so that change leaves the conclusion standing.
 
-**That spread is UNDOCUMENTED, and the 0.5 % in the contract is a different thing.** The services
-agreement defines *Базова ціна* as "the price of the Security offered by INZHUR for purchase and/or
-sale" with no formula relative to NAV anywhere in it; its only 0.5 % is a tariff on selling
-referral-discounted securities within 12 months. Measured instead: 1.009 held constant across the
-whole 75-day overlap the tracker gives (2026-04-23 → 2026-07-06), the implied unit counts holding to
-three decimals with the residual wobble being the tracker's own rounding to the kopeck. **For 2024
-and 2025 there is nothing to check it against.**
+**The contract gives the `sell / nav` factor no formula, and the 0.5 % in it is a different
+thing.** The services agreement defines *Базова ціна* as "the price of the Security offered by
+INZHUR for purchase and/or sale" with no formula relative to NAV anywhere in it; its only 0.5 % is a
+tariff on selling referral-discounted securities within 12 months. The provider describes its
+pricing in its news instead:
+[«Inzhur запровадив у фондах мінімальний спред»](https://www.inzhur.reit/news/inzhur-zaprovadiv-u-fondah-minimalnij-spred)
+says that before 2026-01-31 an investor bought REIT and Energy at «ВЧА + 1%» and sold «за ВЧА», and
+that from then an investor sells «за ціною, максимально наближеною до реальної ціни покупки»: «Різниця
+між купівлею та продажем є динамічною і може змінюватися — від 0,1% до 1%». Measured:
+1.009 held across the whole 75-day overlap the tracker gives (2026-04-23 → 2026-07-06), the implied
+unit counts whole to the tolerance `infra/src/fund-history.local.test.ts` pins, then on 2026-07-28,
+the one day of the gap a committed feed capture holds, and again in the archive to 2026-08-31.
+**The factor is the provider's to set, and it moves:** REIT's and Energy's changed on 2026-09-01,
+MilTech's has not matched theirs on any archived day, and
+`packages/core/src/inzhur/fund-quotes.test.ts` pins each committed feed fixture's. So before the
+tracker's overlap the 0.9 % is not merely unverified: before 2026-01-31 the provider's account has an
+investor selling at ВЧА itself, and from then until the overlap it describes a floating price rather
+than a fixed factor.
 
-## So: store `nav`, derive `sell` — never the reverse
+## So: store `nav` as published, and derive no `sell` from it
 
-The premise is what the provider published; the conversion is a conclusion resting on an assumption
-that cannot be verified for the earlier years. Store the premise and let a reader derive with the
-assumption stated — the same line *The price archive* draws about the FX rate and the date.
+The premise is what the provider published; the conversion is a conclusion resting on a factor the
+provider sets and has changed, measured for only part of the file's span. Store the premise,
+never the conclusion — the same line *The price archive* draws about the FX rate and the date.
 **Multiplying the history by 1.009 and storing the result would put an unverified number into an
-append-only archive**, which is the one thing this project has repeatedly refused to do. The series
+append-only archive**, which is the one thing this project has repeatedly refused to do, and before
+2026-01-31 the provider's own account contradicts that number outright. The series
 is archived as published, no screen reads it, and converting it to `sell` at read time is rejected
 permanently; drawing it as its own labelled line is not refused, only deferred to a design brief.
 
 What that costs is **historical portfolio value in the terms the app computes in.** The app values
 holdings at `sell`, because that is the amount actually realisable — and a nav/sell toggle was
 declined because `nav` reads zero for `ocean-plaza` and `zhytniy`. From 2026-04-23 the owner's
-tracker already holds real `sell` values; before that, any "what would this have sold for" is an
-estimate carrying an unverified 0.9 %.
+tracker already holds real `sell` values; before that, any "what would this have sold for" rests on
+the provider's account rather than a measurement: `sell` at ВЧА before 2026-01-31, a floating price
+after it, and 1.009 measured no earlier than 2026-04-23.
 
 ## One parsing defect, already found
 
