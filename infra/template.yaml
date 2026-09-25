@@ -149,6 +149,10 @@ Resources:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: !GetAtt CaptureFunction.Arn
+              # Scheduler dead-letters AS THIS ROLE, and the queue carries no policy of its own.
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt CaptureDlq.Arn
 
   # THERE IS NO SNS TOPIC AND NO AlarmActions, on purpose: CloudWatch publishes alarm state
   # changes to EventBridge for every alarm regardless, so an alarm with no action still alerts.
@@ -334,7 +338,7 @@ Resources:
   DlqAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: A capture invocation landed in the dead-letter queue.
+      AlarmDescription: A capture invocation failed, or could not be delivered, and landed in the dead-letter queue.
       Namespace: AWS/SQS
       MetricName: ApproximateNumberOfMessagesVisible
       Dimensions: [{ Name: QueueName, Value: !GetAtt CaptureDlq.QueueName }]

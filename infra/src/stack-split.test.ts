@@ -115,6 +115,20 @@ const inlineStatements = (t: Template, id: string) =>
     (p) => p.Statement,
   );
 
+const stackDocs: [Document, Template][] = [
+  [archiveDoc, archive],
+  [userDoc, user],
+];
+
+/** The resource an ARN property names, held to `!GetAtt <Id>.Arn`: a literal reads the same after
+ *  `toJS()`, and a `!Ref` gives a queue's URL or a role's name. */
+const idFromArn = (doc: Document, ...path: (string | number)[]) => {
+  const { tag, value } = intrinsicAt(doc, ...path);
+  const at = path.join('.');
+  expect([at, tag, value]).toEqual([at, '!GetAtt', expect.stringMatching(/\.Arn$/)]);
+  return String(value).replace(/\.Arn$/, '');
+};
+
 const CLUSTER = 'AWS::DSQL::Cluster';
 
 /** `capture.ts` is read through this, so a commented-out copy of the DDL cannot stand in for a
@@ -273,16 +287,29 @@ describe('the archive stack holds the archive and nothing else', () => {
     ).toEqual({ tag: undefined, value: '*' });
   });
 
-  it('lets its scheduler invoke that capture and nothing else', () => {
-    expect(
-      grantAt(
-        archiveDoc,
-        ['Resources', 'SchedulerRole', 'Properties', 'Policies', 0, 'PolicyDocument', 'Statement'],
-        'lambda:InvokeFunction',
-      ),
-    ).toEqual({ tag: '!GetAtt', value: 'CaptureFunction.Arn' });
+  it('lets its scheduler invoke that capture, dead-letter what it cannot deliver, and nothing else', () => {
+    const statements = [
+      'Resources',
+      'SchedulerRole',
+      'Properties',
+      'Policies',
+      0,
+      'PolicyDocument',
+      'Statement',
+    ];
+    expect(grantAt(archiveDoc, statements, 'lambda:InvokeFunction')).toEqual({
+      tag: '!GetAtt',
+      value: 'CaptureFunction.Arn',
+    });
+    expect(grantAt(archiveDoc, statements, 'sqs:SendMessage')).toEqual({
+      tag: '!GetAtt',
+      value: 'CaptureDlq.Arn',
+    });
     expect(roleGrants(archive, 'SchedulerRole')).toEqual({
-      statements: [expect.objectContaining({ Action: 'lambda:InvokeFunction' })],
+      statements: [
+        expect.objectContaining({ Action: 'lambda:InvokeFunction' }),
+        expect.objectContaining({ Action: 'sqs:SendMessage' }),
+      ],
       managed: [],
     });
   });
@@ -739,6 +766,36 @@ describe('the capture pipeline exists exactly once across both templates', () =>
     ]);
   });
 
+  // SCHEDULER DEAD-LETTERS AS THE ROLE A SCHEDULE RUNS AS, so that role grants the send; its policies
+  // are held to one so `Policies[0]` is all of them. The queue's keys are an ALLOW-list: a customer
+  // key would want a KMS grant as well.
+  it('lets each schedule send to the dead-letter queue it names', () => {
+    const named = stackDocs.flatMap(([doc, t]) =>
+      idsOfType(t, 'AWS::Scheduler::Schedule')
+        .filter((id) => doc.hasIn(['Resources', id, 'Properties', 'Target', 'DeadLetterConfig']))
+        .map((id) => {
+          const target = ['Resources', id, 'Properties', 'Target'];
+          const role = idFromArn(doc, ...target, 'RoleArn');
+          const policies = t.Resources[role]?.Properties?.Policies as unknown[] | undefined;
+          expect([id, policies?.length]).toEqual([id, 1]);
+          const queue = idFromArn(doc, ...target, 'DeadLetterConfig', 'Arn');
+          const policy = ['Resources', role, 'Properties', 'Policies', 0, 'PolicyDocument'];
+          expect([id, grantAt(doc, [...policy, 'Statement'], 'sqs:SendMessage')]).toEqual([
+            id,
+            { tag: '!GetAtt', value: `${queue}.Arn` },
+          ]);
+          const dlq = t.Resources[queue];
+          expect([queue, dlq?.Type, Object.keys(dlq?.Properties ?? {})]).toEqual([
+            queue,
+            'AWS::SQS::Queue',
+            ['MessageRetentionPeriod'],
+          ]);
+          return id;
+        }),
+    );
+    expect(named).not.toEqual([]);
+  });
+
   it('declares one archive cluster and one user cluster, and no third', () => {
     expect(both.flatMap((t) => idsOfType(t, CLUSTER))).toEqual(['PriceCluster', 'UserCluster']);
   });
@@ -835,15 +892,9 @@ describe('what reaches a role besides its own policies', () => {
       ],
     };
     const account = ['Statement', 0, 'Condition', 'StringEquals', 'aws:SourceAccount'];
-    const stacks: [Document, Template][] = [
-      [archiveDoc, archive],
-      [userDoc, user],
-    ];
-    const roles = stacks.flatMap(([doc, t]) =>
+    const roles = stackDocs.flatMap(([doc, t]) =>
       idsOfType(t, 'AWS::Scheduler::Schedule').map((schedule) => {
-        const arn = intrinsicAt(doc, 'Resources', schedule, 'Properties', 'Target', 'RoleArn');
-        expect([schedule, arn.tag]).toEqual([schedule, '!GetAtt']);
-        const role = String(arn.value).replace(/\.Arn$/, '');
+        const role = idFromArn(doc, 'Resources', schedule, 'Properties', 'Target', 'RoleArn');
         const properties = t.Resources[role]?.Properties ?? {};
         expect([role, Object.keys(properties).sort()]).toEqual([
           role,
@@ -865,7 +916,7 @@ describe('what reaches a role besides its own policies', () => {
         return role;
       }),
     );
-    const declared = stacks.flatMap(([, t]) => idsOfType(t, 'AWS::IAM::Role'));
+    const declared = stackDocs.flatMap(([, t]) => idsOfType(t, 'AWS::IAM::Role'));
     expect(declared).not.toEqual([]);
     // A role two schedules share is one role.
     expect([...new Set(roles)].sort()).toEqual(declared.sort());
