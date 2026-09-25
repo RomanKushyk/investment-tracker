@@ -301,7 +301,7 @@ export function TransactionPanel() {
   // TWO QUESTIONS, and conflating them cost a half-typed asset. `pickedNew` is
   // where the PICKER is; `isNewAsset` is whether quick-create is in play, which
   // also needs the type to want an asset. Only the second gates the panel and
-  // `onSubmit`; the RESET below keys off the first, because a glance at «Внесок»
+  // `onSubmit`; the RESET below keys off the first, because a glance at «Поповнення»
   // must not discard a name and code already typed.
   const pickedNew = assetId === 'new';
   const isNewAsset = needsAsset && pickedNew;

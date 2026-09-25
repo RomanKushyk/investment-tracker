@@ -195,3 +195,25 @@ describe('the delete-cascade sentence', () => {
     expect(en.assets.deleteBody(2, 0)).toContain('on 0 days.');
   });
 });
+
+// «Внесок» reads as a bank deposit, a contribution or a fee; «Поповнення» is what a broker calls
+// the top-up. Every string that names the type or its sum follows the label.
+describe('the deposit type', () => {
+  it('reads «Поповнення» in Ukrainian and stays "Deposit" in English', () => {
+    expect(uk.transaction.types.deposit).toBe('Поповнення');
+    expect(en.transaction.types.deposit).toBe('Deposit');
+  });
+
+  it('leaves no Ukrainian string on the old word, the sums included', () => {
+    // A function is read in the one branch that `'·'` arguments take, not in every branch.
+    const text = (value: Node) => {
+      if (typeof value === 'string') return value;
+      const fn = value as (...a: never[]) => string;
+      return fn(...(Array.from({ length: fn.length }, () => '·') as never[]));
+    };
+    // The noun, its forms, the participle «внесено» and the verbal noun «внесення»; not the
+    // verb, which a future «внесіть» may still need.
+    const stale = [...UK].filter(([, value]) => /внес(?:ок|к|ен)/iu.test(text(value)));
+    expect(stale.map(([key]) => key)).toEqual([]);
+  });
+});

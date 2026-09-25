@@ -1131,7 +1131,7 @@ export const uk: Dict = {
       // plural «одиниці» against singular «має» forces the trailing noun to be
       // the subject — and this pair is singular on both sides, so Ukrainian's
       // default order would read «актив» as the subject and inverts the meaning.
-      assetMissingOnAssetRow: 'лише внесок або виведення може не вказувати актив',
+      assetMissingOnAssetRow: 'лише поповнення або виведення може не вказувати актив',
       // SUBJECT FIRST — and the first attempt swapped the NOUN and left the
       // order, which changed nothing: «податок» is masculine INANIMATE, so its
       // nominative and accusative are identical exactly as the neuter
@@ -1446,7 +1446,7 @@ export const uk: Dict = {
       totalCapital: 'Загальний капітал',
       capitalGain: 'Приріст капіталу',
       totalReturnNet: 'Загальна дохідність (чиста)',
-      depositedReinvested: 'Внесено / Реінвестовано',
+      depositedReinvested: 'Поповнено / Реінвестовано',
       freeCash: 'Вільні кошти',
     },
     portfolio: {
@@ -1539,7 +1539,7 @@ export const uk: Dict = {
       withRate: (total: string, rate: string) => `${total} · курс ${rate}`,
       plusReinvested: (amount: string) => `+ ${amount} реінвестовано`,
       sinceDate: (pct: string, date: string) => `${pct} від ${date}`,
-      onNetDeposits: (pct: string) => `${pct} на чисті внески`,
+      onNetDeposits: (pct: string) => `${pct} на чисті поповнення`,
       couponOf: (asset: string) => `Купон ${asset}`,
       dividendOf: (asset: string) => `Дивіденд ${asset}`,
       dividendTag: 'дивіденд',
@@ -1719,7 +1719,7 @@ export const uk: Dict = {
     title: 'Транзакція',
     badge: 'Нерегулярно',
     subtitle:
-      'Внески, купівлі, нарахування, реінвестиції — відкривається лише тоді, коли щось сталося.',
+      'Поповнення, купівлі, нарахування, реінвестиції — відкривається лише тоді, коли щось сталося.',
     date: 'Дата',
     type: 'Тип',
     asset: 'Актив',
@@ -1758,7 +1758,7 @@ export const uk: Dict = {
     types: {
       buy: 'Купівля',
       sell: 'Продаж',
-      deposit: 'Внесок',
+      deposit: 'Поповнення',
       withdrawal: 'Виведення',
       dividend_accrual: 'Нарахування дивідендів',
       interest_payout: 'Виплата відсотків',

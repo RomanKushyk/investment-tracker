@@ -182,7 +182,7 @@ describe('the transaction form survives its own reset', () => {
     // reaches the next Controller and passes about the wrong field, which is Rule 1 above.
     expect(
       CODE,
-      'deleting the wrapper leaves every other test here green while «Внесок» asks for an ' +
+      'deleting the wrapper leaves every other test here green while «Поповнення» asks for an ' +
         'asset it has no use for — the reported bug',
     ).toMatch(/<Reveal show=\{needsAsset\}[\s\S]{0,300}?name="assetId"/);
     expect(CODE).toMatch(/const needsAsset = targetsAsset\(txType\);/);
@@ -207,7 +207,7 @@ describe('the transaction form survives its own reset', () => {
     expect(
       CODE,
       'the sub-form reset is gated on something other than the picker. On `isNewAsset`, ' +
-        'which depends on the TYPE, a glance at «Внесок» wipes a half-typed new asset',
+        'which depends on the TYPE, a glance at «Поповнення» wipes a half-typed new asset',
     ).toMatch(/if \(!pickedNew\) assetForm\.reset\(assetFormDefaults\(f\)\);/);
   });
 
