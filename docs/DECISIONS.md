@@ -374,12 +374,17 @@ session — `origin` is an SSH alias, so `git push` is unaffected.
 ## Work tracking and documentation
 **Decision.** GitHub Issues and the Project's `Status` field are the only task list; nothing in the
 repository says what to do next. An issue is worked only from `Ready` — criteria a test or a browser
-check can verify — one issue, one branch, closed by `Closes #N`; milestones are releases. Delete,
-never archive; a figure lives in a test or not at all; `CLAUDE.md` is rules.
-**Why.** A task list in two places disagrees with itself. A figure written into prose goes stale in
-silence and passes every gate; a test fails.
-**Rejected.** Jira or ticket keys: one person, no board. · Documentation ratchets: a guard bumped on
-every routine edit is a rehearsal for bumping it unread.
+check can verify — one issue, one branch, closed by `Closes #N`. Milestones are releases, and every
+open issue, once triaged, sits in the version milestone it is planned for, none below the next
+release; work is picked from the lowest open one, so milestone order is work order, except that an
+`observation` is picked once the date in its title has come, whatever its milestone, and never
+before. Delete, never archive; a figure lives in a test or not at all; `CLAUDE.md` is rules.
+**Why.** A task list in two places disagrees with itself. An issue with no milestone has no place in
+that order, and the sort decays one triage at a time; an observation waits for its day, not its
+turn. A figure written into prose goes stale in silence and passes every gate; a test fails.
+**Rejected.** Jira or ticket keys: one person, no board. · A `Backlog` milestone: it holds exactly
+the issues nobody has ordered. · Documentation ratchets: a guard bumped on every routine edit is a
+rehearsal for bumping it unread.
 
 ## Review, gates, tests
 **Decision.** `/code-review` runs on the whole branch diff before every squash-merge, documentation

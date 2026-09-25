@@ -37,7 +37,7 @@ Check, and fix before writing bodies:
 - no item contradicts a `docs/DECISIONS.md` topic — or the item names the topic it will rewrite;
 - the epic's own acceptance is an integration check, not the sum of sub-issues;
 - what is deliberately out of scope is written down;
-- a release is named only if the owner committed to it; otherwise the milestone is none.
+- every issue, the epic and each sub-issue, carries the open version milestone it is planned for (its theme is in the milestone's description), never one below the next release and never none.
 
 ### 5. Write the bodies (files first, one per issue)
 **Epic** — `$SCRATCH/plan-epic/<slug>/epic.md`:
@@ -56,19 +56,19 @@ Out of scope: …
 ## Verification
 Gates; browser checks; `navigation-map.md` rows that move; DECISIONS topics rewritten.
 ```
-**Each sub-issue** — `$SCRATCH/plan-epic/<slug>/sub-N.md`, the `triage-issue` shape exactly: `## Original` (the sentence of the owner's text this item comes from, quoted), `## Context` (facts from step 2 with `file:line`; the practice with its source URL; the accepted proposal), `## Scope` (what changes; what does not), `## Acceptance criteria` (checkboxes; each verifiable by a named test or a browser check at a named width; intent, not implementation), `## Verification`. Title: `<Epic short name>: <what changes>`. Labels: `bug`, `enhancement` or `question`, plus one `area:*`. Before step 6, check every sub-issue against `triage-issue`'s Definition of Ready — it is the same `Ready`.
+**Each sub-issue** — `$SCRATCH/plan-epic/<slug>/sub-N.md`, the `triage-issue` shape exactly: `## Original` (the sentence of the owner's text this item comes from, quoted), `## Context` (facts from step 2 with `file:line`; the practice with its source URL; the accepted proposal), `## Scope` (what changes; what does not), `## Acceptance criteria` (checkboxes; each verifiable by a named test or a browser check at a named width; intent, not implementation), `## Verification`. Title: `<Epic short name>: <what changes>`. Labels: `bug`, `enhancement`, `question` or `observation`, plus one `area:*`. Before step 6, check every sub-issue against `triage-issue`'s Definition of Ready — it is the same `Ready`.
 
 ### 6. Present, then stop
 Print: the epic title and goal; the sub-issue titles with one-line acceptance summaries; the blocked-by graph; milestone and labels; the questions you assumed answers to. **Stop here.** With `--dry-run` print the body files too and end. Otherwise wait for the owner's explicit yes.
 
 ### 7. Create (only after yes)
 ```bash
-R=RomanKushyk/investment-tracker; D="$SCRATCH/plan-epic/<slug>"; M=""   # M="--milestone vX.Y.Z" only if committed
+R=RomanKushyk/investment-tracker; D="$SCRATCH/plan-epic/<slug>"; M="--milestone vX.Y.Z"   # the version from step 4, never empty
 E=$(gh issue create --repo $R --title "<epic title>" --body-file "$D/epic.md" --label epic --label "area:<x>" $M | sed 's#.*/##')
-# with --into N instead: E=N; gh issue edit $E --repo $R --body-file "$D/epic.md" --add-label epic --add-label "area:<x>"
+# with --into N instead: E=N; gh issue edit $E --repo $R --body-file "$D/epic.md" --add-label epic --add-label "area:<x>" $M
 S1=$(gh issue create --repo $R --title "<Epic>: <change 1>" --body-file "$D/sub-1.md" --label enhancement --label "area:<x>" $M | sed 's#.*/##')
 S2=$(gh issue create --repo $R --title "<Epic>: <change 2>" --body-file "$D/sub-2.md" --label enhancement --label "area:<x>" $M | sed 's#.*/##')
-gh issue edit $S1 --repo $R --parent $E; gh issue edit $S2 --repo $R --parent $E   # every sub-issue, adopted ones too
+gh issue edit $S1 --repo $R --parent $E $M; gh issue edit $S2 --repo $R --parent $E $M   # every sub-issue, adopted ones too
 gh issue edit $S2 --repo $R --add-blocked-by $S1                                     # every edge from step 4, one call per edge
 ```
 Then: ONE `gh project item-list 2 --owner RomanKushyk --format json --limit 500 > "$D/items.json"`, read the item ids from it, `gh project item-edit` each new or adopted issue and the epic to `Ready`; verify with one more item-list fetch, not one per issue; rewrite the epic's `## Scope` table with the real numbers (`gh issue edit $E --repo $R --body-file "$D/epic.md"`); report `#E` and the sub-issue numbers. GitHub's GraphQL budget is small — never fetch the item list per issue, never poll.

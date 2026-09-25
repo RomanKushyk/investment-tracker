@@ -72,7 +72,25 @@ The app version lives in **one place: `package.json` → `"version"`**. The side
 
 > **The table below sets production's cadence**, a version bump being the release trigger. A version cut carelessly is a production deploy nobody asked for, and a change worth shipping that never gets a bump never ships at all.
 
-7. Close the milestone and open the next: `gh api -X PATCH repos/RomanKushyk/investment-tracker/milestones/<n> -f state=closed` (find `<n>` with `gh api repos/RomanKushyk/investment-tracker/milestones --jq '.[]|select(.title=="vX.Y.Z")|.number'`), then `gh api -X POST repos/RomanKushyk/investment-tracker/milestones -f title=vX.Y+1.0`.
+7. **Carry the milestone's still-open issues to the next one, then close it.** Every open issue, once triaged, sits in the version milestone it is planned for ([`DECISIONS.md`](../DECISIONS.md), *Work tracking and documentation*), so a milestone closed with issues in it strands them — the dated observations in the last one among them, which ride forward until their date. The next is the lowest open version above it; a milestone is created only at the end of the roadmap, when there is none, and with a theme, because triage places issues by it. Over REST, which spares the GraphQL budget:
+
+   ```sh
+   export GH_CONFIG_DIR="$HOME/.quirenote/gh-config"; R=repos/RomanKushyk/investment-tracker; V=vX.Y.Z
+   MS=$(gh api "$R/milestones?per_page=100" --jq '.[]|"\(.number) \(.title)"' | sort -V -k2)   # the open ones, in version order
+   CUR=$(printf '%s\n' "$MS" | awk -v v="$V" '$2==v{print $1}')
+   NEXT=$(printf '%s\n' "$MS" | awk -v v="$V" 'f{print $1; exit} $2==v{f=1}')
+   # CUR set and NEXT empty is the end of the roadmap (both empty: V is not an open milestone): NEXT=$(gh api -X POST "$R/milestones" -f title=vX.Y+1.0 -f description='<theme>' --jq .number)
+   if [ "$CUR" -gt 0 ] && [ "$(gh api "$R/milestones/$NEXT" --jq .state)" = open ] &&
+      IDS=$(gh api "$R/issues?milestone=$CUR&state=open&per_page=100" --paginate --jq '.[].number'); then
+     for i in $IDS; do gh api -X PATCH "$R/issues/$i" -F milestone="$NEXT" --silent; done
+   else echo "$V: nothing carried — CUR='$CUR' NEXT='$NEXT', or the listing failed"; fi
+   if [ "$(gh api "$R/milestones/$CUR" --jq .open_issues)" = 0 ]; then gh api -X PATCH "$R/milestones/$CUR" -f state=closed
+   else echo "$V: open issues left, or the count unreadable — NOT closed"; fi
+   ```
+
+   **No milestone number is typed.** Both are read off the open milestones by `V`, or `NEXT` from the POST at the end of the roadmap, because milestone numbers do not follow version order and a number read off a list can name the wrong milestone. **Every write waits on a check:** the carry runs only into an open `NEXT` and only on a listing that succeeded, since a failed `gh api` prints its error body to stdout, which the loop would split into PATCH targets. Pull requests are carried too, because `open_issues` counts them. The close is guarded rather than trusting the loop, since GitHub closes a milestone whatever it still holds. Each check is an `if`, not `&& … ||`, because that chain would print a guard's message when the write itself failed.
+
+   **Carrying is mechanical; fitting is not.** A patch takes no new capability (the MINOR row below; [semver.org §6](https://semver.org/#spec-item-6)), so a carried issue that is one is re-placed by the triage rule in this same step — carried into the lowest open milestone, it is pickable at once. No label decides it: a patch milestone can rightly hold an `enhancement` that changes nothing a user sees.
 
 ## When to bump what (SemVer)
 
