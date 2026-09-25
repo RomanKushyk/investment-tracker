@@ -333,7 +333,7 @@ Resources:
           - Effect: Allow
             Action:
               # Two calls and no third: nothing here may create, disable or delete a user. The
-              # test holds one statement on one pool, so a third action here is caught by neither.
+              # test reads this list whole, as one statement on one pool, so a third action fails it.
               - cognito-idp:ListUsers
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn

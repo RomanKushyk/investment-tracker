@@ -345,9 +345,11 @@ const POLICIES = `Resources:
       Policies:
         - Statement:
             - Sid: ConnectToDsqlAsAdmin
+              Effect: Allow
               Action: dsql:DbConnectAdmin
               Resource: !GetAtt UserCluster.ResourceArn
             - Sid: BootstrapTheFirstSuperAdmin
+              Effect: Allow
               Action:
                 - cognito-idp:AdminCreateUser
                 - cognito-idp:AdminGetUser
@@ -356,9 +358,11 @@ const POLICIES = `Resources:
     Properties:
       Policies:
         - Statement:
-            - Action: cognito-idp:DescribeUserPoolClient
+            - Effect: Allow
+              Action: cognito-idp:DescribeUserPoolClient
               Resource: !GetAtt UserPoolClient.Arn
-            - Action: cognito-idp:DescribeUserPool
+            - Effect: Allow
+              Action: cognito-idp:DescribeUserPool
               Resource: !GetAtt UserPool.Arn
   SchedulerRole:
     Properties:
@@ -366,13 +370,15 @@ const POLICIES = `Resources:
         - PolicyName: InvokeCapture
           PolicyDocument:
             Statement:
-              - Action: lambda:InvokeFunction
+              - Effect: Allow
+                Action: lambda:InvokeFunction
                 Resource: !GetAtt CaptureFunction.Arn
   PreSignUpPolicy:
     Properties:
       PolicyDocument:
         Statement:
-          - Action:
+          - Effect: Allow
+            Action:
               - cognito-idp:ListUsers
               - cognito-idp:AdminLinkProviderForUser
             Resource: '*'
@@ -389,8 +395,83 @@ const dropped = parseDocument(
 const widened = parseDocument(
   POLICIES.replace(
     '            - Sid: BootstrapTheFirstSuperAdmin',
-    '            - Sid: Oops\n              Action: dsql:DbConnectAdmin\n' +
+    '            - Sid: Oops\n              Effect: Allow\n              Action: dsql:DbConnectAdmin\n' +
       "              Resource: '*'\n            - Sid: BootstrapTheFirstSuperAdmin",
+  ),
+);
+// A STATEMENT READ BY ONE ACTION IS BLIND TO THE REST OF IT. Each of these changes a statement the
+// action still finds, and each anchor is written once in the fixture.
+const denied = parseDocument(
+  POLICIES.replace(
+    'Sid: ConnectToDsqlAsAdmin\n              Effect: Allow',
+    'Sid: ConnectToDsqlAsAdmin\n              Effect: Deny',
+  ),
+);
+const silent = parseDocument(
+  POLICIES.replace(
+    'Sid: ConnectToDsqlAsAdmin\n              Effect: Allow\n',
+    'Sid: ConnectToDsqlAsAdmin\n',
+  ),
+);
+const appended = parseDocument(
+  POLICIES.replace('Action: dsql:DbConnectAdmin', "Action: [dsql:DbConnectAdmin, 'dsql:*']"),
+);
+const appendedToList = parseDocument(
+  POLICIES.replace(
+    '- cognito-idp:AdminGetUser\n',
+    '- cognito-idp:AdminGetUser\n                - cognito-idp:AdminDeleteUser\n',
+  ),
+);
+const conditioned = parseDocument(
+  POLICIES.replace(
+    'Resource: !GetAtt UserCluster.ResourceArn\n',
+    'Resource: !GetAtt UserCluster.ResourceArn\n' +
+      "              Condition: { Bool: { 'aws:SecureTransport': 'true' } }\n",
+  ),
+);
+// IAM reads action names case-insensitively, so this is a second grant of the runner's action.
+const respelt = parseDocument(
+  POLICIES.replace(
+    '                - cognito-idp:AdminGetUser\n              Resource: !GetAtt UserPool.Arn\n',
+    '                - cognito-idp:AdminGetUser\n              Resource: !GetAtt UserPool.Arn\n' +
+      "            - Effect: Allow\n              Action: COGNITO-IDP:AdminCreateUser\n              Resource: '*'\n",
+  ),
+);
+// A tag on either is an intrinsic that only spells the literal, and deploys what it resolves to.
+const taggedEffect = parseDocument(
+  POLICIES.replace(
+    'Sid: ConnectToDsqlAsAdmin\n              Effect: Allow',
+    'Sid: ConnectToDsqlAsAdmin\n              Effect: !Ref Allow',
+  ),
+);
+const taggedAction = parseDocument(
+  POLICIES.replace('Action: dsql:DbConnectAdmin', 'Action: !Sub dsql:DbConnectAdmin'),
+);
+// And the tags around the values: on the statement, on a key, on the action list.
+const taggedStatement = parseDocument(
+  POLICIES.replace(
+    '            - Sid: ConnectToDsqlAsAdmin\n',
+    '            - !Transform\n              Sid: ConnectToDsqlAsAdmin\n',
+  ),
+);
+const taggedKey = parseDocument(
+  POLICIES.replace('Action: dsql:DbConnectAdmin', '!Sub Action: dsql:DbConnectAdmin'),
+);
+const taggedList = parseDocument(
+  POLICIES.replace(
+    'Action:\n                - cognito-idp:AdminCreateUser',
+    'Action: !If\n                - cognito-idp:AdminCreateUser',
+  ),
+);
+const recased = parseDocument(
+  POLICIES.replace('Action: dsql:DbConnectAdmin', 'Action: DSQL:dbconnectadmin'),
+);
+// THE LIST SPLIT IN TWO, each half its own statement on the same resource.
+const split = parseDocument(
+  POLICIES.replace(
+    '              - cognito-idp:AdminLinkProviderForUser\n',
+    "            Resource: '*'\n          - Effect: Allow\n" +
+      '            Action: cognito-idp:AdminLinkProviderForUser\n',
   ),
 );
 
@@ -422,10 +503,16 @@ describe('grantAt', () => {
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
     });
-    expect(grantAt(policies, INLINE, 'cognito-idp:AdminGetUser')).toEqual({
-      tag: '!GetAtt',
-      value: 'UserPool.Arn',
-    });
+    expect(
+      grantAt(policies, INLINE, ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser']),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
+  });
+
+  // IAM reads a list of actions as a set, so the order they are asked for in is not a finding.
+  it('takes the actions as a list, in any order', () => {
+    expect(
+      grantAt(policies, INLINE, ['cognito-idp:AdminGetUser', 'cognito-idp:AdminCreateUser']),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
   });
 
   // WHOLE, NOT AS A PREFIX: the client's statement is first, so a substring match wins it.
@@ -448,10 +535,12 @@ describe('grantAt', () => {
     });
     // A resource that is no intrinsic comes back as one that is not, which is what pins a
     // deliberate wildcard as deliberate rather than leaving it unread.
-    expect(grantAt(policies, STANDALONE, 'cognito-idp:ListUsers')).toEqual({
-      tag: undefined,
-      value: '*',
-    });
+    expect(
+      grantAt(policies, STANDALONE, [
+        'cognito-idp:ListUsers',
+        'cognito-idp:AdminLinkProviderForUser',
+      ]),
+    ).toEqual({ tag: undefined, value: '*' });
   });
 
   it('tells a dropped tag from the intrinsic it was', () => {
@@ -478,6 +567,79 @@ describe('grantAt', () => {
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
     });
+  });
+
+  // AND THE SAME WHEN THE LIST IS SPLIT, which is two statements carrying what was one.
+  it('throws when the actions asked for are split across statements', () => {
+    expect(() =>
+      grantAt(split, STANDALONE, ['cognito-idp:ListUsers', 'cognito-idp:AdminLinkProviderForUser']),
+    ).toThrow(/2 statements/);
+  });
+
+  // THE STATEMENT'S WHOLE LIST, NOT ONE OF ITS ACTIONS: a second action beside the one asserted
+  // widens the grant and leaves the action, the tag and the value all as they were.
+  it('throws when the statement carries an action it was not asked for', () => {
+    expect(() => grantAt(appended, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /carries dsql:DbConnectAdmin, dsql:\*, wanted dsql:DbConnectAdmin$/,
+    );
+    expect(() =>
+      grantAt(appendedToList, INLINE, ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser']),
+    ).toThrow(/AdminDeleteUser/);
+    // Asked for fewer than it carries is the same finding, read from the other side.
+    expect(() => grantAt(policies, INLINE, 'cognito-idp:AdminGetUser')).toThrow(
+      /carries cognito-idp:AdminCreateUser, cognito-idp:AdminGetUser, wanted cognito-idp:AdminGetUser$/,
+    );
+  });
+
+  // `Deny` IS ONE WORD, and the deployed function takes `AccessDenied` on every call while the
+  // resource reads exactly as it did. No `Effect` at all is a statement IAM refuses.
+  it('throws on a statement that denies, or says neither', () => {
+    expect(() => grantAt(denied, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /Effect Deny, wanted Allow/,
+    );
+    expect(() => grantAt(silent, INLINE, 'dsql:DbConnectAdmin')).toThrow(/no Effect, wanted Allow/);
+    expect(intrinsicAt(denied, ...INLINE, 0, 'Resource')).toEqual(
+      intrinsicAt(policies, ...INLINE, 0, 'Resource'),
+    );
+  });
+
+  it('finds a statement whatever the case its action is written in', () => {
+    expect(() =>
+      grantAt(respelt, INLINE, ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser']),
+    ).toThrow(/2 statements/);
+    expect(grantAt(recased, INLINE, 'dsql:DbConnectAdmin')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserCluster.ResourceArn',
+    });
+  });
+
+  it('reads a tag on an Effect or an action as the intrinsic it is', () => {
+    expect(() => grantAt(taggedEffect, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /Effect !Ref Allow, wanted Allow/,
+    );
+    expect(() => grantAt(taggedAction, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /carries !Sub dsql:DbConnectAdmin, wanted dsql:DbConnectAdmin$/,
+    );
+  });
+
+  it('throws on a tag on the statement, on a key, or on the action list', () => {
+    expect(() => grantAt(taggedStatement, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /carries !Transform, which grantAt does not read/,
+    );
+    expect(() => grantAt(taggedKey, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /carries !Sub, which grantAt does not read/,
+    );
+    expect(() =>
+      grantAt(taggedList, INLINE, ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser']),
+    ).toThrow(/carries !If, which grantAt does not read/);
+  });
+
+  // A `Condition` narrows a grant to the requests that match it, down to none: the `Deny` above
+  // in another spelling. So every key it does not read is refused, rather than a list of bad ones.
+  it('throws on a key it does not read', () => {
+    expect(() => grantAt(conditioned, INLINE, 'dsql:DbConnectAdmin')).toThrow(
+      /carries Condition, which grantAt does not read/,
+    );
   });
 
   it('throws when the path is not a statement list', () => {

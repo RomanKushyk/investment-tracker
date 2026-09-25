@@ -143,28 +143,16 @@ describe('one parameter opens registration, in both places at once', () => {
   // grant cannot be: `MigrateFunction` is not in the pool's `DependsOn` chain, so it closes no
   // cycle.
   it('lets the runner create a user in one named pool, and nothing wider', () => {
-    const policies = props('MigrateFunction').Policies as {
-      Statement: Record<string, unknown>[];
-    }[];
-    const mints = (s: Record<string, unknown>) =>
-      [s.Action].flat().includes('cognito-idp:AdminCreateUser');
-    const policy = policies.findIndex((p) => p.Statement.some(mints));
-    expect(policy).toBeGreaterThanOrEqual(0);
-    const statement = policies[policy].Statement.findIndex(mints);
-    expect(statement).toBeGreaterThanOrEqual(0);
-    // The pool AS THE INTRINSIC: `toJS()` discards the tag, so a pinned `UserPool.Arn` reads
-    // identically here and deploys a statement matching no ARN at all.
+    // ONE statement carrying either action, read whole, on the pool AS THE INTRINSIC; the counts
+    // bound a grant carrying neither, which the read passes by.
+    const policies = props('MigrateFunction').Policies as { Statement: unknown[] }[];
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
     expect(
-      intrinsicAt(
+      grantAt(
         doc,
-        'Resources',
-        'MigrateFunction',
-        'Properties',
-        'Policies',
-        policy,
-        'Statement',
-        statement,
-        'Resource',
+        ['Resources', 'MigrateFunction', 'Properties', 'Policies', 0, 'Statement'],
+        ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser'],
       ),
     ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
     expect(intrinsicAt(doc, ...envVars('MigrateFunction'), 'USER_POOL_ID')).toEqual({
@@ -438,9 +426,8 @@ describe('the linking trigger is wired without closing a cycle', () => {
     const granted = JSON.stringify(policy?.Properties?.PolicyDocument);
     expect(granted).toContain('cognito-idp:AdminLinkProviderForUser');
     expect(granted).toContain('cognito-idp:ListUsers');
-    // The pool AS THE INTRINSIC, which a text match cannot be: `toContain('UserPool.Arn')` reads
-    // the same with the `!GetAtt` gone, and the literal deploys a grant matching no ARN. BOTH
-    // ACTIONS, because splitting them into two statements is an edit nothing here would notice.
+    // The pool AS THE INTRINSIC, which `toContain('UserPool.Arn')` cannot see; BOTH ACTIONS IN ONE
+    // READ, so a third beside them, or the two split into two statements, fails it.
     const statements = [
       'Resources',
       'PreSignUpPolicy',
@@ -448,15 +435,12 @@ describe('the linking trigger is wired without closing a cycle', () => {
       'PolicyDocument',
       'Statement',
     ];
-    // And ONE statement: a third action on a wider resource is found by neither read below.
+    // And ONE statement: a second carrying neither action, on a wider resource, is read past below.
     const document = policy?.Properties?.PolicyDocument as { Statement: unknown[] };
     expect(document.Statement).toHaveLength(1);
-    for (const action of ['cognito-idp:ListUsers', 'cognito-idp:AdminLinkProviderForUser']) {
-      expect([action, grantAt(doc, statements, action)]).toEqual([
-        action,
-        { tag: '!GetAtt', value: 'UserPool.Arn' },
-      ]);
-    }
+    expect(
+      grantAt(doc, statements, ['cognito-idp:ListUsers', 'cognito-idp:AdminLinkProviderForUser']),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
   });
 });
 

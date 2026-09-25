@@ -1,7 +1,7 @@
 // `toJS()` DROPS AN UNKNOWN TAG AND KEEPS THE VALUE, which is the single fact every helper here
 // exists for: after parsing, an intrinsic and a literal spelt the same way are indistinguishable,
 // and the literal deploys. Only the document node carries the tag.
-import { isCollection, isMap, isScalar, isSeq, type Document } from 'yaml';
+import { isCollection, isMap, isNode, isScalar, isSeq, type Document, type YAMLMap } from 'yaml';
 
 /** Tag and value kept APART, because joined they are forgeable: a quoted `'!GetAtt UserPool.Arn'`
  *  is a scalar whose VALUE is that text. A path resolving to no scalar throws rather than reading
@@ -62,29 +62,60 @@ export const taggedCollections = (doc: Document): [(string | number)[], string][
   return found;
 };
 
-/** FOUND BY THE ACTION, NEVER BY ITS INDEX, and EXACTLY ONE: a wider grant inserted above would
- *  otherwise become the statement every assertion reads. Matched whole, because
- *  `cognito-idp:DescribeUserPoolClient` begins with `cognito-idp:DescribeUserPool`. A wildcard is
- *  not the same action and is read past; a second statement is bounded by the list's own LENGTH. */
+/** EXACTLY ONE statement, READ WHOLE: its `Effect`, every action, key and tag, so a `Deny`, a third
+ *  action or a `Condition` fails it. One carrying none, a wildcard too, is read past: count the list. */
 export const grantAt = (
   doc: Document,
   statements: readonly (string | number)[],
-  action: string,
+  actions: string | readonly string[],
 ): { tag: string | undefined; value: unknown } => {
   const node = doc.getIn(statements, true);
   if (!isSeq(node)) throw new Error(`no statement list in the template at ${statements.join('.')}`);
-  const granting = node.items.flatMap((_, i) => {
+  const wanted = typeof actions === 'string' ? [actions] : actions;
+  // A tag stays in the reading: an intrinsic that spells the literal deploys what it resolves to.
+  const spelt = (n: unknown) =>
+    isScalar(n) ? `${n.tag ? `${n.tag} ` : ''}${String(n.value)}` : String(n);
+  const carriedBy = (i: number): unknown[] => {
     const carried = doc.getIn([...statements, i, 'Action'], true);
-    if (isScalar(carried)) return carried.value === action ? [i] : [];
-    const listed = isSeq(carried) && carried.items.some((a) => isScalar(a) && a.value === action);
-    return listed ? [i] : [];
-  });
+    return isSeq(carried) ? carried.items : carried === undefined ? [] : [carried];
+  };
+  // IAM reads an action's prefix and name case-insensitively, so a respelling is the same grant.
+  const lower = (list: readonly string[]) => list.map((a) => a.toLowerCase()).sort();
+  const sought = lower(wanted);
+  const granting = node.items.flatMap((_, i) =>
+    carriedBy(i).some((a) => isScalar(a) && sought.includes(String(a.value).toLowerCase()))
+      ? [i]
+      : [],
+  );
   if (granting.length !== 1) {
     throw new Error(
-      `${granting.length} statements grant ${action} at ${statements.join('.')}, wanted 1`,
+      `${granting.length} statements grant ${wanted.join(' or ')} at ${statements.join('.')}, wanted 1`,
     );
   }
-  return intrinsicAt(doc, ...statements, granting[0], 'Resource');
+  const [i] = granting;
+  const at = `the statement granting ${wanted.join(', ')} at ${[...statements, i].join('.')}`;
+  const effect = doc.getIn([...statements, i, 'Effect'], true);
+  if (effect === undefined || spelt(effect) !== 'Allow') {
+    const found = effect === undefined ? 'has no Effect' : `has Effect ${spelt(effect)}`;
+    throw new Error(`${at} ${found}, wanted Allow`);
+  }
+  const carried = carriedBy(i).map(spelt);
+  if (JSON.stringify(lower(carried)) !== JSON.stringify(sought)) {
+    throw new Error(`${at} carries ${carried.join(', ')}, wanted ${wanted.join(', ')}`);
+  }
+  // A statement is found only through its `Action`, so it is a map.
+  const statement = doc.getIn([...statements, i], true) as YAMLMap;
+  for (const pair of statement.items) {
+    const key = isScalar(pair.key) ? pair.key.value : pair.key;
+    if (!['Sid', 'Effect', 'Action', 'Resource'].includes(key as string)) {
+      throw new Error(`${at} carries ${String(key)}, which grantAt does not read`);
+    }
+  }
+  // The tags the reads above step past: on the statement, a key, or the `Action` list itself.
+  const around = [statement, doc.getIn([...statements, i, 'Action'], true)];
+  const tagged = [...around, ...statement.items.map((p) => p.key)].find((n) => isNode(n) && n.tag);
+  if (isNode(tagged)) throw new Error(`${at} carries ${tagged.tag}, which grantAt does not read`);
+  return intrinsicAt(doc, ...statements, i, 'Resource');
 };
 
 /** The five steps to one function's environment variables, addressed from several suites. */

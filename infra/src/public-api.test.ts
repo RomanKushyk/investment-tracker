@@ -315,35 +315,29 @@ describe('the handler is wired to the user cluster and logs like its neighbours'
 
 describe('the approval handler holds exactly two grants, and they are different in kind', () => {
   const policies = props('ApproveFunction').Policies as [{ Statement: Record<string, unknown>[] }];
-  const approveStatement = (i: number) =>
-    ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement', i] as const;
+  const approve = ['Resources', 'ApproveFunction', 'Properties', 'Policies', 0, 'Statement'];
 
   // This function can mint an identity and disable one, so the pool is named, never wildcarded,
   // and the actions are the four the handler makes and no fifth. `AdminEnableUser` undoes this
   // file's own disable and grants no access by itself: an enabled identity with no `active` row is
   // refused by every route. `AdminDeleteUser` is absent — deleting a user is not decided.
   it('may create, read, disable and re-enable a user in ONE pool, and nothing else', () => {
-    const statements = policies[0].Statement;
-    const cognito = statements.findIndex((s) => JSON.stringify(s.Action).includes('cognito-idp:'));
-    expect(cognito).toBeGreaterThanOrEqual(0);
-    expect((statements[cognito]?.Action as string[]).slice().sort()).toEqual([
-      'cognito-idp:AdminCreateUser',
-      'cognito-idp:AdminDisableUser',
-      'cognito-idp:AdminEnableUser',
-      'cognito-idp:AdminGetUser',
-    ]);
-    expect(intrinsicAt(doc, ...approveStatement(cognito), 'Resource')).toEqual({
-      tag: '!GetAtt',
-      value: 'UserPool.Arn',
-    });
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
+    expect(
+      grantAt(doc, approve, [
+        'cognito-idp:AdminCreateUser',
+        'cognito-idp:AdminDisableUser',
+        'cognito-idp:AdminEnableUser',
+        'cognito-idp:AdminGetUser',
+      ]),
+    ).toEqual({ tag: '!GetAtt', value: 'UserPool.Arn' });
   });
 
   it('may connect to the user cluster and to no other', () => {
-    const statements = policies[0].Statement;
-    const dsql = statements.findIndex((s) => s.Action === 'dsql:DbConnectAdmin');
-    expect(dsql).toBeGreaterThanOrEqual(0);
-    expect(statements).toHaveLength(2);
-    expect(intrinsicAt(doc, ...approveStatement(dsql), 'Resource')).toEqual({
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(2);
+    expect(grantAt(doc, approve, 'dsql:DbConnectAdmin')).toEqual({
       tag: '!GetAtt',
       value: 'UserCluster.ResourceArn',
     });

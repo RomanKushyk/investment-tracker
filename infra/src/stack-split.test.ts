@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from 'yaml';
+import { parseDocument, visit, type Document, type Node } from 'yaml';
 import { REPO } from '../../src/repo-root';
 import { NO_BACKUP_HOURS } from './backup-age';
 import { FREE_TIER_USERS } from './pool-usage';
@@ -50,7 +50,8 @@ type Resource = {
     ComparisonOperator?: string;
     TreatMissingData?: string;
     AlarmActions?: unknown;
-    Target?: { Arn?: unknown };
+    Roles?: unknown[];
+    AssumeRolePolicyDocument?: unknown;
     ScheduleExpression?: string;
     ScheduleExpressionTimezone?: string;
   };
@@ -60,6 +61,7 @@ type Template = {
   Description?: string;
   Parameters?: Record<string, { Type: string; AllowedValues?: string[] }>;
   Conditions?: Record<string, unknown>;
+  Globals?: { Function?: Record<string, unknown> };
   Resources: Record<string, Resource>;
   Outputs?: Record<string, unknown>;
 };
@@ -90,7 +92,8 @@ const handlers = (t: Template) =>
  *
  *  ON ITSELF IS THE LIMIT, and two doors are outside it: a standalone `AWS::IAM::Policy` naming
  *  the role in `Roles` grants it from another resource entirely, and `AssumeRolePolicyDocument`
- *  says who may assume it rather than what it reaches. Neither is read anywhere in this suite. */
+ *  says who may assume it rather than what it reaches. Both are read under "what reaches a role
+ *  besides its own policies". */
 const roleGrants = (t: Template, id: string) => {
   const properties = t.Resources[id].Properties as {
     Policies?: { PolicyDocument: { Statement: { Action?: unknown }[] } }[];
@@ -105,8 +108,8 @@ const roleGrants = (t: Template, id: string) => {
 /** Every statement of one FUNCTION's inline policies — the other shape, with no `PolicyDocument`
  *  between the policy and its statements.
  *
- *  COUNTED WHERE A TEST CLAIMS COMPLETENESS: a grant is found by its action, and an action nobody
- *  asserts is invisible to every assertion in the file. */
+ *  COUNTED WHERE A TEST CLAIMS COMPLETENESS: a grant is found by its actions, and a statement
+ *  carrying none that anybody asserts is invisible to every assertion in the file. */
 const inlineStatements = (t: Template, id: string) =>
   (t.Resources[id].Properties?.Policies as { Statement: { Action?: unknown }[] }[]).flatMap(
     (p) => p.Statement,
@@ -218,6 +221,22 @@ describe('the archive stack holds the archive and nothing else', () => {
     });
   });
 
+  // An ALLOW-list, as the user stack's is: a raw function or a state machine would run under a role
+  // no test here reads.
+  it('uses only the resource types the archive and its capture need', () => {
+    const allowed = new Set([
+      CLUSTER,
+      'AWS::Serverless::Function',
+      'AWS::Logs::LogGroup',
+      'AWS::SQS::Queue',
+      'AWS::Scheduler::Schedule',
+      'AWS::IAM::Role',
+      'AWS::Logs::MetricFilter',
+      'AWS::CloudWatch::Alarm',
+    ]);
+    for (const [id, r] of resources(archive)) expect([id, allowed.has(r.Type)]).toEqual([id, true]);
+  });
+
   it('declares exactly one cluster, and it is the archive', () => {
     expect(idsOfType(archive, CLUSTER)).toEqual(['PriceCluster']);
   });
@@ -246,10 +265,12 @@ describe('the archive stack holds the archive and nothing else', () => {
       value:
         'arn:${AWS::Partition}:backup:${AWS::Region}:${AWS::AccountId}:backup-vault:quirenote-backups',
     });
-    expect(grantAt(archiveDoc, capture, 'notifications:ListChannels')).toEqual({
-      tag: undefined,
-      value: '*',
-    });
+    expect(
+      grantAt(archiveDoc, capture, [
+        'notifications:ListNotificationConfigurations',
+        'notifications:ListChannels',
+      ]),
+    ).toEqual({ tag: undefined, value: '*' });
   });
 
   it('lets its scheduler invoke that capture and nothing else', () => {
@@ -677,7 +698,6 @@ describe('the user stack watches its pool against the free tier', () => {
     const schedule = user.Resources.PoolUsageSchedule.Properties;
     expect(schedule?.ScheduleExpression).toBe('cron(0 5 * * ? *)');
     expect(schedule?.ScheduleExpressionTimezone).toBe('Etc/UTC');
-    expect(schedule?.Target?.Arn).toBe('PoolUsageFunction.Arn');
     expect(schedule?.ScheduleExpression).not.toBe(
       user.Resources.BackupFreshnessSchedule.Properties?.ScheduleExpression,
     );
@@ -692,21 +712,163 @@ describe('the capture pipeline exists exactly once across both templates', () =>
     expect(handlers(archive)).toContain('capture.handler');
   });
 
+  // EACH TARGET AS THE INTRINSIC, and the capture's dead-letter queue with them: `toJS()` reads the
+  // literal `CaptureFunction.Arn` as it reads the `!GetAtt`, and the literal is no function's ARN.
   it('schedules the capture once, and the user stack schedules only its own watches', () => {
-    expect(idsOfType(archive, 'AWS::Scheduler::Schedule')).toEqual(['CaptureSchedule']);
-    expect(archive.Resources.CaptureSchedule.Properties?.Target?.Arn).toBe('CaptureFunction.Arn');
-    const targets = idsOfType(user, 'AWS::Scheduler::Schedule').map((id) => [
+    const target = (doc: Document, id: string) => [
       id,
-      user.Resources[id].Properties?.Target?.Arn,
-    ]);
-    expect(targets).toEqual([
-      ['BackupFreshnessSchedule', 'BackupFreshnessFunction.Arn'],
-      ['PoolUsageSchedule', 'PoolUsageFunction.Arn'],
+      intrinsicAt(doc, 'Resources', id, 'Properties', 'Target', 'Arn'),
+    ];
+    expect(
+      idsOfType(archive, 'AWS::Scheduler::Schedule').map((id) => target(archiveDoc, id)),
+    ).toEqual([['CaptureSchedule', { tag: '!GetAtt', value: 'CaptureFunction.Arn' }]]);
+    expect(
+      intrinsicAt(
+        archiveDoc,
+        'Resources',
+        'CaptureSchedule',
+        'Properties',
+        'Target',
+        'DeadLetterConfig',
+        'Arn',
+      ),
+    ).toEqual({ tag: '!GetAtt', value: 'CaptureDlq.Arn' });
+    expect(idsOfType(user, 'AWS::Scheduler::Schedule').map((id) => target(userDoc, id))).toEqual([
+      ['BackupFreshnessSchedule', { tag: '!GetAtt', value: 'BackupFreshnessFunction.Arn' }],
+      ['PoolUsageSchedule', { tag: '!GetAtt', value: 'PoolUsageFunction.Arn' }],
     ]);
   });
 
   it('declares one archive cluster and one user cluster, and no third', () => {
     expect(both.flatMap((t) => idsOfType(t, CLUSTER))).toEqual(['PriceCluster', 'UserCluster']);
+  });
+});
+
+// A ROLE'S OWN POLICIES ARE READ BESIDE EACH GRANT. These read what else reaches a role in the
+// source: a policy resource, the keys SAM builds a function's role from, and who may assume one.
+describe('what reaches a role besides its own policies', () => {
+  // AN INVENTORY, NOT A SEARCH FOR A ROLE'S NAME, which `!Ref`, `!Sub` and a join each spell. The
+  // trigger's stands apart for the cycle its template gives; a connector generates a policy too.
+  it('attaches a standalone policy to the trigger role and to no other', () => {
+    const attaching = [
+      'AWS::IAM::Policy',
+      'AWS::IAM::ManagedPolicy',
+      'AWS::IAM::RolePolicy',
+      'AWS::Serverless::Connector',
+    ];
+    expect(attaching.flatMap((type) => idsOfType(archive, type))).toEqual([]);
+    expect(attaching.flatMap((type) => idsOfType(user, type))).toEqual(['PreSignUpPolicy']);
+    // The embedded form, a resource attribute SAM turns into a connector resource.
+    for (const [id, r] of [...resources(archive), ...resources(user)])
+      expect([id, 'Connectors' in r]).toEqual([id, false]);
+    expect(user.Resources.PreSignUpPolicy.Properties?.Roles).toHaveLength(1);
+    expect(intrinsicAt(userDoc, 'Resources', 'PreSignUpPolicy', 'Properties', 'Roles', 0)).toEqual({
+      tag: '!Ref',
+      value: 'PreSignUpFunctionRole',
+    });
+  });
+
+  // A FUNCTION'S ROLE IS WHAT SAM BUILDS FROM ITS KEYS, so they are an ALLOW-list, `Globals` read
+  // as one more: a swapped role, a trust, a boundary, a VPC or a destination arrives unlisted.
+  it('builds each function role only from keys these tests read', () => {
+    // Three of the last four grant: `Policies`, counted per function; `Tracing`, X-Ray's write-only
+    // policy; the dead-letter send pinned below. Events are held to HttpApi routes, which grant none.
+    const allowed = new Set([
+      'CodeUri',
+      'Handler',
+      'Runtime',
+      'Architectures',
+      'MemorySize',
+      'Timeout',
+      'Environment',
+      'Policies',
+      'Tracing',
+      'DeadLetterQueue',
+      'Events',
+    ]);
+    const bags = Object.entries({ archive, user }).flatMap(([name, t]) => [
+      [`${name} Globals.Function`, t.Globals?.Function ?? {}] as const,
+      ...resources(t)
+        .filter(([, r]) => r.Type === 'AWS::Serverless::Function')
+        .map(([id, r]) => [id, (r.Properties ?? {}) as Record<string, unknown>] as const),
+    ]);
+    // EVERY FUNCTION BY NAME: one added would bring `Policies` that no test counts.
+    expect(bags.map(([id]) => id)).toEqual([
+      'archive Globals.Function',
+      'CaptureFunction',
+      'user Globals.Function',
+      'MigrateFunction',
+      'PreSignUpFunction',
+      'ApplicationsFunction',
+      'ApproveFunction',
+      'BackupFreshnessFunction',
+      'PoolUsageFunction',
+    ]);
+    for (const [id, bag] of bags) {
+      expect([id, Object.keys(bag).filter((k) => !allowed.has(k))]).toEqual([id, []]);
+      const events = Object.values((bag.Events ?? {}) as Record<string, { Type?: unknown }>);
+      expect([id, events.filter((e) => e.Type !== 'HttpApi')]).toEqual([id, []]);
+    }
+    expect(bags.filter(([, bag]) => 'DeadLetterQueue' in bag).map(([id]) => id)).toEqual([
+      'CaptureFunction',
+    ]);
+    const dlq = ['Resources', 'CaptureFunction', 'Properties', 'DeadLetterQueue'];
+    expect(intrinsicAt(archiveDoc, ...dlq, 'Type')).toEqual({ tag: undefined, value: 'SQS' });
+    expect(intrinsicAt(archiveDoc, ...dlq, 'TargetArn')).toEqual({
+      tag: '!GetAtt',
+      value: 'CaptureDlq.Arn',
+    });
+  });
+
+  // WHO MAY ASSUME A ROLE, found from the schedules so an added one brings its role in; the trust
+  // is read for tags too, the account's `!Ref` its one, and the role's keys are its two policies.
+  it('lets the scheduler alone assume each role a schedule runs as', () => {
+    const trust = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: { Service: 'scheduler.amazonaws.com' },
+          Action: 'sts:AssumeRole',
+          Condition: { StringEquals: { 'aws:SourceAccount': 'AWS::AccountId' } },
+        },
+      ],
+    };
+    const account = ['Statement', 0, 'Condition', 'StringEquals', 'aws:SourceAccount'];
+    const stacks: [Document, Template][] = [
+      [archiveDoc, archive],
+      [userDoc, user],
+    ];
+    const roles = stacks.flatMap(([doc, t]) =>
+      idsOfType(t, 'AWS::Scheduler::Schedule').map((schedule) => {
+        const arn = intrinsicAt(doc, 'Resources', schedule, 'Properties', 'Target', 'RoleArn');
+        expect([schedule, arn.tag]).toEqual([schedule, '!GetAtt']);
+        const role = String(arn.value).replace(/\.Arn$/, '');
+        const properties = t.Resources[role]?.Properties ?? {};
+        expect([role, Object.keys(properties).sort()]).toEqual([
+          role,
+          ['AssumeRolePolicyDocument', 'Policies'],
+        ]);
+        expect([role, properties.AssumeRolePolicyDocument]).toEqual([role, trust]);
+        const trustAt = ['Resources', role, 'Properties', 'AssumeRolePolicyDocument'];
+        const tags: string[] = [];
+        visit(doc.getIn(trustAt, true) as Node, {
+          Node: (_, n) => {
+            if (n.tag) tags.push(n.tag);
+          },
+        });
+        expect([role, tags]).toEqual([role, ['!Ref']]);
+        expect([role, intrinsicAt(doc, ...trustAt, ...account)]).toEqual([
+          role,
+          { tag: '!Ref', value: 'AWS::AccountId' },
+        ]);
+        return role;
+      }),
+    );
+    const declared = stacks.flatMap(([, t]) => idsOfType(t, 'AWS::IAM::Role'));
+    expect(declared).not.toEqual([]);
+    // A role two schedules share is one role.
+    expect([...new Set(roles)].sort()).toEqual(declared.sort());
   });
 });
 
