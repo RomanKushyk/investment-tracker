@@ -24,7 +24,8 @@ import { parseAssetsFeed, type ParsedFeed } from '@quirenote/core/inzhur/parse';
 import { parseOfferPage } from '@quirenote/core/inzhur/offer-page';
 import { bondTermsRow } from './bond-terms';
 import {
-  FUND_HISTORY_PAGES,
+  documentListUrl,
+  FUND_HISTORY_CATEGORIES,
   FUND_HISTORY_PARSER_VERSION,
   fundHistoryRows,
   priceFileLink,
@@ -845,23 +846,23 @@ interface ImportFundHistoryRequest {
   refs?: string[];
 }
 
-/** Manual, and network-bound where `observe` is not. The offer page is read for the CURRENT link,
- *  because the file name carries a content hash and no URL is ever polled (*External sources*).
- *  The FX columns are dropped, the provider's rate being stored nowhere (*The price archive*). A
- *  fund that fails throws the whole invocation: a partial import reported as a success is the one
- *  outcome to avoid. */
+/** Manual, and network-bound where `observe` is not. Each fund's CMS document list is read for
+ *  the CURRENT link, because each upload's URL carries a random suffix and no URL is ever polled
+ *  (*External sources*). The FX columns are dropped, the provider's rate being stored nowhere
+ *  (*The price archive*). A fund that fails throws the whole invocation: a partial import reported
+ *  as a success is the one outcome to avoid. */
 async function importFundHistory(client: Client, req: ImportFundHistoryRequest) {
-  const refs = req.refs ?? Object.keys(FUND_HISTORY_PAGES);
+  const refs = req.refs ?? Object.keys(FUND_HISTORY_CATEGORIES);
   if (refs.length === 0) throw new Error('importFundHistory: no refs to import');
   const observedAt = new Date().toISOString();
   const funds = [];
   for (const ref of refs) {
-    const page = FUND_HISTORY_PAGES[ref];
-    if (page === undefined) throw new Error(`unknown fund ref: ${ref}`);
-    const html = await fetchFeed(page);
-    if (!html.ok || html.body === undefined) throw new Error(`${html.error} for ${page}`);
-    // Resolved against the page, so a link written relative to it still fetches.
-    const file = new URL(priceFileLink(html.body), page).href;
+    const category = FUND_HISTORY_CATEGORIES[ref];
+    if (category === undefined) throw new Error(`unknown fund ref: ${ref}`);
+    const url = documentListUrl(category);
+    const list = await fetchFeed(url);
+    if (!list.ok || list.body === undefined) throw new Error(`${list.error} for ${url}`);
+    const file = priceFileLink(list.body, category);
     const rows = fundHistoryRows(ref, readXlsx(await fetchBytes(file)));
     if (rows.length === 0) throw new Error(`fund-history: ${file} holds no rows`);
 

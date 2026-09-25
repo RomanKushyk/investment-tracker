@@ -7,13 +7,27 @@ import type { XlsxCell, XlsxWorkbook } from './xlsx';
  *  (`PARSER_VERSION`) wrote. */
 export const FUND_HISTORY_PARSER_VERSION = 'fund-history-1';
 
-/** Where each fund's current price file is linked from. The file name carries a content hash, so
- *  the link is re-read from the offer page on every run and no file URL is ever polled
- *  (*External sources*). */
-export const FUND_HISTORY_PAGES: Readonly<Record<string, string>> = {
-  'inzhur-reit': 'https://www.inzhur.reit/offer/inzhur-reit',
-  'inzhur-energy': 'https://www.inzhur.reit/offer/inzhur-energy',
+/** Each fund's document category in the provider's CMS, the list its offer page renders its
+ *  documents from. Held fixed rather than discovered, so an id the CMS no longer answers throws
+ *  instead of importing from a guessed link (*External sources*). */
+export const FUND_HISTORY_CATEGORIES: Readonly<Record<string, number>> = {
+  'inzhur-reit': 19,
+  'inzhur-energy': 18,
 };
+
+/** The request the offer page's documents section sends, as its `qs.stringify(…,
+ *  { encodeValuesOnly: true })` spells it. Each upload's URL carries a random suffix, so this list
+ *  is re-read on every run and no file URL is ever polled. */
+export function documentListUrl(category: number): string {
+  return (
+    'https://api.inzhur.reit/cms/api/general-document-categories' +
+    `?filters[id]=${category}` +
+    '&populate[documents][populate][documents][fields][0]=date' +
+    '&populate[documents][populate][documents][populate][file][populate]=%2A' +
+    '&populate[documents][populate][documents][sort][0]=date%3ADESC' +
+    '&populate[fund][fields][0]=licenses'
+  );
+}
 
 export interface FundHistoryRow {
   ref: string;
@@ -21,24 +35,54 @@ export interface FundHistoryRow {
   price: number;
 }
 
-function decodeHref(href: string): string {
-  return href.replace(/&(amp|lt|gt|quot|#39);/g, (_, e: string) =>
-    e === 'amp' ? '&' : e === 'lt' ? '<' : e === 'gt' ? '>' : e === 'quot' ? '"' : "'",
-  );
+const field = (value: unknown, key: string): unknown =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>)[key] : undefined;
+
+/** Every file URL the category lists, down Strapi 4's nesting. An entry with no file is skipped;
+ *  any other departure throws, because a changed shape or id must not yield a guessed link. */
+function listedFiles(body: string, category: number): string[] {
+  const refuse = (why: string) =>
+    new Error(`fund-history: category ${category} is not the expected document list: ${why}`);
+  let json: unknown;
+  try {
+    json = JSON.parse(body);
+  } catch {
+    throw refuse('not JSON');
+  }
+  const categories = field(json, 'data');
+  if (!Array.isArray(categories)) throw refuse('no data array');
+  if (categories.length !== 1) throw refuse(`${categories.length} categories`);
+  const id = field(categories[0], 'id');
+  if (id !== category) throw refuse(`it answered category ${String(id)}`);
+  const documents = field(field(field(categories[0], 'attributes'), 'documents'), 'data');
+  if (!Array.isArray(documents)) throw refuse('no documents');
+  return documents.flatMap((document, d) => {
+    const entries = field(field(document, 'attributes'), 'documents');
+    if (!Array.isArray(entries)) throw refuse(`document ${d} has no entries`);
+    return entries.flatMap((entry, e) => {
+      const file = field(field(entry, 'file'), 'data');
+      if (file === null) return [];
+      const url = field(field(file, 'attributes'), 'url');
+      if (typeof url !== 'string') throw refuse(`document ${d} entry ${e} has no file url`);
+      return [url];
+    });
+  });
 }
 
-/** The page also links a dividend file, which is a payment series and not this import's; the
+/** The category also lists a dividend file, which is a payment series and not this import's; the
  *  price file is the one whose name says `czina`. */
-export function priceFileLink(html: string): string {
-  const seen = [...html.matchAll(/href="([^"]+\.xlsx(?:\?[^"]*)?)"/g)].map((m) => decodeHref(m[1]));
+export function priceFileLink(body: string, category: number): string {
+  const seen = listedFiles(body, category).filter((url) => url.split('?')[0].endsWith('.xlsx'));
   const price = [...new Set(seen.filter((url) => url.split('?')[0].includes('czina')))];
   if (price.length === 0) {
     throw new Error(
-      `fund-history: no price file link on the page; .xlsx links seen: ${seen.join(', ') || 'none'}`,
+      `fund-history: no price file in category ${category}; .xlsx files listed: ${seen.join(', ') || 'none'}`,
     );
   }
   if (price.length > 1) {
-    throw new Error(`fund-history: ${price.length} price files on the page: ${price.join(', ')}`);
+    throw new Error(
+      `fund-history: ${price.length} price files in category ${category}: ${price.join(', ')}`,
+    );
   }
   return price[0];
 }

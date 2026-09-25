@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { fundHistoryParts, zipOf } from './__fixtures__/xlsx';
@@ -9,35 +11,72 @@ import {
 } from './fund-history';
 import { readXlsx, type XlsxCell, type XlsxWorkbook } from './xlsx';
 
+/** REIT's document category as the provider's CMS answered the offer page's own request. */
+const LIST = readFileSync(
+  new URL('./__fixtures__/cms-category-19-2026-09-25.json', import.meta.url),
+  'utf8',
+);
 const CDN = 'https://d2zk2gr3fhkmim.cloudfront.net';
-const anchor = (file: string) => `<a href="${CDN}/${file}" target="_blank" rel="noopener">xlsx</a>`;
+const CZINA = `${CDN}/Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx`;
+const DIVIDENDI = `${CDN}/Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx`;
 
-describe('priceFileLink', () => {
+/** The list with one string swapped, counted first so a string that matched nothing cannot pass. */
+function swapped(from: string, to: string): string {
+  expect(LIST.split(from)).toHaveLength(2);
+  return LIST.replace(from, to);
+}
+
+interface Category {
+  id: number;
+  attributes: {
+    documents: { data: { attributes: { documents: { file: { data: unknown } }[] } }[] };
+  };
+}
+const category = () => (JSON.parse(LIST) as { data: [Category] }).data[0];
+
+describe('priceFileLink, over a fund’s CMS document list', () => {
   it('takes the one price file and never the dividend file beside it', () => {
-    const html = `<div>${anchor('Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx')}${anchor('Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx')}</div>`;
-    expect(priceFileLink(html)).toBe(`${CDN}/Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx`);
+    expect(priceFileLink(LIST, 19)).toBe(CZINA);
   });
 
-  it('counts the same link twice as one', () => {
-    const a = anchor('Enerdzhi_czina_06_07_2026_2c553a3277.xlsx');
-    expect(priceFileLink(a + a)).toBe(`${CDN}/Enerdzhi_czina_06_07_2026_2c553a3277.xlsx`);
+  it('counts the same file listed twice as one', () => {
+    expect(priceFileLink(swapped(DIVIDENDI, CZINA), 19)).toBe(CZINA);
   });
 
-  it('refuses a page with no price file, listing what it saw', () => {
-    expect(() => priceFileLink(anchor('Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx'))).toThrow(
-      /no price file.*dividendi/,
+  it('skips a document entry that carries no file', () => {
+    const c = category();
+    c.attributes.documents.data[0].attributes.documents[0].file.data = null;
+    expect(priceFileLink(JSON.stringify({ data: [c] }), 19)).toBe(CZINA);
+  });
+
+  it('refuses a list with no price file, naming the files it saw', () => {
+    expect(() => priceFileLink(swapped(CZINA, `${CDN}/Inzhur_REIT_istoriya_aa.xlsx`), 19)).toThrow(
+      /no price file.*istoriya_aa.*dividendi/,
     );
   });
 
   it('refuses two different price files rather than choosing', () => {
-    const html = anchor('A_czina_1_aa.xlsx') + anchor('A_czina_2_bb.xlsx');
-    expect(() => priceFileLink(html)).toThrow(/2 price files/);
+    expect(() =>
+      priceFileLink(swapped(DIVIDENDI, `${CDN}/Inzhur_REIT_czina_2_bb.xlsx`), 19),
+    ).toThrow(/2 price files.*346a256fc9.*czina_2_bb/);
   });
 
-  it('decodes an entity-escaped href', () => {
-    expect(priceFileLink(`<a href="${CDN}/x_czina.xlsx?a=1&amp;b=2">`)).toBe(
-      `${CDN}/x_czina.xlsx?a=1&b=2`,
-    );
+  it('refuses any other answer, naming the category asked for', () => {
+    const c = category();
+    const bodies: Record<string, string> = {
+      'not JSON': '<!doctype html><html></html>',
+      'no data': '{}',
+      'no category, as an id the CMS no longer holds answers': '{"data":[],"meta":{}}',
+      'two categories, as an ignored filter answers': JSON.stringify({
+        data: [c, { ...c, id: 18 }],
+      }),
+      'another category': JSON.stringify({ data: [{ ...c, id: 18 }] }),
+      'the flattened Strapi 5 shape': JSON.stringify({ data: [{ id: 19, ...c.attributes }] }),
+      'a file without a url': swapped(`"url": "${CZINA}"`, '"url": 7'),
+    };
+    for (const [why, body] of Object.entries(bodies)) {
+      expect(() => priceFileLink(body, 19), why).toThrow(/category 19/);
+    }
   });
 });
 

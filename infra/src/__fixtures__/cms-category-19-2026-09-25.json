@@ -1,0 +1,943 @@
+{
+  "data": [
+    {
+      "id": 19,
+      "attributes": {
+        "title": "Inzhur REIT",
+        "createdAt": "2025-06-30T13:08:26.467Z",
+        "updatedAt": "2026-08-11T14:24:18.244Z",
+        "publishedAt": "2025-06-30T13:40:04.570Z",
+        "documents": {
+          "data": [
+            {
+              "id": 292,
+              "attributes": {
+                "name": "Договір про надання фінансових послуг щодо цінних паперів INZHUR",
+                "createdAt": "2026-02-05T10:01:09.193Z",
+                "updatedAt": "2026-08-12T15:04:14.785Z",
+                "publishedAt": "2026-02-05T10:01:10.803Z",
+                "documents": [
+                  {
+                    "id": 643,
+                    "date": "2026-08-12",
+                    "file": {
+                      "data": {
+                        "id": 2477753,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Договір про надання фінансових послуг щодо цінних паперів INZHUR (нова редакція 12.08.2026).pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Dogovir_pro_nadannya_finansovih_poslug_shhodo_czinnih_paperiv_INZHUR_nova_redakcziya_12_08_2026_0197ebd43a",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 879.41,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Dogovir_pro_nadannya_finansovih_poslug_shhodo_czinnih_paperiv_INZHUR_nova_redakcziya_12_08_2026_0197ebd43a.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-12T15:04:03.567Z",
+                          "updatedAt": "2026-08-12T15:04:03.567Z",
+                          "related": [
+                            {
+                              "__type": "api::common.common",
+                              "id": 2,
+                              "TelegramConsultancy": "https://telegram.me/InzhurREIT",
+                              "TelegramBot": "https://telegram.me/InzhurREIT_bot",
+                              "createdAt": "2023-12-15T12:26:26.159Z",
+                              "updatedAt": "2026-09-22T01:30:37.099Z",
+                              "publishedAt": "2023-12-15T12:26:28.138Z",
+                              "locale": "uk",
+                              "InvestorsChat": "https://telegram.me/InzhurREIT_bot?start=ZGw6MzI4Mzgx",
+                              "ViberBot": "viber://chat?number=%2B380671410070",
+                              "WhatsappBot": "https://api.whatsapp.com/send?phone=380671410070",
+                              "isBankIdAuthActivated": true,
+                              "contactPhone": "+38 044 290 76 85",
+                              "contactEmail": "info@inzhur.reit",
+                              "appStoreUrl": "https://apps.apple.com/ua/app/inzhur-real-estate-investing/id6752851214",
+                              "googlePlayUrl": "https://play.google.com/store/apps/details?id=app.inzhur&hl=uk",
+                              "appsFlyerAppUrl": "https://inzhur.onelink.me/1RCF",
+                              "bondSaleProcessingTime": "Викупи цінних паперів \nвідбуваються до 17:30",
+                              "bondSaleMessage": "Заявка успішно прийнята\n\nВикупи цінних паперів проводяться в будні дні до 17:30🕓\n\nСередній час виходу з інвестиції - 4,5 години 🤩",
+                              "fundSaleProcessingTime": "Викупи цінних паперів\nвідбуваються до 16:30",
+                              "fundSaleMessage": "Заявка успішно прийнята\n\n\nВикупи цінних паперів проводяться в будні дні до 16:30🕓\n\n\nЯкщо ваша заявка сформована пізніше, або у вихідний день - викуп буде проведено в найближчий робочий день ✅\n\n\nСередній час виходу з інвестиції - 4,5 години 🤩",
+                              "bondPurchaseMessage": "Вашу заявку прийнято в обробку!\n\nПісля виконання угоди цінні папери автоматично з’являться у вашому кабінеті.",
+                              "fundPurchaseMessage": null
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 248,
+              "attributes": {
+                "name": "Регламент",
+                "createdAt": "2025-06-30T13:25:49.555Z",
+                "updatedAt": "2025-06-30T13:42:55.845Z",
+                "publishedAt": "2025-06-30T13:42:55.835Z",
+                "documents": [
+                  {
+                    "id": 442,
+                    "date": "2025-05-07",
+                    "file": {
+                      "data": {
+                        "id": 415386,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Регламент ЗНПІФ ІНЖУР REIT 07.05.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Reglament_ZNPIF_IN_Zh_UR_REIT_07_05_25_27dd993b20",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 535.2,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Reglament_ZNPIF_IN_Zh_UR_REIT_07_05_25_27dd993b20.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:24:35.418Z",
+                          "updatedAt": "2025-06-30T13:24:35.418Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 443,
+                    "date": "2025-05-07",
+                    "file": {
+                      "data": {
+                        "id": 415385,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Регламент ЗНПІФ ІНЖУР REIT 07.05.25.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Reglament_ZNPIF_IN_Zh_UR_REIT_07_05_25_88cc4878bf",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 333.32,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Reglament_ZNPIF_IN_Zh_UR_REIT_07_05_25_88cc4878bf.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:24:35.355Z",
+                          "updatedAt": "2025-06-30T13:24:35.355Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 262,
+              "attributes": {
+                "name": "Зміни до Регламенту",
+                "createdAt": "2025-08-25T15:41:20.354Z",
+                "updatedAt": "2025-10-30T13:24:01.134Z",
+                "publishedAt": "2025-08-25T15:41:22.286Z",
+                "documents": [
+                  {
+                    "id": 535,
+                    "date": "2025-08-13",
+                    "file": {
+                      "data": {
+                        "id": 447967,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Зміни до регламенту ПІФ ІНЖУР REIT 13.08.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Zmini_do_reglamentu_PIF_IN_Zh_UR_REIT_13_08_25_8ebba2d54c",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 182.26,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Zmini_do_reglamentu_PIF_IN_Zh_UR_REIT_13_08_25_8ebba2d54c.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-08-25T15:40:51.631Z",
+                          "updatedAt": "2025-08-25T15:40:51.631Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 534,
+                    "date": "2025-08-13",
+                    "file": {
+                      "data": {
+                        "id": 447966,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Зміни до регламенту ПІФ ІНЖУР REIT 13.08.25.docx.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Zmini_do_reglamentu_PIF_IN_Zh_UR_REIT_13_08_25_docx_5ca7d9ea24",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 75.14,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Zmini_do_reglamentu_PIF_IN_Zh_UR_REIT_13_08_25_docx_5ca7d9ea24.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-08-25T15:40:51.622Z",
+                          "updatedAt": "2025-08-25T15:40:51.622Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 250,
+              "attributes": {
+                "name": "Проспект",
+                "createdAt": "2025-06-30T13:33:56.171Z",
+                "updatedAt": "2025-08-04T15:31:44.846Z",
+                "publishedAt": "2025-06-30T13:42:50.215Z",
+                "documents": [
+                  {
+                    "id": 446,
+                    "date": "2025-05-28",
+                    "file": {
+                      "data": {
+                        "id": 415390,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Проспект ЗНПІФ ІНЖУР REIT 28.05.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Prospekt_ZNPIF_IN_Zh_UR_REIT_28_05_25_fee2caffd3",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 610.88,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Prospekt_ZNPIF_IN_Zh_UR_REIT_28_05_25_fee2caffd3.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:32:41.070Z",
+                          "updatedAt": "2025-06-30T13:32:41.070Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 447,
+                    "date": "2025-05-28",
+                    "file": {
+                      "data": {
+                        "id": 415389,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Проспект ЗНПІФ ІНЖУР REIT 28.05.25.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Prospekt_ZNPIF_IN_Zh_UR_REIT_28_05_25_9214faec5c",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 335.57,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Prospekt_ZNPIF_IN_Zh_UR_REIT_28_05_25_9214faec5c.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:32:40.889Z",
+                          "updatedAt": "2025-06-30T13:32:40.889Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 261,
+              "attributes": {
+                "name": "Зміни до Проспекту",
+                "createdAt": "2025-08-25T15:38:14.569Z",
+                "updatedAt": "2025-10-30T13:24:25.217Z",
+                "publishedAt": "2025-08-25T15:38:16.127Z",
+                "documents": [
+                  {
+                    "id": 533,
+                    "date": "2025-08-13",
+                    "file": {
+                      "data": {
+                        "id": 447965,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Зміни до проспекту ПІФ ІНЖУР REIT 13.08.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Zmini_do_prospektu_PIF_IN_Zh_UR_REIT_13_08_25_680cd5c522",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 190.51,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Zmini_do_prospektu_PIF_IN_Zh_UR_REIT_13_08_25_680cd5c522.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-08-25T15:36:54.325Z",
+                          "updatedAt": "2025-08-25T15:36:54.325Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 532,
+                    "date": "2025-08-13",
+                    "file": {
+                      "data": {
+                        "id": 447964,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Зміни до проспекту ПІФ ІНЖУР REIT 13.08.25.docx.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Zmini_do_prospektu_PIF_IN_Zh_UR_REIT_13_08_25_docx_af4c0fc567",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 115.94,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Zmini_do_prospektu_PIF_IN_Zh_UR_REIT_13_08_25_docx_af4c0fc567.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-08-25T15:36:54.274Z",
+                          "updatedAt": "2025-08-25T15:36:54.274Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 254,
+              "attributes": {
+                "name": "Розпорядження про відповідність вимогам щодо мінімального обсягу активів",
+                "createdAt": "2025-07-31T15:20:10.227Z",
+                "updatedAt": "2025-10-30T13:24:46.478Z",
+                "publishedAt": "2025-07-31T15:20:14.008Z",
+                "documents": [
+                  {
+                    "id": 482,
+                    "date": "2025-07-31",
+                    "file": {
+                      "data": {
+                        "id": 431527,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Розпорядження_інжур REIT.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Rozporyadzhennya_inzhur_REIT_92afdc0bd9",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 425.78,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Rozporyadzhennya_inzhur_REIT_92afdc0bd9.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-07-31T15:19:14.768Z",
+                          "updatedAt": "2025-07-31T15:19:14.768Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 481,
+                    "date": "2025-07-31",
+                    "file": {
+                      "data": {
+                        "id": 431526,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Розпорядження_інжур REIT.pdf.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Rozporyadzhennya_inzhur_REIT_pdf_baba2c01f6",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 19.68,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Rozporyadzhennya_inzhur_REIT_pdf_baba2c01f6.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-07-31T15:19:14.753Z",
+                          "updatedAt": "2025-07-31T15:19:14.753Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 249,
+              "attributes": {
+                "name": "Свідоцтво про внесення до ЄДРІСІ ",
+                "createdAt": "2025-06-30T13:31:17.698Z",
+                "updatedAt": "2025-06-30T13:42:18.669Z",
+                "publishedAt": "2025-06-30T13:42:18.656Z",
+                "documents": [
+                  {
+                    "id": 445,
+                    "date": "2025-05-20",
+                    "file": {
+                      "data": {
+                        "id": 415388,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Свідоцтво ЄДРІСІ ЗНПІФ ІНЖУР REIT 20.05.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Svidocztvo_Ye_DRISI_ZNPIF_IN_Zh_UR_REIT_20_05_25_869b40c2f3",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 122.43,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Svidocztvo_Ye_DRISI_ZNPIF_IN_Zh_UR_REIT_20_05_25_869b40c2f3.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:30:04.323Z",
+                          "updatedAt": "2025-06-30T13:30:04.323Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 444,
+                    "date": "2025-05-20",
+                    "file": {
+                      "data": {
+                        "id": 415387,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Свідоцтво ЄДРІСІ ЗНПІФ ІНЖУР REIT 20.05.25.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Svidocztvo_Ye_DRISI_ZNPIF_IN_Zh_UR_REIT_20_05_25_446c4f5ae4",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 19.69,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Svidocztvo_Ye_DRISI_ZNPIF_IN_Zh_UR_REIT_20_05_25_446c4f5ae4.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:30:04.165Z",
+                          "updatedAt": "2025-06-30T13:31:08.221Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 251,
+              "attributes": {
+                "name": "Свідоцтво про державну реєстрацію випуску цінних паперів",
+                "createdAt": "2025-06-30T13:39:16.314Z",
+                "updatedAt": "2025-08-04T15:33:11.659Z",
+                "publishedAt": "2025-06-30T13:42:44.961Z",
+                "documents": [
+                  {
+                    "id": 448,
+                    "date": "2025-06-27",
+                    "file": {
+                      "data": {
+                        "id": 415392,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Свідоцтво про інвест.сер. ЗНПІФ ІНЖУР REIT 27.06.25.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Svidocztvo_pro_invest_ser_ZNPIF_IN_Zh_UR_REIT_27_06_25_d50ef0a8f4",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 120.06,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Svidocztvo_pro_invest_ser_ZNPIF_IN_Zh_UR_REIT_27_06_25_d50ef0a8f4.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:38:33.193Z",
+                          "updatedAt": "2025-06-30T13:38:33.193Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 449,
+                    "date": "2025-06-27",
+                    "file": {
+                      "data": {
+                        "id": 415391,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Свідоцтво про інвест.сер. ЗНПІФ ІНЖУР REIT 27.06.25.p7s",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Svidocztvo_pro_invest_ser_ZNPIF_IN_Zh_UR_REIT_27_06_25_63e818e502",
+                          "ext": ".p7s",
+                          "mime": "application/pkcs7-signature",
+                          "size": 19.69,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Svidocztvo_pro_invest_ser_ZNPIF_IN_Zh_UR_REIT_27_06_25_63e818e502.p7s",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-06-30T13:38:33.099Z",
+                          "updatedAt": "2025-06-30T13:38:33.099Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 260,
+              "attributes": {
+                "name": "Інформація про аудитора, оцінювача майна, зберігача активів та інвестиційну фірму",
+                "createdAt": "2025-08-08T09:01:24.498Z",
+                "updatedAt": "2026-08-11T13:05:55.309Z",
+                "publishedAt": "2025-08-08T09:01:30.319Z",
+                "documents": [
+                  {
+                    "id": 521,
+                    "date": "2026-06-24",
+                    "file": {
+                      "data": {
+                        "id": 2468613,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Особи, які обслуговують ЗНПІФ «ІНЖУР REIT».docx",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Osobi_yaki_obslugovuyut_ZNPIF_IN_Zh_UR_REIT_8afe81182c",
+                          "ext": ".docx",
+                          "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                          "size": 13.99,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Osobi_yaki_obslugovuyut_ZNPIF_IN_Zh_UR_REIT_8afe81182c.docx",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-11T13:05:49.048Z",
+                          "updatedAt": "2026-08-11T13:05:49.048Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 273,
+              "attributes": {
+                "name": "Вартість 1 інвест.сертифікату (історичні дані)",
+                "createdAt": "2025-10-08T13:03:50.612Z",
+                "updatedAt": "2026-07-06T14:08:53.004Z",
+                "publishedAt": "2025-10-08T13:04:28.864Z",
+                "documents": [
+                  {
+                    "id": 701,
+                    "date": "2026-07-06",
+                    "file": {
+                      "data": {
+                        "id": 2054258,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Inzhur_REIT_czina_06.07.2026.xlsx",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Inzhur_REIT_czina_06_07_2026_346a256fc9",
+                          "ext": ".xlsx",
+                          "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                          "size": 25.46,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-07-06T14:08:46.724Z",
+                          "updatedAt": "2026-07-06T14:08:46.724Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 285,
+              "attributes": {
+                "name": "Довідка ВЧА ",
+                "createdAt": "2025-10-29T16:23:22.488Z",
+                "updatedAt": "2026-08-07T14:02:57.536Z",
+                "publishedAt": "2025-10-29T16:23:25.159Z",
+                "documents": [
+                  {
+                    "id": 705,
+                    "date": "2026-06-30",
+                    "file": {
+                      "data": {
+                        "id": 2325380,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "ВЧА станом на 30.06.2026.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "V_Ch_A_stanom_na_30_06_2026_aef4d77931",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 9213.44,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/V_Ch_A_stanom_na_30_06_2026_aef4d77931.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-07T14:02:51.334Z",
+                          "updatedAt": "2026-08-07T14:02:51.334Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 666,
+                    "date": "2026-03-31",
+                    "file": {
+                      "data": {
+                        "id": 2325378,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "ВЧА станом на 31.03.2026.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "V_Ch_A_stanom_na_31_03_2026_ee505d2612",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 9974.41,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/V_Ch_A_stanom_na_31_03_2026_ee505d2612.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-07T14:02:19.583Z",
+                          "updatedAt": "2026-08-07T14:02:19.583Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 652,
+                    "date": "2025-12-31",
+                    "file": {
+                      "data": {
+                        "id": 2325376,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "ВЧА станом на 31.12.2025.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "V_Ch_A_stanom_na_31_12_2025_1e30075a37",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 5772.41,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/V_Ch_A_stanom_na_31_12_2025_1e30075a37.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-07T14:01:47.529Z",
+                          "updatedAt": "2026-08-07T14:01:47.529Z"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": 584,
+                    "date": "2025-09-30",
+                    "file": {
+                      "data": {
+                        "id": 2325374,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "ВЧА станом на 30.09.2025.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "V_Ch_A_stanom_na_30_09_2025_a73ceea363",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 4937.31,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/V_Ch_A_stanom_na_30_09_2025_a73ceea363.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-07T14:01:09.386Z",
+                          "updatedAt": "2026-08-07T14:01:09.386Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 296,
+              "attributes": {
+                "name": "Фінансова звітність та аудиторський висновок 2025 рік",
+                "createdAt": "2026-04-30T16:25:53.183Z",
+                "updatedAt": "2026-08-12T10:14:25.988Z",
+                "publishedAt": "2026-04-30T16:25:55.053Z",
+                "documents": [
+                  {
+                    "id": 668,
+                    "date": "2025-12-31",
+                    "file": {
+                      "data": {
+                        "id": 2475220,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "2025_44154853_REIT_31_12_2026.html",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "2025_44154853_REIT_31_12_2026_ddbee09804",
+                          "ext": ".html",
+                          "mime": "text/html",
+                          "size": 635.06,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/2025_44154853_REIT_31_12_2026_ddbee09804.html",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-12T10:14:20.009Z",
+                          "updatedAt": "2026-08-12T10:14:20.009Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 274,
+              "attributes": {
+                "name": "Історія виплати дивідендів на 1 інвестиційний сертифікат",
+                "createdAt": "2025-10-08T13:12:59.386Z",
+                "updatedAt": "2026-07-28T11:21:13.241Z",
+                "publishedAt": "2025-10-08T13:13:02.213Z",
+                "documents": [
+                  {
+                    "id": 704,
+                    "date": "2026-07-28",
+                    "file": {
+                      "data": {
+                        "id": 2276486,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Inzhur_REIT_dividendi_28.07.xlsx",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Inzhur_REIT_dividendi_28_07_29bd9cd4a8",
+                          "ext": ".xlsx",
+                          "mime": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                          "size": 14.51,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-07-28T11:21:06.528Z",
+                          "updatedAt": "2026-07-28T11:21:06.528Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 265,
+              "attributes": {
+                "name": "Повідомлення щодо правонаступництва",
+                "createdAt": "2025-09-02T07:25:29.433Z",
+                "updatedAt": "2025-09-02T07:25:32.109Z",
+                "publishedAt": "2025-09-02T07:25:32.097Z",
+                "documents": [
+                  {
+                    "id": 544,
+                    "date": "2025-09-02",
+                    "file": {
+                      "data": {
+                        "id": 450744,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Повідомлення_на_сайт_про_ІНЖУР_REIT.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Povidomlennya_na_sajt_pro_IN_Zh_UR_REIT_b555ab0a18",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 621.54,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Povidomlennya_na_sajt_pro_IN_Zh_UR_REIT_b555ab0a18.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2025-09-02T07:24:51.820Z",
+                          "updatedAt": "2025-09-02T07:24:51.820Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": 291,
+              "attributes": {
+                "name": "Результат оцінки нерухомості від 31.12.2025",
+                "createdAt": "2026-01-28T14:14:39.018Z",
+                "updatedAt": "2026-08-11T21:06:27.196Z",
+                "publishedAt": "2026-01-28T14:14:40.936Z",
+                "documents": [
+                  {
+                    "id": 607,
+                    "date": "2025-12-31",
+                    "file": {
+                      "data": {
+                        "id": 2470778,
+                        "attributes": {
+                          "uploadDestination": "default",
+                          "uploadPath": "",
+                          "name": "Report_ZVNT_Summary_signed_39d2b253dd.pdf",
+                          "alternativeText": null,
+                          "caption": null,
+                          "width": null,
+                          "height": null,
+                          "formats": null,
+                          "hash": "Report_ZVNT_Summary_signed_39d2b253dd_ae7a69091f",
+                          "ext": ".pdf",
+                          "mime": "application/pdf",
+                          "size": 120.22,
+                          "url": "https://d2zk2gr3fhkmim.cloudfront.net/Report_ZVNT_Summary_signed_39d2b253dd_ae7a69091f.pdf",
+                          "previewUrl": null,
+                          "provider": "custom-s3-upload-provider",
+                          "provider_metadata": null,
+                          "createdAt": "2026-08-11T21:06:20.891Z",
+                          "updatedAt": "2026-08-11T21:06:20.891Z"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "fund": {
+          "data": {
+            "id": 11,
+            "attributes": {
+              "licenses": "Свідоцтво про внесення до ЄДРІСІ № 01750 від 20.05.2025\nСвідоцтво про державну реєстрацію випуску цінних паперів № 004949 від 27.06.2025"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "meta": { "pagination": { "page": 1, "pageSize": 25, "pageCount": 1, "total": 1 } }
+}

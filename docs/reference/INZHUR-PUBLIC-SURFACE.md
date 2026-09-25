@@ -56,9 +56,9 @@ one the feed served.
 
 **Do not divide assets by certificates to check NAV** — *ВЧА* is net of liabilities and *Вартість
 активів фонду* is gross, so the ~2 % gap reads like a parse error when it is a balance sheet.
-Quarterly «Довідка ВЧА» PDFs, linked from each offer page, are the anchor points a parse of the
-daily series must agree with at quarter end — only where a published file overlaps one, which for
-Energy means 2024-11-14 onward:
+Quarterly «Довідка ВЧА» PDFs, listed with the price files in each fund's document category, are the
+anchor points a parse of the daily series must agree with at quarter end — only where a published
+file overlaps one, which for Energy means 2024-11-14 onward:
 
 | Fund | Quarters linked |
 |---|---|
@@ -72,8 +72,22 @@ Energy means 2024-11-14 onward:
 
 ## Fetching the files
 
-Linked from the **offer pages**, which `robots.txt` allows, served from
-`d2zk2gr3fhkmim.cloudfront.net`, plus a dividend file:
+**Listed by the provider's CMS, not in the offer pages' HTML.** Each fund page's `Documents`
+section, a Vue component inside the `DynamicZone` island, requests one document category from
+`https://api.inzhur.reit/cms` (Strapi 4) once mounted: the first its `data` prop's `categoriesList`
+names, `19` on `inzhur-reit`'s page and `18` on `inzhur-energy`'s. The list names other categories
+too, the other fund's among them, fetched only when their tab is clicked:
+
+```
+GET https://api.inzhur.reit/cms/api/general-document-categories?filters[id]=19&populate[documents][populate][documents][fields][0]=date&populate[documents][populate][documents][populate][file][populate]=%2A&populate[documents][populate][documents][sort][0]=date%3ADESC&populate[fund][fields][0]=licenses
+```
+
+That is the component's own query, serialized by `qs` with `encodeValuesOnly`, so its brackets
+travel raw. The answer is one category at `data[0]`; its documents are
+`attributes.documents.data[]`, each with a `name` and its files newest first in
+`attributes.documents[]` — the page's card and sub-cards, a signed copy's `.p7s` among them — each
+file's URL at `file.data.attributes.url` on `d2zk2gr3fhkmim.cloudfront.net`. Among the fund's other
+documents the category lists its price file, and REIT's a dividend file too:
 
 ```
 Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx
@@ -81,13 +95,15 @@ Enerdzhi_czina_06_07_2026_2c553a3277.xlsx
 Inzhur_REIT_dividendi_28_07_29bd9cd4a8.xlsx
 ```
 
-Fetching them automatically is allowed — the links sit on an allowed page and the CDN is a separate
-origin with **no `robots.txt` at all** (`404 NoSuchKey`); `/documents` is not the path used. **The
-filename carries a content hash, so polling these URLs signals nothing forever** — re-read the offer
-page for the current link, and take the cut from `Last-Modified` rather than the name, which is not
-uniformly formed (the dividend file is `…_dividendi_28_07_…`, no year). The importer
-(`importFundHistory` in `infra/src/capture.ts`) takes the single `czina` link on each offer page and
-never the `dividendi` one; two price links, or none, stop it.
+Fetching them automatically is allowed — `api.inzhur.reit` and the CDN both answer `404` for
+`robots.txt` (the CDN's is `NoSuchKey`), which RFC 9309 reads as no rule; `/documents` is not the
+path used. **A cut uploaded anew lands at a new URL** — Strapi's `generateFileName` suffixes each
+upload's name at random — **so polling an old URL does not find it**: re-read the category for the
+current link, and take the cut from `Last-Modified` rather than the name, which is not uniformly
+formed (the dividend file is `…_dividendi_28_07_…`, no year). The importer (`importFundHistory` in
+`infra/src/capture.ts`) takes the single `czina` .xlsx in each category and never the `dividendi`
+one; two price files, or none, stop it, and so does an answer that is not the one category it asked
+for.
 
 `https://www.inzhur.reit/robots.txt` allows `/` and disallows `/dashboard/`, `/signin/`,
 `/signup/`, `/documents`, `/terms`, `/privacy-policy`, `/fund_merger_report`,
@@ -99,4 +115,4 @@ The asset feed the capture read, `GET /_api/assets`, answers `302 Found` with
 follow it ([`DECISIONS.md`](../DECISIONS.md), *External sources*).
 The capture reads `/offer/ovdp` in its place. The API host the pages name, `api.inzhur.reit`,
 publishes no `robots.txt`, but none of the conventional OpenAPI or versioned paths under its `/core`
-answers.
+answers; its `/cms` is read only for the document lists above.

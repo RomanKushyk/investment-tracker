@@ -1,5 +1,6 @@
 // The Inzhur half of `handler`, on PGlite with the cluster connection replaced: what a capture
-// records and what `observe` derives from it, across the feed era and the offer page's.
+// records and what `observe` derives from it, across the feed era and the offer page's, and
+// where `importFundHistory` finds each fund's price file.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
@@ -10,6 +11,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { freshDb } from './__fixtures__/pglite';
+import { fundHistoryParts, zipOf } from './__fixtures__/xlsx';
 import { handler } from './capture';
 import { connect } from './dsql';
 
@@ -198,5 +200,69 @@ describe('a capture of a page missing what it reads is a recorded failure', () =
       error: 'feed parsed to zero entries',
       payload_bytes: Buffer.byteLength(body, 'utf8'),
     });
+  });
+});
+
+describe('importFundHistory reads each fund’s price file from its CMS document list', () => {
+  const LIST = readFileSync(
+    new URL('./__fixtures__/cms-category-19-2026-09-25.json', import.meta.url),
+    'utf8',
+  );
+  const CZINA =
+    'https://d2zk2gr3fhkmim.cloudfront.net/Inzhur_REIT_czina_06_07_2026_346a256fc9.xlsx';
+  const API_ROBOTS = 'https://api.inzhur.reit/robots.txt';
+  const CDN_ROBOTS = 'https://d2zk2gr3fhkmim.cloudfront.net/robots.txt';
+  const LIST_19 = expect.stringMatching(
+    /^https:\/\/api\.inzhur\.reit\/cms\/api\/general-document-categories\?filters\[id\]=19&/,
+  );
+
+  /** The provider's hosts with the network replaced: robots.txt a 404 on both, which RFC 9309
+   *  reads as no rule, and category 19 answering `list`. Every URL asked is recorded, so "never
+   *  fetched" is a count, not an inference. */
+  function inzhur(list: string): string[] {
+    const asked: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      asked.push(url);
+      const at = new URL(url);
+      if (
+        `${at.origin}${at.pathname}` ===
+          'https://api.inzhur.reit/cms/api/general-document-categories' &&
+        at.searchParams.get('filters[id]') === '19'
+      ) {
+        return new Response(list, { headers: { 'content-type': 'application/json' } });
+      }
+      if (url === CZINA) return new Response(Buffer.from(zipOf(fundHistoryParts())));
+      return new Response(null, { status: 404 });
+    });
+    return asked;
+  }
+
+  it('imports the price file the category lists, and asks for nothing else', async () => {
+    const asked = inzhur(LIST);
+
+    const result = await handler({ importFundHistory: { refs: ['inzhur-reit'] } });
+
+    expect(result).toMatchObject({
+      mode: 'importFundHistory',
+      funds: [
+        {
+          ref: 'inzhur-reit',
+          file: CZINA,
+          rows: 9,
+          written: 9,
+          from: '2025-12-26',
+          to: '2026-01-03',
+        },
+      ],
+    });
+    expect(asked).toEqual([API_ROBOTS, LIST_19, CDN_ROBOTS, CZINA]);
+  });
+
+  it('stops at an answer of another shape, naming the category, and fetches nothing after it', async () => {
+    const asked = inzhur('{"data":[{"id":19,"title":"Inzhur REIT","documents":[]}]}');
+
+    await expect(handler({ importFundHistory: {} })).rejects.toThrow(/category 19/);
+    expect(asked).toEqual([API_ROBOTS, LIST_19]);
   });
 });

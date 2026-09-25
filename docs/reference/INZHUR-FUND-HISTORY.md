@@ -4,8 +4,8 @@ What the two Excel files the provider publishes hold, and the arithmetic that sa
 is. The files live in `C:\Users\roman\.quirenote\` and are **never committed** — `*.xlsx` is
 gitignored as real financial data — so `infra/src/fund-history.local.test.ts` reads them from there
 when present and skips everywhere else. The archive gets their rows through the Lambda's
-`importFundHistory` mode, which re-reads each offer page for the current link
-([`INZHUR-PUBLIC-SURFACE.md`](INZHUR-PUBLIC-SURFACE.md)).
+`importFundHistory` mode, which re-reads each fund's document list in the provider's CMS for the
+current link ([`INZHUR-PUBLIC-SURFACE.md`](INZHUR-PUBLIC-SURFACE.md)).
 
 | File | Instrument | Span | Rows |
 |---|---|---|---|
