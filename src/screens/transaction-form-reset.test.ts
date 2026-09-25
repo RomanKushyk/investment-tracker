@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // A CONTROLLED «Сума» IS THE FIX, and the reason is that the uncontrolled one failed
@@ -26,50 +27,47 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const RAW = readFileSync(join(here, 'TransactionPanel.tsx'), 'utf8');
 
-/** QUOTE-EXACT AND LINE BY LINE, which is the half a regex cannot do: dropping only
- *  whole-line `//` comments leaves the trailing ones, and one apostrophe in prose then
- *  desynchronises every quote pair after it. Copied from
- *  `floating-edges.test.ts` SIGNATURE AND ALL — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// register('amount'` in the panel leaves this green and turns
- *  the reader it replaces red. Rule 2 above already held for prose written on its own line, which
- *  is how rationale is written; the hole this closes is the comment that trails code. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+/** Copied from `ts-reader.test.ts` SIGNATURE AND ALL — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
-const CODE = stripTs(RAW);
+const CODE = stripTs(RAW, 'TransactionPanel.tsx');
 
 /** The amount field's own JSX: from its `name="amount"` to the end of that Controller. */
 function amountField(): string {
@@ -111,6 +109,7 @@ describe('the transaction form survives its own reset', () => {
     // are substring matches, and `// ref(el)` in a comment is not a ref.
     const shared = stripTs(
       readFileSync(join(here, '..', 'components', 'ui', 'NumberField.tsx'), 'utf8'),
+      'NumberField.tsx',
     );
     expect(shared, 'NumberField declares no ref prop').toMatch(/ref\?: Ref<HTMLInputElement>/);
     expect(shared, 'NumberField never passes the ref on').toMatch(/ref\(el\)/);

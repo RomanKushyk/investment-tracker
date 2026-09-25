@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // THE SEASONALITY TOOLTIP NAMES ITS ROWS FROM THE DICTIONARY. recharts prints a series'
@@ -10,49 +11,51 @@ import { describe, expect, it } from 'vitest';
 // mount the chart here.
 const here = dirname(fileURLToPath(import.meta.url));
 /** COMMENTS STRIPPED BEFORE MATCHING: prose must not be able to pass or fail a test.
- *  QUOTE-EXACT AND LINE BY LINE, because dropping only whole-line `//` comments leaves the
- *  trailing ones and one apostrophe in prose then desynchronises every quote pair after it.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// name={names.actual}` on the bare actual `<Bar>` leaves
- *  this red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
-const CHART = stripTs(readFileSync(join(here, 'SeasonalityBars.tsx'), 'utf8'));
+const CHART = stripTs(
+  readFileSync(join(here, 'SeasonalityBars.tsx'), 'utf8'),
+  'SeasonalityBars.tsx',
+);
 
 // The props of every `<Bar …>` opening tag; `\s` after the name keeps `<BarChart>` out.
 const BARS = [...CHART.matchAll(/<Bar\s([^>]*)>/g)].map((m) => m[1] ?? '');

@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO } from '../../src/repo-root';
@@ -114,47 +115,47 @@ const inlineStatements = (t: Template, id: string) =>
 const CLUSTER = 'AWS::DSQL::Cluster';
 
 /** `capture.ts` is read through this, so a commented-out copy of the DDL cannot stand in for a
- *  deleted table. LINE BY LINE, and the line boundary is the point: a regex literal may hold a
- *  quote, and one desync would switch stripping off for the rest of the file.
+ *  deleted table.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: the `price_observation` key changed in `capture.ts`, with the old one
- *  left in a comment, turns this red, where the reader-less read stayed green. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 describe('the archive stack holds the archive and nothing else', () => {
@@ -178,7 +179,9 @@ describe('the archive stack holds the archive and nothing else', () => {
     // capture.ts and NOT migrations/002_price_observation.sql: the archive's migration files are
     // reference copies of this DDL, read by nothing (infra/README.md), so a guard anchored there
     // stays green with the deployed table gone. `[\s\S]` and not `.`, which excludes \r on CRLF.
-    expect(stripTs(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8'))).toMatch(
+    expect(
+      stripTs(readFileSync(new URL('./capture.ts', import.meta.url), 'utf8'), './capture.ts'),
+    ).toMatch(
       /CREATE TABLE IF NOT EXISTS price_observation \([\s\S]*?PRIMARY KEY \(as_of, instrument_ref, basis, source\)/,
     );
     // Dimensioned, not merely present: the comment above cites a PER-SOURCE count, and dropping

@@ -140,45 +140,45 @@ describe('the field edge clears 3 : 1 on every surface, in both themes', () => {
 
 /* ────────────────────────── the markup half ────────────────────────── */
 
-/** QUOTE-EXACT and line by line: a reader that drops only whole-line `//` comments leaves
- *  the trailing ones, and one apostrophe in prose then desynchronises every quote pair
- *  after it. Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard
- *  that stands alone, and a copy that drifts in shape cannot be folded back if they are
- *  ever pooled. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+/** Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 function sourceFiles(dir: string): string[] {
@@ -522,7 +522,7 @@ describe('what the ruling deliberately does not touch', () => {
       'screens/settings/ImportDialog.tsx',
       'screens/TransactionPanel.tsx',
     ]) {
-      expect(stripTs(read(file)), `${file} lost its dashed container edge`).toMatch(
+      expect(stripTs(read(file), file), `${file} lost its dashed container edge`).toMatch(
         /border-dashed border-faint/,
       );
     }
@@ -531,9 +531,13 @@ describe('what the ruling deliberately does not touch', () => {
   // `Select`'s two arms resolve to one token, so the prop was one behaviour with two
   // spellings. `isNewAsset` is NOT collateral: `transaction-form-reset.test.ts` pins it.
   it('drops the `borderColor` variant but keeps `isNewAsset`', () => {
-    expect(stripTs(read('components/ui/Select.tsx'))).not.toMatch(/borderColor/);
-    expect(stripTs(read('screens/TransactionPanel.tsx'))).not.toMatch(/borderColor=/);
-    expect(stripTs(read('screens/TransactionPanel.tsx'))).toMatch(
+    expect(stripTs(read('components/ui/Select.tsx'), 'components/ui/Select.tsx')).not.toMatch(
+      /borderColor/,
+    );
+    expect(
+      stripTs(read('screens/TransactionPanel.tsx'), 'screens/TransactionPanel.tsx'),
+    ).not.toMatch(/borderColor=/);
+    expect(stripTs(read('screens/TransactionPanel.tsx'), 'screens/TransactionPanel.tsx')).toMatch(
       /const isNewAsset = needsAsset && pickedNew;/,
     );
   });
@@ -545,7 +549,7 @@ describe('what the ruling deliberately does not touch', () => {
       'screens/daily-quotes/CouponDueCard.tsx',
       'screens/settings/ImportDialog.tsx',
     ]) {
-      const checkbox = stripTs(read(file))
+      const checkbox = stripTs(read(file), file)
         .split('\n')
         .filter((l) => /rounded-\[5px\]/.test(l));
       expect(checkbox.length, `${file}: the checkbox line vanished`).toBeGreaterThan(0);

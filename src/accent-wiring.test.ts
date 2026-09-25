@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // THE ACCENT'S CONSUMERS, WHICH ARE THE HALF A CONTRAST TEST CANNOT SEE.
@@ -16,54 +17,55 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
-/** QUOTE-EXACT and line by line. The comments these files carry NAME every token asserted
- *  below, so an unstripped match is satisfied by prose about a token instead of the token.
- *  A reader that drops only whole-line `//` comments leaves the trailing ones, and
- *  `CouponDueCard.tsx` carries one whose apostrophe then desynchronises every quote pair
- *  after it.
+/** The comments these files carry NAME every token asserted below, so an unstripped match is
+ *  satisfied by prose about a token instead of the token.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// pos:` on a line inside `colors.ts`'s CHART map leaves this
- *  green and turns the reader it replaces red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 describe('the primary button is the accent', () => {
-  const variants = stripTs(read('components/ui/button-variants.ts'));
+  const variants = stripTs(
+    read('components/ui/button-variants.ts'),
+    'components/ui/button-variants.ts',
+  );
 
   /** An anchor rather than a whole-file match: `bg-accent` anywhere in this file would
    *  satisfy a bare search, including on the `outline` arm, which must not have it.
@@ -109,7 +111,10 @@ describe("the coupon card does not spend the screen's one accent fill", () => {
   // THIS PINS ONE CONTROL, NOT THE INVARIANT. While `primary` stays the Button's default
   // variant a bare `<Button>` can spend a screen's fill without naming it — #115 has both
   // halves.
-  const card = stripTs(read('screens/daily-quotes/CouponDueCard.tsx'));
+  const card = stripTs(
+    read('screens/daily-quotes/CouponDueCard.tsx'),
+    'screens/daily-quotes/CouponDueCard.tsx',
+  );
 
   it('leaves the coupon card the outline, not the fill', () => {
     const confirm = card.match(/<Button[^>]*onClick=\{handleConfirm\}[^>]*>/);
@@ -130,8 +135,11 @@ describe("the coupon card does not spend the screen's one accent fill", () => {
 });
 
 describe('the capital area chart is the accent', () => {
-  const colors = stripTs(read('../packages/core/src/colors.ts'));
-  const area = stripTs(read('components/charts/BalancesArea.tsx'));
+  const colors = stripTs(read('../packages/core/src/colors.ts'), '../packages/core/src/colors.ts');
+  const area = stripTs(
+    read('components/charts/BalancesArea.tsx'),
+    'components/charts/BalancesArea.tsx',
+  );
 
   /** Scoped, because `colors.ts` also holds `SERIES` and the tooltip objects: a whole-file
    *  `not.toMatch(/pos:/)` fails on a `pos:` key added to any of those. */

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import { migrateSettings } from '../state/settings';
@@ -16,47 +17,45 @@ import { resolveTheme } from './theme';
 const here = dirname(fileURLToPath(import.meta.url));
 const INDEX_HTML = readFileSync(join(here, '..', '..', 'index.html'), 'utf8');
 
-/** LINE BY LINE, and the line boundary is the point: a regex literal may hold a quote, and
- *  one desync would switch stripping off for the rest of the file.
- *
- *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// data-theme` in `BalancesArea.tsx` leaves this green and
- *  turned it red while these reads went unstripped. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+/** Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 /** The inline boot script's body, taken from the <head> of index.html. */
@@ -206,7 +205,7 @@ describe('the charts are kept out of the theme flip', () => {
     const files = readdirSync(CHART_DIR).filter((f) => f.endsWith('.tsx'));
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
-      const source = stripTs(readFileSync(join(CHART_DIR, file), 'utf8'));
+      const source = stripTs(readFileSync(join(CHART_DIR, file), 'utf8'), file);
       expect(source, `${file} must not depend on the theme`).not.toMatch(
         /useTheme|resolveTheme|data-theme|dataset\.theme|prefers-color-scheme/,
       );
@@ -223,7 +222,10 @@ describe('the theme survives the persist contract', () => {
     // Doctrine #1 in `state/settings.ts`, which is where the `partialize` rule is written
     // down. Checked against the SOURCE rather than by round-tripping a store, because the
     // failure it guards is a MISSING line and a store test would pass by hydrating the default.
-    const source = stripTs(readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8'));
+    const source = stripTs(
+      readFileSync(join(here, '..', 'state', 'settings.ts'), 'utf8'),
+      'settings.ts',
+    );
     const partialize = /partialize: \(s\) => \(\{([\s\S]*?)\}\)/.exec(source)?.[1] ?? '';
     expect(partialize).toContain('theme: s.theme');
   });
@@ -238,7 +240,8 @@ describe('the theme survives the persist contract', () => {
 // SOURCE TEXT, because the suite runs `environment: 'node'` with no jsdom. What it pins is
 // the wiring; that the store holds the value is `state/settings.test.ts`'s arm.
 describe('the sidebar and the Appearance card write the one stored preference', () => {
-  const read = (...rel: string[]) => stripTs(readFileSync(join(here, '..', ...rel), 'utf8'));
+  const read = (...rel: string[]) =>
+    stripTs(readFileSync(join(here, '..', ...rel), 'utf8'), join(...rel));
   const SIDEBAR = read('app', 'Sidebar.tsx');
   const SETTINGS = read('screens', 'Settings.tsx');
   const STORE = read('state', 'settings.ts');

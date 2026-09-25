@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // Nothing else catches a placeholder/argument mismatch: TypeScript does not
@@ -8,51 +9,50 @@ import { describe, expect, it } from 'vitest';
 // `diagnose` is reached only by an explicit event.
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** `capture.ts` is read through this, once, so a commented-out call is no call. LINE BY LINE,
- *  and the line boundary is the point: a regex literal may hold a quote, and one desync would
- *  switch stripping off for the rest of the file.
+/** `capture.ts` is read through this, once, so a commented-out call is no call.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a commented-out `client.query(\`SELECT $1, $2\`, [a])` leaves this green
- *  and turns the reader it replaces red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
-const source = stripTs(readFileSync(join(here, 'capture.ts'), 'utf8'));
+const source = stripTs(readFileSync(join(here, 'capture.ts'), 'utf8'), 'capture.ts');
 
 /** Highest `$n` in a SQL string. `$1` alone means one parameter is expected. */
 function placeholders(sql: string): number {
@@ -62,10 +62,10 @@ function placeholders(sql: string): number {
 }
 
 /**
- * Top-level arguments in a literal array's inner text. The reader leaves a comment on the line
- * that closes a multi-line template, taking its backtick for an opening one, so comments are
- * dropped here too. A string may hold a comma or a `//`, so quoted text is stepped over whole; a
- * trailing comma lies; and an argument may itself be a call with commas in it.
+ * Top-level arguments in a literal array's inner text. Comments are dropped here as well as by
+ * the reader, so the count does not rest on it. A string may hold a comma or a `//`, so quoted
+ * text is stepped over whole; a trailing comma lies; and an argument may itself be a call with
+ * commas in it.
  */
 function argCount(inner: string): number {
   let code = '';
@@ -137,7 +137,7 @@ describe('argCount reads an argument list, strings and all', () => {
     expect(argCount(`'a, b', id`)).toBe(2);
   });
 
-  it('counts past a comment the reader left on the line closing a multi-line template', () => {
+  it("leaves a line comment's commas out of the count", () => {
     expect(argCount(`a, // was a, b\n`)).toBe(1);
   });
 });

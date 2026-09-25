@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // THE IMPORT DROPZONE'S EDGE, at the same bar as the field edge, the switch and the
@@ -29,48 +30,47 @@ const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 
 /** Not cosmetic: every file read here is one whose comments discuss the utilities being
  *  asserted on, so a comment could satisfy an assertion the code fails or fail one it
- *  passes. QUOTE-EXACT AND LINE BY LINE, the half a regex cannot do — dropping only
- *  whole-line `//` comments leaves the trailing ones, and one apostrophe in prose then
- *  desynchronises every quote pair after it.
+ *  passes.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// border-dashed` in `ImportRow.tsx` leaves this green and
- *  turns the reader it replaces red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 /** The readers below take the FIRST match in a block and this stylesheet quotes token
@@ -294,7 +294,8 @@ describe('hover leaves the rest behind, and drag-over leaves hover behind', () =
 // it as the identical `rounded-[16px]` once took the whole file inert. Solidity IS pinned
 // below, because "never dashed" is a claim about the boundary this ruling owns.
 describe('the markup points at the rank', () => {
-  const source = () => stripTs(read('screens/settings/ImportRow.tsx'));
+  const source = () =>
+    stripTs(read('screens/settings/ImportRow.tsx'), 'screens/settings/ImportRow.tsx');
 
   /** The two arms of the state conditional. Both live on ONE line, so a line filter selects
    *  the same string for each and cannot tell them apart — transposing them would ship the
@@ -360,7 +361,7 @@ describe('the markup points at the rank', () => {
   // `<Card>` opened in another component, so it catches the row being rehoused wholesale
   // and nothing subtler.
   it('still renders the row inside a `Card` — a tripwire on the outward plane', () => {
-    const settings = stripTs(read('screens/Settings.tsx'));
+    const settings = stripTs(read('screens/Settings.tsx'), 'screens/Settings.tsx');
     const at = settings.indexOf('<ImportRow');
     expect(at, 'Settings no longer renders the import row').toBeGreaterThan(-1);
     const before = settings.slice(0, at);
@@ -371,8 +372,9 @@ describe('the markup points at the rank', () => {
       opened - selfClosed - closed,
       'the import row left its `Card` — every outward figure describes `card`',
     ).toBeGreaterThan(0);
-    expect(stripTs(read('components/ui/Card.tsx')), '`Card` no longer paints `bg-card`').toMatch(
-      /\bbg-card\b/,
-    );
+    expect(
+      stripTs(read('components/ui/Card.tsx'), 'components/ui/Card.tsx'),
+      '`Card` no longer paints `bg-card`',
+    ).toMatch(/\bbg-card\b/);
   });
 });

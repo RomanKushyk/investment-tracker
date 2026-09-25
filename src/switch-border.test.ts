@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 // THE SWITCH'S BOUNDARY, at the same bar as the field edge and the floating surfaces'.
@@ -19,48 +20,47 @@ import { describe, expect, it } from 'vitest';
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
 /** Not cosmetic: `Switch.tsx`'s own comment records the token it replaced, so a comment
- *  naming a utility would fail an assertion the code passes. QUOTE-EXACT AND LINE BY LINE,
- *  the half a regex cannot do — dropping only whole-line `//` comments leaves the trailing
- *  ones, and one apostrophe in prose then desynchronises every quote pair after it.
+ *  naming a utility would fail an assertion the code passes.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// border-panel-border` in `Switch.tsx` leaves this green and
- *  turns the reader it replaces red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 /** The readers below take the FIRST match in a block and this stylesheet quotes token
@@ -254,7 +254,7 @@ describe('the markup points at the token', () => {
   // ON THE ARM, not merely in the file: a whole-file match stays green with the token on any
   // sibling of the track.
   it('`Switch.tsx` wears `switch-border` on the unchecked arm and nothing else', () => {
-    const src = stripTs(read('components/ui/Switch.tsx'));
+    const src = stripTs(read('components/ui/Switch.tsx'), 'components/ui/Switch.tsx');
     const arm = src.split('\n').filter((l) => /\bbg-switch-track\b/.test(l));
     expect(arm.length, 'the switch track line vanished').toBeGreaterThan(0);
     for (const line of arm) expect(line).toMatch(/\bborder-switch-border\b/);
@@ -264,7 +264,7 @@ describe('the markup points at the token', () => {
   // THE RAIL DOES NOT MOVE: it is a region's decorative edge, which *Design pipeline* puts
   // outside the 3 : 1 bar, so a later pass cannot "finish the job" without its own ruling.
   it('leaves the `Scroller` rail on `panel-border`', () => {
-    const rail = stripTs(read('components/ui/Scroller.tsx'))
+    const rail = stripTs(read('components/ui/Scroller.tsx'), 'components/ui/Scroller.tsx')
       .split('\n')
       .filter((l) => /touch-none select-none/.test(l));
     expect(rail.length, 'the rail line vanished').toBeGreaterThan(0);

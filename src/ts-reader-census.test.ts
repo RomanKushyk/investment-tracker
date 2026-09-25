@@ -47,14 +47,14 @@ const SUITE = walk('').map((rel) =>
   ),
 );
 
-/** The one reader, as `floating-edges.test.ts` writes it; every copy must be this text. */
+/** The one reader, as `ts-reader.test.ts` writes it; every copy must be this text. */
 const readerText = (fn: ts.Node) => fn.getText().replace(/\r\n/g, '\n');
 const CANONICAL = (() => {
-  const home = SUITE.find((sf) => sf.fileName === '/src/floating-edges.test.ts');
+  const home = SUITE.find((sf) => sf.fileName === '/src/ts-reader.test.ts');
   const fn = home?.statements.find(
     (s): s is ts.FunctionDeclaration => ts.isFunctionDeclaration(s) && s.name?.text === 'stripTs',
   );
-  if (!fn) throw new Error('src/floating-edges.test.ts no longer holds the canonical stripTs');
+  if (!fn) throw new Error('src/ts-reader.test.ts no longer holds the canonical stripTs');
   return readerText(fn);
 })();
 
@@ -268,20 +268,33 @@ function census(files: ts.SourceFile[]): Census {
     }
 
     // ── the sanitizer, and the parsers that make a read not TypeScript ──
-    const isReader = (call: ts.CallExpression): boolean => {
+    /** The argument a reader takes its source text in: a read passed in any other is not read. */
+    const readerInput = (call: ts.CallExpression): ts.Expression | undefined => {
       const callee = call.expression;
       if (ts.isIdentifier(callee) && callee.text === 'stripTs') {
         const d = declOf(callee);
-        return !!d && ts.isFunctionDeclaration(d) && readerText(d) === CANONICAL;
+        const pinned = !!d && ts.isFunctionDeclaration(d) && readerText(d) === CANONICAL;
+        return pinned && namesTypeScript(d) ? call.arguments[0] : undefined;
       }
       if (
         ts.isPropertyAccessExpression(callee) &&
         callee.name.text === 'createSourceFile' &&
-        ts.isIdentifier(callee.expression)
+        ts.isIdentifier(callee.expression) &&
+        imported(callee.expression)?.from === 'typescript'
       ) {
-        return imported(callee.expression)?.from === 'typescript';
+        return call.arguments[1];
       }
-      return false;
+      return undefined;
+    };
+    /** The pinned text names `ts` freely, so it is the reader only while that name is TypeScript. */
+    const namesTypeScript = (fn: ts.Node): boolean => {
+      const names: ts.Identifier[] = [];
+      const visit = (n: ts.Node) => {
+        if (ts.isIdentifier(n) && n.text === 'ts') names.push(n);
+        ts.forEachChild(n, visit);
+      };
+      visit(fn);
+      return names.length > 0 && names.every((n) => imported(n)?.from === 'typescript');
     };
     const isParser = (call: ts.CallExpression): boolean => {
       const callee = call.expression;
@@ -467,7 +480,7 @@ function census(files: ts.SourceFile[]): Census {
       const p = node.parent;
 
       if (ts.isCallExpression(p) && p.arguments.includes(node as ts.Expression)) {
-        if (isReader(p)) {
+        if (readerInput(p) === node) {
           // A parsed file read back whole is the raw source again, comments and all.
           const uses: ts.Node[] =
             ts.isVariableDeclaration(p.parent) && ts.isIdentifier(p.parent.name)
@@ -701,7 +714,7 @@ describe('the census refuses a raw read however it is written', () => {
     ],
     [
       'a constant used raw once beside a stripped use',
-      `import { readFileSync } from 'node:fs';\n${READER}\nconst RAW = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(RAW);\nexport const b = RAW.includes('x');`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nconst RAW = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(RAW, 'a.ts');\nexport const b = RAW.includes('x');`,
     ],
     [
       'one raw call site among clean ones, judged on its own arguments',
@@ -775,11 +788,11 @@ describe('the census refuses a raw read however it is written', () => {
     ],
     [
       'a stripped constant also used as a shorthand property',
-      `import { readFileSync } from 'node:fs';\n${READER}\nconst text = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(text);\nexport const o = { text };`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nconst text = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(text, 'a.ts');\nexport const o = { text };`,
     ],
     [
       'a stripped constant also exported by name',
-      `import { readFileSync } from 'node:fs';\n${READER}\nconst text = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(text);\nexport { text };`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nconst text = readFileSync('a.ts', 'utf8');\nexport const a = stripTs(text, 'a.ts');\nexport { text };`,
     ],
     [
       'TypeScript bytes handed to a decoder',
@@ -846,11 +859,23 @@ describe('the census refuses a raw read however it is written', () => {
     ],
     [
       'an exported reading helper, whatever its local calls',
-      `import { readFileSync } from 'node:fs';\n${READER}\nexport const read = (rel: string) => readFileSync(rel, 'utf8');\nexport const s = stripTs(read('a.ts'));`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nexport const read = (rel: string) => readFileSync(rel, 'utf8');\nexport const s = stripTs(read('a.ts'), 'a.ts');`,
     ],
     [
       'an exported read, whatever its local uses',
-      `import { readFileSync } from 'node:fs';\n${READER}\nexport const RAW = readFileSync('a.ts', 'utf8');\nexport const code = stripTs(RAW);`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nexport const RAW = readFileSync('a.ts', 'utf8');\nexport const code = stripTs(RAW, 'a.ts');`,
+    ],
+    [
+      'a read handed to the reader as its file name',
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nexport const s = stripTs('', readFileSync('a.ts', 'utf8'));`,
+    ],
+    [
+      'a read handed to the parser as its file name',
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\nexport const sf = ts.createSourceFile(readFileSync('a.ts', 'utf8'), '', ts.ScriptTarget.Latest);`,
+    ],
+    [
+      'the reader over a `ts` that is not TypeScript',
+      `import { readFileSync } from 'node:fs';\nimport ts from './not-typescript';\n${READER}\nexport const s = stripTs(readFileSync('a.ts', 'utf8'), 'a.ts');`,
     ],
   ])('refuses %s', (_name, text) => {
     expect(offendersIn(text)).not.toEqual([]);
@@ -859,19 +884,19 @@ describe('the census refuses a raw read however it is written', () => {
   it.each([
     [
       'a stripped read',
-      `import { readFileSync } from 'node:fs';\n${READER}\nexport const s = stripTs(readFileSync('a.ts', 'utf8'));`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nexport const s = stripTs(readFileSync('a.ts', 'utf8'), 'a.ts');`,
     ],
     [
       'a helper stripped at every call site',
-      `import { readFileSync } from 'node:fs';\n${READER}\nconst read = (rel: string) => readFileSync(rel, 'utf8');\nexport const s = stripTs(read('A.tsx'));\nexport const css = read('index.css');`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nconst read = (rel: string) => readFileSync(rel, 'utf8');\nexport const s = stripTs(read('A.tsx'), 'A.tsx');\nexport const css = read('index.css');`,
     ],
     [
       'a constant stripped where it is used',
-      `import { readFileSync } from 'node:fs';\n${READER}\nconst RAW = readFileSync('a.tsx', 'utf8');\nexport const code = stripTs(RAW);`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nconst RAW = readFileSync('a.tsx', 'utf8');\nexport const code = stripTs(RAW, 'a.tsx');`,
     ],
     [
       'a walk stripped inside its callback',
-      `import { readFileSync } from 'node:fs';\n${READER}\nexport const all = (files: string[]) => files.map((f) => stripTs(readFileSync(f, 'utf8')));`,
+      `import { readFileSync } from 'node:fs';\nimport ts from 'typescript';\n${READER}\nexport const all = (files: string[]) => files.map((f) => stripTs(readFileSync(f, 'utf8'), f));`,
     ],
     [
       'a parse through TypeScript',

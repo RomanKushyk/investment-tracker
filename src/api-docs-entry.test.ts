@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 import { REPO } from './repo-root';
@@ -19,48 +20,47 @@ const SPEC = 'docs/reference/openapi.json';
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
 
 /** The two configs and the entry are read through this, because an absence assertion over raw
- *  text fails on a comment that merely names what the file must not do. LINE BY LINE, and the
- *  line boundary is the point: a regex literal may hold a quote, and one desync would switch
- *  stripping off for the rest of the file.
+ *  text fails on a comment that merely names what the file must not do.
  *
  *  Copied SIGNATURE AND ALL rather than imported — the house idiom is a guard that stands
- *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled.
- *  INJECTION-VERIFIED: a trailing `// no rollupOptions input here` in `vite.config.ts` leaves
- *  this green and turns the reader it replaces red. */
-function stripTs(source: string): string {
-  const out: string[] = [];
-  let inBlock = false;
-  for (const raw of source.split('\n')) {
-    let line = '';
-    let quote = '';
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inBlock) {
-        if (c === '*' && raw[i + 1] === '/') {
-          inBlock = false;
-          i++;
-        }
-        continue;
-      }
-      if (quote) {
-        line += c;
-        if (c === '\\') line += raw[++i] ?? '';
-        else if (c === quote) quote = '';
-      } else if (c === '"' || c === "'" || c === '`') {
-        quote = c;
-        line += c;
-      } else if (c === '/' && raw[i + 1] === '*') {
-        inBlock = true;
-        i++;
-      } else if (c === '/' && raw[i + 1] === '/') {
-        break;
-      } else {
-        line += c;
-      }
-    }
-    out.push(line);
+ *  alone, and a copy that drifts in shape cannot be folded back if they are ever pooled. */
+function stripTs(source: string, file: string): string {
+  const sf = ts.createSourceFile(
+    file,
+    source,
+    // Parsed JSDoc puts a comment's own tokens in the walk: a `//` inside a JSDoc type is then
+    // cut on its own, and the rest of the block is left.
+    { languageVersion: ts.ScriptTarget.Latest, jsDocParsingMode: ts.JSDocParsingMode.ParseNone },
+    true,
+  );
+  // Not in the public typings; typescript-estree reads the same field and throws on it too.
+  const [error] = (sf as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics;
+  if (error) {
+    const why = ts.flattenDiagnosticMessageText(error.messageText, ' ');
+    throw new Error(`${file} does not parse: ${why}`);
   }
-  return out.join('\n');
+  const cuts: [number, number][] = [];
+  // Returns nothing: a truthy return stops TypeScript's iteration.
+  const cut = (pos: number, end: number) => {
+    cuts.push([pos, end]);
+  };
+  // Every comment is trivia before some token; JSX text is a token, never trivia.
+  const visit = (node: ts.Node): void => {
+    if (!ts.isTokenKind(node.kind)) return node.getChildren(sf).forEach(visit);
+    if (node.kind === ts.SyntaxKind.JsxText) return;
+    ts.forEachTrailingCommentRange(source, node.pos, cut);
+    ts.forEachLeadingCommentRange(source, node.pos, cut);
+  };
+  visit(sf);
+  let out = '';
+  let at = 0;
+  for (const [pos, end] of cuts) {
+    // At position 0 the leading scan starts collecting at once and repeats the trailing scan.
+    if (pos < at) continue;
+    out += source.slice(at, pos) + source.slice(pos, end).replace(/[^\r\n\u2028\u2029]/g, '');
+    at = end;
+  }
+  return out + source.slice(at);
 }
 
 type Step = { name?: string; run?: string; if?: string; env?: Record<string, string> };
@@ -86,7 +86,7 @@ describe('the API reference is a second build, and production never runs it', ()
   it('is reading the real frontend workflow and the real app config', () => {
     expect(existsSync(join(REPO, WORKFLOW))).toBe(true);
     expect(steps().some((s) => s.run?.trim() === 'pnpm build')).toBe(true);
-    expect(stripTs(read('vite.config.ts'))).toContain('defineConfig');
+    expect(stripTs(read('vite.config.ts'), 'vite.config.ts')).toContain('defineConfig');
     expect(existsSync(join(REPO, SPEC))).toBe(true);
   });
 
@@ -100,14 +100,14 @@ describe('the API reference is a second build, and production never runs it', ()
     // that advice. It is not scoped to the object, though: an `input` anywhere after it, in a
     // plugin option or a string, reddens this too. A comment does not; it is stripped first.
     expect(
-      stripTs(read('vite.config.ts')),
+      stripTs(read('vite.config.ts'), 'vite.config.ts'),
       'the app config names a rollup input after `rollupOptions`, which would let `pnpm ' +
         'build` emit the page — check it is a real input and not a later unrelated word',
     ).not.toMatch(/rollupOptions[\s\S]*?\binput\b/);
   });
 
   it('the second build has its own config, appends, and owns no app output', () => {
-    const config = stripTs(read('vite.config.api-docs.ts'));
+    const config = stripTs(read('vite.config.api-docs.ts'), 'vite.config.api-docs.ts');
     expect(config).toContain('api-docs.html');
     expect(config, 'the second build wipes the app build that ran before it').toMatch(
       /emptyOutDir:\s*false/,
@@ -138,7 +138,7 @@ describe('the API reference is a second build, and production never runs it', ()
     expect(scripts).toEqual(['/src/api-docs/main.ts']);
     expect(html.match(/<script\b/g)).toHaveLength(1);
 
-    const entry = stripTs(read('src/api-docs/main.ts'));
+    const entry = stripTs(read('src/api-docs/main.ts'), 'src/api-docs/main.ts');
     const local = [...entry.matchAll(/(?:^import|\bfrom)[^'"]*['"](\.[^'"]+)['"]/gm)].map(
       (m) => m[1],
     );
@@ -146,7 +146,9 @@ describe('the API reference is a second build, and production never runs it', ()
     // A bare specifier could still resolve into src/ through an alias, and it would have to be
     // THIS config's: `vite build --config` REPLACES the app's rather than merging with it, so
     // an alias in `vite.config.ts` cannot reach this graph.
-    expect(stripTs(read('vite.config.api-docs.ts'))).not.toMatch(/\balias\b/);
+    expect(stripTs(read('vite.config.api-docs.ts'), 'vite.config.api-docs.ts')).not.toMatch(
+      /\balias\b/,
+    );
   });
 
   it('package.json exposes the script the workflow runs', () => {
