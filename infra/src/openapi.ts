@@ -14,6 +14,14 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { RESPONSES as ADMIN_RESPONSES } from './approve';
+import {
+  PARAMETERS,
+  RESPOND_BODY,
+  RESPOND_ROUTE,
+  RESPONSES as RELAY_RESPONSES,
+  START_BODY,
+  START_ROUTE,
+} from './auth-relay';
 import { type ApiResult, type Declared, made } from './http';
 
 /** The one security scheme, named as the template names it. */
@@ -41,18 +49,26 @@ type Template = {
 export const ANSWERS: Record<string, Record<string, readonly (ApiResult | Declared)[]>> = {
   'applications.handler': APPLICATION_RESPONSES,
   'approve.handler': ADMIN_RESPONSES,
+  'auth-relay.handler': RELAY_RESPONSES,
 };
 
 /** Keyed by route, not by handler: a second event on one function would otherwise attach a
  *  required JSON body to every operation it serves, a GET included. */
 const BODIES: Record<string, unknown> = {
   [APPLY_ROUTE]: REQUEST_BODY,
+  [START_ROUTE]: START_BODY,
+  [RESPOND_ROUTE]: RESPOND_BODY,
 };
 
 type Operation = {
   operationId: string;
   summary: string;
-  parameters?: { name: string; in: string; required: boolean; schema: { type: string } }[];
+  parameters?: {
+    name: string;
+    in: string;
+    required: boolean;
+    schema: { type: string; enum?: readonly string[] };
+  }[];
   requestBody?: unknown;
   security: { [scheme: string]: string[] }[];
   responses: Record<
@@ -253,7 +269,8 @@ export function buildSpec(): OpenApiDocument {
           `(${route.handler}) — export them from the handler and add it to ANSWERS`,
       );
     }
-    const params = parameters(route.path);
+    // A route's own request headers follow its path parameters, keyed like the bodies.
+    const params = [...parameters(route.path), ...(PARAMETERS[key] ?? [])];
     paths[route.path] ??= {};
     paths[route.path][route.method] = {
       operationId: operationId(route.method, route.path),

@@ -361,6 +361,645 @@
           }
         }
       }
+    },
+    "/auth/start": {
+      "post": {
+        "operationId": "postAuthStart",
+        "summary": "POST /auth/start",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "USERNAME",
+                      "PREFERRED_CHALLENGE"
+                    ],
+                    "properties": {
+                      "USERNAME": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "PREFERRED_CHALLENGE": {
+                        "type": "string",
+                        "enum": [
+                          "WEB_AUTHN"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "USERNAME",
+                      "PREFERRED_CHALLENGE",
+                      "SRP_A"
+                    ],
+                    "properties": {
+                      "USERNAME": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "PREFERRED_CHALLENGE": {
+                        "type": "string",
+                        "enum": [
+                          "PASSWORD_SRP"
+                        ]
+                      },
+                      "SRP_A": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "challenge": {
+                    "value": {
+                      "challenge": "PASSWORD_VERIFIER",
+                      "session": "<session>",
+                      "parameters": {
+                        "USER_ID_FOR_SRP": "<username>",
+                        "SRP_B": "<hex>",
+                        "SALT": "<hex>",
+                        "SECRET_BLOCK": "<b64>"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/respond": {
+      "post": {
+        "operationId": "postAuthRespond",
+        "summary": "POST /auth/respond",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "challenge",
+                      "session",
+                      "responses"
+                    ],
+                    "properties": {
+                      "challenge": {
+                        "type": "string",
+                        "enum": [
+                          "WEB_AUTHN"
+                        ]
+                      },
+                      "session": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "responses": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "USERNAME",
+                          "CREDENTIAL"
+                        ],
+                        "properties": {
+                          "USERNAME": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "CREDENTIAL": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "challenge",
+                      "session",
+                      "responses"
+                    ],
+                    "properties": {
+                      "challenge": {
+                        "type": "string",
+                        "enum": [
+                          "SELECT_CHALLENGE"
+                        ]
+                      },
+                      "session": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "responses": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "USERNAME",
+                          "ANSWER",
+                          "SRP_A"
+                        ],
+                        "properties": {
+                          "USERNAME": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "ANSWER": {
+                            "type": "string",
+                            "enum": [
+                              "PASSWORD_SRP"
+                            ]
+                          },
+                          "SRP_A": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "challenge",
+                      "session",
+                      "responses"
+                    ],
+                    "properties": {
+                      "challenge": {
+                        "type": "string",
+                        "enum": [
+                          "PASSWORD_VERIFIER"
+                        ]
+                      },
+                      "session": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "responses": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "USERNAME",
+                          "PASSWORD_CLAIM_SIGNATURE",
+                          "PASSWORD_CLAIM_SECRET_BLOCK",
+                          "TIMESTAMP"
+                        ],
+                        "properties": {
+                          "USERNAME": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "PASSWORD_CLAIM_SIGNATURE": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "PASSWORD_CLAIM_SECRET_BLOCK": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "TIMESTAMP": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "challenge",
+                      "session",
+                      "responses"
+                    ],
+                    "properties": {
+                      "challenge": {
+                        "type": "string",
+                        "enum": [
+                          "NEW_PASSWORD_REQUIRED"
+                        ]
+                      },
+                      "session": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "responses": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "USERNAME",
+                          "NEW_PASSWORD"
+                        ],
+                        "properties": {
+                          "USERNAME": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "NEW_PASSWORD": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "tokens": {
+                    "value": {
+                      "idToken": "<JWT>",
+                      "accessToken": "<JWT>",
+                      "expiresIn": 3600
+                    }
+                  },
+                  "challenge": {
+                    "value": {
+                      "challenge": "PASSWORD_VERIFIER",
+                      "session": "<session>",
+                      "parameters": {
+                        "USER_ID_FOR_SRP": "<username>",
+                        "SRP_B": "<hex>",
+                        "SALT": "<hex>",
+                        "SECRET_BLOCK": "<b64>"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "invalid_password": {
+                    "value": {
+                      "error": "invalid_password"
+                    }
+                  },
+                  "invalid_request": {
+                    "value": {
+                      "error": "invalid_request"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "postAuthRefresh",
+        "summary": "POST /auth/refresh",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "cache-control": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "tokens": {
+                    "value": {
+                      "idToken": "<JWT>",
+                      "accessToken": "<JWT>",
+                      "expiresIn": 3600
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Refused",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "not_authorized": {
+                    "value": {
+                      "error": "not_authorized"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sign-out": {
+      "post": {
+        "operationId": "postAuthSign-out",
+        "summary": "POST /auth/sign-out",
+        "parameters": [
+          {
+            "name": "x-csrf",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Accepted",
+            "headers": {
+              "set-cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "examples": {
+                  "signed_out": {
+                    "value": {
+                      "status": "signed_out"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Refused",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "csrf": {
+                    "value": {
+                      "error": "csrf"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Failed",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "internal": {
+                    "value": {
+                      "error": "internal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

@@ -188,9 +188,26 @@ describe('three sign-in methods reach the pool', () => {
     expect(factors).toContain('PASSWORD');
   });
 
-  // A public client: a secret makes every browser-side call fail on a missing SECRET_HASH.
-  it('generates no client secret', () => {
-    expect(props('UserPoolClient').GenerateSecret).toBe(false);
+  // A CONFIDENTIAL CLIENT, and that is what keeps every sign-in inside the relay: with a secret,
+  // each call needs a `SECRET_HASH` or the secret itself, and only the relay can read it. RFC 10017
+  // §6.2.3.1: "the token-mediating backend MUST act as a confidential client". [*Auth model*]
+  it('holds a client secret, so no sign-in can skip the relay', () => {
+    expect(props('UserPoolClient').GenerateSecret).toBe(true);
+    // ONE CLIENT: a second, public one beside it would be the way round.
+    expect(
+      Object.values(user.Resources).filter((r) => r.Type === 'AWS::Cognito::UserPoolClient'),
+    ).toHaveLength(1);
+    // The code grant alone: an implicit grant hands tokens to the browser with no secret at all.
+    expect(props('UserPoolClient').AllowedOAuthFlows).toEqual(['code']);
+  });
+
+  // THE SECRET IS READ AT RUNTIME, NEVER RENDERED: a `!GetAtt UserPoolClient.ClientSecret` in any
+  // form would put it in a function's configuration or an output. Read off the parsed template,
+  // where the short, long and `!Sub` spellings all leave the attribute's name behind.
+  it('reads the client secret nowhere in the template', () => {
+    const rendered = JSON.stringify(user);
+    expect(rendered).not.toContain('UserPoolClient.ClientSecret');
+    expect(rendered).not.toContain('"UserPoolClient","ClientSecret"');
   });
 
   // The absolute bound answers the three refresh requirements the browser BCP singles out; the
@@ -211,10 +228,10 @@ describe('three sign-in methods reach the pool', () => {
     });
   });
 
-  // The grace period is not 0, for a reason the SPA creates: the access token is held in memory,
-  // so every page load refreshes and two tabs opening together race. At 0 "a successful request
-  // immediately invalidates the submitted refresh token".
-  it('rotates the refresh token, with a window for the second tab', () => {
+  // The grace period is not 0: at 0 "a successful request immediately invalidates the submitted
+  // refresh token", so a refresh retried after a lost answer signs the user out. It does not settle
+  // two tabs racing — measured in `docs/reference/COGNITO-POOL-PARAMS.md`.
+  it('rotates the refresh token, with a window for a retried refresh', () => {
     expect(props('UserPoolClient').RefreshTokenRotation).toEqual({
       Feature: 'ENABLED',
       RetryGracePeriodSeconds: 60,
@@ -227,8 +244,8 @@ describe('three sign-in methods reach the pool', () => {
   });
 
   // The whole list: `ALLOW_REFRESH_TOKEN_AUTH` is ABSENT and that is rotation's doing, not an
-  // oversight — AWS refuses the pair. Which path replaces it is recorded as unsettled in
-  // `docs/reference/COGNITO-POOL-PARAMS.md`.
+  // oversight — AWS refuses the pair. The relay refreshes through `GetTokensFromRefreshToken`, the
+  // path AWS names for rotation (`docs/reference/COGNITO-POOL-PARAMS.md`).
   it('offers selection-based sign-in and SRP, and no refresh flow', () => {
     expect(props('UserPoolClient').ExplicitAuthFlows).toEqual([
       'ALLOW_USER_AUTH',

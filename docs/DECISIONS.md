@@ -286,16 +286,29 @@ the plan had already given up.
 ENVIRONMENT — a shared one would spend a production monthly active user on every dev sign-in and put
 dev identities in the table a real portfolio is keyed by. The passkey relying party is the
 environment's own APEX: an RP ID cannot change afterwards without stranding every credential
-registered against it, and `reference/COGNITO-POOL-PARAMS.md` carries its cost. THE REFRESH TOKEN IS
+registered against it, and `reference/COGNITO-POOL-PARAMS.md` carries its cost. SIGN-IN GOES THROUGH
+A RELAY ON A CONFIDENTIAL CLIENT — RFC 10017's token-mediating backend, `/auth/*` on the API — which
+holds the only copy of the client secret, so no sign-in skips it. WHERE EACH TOKEN LIVES: the
+refresh token in a `__Host-Http-` cookie on the API host, HttpOnly, Secure and SameSite=Strict,
+which the relay alone sets and reads; the ID token, which the authorizer checks, and the access
+token, which registers a passkey, come back in the relay's body and are held in the app's memory.
+The relay reads the secret from Cognito with `DescribeUserPoolClient` and caches it per execution
+environment, so there is no second copy to drift and no store to pay for; its routes refuse a
+request without the custom header or from another site before anything else. THE REFRESH TOKEN IS
 BOUNDED AND ROTATES, which answers the three refresh requirements the browser BCP singles out and no
-more: that section incorporates RFC 9700, whose replay question is open against this pool in that
-same file. Cognito has no inactivity expiry, so the idle timeout is the session cookie's `Max-Age`,
-a UX bound and not a security boundary. Registration is an APPLICATION, not an open door — threat
-protection is a paid tier, so a public door has only quotas: sign-up writes the row that carries
-status and role, and approval mints the identity — so approve is a Cognito write and a row
-REPLACEMENT, a DSQL primary key being immutable.
+more: that section incorporates RFC 9700, whose replay rule Cognito meets only in part — past the
+grace window it refuses a rotated-out token and revokes nothing, and revoking that token ends the
+family only when it is the sign-in's own, which the relay does not keep, so a replay ends only the
+session of the browser that sent it; inside the window a replay succeeds and forks the family, so the app refreshes once at a
+time across tabs. Cognito has no inactivity expiry, so the idle timeout is the cookie's `Max-Age`,
+re-set on every refresh — a UX bound and not a security boundary. Registration is an APPLICATION,
+not an open door — threat protection is a paid tier, so a public door has only quotas: sign-up
+writes the row that carries status and role, and approval mints the identity — so approve is a
+Cognito write and a row REPLACEMENT, a DSQL primary key being immutable.
 **Why.** Nothing decided at token-issue time can revoke anything, at any lifetime, so authorization
-belongs to the API, read from that row on every request.
+belongs to the API, read from that row on every request. A refresh token script can read outlives
+the page that stole it; one in an HttpOnly cookie, exchangeable only with a secret the browser never
+holds, leaves injected script an access token and nothing longer-lived.
 **Rejected.** As the relying party, a Cognito prefix domain — a later move to the custom one strips
 the passkeys registered against it — or the auth host, which would scope every credential to managed
 login alone. · A post-confirmation trigger creating the row: AWS does not invoke it for an
@@ -304,7 +317,13 @@ Cognito groups as the role: status and role are application state, decided and s
 approval this system performs, so a group is a second place for them to live and the two can
 disagree; freshness is the lesser argument, a group riding on tokens that last an hour. · Letting an
 open-registration sign-in approve its own earlier application: convenience, and a way to overturn a
-rejection by signing up again.
+rejection by signing up again. · A public client, the app calling Cognito itself: `InitiateAuth` hands
+the refresh token to whoever calls it, and injected script could run a sign-in of its own. · The full
+BFF, every data call proxied through a function holding the session: each call would spend the
+account's shared Lambda concurrency, and a refusal that must land before any Lambda is invoked could
+only land inside one. · The secret in an SSM SecureString, which CloudFormation cannot create, so a
+hand copy per environment; in Secrets Manager under a key of its own, a fixed monthly charge on the
+standing "no" list; or in an environment variable, where AWS points to Secrets Manager instead.
 
 ## User schema and deletes
 **Decision.** DSQL's DDL is create-time-only and a later constraint is `NOT VALID` for life;

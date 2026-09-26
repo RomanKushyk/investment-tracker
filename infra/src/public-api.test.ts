@@ -8,6 +8,13 @@ import { parseDocument } from 'yaml';
 // The route key is matched by string equality in three places and nothing validates them against
 // each other. Renamed on one side alone, every suite here stays green and admin calls answer 400.
 import { APPROVE_ROUTE, REJECT_ROUTE } from './approve';
+import {
+  CSRF_HEADER,
+  REFRESH_ROUTE,
+  RESPOND_ROUTE,
+  SIGN_OUT_ROUTE,
+  START_ROUTE,
+} from './auth-relay';
 import { envVars, grantAt, intrinsicAt } from './template-intrinsic';
 
 type Resource = {
@@ -51,7 +58,7 @@ const declaredRoutes = () =>
         })),
     );
 
-describe('one unauthenticated route, on a domain the stack cannot finish', () => {
+describe('the application route, on a domain the stack cannot finish', () => {
   // An empty or unparsed file passes every absence assertion below.
   it('parses, and the API is in it', () => {
     expect(doc.errors).toEqual([]);
@@ -73,8 +80,8 @@ describe('one unauthenticated route, on a domain the stack cannot finish', () =>
     expect(props('ApplicationsFunction').Handler).toBe('applications.handler');
   });
 
-  // No authorizer in front of this one route, deliberately: the sign-up application exists to
-  // create the very row the others are checked against. [*Auth model*]
+  // No authorizer in front of this route, deliberately: the sign-up application exists to create
+  // the very row the others are checked against. [*Auth model*]
   it('puts no authorizer in front of the application', () => {
     const [submit] = declaredRoutes().filter((r) => r.key === ROUTE);
     expect(submit.authorizer).toBeUndefined();
@@ -120,7 +127,7 @@ describe('every other route is behind the pool, and the pool is the only issuer'
   // This stands in for `DefaultAuthorizer` and is stronger: a route with no authorizer fails the
   // suite before `sam deploy` runs. PUBLIC IS A WRITTEN LIST, not a count — a count is satisfied
   // by the wrong route being the exception.
-  const PUBLIC = [ROUTE];
+  const PUBLIC = [ROUTE, START_ROUTE, RESPOND_ROUTE, REFRESH_ROUTE, SIGN_OUT_ROUTE];
 
   // A `Globals:` block is the one way auth can move without a route moving: `Globals.HttpApi.Auth`
   // reaches every route from outside the derivation below, and the test would keep passing.
@@ -184,8 +191,85 @@ describe('the route is throttled below the stage it sits in', () => {
   });
 });
 
+describe('the relay: four POSTs outside the authorizer, holding one grant', () => {
+  const relay = ['Resources', 'AuthRelayFunction', 'Properties', 'Policies', 0, 'Statement'];
+
+  // OUTSIDE THE AUTHORIZER BECAUSE THEY ARE HOW A TOKEN IS OBTAINED: a caller reaching them holds
+  // none yet, or holds only the cookie. [*Auth model*]
+  it('routes the four sign-in routes at the relay, each a POST with no authorizer', () => {
+    const routes = declaredRoutes().filter((r) => r.fn === 'AuthRelayFunction');
+    expect(routes.map((r) => r.key)).toEqual([
+      START_ROUTE,
+      RESPOND_ROUTE,
+      REFRESH_ROUTE,
+      SIGN_OUT_ROUTE,
+    ]);
+    for (const route of routes) {
+      expect([route.key, route.api, route.authorizer]).toEqual([route.key, 'PublicApi', undefined]);
+    }
+    expect(props('AuthRelayFunction').Handler).toBe('auth-relay.handler');
+  });
+
+  // NO GET REACHES IT, and neither does a catch-all: a GET is a request a page can send cross-site
+  // with no preflight, which is the one the custom header exists to force.
+  it('lets nothing but a POST reach an /auth path, and declares no catch-all', () => {
+    const events = Object.values(user.Resources).flatMap((r) =>
+      Object.values((r.Properties?.Events ?? {}) as Record<string, Event>),
+    );
+    for (const e of events) {
+      const key = `${e.Properties?.Method} ${e.Properties?.Path}`;
+      expect([key, e.Properties?.Method?.toUpperCase() === 'ANY']).toEqual([key, false]);
+      expect([key, /\$default|\+\}/.test(e.Properties?.Path ?? '')]).toEqual([key, false]);
+      if (e.Properties?.Path?.startsWith('/auth/')) {
+        expect([key, e.Properties?.Method]).toEqual([key, 'POST']);
+      }
+    }
+  });
+
+  // ONE ACTION ON ONE POOL: the secret is read from Cognito, so there is no store to grant. The
+  // action is pool-wide — it describes any client in the pool — and that is the accepted cost.
+  it('may read the client secret in this pool, and do nothing else', () => {
+    const policies = props('AuthRelayFunction').Policies as { Statement: unknown[] }[];
+    expect(policies).toHaveLength(1);
+    expect(policies[0].Statement).toHaveLength(1);
+    expect(grantAt(doc, relay, 'cognito-idp:DescribeUserPoolClient')).toEqual({
+      tag: '!GetAtt',
+      value: 'UserPool.Arn',
+    });
+  });
+
+  // NO SECRET IN ITS CONFIGURATION: the pool and the client are named, and the secret is read.
+  it('is told the pool and the client, and nothing else', () => {
+    const vars = (props('AuthRelayFunction').Environment as { Variables?: Record<string, unknown> })
+      ?.Variables;
+    expect(Object.keys(vars ?? {}).sort()).toEqual([
+      'NODE_OPTIONS',
+      'USER_POOL_CLIENT_ID',
+      'USER_POOL_ID',
+    ]);
+    expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'USER_POOL_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPool',
+    });
+    expect(intrinsicAt(doc, ...envVars('AuthRelayFunction'), 'USER_POOL_CLIENT_ID')).toEqual({
+      tag: '!Ref',
+      value: 'UserPoolClient',
+    });
+  });
+
+  it('carries a log group of its own, retained like the others', () => {
+    expect(user.Resources.AuthRelayLogGroup?.Type).toBe('AWS::Logs::LogGroup');
+    expect(props('AuthRelayLogGroup').RetentionInDays).toBe(30);
+  });
+});
+
 describe('the browser origins are named per environment', () => {
-  type Cors = { AllowOrigins: string[]; AllowMethods: string[]; AllowHeaders: string[] };
+  type Cors = {
+    AllowOrigins: string[];
+    AllowMethods: string[];
+    AllowHeaders: string[];
+    AllowCredentials?: boolean;
+  };
   const [condition, prod, dev] = props('PublicApi').CorsConfiguration as [string, Cors, Cors];
 
   // A CORS list naming only the custom domain leaves the Amplify URL failing at the preflight.
@@ -214,8 +298,11 @@ describe('the browser origins are named per environment', () => {
       // appears only in a browser, never in `curl`.
       expect([name, arm.AllowHeaders?.slice().sort()]).toEqual([
         name,
-        ['authorization', 'content-type'],
+        ['authorization', 'content-type', CSRF_HEADER].sort(),
       ]);
+      // THE COOKIE CROSSES ORIGINS: `api.quirenote.com` is same-site with `quirenote.com` but not
+      // same-origin, so the app sends `credentials: 'include'` and the preflight must allow it.
+      expect([name, arm.AllowCredentials]).toEqual([name, true]);
     }
   });
 });

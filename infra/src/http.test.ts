@@ -105,9 +105,34 @@ describe('a response built per request', () => {
   // WHAT THE DOCUMENT PUBLISHES IS WHAT IS SENT: a value no declaration names stays behind.
   it('sends exactly the headers its declaration names', () => {
     const values = { etag: '"1"', 'cache-control': 'private, no-cache', 'set-cookie': 'x=1' };
-    expect(Object.keys(respond(TAGGED, values, '{}').headers).sort()).toEqual(
+    const built = respond(TAGGED, values, '{}');
+    expect(Object.keys(built.headers).sort()).toEqual(
       ['cache-control', 'content-type', 'etag'].sort(),
     );
+    expect('cookies' in built).toBe(false);
+  });
+
+  // PAYLOAD 2.0 CARRIES COOKIES IN A LIST OF THEIR OWN, "each cookie becomes a set-cookie header",
+  // so a declared one travels there — and the document still publishes the header it becomes.
+  it('sends a declared set-cookie as a cookie, never as a header', () => {
+    const COOKIED = derived({
+      statusCode: 200,
+      name: 'cookied',
+      headers: ['set-cookie', 'cache-control'],
+      example: {},
+    });
+    const built = respond(
+      COOKIED,
+      { 'set-cookie': 'a=1; Secure', 'cache-control': 'no-store' },
+      '{}',
+    );
+    expect(built).toEqual({
+      statusCode: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      cookies: ['a=1; Secure'],
+      body: '{}',
+    });
+    expect(Object.isFrozen(built.cookies)).toBe(true);
   });
 
   // FROZEN as the fixed answers are: the proof and the document name an answer by its

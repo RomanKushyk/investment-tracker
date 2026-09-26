@@ -18,7 +18,8 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 | `src/pre-signup.ts` | The pre-sign-up trigger. Links a federated identity to the local account already holding the address — only when the provider asserts it verified, and only in one direction, so the account owning the portfolio is not the one absorbed. Its grant is a policy of its own in the template, because the pool names the function and nothing the pool depends on may name the pool |
 | `src/authorize.ts` | The gate every authenticated route calls. Answers `status` and `role` from the `app_user` row — never `cognito:groups`, which is stamped at issue time and stays stamped until the token expires. Three distinguishable refusals and none of them a 401: a `pending` caller is signed in and may not act yet |
 | `src/approve.ts` | `POST /admin/users/{id}/approve` and `/reject`. Approve calls `AdminCreateUser` and replaces the application row with one keyed by the returned `sub` — a DSQL primary key is immutable, so it is a delete and an insert in one transaction. Reject disables an identity only where one exists, disable first so a failure is retryable |
-| `src/http.ts` | What a route on this API takes and answers — the payload 2.0 fields these handlers read, request headers among them, and the two kinds of answer: the frozen `json()` constants, and the ones built per request from a frozen declaration, a derived body or a 304 with headers and no body key. Shared so there is one answer |
+| `src/auth-relay.ts` | `POST /auth/start`, `/auth/respond`, `/auth/refresh` and `/auth/sign-out` — the relay on the CONFIDENTIAL client, and the only holder of its secret, read with `DescribeUserPoolClient` and cached per execution environment. The refresh token goes into a `__Host-Http-` HttpOnly cookie on the API host and nowhere else; the ID and access tokens go back in the body. Every route refuses a request without `x-csrf: 1` or from another site before it reads anything, and admits only the challenges it lists — a plain password is not one |
+| `src/http.ts` | What a route on this API takes and answers — the payload 2.0 fields these handlers read, request headers and cookies among them, and the two kinds of answer: the frozen `json()` constants, and the ones built per request from a frozen declaration, a derived body or a 304 with headers and no body key. A declared `set-cookie` leaves through payload 2.0's own `cookies` list. Shared so there is one answer |
 | `src/applications.ts` | `POST /v1/applications` — the sign-up application. One insert, the same fixed `202` whether the row is new or already there, and the ASCII-only address rule below |
 | `src/address.ts` | The one rule for an address this system will store — ASCII only, so the fold done in TypeScript and `app_user_email_lower_ck` on the cluster are the same operation. Two copies would be two answers to what the cluster accepts |
 | `src/dsql.ts` | `connect()` — the IAM auth token and the one `ssl` policy, shared by every handler that talks to a cluster |
@@ -30,7 +31,7 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 | `schema/user.ts` | Drizzle source for `migrations/003_user_schema.sql` — the SQL is generated from this file and a hand edit fails `src/schema-generated.test.ts` |
 | `migrations/` | **Two kinds of file, and the difference decides who applies them.** The ARCHIVE's — `001` price_capture · `002` price_observation · `004` bond_terms — are reference copies of DDL held inline in `ensureSchema`, read by nothing. The USER schema's — `003` (generated) · `005` (the demo's identity) · `006` (one spelling per mailbox) · `007` (the asset's dropped reinvest policy) · `008` (the demo's account) — are applied by `src/migrate.ts`, which names them rather than globbing, and live on the USER clusters only. A user cluster is created EMPTY, and the deploy that created it is what fills it: the stack update ships the SQL, the plan step counts what is pending, and the gated job applies it |
 | `migrations/drafts/` | Schema written before anything may apply it — DSQL primary keys are immutable, so a key is decided on paper, reviewed, then promoted. [`migrations/drafts/README.md`](migrations/drafts/README.md) is the practice |
-| `src/openapi.ts` | Builds the OpenAPI document from the two places that already know the API: `template-user.yaml` and the handlers' own answers — the frozen `json(…)` constants, and the declarations of those built per request, a 304 among them stated with headers and no `content`. Derived from THIS REPOSITORY rather than from `aws apigatewayv2 export-api`, whose document carries no responses and whose regeneration would need a deployed API and `apigateway:GET` the deploy role does not hold — so the drift test could not run. `src/openapi.test.ts` fails when the committed copy disagrees, and when a handler declares an answer the document does not describe |
+| `src/openapi.ts` | Builds the OpenAPI document from the two places that already know the API: `template-user.yaml` and the handlers' own answers — the frozen `json(…)` constants, and the declarations of those built per request, a 304 among them stated with headers and no `content`. Derived from THIS REPOSITORY rather than from `aws apigatewayv2 export-api`, whose document carries no responses and whose regeneration would need a deployed API and `apigateway:GET` the deploy role does not hold — so the drift test could not run. A route's request body and the headers it requires come from its handler too. `src/openapi.test.ts` fails when the committed copy disagrees, and when a handler declares an answer the document does not describe |
 | `scripts/generate-openapi.ts` | What `pnpm openapi` runs. Writes [`../docs/reference/openapi.json`](../docs/reference/openapi.json), an ARTIFACT — edit the handlers or the template, never the JSON. **Rendered at `https://dev.quirenote.com/api-docs.html`** by a second Vite build that `deploy-frontend.yml` skips on `main`, importing this file rather than fetching a copy so nothing between the generator and the page can drift. `npx @redocly/cli lint` is a second reader and deliberately not a gate: every gate here is offline and that one downloads a package per run, so what it caught is held by `src/openapi.test.ts` instead |
 | `scripts/bootstrap-backups.sh` | AWS Backup vault, role, plan, selection, vault lock — deliberately outside the stack |
 
@@ -82,6 +83,40 @@ A daily job archives prices into Aurora DSQL. **The app does not read any of thi
 - **The vault lock stays GOVERNANCE, and its floor never EXCEEDS the plan's `DeleteAfterDays`.**
   Equal is fine. The script derives the floor from the live plan, but the floor can still be raised
   by hand ahead of the plan, so lower the floor first when the two must both move.
+
+## An admin ID token from the command line
+
+`POST /admin/*` takes a Cognito **ID** token: `authorize.ts` refuses an access token, which carries no
+`email`. The app client is CONFIDENTIAL, so each sign-in call carries a `SECRET_HASH`, and reading
+the secret takes `cognito-idp:DescribeUserPoolClient` — run this wherever an identity holding it is
+signed in, **AWS CloudShell** among them. The two sign-in calls themselves need no credentials.
+
+```bash
+export AWS_DEFAULT_REGION=eu-north-1 STACK=quirenote-backend-user-dev USERNAME=owner@quirenote.com
+out() { aws cloudformation describe-stacks --stack-name "$STACK" --output text   --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue"; }
+export POOL=$(out UserPoolId) CLIENT=$(out UserPoolClientId) && unset SESSION
+export SECRET=$(aws cognito-idp describe-user-pool-client --user-pool-id "$POOL"   --client-id "$CLIENT" --query UserPoolClient.ClientSecret --output text)
+read -rsp 'Password: ' PASSWORD && export PASSWORD && echo
+# Each request is built from the environment, so the secret and the password are never typed.
+call() { node -e '
+  const e = process.env;
+  const hash = require("crypto").createHmac("sha256", e.SECRET).update(e.USERNAME + e.CLIENT).digest("base64");
+  process.stdout.write(JSON.stringify(e.SESSION
+    ? { ClientId: e.CLIENT, ChallengeName: "SELECT_CHALLENGE", Session: e.SESSION,
+        ChallengeResponses: { USERNAME: e.USERNAME, ANSWER: "PASSWORD", PASSWORD: e.PASSWORD, SECRET_HASH: hash } }
+    : { ClientId: e.CLIENT, AuthFlow: "USER_AUTH", AuthParameters: { USERNAME: e.USERNAME, SECRET_HASH: hash } }));'; }
+export SESSION=$(aws cognito-idp initiate-auth --cli-input-json "$(call)" --query Session --output text)
+TOKEN=$(aws cognito-idp respond-to-auth-challenge --cli-input-json "$(call)"   --query AuthenticationResult.IdToken --output text)
+```
+
+Then `curl -X POST -H "authorization: Bearer $TOKEN" https://api.dev.quirenote.com/admin/users/<id>/approve`.
+The session is single-use and short-lived, so a failed second call means starting over. Two dead
+ends, each failing with a message that points elsewhere:
+
+- `PREFERRED_CHALLENGE=PASSWORD` on the first call answers `Missing required parameter PASSWORD`:
+  naming a preference means supplying its credential in the same call.
+- `ChallengeName: PASSWORD` on the second answers `Challenge type not supported`: the session's
+  challenge is `SELECT_CHALLENGE`, and the choice goes in `ANSWER`.
 
 ## Deploying
 

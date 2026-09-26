@@ -360,10 +360,11 @@ describe('the user stack holds user data and nothing else', () => {
     expect(idsOfType(user, 'AWS::SQS::Queue')).toEqual([]);
   });
 
-  it('holds the runner, the trigger, the application, the approval and its two watches', () => {
+  it('holds the runner, the trigger, the application, the approval, the relay and two watches', () => {
     expect(handlers(user).sort()).toEqual([
       'applications.handler',
       'approve.handler',
+      'auth-relay.handler',
       'backup-freshness.handler',
       'migrate.handler',
       'pool-usage.handler',
@@ -858,6 +859,7 @@ describe('what reaches a role besides its own policies', () => {
       'PreSignUpFunction',
       'ApplicationsFunction',
       'ApproveFunction',
+      'AuthRelayFunction',
       'BackupFreshnessFunction',
       'PoolUsageFunction',
     ]);

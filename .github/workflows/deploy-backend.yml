@@ -91,7 +91,7 @@ jobs:
       - name: Bundle the handlers
         working-directory: infra
         run: |
-          for entry in capture migrate pre-signup applications approve backup-freshness pool-usage; do
+          for entry in capture migrate pre-signup applications approve auth-relay backup-freshness pool-usage; do
             npx --yes esbuild@0.28.2 "src/$entry.ts" \
               --bundle --platform=node --target=node22 --format=cjs \
               --outfile="dist/$entry.js" --sourcemap \
@@ -109,7 +109,7 @@ jobs:
           mkdir -p /tmp/bundle-check
           # HELD TO THE BUNDLE LIST BY A TEST, because this line is hand-kept: a guard derived
           # from the esbuild step alone let a handler deploy having never once been loaded.
-          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/backup-freshness.js infra/dist/pool-usage.js /tmp/bundle-check/
+          cp infra/dist/capture.js infra/dist/migrate.js infra/dist/pre-signup.js infra/dist/applications.js infra/dist/approve.js infra/dist/auth-relay.js infra/dist/backup-freshness.js infra/dist/pool-usage.js /tmp/bundle-check/
           cp -r infra/dist/migrations /tmp/bundle-check/
           cd /tmp/bundle-check
           # `import.meta.url` is EMPTY in a cjs bundle, so the SQL is found by LAMBDA_TASK_ROOT.
@@ -253,6 +253,25 @@ jobs:
               if (ordinary.statusCode !== 403) throw new Error('approve bundle admitted an ordinary user: ' + ordinary.statusCode);
               if (calls.length) throw new Error('approve bundle called Cognito on a refusal: ' + calls.join());
               console.log('approve bundle loads and refuses a demo row and an ordinary caller, without calling Cognito');
+            }).catch((e) => { console.error(e); process.exit(1); });
+          "
+          # The relay holds the client secret and a stranger reaches it: both refusals land before
+          # the environment is read or Cognito is called.
+          node -e "
+            const r = require('./auth-relay.js');
+            if (typeof r.handler !== 'function') throw new Error('handler missing from auth-relay bundle');
+            const calls = [];
+            const idp = new Proxy({}, { get: (_, op) => async () => { calls.push(String(op)); return {}; } });
+            const relay = r.createRelay(idp);
+            const start = (headers, body) => ({ routeKey: 'POST /auth/start', headers, body: JSON.stringify(body) });
+            Promise.all([
+              relay(start({ 'sec-fetch-site': 'same-site' }, { USERNAME: 'a@quirenote.com', PREFERRED_CHALLENGE: 'WEB_AUTHN' })),
+              relay(start({ 'x-csrf': '1', 'sec-fetch-site': 'same-site' }, { USERNAME: 'a@quirenote.com', PREFERRED_CHALLENGE: 'PASSWORD', PASSWORD: 'p' })),
+            ]).then(([forged, password]) => {
+              if (forged.statusCode !== 403) throw new Error('auth-relay bundle admitted a request with no custom header: ' + forged.statusCode);
+              if (password.statusCode !== 400) throw new Error('auth-relay bundle admitted a plain password: ' + password.statusCode);
+              if (calls.length) throw new Error('auth-relay bundle called Cognito on a refusal: ' + calls.join());
+              console.log('auth-relay bundle loads and refuses a forged request and a plain password, without calling Cognito');
             }).catch((e) => { console.error(e); process.exit(1); });
           "
           # What matters here is the FILTER: a read that lost `ByResourceArn` answers with the

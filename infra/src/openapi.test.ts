@@ -19,6 +19,16 @@ import {
   ROUTE as APPLY_ROUTE,
 } from './applications';
 import { APPROVE_ROUTE, REJECT_ROUTE, RESPONSES as ADMIN_RESPONSES } from './approve';
+import {
+  CSRF_HEADER,
+  REFRESH_ROUTE,
+  RESPOND_BODY,
+  RESPOND_ROUTE,
+  RESPONSES as RELAY_RESPONSES,
+  SIGN_OUT_ROUTE,
+  START_BODY,
+  START_ROUTE,
+} from './auth-relay';
 import { INVALID, bodiless, derived } from './http';
 import { ANSWERS, buildSpec, responses, securityOf, servers } from './openapi';
 
@@ -139,7 +149,14 @@ describe('the document is regenerated, never typed', () => {
     // WHAT IT IMPORTS, not what it mentions, and on the stripped text: the file argues at length
     // about why it does NOT go through `export-api`, and none of that reasoning is a dependency.
     const imports = [...generator.matchAll(/from '([^']+)';/g)].map((m) => m[1]);
-    expect(imports.sort()).toEqual(['./applications', './approve', './http', 'node:fs', 'yaml']);
+    expect(imports.sort()).toEqual([
+      './applications',
+      './approve',
+      './auth-relay',
+      './http',
+      'node:fs',
+      'yaml',
+    ]);
     // And nothing shells out to the CLI, which is the other way a deployed API creeps in.
     for (const reach of ['child_process', 'execFileSync', 'fetch(']) {
       expect([reach, generator.includes(reach)]).toEqual([reach, false]);
@@ -183,7 +200,12 @@ describe('every answer a handler can give is in the document', () => {
 });
 
 /** Every route's declared answers, from the handlers that declare them. */
-const DECLARED = { ...APPLICATION_RESPONSES, ...ADMIN_RESPONSES };
+const DECLARED = { ...APPLICATION_RESPONSES, ...ADMIN_RESPONSES, ...RELAY_RESPONSES };
+
+/** THE RELAY SAYS THE HEADER IT REQUIRES: without it a generated client is refused on every call. */
+const ASKING_FOR_THE_HEADER = [
+  { name: CSRF_HEADER, in: 'header', required: true, schema: { type: 'string', enum: ['1'] } },
+];
 
 describe('each operation publishes its own route’s answers', () => {
   // THE LAST LINK. `approve.test.ts` proves each `RESPONSES` list matches what that route
@@ -202,8 +224,15 @@ describe('each operation publishes its own route’s answers', () => {
           ),
         ),
       );
+      // A BUILT ANSWER IS PUBLISHED BY ITS EXAMPLE, having no one body to parse.
       const declared = new Set(
-        answers.map((a) => `${a.statusCode} ${JSON.stringify(JSON.parse(a.body))}`),
+        answers.flatMap((a) =>
+          'body' in a
+            ? [`${a.statusCode} ${JSON.stringify(JSON.parse(a.body))}`]
+            : 'example' in a
+              ? [`${a.statusCode} ${JSON.stringify(a.example)}`]
+              : [],
+        ),
       );
       expect([route, [...published].filter((x) => !declared.has(x))]).toEqual([route, []]);
       expect([route, [...declared].filter((x) => !published.has(x))]).toEqual([route, []]);
@@ -217,7 +246,7 @@ describe('each operation publishes its own route’s answers', () => {
   // THE REQUEST HALF, which had no proof of its own. Emptying the generator's body map removed
   // `requestBody` from the document entirely and left every gate green — the same defect as the
   // response half, on the other half of the contract.
-  it('puts the body on the route that takes one, and on no other', () => {
+  it('puts the body on the routes that take one, and on no other', () => {
     const spec = buildSpec();
     const withBody = Object.entries(spec.paths)
       .flatMap(([path, ops]) =>
@@ -227,8 +256,11 @@ describe('each operation publishes its own route’s answers', () => {
         })),
       )
       .filter((o) => o.body !== undefined);
-    expect(withBody.map((o) => o.route)).toEqual([APPLY_ROUTE]);
-    expect(withBody[0].body).toEqual(REQUEST_BODY);
+    expect(withBody.map((o) => [o.route, o.body])).toEqual([
+      [APPLY_ROUTE, REQUEST_BODY],
+      [START_ROUTE, START_BODY],
+      [RESPOND_ROUTE, RESPOND_BODY],
+    ]);
   });
 
   // AND THE SCHEMA IS THE ADDRESS RULE, not a description of it: a hand-kept ceiling or
@@ -273,11 +305,14 @@ describe('every route that is published is proved, by mechanism rather than by h
   });
 });
 
-describe('the routes, the authorizer, and the one route outside it', () => {
+describe('the routes, the authorizer, and the routes outside it', () => {
   const spec = buildSpec();
+  const RELAY = [START_ROUTE, RESPOND_ROUTE, REFRESH_ROUTE, SIGN_OUT_ROUTE];
 
-  it('declares the three routes and no others', () => {
-    expect(specRoutes(spec).sort()).toEqual([APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE].sort());
+  it('declares the seven routes and no others', () => {
+    expect(specRoutes(spec).sort()).toEqual(
+      [APPLY_ROUTE, APPROVE_ROUTE, REJECT_ROUTE, ...RELAY].sort(),
+    );
   });
 
   it('declares the Cognito authorizer as the only security scheme', () => {
@@ -285,16 +320,18 @@ describe('the routes, the authorizer, and the one route outside it', () => {
   });
 
   // THE ASYMMETRY IS THE POINT, AND IT IS STATED RATHER THAN IMPLIED.
-  // `POST /v1/applications` creates the very row every other route is checked against, so it
-  // alone needs nothing — and says so with an EMPTY ARRAY, which the specification defines as
-  // removing the document's default. Omitting the field would INHERIT that default and publish
-  // the sign-up route as needing the token it exists to let somebody ask for.
-  it('opts the application route out explicitly, and names the scheme on the admin routes', () => {
+  // `POST /v1/applications` creates the very row every other route is checked against, and the
+  // relay is how a token is obtained, so they need nothing — and say so with an EMPTY ARRAY, which
+  // the specification defines as removing the document's default. Omitting the field would
+  // INHERIT that default and publish them as needing the token they exist to hand out.
+  it('opts the application and relay routes out explicitly, and names the scheme on the admin routes', () => {
     const op = (key: string) => {
       const [method, path] = key.split(' ');
       return spec.paths[path][method.toLowerCase()];
     };
-    expect(op(APPLY_ROUTE).security).toEqual([]);
+    for (const key of [APPLY_ROUTE, ...RELAY]) {
+      expect([key, op(key).security]).toEqual([key, []]);
+    }
     for (const key of [APPROVE_ROUTE, REJECT_ROUTE]) {
       expect([key, op(key).security]).toEqual([key, [{ CognitoJwt: [] }]]);
     }
@@ -327,6 +364,19 @@ describe('the routes, the authorizer, and the one route outside it', () => {
     for (const { route, security } of stated) {
       expect([route, Array.isArray(security)]).toEqual([route, true]);
     }
+  });
+
+  // THE REQUEST HALF OF THE RELAY'S CSRF DEFENCE: a route that refuses every call without a header
+  // publishes that header, or a client generated from the document is refused on every call.
+  it('asks for the custom header on the relay routes, and on no other', () => {
+    for (const key of RELAY) {
+      const [method, path] = key.split(' ');
+      expect([key, spec.paths[path][method.toLowerCase()].parameters]).toEqual([
+        key,
+        ASKING_FOR_THE_HEADER,
+      ]);
+    }
+    expect(spec.paths['/v1/applications'].post.parameters).toBeUndefined();
   });
 
   it('gives the admin routes their path parameter', () => {

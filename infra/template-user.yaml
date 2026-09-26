@@ -205,17 +205,20 @@ Resources:
     Properties:
       ClientName: !Sub quirenote-${Environment}-web
       UserPoolId: !Ref UserPool
-      GenerateSecret: false
+      # CONFIDENTIAL, SO NO SIGN-IN SKIPS THE RELAY: every call needs the secret or its hash, and
+      # only `AuthRelayFunction` can read it (RFC 10017 §6.2.3.1, *Auth model*).
+      GenerateSecret: true
       # ALLOW_USER_AUTH is choice-based sign-in, the flow a passkey is selected through; SRP is the
       # explicit spelling of a path that must keep working. NO ALLOW_REFRESH_TOKEN_AUTH, because AWS
-      # refuses it alongside rotation, and which path replaces it is open rather than picked here.
+      # refuses it alongside rotation: the relay refreshes through `GetTokensFromRefreshToken`.
       ExplicitAuthFlows: [ALLOW_USER_AUTH, ALLOW_USER_SRP_AUTH]
       # ONE DAY, AND IT ANSWERS THE THREE REFRESH REQUIREMENTS THE BROWSER BCP SINGLES
       # OUT (draft-ietf-oauth-browser-based-apps §6.3.2.3), two of them alternatives rather than
       # items on a list: rotate on each use OR sender-constrain, which Cognito does not offer;
       # cap the lifetime OR expire on inactivity; and the flat MUST NOT on a rotated token
       # outliving the original. The section binds more than those three — it also incorporates
-      # RFC 9700, whose replay question is open in `docs/reference/COGNITO-POOL-PARAMS.md`.
+      # RFC 9700, whose replay rule Cognito meets only in part
+      # (`docs/reference/COGNITO-POOL-PARAMS.md`).
       RefreshTokenValidity: 24
       AccessTokenValidity: 60
       IdTokenValidity: 60
@@ -223,9 +226,9 @@ Resources:
         RefreshToken: hours
         AccessToken: minutes
         IdToken: minutes
-      # THE GRACE PERIOD IS 60 SECONDS RATHER THAN 0, for a race the SPA creates: the access token
-      # lives in memory, so two tabs opening together submit the same refresh token and at 0 the
-      # second is signed out. 60 is the documented maximum.
+      # THE GRACE PERIOD IS 60 SECONDS, the documented maximum, so a refresh retried after a lost
+      # answer still succeeds. It does not settle two tabs racing: only the newer child lives after
+      # it and one cookie keeps whichever landed last, so the app refreshes once at a time.
       RefreshTokenRotation:
         Feature: ENABLED
         RetryGracePeriodSeconds: 60
@@ -338,10 +341,10 @@ Resources:
               - cognito-idp:AdminLinkProviderForUser
             Resource: !GetAtt UserPool.Arn
 
-  # `POST /v1/applications` STANDS OUTSIDE THE AUTHORIZER ON PURPOSE: it creates the very
-  # `app_user` row every other route is checked against (*Auth model*, one of three such
-  # surfaces). EVERY OTHER ROUTE NAMES THE AUTHORIZER and `DefaultAuthorizer` is deliberately
-  # NOT set — SAM renders an opted-out route against a scheme it never declares, and
+  # `POST /v1/applications` AND THE RELAY'S FOUR ROUTES STAND OUTSIDE THE AUTHORIZER ON PURPOSE:
+  # the first creates the very `app_user` row every other route is checked against, and the relay
+  # is how a token is obtained at all (*Auth model*). EVERY OTHER ROUTE NAMES THE AUTHORIZER and
+  # `DefaultAuthorizer` is deliberately NOT set — SAM renders an opted-out route against a scheme it never declares, and
   # `FailOnWarnings` would roll the stack back on a warning nobody can predict before a deploy.
   PublicApi:
     Type: AWS::Serverless::HttpApi
@@ -379,11 +382,26 @@ Resources:
         'POST /admin/users/{id}/reject':
           ThrottlingRateLimit: 2
           ThrottlingBurstLimit: 5
+        # The relay's four. A ceiling per route bounds its requests, not the concurrency they share.
+        'POST /auth/start':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/respond':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/refresh':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
+        'POST /auth/sign-out':
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # BOTH HOSTS PER ENVIRONMENT, or the Amplify URL fails at the preflight. THE `!If` IS ON THE
       # WHOLE BLOCK, NOT ON `AllowOrigins`, AND THE DIFFERENCE IS SILENT: given an intrinsic at
       # `AllowOrigins`, SAM keeps only that value and DROPS the methods, headers and max-age,
       # emitting a bare list where an object belongs. One level up it renames the keys inside both
-      # arms instead. The cost is three shared lines twice; `public-api.test.ts` holds both.
+      # arms instead. The cost is four shared lines twice; `public-api.test.ts` holds both.
+      # CREDENTIALS FOR THE RELAY'S COOKIE, which crosses origins but not sites. An Amplify host is
+      # another site, so the relay refuses it by `Sec-Fetch-Site` and the cookie never reaches it.
       CorsConfiguration: !If
         - IsProd
         - AllowOrigins:
@@ -393,11 +411,13 @@ Resources:
               https://main.d17m4jf400my6.amplifyapp.com,
             ]
           AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [authorization, content-type]
+          AllowHeaders: [authorization, content-type, x-csrf]
+          AllowCredentials: true
           MaxAge: 600
         - AllowOrigins: [https://dev.quirenote.com, https://dev.d17m4jf400my6.amplifyapp.com]
           AllowMethods: [POST, OPTIONS]
-          AllowHeaders: [authorization, content-type]
+          AllowHeaders: [authorization, content-type, x-csrf]
+          AllowCredentials: true
           MaxAge: 600
       Domain:
         DomainName: !If [IsProd, api.quirenote.com, api.dev.quirenote.com]
@@ -437,9 +457,9 @@ Resources:
             ApiId: !Ref PublicApi
             Method: POST
             Path: /v1/applications
-            # NO `Auth` BLOCK, AND THAT IS THE ONE PLACE IN THIS FILE WHERE ABSENCE IS THE DECISION: this
-            # endpoint creates the row every other route is checked against, so there is nothing to check
-            # it with. `public-api.test.ts` names it as the only route allowed to be here.
+            # NO `Auth` BLOCK, AND ABSENCE IS THE DECISION, as on the relay's four: this endpoint creates
+            # the row every other route is checked against, so there is nothing to check it with.
+            # `public-api.test.ts` names these five as the only routes allowed to be here.
 
   ApplicationsLogGroup:
     Type: AWS::Logs::LogGroup
@@ -510,6 +530,65 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /aws/lambda/${ApproveFunction}
+      RetentionInDays: 30
+
+  # THE ONE HOLDER OF THE CLIENT SECRET: its callers hold no token yet, so the custom header and
+  # `Sec-Fetch-Site` guard it instead (*Auth model*). No cluster: it reads no rows.
+  AuthRelayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: auth-relay.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 256
+      Tracing: Active
+      Timeout: 5
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          USER_POOL_ID: !Ref UserPool
+          # THE CLIENT, NEVER ITS SECRET: that is read from Cognito and cached per environment, so no
+          # copy exists to drift and nothing in the function's configuration can show it.
+          USER_POOL_CLIENT_ID: !Ref UserPoolClient
+      Policies:
+        - Statement:
+            # ONE READ, AND IT IS POOL-WIDE — any client in the pool can be described, the accepted
+            # cost of storing the secret nowhere. The four sign-in calls themselves need no grant.
+            - Sid: ReadTheClientSecret
+              Effect: Allow
+              Action: cognito-idp:DescribeUserPoolClient
+              Resource: !GetAtt UserPool.Arn
+      Events:
+        Start:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/start
+        Respond:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/respond
+        Refresh:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/refresh
+        SignOut:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PublicApi
+            Method: POST
+            Path: /auth/sign-out
+
+  AuthRelayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AuthRelayFunction}
       RetentionInDays: 30
 
   # THE OTHER HALF OF THE TAG DECISION ON `UserCluster`. Both existing checks read the ARCHIVE

@@ -13,6 +13,9 @@ export type ApiEvent = {
   /** LOWER-CASED BY API GATEWAY, and a header sent twice arrives once, its values comma-joined. A
    *  list header is read through `headerValues`; one whose value holds a comma, a date, is not. */
   headers?: Record<string, string | undefined>;
+  /** Payload 2.0 takes every `Cookie` header out of `headers` and delivers it here, `name=value`
+   *  apiece. */
+  cookies?: string[];
   requestContext?: {
     /** What the NATIVE JWT authorizer passes through: AWS validates signature, issuer, audience
      *  and expiry. A claim is text or a list of it, and nothing trusts one to be anything else. */
@@ -23,6 +26,8 @@ export type ApiEvent = {
 export type ApiResult = {
   statusCode: number;
   headers: Record<string, string>;
+  /** Payload 2.0's own list, "each cookie becomes a set-cookie header". ABSENT when there is none. */
+  cookies?: readonly string[];
   body: string;
 };
 
@@ -136,12 +141,16 @@ export const respond = <H extends Lowercase<string>>(
   body: string,
 ): ApiResult => {
   made(declared);
+  // A DECLARED `set-cookie` LEAVES THROUGH `cookies`, the channel AWS documents for it; the
+  // declaration still names the header, which is what a client receives and the document shows.
+  const { 'set-cookie': cookie, ...sent } = carried(declared.headers, headers) as Record<
+    string,
+    string
+  >;
   const result: ApiResult = Object.freeze({
     statusCode: declared.statusCode,
-    headers: Object.freeze({
-      'content-type': 'application/json',
-      ...carried(declared.headers, headers),
-    }),
+    headers: Object.freeze({ 'content-type': 'application/json', ...sent }),
+    ...(cookie === undefined ? {} : { cookies: Object.freeze([cookie]) }),
     body,
   });
   DECLARATIONS.set(result, declared);
