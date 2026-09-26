@@ -319,6 +319,13 @@ const cookieIn = (event: ApiEvent, name: string): string | undefined => {
   return value ? value : undefined;
 };
 
+/** Every refresh token a request carries, the original first; a token both cookies hold, once. */
+const carried = (event: ApiEvent): string[] => [
+  ...new Set(
+    [cookieIn(event, ORIGIN), cookieIn(event, COOKIE)].filter((token) => token !== undefined),
+  ),
+];
+
 /** Cognito's hash over the USERNAME the same call carries: "any user pool sign-in attribute". */
 const hashOf = (secret: string, username: string, client: string) =>
   createHmac('sha256', secret)
@@ -449,6 +456,16 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
     }
   };
 
+  /** EACH IN TURN, so a secret one call re-read serves the next; every token is tried whatever
+   *  the others answer, and what failed is returned for the route to weigh. */
+  const revokeEach = async (ids: Ids, tokens: readonly string[]): Promise<unknown[]> => {
+    const failed: unknown[] = [];
+    for (const token of tokens) {
+      await revoke(ids, token).catch((err: unknown) => failed.push(err));
+    }
+    return failed;
+  };
+
   const start = async (event: ApiEvent): Promise<ApiResult> => {
     const parameters = startOf(event);
     if (parameters === undefined) return INVALID;
@@ -493,13 +510,12 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
       );
       if (answered.AuthenticationResult === undefined) return challenged(answered);
       const signedIn = issued(answered.AuthenticationResult, 'sign-in');
-      // A SIGN-IN ENDS THE FAMILY THIS BROWSER STILL CARRIES, which an idle expiry does not end. A
-      // revocation that errors costs no sign-in: that family is capped by its own lifetime.
-      const earlier = cookieIn(event, ORIGIN);
-      if (signedIn.statusCode === 200 && earlier !== undefined) {
-        await revoke(ids, earlier).catch((err: unknown) => {
-          console.error('auth-relay: revoking the earlier family failed', err);
-        });
+      // A SIGN-IN REVOKES EVERY TOKEN THIS BROWSER STILL CARRIES, whose family an idle expiry does
+      // not end. A revocation that errors costs no sign-in: that family is capped by its own lifetime.
+      if (signedIn.statusCode === 200) {
+        for (const err of await revokeEach(ids, carried(event))) {
+          console.error('auth-relay: revoking the earlier session failed', err);
+        }
       }
       return signedIn;
     } catch (err) {
@@ -546,20 +562,16 @@ export const createRelay = (idp: IdentityClient, now: () => number = Date.now) =
   };
 
   const signOut = async (event: ApiEvent): Promise<ApiResult> => {
-    // THE ORIGINAL BEFORE THE COOKIE'S TOKEN: after a fork inside the window the cookie may hold the
-    // dead sibling, and revoking that leaves the other branch refreshing (measured).
-    const token = cookieIn(event, ORIGIN) ?? cookieIn(event, COOKIE);
-    if (token === undefined) return signedOut();
+    // BOTH COOKIES' TOKENS, because they can belong to two families — a refresh answering after a
+    // sign-in overwrites one — and Cognito revokes a family, never the browser.
+    const tokens = carried(event);
+    if (tokens.length === 0) return signedOut();
     const ids = idsOf();
     if (ids === undefined) return INTERNAL;
-    try {
-      await revoke(ids, token);
-    } catch (err) {
-      // KEPT SO A RETRY CAN STILL REVOKE IT: a forgotten live token stays usable wherever it went.
-      console.error('auth-relay: sign-out failed', err);
-      return INTERNAL;
-    }
-    return signedOut();
+    const failed = await revokeEach(ids, tokens);
+    // KEPT SO A RETRY CAN STILL REVOKE THEM: a forgotten live token stays usable wherever it went.
+    for (const err of failed) console.error('auth-relay: sign-out failed', err);
+    return failed.length === 0 ? signedOut() : INTERNAL;
   };
 
   return async (event: ApiEvent): Promise<ApiResult> => {

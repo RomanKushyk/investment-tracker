@@ -302,9 +302,13 @@ succeeds and forks the family, so the app refreshes once at a time across tabs. 
 FAMILY'S ORIGINAL, to revoke on a replay that arrives with it: only the live token or the sign-in's
 own ends every branch when revoked, and the relay cannot know which branch is live. A second
 `__Host-Http-` cookie holds it, set at sign-in and never re-set; a replay revokes the original sent
-beside it, and so does a sign-out, in place of the refresh cookie's token, which after a fork may be
-the dead sibling. Cognito has no inactivity expiry, so the idle timeout is the refresh cookie's
-`Max-Age`, re-set on every refresh — a UX bound and not a security boundary. The original's cookie
+beside it. SIGN-OUT AND A COMPLETED SIGN-IN REVOKE BOTH COOKIES' TOKENS, a token both hold once:
+the two can belong to two families — a refresh answering after a new sign-in overwrites one —
+Cognito revokes a family and never the browser, and a token forgotten unrevoked refreshes until its
+family's lifetime ends, while revoking a dead one costs a call (RFC 7009 §2.2). A sign-out that
+cannot revoke one keeps both cookies for its retry; a sign-in completes regardless, the old family
+capped by its own lifetime. Cognito has no inactivity expiry, so the idle timeout is the refresh
+cookie's `Max-Age`, re-set on every refresh — a UX bound and not a security boundary. The original's cookie
 lives as long as the family can instead — each rotated token is valid "for the remaining
 duration of the original refresh token" it replaced, AWS says — so a live family whose session
 idled out still has its original in the browser, and the next sign-in there revokes it.
