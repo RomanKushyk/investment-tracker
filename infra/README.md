@@ -93,9 +93,11 @@ signed in, **AWS CloudShell** among them. The two sign-in calls themselves need 
 
 ```bash
 export AWS_DEFAULT_REGION=eu-north-1 STACK=quirenote-backend-user-dev USERNAME=owner@quirenote.com
-out() { aws cloudformation describe-stacks --stack-name "$STACK" --output text   --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue"; }
+out() { aws cloudformation describe-stacks --stack-name "$STACK" --output text \
+  --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue"; }
 export POOL=$(out UserPoolId) CLIENT=$(out UserPoolClientId) && unset SESSION
-export SECRET=$(aws cognito-idp describe-user-pool-client --user-pool-id "$POOL"   --client-id "$CLIENT" --query UserPoolClient.ClientSecret --output text)
+export SECRET=$(aws cognito-idp describe-user-pool-client --user-pool-id "$POOL" \
+  --client-id "$CLIENT" --query UserPoolClient.ClientSecret --output text)
 read -rsp 'Password: ' PASSWORD && export PASSWORD && echo
 # Each request is built from the environment, so the secret and the password are never typed.
 call() { node -e '
@@ -106,7 +108,8 @@ call() { node -e '
         ChallengeResponses: { USERNAME: e.USERNAME, ANSWER: "PASSWORD", PASSWORD: e.PASSWORD, SECRET_HASH: hash } }
     : { ClientId: e.CLIENT, AuthFlow: "USER_AUTH", AuthParameters: { USERNAME: e.USERNAME, SECRET_HASH: hash } }));'; }
 export SESSION=$(aws cognito-idp initiate-auth --cli-input-json "$(call)" --query Session --output text)
-TOKEN=$(aws cognito-idp respond-to-auth-challenge --cli-input-json "$(call)"   --query AuthenticationResult.IdToken --output text)
+TOKEN=$(aws cognito-idp respond-to-auth-challenge --cli-input-json "$(call)" \
+  --query AuthenticationResult.IdToken --output text)
 ```
 
 Then `curl -X POST -H "authorization: Bearer $TOKEN" https://api.dev.quirenote.com/admin/users/<id>/approve`.
